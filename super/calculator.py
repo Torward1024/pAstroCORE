@@ -1,64 +1,84 @@
 # super/calculator.py
-from abc import ABC, abstractmethod
+from abc import ABC
 from base.observation import Observation
-import numpy as np
+from base.telescopes import Telescope, SpaceTelescope
+from base.sources import Source
+from base.scans import Scans
+from utils.validation import check_type
 from utils.logging_setup import logger
+import numpy as np
+from datetime import datetime
 
 class Calculator(ABC):
     def __init__(self):
-        self._cache = {}
         logger.info("Initialized Calculator")
 
-    @abstractmethod
-    def calculate(self, observation: Observation) -> dict:
-        pass
-
-    def calculate_molweide_tracks(self, observation: Observation) -> dict:
-        logger.info(f"Calculated Molweide tracks for observation '{observation.observation_code}' (placeholder)")
-        return {"tracks": []}
-
-    def calculate_uv_coverage(self, observation: Observation) -> dict:
-        logger.info(f"Calculated u,v coverage for observation '{observation.observation_code}' (placeholder)")
-        return {"uv": []}
-
-    def calculate_source_visibility(self, observation: Observation, telescope_code: str, source_name: str) -> bool:
-        if not isinstance(observation, Observation):
-            logger.error("Invalid observation type provided")
-            raise TypeError("observation must be an Observation instance!")
+    def calculate_source_visibility(self, observation: Observation, time: float) -> Dict[str, bool]:
+        """Calculate visibility of the source for each telescope at a given time with caching."""
+        check_type(observation, Observation, "Observation")
+        check_type(time, (int, float), "Time")
+        key = f"visibility_at_{time}"
+        cached_result = observation.get_calculated_data(key)
+        if cached_result is not None:
+            return cached_result
         
-        cache_key = f"visibility_{observation.observation_code}_{telescope_code}_{source_name}"
-        if cache_key in self._cache:
-            logger.info(f"Retrieved cached visibility result for '{cache_key}'")
-            return self._cache[cache_key]
+        scans = observation.get_scans()
+        result = scans.check_telescope_availability(time)
+        observation.set_calculated_data(key, result)
+        return result
 
-        telescope = next((t for t in observation.telescopes.get_all_telescopes() if t.code == telescope_code), None)
-        source = next((s for s in observation.sources.get_all_sources() if s.name == source_name or s.name_J2000 == source_name), None)
+    def calculate_uv_coverage(self, observation: Observation) -> np.ndarray:
+        """Calculate (u,v) coverage for a VLBI observation with caching."""
+        check_type(observation, Observation, "Observation")
+        if observation.get_observation_type() != "VLBI":
+            raise ValueError("UV coverage is only applicable to VLBI observations")
         
-        if not telescope or not source:
-            logger.error(f"Telescope '{telescope_code}' or source '{source_name}' not found in observation")
-            raise ValueError(f"Telescope '{telescope_code}' or source '{source_name}' not found in observation!")
+        cached_uv = observation.get_calculated_data("uv_coverage")
+        if cached_uv is not None:
+            return np.array(cached_uv)
         
-        ra_rad = np.radians(source.get_ra_degrees())
-        dec_rad = np.radians(source.get_dec_degrees())
-        tel_pos = np.array([telescope.x, telescope.y, telescope.z]) / 1000  # Convert to km
+        active_tels = observation.get_telescopes().get_active_telescopes()
+        if len(active_tels) < 2:
+            raise ValueError("UV coverage requires at least 2 active telescopes")
         
-        for scan in observation.scans.get_all_scans():
-            if scan.source.name != source_name and scan.source.name_J2000 != source_name:
+        active_scans = observation.get_scans().get_active_scans()
+        if not active_scans:
+            raise ValueError("No active scans to calculate UV coverage")
+        
+        uv_points = []
+        for scan in active_scans:
+            if scan.is_off_source:
                 continue
+            source = scan.get_source()
+            ra_rad = np.radians(source.get_ra_degrees())
+            dec_rad = np.radians(source.get_dec_degrees())
+            start_time = scan.get_start()
+            duration = scan.get_duration()
+            time_steps = np.linspace(start_time, start_time + duration, 10)
             
-            gmst = (scan.get_start() / 86400.0 * 360.0 + 280.46061837) % 360  # Rough GMST in degrees
-            lst = gmst + np.degrees(np.arctan2(tel_pos[1], tel_pos[0]))  # LST in degrees
-            ha = np.radians(lst - source.get_ra_degrees())
-            
-            sin_alt = (np.sin(dec_rad) * np.sin(np.arctan2(tel_pos[2], np.sqrt(tel_pos[0]**2 + tel_pos[1]**2))) +
-                       np.cos(dec_rad) * np.cos(ha) * np.cos(np.arctan2(tel_pos[2], np.sqrt(tel_pos[0]**2 + tel_pos[1]**2))))
-            alt = np.arcsin(sin_alt)
-            
-            if alt > 0:
-                self._cache[cache_key] = True
-                logger.info(f"Source '{source_name}' is visible from telescope '{telescope_code}' in observation '{observation.observation_code}'")
-                return True
+            for t in time_steps:
+                dt = datetime.fromtimestamp(t)
+                positions = []
+                for tel in active_tels:
+                    if isinstance(tel, SpaceTelescope):
+                        pos, _ = tel.get_position_at_time(dt)
+                    else:
+                        pos = np.array(tel.get_telescope_coordinates())
+                    positions.append(pos)
+                
+                lst = (t / 86164.0905 * 360 + 280.46061837) % 360
+                ha = np.radians(lst - source.get_ra_degrees())
+                H = ha
+                for i in range(len(positions)):
+                    for j in range(i + 1, len(positions)):
+                        baseline = positions[i] - positions[j]
+                        u = baseline[0] * np.sin(H) + baseline[1] * np.cos(H)
+                        v = (-baseline[0] * np.sin(dec_rad) * np.cos(H) + 
+                             baseline[1] * np.sin(dec_rad) * np.sin(H) + 
+                             baseline[2] * np.cos(dec_rad))
+                        uv_points.append([u, v])
         
-        self._cache[cache_key] = False
-        logger.info(f"Source '{source_name}' is not visible from telescope '{telescope_code}' in observation '{observation.observation_code}'")
-        return False
+        uv_array = np.array(uv_points)
+        observation.set_calculated_data("uv_coverage", uv_array.tolist())
+        logger.info(f"Calculated and cached {len(uv_array)} UV points for observation '{observation.get_observation_code()}'")
+        return uv_array

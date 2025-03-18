@@ -9,7 +9,7 @@ from utils.logging_setup import logger
 from datetime import datetime
 import json
 import re
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 class Observation(BaseEntity):
     def __init__(self, observation_code: str = "OBS_DEFAULT", sources: Sources = None,
@@ -35,6 +35,7 @@ class Observation(BaseEntity):
         self._telescopes = telescopes if telescopes is not None else Telescopes()
         self._frequencies = frequencies if frequencies is not None else Frequencies()
         self._scans = scans if scans is not None else Scans()
+        self._calculated_data: Dict[str, Any] = {}  # Хранилище для результатов Calculator
         logger.info(f"Initialized Observation '{observation_code}' with type '{observation_type}'")
 
     def set_observation(self, observation_code: str, sources: Sources = None,
@@ -60,6 +61,7 @@ class Observation(BaseEntity):
         self._frequencies = frequencies if frequencies is not None else Frequencies()
         self._scans = scans if scans is not None else Scans()
         self.isactive = isactive
+        self._calculated_data.clear()  # Очищаем результаты при полной переустановке параметров
         logger.info(f"Set observation '{observation_code}' with type '{observation_type}'")
 
     def set_observation_code(self, observation_code: str) -> None:
@@ -72,25 +74,40 @@ class Observation(BaseEntity):
         """Set observation sources."""
         check_type(sources, Sources, "Sources")
         self._sources = sources
+        self._calculated_data.clear()  # Очищаем результаты, так как данные изменились
         logger.info(f"Set sources for observation '{self._observation_code}'")
 
     def set_telescopes(self, telescopes: Telescopes) -> None:
         """Set observation telescopes."""
         check_type(telescopes, Telescopes, "Telescopes")
         self._telescopes = telescopes
+        self._calculated_data.clear()  # Очищаем результаты, так как данные изменились
         logger.info(f"Set telescopes for observation '{self._observation_code}'")
 
     def set_frequencies(self, frequencies: Frequencies) -> None:
         """Set observation frequencies with polarizations."""
         check_type(frequencies, Frequencies, "Frequencies")
         self._frequencies = frequencies
+        self._calculated_data.clear()  # Очищаем результаты, так как данные изменились
         logger.info(f"Set frequencies with polarizations for observation '{self._observation_code}'")
 
     def set_scans(self, scans: Scans) -> None:
         """Set observation scans."""
         check_type(scans, Scans, "Scans")
         self._scans = scans
+        self._calculated_data.clear()  # Очищаем результаты, так как данные изменились
         logger.info(f"Set scans for observation '{self._observation_code}'")
+
+    def set_calculated_data(self, key: str, data: Any) -> None:
+        """Save calculated data for this observation."""
+        check_non_empty_string(key, "Key")
+        self._calculated_data[key] = data
+        logger.info(f"Stored calculated data '{key}' for observation '{self._observation_code}'")
+
+    def get_calculated_data(self, key: str) -> Any:
+        """Retrieve calculated data by key."""
+        check_non_empty_string(key, "Key")
+        return self._calculated_data.get(key)
 
     def get_observation_code(self) -> str:
         """Get observation code."""
@@ -194,14 +211,14 @@ class Observation(BaseEntity):
             "telescopes": self._telescopes.to_dict(),
             "frequencies": self._frequencies.to_dict(),
             "scans": self._scans.to_dict(),
-            "isactive": self.isactive
+            "isactive": self.isactive,
+            "calculated_data": self._calculated_data  # Добавляем результаты вычислений
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
         """Create an Observation object from a dictionary."""
-        logger.info(f"Created observation '{data['observation_code']}' from dictionary")
-        return cls(
+        obs = cls(
             observation_code=data["observation_code"],
             sources=Sources.from_dict(data["sources"]),
             telescopes=Telescopes.from_dict(data["telescopes"]),
@@ -210,328 +227,13 @@ class Observation(BaseEntity):
             observation_type=data["observation_type"],
             isactive=data["isactive"]
         )
+        obs._calculated_data = data.get("calculated_data", {})  # Загружаем результаты вычислений
+        logger.info(f"Created observation '{data['observation_code']}' from dictionary")
+        return obs
 
     def __repr__(self) -> str:
         """Return a string representation of Observation."""
         return (f"Observation(code='{self._observation_code}', sources={self._sources}, "
                 f"telescopes={self._telescopes}, frequencies={self._frequencies}, "
-                f"scans={self._scans}, isactive={self.isactive})")
-
-class Project(BaseEntity):
-    def __init__(self, project_name: str = "PROJECT_DEFAULT", observations: list[Observation] = None):
-        """Initialize a Project object.
-
-        Args:
-            project_name (str): Project name.
-            observations (list[Observation], optional): List of observations.
-        """
-        super().__init__()
-        check_type(project_name, str, "Project name")
-        if observations is not None:
-            check_type(observations, (list, tuple), "Observations")
-            for obs in observations:
-                check_type(obs, Observation, "Observation")
-        self._project_name = project_name
-        self._observations = observations if observations is not None else []
-        logger.info(f"Initialized Project '{project_name}' with {len(self._observations)} observations")
-
-    def set_project_name(self, project_name: str) -> None:
-        """Set project name."""
-        check_type(project_name, str, "Project name")
-        self._project_name = project_name
-        logger.info(f"Set project name to '{project_name}'")
-
-    def get_project_name(self) -> str:
-        """Get project name."""
-        return self._project_name
-
-    def get_observations(self) -> list[Observation]:
-        """Get all observations."""
-        return self._observations
-
-    def get_observation(self, obs_code: str) -> Observation:
-        """Get observation by code."""
-        for obs in self._observations:
-            if obs.get_observation_code() == obs_code:
-                return obs
-        logger.error(f"No observation found with code '{obs_code}'")
-        raise ValueError(f"No observation found with code '{obs_code}'")
-
-    def save_project(self, filename: str) -> None:
-        """Save project to a JSON file."""
-        check_type(filename, str, "Filename")
-        try:
-            project_dict = {
-                "project_name": self._project_name,
-                "observations": [obs.to_dict() for obs in self._observations]
-            }
-            with open(filename, 'w') as f:
-                json.dump(project_dict, f, indent=4)
-            logger.info(f"Saved project '{self._project_name}' to '{filename}'")
-        except TypeError as e:
-            logger.error(f"Serialization error while saving project '{self._project_name}': {str(e)}")
-            raise TypeError(f"Failed to serialize project: {str(e)}")
-        except IOError as e:
-            logger.error(f"IO error while saving project '{self._project_name}' to '{filename}': {str(e)}")
-            raise IOError(f"Failed to save project to '{filename}': {str(e)}")
-        except Exception as e:
-            logger.error(f"Unexpected error while saving project '{self._project_name}': {str(e)}")
-            raise Exception(f"Unexpected error: {str(e)}")
-
-    def load_project(self, filename: str) -> None:
-        """Load project from a JSON file."""
-        check_type(filename, str, "Filename")
-        try:
-            with open(filename, 'r') as f:
-                project_dict = json.load(f)
-            self._project_name = project_dict["project_name"]
-            self._observations = [Observation.from_dict(obs_dict) for obs_dict in project_dict["observations"]]
-            logger.info(f"Loaded project '{self._project_name}' from '{filename}' with {len(self._observations)} observations")
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decoding error while loading project from '{filename}': {str(e)}")
-            raise ValueError(f"Invalid JSON format in '{filename}': {str(e)}")
-        except IOError as e:
-            logger.error(f"IO error while loading project from '{filename}': {str(e)}")
-            raise IOError(f"Failed to load project from '{filename}': {str(e)}")
-        except KeyError as e:
-            logger.error(f"Missing key in project data from '{filename}': {str(e)}")
-            raise ValueError(f"Invalid project data in '{filename}': missing {str(e)}")
-        except Exception as e:
-            logger.error(f"Unexpected error while loading project from '{filename}': {str(e)}")
-            raise Exception(f"Unexpected error: {str(e)}")
-
-    def to_dict(self) -> dict:
-        """Convert Project object to a dictionary for serialization."""
-        logger.info(f"Converted project '{self._project_name}' to dictionary")
-        return {
-            "project_name": self._project_name,
-            "observations": [obs.to_dict() for obs in self._observations]
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Project':
-        """Create a Project object from a dictionary."""
-        logger.info(f"Created project '{data['project_name']}' from dictionary")
-        return cls(
-            project_name=data["project_name"],
-            observations=[Observation.from_dict(obs_data) for obs_data in data["observations"]]
-        )
-
-    def __len__(self) -> int:
-        """Return the number of observations."""
-        return len(self._observations)
-
-    def __repr__(self) -> str:
-        """Return a string representation of Project."""
-        return f"Project(name='{self._project_name}', observations={len(self._observations)})"
-
-class CatalogManager:
-    """Класс для управления каталогами источников и телескопов в текстовом формате."""
-
-    def __init__(self, source_file: Optional[str] = None, telescope_file: Optional[str] = None):
-        """Инициализация менеджера каталогов.
-
-        Args:
-            source_file (str, optional): Путь к файлу каталога источников.
-            telescope_file (str, optional): Путь к файлу каталога телескопов.
-        """
-        check_type(source_file, str, "source_file", allow_none=True)
-        check_type(telescope_file, str, "telescope_file", allow_none=True)
-        self.source_catalog = Sources()
-        self.telescope_catalog = Telescopes()
-
-        if source_file:
-            self.load_source_catalog(source_file)
-        if telescope_file:
-            self.load_telescope_catalog(telescope_file)
-        logger.info("Initialized CatalogManager")
-
-    # --- Методы для работы с каталогом источников ---
-
-    def load_source_catalog(self, source_file: str) -> None:
-        """Загрузка каталога источников из текстового файла.
-
-        Формат: b1950_name j2000_name alt_name ra_hh:mm:ss.ssss dec_dd:mm:ss.ssss
-
-        Args:
-            source_file (str): Путь к файлу каталога источников.
-
-        Raises:
-            FileNotFoundError: Если файл не найден.
-            ValueError: Если данные в файле некорректны.
-        """
-        check_non_empty_string(source_file, "source_file")
-        sources = []
-        try:
-            with open(source_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    parts = re.split(r'\s+', line)
-                    if len(parts) < 5:
-                        logger.error(f"Invalid source format in line: {line}")
-                        raise ValueError(f"Invalid source format in line: {line}")
-
-                    b1950_name = parts[0]
-                    j2000_name = parts[1] if parts[1] != "ALT_NAME" else None
-                    alt_name = parts[2] if parts[2] != "ALT_NAME" else None
-                    ra_str, dec_str = parts[-2], parts[-1]
-
-                    # Парсим RA (hh:mm:ss.ssss)
-                    ra_match = re.match(r'(\d{2}):(\d{2}):(\d{2}\.\d+)', ra_str)
-                    if not ra_match:
-                        logger.error(f"Invalid RA format: {ra_str}")
-                        raise ValueError(f"Invalid RA format: {ra_str}")
-                    ra_h, ra_m, ra_s = map(float, ra_match.groups())
-
-                    # Парсим DEC (±dd:mm:ss.ssss)
-                    dec_match = re.match(r'([-+])?(\d{2}):(\d{2}):(\d{2}\.\d+)', dec_str)
-                    if not dec_match:
-                        logger.error(f"Invalid DEC format: {dec_str}")
-                        raise ValueError(f"Invalid DEC format: {dec_str}")
-                    sign, de_d, de_m, de_s = dec_match.groups()
-                    de_d = float(de_d) if sign != '-' else -float(de_d)
-                    de_m, de_s = float(de_m), float(de_s)
-
-                    source = Source(
-                        name=b1950_name,
-                        ra_h=ra_h, ra_m=ra_m, ra_s=ra_s,
-                        de_d=de_d, de_m=de_m, de_s=de_s,
-                        name_J2000=j2000_name,
-                        alt_name=alt_name
-                    )
-                    sources.append(source)
-            self.source_catalog.clear()  # Очищаем перед загрузкой нового каталога
-            for source in sources:
-                self.source_catalog.add_source(source)  # Используем метод add_source с проверкой дубликатов
-            logger.info(f"Loaded {len(sources)} sources from '{source_file}'")
-        except FileNotFoundError:
-            logger.error(f"Source catalog file '{source_file}' not found")
-            raise FileNotFoundError(f"Source catalog file '{source_file}' not found")
-        except ValueError as e:
-            logger.error(f"Error parsing source catalog: {str(e)}")
-            raise ValueError(f"Error parsing source catalog: {e}")
-
-    def get_source(self, name: str) -> Optional[Source]:
-        """Получить источник по имени (B1950, J2000 или альтернативное имя)."""
-        check_non_empty_string(name, "name")
-        for source in self.source_catalog.get_all_sources():
-            if (source.get_name() == name or 
-                (source.get_name_J2000() and source.get_name_J2000() == name) or 
-                (source.get_alt_name() and source.get_alt_name() == name)):
-                return source
-        return None
-
-    def get_sources_by_ra_range(self, ra_min: float, ra_max: float) -> List[Source]:
-        """Получить список источников в заданном диапазоне прямого восхождения (RA) в градусах."""
-        check_type(ra_min, (int, float), "ra_min")
-        check_type(ra_max, (int, float), "ra_max")
-        return [s for s in self.source_catalog.get_all_sources() 
-                if ra_min <= s.get_ra_degrees() <= ra_max]
-
-    def get_sources_by_dec_range(self, dec_min: float, dec_max: float) -> List[Source]:
-        """Получить список источников в заданном диапазоне склонения (DEC) в градусах."""
-        check_type(dec_min, (int, float), "dec_min")
-        check_type(dec_max, (int, float), "dec_max")
-        return [s for s in self.source_catalog.get_all_sources() 
-                if dec_min <= s.get_dec_degrees() <= dec_max]
-
-    # --- Методы для работы с каталогом телескопов ---
-
-    def load_telescope_catalog(self, telescope_file: str) -> None:
-        """Загрузка каталога телескопов из текстового файла.
-
-        Формат: number short_name full_name x y z [vx vy vz] [orbit_file]
-
-        Args:
-            telescope_file (str): Путь к файлу каталога телескопов.
-
-        Raises:
-            FileNotFoundError: Если файл не найден.
-            ValueError: Если данные в файле некорректны.
-        """
-        check_non_empty_string(telescope_file, "telescope_file")
-        telescopes = []
-        try:
-            with open(telescope_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    parts = re.split(r'\s+', line)
-                    if len(parts) < 6:
-                        logger.error(f"Invalid telescope format in line: {line}")
-                        raise ValueError(f"Invalid telescope format in line: {line}")
-
-                    number, short_name, full_name = parts[0], parts[1], parts[2]
-                    x, y, z = map(float, parts[3:6])
-                    vx, vy, vz = 0.0, 0.0, 0.0
-                    orbit_file = None
-
-                    # Проверяем, есть ли дополнительные параметры (скорости или орбитальный файл)
-                    if len(parts) >= 9:
-                        try:
-                            vx, vy, vz = map(float, parts[6:9])
-                        except ValueError:
-                            # Если не удалось распарсить скорости, считаем это орбитальным файлом
-                            orbit_file = parts[6]
-
-                    if orbit_file:
-                        telescope = SpaceTelescope(
-                            code=short_name,
-                            name=full_name,
-                            orbit_file=orbit_file,
-                            isactive=True
-                        )
-                    else:
-                        telescope = Telescope(
-                            code=short_name,
-                            name=full_name,
-                            x=x, y=y, z=z,
-                            vx=vx, vy=vy, vz=vz,
-                            isactive=True
-                        )
-                    telescopes.append(telescope)
-            self.telescope_catalog.clear()  # Очищаем перед загрузкой нового каталога
-            for telescope in telescopes:
-                self.telescope_catalog.add_telescope(telescope)  # Используем метод add_telescope с проверкой дубликатов
-            logger.info(f"Loaded {len(telescopes)} telescopes from '{telescope_file}'")
-        except FileNotFoundError:
-            logger.error(f"Telescope catalog file '{telescope_file}' not found")
-            raise FileNotFoundError(f"Telescope catalog file '{telescope_file}' not found")
-        except ValueError as e:
-            logger.error(f"Error parsing telescope catalog: {str(e)}")
-            raise ValueError(f"Error parsing telescope catalog: {e}")
-
-    def get_telescope(self, code: str) -> Optional[Telescope | SpaceTelescope]:
-        """Получить телескоп по коду."""
-        check_non_empty_string(code, "code")
-        for telescope in self.telescope_catalog.get_all_telescopes():
-            if telescope.get_telescope_code() == code:
-                return telescope
-        return None
-
-    def get_telescopes_by_type(self, telescope_type: str = "Telescope") -> List[Telescope | SpaceTelescope]:
-        """Получить список телескопов заданного типа."""
-        check_non_empty_string(telescope_type, "telescope_type")
-        if telescope_type == "Telescope":
-            return [t for t in self.telescope_catalog.get_all_telescopes() if isinstance(t, Telescope) and not isinstance(t, SpaceTelescope)]
-        elif telescope_type == "SpaceTelescope":
-            return [t for t in self.telescope_catalog.get_all_telescopes() if isinstance(t, SpaceTelescope)]
-        else:
-            logger.error(f"Unknown telescope type: {telescope_type}")
-            raise ValueError(f"Unknown telescope type: {telescope_type}")
-
-    # --- Общие методы ---
-
-    def clear_catalogs(self) -> None:
-        """Очистить оба каталога."""
-        self.source_catalog.clear()
-        self.telescope_catalog.clear()
-        logger.info("Cleared both source and telescope catalogs")
-
-    def __repr__(self) -> str:
-        """Строковое представление CatalogManager."""
-        return (f"CatalogManager(sources={len(self.source_catalog)}, "
-                f"telescopes={len(self.telescope_catalog)})")
+                f"scans={self._scans}, isactive={self.isactive}, "
+                f"calculated_data={len(self._calculated_data)} items)")
