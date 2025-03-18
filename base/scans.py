@@ -29,7 +29,7 @@ class Scan(BaseEntity):
             duration (float): Scan duration in seconds.
             source (Source, optional): Observed source object (None for OFF SOURCE).
             telescopes (Telescopes, optional): List of participating telescopes.
-            frequencies (Frequencies, optional): List of observed frequencies.
+            frequencies (Frequencies, optional): List of observed frequencies with polarizations.
             is_off_source (bool): Whether this is an OFF SOURCE scan (default: False).
             isactive (bool): Whether the scan is active (default: True).
         """
@@ -51,6 +51,28 @@ class Scan(BaseEntity):
         self.is_off_source = is_off_source
         source_str = "OFF SOURCE" if is_off_source else (f"source '{source.get_name()}'" if source else "no source")
         logger.info(f"Initialized Scan with start={start}, duration={duration}, {source_str}")
+
+    def validate_frequencies_and_sefd(self) -> bool:
+        """Validate that all telescopes have SEFD defined for the scan's frequencies."""
+        active_freqs = self._frequencies.get_active_frequencies()
+        if not active_freqs:
+            logger.warning(f"Scan with start={self._start} has no active frequencies")
+            return False
+        
+        active_tels = self._telescopes.get_active_telescopes()
+        if not active_tels:
+            logger.warning(f"Scan with start={self._start} has no active telescopes")
+            return False
+        
+        for freq_obj in active_freqs:
+            freq = freq_obj.get_frequency()
+            for tel in active_tels:
+                sefd = tel.get_sefd(freq)
+                if sefd is None:
+                    logger.warning(f"Telescope '{tel.get_telescope_code()}' has no SEFD for frequency {freq} MHz")
+                    return False
+        logger.debug(f"Validated frequencies and SEFD for scan with start={self._start}")
+        return True
 
     def set_scan(self, start: float, duration: float, source: Optional[Source] = None,
                  telescopes: Telescopes = None, frequencies: Frequencies = None,
@@ -103,11 +125,11 @@ class Scan(BaseEntity):
         logger.info(f"Set scan telescopes with {len(self._telescopes.get_all_telescopes())} items")
 
     def set_frequencies(self, frequencies: Frequencies) -> None:
-        """Set scan frequencies."""
+        """Set scan frequencies with polarizations."""
         if frequencies is not None:
             check_type(frequencies, Frequencies, "Frequencies")
         self._frequencies = frequencies if frequencies is not None else Frequencies()
-        logger.info(f"Set scan frequencies with {len(self._frequencies.get_data())} items")
+        logger.info(f"Set scan frequencies with {len(self._frequencies.get_data())} items (polarizations included)")
 
     def get_start(self) -> float:
         """Get scan start time in seconds."""
@@ -187,8 +209,9 @@ class Scan(BaseEntity):
     def __repr__(self) -> str:
         """Return a string representation of Scan."""
         source_str = "OFF SOURCE" if self.is_off_source else f"source={self._source}" if self._source else "no source"
+        freq_str = f"frequencies={len(self._frequencies)} (with polarizations)"
         return (f"Scan(start={self._start}, duration={self._duration}, {source_str}, "
-                f"telescopes={self._telescopes}, frequencies={self._frequencies}, isactive={self.isactive})")
+                f"telescopes={self._telescopes}, {freq_str}, isactive={self.isactive})")
 
 class Scans(BaseEntity):
     def __init__(self, scans: list[Scan] = None):
@@ -244,15 +267,7 @@ class Scans(BaseEntity):
             raise IndexError("Invalid scan index!")
 
     def check_telescope_availability(self, time: float, source: Optional[Source] = None) -> dict[str, bool]:
-        """Check telescope availability and source visibility at a given time.
-
-        Args:
-            time (float): Time in seconds (Unix timestamp, UTC).
-            source (Source, optional): Source to check visibility for (ignored if scan is OFF SOURCE).
-
-        Returns:
-            dict[str, bool]: Dictionary mapping telescope codes to availability status.
-        """
+        """Check telescope availability and source visibility at a given time, considering polarizations."""
         check_type(time, (int, float), "Time")
         availability = {}
         dt = datetime.fromtimestamp(time)
@@ -263,12 +278,10 @@ class Scans(BaseEntity):
         
         for scan in active_scans:
             if scan.get_start() <= time <= scan.get_end():
-                # Если это OFF SOURCE, видимость не проверяем
                 if scan.is_off_source:
                     for telescope in scan.get_telescopes().get_active_telescopes():
                         availability[telescope.get_telescope_code()] = True
                     continue
-                # Иначе используем переданный источник или источник скана
                 current_source = source or scan.get_source()
                 ra_rad = np.radians(current_source.get_ra_degrees())
                 dec_rad = np.radians(current_source.get_dec_degrees())
@@ -281,14 +294,27 @@ class Scans(BaseEntity):
                         visible = dist < 1e9  # Условный порог
                     else:
                         x, y, z = telescope.get_telescope_coordinates()
-                        lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))  # Широта в радианах
-                        ha = np.radians(lst - current_source.get_ra_degrees())  # Часовой угол
+                        lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
+                        ha = np.radians(lst - current_source.get_ra_degrees())
                         alt = np.arcsin(np.sin(lat) * np.sin(dec_rad) + 
                                         np.cos(lat) * np.cos(dec_rad) * np.cos(ha))
-                        visible = alt > np.radians(15)  # Условный горизонт 15°
+                        visible = alt > np.radians(15)
+                    # Учитываем поляризации (например, проверка поддержки телескопом)
+                    freqs = scan.get_frequencies().get_active_frequencies()
+                    polarizations = {f.get_polarization() for f in freqs}
+                    if polarizations and not all(p in {"RCP", "LCP", "H", "V"} for p in polarizations):
+                        visible = False  # Условно: сложные поляризации (LL, RL, RR, LR) не поддерживаются всеми телескопами
                     availability[code] = visible
         logger.debug(f"Checked telescope availability at time={time}: {availability}")
         return availability
+    
+    def validate_all_sefd(self) -> bool:
+        """Validate SEFD availability for all active scans."""
+        active_scans = self.get_active_scans()
+        if not active_scans:
+            logger.warning("No active scans to validate SEFD")
+            return False
+        return all(scan.validate_frequencies_and_sefd() for scan in active_scans)
 
     def remove_scan(self, index: int) -> None:
         """Remove scan by index."""

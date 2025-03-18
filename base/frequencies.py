@@ -2,25 +2,38 @@
 from base.base_entity import BaseEntity
 from utils.validation import check_type, check_non_negative, check_positive, check_list_type
 from utils.logging_setup import logger
+from typing import Optional
 
 # Speed of light constant in MHz * cm
 C_MHZ_CM = 29979.2458
 
+# Допустимые значения поляризаций
+VALID_POLARIZATIONS = {"RCP", "LCP", "LL", "RL", "RR", "LR", "H", "V"}
+
 class IF(BaseEntity):
-    def __init__(self, freq: float, bandwidth: float, isactive: bool = True):
-        """Initialize an IF object with frequency and bandwidth.
+    def __init__(self, freq: float, bandwidth: float, 
+                 polarization: Optional[str] = None, isactive: bool = True):
+        """Initialize an IF object with frequency, bandwidth, and polarization.
 
         Args:
             freq (float): Frequency in MHz.
             bandwidth (float): Bandwidth in MHz.
+            polarization (str, optional): Polarization type (RCP, LCP, LL, RL, RR, LR, H, V).
             isactive (bool): Whether the frequency is active (default: True).
         """
         super().__init__(isactive)
         check_non_negative(freq, "Frequency")
         check_non_negative(bandwidth, "Bandwidth")
+        if polarization is not None:
+            check_type(polarization, str, "Polarization")
+            if polarization.upper() not in VALID_POLARIZATIONS:
+                logger.error(f"Invalid polarization value: {polarization}")
+                raise ValueError(f"Polarization must be one of {VALID_POLARIZATIONS}, got {polarization}")
+        
         self._frequency = freq
         self._bandwidth = bandwidth
-        logger.info(f"Initialized IF with frequency={freq} MHz, bandwidth={bandwidth} MHz")
+        self._polarization = polarization.upper() if polarization else None
+        logger.info(f"Initialized IF with frequency={freq} MHz, bandwidth={bandwidth} MHz, polarization={self._polarization}")
 
     def activate(self) -> None:
         """Activate IF frequency."""
@@ -30,14 +43,22 @@ class IF(BaseEntity):
         """Deactivate IF frequency."""
         super().deactivate()
 
-    def set_if(self, freq: float, bandwidth: float, isactive: bool = True) -> None:
+    def set_if(self, freq: float, bandwidth: float, 
+               polarization: Optional[str] = None, isactive: bool = True) -> None:
         """Set IF values."""
         check_non_negative(freq, "Frequency")
         check_non_negative(bandwidth, "Bandwidth")
+        if polarization is not None:
+            check_type(polarization, str, "Polarization")
+            if polarization.upper() not in VALID_POLARIZATIONS:
+                logger.error(f"Invalid polarization value: {polarization}")
+                raise ValueError(f"Polarization must be one of {VALID_POLARIZATIONS}, got {polarization}")
+        
         self._frequency = freq
         self._bandwidth = bandwidth
+        self._polarization = polarization.upper() if polarization else None
         self.isactive = isactive
-        logger.info(f"Set IF to frequency={freq} MHz, bandwidth={bandwidth} MHz")
+        logger.info(f"Set IF to frequency={freq} MHz, bandwidth={bandwidth} MHz, polarization={self._polarization}")
 
     def set_frequency(self, freq: float, isactive: bool = True) -> None:
         """Set IF frequency value in MHz."""
@@ -58,6 +79,16 @@ class IF(BaseEntity):
         self._frequency = C_MHZ_CM / wavelength_cm
         logger.info(f"Set frequency to {self._frequency} MHz from wavelength={wavelength_cm} cm for IF")
 
+    def set_polarization(self, polarization: str) -> None:
+        """Set polarization value."""
+        check_type(polarization, str, "Polarization")
+        polarization = polarization.upper()
+        if polarization not in VALID_POLARIZATIONS:
+            logger.error(f"Invalid polarization value: {polarization}")
+            raise ValueError(f"Polarization must be one of {VALID_POLARIZATIONS}, got {polarization}")
+        self._polarization = polarization
+        logger.info(f"Set polarization to {polarization} for IF")
+
     def get_frequency(self) -> float:
         """Return the IF frequency value in MHz."""
         logger.debug(f"Retrieved frequency={self._frequency} MHz for IF")
@@ -67,6 +98,11 @@ class IF(BaseEntity):
         """Return the IF bandwidth value in MHz."""
         logger.debug(f"Retrieved bandwidth={self._bandwidth} MHz for IF")
         return self._bandwidth
+
+    def get_polarization(self) -> Optional[str]:
+        """Return the IF polarization value."""
+        logger.debug(f"Retrieved polarization={self._polarization} for IF")
+        return self._polarization
 
     def get_freq_wavelength(self) -> float:
         """Get wavelength in cm for the frequency."""
@@ -83,6 +119,7 @@ class IF(BaseEntity):
         return {
             "frequency": self._frequency,
             "bandwidth": self._bandwidth,
+            "polarization": self._polarization,
             "isactive": self.isactive
         }
 
@@ -93,13 +130,16 @@ class IF(BaseEntity):
         return cls(
             freq=data["frequency"],
             bandwidth=data["bandwidth"],
+            polarization=data.get("polarization"),
             isactive=data["isactive"]
         )
 
     def __repr__(self) -> str:
         """Return a string representation of IF."""
         logger.debug(f"Generated string representation for IF with frequency={self._frequency} MHz")
-        return f"IF(frequency={self._frequency} MHz, bandwidth={self._bandwidth} MHz, isactive={self.isactive})"
+        return (f"IF(frequency={self._frequency} MHz, bandwidth={self._bandwidth} MHz, "
+                f"polarization={self._polarization}, isactive={self.isactive})")
+
 
 class Frequencies(BaseEntity):
     def __init__(self, ifs: list[IF] = None):
@@ -113,11 +153,14 @@ class Frequencies(BaseEntity):
     def add_frequency(self, if_obj: IF) -> None:
         """Add a new IF object."""
         check_type(if_obj, IF, "IF")
-        if any(f.get_frequency() == if_obj.get_frequency() for f in self._data):
-            logger.error(f"IF with frequency={if_obj.get_frequency()} MHz already exists")
-            raise ValueError(f"IF with frequency={if_obj.get_frequency()} MHz already exists!")
+        # Проверяем уникальность по частоте и поляризации
+        for existing_if in self._data:
+            if (existing_if.get_frequency() == if_obj.get_frequency() and 
+                existing_if.get_polarization() == if_obj.get_polarization()):
+                logger.error(f"IF with frequency={if_obj.get_frequency()} MHz and polarization={if_obj.get_polarization()} already exists")
+                raise ValueError(f"IF with frequency={if_obj.get_frequency()} MHz and polarization={if_obj.get_polarization()} already exists!")
         self._data.append(if_obj)
-        logger.info(f"Added IF with frequency={if_obj.get_frequency()} MHz to Frequencies")
+        logger.info(f"Added IF with frequency={if_obj.get_frequency()} MHz, polarization={if_obj.get_polarization()} to Frequencies")
 
     def remove_frequency(self, index: int) -> None:
         """Remove frequency by index."""
@@ -137,6 +180,11 @@ class Frequencies(BaseEntity):
         """Get list of bandwidths in MHz."""
         logger.debug(f"Retrieved bandwidths with {len(self._data)} items")
         return [if_obj.get_bandwidth() for if_obj in self._data]
+
+    def get_polarizations(self) -> list[Optional[str]]:
+        """Get list of polarizations."""
+        logger.debug(f"Retrieved polarizations with {len(self._data)} items")
+        return [if_obj.get_polarization() for if_obj in self._data]
 
     def get_all_wavelengths(self) -> list[float]:
         """Get list of wavelengths in cm."""
