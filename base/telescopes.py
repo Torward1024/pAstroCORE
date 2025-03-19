@@ -22,17 +22,17 @@ class Telescope(BaseEntity):
                  azimuth_range: Tuple[float, float] = (0.0, 360.0),
                  mount_type: str = "AZIM",
                  isactive: bool = True):
-        """Initialize a Telescope object with code, name, coordinates (J2000), velocities (J2000), diameter, and additional parameters.
+        """Initialize a Telescope object with code, name, coordinates (ITRF), velocities (ITRF), diameter, and additional parameters.
 
         Args:
             code (str): Telescope short name.
             name (str): Telescope name.
-            x (float): Telescope x coordinate (J2000) in meters.
-            y (float): Telescope y coordinate (J2000) in meters.
-            z (float): Telescope z coordinate (J2000) in meters.
-            vx (float): Telescope vx velocity (J2000) in m/s.
-            vy (float): Telescope vy velocity (J2000) in m/s.
-            vz (float): Telescope vz velocity (J2000) in m/s.
+            x (float): Telescope x coordinate (ITRF) in meters.
+            y (float): Telescope y coordinate (ITRF) in meters.
+            z (float): Telescope z coordinate (ITRF) in meters.
+            vx (float): Telescope vx velocity (ITRF) in m/s.
+            vy (float): Telescope vy velocity (ITRF) in m/s.
+            vz (float): Telescope vz velocity (ITRF) in m/s.
             diameter (float): Antenna diameter in meters.
             sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy).
             efficiency_table (Dict[float, float], optional): Efficiency table (frequency in MHz: efficiency 0-1).

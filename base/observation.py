@@ -7,8 +7,6 @@ from base.scans import Scans
 from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 from datetime import datetime
-import json
-import re
 from typing import Optional, List, Dict, Any
 
 class Observation(BaseEntity):
