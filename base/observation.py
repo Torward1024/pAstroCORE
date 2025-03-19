@@ -8,6 +8,7 @@ from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+import re
 
 class Observation(BaseEntity):
     def __init__(self, observation_code: str = "OBS_DEFAULT", sources: Sources = None,
@@ -139,60 +140,82 @@ class Observation(BaseEntity):
         return min(scan.get_start_datetime() for scan in active_scans)
 
     def validate(self) -> bool:
-        """Validate the observation, including SEFD and polarizations."""
-        active_scans = self._scans.get_active_scans()
-        if not active_scans:
-            logger.warning(f"Observation '{self._observation_code}' has no active scans")
+        """Validate the observation parameters."""
+        from utils.validation import check_type, check_positive_float, check_list_not_empty
+
+        # Check observation code
+        if not self._observation_code or not isinstance(self._observation_code, str):
+            logger.error("Observation code must be a non-empty string")
             return False
-        
-        obs_freqs = {f.get_frequency() for f in self._frequencies.get_active_frequencies()}
-        if not obs_freqs:
-            logger.warning(f"Observation '{self._observation_code}' has no active frequencies")
+
+        # Check observation type
+        if self._observation_type not in ["VLBI", "SingleDish"]:
+            logger.error(f"Invalid observation type: {self._observation_type}. Must be 'VLBI' or 'SingleDish'")
             return False
-        
-        active_telescopes = self._telescopes.get_active_telescopes()
-        if not active_telescopes:
-            logger.warning(f"Observation '{self._observation_code}' has no active telescopes")
+
+        # Validate SEFD
+        check_positive_float(self._sefd, "SEFD")
+
+        # Validate sources
+        if not self._sources.get_active_sources():
+            logger.error("No active sources defined in observation")
             return False
-        if self._observation_type == "VLBI" and len(active_telescopes) < 2:
-            logger.warning(f"VLBI observation '{self._observation_code}' requires at least 2 active telescopes, got {len(active_telescopes)}")
-            return False
-        elif self._observation_type == "SINGLE_DISH" and len(active_telescopes) != 1:
-            logger.warning(f"SINGLE_DISH observation '{self._observation_code}' requires exactly 1 active telescope, got {len(active_telescopes)}")
-            return False
-        
-        # Проверка источников
-        active_sources = {s.get_name() for s in self._sources.get_active_sources()}
-        for scan in active_scans:
-            if not scan.is_off_source and scan.get_source().get_name() not in active_sources:
-                logger.warning(f"Scan in '{self._observation_code}' uses source '{scan.get_source().get_name()}' not in observation sources")
+        for source in self._sources.get_active_sources():
+            if not source.validate():
+                logger.error(f"Source validation failed for {source.get_name()}")
                 return False
-            scan_telescopes = {t.get_telescope_code() for t in scan.get_telescopes().get_active_telescopes()}
-            active_telescope_codes = {t.get_telescope_code() for t in active_telescopes}
-            if not scan_telescopes.issubset(active_telescope_codes):
-                logger.warning(f"Scan in '{self._observation_code}' uses telescopes not in observation telescopes")
+
+        # Validate telescopes
+        if not self._telescopes.get_active_telescopes():
+            logger.error("No active telescopes defined in observation")
+            return False
+        for telescope in self._telescopes.get_active_telescopes():
+            if not telescope.validate():
+                logger.error(f"Telescope validation failed for {telescope.get_telescope_code()}")
                 return False
-        
-        # Проверка SEFD
-        obs_freqs = {f.get_frequency() for f in self._frequencies.get_active_frequencies()}
-        for tel in active_telescopes:
-            for freq in obs_freqs:
-                if tel.get_sefd(freq) is None:
-                    logger.warning(f"Telescope '{tel.get_telescope_code()}' has no SEFD for frequency {freq} MHz")
-                    return False
-        
-        # Проверка синхронизации частот и поляризаций
+
+        # Validate frequencies
+        if not self._frequencies.get_active_frequencies():
+            logger.error("No active frequencies defined in observation")
+            return False
+        for freq in self._frequencies.get_active_frequencies():
+            if not freq.validate():
+                logger.error(f"Frequency validation failed for {freq}")
+                return False
+
+        # Validate scans
+        if not self._scans.get_active_scans():
+            logger.error("No active scans defined in observation")
+            return False
+        for scan in self._scans.get_active_scans():
+            if not scan.validate():
+                logger.error(f"Scan validation failed for start time {scan.get_start()}")
+                return False
+
+        # Check temporal consistency of scans
+        active_scans = sorted(self._scans.get_active_scans(), key=lambda x: x.get_start())
+        telescope_scans = {}  # Словарь для отслеживания занятости телескопов
         for scan in active_scans:
-            scan_freqs = {f.get_frequency(): f.get_polarization() for f in scan.get_frequencies().get_active_frequencies()}
-            for freq, pol in scan_freqs.items():
-                if freq not in obs_freqs:
-                    logger.warning(f"Scan in '{self._observation_code}' uses frequency {freq} MHz not in observation frequencies")
-                    return False
-                obs_pol = next((f.get_polarization() for f in self._frequencies.get_active_frequencies() if f.get_frequency() == freq), None)
-                if pol != obs_pol:
-                    logger.warning(f"Scan in '{self._observation_code}' uses polarization {pol} for {freq} MHz, observation has {obs_pol}")
-                    return False
-        
+            scan_start = scan.get_start()
+            scan_end = scan_start + scan.get_duration()
+            
+            # Проверка доступности телескопов для скана
+            if not scan.check_telescope_availability():
+                logger.error(f"Telescope availability check failed for scan starting at {scan_start}")
+                return False
+
+            # Проверка пересечений по времени для телескопов
+            for telescope in scan.get_telescopes().get_active_telescopes():
+                tel_code = telescope.get_telescope_code()
+                if tel_code not in telescope_scans:
+                    telescope_scans[tel_code] = []
+                for prev_start, prev_end in telescope_scans[tel_code]:
+                    if not (scan_end <= prev_start or scan_start >= prev_end):
+                        logger.error(f"Scan overlap detected for telescope {tel_code}: "
+                                    f"[{prev_start}, {prev_end}] vs [{scan_start}, {scan_end}]")
+                        return False
+                telescope_scans[tel_code].append((scan_start, scan_end))
+
         logger.info(f"Observation '{self._observation_code}' validated successfully")
         return True
 
@@ -240,3 +263,169 @@ class Observation(BaseEntity):
                 f"telescopes={self._telescopes}, frequencies={self._frequencies}, "
                 f"scans={self._scans}, isactive={self.isactive}, "
                 f"calculated_data={len(self._calculated_data)} items)")
+
+class CatalogManager:
+    """Класс для управления каталогами источников и телескопов в текстовом формате."""
+    
+    def __init__(self, source_file: Optional[str] = None, telescope_file: Optional[str] = None):
+        """Инициализация менеджера каталогов.
+        
+        Args:
+            source_file (str, optional): Путь к файлу каталога источников.
+            telescope_file (str, optional): Путь к файлу каталога телескопов.
+        """
+        if source_file is not None and not isinstance(source_file, str):
+            logger.error("source_file must be a string or None")
+            raise TypeError("source_file must be a string or None!")
+        if telescope_file is not None and not isinstance(telescope_file, str):
+            logger.error("telescope_file must be a string or None")
+            raise TypeError("telescope_file must be a string or None!")
+        self.source_catalog = Sources()
+        self.telescope_catalog = Telescopes()
+        
+        if source_file:
+            self.load_source_catalog(source_file)
+        if telescope_file:
+            self.load_telescope_catalog(telescope_file)
+
+    # --- Методы для работы с каталогом источников ---
+
+    def load_source_catalog(self, source_file: str) -> None:
+        """Загрузка каталога источников из текстового файла.
+        
+        Формат: b1950_name j2000_name alt_name ra_hh:mm:ss.ssss dec_dd:mm:ss.ssss
+        
+        Args:
+            source_file (str): Путь к файлу каталога источников.
+        
+        Raises:
+            FileNotFoundError: Если файл не найден.
+            ValueError: Если данные в файле некорректны.
+        """
+        sources = []
+        try:
+            with open(source_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    # Разделяем строку на части
+                    parts = re.split(r'\s+', line)
+                    if len(parts) < 5:
+                        raise ValueError(f"Invalid source format in line: {line}")
+
+                    b1950_name = parts[0]
+                    j2000_name = parts[1] if parts[1] != "ALT_NAME" else None
+                    alt_name = parts[2] if parts[2] != "ALT_NAME" else None
+                    ra_str, dec_str = parts[-2], parts[-1]
+
+                    # Парсим RA (hh:mm:ss.ssss)
+                    ra_match = re.match(r'(\d{2}):(\d{2}):(\d{2}\.\d+)', ra_str)
+                    if not ra_match:
+                        raise ValueError(f"Invalid RA format: {ra_str}")
+                    ra_h, ra_m, ra_s = map(float, ra_match.groups())
+
+                    # Парсим DEC (±dd:mm:ss.ssss)
+                    dec_match = re.match(r'([-+])?(\d{2}):(\d{2}):(\d{2}\.\d+)', dec_str)
+                    if not dec_match:
+                        raise ValueError(f"Invalid DEC format: {dec_str}")
+                    sign, de_d, de_m, de_s = dec_match.groups()
+                    de_d = float(de_d) if sign != '-' else -float(de_d)
+                    de_m, de_s = float(de_m), float(de_s)
+
+                    source = Source(
+                        name=b1950_name,
+                        ra_h=ra_h, ra_m=ra_m, ra_s=ra_s,
+                        de_d=de_d, de_m=de_m, de_s=de_s,
+                        name_J2000=j2000_name,
+                        alt_name=alt_name
+                    )
+                    sources.append(source)
+            self.source_catalog = Sources(sources)
+            logger.info(f"Loaded {len(sources)} sources from '{source_file}'")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Source catalog file '{source_file}' not found!")
+        except ValueError as e:
+            raise ValueError(f"Error parsing source catalog: {e}")
+
+    def get_source(self, name: str) -> Optional[Source]:
+        """Получить источник по имени (B1950 или J2000)."""
+        return next((s for s in self.source_catalog.get_all_sources() 
+                     if s.name == name or (s.name_J2000 and s.name_J2000 == name)), None)
+
+    def get_sources_by_ra_range(self, ra_min: float, ra_max: float) -> List[Source]:
+        """Получить список источников в заданном диапазоне прямого восхождения (RA) в градусах."""
+        return [s for s in self.source_catalog.get_all_sources() 
+                if ra_min <= s.get_ra_degrees() <= ra_max]
+
+    def get_sources_by_dec_range(self, dec_min: float, dec_max: float) -> List[Source]:
+        """Получить список источников в заданном диапазоне склонения (DEC) в градусах."""
+        return [s for s in self.source_catalog.get_all_sources() 
+                if dec_min <= s.get_dec_degrees() <= dec_max]
+
+    # --- Методы для работы с каталогом телескопов ---
+
+    def load_telescope_catalog(self, telescope_file: str) -> None:
+        """Загрузка каталога телескопов из текстового файла.
+        
+        Формат: number short_name full_name x y z
+        
+        Args:
+            telescope_file (str): Путь к файлу каталога телескопов.
+        
+        Raises:
+            FileNotFoundError: Если файл не найден.
+            ValueError: Если данные в файле некорректны.
+        """
+        telescopes = []
+        try:
+            with open(telescope_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    # Разделяем строку на части
+                    parts = re.split(r'\s+', line)
+                    if len(parts) < 6:
+                        raise ValueError(f"Invalid telescope format in line: {line}")
+
+                    number, short_name, full_name = parts[0], parts[1], parts[2]
+                    x, y, z = map(float, parts[3:6])
+                    # Скорости не указаны в каталоге, задаем 0
+                    vx, vy, vz = 0.0, 0.0, 0.0
+
+                    telescope = Telescope(
+                        code=short_name,
+                        name=full_name,
+                        x=x, y=y, z=z,
+                        vx=vx, vy=vy, vz=vz,
+                        isactive=True
+                    )
+                    telescopes.append(telescope)
+            self.telescope_catalog = Telescopes(telescopes)
+            logger.info(f"Loaded {len(telescopes)} telescopes from '{telescope_file}'")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Telescope catalog file '{telescope_file}' not found!")
+        except ValueError as e:
+            raise ValueError(f"Error parsing telescope catalog: {e}")
+
+    def get_telescope(self, code: str) -> Optional[Telescope]:
+        """Получить телескоп по коду."""
+        return next((t for t in self.telescope_catalog.get_all_telescopes() if t.code == code), None)
+
+    def get_telescopes_by_type(self, telescope_type: str = "Telescope") -> List[Telescope]:
+        """Получить список телескопов заданного типа."""
+        return [t for t in self.telescope_catalog.get_all_telescopes() 
+                if (telescope_type == "Telescope" and isinstance(t, Telescope))]
+
+    # --- Общие методы ---
+
+    def clear_catalogs(self) -> None:
+        """Очистить оба каталога."""
+        self.source_catalog.clear()
+        self.telescope_catalog.clear()
+
+    def __repr__(self) -> str:
+        """Строковое представление CatalogManager."""
+        return (f"CatalogManager(sources={len(self.source_catalog)}, "
+                f"telescopes={len(self.telescope_catalog)})")
