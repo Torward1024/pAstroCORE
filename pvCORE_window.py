@@ -127,7 +127,6 @@ class CatalogBrowserDialog(QDialog):
         self.setMinimumSize(500, 400)
 
 
-# Новый диалог About
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -190,6 +189,7 @@ class PvCoreWindow(QMainWindow):
         self.manipulator.set_vizualizator(self.vizualizator)
 
         self.settings_file = "settings.json"
+        self.current_project_file = None  # Для отслеживания текущего файла проекта
         self.load_settings()
         self.catalog_manager = CatalogManager()
         self.load_catalogs()
@@ -217,9 +217,12 @@ class PvCoreWindow(QMainWindow):
     def setup_menu(self):
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
-        file_menu.addAction("New Project", self.new_project)
+        file_menu.addAction("New", self.new_project)
+        file_menu.addSeparator()
         file_menu.addAction("Open", self.open_project)
         file_menu.addAction("Save", self.save_project)
+        file_menu.addAction("Save As...", self.save_project_as)
+        file_menu.addSeparator()
         file_menu.addAction("Exit", self.close)
 
         settings_menu = menubar.addMenu("Settings")
@@ -417,27 +420,43 @@ class PvCoreWindow(QMainWindow):
 
     def new_project(self):
         self.manipulator.set_project(Project("NewProject"))
+        self.current_project_file = None  # Новый проект не привязан к файлу
         self.project_name_input.setText(self.manipulator.get_project_name())
         self.update_project_tree()
 
     def save_project(self):
+        if self.current_project_file:  # Если файл уже существует, перезаписываем
+            try:
+                self.manipulator.save_project(self.current_project_file)
+                self.status_bar.showMessage(f"Project saved to '{self.current_project_file}'")
+            except Exception as e:
+                logger.error(f"Failed to save project: {e}")
+                self.status_bar.showMessage("Failed to save project")
+        else:  # Если это первое сохранение, вызываем Save As...
+            self.save_project_as()
+
+    def save_project_as(self):
         project_name = self.manipulator.get_project_name()
         if not project_name:
             logger.warning("Project name is empty, using default 'Untitled'")
             project_name = "Untitled"
-        filepath = f"{project_name}.json"
-        try:
-            self.manipulator.save_project(filepath)
-            self.status_bar.showMessage(f"Project saved as '{filepath}'")
-        except Exception as e:
-            logger.error(f"Failed to save project: {e}")
-            self.status_bar.showMessage("Failed to save project")
+        default_filepath = f"{project_name}.json"
+        filepath, _ = QFileDialog.getSaveFileName(self, "Save Project As", default_filepath, "JSON Files (*.json)")
+        if filepath:
+            try:
+                self.manipulator.save_project(filepath)
+                self.current_project_file = filepath  # Запоминаем путь файла
+                self.status_bar.showMessage(f"Project saved as '{filepath}'")
+            except Exception as e:
+                logger.error(f"Failed to save project: {e}")
+                self.status_bar.showMessage("Failed to save project")
 
     def open_project(self):
         filepath, _ = QFileDialog.getOpenFileName(self, "Open Project", "", "JSON Files (*.json)")
         if filepath:
             try:
                 self.manipulator.load_project(filepath)
+                self.current_project_file = filepath  # Запоминаем путь загруженного файла
                 self.project_name_input.setText(self.manipulator.get_project_name())
                 self.update_project_tree()
                 self.status_bar.showMessage(f"Project loaded from '{filepath}'")
@@ -577,6 +596,7 @@ class PvCoreWindow(QMainWindow):
         """Переопределяем метод закрытия окна для сохранения настроек."""
         self.save_settings()
         super().closeEvent(event)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
