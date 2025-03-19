@@ -1,14 +1,13 @@
-# super/manipulator.py
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
-from base.observation import Observation
+from base.observation import Observation, CatalogManager
 from super.configurator import Configurator
 from super.calculator import Calculator
 from super.vizualizator import Vizualizator
 from super.optimizator import Optimizator
 from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
-
+import os
 
 class Project:
     """Container for managing multiple observations."""
@@ -65,6 +64,7 @@ class Manipulator(ABC):
         self._calculator = None
         self._vizualizator = None
         self._optimizator = None
+        self._catalog_manager = CatalogManager()  # Добавляем CatalogManager
         logger.info(f"Initialized Manipulator with project '{self._project.get_name()}'")
 
     def set_project(self, project: Project) -> None:
@@ -103,6 +103,29 @@ class Manipulator(ABC):
         check_type(optimizator, Optimizator, "Optimizator")
         self._optimizator = optimizator
         logger.info("Optimizator set in Manipulator")
+
+    def get_catalog_manager(self) -> CatalogManager:
+        """Get the CatalogManager instance."""
+        return self._catalog_manager
+
+    def load_catalogs(self, sources_path: str, telescopes_path: str) -> None:
+        """Load source and telescope catalogs."""
+        if os.path.exists(sources_path):
+            try:
+                self._catalog_manager.load_source_catalog(sources_path)
+                logger.info(f"Loaded sources catalog from '{sources_path}'")
+            except (FileNotFoundError, ValueError) as e:
+                logger.error(f"Failed to load sources catalog: {e}")
+        else:
+            logger.warning(f"Sources catalog file '{sources_path}' not found")
+        if os.path.exists(telescopes_path):
+            try:
+                self._catalog_manager.load_telescope_catalog(telescopes_path)
+                logger.info(f"Loaded telescopes catalog from '{telescopes_path}'")
+            except (FileNotFoundError, ValueError) as e:
+                logger.error(f"Failed to load telescopes catalog: {e}")
+        else:
+            logger.warning(f"Telescopes catalog file '{telescopes_path}' not found")
 
     @abstractmethod
     def execute(self) -> None:

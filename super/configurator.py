@@ -47,8 +47,8 @@ class Configurator(ABC):
     def add_frequency(self, observation: Observation, freq: float, bandwidth: float, polarization: Optional[str] = None) -> None:
         """Add a frequency to the observation."""
         check_type(observation, Observation, "Observation")
-        check_positive_float(freq, "Frequency")
-        check_positive_float(bandwidth, "Bandwidth")
+        check_positive(freq, "Frequency")
+        check_positive(bandwidth, "Bandwidth")
         if_obj = IF(freq=freq, bandwidth=bandwidth, polarization=polarization)
         observation.get_frequencies().add_frequency(if_obj)
         logger.info(f"Added frequency {freq} MHz to observation '{observation.get_observation_code()}'")
@@ -58,8 +58,8 @@ class Configurator(ABC):
                  is_off_source: bool = False) -> None:
         """Add a scan to the observation."""
         check_type(observation, Observation, "Observation")
-        check_positive_float(start, "Scan start time")
-        check_positive_float(duration, "Scan duration")
+        check_positive(start, "Scan start time")
+        check_positive(duration, "Scan duration")
         scan = Scan(start=start, duration=duration, source=source, telescopes=telescopes,
                     frequencies=frequencies, is_off_source=is_off_source)
         observation.get_scans().add_scan(scan)
@@ -93,7 +93,7 @@ class Configurator(ABC):
     def remove_frequency(self, observation: Observation, freq: float) -> None:
         """Remove a frequency from the observation by value."""
         check_type(observation, Observation, "Observation")
-        check_positive_float(freq, "Frequency")
+        check_positive(freq, "Frequency")
         frequencies = observation.get_frequencies()
         freq_obj = next((f for f in frequencies.get_active_frequencies() if f.get_freq() == freq), None)
         if freq_obj:
@@ -105,7 +105,7 @@ class Configurator(ABC):
     def remove_scan(self, observation: Observation, start: float) -> None:
         """Remove a scan from the observation by start time."""
         check_type(observation, Observation, "Observation")
-        check_positive_float(start, "Scan start time")
+        check_positive(start, "Scan start time")
         scans = observation.get_scans()
         scan = next((s for s in scans.get_active_scans() if s.get_start() == start), None)
         if scan:
@@ -150,7 +150,7 @@ class Configurator(ABC):
     def set_sefd(self, observation: Observation, sefd: float) -> None:
         """Set the SEFD of the observation."""
         check_type(observation, Observation, "Observation")
-        check_positive_float(sefd, "SEFD")
+        check_positive(sefd, "SEFD")
         observation._sefd = sefd
         logger.info(f"Set SEFD to {sefd}")
 
