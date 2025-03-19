@@ -20,6 +20,15 @@ class Project:
     def add_observation(self, observation: Observation) -> None:
         self._observations.append(observation)
         logger.info(f"Added observation '{observation.get_observation_code()}' to Project '{self._name}'")
+    
+    def insert_observation(self, observation: Observation, index: int) -> None:
+        """Insert an observation at the specified index."""
+        check_type(observation, Observation, "Observation")
+        if not (0 <= index <= len(self._observations)):
+            logger.error(f"Invalid index {index} for insertion in Project '{self._name}'")
+            raise IndexError(f"Index {index} out of range for Project with {len(self._observations)} observations")
+        self._observations.insert(index, observation)
+        logger.info(f"Inserted observation '{observation.get_observation_code()}' at index {index} in Project '{self._name}'")
 
     def remove_observation(self, index: int) -> None:
         try:
@@ -66,6 +75,11 @@ class Manipulator(ABC):
     def add_observation(self, observation: Observation) -> None:
         check_type(observation, Observation, "Observation")
         self._project.add_observation(observation)
+    
+    def insert_observation(self, observation: Observation, index: int) -> None:
+        """Insert an observation at the specified index in the project."""
+        check_type(observation, Observation, "Observation")
+        self._project.insert_observation(observation, index)
 
     def remove_observation(self, index: int) -> None:
         self._project.remove_observation(index)
@@ -118,6 +132,10 @@ class Manipulator(ABC):
     def get_project_name(self) -> str:
         """Get the project name."""
         return self._project.get_name()
+    
+    def get_observations(self) -> List[Observation]:
+        """Get the list of observations in the project."""
+        return self._project.get_observations()
 
 
 class DefaultManipulator(Manipulator):

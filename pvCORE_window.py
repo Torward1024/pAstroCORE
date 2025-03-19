@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QTreeWidget, QTreeWidg
                                QTabWidget, QWidget, QVBoxLayout, QLineEdit, QPushButton, 
                                QTableWidget, QTableWidgetItem, QStatusBar, QDockWidget, QHBoxLayout, QMenu, 
                                QDialog, QFileDialog, QLabel, QGridLayout)
-from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtGui import QAction, QCloseEvent, QIcon
 from PySide6.QtCore import Qt
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -19,9 +19,10 @@ from super.vizualizator import DefaultVizualizator
 from utils.logging_setup import logger
 from base.observation import Observation, CatalogManager
 from base.sources import Source, Sources
-from base.telescopes import Telescope, Telescopes, SpaceTelescope
+from base.telescopes import Telescope, Telescopes
 
-# Классы CatalogSettingsDialog и CatalogBrowserDialog остаются без изменений
+
+# CatalogSettingsDialog и CatalogBrowserDialog остаются без изменений
 class CatalogSettingsDialog(QDialog):
     def __init__(self, current_settings, parent=None):
         super().__init__(parent)
@@ -63,6 +64,7 @@ class CatalogSettingsDialog(QDialog):
             "telescopes": self.telescopes_path.text()
         }
 
+
 class CatalogBrowserDialog(QDialog):
     def __init__(self, catalog_type, catalog_data, parent=None):
         super().__init__(parent)
@@ -73,38 +75,31 @@ class CatalogBrowserDialog(QDialog):
 
     def init_ui(self):
         layout = QVBoxLayout()
-
         if self.catalog_type == "Source":
             self.table = QTableWidget(len(self.catalog_data), 5)
             self.table.setHorizontalHeaderLabels(["B1950 Name", "J2000 Name", "Alt Name", "RA", "Dec"])
             for row, source in enumerate(self.catalog_data):
-                # Заполняем ячейки
                 self.table.setItem(row, 0, QTableWidgetItem(source.get_name()))
                 self.table.setItem(row, 1, QTableWidgetItem(source.get_name_J2000() or ""))
                 self.table.setItem(row, 2, QTableWidgetItem(source.get_alt_name() or ""))
-                
-                # Форматируем RA (DD°MM′SS.SS″)
                 ra_deg = source.get_ra_degrees()
                 ra_d = int(ra_deg)
                 ra_m = int((ra_deg - ra_d) * 60)
                 ra_s = ((ra_deg - ra_d) * 60 - ra_m) * 60
                 ra_str = f"{ra_d}°{ra_m:02d}′{ra_s:05.2f}″"
                 ra_item = QTableWidgetItem(ra_str)
-                ra_item.setFlags(ra_item.flags() & ~Qt.ItemIsEditable)  # Не редактируемый
+                ra_item.setFlags(ra_item.flags() & ~Qt.ItemIsEditable)
                 self.table.setItem(row, 3, ra_item)
-
-                # Форматируем DEC (HHʰMM′SS.SS″)
                 dec_deg = source.get_dec_degrees()
                 sign = "-" if dec_deg < 0 else ""
                 dec_deg = abs(dec_deg)
-                dec_h = int(dec_deg / 15)  # Переводим в часы (1h = 15°)
+                dec_h = int(dec_deg / 15)
                 dec_m = int((dec_deg / 15 - dec_h) * 60)
                 dec_s = ((dec_deg / 15 - dec_h) * 60 - dec_m) * 60
                 dec_str = f"{sign}{dec_h:02d}ʰ{dec_m:02d}′{dec_s:05.2f}″"
                 dec_item = QTableWidgetItem(dec_str)
-                dec_item.setFlags(dec_item.flags() & ~Qt.ItemIsEditable)  # Не редактируемый
+                dec_item.setFlags(dec_item.flags() & ~Qt.ItemIsEditable)
                 self.table.setItem(row, 4, dec_item)
-
         else:  # Telescope
             self.table = QTableWidget(len(self.catalog_data), 5)
             self.table.setHorizontalHeaderLabels(["Code", "Name", "X (m)", "Y (m)", "Z (m)"])
@@ -114,29 +109,70 @@ class CatalogBrowserDialog(QDialog):
                 self.table.setItem(row, 2, QTableWidgetItem(str(telescope.get_telescope_x())))
                 self.table.setItem(row, 3, QTableWidgetItem(str(telescope.get_telescope_y())))
                 self.table.setItem(row, 4, QTableWidgetItem(str(telescope.get_telescope_z())))
-                # Делаем все ячейки не редактируемыми
                 for col in range(5):
                     item = self.table.item(row, col)
                     item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-
-        # Настраиваем таблицу
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)  # Запрещаем редактирование
-        self.table.resizeColumnsToContents()  # Подгоняем ширину столбцов под содержимое
-        self.table.horizontalHeader().setStretchLastSection(True)  # Растягиваем последний столбец
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.resizeColumnsToContents()
+        self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table)
-
-        # Кнопка Close
         button_layout = QHBoxLayout()
-        button_layout.addStretch()  # Сдвигаем кнопку вправо
+        button_layout.addStretch()
         close_btn = QPushButton("Close")
-        close_btn.setFixedSize(80, 30)  # Фиксированный размер кнопки
+        close_btn.setFixedSize(80, 30)
         close_btn.clicked.connect(self.accept)
         button_layout.addWidget(close_btn)
         layout.addLayout(button_layout)
-
         self.setLayout(layout)
-        # Устанавливаем минимальный размер окна
-        self.setMinimumSize(500, 400)  # Увеличенный размер для видимости всех столбцов
+        self.setMinimumSize(500, 400)
+
+
+# Новый диалог About
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About pvCORE")
+        self.setFixedSize(400, 200)
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        
+        # Иконка и текст рядом
+        top_layout = QHBoxLayout()
+        icon_label = QLabel()
+        icon_path = os.path.join(os.path.dirname(__file__), "pvcore_icon.png")
+        if os.path.exists(icon_path):
+            icon_label.setPixmap(QIcon(icon_path).pixmap(64, 64))
+        else:
+            logger.warning("pvcore_icon.png not found in project root")
+        top_layout.addWidget(icon_label)
+        
+        info_label = QLabel(
+            "pvCORE\n"
+            "Version: 0.0.1\n"
+            "A versatile tool for radio astronomy observation planning,\n"
+            "configuration, optimization, and visualization.\n"
+            "\n"
+            "Developed by:  Alexey Rudnitskiy, Mikhail Shchurov\n"
+            "                  Pavel Zapevalin, Tatiana Syachina\n"
+            "\n"
+            "© 2024-2025 ASC LPI, Ballistics Lab"
+        )
+        top_layout.addWidget(info_label)
+        top_layout.addStretch()
+        
+        layout.addLayout(top_layout)
+        
+        # Кнопка OK
+        ok_btn = QPushButton("OK", clicked=self.accept)
+        ok_btn.setFixedWidth(80)
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(ok_btn)
+        layout.addLayout(btn_layout)
+        
+        self.setLayout(layout)
 
 
 class PvCoreWindow(QMainWindow):
@@ -166,7 +202,6 @@ class PvCoreWindow(QMainWindow):
         self.telescopes_table.setHorizontalHeaderLabels(["Code", "Name", "X (m)"])
 
         self.setup_menu()
-
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         main_layout = QVBoxLayout(main_widget)
@@ -191,6 +226,9 @@ class PvCoreWindow(QMainWindow):
         settings_menu.addAction("Set Catalogs...", self.show_catalog_settings)
         settings_menu.addAction("Source Catalog Browser", self.show_source_catalog_browser)
         settings_menu.addAction("Telescope Catalog Browser", self.show_telescope_catalog_browser)
+
+        help_menu = menubar.addMenu("Help")
+        help_menu.addAction("About", self.show_about_dialog)
 
     def setup_project_explorer(self):
         self.project_dock = QDockWidget("Project Explorer", self)
@@ -247,7 +285,7 @@ class PvCoreWindow(QMainWindow):
     def update_project_tree(self):
         self.project_tree.clear()
         root = QTreeWidgetItem([self.manipulator.get_project_name()])
-        for obs in self.manipulator._project.get_observations():
+        for obs in self.manipulator.get_observations():
             QTreeWidgetItem(root, [obs.get_observation_code()])
         self.project_tree.addTopLevelItem(root)
         root.setExpanded(True)
@@ -255,7 +293,7 @@ class PvCoreWindow(QMainWindow):
 
     def update_obs_table(self):
         self.obs_table.setRowCount(0)
-        for obs in self.manipulator._project.get_observations():
+        for obs in self.manipulator.get_observations():
             row = self.obs_table.rowCount()
             self.obs_table.insertRow(row)
             self.obs_table.setItem(row, 0, QTableWidgetItem(obs.get_observation_code()))
@@ -271,7 +309,7 @@ class PvCoreWindow(QMainWindow):
         menu.exec(self.project_tree.viewport().mapToGlobal(position))
 
     def add_observation(self):
-        obs = Observation(observation_code=f"Obs{len(self.manipulator._project.get_observations())+1}", observation_type="VLBI")
+        obs = Observation(observation_code=f"Obs{len(self.manipulator.get_observations())+1}", observation_type="VLBI")
         self.manipulator.add_observation(obs)
         self.update_project_tree()
 
@@ -280,28 +318,29 @@ class PvCoreWindow(QMainWindow):
         if not selected or selected[0].text(0) == self.manipulator.get_project_name():
             self.add_observation()
             return
-        index = self.project_tree.indexOfTopLevelItem(self.project_tree.topLevelItem(0)) + 1
-        for i, obs in enumerate(self.manipulator._project.get_observations()):
-            if obs.get_observation_code() == selected[0].text(0):
-                index = i
-                break
-        new_obs = Observation(observation_code=f"Obs{len(self.manipulator._project.get_observations())+1}", observation_type="VLBI")
-        self.manipulator._project._observations.insert(index, new_obs)
+        selected_code = selected[0].text(0)
+        observations = self.manipulator.get_observations()
+        index = next((i for i, obs in enumerate(observations) if obs.get_observation_code() == selected_code), -1)
+        if index == -1:
+            self.add_observation()
+            return
+        new_obs = Observation(observation_code=f"Obs{len(observations)+1}", observation_type="VLBI")
+        self.manipulator.insert_observation(new_obs, index)
         self.update_project_tree()
 
     def remove_observation(self):
         selected = self.project_tree.selectedItems()
         if not selected or selected[0].text(0) == self.manipulator.get_project_name():
             return
-        index = self.project_tree.indexOfTopLevelItem(self.project_tree.topLevelItem(0)) + 1
-        for i, obs in enumerate(self.manipulator._project.get_observations()):
-            if obs.get_observation_code() == selected[0].text(0):
-                self.manipulator.remove_observation(i)
-                break
-        self.update_project_tree()
+        selected_code = selected[0].text(0)
+        observations = self.manipulator.get_observations()
+        index = next((i for i, obs in enumerate(observations) if obs.get_observation_code() == selected_code), -1)
+        if index != -1:
+            self.manipulator.remove_observation(index)
+            self.update_project_tree()
 
     def update_project_name(self, text):
-        self.manipulator._project.set_name(text)
+        self.manipulator.set_project_name(text)
         self.update_project_tree()
 
     def add_source(self):
@@ -314,8 +353,9 @@ class PvCoreWindow(QMainWindow):
         source = Source(name=f"Source{row+1}", ra_h=0, ra_m=0, ra_s=0, de_d=0, de_m=0, de_s=0)
         selected = self.project_tree.selectedItems()
         if selected and selected[0].text(0) != self.manipulator.get_project_name():
-            for obs in self.manipulator._project.get_observations():
-                if obs.get_observation_code() == selected[0].text(0):
+            selected_code = selected[0].text(0)
+            for obs in self.manipulator.get_observations():
+                if obs.get_observation_code() == selected_code:
                     self.configurator.add_source(obs, source)
                     break
         self.sources_table.setItem(row, 0, QTableWidgetItem(source.get_name()))
@@ -332,8 +372,9 @@ class PvCoreWindow(QMainWindow):
         telescope = Telescope(code=f"T{row+1}", name=f"Telescope{row+1}", x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0, isactive=True)
         selected = self.project_tree.selectedItems()
         if selected and selected[0].text(0) != self.manipulator.get_project_name():
-            for obs in self.manipulator._project.get_observations():
-                if obs.get_observation_code() == selected[0].text(0):
+            selected_code = selected[0].text(0)
+            for obs in self.manipulator.get_observations():
+                if obs.get_observation_code() == selected_code:
                     self.configurator.add_telescope(obs, telescope)
                     break
         self.telescopes_table.setItem(row, 0, QTableWidgetItem(telescope.code))
@@ -346,8 +387,9 @@ class PvCoreWindow(QMainWindow):
             self.canvas.figure.clf()
             self.canvas.draw()
             return
-        for obs in self.manipulator._project.get_observations():
-            if obs.get_observation_code() == selected[0].text(0):
+        selected_code = selected[0].text(0)
+        for obs in self.manipulator.get_observations():
+            if obs.get_observation_code() == selected_code:
                 self.calculator.calculate_all(obs)
                 if not hasattr(obs, '_calculated_data') or not obs._calculated_data:
                     logger.warning(f"Nothing to plot for observation '{obs.get_observation_code()}': no calculated data")
@@ -375,16 +417,37 @@ class PvCoreWindow(QMainWindow):
 
     def new_project(self):
         self.manipulator.set_project(Project("NewProject"))
+        self.project_name_input.setText(self.manipulator.get_project_name())
         self.update_project_tree()
 
     def save_project(self):
-        self.manipulator.save_project("project.json")
-        self.status_bar.showMessage("Project saved")
+        project_name = self.manipulator.get_project_name()
+        if not project_name:
+            logger.warning("Project name is empty, using default 'Untitled'")
+            project_name = "Untitled"
+        filepath = f"{project_name}.json"
+        try:
+            self.manipulator.save_project(filepath)
+            self.status_bar.showMessage(f"Project saved as '{filepath}'")
+        except Exception as e:
+            logger.error(f"Failed to save project: {e}")
+            self.status_bar.showMessage("Failed to save project")
 
     def open_project(self):
-        self.manipulator.load_project("project.json")
-        self.update_project_tree()
-        self.status_bar.showMessage("Project loaded")
+        filepath, _ = QFileDialog.getOpenFileName(self, "Open Project", "", "JSON Files (*.json)")
+        if filepath:
+            try:
+                self.manipulator.load_project(filepath)
+                self.project_name_input.setText(self.manipulator.get_project_name())
+                self.update_project_tree()
+                self.status_bar.showMessage(f"Project loaded from '{filepath}'")
+            except (FileNotFoundError, ValueError) as e:
+                logger.error(f"Failed to load project: {e}")
+                self.status_bar.showMessage(f"Failed to load project: {str(e)}")
+
+    def show_about_dialog(self):
+        dialog = AboutDialog(self)
+        dialog.exec()
 
     def on_project_item_selected(self):
         selected = self.project_tree.selectedItems()
@@ -399,7 +462,7 @@ class PvCoreWindow(QMainWindow):
             self.canvas.draw()
             self.status_bar.showMessage("Selected Project: " + selected_item)
         else:
-            for obs in self.manipulator._project.get_observations():
+            for obs in self.manipulator.get_observations():
                 if obs.get_observation_code() == selected_item:
                     self.sources_table.setRowCount(0)
                     for src in obs.get_sources().get_active_sources():
