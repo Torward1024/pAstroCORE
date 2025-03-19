@@ -152,6 +152,21 @@ class Telescope(BaseEntity):
         """Get telescope coordinates x, y, z in meters (J2000)."""
         logger.debug(f"Retrieved coordinates ({self._x}, {self._y}, {self._z}) m for telescope '{self._code}'")
         return self._x, self._y, self._z
+    
+    def get_telescope_x(self) -> tuple[float, float, float]:
+        """Get telescope coordinate x in meters (J2000)."""
+        logger.debug(f"Retrieved coordinate X={self._x} m for telescope '{self._code}'")
+        return self._x
+    
+    def get_telescope_y(self) -> tuple[float, float, float]:
+        """Get telescope coordinate y in meters (J2000)."""
+        logger.debug(f"Retrieved coordinate Y={self._y} m for telescope '{self._code}'")
+        return self._y
+    
+    def get_telescope_z(self) -> tuple[float, float, float]:
+        """Get telescope coordinate z in meters (J2000)."""
+        logger.debug(f"Retrieved coordinate Z={self._z} m for telescope '{self._code}'")
+        return self._z
 
     def get_telescope_velocities(self) -> tuple[float, float, float]:
         """Get telescope velocities vx, vy, vz in m/s (J2000)."""

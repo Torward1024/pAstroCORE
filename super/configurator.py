@@ -6,7 +6,7 @@ from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
 from base.frequencies import IF, Frequencies
 from base.scans import Scan, Scans
-from utils.validation import check_type, check_non_empty_string, check_positive_float
+from utils.validation import check_type, check_non_empty_string, check_positive
 from utils.logging_setup import logger
 
 
@@ -177,7 +177,8 @@ class Configurator(ABC):
     # Массовое конфигурирование
     def bulk_configure(self, observation: Observation, sources: List[Source], 
                        telescopes: List[Union[Telescope, SpaceTelescope]],
-                       frequencies: List[Tuple[float, float]], scans: List[Tuple[float, float]]) -> None:
+                       frequencies: List[Tuple[float, float]], scans: List[Tuple[float, float]], 
+                       off_source: bool = False) -> None:
         """Configure observation with multiple sources, telescopes, frequencies, and scans."""
         for src in sources:
             self.add_source(observation, src)
@@ -186,8 +187,13 @@ class Configurator(ABC):
         for freq, bw in frequencies:
             self.add_frequency(observation, freq, bw)
         for start, duration in scans:
-            self.add_scan(observation, start, duration, source=observation.get_sources().get_active_sources()[0],
-                          telescopes=observation.get_telescopes(), frequencies=observation.get_frequencies())
+            self.add_scan(observation, 
+                         start=start, 
+                         duration=duration, 
+                         source=observation.get_sources().get_active_sources()[0] if sources and not off_source else None,
+                         telescopes=observation.get_telescopes(), 
+                         frequencies=observation.get_frequencies(),
+                         is_off_source=off_source)
 
 
 class DefaultConfigurator(Configurator):

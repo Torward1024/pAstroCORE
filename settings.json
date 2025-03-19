@@ -1,0 +1,6 @@
+{
+    "catalogs": {
+        "sources": "catalogs/sources.dat",
+        "telescopes": "catalogs/telescopes.dat"
+    }
+}

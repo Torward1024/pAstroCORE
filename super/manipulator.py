@@ -2,6 +2,10 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 from base.observation import Observation
+from super.configurator import Configurator
+from super.calculator import Calculator
+from super.vizualizator import Vizualizator
+from super.optimizator import Optimizator
 from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 
@@ -35,19 +39,10 @@ class Project:
     def from_dict(cls, data: Dict[str, Any]) -> 'Project':
         return cls(name=data["name"], observations=[Observation.from_dict(obs) for obs in data["observations"]])
 
-    def __len__(self) -> int:
-        return len(self._observations)
-
-    def __repr__(self) -> str:
-        return f"Project(name='{self._name}', observations={len(self._observations)})"
-
-    # Геттеры и сеттеры для параметров Project
     def get_name(self) -> str:
-        """Get the project name."""
         return self._name
 
     def set_name(self, name: str) -> None:
-        """Set the project name."""
         check_non_empty_string(name, "Project name")
         self._name = name
         logger.info(f"Set project name to '{name}'")
@@ -61,12 +56,12 @@ class Manipulator(ABC):
         self._calculator = None
         self._vizualizator = None
         self._optimizator = None
-        logger.info(f"Initialized Manipulator with project '{self._project._name}'")
+        logger.info(f"Initialized Manipulator with project '{self._project.get_name()}'")
 
     def set_project(self, project: Project) -> None:
         check_type(project, Project, "Project")
         self._project = project
-        logger.info(f"Set project '{project._name}' for Manipulator")
+        logger.info(f"Set project '{project.get_name()}' for Manipulator")
 
     def add_observation(self, observation: Observation) -> None:
         check_type(observation, Observation, "Observation")
@@ -120,7 +115,23 @@ class Manipulator(ABC):
             logger.error(f"Error decoding JSON from '{filepath}': {e}")
             raise ValueError(f"Invalid JSON in '{filepath}': {e}")
 
-    # Геттеры и сеттеры для параметров Project через Manipulator
     def get_project_name(self) -> str:
         """Get the project name."""
-        return self._project.get
+        return self._project.get_name()
+
+
+class DefaultManipulator(Manipulator):
+    """Default implementation of Manipulator."""
+    def execute(self) -> None:
+        """Execute the default task: configure, calculate, and visualize all observations."""
+        if not self._project.get_observations():
+            logger.warning("No observations to execute")
+            return
+        for obs in self._project.get_observations():
+            if self._configurator:
+                self._configurator.configure_observation(obs)
+            if self._calculator:
+                self._calculator.calculate_all(obs)
+            if self._vizualizator:
+                self._vizualizator.visualize_observation(obs)
+        logger.info(f"Executed all tasks for project '{self._project.get_name()}'")

@@ -97,12 +97,16 @@ class Calculator(ABC):
             uv_points = []
             for t in time_steps:
                 dt = Time(t, format='unix')
-                h = source_coord.transform_to(GCRS(obstime=dt)).dec.rad  # Hour angle approximation
+                # Точный расчет часового угла через LST
+                lst = dt.sidereal_time('apparent', 'greenwich')  # Примерно для Земли, можно уточнить для телескопа
+                ra_rad = source_coord.ra.rad
+                dec_rad = source_coord.dec.rad
+                h = (lst.rad - ra_rad)  # Часовой угол в радианах
                 u = baseline[0] * np.sin(h) + baseline[1] * np.cos(h)
-                v = -baseline[0] * np.sin(source_coord.dec.rad) * np.cos(h) + \
-                    baseline[1] * np.sin(source_coord.dec.rad) * np.sin(h) + \
-                    baseline[2] * np.cos(source_coord.dec.rad)
-                uv_points.append((u, v))
+                v = -baseline[0] * np.sin(dec_rad) * np.cos(h) + \
+                    baseline[1] * np.sin(dec_rad) * np.sin(h) + \
+                    baseline[2] * np.cos(dec_rad)
+                uv_points.append((u.value, v.value))  # Убираем единицы для хранения
             uv_coverage[(tel1, tel2)] = uv_points
         return uv_coverage
 

@@ -393,12 +393,14 @@ class CatalogManager:
                     x, y, z = map(float, parts[3:6])
                     # Скорости не указаны в каталоге, задаем 0
                     vx, vy, vz = 0.0, 0.0, 0.0
+                    diameter = float(parts[6])
 
                     telescope = Telescope(
                         code=short_name,
                         name=full_name,
                         x=x, y=y, z=z,
                         vx=vx, vy=vy, vz=vz,
+                        diameter=diameter,
                         isactive=True
                     )
                     telescopes.append(telescope)
