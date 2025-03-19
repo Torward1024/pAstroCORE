@@ -405,13 +405,35 @@ class PvCoreWindow(QMainWindow):
                 return
             for obs in self.manipulator.get_observations():
                 if obs.get_observation_code() == selected:
+                    initial_source_count = len(obs.get_sources().get_active_sources())
+                    for source in selected_sources:
+                        self.manipulator._configurator.add_source(obs, source)
+                    final_source_count = len(obs.get_sources().get_active_sources())
+                    added_count = final_source_count - initial_source_count
+                    if added_count > 0:
+                        self.update_config_tables(obs)
+                        self.update_obs_table()
+                        self.status_bar.showMessage(f"Added {added_count} new source(s) to '{selected}'")
+                    else:
+                        self.status_bar.showMessage(f"No new sources added to '{selected}' (duplicates skipped)")
+                    break
+        
+        # Открываем диалог выбора источников
+        dialog = SourceSelectorDialog(self.manipulator.get_catalog_manager().source_catalog.get_all_sources(), self)
+        if dialog.exec():
+            selected_sources = dialog.get_selected_sources()
+            if not selected_sources:
+                self.status_bar.showMessage("No sources selected")
+                return
+            for obs in self.manipulator.get_observations():
+                if obs.get_observation_code() == selected:
                     for source in selected_sources:
                         self.manipulator._configurator.add_source(obs, source)
                     self.update_config_tables(obs)
                     self.update_obs_table()
                     self.status_bar.showMessage(f"Added {len(selected_sources)} source(s) to '{selected}'")
                     break
-                
+
     def remove_source(self):
         selected = self.obs_selector.currentText()
         if selected == "Select Observation...":

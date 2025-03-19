@@ -278,16 +278,8 @@ class Sources(BaseEntity):
         for i, existing in enumerate(self._data):
             if i == exclude_index:
                 continue
-            # Проверка по координатам
-            if (abs(existing.get_ra_degrees() - source.get_ra_degrees()) < tolerance and
-                abs(existing.get_dec_degrees() - source.get_dec_degrees()) < tolerance):
-                return True
-            # Проверка по именам
-            if (existing.get_name() == source.get_name() or
-                (existing.get_name_J2000() and source.get_name_J2000() and
-                existing.get_name_J2000() == source.get_name_J2000()) or
-                (existing.get_alt_name() and source.get_alt_name() and
-                existing.get_alt_name() == source.get_alt_name())):
+            # check by unique name
+            if (existing.get_name() == source.get_name()):
                 return True
         return False
 
@@ -309,9 +301,8 @@ class Sources(BaseEntity):
         """Add a new source."""
         check_type(source, Source, "Source")
         if self._is_duplicate(source):
-            logger.error(f"Source with coordinates RA={source.get_ra_degrees():.6f} deg, "
-                         f"DEC={source.get_dec_degrees():.6f} deg or matching names already exists")
-            raise ValueError(f"Duplicate source with coordinates or names!")
+            logger.warning(f"Source '{source.get_name()}' already exists in Sources, skipping addition")
+            return
         self._data.append(source)
         logger.info(f"Added source '{source.get_name()}' to Sources")
 
