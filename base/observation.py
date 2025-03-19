@@ -147,6 +147,11 @@ class Observation(BaseEntity):
             logger.warning(f"Observation '{self._observation_code}' has no active scans")
             return False
         
+        obs_freqs = {f.get_frequency() for f in self._frequencies.get_active_frequencies()}
+        if not obs_freqs:
+            logger.warning(f"Observation '{self._observation_code}' has no active frequencies")
+            return False
+        
         active_telescopes = self._telescopes.get_active_telescopes()
         if not active_telescopes:
             logger.warning(f"Observation '{self._observation_code}' has no active telescopes")

@@ -1,6 +1,6 @@
 # base/frequencies.py
 from base.base_entity import BaseEntity
-from utils.validation import check_type, check_non_negative, check_positive, check_list_type
+from utils.validation import check_type, check_non_negative, check_positive, check_list_type, check_non_zero
 from utils.logging_setup import logger
 from typing import Optional
 
@@ -63,6 +63,7 @@ class IF(BaseEntity):
     def set_frequency(self, freq: float, isactive: bool = True) -> None:
         """Set IF frequency value in MHz."""
         check_non_negative(freq, "Frequency")
+        check_non_zero(freq, "Frequency")
         self._frequency = freq
         self.isactive = isactive
         logger.info(f"Set frequency to {freq} MHz for IF")
@@ -76,6 +77,7 @@ class IF(BaseEntity):
     def set_frequency_wavelength(self, wavelength_cm: float) -> None:
         """Set IF frequency value in MHz through wavelength value in cm."""
         check_positive(wavelength_cm, "Wavelength")
+        check_non_zero(wavelength_cm, "Wavelength")
         self._frequency = C_MHZ_CM / wavelength_cm
         logger.info(f"Set frequency to {self._frequency} MHz from wavelength={wavelength_cm} cm for IF")
 
@@ -151,16 +153,30 @@ class Frequencies(BaseEntity):
         logger.info(f"Initialized Frequencies with {len(self._data)} IFs")
 
     def add_frequency(self, if_obj: IF) -> None:
-        """Add a new IF object."""
+        """Add a new IF object.
+
+        Args:
+            if_obj (IF): IF object to add.
+
+        Raises:
+            ValueError: If an IF with the same frequency, bandwidth, and polarization already exists.
+        """
         check_type(if_obj, IF, "IF")
-        # Проверяем уникальность по частоте и поляризации
+        # Проверяем уникальность по частоте, полосе пропускания и поляризации
         for existing_if in self._data:
             if (existing_if.get_frequency() == if_obj.get_frequency() and 
+                existing_if.get_bandwidth() == if_obj.get_bandwidth() and 
                 existing_if.get_polarization() == if_obj.get_polarization()):
-                logger.error(f"IF with frequency={if_obj.get_frequency()} MHz and polarization={if_obj.get_polarization()} already exists")
-                raise ValueError(f"IF with frequency={if_obj.get_frequency()} MHz and polarization={if_obj.get_polarization()} already exists!")
+                logger.error(f"IF with frequency={if_obj.get_frequency()} MHz, "
+                            f"bandwidth={if_obj.get_bandwidth()} MHz, "
+                            f"polarization={if_obj.get_polarization()} already exists")
+                raise ValueError(f"IF with frequency={if_obj.get_frequency()} MHz, "
+                                f"bandwidth={if_obj.get_bandwidth()} MHz, "
+                                f"polarization={if_obj.get_polarization()} already exists!")
         self._data.append(if_obj)
-        logger.info(f"Added IF with frequency={if_obj.get_frequency()} MHz, polarization={if_obj.get_polarization()} to Frequencies")
+        logger.info(f"Added IF with frequency={if_obj.get_frequency()} MHz, "
+                    f"bandwidth={if_obj.get_bandwidth()} MHz, "
+                    f"polarization={if_obj.get_polarization()} to Frequencies")
 
     def remove_frequency(self, index: int) -> None:
         """Remove frequency by index."""

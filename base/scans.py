@@ -8,31 +8,11 @@ from utils.logging_setup import logger
 from datetime import datetime
 import numpy as np
 
-from typing import Optional
-from base.base_entity import BaseEntity
-from base.sources import Source
-from base.telescopes import Telescopes, Telescope, SpaceTelescope
-from base.frequencies import Frequencies
-from utils.validation import check_type, check_positive
-from utils.logging_setup import logger
-from datetime import datetime
-import numpy as np
-
 class Scan(BaseEntity):
     def __init__(self, start: float, duration: float, source: Optional[Source] = None,
-                 telescopes: Telescopes = None, frequencies: Frequencies = None,
-                 is_off_source: bool = False, isactive: bool = True):
-        """Initialize a Scan object with start time, duration, source (optional), telescopes, and frequencies.
-
-        Args:
-            start (float): Scan start time in seconds (Unix timestamp, UTC).
-            duration (float): Scan duration in seconds.
-            source (Source, optional): Observed source object (None for OFF SOURCE).
-            telescopes (Telescopes, optional): List of participating telescopes.
-            frequencies (Frequencies, optional): List of observed frequencies with polarizations.
-            is_off_source (bool): Whether this is an OFF SOURCE scan (default: False).
-            isactive (bool): Whether the scan is active (default: True).
-        """
+                telescopes: Telescopes = None, frequencies: Frequencies = None,
+                is_off_source: bool = False, isactive: bool = True):
+        """Initialize a Scan object with start time, duration, source (optional), telescopes, and frequencies."""
         super().__init__(isactive)
         check_type(start, (int, float), "Start time")
         check_positive(duration, "Duration")
@@ -48,8 +28,8 @@ class Scan(BaseEntity):
         self._source = source
         self._telescopes = telescopes if telescopes is not None else Telescopes()
         self._frequencies = frequencies if frequencies is not None else Frequencies()
-        self.is_off_source = is_off_source
-        source_str = "OFF SOURCE" if is_off_source else (f"source '{source.get_name()}'" if source else "no source")
+        self.is_off_source = source is None or is_off_source  # Синхронизация
+        source_str = "OFF SOURCE" if self.is_off_source else (f"source '{source.get_name()}'" if source else "no source")
         logger.info(f"Initialized Scan with start={start}, duration={duration}, {source_str}")
 
     def validate_frequencies_and_sefd(self) -> bool:
@@ -75,8 +55,8 @@ class Scan(BaseEntity):
         return True
 
     def set_scan(self, start: float, duration: float, source: Optional[Source] = None,
-                 telescopes: Telescopes = None, frequencies: Frequencies = None,
-                 is_off_source: bool = False, isactive: bool = True) -> None:
+                telescopes: Telescopes = None, frequencies: Frequencies = None,
+                is_off_source: bool = False, isactive: bool = True) -> None:
         """Set all values for the scan."""
         check_type(start, (int, float), "Start time")
         check_positive(duration, "Duration")
@@ -92,9 +72,9 @@ class Scan(BaseEntity):
         self._source = source
         self._telescopes = telescopes if telescopes is not None else Telescopes()
         self._frequencies = frequencies if frequencies is not None else Frequencies()
-        self.is_off_source = is_off_source
+        self.is_off_source = source is None or is_off_source  # Синхронизация
         self.isactive = isactive
-        source_str = "OFF SOURCE" if is_off_source else (f"source '{source.get_name()}'" if source else "no source")
+        source_str = "OFF SOURCE" if self.is_off_source else (f"source '{source.get_name()}'" if source else "no source")
         logger.info(f"Set Scan with start={start}, duration={duration}, {source_str}")
 
     def set_start(self, start: float) -> None:
@@ -227,7 +207,7 @@ class Scans(BaseEntity):
     def _check_overlap(self, scan: 'Scan', exclude_index: int = -1) -> tuple[bool, str]:
         """Check if the scan overlaps with existing scans by time and telescopes (source optional)."""
         for i, existing in enumerate(self._data):
-            if i == exclude_index or not existing.isactive:
+            if i == exclude_index or not existing.isactive or not scan.isactive:  # Явно учитываем активность обоих сканов
                 continue
             # Проверка пересечения по времени
             time_overlap = (existing.get_start() < scan.get_start() + scan.get_duration() and
@@ -267,11 +247,10 @@ class Scans(BaseEntity):
             raise IndexError("Invalid scan index!")
 
     def check_telescope_availability(self, time: float, source: Optional[Source] = None) -> dict[str, bool]:
-        """Check telescope availability and source visibility at a given time, considering polarizations."""
         check_type(time, (int, float), "Time")
         availability = {}
         dt = datetime.fromtimestamp(time)
-        active_scans = self.get_active_scans()
+        active_scans = self.get_active_scans() if isinstance(self, Scans) else [self]
         if not active_scans:
             logger.debug(f"No active scans at time={time}")
             return availability
@@ -285,25 +264,34 @@ class Scans(BaseEntity):
                 current_source = source or scan.get_source()
                 ra_rad = np.radians(current_source.get_ra_degrees())
                 dec_rad = np.radians(current_source.get_dec_degrees())
-                lst = (time / 86164.0905 * 360 + 280.46061837) % 360  # Примерная формула
+                lst = (time / 86164.0905 * 360 + 280.46061837) % 360 # rough estimation equation, precies is done in calculator
                 for telescope in scan.get_telescopes().get_active_telescopes():
                     code = telescope.get_telescope_code()
                     if isinstance(telescope, SpaceTelescope):
                         pos, _ = telescope.get_position_at_time(dt)
                         dist = np.linalg.norm(pos)
-                        visible = dist < 1e9  # Условный порог
+                        visible = dist < 1e9  # Условный порог видимости
+                        pitch_range = telescope.get_pitch_range()
+                        yaw_range = telescope.get_yaw_range()
+                        visible = (visible and 
+                                   pitch_range[0] <= 0 <= pitch_range[1] and 
+                                   yaw_range[0] <= 0 <= yaw_range[1])
                     else:
                         x, y, z = telescope.get_telescope_coordinates()
                         lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
                         ha = np.radians(lst - current_source.get_ra_degrees())
                         alt = np.arcsin(np.sin(lat) * np.sin(dec_rad) + 
                                         np.cos(lat) * np.cos(dec_rad) * np.cos(ha))
-                        visible = alt > np.radians(15)
-                    # Учитываем поляризации (например, проверка поддержки телескопом)
-                    freqs = scan.get_frequencies().get_active_frequencies()
-                    polarizations = {f.get_polarization() for f in freqs}
-                    if polarizations and not all(p in {"RCP", "LCP", "H", "V"} for p in polarizations):
-                        visible = False  # Условно: сложные поляризации (LL, RL, RR, LR) не поддерживаются всеми телескопами
+                        az = np.arctan2(
+                            -np.sin(ha) * np.cos(dec_rad),
+                            np.cos(lat) * np.sin(dec_rad) - np.sin(lat) * np.cos(dec_rad) * np.cos(ha)
+                        )
+                        alt_deg = np.degrees(alt)
+                        az_deg = np.degrees(az) % 360
+                        el_range = telescope.get_elevation_range()
+                        az_range = telescope.get_azimuth_range()
+                        visible = (el_range[0] <= alt_deg <= el_range[1] and 
+                                   az_range[0] <= az_deg <= az_range[1])
                     availability[code] = visible
         logger.debug(f"Checked telescope availability at time={time}: {availability}")
         return availability

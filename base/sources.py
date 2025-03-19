@@ -1,12 +1,17 @@
 # base/sources.py
 from base.base_entity import BaseEntity
-from utils.validation import check_type, check_range, check_list_type
+from utils.validation import check_type, check_range, check_list_type, check_positive
 from utils.logging_setup import logger
+import numpy as np
+from typing import Optional, Dict
 
 class Source(BaseEntity):
     def __init__(self, name: str, ra_h: float, ra_m: float, ra_s: float, de_d: float, de_m: float, de_s: float,
-                 name_J2000: str = None, alt_name: str = None, isactive: bool = True):
-        """Initialize a Source object with name and J2000 coordinates.
+                 name_J2000: str = None, alt_name: str = None,
+                 flux_table: Optional[Dict[float, float]] = None,
+                 spectral_index: Optional[float] = None,
+                 isactive: bool = True):
+        """Initialize a Source object with name, J2000 coordinates, and optional flux and spectral index.
 
         Args:
             name (str): Source name in B1950.
@@ -18,6 +23,8 @@ class Source(BaseEntity):
             de_s (float): Declination seconds (0-59.999).
             name_J2000 (str, optional): Source name in J2000.
             alt_name (str, optional): Alternative source name (e.g., BL Lac).
+            flux_table (Dict[float, float], optional): Flux table (frequency in MHz: flux in Jy).
+            spectral_index (float, optional): Spectral index for flux extrapolation (F ~ nu^alpha).
             isactive (bool): Whether the source is active (default: True).
         """
         super().__init__(isactive)
@@ -32,6 +39,14 @@ class Source(BaseEntity):
         check_range(de_d, -90, 90, "DEC degrees")
         check_range(de_m, 0, 59, "DEC minutes")
         check_range(de_s, 0, 59.999, "DEC seconds")
+        if flux_table is not None:
+            check_type(flux_table, dict, "Flux table")
+            for freq, flux in flux_table.items():
+                check_type(freq, (int, float), "Flux frequency")
+                check_positive(flux, f"Flux at {freq} MHz")
+        if spectral_index is not None:
+            check_type(spectral_index, (int, float), "Spectral index")
+
         self._name = name
         self._name_J2000 = name_J2000
         self._alt_name = alt_name
@@ -41,11 +56,16 @@ class Source(BaseEntity):
         self._de_d = de_d
         self._de_m = de_m
         self._de_s = de_s
+        self._flux_table = flux_table if flux_table is not None else {}
+        self._spectral_index = spectral_index
         logger.info(f"Initialized Source '{name}' at RA={ra_h}h{ra_m}m{ra_s}s, DEC={de_d}d{de_m}m{de_s}s")
 
     def set_source(self, name: str, ra_h: float, ra_m: float, ra_s: float, de_d: float, de_m: float, de_s: float,
-                   name_J2000: str = None, alt_name: str = None, isactive: bool = True) -> None:
-        """Set Source values."""
+                   name_J2000: str = None, alt_name: str = None,
+                   flux_table: Optional[Dict[float, float]] = None,
+                   spectral_index: Optional[float] = None,
+                   isactive: bool = True) -> None:
+        """Set Source values, including optional flux table and spectral index."""
         check_type(name, str, "Name")
         if name_J2000 is not None:
             check_type(name_J2000, str, "name_J2000")
@@ -57,6 +77,14 @@ class Source(BaseEntity):
         check_range(de_d, -90, 90, "DEC degrees")
         check_range(de_m, 0, 59, "DEC minutes")
         check_range(de_s, 0, 59.999, "DEC seconds")
+        if flux_table is not None:
+            check_type(flux_table, dict, "Flux table")
+            for freq, flux in flux_table.items():
+                check_type(freq, (int, float), "Flux frequency")
+                check_positive(flux, f"Flux at {freq} MHz")
+        if spectral_index is not None:
+            check_type(spectral_index, (int, float), "Spectral index")
+
         self._name = name
         self._name_J2000 = name_J2000
         self._alt_name = alt_name
@@ -66,6 +94,8 @@ class Source(BaseEntity):
         self._de_d = de_d
         self._de_m = de_m
         self._de_s = de_s
+        self._flux_table = flux_table if flux_table is not None else {}
+        self._spectral_index = spectral_index
         self.isactive = isactive
         logger.info(f"Set source '{name}' with new coordinates RA={ra_h}h{ra_m}m{ra_s}s, DEC={de_d}d{de_m}m{de_s}s")
 
@@ -136,6 +166,55 @@ class Source(BaseEntity):
         sign = 1 if self._de_d >= 0 else -1
         return sign * (abs(self._de_d) + self._de_m / 60 + self._de_s / 3600)
 
+    def set_flux(self, frequency: float, flux: float) -> None:
+        """Set flux for a specific frequency."""
+        check_type(frequency, (int, float), "Frequency")
+        check_positive(flux, "Flux")
+        self._flux_table[frequency] = flux
+        logger.info(f"Set flux={flux} Jy for frequency {frequency} MHz on source '{self._name}'")
+
+    def get_flux(self, frequency: float) -> Optional[float]:
+        """Get flux for a given frequency, with interpolation or spectral index extrapolation."""
+        check_type(frequency, (int, float), "Frequency")
+        if not self._flux_table:
+            logger.warning(f"No flux data available for source '{self._name}' to calculate flux at {frequency} MHz")
+            return None
+        
+        # Прямая проверка таблицы
+        if frequency in self._flux_table:
+            return self._flux_table[frequency]
+        
+        # Экстраполяция по спектральному индексу, если он задан
+        if self._spectral_index is not None and self._flux_table:
+            ref_freq, ref_flux = next(iter(self._flux_table.items()))  # Берем первую точку
+            flux = ref_flux * (frequency / ref_freq) ** self._spectral_index
+            logger.debug(f"Extrapolated flux={flux} Jy for frequency {frequency} MHz using spectral index on '{self._name}'")
+            return flux
+        
+        # Линейная интерполяция между точками таблицы
+        freqs = sorted(self._flux_table.keys())
+        if frequency < freqs[0] or frequency > freqs[-1]:
+            logger.debug(f"Frequency {frequency} MHz out of flux table range for '{self._name}'")
+            return None
+        for i in range(len(freqs) - 1):
+            if freqs[i] <= frequency <= freqs[i + 1]:
+                f1, f2 = freqs[i], freqs[i + 1]
+                fl1, fl2 = self._flux_table[f1], self._flux_table[f2]
+                interpolated_flux = fl1 + (fl2 - fl1) * (frequency - f1) / (f2 - f1)
+                logger.debug(f"Interpolated flux={interpolated_flux} Jy for frequency {frequency} MHz on '{self._name}'")
+                return interpolated_flux
+        return None
+
+    def set_spectral_index(self, spectral_index: float) -> None:
+        """Set spectral index."""
+        check_type(spectral_index, (int, float), "Spectral index")
+        self._spectral_index = spectral_index
+        logger.info(f"Set spectral_index={spectral_index} for source '{self._name}'")
+
+    def get_spectral_index(self) -> Optional[float]:
+        """Get spectral index."""
+        return self._spectral_index
+
     def to_dict(self) -> dict:
         """Convert Source object to a dictionary for serialization."""
         logger.info(f"Converted source '{self._name}' to dictionary")
@@ -149,6 +228,8 @@ class Source(BaseEntity):
             "de_s": self._de_s,
             "name_J2000": self._name_J2000,
             "alt_name": self._alt_name,
+            "flux_table": self._flux_table,
+            "spectral_index": self._spectral_index,
             "isactive": self.isactive
         }
 
@@ -156,7 +237,20 @@ class Source(BaseEntity):
     def from_dict(cls, data: dict) -> 'Source':
         """Create a Source object from a dictionary."""
         logger.info(f"Created source '{data['name']}' from dictionary")
-        return cls(**data)
+        return cls(
+            name=data["name"],
+            ra_h=data["ra_h"],
+            ra_m=data["ra_m"],
+            ra_s=data["ra_s"],
+            de_d=data["de_d"],
+            de_m=data["de_m"],
+            de_s=data["de_s"],
+            name_J2000=data.get("name_J2000"),
+            alt_name=data.get("alt_name"),
+            flux_table=data.get("flux_table", {}),
+            spectral_index=data.get("spectral_index"),
+            isactive=data.get("isactive", True)
+        )
 
     def __repr__(self) -> str:
         """Return a string representation of Source."""
@@ -165,8 +259,10 @@ class Source(BaseEntity):
             names += f", name_J2000='{self._name_J2000}'"
         if self._alt_name:
             names += f", alt_name='{self._alt_name}'"
+        flux_info = f", flux_table={self._flux_table}" if self._flux_table else ""
+        spec_info = f", spectral_index={self._spectral_index}" if self._spectral_index is not None else ""
         return (f"Source({names}, RA={self._ra_h}h{self._ra_m}m{self._ra_s}s, "
-                f"DEC={self._de_d}d{self._de_m}m{self._de_s}s, isactive={self.isactive})")
+                f"DEC={self._de_d}d{self._de_m}m{self._de_s}s{flux_info}{spec_info}, isactive={self.isactive})")
 
 class Sources(BaseEntity):
     def __init__(self, sources: list[Source] = None):
@@ -177,9 +273,8 @@ class Sources(BaseEntity):
         self._data = sources if sources is not None else []
         logger.info(f"Initialized Sources with {len(self._data)} sources")
 
-    def _is_duplicate(self, source: 'Source', exclude_index: int = -1) -> bool:
+    def _is_duplicate(self, source: 'Source', exclude_index: int = -1, tolerance: float = 2.78e-4) -> bool:
         """Check if the source is a duplicate based on coordinates or names."""
-        tolerance = 1e-6  # Допустимая погрешность для координат в градусах
         for i, existing in enumerate(self._data):
             if i == exclude_index:
                 continue
@@ -190,9 +285,9 @@ class Sources(BaseEntity):
             # Проверка по именам
             if (existing.get_name() == source.get_name() or
                 (existing.get_name_J2000() and source.get_name_J2000() and
-                 existing.get_name_J2000() == source.get_name_J2000()) or
+                existing.get_name_J2000() == source.get_name_J2000()) or
                 (existing.get_alt_name() and source.get_alt_name() and
-                 existing.get_alt_name() == source.get_alt_name())):
+                existing.get_alt_name() == source.get_alt_name())):
                 return True
         return False
 

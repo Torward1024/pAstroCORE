@@ -60,3 +60,12 @@ def check_non_empty_string(value: str, name: str) -> None:
     if not value.strip():
         logger.error(f"{name} must not be empty")
         raise ValueError(f"{name} must not be empty")
+
+def check_non_zero(value: float, name: str) -> None:
+    """Check if value is non-zero."""
+    if not isinstance(value, (int, float)):
+        logger.error(f"{name} must be a number, got {type(value)}")
+        raise TypeError(f"{name} must be a number, got {type(value)}")
+    if value == 0:
+        logger.error(f"{name} must be non-zero, got {value}")
+        raise ValueError(f"{name} must be non-zero, got {value}")
