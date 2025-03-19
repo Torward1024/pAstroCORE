@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 from base.observation import Observation
-from utils.validation import check_type
+from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 
 
@@ -40,6 +40,17 @@ class Project:
 
     def __repr__(self) -> str:
         return f"Project(name='{self._name}', observations={len(self._observations)})"
+
+    # Геттеры и сеттеры для параметров Project
+    def get_name(self) -> str:
+        """Get the project name."""
+        return self._name
+
+    def set_name(self, name: str) -> None:
+        """Set the project name."""
+        check_non_empty_string(name, "Project name")
+        self._name = name
+        logger.info(f"Set project name to '{name}'")
 
 
 class Manipulator(ABC):
@@ -109,22 +120,7 @@ class Manipulator(ABC):
             logger.error(f"Error decoding JSON from '{filepath}': {e}")
             raise ValueError(f"Invalid JSON in '{filepath}': {e}")
 
-
-class DefaultManipulator(Manipulator):
-    """Default implementation of Manipulator."""
-    def execute(self) -> None:
-        """Execute the processing pipeline for all observations in the project."""
-        if not self._project.get_observations():
-            logger.warning("No observations in project to execute")
-            return
-        logger.info(f"Executing project '{self._project._name}' with {len(self._project)} observations")
-        for i, obs in enumerate(self._project.get_observations()):
-            logger.info(f"Processing observation {i}: '{obs.get_observation_code()}'")
-            if self._configurator:
-                self._configurator.configure_observation(obs)
-            if self._calculator:
-                self._calculator.calculate_all(obs)
-            if self._vizualizator:
-                self._vizualizator.visualize_observation(obs)
-            if self._optimizator:
-                self._optimizator.optimize_observation(obs)
+    # Геттеры и сеттеры для параметров Project через Manipulator
+    def get_project_name(self) -> str:
+        """Get the project name."""
+        return self._project.get
