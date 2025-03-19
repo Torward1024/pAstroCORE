@@ -65,18 +65,17 @@ class Configurator(ABC):
         observation.get_scans().add_scan(scan)
         logger.info(f"Added scan with start={start} to observation '{observation.get_observation_code()}'")
 
-    # Методы удаления
-    def remove_source(self, observation: Observation, source_name: str) -> None:
-        """Remove a source from the observation by name."""
+    def remove_source(self, observation: Observation, index: int) -> None:
+        """Remove a source from the observation by index."""
         check_type(observation, Observation, "Observation")
-        check_non_empty_string(source_name, "Source name")
+        check_type(index, int, "Index")
         sources = observation.get_sources()
-        source = next((s for s in sources.get_active_sources() if s.get_name() == source_name), None)
-        if source:
-            sources.remove_source(source)
-            logger.info(f"Removed source '{source_name}' from observation '{observation.get_observation_code()}'")
-        else:
-            logger.warning(f"Source '{source_name}' not found in observation '{observation.get_observation_code()}'")
+        try:
+            source = sources.get_source(index)  # Получаем источник по индексу для логирования
+            sources.remove_source(index)  # Удаляем источник по индексу
+            logger.info(f"Removed source '{source.get_name()}' at index {index} from observation '{observation.get_observation_code()}'")
+        except IndexError:
+            logger.warning(f"Source at index {index} not found in observation '{observation.get_observation_code()}'")
 
     def remove_telescope(self, observation: Observation, telescope_code: str) -> None:
         """Remove a telescope from the observation by code."""

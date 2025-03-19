@@ -1,0 +1,136 @@
+{
+    "name": "DefaultProject",
+    "observations": [
+        {
+            "observation_code": "NEW",
+            "observation_type": "VLBI",
+            "sources": {
+                "data": [
+                    {
+                        "name": "0406+121",
+                        "ra_h": 4.0,
+                        "ra_m": 9.0,
+                        "ra_s": 22.00855,
+                        "de_d": 12.0,
+                        "de_m": 17.0,
+                        "de_s": 39.8406,
+                        "name_J2000": "0406+121",
+                        "alt_name": "PKS0406+121",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    },
+                    {
+                        "name": "0410+111",
+                        "ra_h": 4.0,
+                        "ra_m": 13.0,
+                        "ra_s": 40.2788,
+                        "de_d": 11.0,
+                        "de_m": 12.0,
+                        "de_s": 13.0225,
+                        "name_J2000": "0410+111",
+                        "alt_name": "3C109",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    },
+                    {
+                        "name": "0411+281",
+                        "ra_h": 4.0,
+                        "ra_m": 14.0,
+                        "ra_s": 12.9307,
+                        "de_d": 28.0,
+                        "de_m": 12.0,
+                        "de_s": 12.711,
+                        "name_J2000": "0411+281",
+                        "alt_name": "HD283447",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    },
+                    {
+                        "name": "0414-189",
+                        "ra_h": 4.0,
+                        "ra_m": 16.0,
+                        "ra_s": 36.546,
+                        "de_d": -18.0,
+                        "de_m": 51.0,
+                        "de_s": 8.3,
+                        "name_J2000": "0414-189",
+                        "alt_name": "PKS0414-189",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    },
+                    {
+                        "name": "0415+379",
+                        "ra_h": 4.0,
+                        "ra_m": 18.0,
+                        "ra_s": 21.32627,
+                        "de_d": 38.0,
+                        "de_m": 1.0,
+                        "de_s": 35.6764,
+                        "name_J2000": "0415+379",
+                        "alt_name": "3C111",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    },
+                    {
+                        "name": "0419+194",
+                        "ra_h": 4.0,
+                        "ra_m": 21.0,
+                        "ra_s": 59.3045,
+                        "de_d": 19.0,
+                        "de_m": 32.0,
+                        "de_s": 5.9883,
+                        "name_J2000": "0419+194",
+                        "alt_name": "T_TAU",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    },
+                    {
+                        "name": "0420-014",
+                        "ra_h": 4.0,
+                        "ra_m": 23.0,
+                        "ra_s": 15.80059,
+                        "de_d": -1.0,
+                        "de_m": 20.0,
+                        "de_s": 33.0627,
+                        "name_J2000": "0420-014",
+                        "alt_name": "PKS0420-014",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    },
+                    {
+                        "name": "0422+000",
+                        "ra_h": 4.0,
+                        "ra_m": 24.0,
+                        "ra_s": 46.1042,
+                        "de_d": 0.0,
+                        "de_m": 35.0,
+                        "de_s": 47.2166,
+                        "name_J2000": "0422+000",
+                        "alt_name": "$",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    }
+                ]
+            },
+            "telescopes": {
+                "data": []
+            },
+            "frequencies": {
+                "data": []
+            },
+            "scans": {
+                "data": []
+            },
+            "isactive": true,
+            "calculated_data": {}
+        }
+    ]
+}

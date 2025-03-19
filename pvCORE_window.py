@@ -23,6 +23,7 @@ from base.telescopes import Telescope, Telescopes
 from gui.CatalogBrowserDialog import CatalogBrowserDialog
 from gui.CatalogSettingsDialog import CatalogSettingsDialog
 from gui.AboutDialog import AboutDialog
+from gui.SourceSelectorDialog import SourceSelectorDialog
 
 class PvCoreWindow(QMainWindow):
     def __init__(self):
@@ -154,7 +155,10 @@ class PvCoreWindow(QMainWindow):
         sources_tab = QWidget()
         sources_layout = QVBoxLayout(sources_tab)
         sources_layout.addWidget(self.sources_table)
-        sources_layout.addWidget(QPushButton("Add Source", clicked=self.add_source))
+        sources_buttons_layout = QHBoxLayout()
+        sources_buttons_layout.addWidget(QPushButton("Add Source", clicked=self.add_source))
+        sources_buttons_layout.addWidget(QPushButton("Remove Source", clicked=self.remove_source))
+        sources_layout.addLayout(sources_buttons_layout)
         config_subtabs.addTab(sources_tab, "Sources")
         
         # Telescopes Tab
@@ -281,13 +285,15 @@ class PvCoreWindow(QMainWindow):
     def update_config_tables(self, obs):
         # Sources
         self.sources_table.setRowCount(0)
+        self.sources_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.sources_table.setSelectionMode(QTableWidget.MultiSelection)
         for src in obs.get_sources().get_active_sources():
             row = self.sources_table.rowCount()
             self.sources_table.insertRow(row)
             self.sources_table.setItem(row, 0, QTableWidgetItem(src.get_name()))
             self.sources_table.setItem(row, 1, QTableWidgetItem(str(src.get_ra_degrees())))
             self.sources_table.setItem(row, 2, QTableWidgetItem(str(src.get_dec_degrees())))
-        
+                
         # Telescopes
         self.telescopes_table.setRowCount(0)
         for tel in obs.get_telescopes().get_active_telescopes():
@@ -389,14 +395,42 @@ class PvCoreWindow(QMainWindow):
         if selected == "Select Observation...":
             self.status_bar.showMessage("Please select an observation first")
             return
-        row = self.sources_table.rowCount()
-        self.sources_table.insertRow(row)
-        source = Source(name=f"Source{row+1}", ra_h=0, ra_m=0, ra_s=0, de_d=0, de_m=0, de_s=0)
+        
+        # Открываем диалог выбора источников
+        dialog = SourceSelectorDialog(self.manipulator.get_catalog_manager().source_catalog.get_all_sources(), self)
+        if dialog.exec():
+            selected_sources = dialog.get_selected_sources()
+            if not selected_sources:
+                self.status_bar.showMessage("No sources selected")
+                return
+            for obs in self.manipulator.get_observations():
+                if obs.get_observation_code() == selected:
+                    for source in selected_sources:
+                        self.manipulator._configurator.add_source(obs, source)
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
+                    self.status_bar.showMessage(f"Added {len(selected_sources)} source(s) to '{selected}'")
+                    break
+                
+    def remove_source(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        
+        selected_rows = [index.row() for index in self.sources_table.selectionModel().selectedRows()]
+        if not selected_rows:
+            self.status_bar.showMessage("No sources selected to remove")
+            return
+        
         for obs in self.manipulator.get_observations():
             if obs.get_observation_code() == selected:
-                self.manipulator._configurator.add_source(obs, source)
-                self.update_config_tables(obs)
+                # Удаляем источники в обратном порядке, чтобы не сбить индексы
+                for row in sorted(selected_rows, reverse=True):
+                    self.manipulator._configurator.remove_source(obs, row)
+                self.update_config_tables(obs)  # Обновляем таблицу после удаления
                 self.update_obs_table()
+                self.status_bar.showMessage(f"Removed {len(selected_rows)} source(s) from '{selected}'")
                 break
 
     def add_telescope(self):
