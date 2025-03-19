@@ -191,6 +191,10 @@ class Frequencies(BaseEntity):
         """Get list of frequencies in MHz."""
         logger.debug(f"Retrieved frequencies with {len(self._data)} items")
         return [if_obj.get_frequency() for if_obj in self._data]
+    
+    def get_all_frequencies(self) -> list['IF']:
+        """Get list of frequency obsject"""
+        return self._data
 
     def get_bandwidths(self) -> list[float]:
         """Get list of bandwidths in MHz."""

@@ -181,7 +181,7 @@ class Calculator(ABC):
 
     def calculate_field_of_view(self, observation: Observation, scan: 'Scan') -> Dict[str, Dict[str, Dict]]:
         """Calculate field of view per frequency and objects within it."""
-        if observation.get_observation_type() != "SingleDish":
+        if observation.get_observation_type() != "SINGLE_DISH":
             return {}
         time = Time(scan.get_start(), format='unix')
         fov_data = {}
@@ -230,10 +230,10 @@ class Calculator(ABC):
         return angles
 
     def calculate_beam_pattern(self, observation: Observation, scan: 'Scan') -> Dict[str, np.ndarray]:
-        """Calculate beam pattern (SingleDish: Gaussian, VLBI: from u,v)."""
+        """Calculate beam pattern (SINGLE_DISH: Gaussian, VLBI: from u,v)."""
         beam_patterns = {}
         for tel in scan.get_telescopes().get_active_telescopes():
-            if observation.get_observation_type() == "SingleDish":
+            if observation.get_observation_type() == "SINGLE_DISH":
                 # Gaussian beam based on FOV
                 diameter = tel.get_diameter() * u.m
                 freq = observation.get_frequencies().get_active_frequencies()[0].get_freq() * 1e6  # MHz -> Hz
@@ -292,7 +292,7 @@ class DefaultCalculator(Calculator):
                     observation, freq)
             scan_data["mollweide_tracks"] = self.calculate_mollweide_tracks(observation, scan)
             scan_data["mollweide_distances"] = self.calculate_mollweide_distance(observation, scan)
-            if observation.get_observation_type() == "SingleDish":
+            if observation.get_observation_type() == "SINGLE_DISH":
                 scan_data["field_of_view"] = self.calculate_field_of_view(observation, scan)
             scan_data["sun_angles"] = self.calculate_sun_angles(observation, scan)
             scan_data["beam_pattern"] = self.calculate_beam_pattern(observation, scan)

@@ -135,9 +135,9 @@ class Configurator(ABC):
         """Set the observation type."""
         check_type(observation, Observation, "Observation")
         check_non_empty_string(obs_type, "Observation type")
-        if obs_type not in ["VLBI", "SingleDish"]:
-            logger.error(f"Invalid observation type: {obs_type}. Must be 'VLBI' or 'SingleDish'")
-            raise ValueError("Observation type must be 'VLBI' or 'SingleDish'")
+        if obs_type not in ["VLBI", "SINGLE_DISH"]:
+            logger.error(f"Invalid observation type: {obs_type}. Must be 'VLBI' or 'SINGLE_DISH'")
+            raise ValueError("Observation type must be 'VLBI' or 'SINGLE_DISH'")
         observation._observation_type = obs_type
         logger.info(f"Set observation type to '{obs_type}'")
 

@@ -149,8 +149,8 @@ class Observation(BaseEntity):
             return False
 
         # Check observation type
-        if self._observation_type not in ["VLBI", "SingleDish"]:
-            logger.error(f"Invalid observation type: {self._observation_type}. Must be 'VLBI' or 'SingleDish'")
+        if self._observation_type not in ["VLBI", "SINGLE_DISH"]:
+            logger.error(f"Invalid observation type: {self._observation_type}. Must be 'VLBI' or 'SINGLE_DISH'")
             return False
 
         # Validate SEFD
