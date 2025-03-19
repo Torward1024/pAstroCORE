@@ -1,4 +1,3 @@
-# base/scans.py
 from base.base_entity import BaseEntity
 from base.sources import Source
 from base.telescopes import Telescopes, Telescope, SpaceTelescope
@@ -7,6 +6,7 @@ from utils.validation import check_type, check_positive
 from utils.logging_setup import logger
 from datetime import datetime
 import numpy as np
+from typing import Optional
 
 class Scan(BaseEntity):
     def __init__(self, start: float, duration: float, source: Optional[Source] = None,

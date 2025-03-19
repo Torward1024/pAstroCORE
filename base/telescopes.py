@@ -515,7 +515,7 @@ class SpaceTelescope(Telescope):
 
     def to_dict(self) -> dict:
         """Convert SpaceTelescope object to a dictionary for serialization.
-            Keplerian elements angles (i, raan, argp, nu) are stored in degrees."""
+            Keplerian elements angles (inclination i, RAAN raan, argument of periapsis argp, true anomaly nu) are stored in degrees (°)."""
         base_dict = super().to_dict()
         base_dict.update({
             "type": "SpaceTelescope",
