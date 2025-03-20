@@ -1,0 +1,63 @@
+{
+    "name": "DefaultProject",
+    "observations": [
+        {
+            "observation_code": "Obs1",
+            "observation_type": "VLBI",
+            "sources": {
+                "data": [
+                    {
+                        "name": "0014+813",
+                        "ra_h": 0.0,
+                        "ra_m": 17.0,
+                        "ra_s": 8.2988,
+                        "de_d": 81.0,
+                        "de_m": 35.0,
+                        "de_s": 6.6314,
+                        "name_J2000": "0014+813",
+                        "alt_name": "$",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    }
+                ]
+            },
+            "telescopes": {
+                "data": [
+                    {
+                        "type": "Telescope",
+                        "code": "AN",
+                        "name": "Anch",
+                        "x": -2674533.924,
+                        "y": 1544142.881,
+                        "z": 5571414.996,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    }
+                ]
+            },
+            "frequencies": {
+                "data": []
+            },
+            "scans": {
+                "data": []
+            },
+            "isactive": true,
+            "calculated_data": {}
+        }
+    ]
+}

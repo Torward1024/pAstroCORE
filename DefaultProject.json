@@ -978,7 +978,9 @@
                         "sefd_table": {
                             "1000.0": 5000.0
                         },
-                        "efficiency_table": {},
+                        "efficiency_table": {
+                            "1.0": 0.5
+                        },
                         "elevation_range": [
                             15.0,
                             90.0
@@ -1001,6 +1003,30 @@
                         "vy": 0.0,
                         "vz": 0.0,
                         "diameter": 32.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "AN",
+                        "name": "Anch",
+                        "x": -2674533.924,
+                        "y": 1544142.881,
+                        "z": 5571414.996,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
                         "sefd_table": {},
                         "efficiency_table": {},
                         "elevation_range": [
@@ -1240,7 +1266,104 @@
                 ]
             },
             "telescopes": {
-                "data": []
+                "data": [
+                    {
+                        "type": "Telescope",
+                        "code": "BG",
+                        "name": "Banglre",
+                        "x": 1336735.6,
+                        "y": -6070802.7,
+                        "z": 1426962.1,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 32.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "AN",
+                        "name": "Anch",
+                        "x": -2674533.924,
+                        "y": 1544142.881,
+                        "z": 5571414.996,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "AP",
+                        "name": "Algopark",
+                        "x": 918036.7274,
+                        "y": 4346133.078,
+                        "z": 4561971.548,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 47.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "AQ",
+                        "name": "Algonquin",
+                        "x": 915340.314,
+                        "y": 4332356.355,
+                        "z": 4577325.254,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 46.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    }
+                ]
             },
             "frequencies": {
                 "data": []

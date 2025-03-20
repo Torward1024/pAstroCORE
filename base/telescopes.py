@@ -281,6 +281,10 @@ class Telescope(BaseEntity):
         sefd_table = data.get("sefd_table", {})
         if sefd_table:
             sefd_table = {float(freq): float(flux) for freq, flux in sefd_table.items()}
+        
+        efficiency_table = data.get("efficiency_table", {})
+        if efficiency_table:
+            efficiency_table = {float(freq): float(efficiency) for freq, efficiency in efficiency_table.items()}
 
         logger.info(f"Created telescope '{data['code']}' from dictionary")
         return cls(
@@ -294,7 +298,7 @@ class Telescope(BaseEntity):
             vz=data["vz"],
             diameter=data["diameter"],
             sefd_table=sefd_table,
-            efficiency_table=data.get("efficiency_table", {}),
+            efficiency_table=efficiency_table,
             elevation_range=tuple(data.get("elevation_range", (15.0, 90.0))),
             azimuth_range=tuple(data.get("azimuth_range", (0.0, 360.0))),
             mount_type=data.get("mount_type", "AZIM"),

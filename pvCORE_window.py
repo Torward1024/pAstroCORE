@@ -19,7 +19,7 @@ from super.vizualizator import DefaultVizualizator
 from utils.logging_setup import logger
 from base.observation import Observation
 from base.sources import Source, Sources
-from base.telescopes import Telescope, Telescopes
+from base.telescopes import Telescope, SpaceTelescope, Telescopes
 from gui.CatalogBrowserDialog import CatalogBrowserDialog
 from gui.CatalogSettingsDialog import CatalogSettingsDialog
 from gui.AboutDialog import AboutDialog
@@ -62,8 +62,13 @@ class PvCoreWindow(QMainWindow):
         self.sources_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.sources_table.customContextMenuRequested.connect(self.show_sources_table_context_menu)
 
-        self.telescopes_table = QTableWidget(0, 3)
-        self.telescopes_table.setHorizontalHeaderLabels(["Code", "Name", "X (m)"])
+        self.telescopes_table = QTableWidget(0, 8)
+        self.telescopes_table.setHorizontalHeaderLabels(["Code", "Name", "X (m)", "Y (m)", "Z (m)", "Diameter (m)", "Mount Type", "Is Active"])
+        self.telescopes_table.horizontalHeader().setStretchLastSection(True)
+        self.telescopes_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.telescopes_table.customContextMenuRequested.connect(self.show_telescopes_context_menu)
+
+
         self.scans_table = QTableWidget(0, 3)
         self.scans_table.setHorizontalHeaderLabels(["Start", "Duration", "Source"])
         self.frequencies_table = QTableWidget(0, 3)
@@ -82,7 +87,6 @@ class PvCoreWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Ready | March 19, 2025")
-
 
     def get_observation_by_code(self, code: str) -> Optional[Observation]:
         """Get observation by code efficiently."""
@@ -189,7 +193,7 @@ class PvCoreWindow(QMainWindow):
         self.project_dock.setWidget(dock_widget)
 
     def setup_tabs(self):
-# Project Tab
+        # Project Tab
         project_tab = QWidget()
         project_layout = QVBoxLayout(project_tab)
         project_name_layout = QHBoxLayout()
@@ -252,8 +256,10 @@ class PvCoreWindow(QMainWindow):
         telescopes_buttons_layout.addWidget(QPushButton("Edit Telescope", clicked=self.edit_telescope))
         telescopes_buttons_layout.addWidget(QPushButton("Remove Telescope", clicked=self.remove_telescope))
         telescopes_layout.addLayout(telescopes_buttons_layout)
+        self.telescopes_table.setContextMenuPolicy(Qt.CustomContextMenu)  # Добавляем политику контекстного меню
+        self.telescopes_table.customContextMenuRequested.connect(self.show_telescopes_context_menu)  # Подключаем обработчик
         config_subtabs.addTab(telescopes_tab, "Telescopes")
-        
+
         scans_tab = QWidget()
         scans_layout = QVBoxLayout(scans_tab)
         scans_layout.addWidget(self.scans_table)
@@ -531,21 +537,35 @@ class PvCoreWindow(QMainWindow):
             combo = QComboBox()
             combo.addItems(["True", "False"])
             combo.setCurrentText(str(src.isactive))
-            combo.currentTextChanged.connect(lambda state, s=src: self.on_is_active_changed(s, state))
+            combo.currentTextChanged.connect(lambda state, s=src: self.on_source_is_active_changed(s, state))
             self.sources_table.setCellWidget(row, 5, combo)
         self.sources_table.resizeColumnsToContents()
         self.sources_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         # Telescopes
         self.telescopes_table.setRowCount(0)
+        self.telescopes_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.telescopes_table.setSelectionMode(QTableWidget.MultiSelection)
         for tel in obs.get_telescopes().get_all_telescopes():
             row = self.telescopes_table.rowCount()
             self.telescopes_table.insertRow(row)
+            coords = tel.get_telescope_coordinates() if not isinstance(tel, SpaceTelescope) else [0, 0, 0]
             for col, value in enumerate([
-                tel.get_telescope_code(), tel.get_telescope_name(), f"{tel.get_diameter():.2f}",
-                tel.get_mount_type().value, str(tel.isactive)
+                tel.get_telescope_code(), tel.get_telescope_name(),
+                f"{coords[0]:.2f}", f"{coords[1]:.2f}", f"{coords[2]:.2f}",
+                f"{tel.get_diameter():.2f}", tel.get_mount_type().value
             ]):
-                self.telescopes_table.setItem(row, col, QTableWidgetItem(value))
+                item = QTableWidgetItem(value)
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                self.telescopes_table.setItem(row, col, item)
+            # Добавляем QComboBox для Is Active
+            combo = QComboBox()
+            combo.addItems(["True", "False"])
+            combo.setCurrentText(str(tel.isactive))
+            combo.currentTextChanged.connect(lambda state, t=tel: self.on_telescope_is_active_changed(t, state))
+            self.telescopes_table.setCellWidget(row, 7, combo)
+        self.telescopes_table.resizeColumnsToContents()
+        self.telescopes_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         # Scans
         self.scans_table.setRowCount(0)
@@ -749,7 +769,7 @@ class PvCoreWindow(QMainWindow):
                         self.status_bar.showMessage(f"No new sources inserted into '{selected}' (duplicates skipped)")
                     break
 
-    def on_is_active_changed(self, source: Source, state: str):
+    def on_source_is_active_changed(self, source: Source, state: str):
         """Обработчик изменения состояния Is Active."""
         new_state = state == "True"
         if new_state != source.isactive:
@@ -760,6 +780,24 @@ class PvCoreWindow(QMainWindow):
                 source.deactivate()
                 logger.info(f"Deactivated source '{source.get_name()}'")
             # Обновляем таблицы, чтобы отразить изменения в активных источниках
+            selected = self.obs_selector.currentText()
+            if selected != "Select Observation...":
+                for obs in self.manipulator.get_observations():
+                    if obs.get_observation_code() == selected:
+                        self.update_config_tables(obs)
+                        self.update_obs_table()
+                        break
+
+    def on_telescope_is_active_changed(self, telescope: Union[Telescope, SpaceTelescope], state: str):
+        """Обработчик изменения состояния Is Active для телескопов."""
+        new_state = state == "True"
+        if new_state != telescope.isactive:
+            if new_state:
+                telescope.activate()
+                logger.info(f"Activated telescope '{telescope.get_telescope_code()}'")
+            else:
+                telescope.deactivate()
+                logger.info(f"Deactivated telescope '{telescope.get_telescope_code()}'")
             selected = self.obs_selector.currentText()
             if selected != "Select Observation...":
                 for obs in self.manipulator.get_observations():
@@ -922,6 +960,8 @@ class PvCoreWindow(QMainWindow):
 
     def new_project(self):
         self.manipulator.set_project(Project("NewProject"))
+        self.canvas.figure.clf()
+        self.canvas.draw()
         self.current_project_file = None
         self.project_name_input.setText(self.manipulator.get_project_name())
         self.update_all_ui()
@@ -960,7 +1000,9 @@ class PvCoreWindow(QMainWindow):
                 self.manipulator.load_project(filepath)
                 self.current_project_file = filepath
                 self.project_name_input.setText(self.manipulator.get_project_name())
-                self.update_project_tree()
+                self.canvas.figure.clf()
+                self.canvas.draw()
+                self.update_all_ui()
                 self.status_bar.showMessage(f"Project loaded from '{filepath}'")
             except (FileNotFoundError, ValueError) as e:
                 logger.error(f"Failed to load project: {e}")
