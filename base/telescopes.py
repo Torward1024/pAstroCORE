@@ -278,6 +278,10 @@ class Telescope(BaseEntity):
     @classmethod
     def from_dict(cls, data: dict) -> 'Telescope':
         """Create a Telescope object from a dictionary."""
+        sefd_table = data.get("sefd_table", {})
+        if sefd_table:
+            sefd_table = {float(freq): float(flux) for freq, flux in sefd_table.items()}
+
         logger.info(f"Created telescope '{data['code']}' from dictionary")
         return cls(
             code=data["code"],
@@ -289,7 +293,7 @@ class Telescope(BaseEntity):
             vy=data["vy"],
             vz=data["vz"],
             diameter=data["diameter"],
-            sefd_table=data.get("sefd_table", {}),
+            sefd_table=sefd_table,
             efficiency_table=data.get("efficiency_table", {}),
             elevation_range=tuple(data.get("elevation_range", (15.0, 90.0))),
             azimuth_range=tuple(data.get("azimuth_range", (0.0, 360.0))),

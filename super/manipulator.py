@@ -1,12 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 from base.observation import Observation, CatalogManager
+from base.sources import Source
+from base.telescopes import Telescope, SpaceTelescope
 from super.configurator import Configurator
 from super.calculator import Calculator
 from super.vizualizator import Vizualizator
 from super.optimizator import Optimizator
 from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
+from typing import Union
 import os
 
 class Project:
@@ -159,6 +162,30 @@ class Manipulator(ABC):
     def get_observations(self) -> List[Observation]:
         """Get the list of observations in the project."""
         return self._project.get_observations()
+    
+    def configure_observation_code(self, observation: Observation, code: str) -> None:
+        """Set observation code via Configurator."""
+        self._configurator.set_observation_code(observation, code)
+
+    def configure_observation_type(self, observation: Observation, obs_type: str) -> None:
+        """Set observation type via Configurator."""
+        self._configurator.set_observation_type(observation, obs_type)
+
+    def add_source_to_observation(self, observation: Observation, source: Source) -> None:
+        """Add source to observation via Configurator."""
+        self._configurator.add_source(observation, source)
+
+    def remove_source_from_observation(self, observation: Observation, index: int) -> None:
+        """Remove source from observation via Configurator."""
+        self._configurator.remove_source(observation, index)
+
+    def add_telescope_to_observation(self, observation: Observation, telescope: Union[Telescope, SpaceTelescope]) -> None:
+        """Add telescope to observation via Configurator."""
+        self._configurator.add_telescope(observation, telescope)
+
+    def remove_telescope_by_index(self, observation: Observation, index: int) -> None:
+        """Remove telescope by index via Configurator."""
+        self._configurator.remove_telescope_by_index(observation, index)
 
 
 class DefaultManipulator(Manipulator):

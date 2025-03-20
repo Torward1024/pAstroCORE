@@ -140,6 +140,18 @@ class Configurator(ABC):
             raise ValueError("Observation type must be 'VLBI' or 'SINGLE_DISH'")
         observation._observation_type = obs_type
         logger.info(f"Set observation type to '{obs_type}'")
+    
+    def remove_telescope_by_index(self, observation: Observation, index: int) -> None:
+        """Remove a telescope from the observation by index."""
+        check_type(observation, Observation, "Observation")
+        check_type(index, int, "Index")
+        telescopes = observation.get_telescopes()
+        try:
+            telescope = telescopes.get_telescope(index)
+            telescopes.remove_telescope(index)
+            logger.info(f"Removed telescope '{telescope.get_telescope_code()}' at index {index} from observation '{observation.get_observation_code()}'")
+        except IndexError:
+            logger.warning(f"Telescope at index {index} not found in observation '{observation.get_observation_code()}'")
 
     def get_sefd(self, observation: Observation) -> float:
         """Get the SEFD of the observation."""

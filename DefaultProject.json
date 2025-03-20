@@ -963,7 +963,58 @@
                 ]
             },
             "telescopes": {
-                "data": []
+                "data": [
+                    {
+                        "type": "Telescope",
+                        "code": "AR",
+                        "name": "Arecibo",
+                        "x": 2390453.85,
+                        "y": 5564816.46,
+                        "z": 1994663.4,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 300.0,
+                        "sefd_table": {
+                            "1000.0": 5000.0
+                        },
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "EQUA",
+                        "isactive": false
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "bd",
+                        "name": "Badary",
+                        "x": -838200.724,
+                        "y": -3865751.588,
+                        "z": 4987670.977,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 32.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    }
+                ]
             },
             "frequencies": {
                 "data": []

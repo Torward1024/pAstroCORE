@@ -105,8 +105,8 @@ class EditSourceDialog(QDialog):
     def add_flux_row(self):
         row = self.flux_table.rowCount()
         self.flux_table.insertRow(row)
-        self.flux_table.setItem(row, 0, QTableWidgetItem("0.0"))
-        self.flux_table.setItem(row, 1, QTableWidgetItem("0.0"))
+        self.flux_table.setItem(row, 0, QTableWidgetItem("1.0"))
+        self.flux_table.setItem(row, 1, QTableWidgetItem("1.0"))
 
     def remove_flux_row(self):
         row = self.flux_table.currentRow()
