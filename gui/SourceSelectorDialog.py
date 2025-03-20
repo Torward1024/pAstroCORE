@@ -1,5 +1,5 @@
 # gui/SourceSelectorDialog.py
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QDialog, QLabel, QLineEdit, QVBoxLayout, QTableWidget, QTableWidgetItem, QHBoxLayout, QPushButton
 from PySide6.QtCore import Qt
 
 class SourceSelectorDialog(QDialog):
@@ -12,6 +12,13 @@ class SourceSelectorDialog(QDialog):
 
     def init_ui(self):
         layout = QVBoxLayout()
+        
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(QLabel("Search:"))
+        self.search_input = QLineEdit()
+        self.search_input.textChanged.connect(self.filter_table)
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
         
         # Таблица с чекбоксами для выбора
         self.table = QTableWidget(len(self.sources), 5)
@@ -69,3 +76,14 @@ class SourceSelectorDialog(QDialog):
 
     def get_selected_sources(self):
         return self.selected_sources
+    
+    def filter_table(self, text):
+        text = text.lower()
+        for row in range(self.table.rowCount()):
+            match = False
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and text in item.text().lower():
+                    match = True
+                    break
+            self.table.setRowHidden(row, not match)

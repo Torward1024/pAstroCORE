@@ -24,13 +24,15 @@
                         "name": "0411+281",
                         "ra_h": 4.0,
                         "ra_m": 14.0,
-                        "ra_s": 12.9307,
+                        "ra_s": 12.931,
                         "de_d": 28.0,
                         "de_m": 12.0,
                         "de_s": 12.711,
                         "name_J2000": "0411+281",
                         "alt_name": "HD283447",
-                        "flux_table": {},
+                        "flux_table": {
+                            "100.0": 22.0
+                        },
                         "spectral_index": null,
                         "isactive": true
                     },
@@ -981,15 +983,19 @@
                         "name": "0007+106",
                         "ra_h": 0.0,
                         "ra_m": 10.0,
-                        "ra_s": 31.06861,
+                        "ra_s": 31.069,
                         "de_d": 10.0,
                         "de_m": 58.0,
                         "de_s": 29.448,
                         "name_J2000": "0007+106",
                         "alt_name": "$",
-                        "flux_table": {},
-                        "spectral_index": null,
-                        "isactive": true
+                        "flux_table": {
+                            "1.0": 2.0,
+                            "256.0": 22.0,
+                            "1000.0": 76754.0
+                        },
+                        "spectral_index": 2.0,
+                        "isactive": false
                     },
                     {
                         "name": "0009+081",
@@ -1009,13 +1015,15 @@
                         "name": "0010+005",
                         "ra_h": 0.0,
                         "ra_m": 13.0,
-                        "ra_s": 10.6817,
+                        "ra_s": 10.682,
                         "de_d": 0.0,
                         "de_m": 51.0,
-                        "de_s": 27.7843,
+                        "de_s": 27.784,
                         "name_J2000": "0010+005",
                         "alt_name": "$",
-                        "flux_table": {},
+                        "flux_table": {
+                            "100.0": 22.0
+                        },
                         "spectral_index": null,
                         "isactive": true
                     },

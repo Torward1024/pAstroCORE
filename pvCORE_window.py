@@ -24,6 +24,7 @@ from gui.CatalogBrowserDialog import CatalogBrowserDialog
 from gui.CatalogSettingsDialog import CatalogSettingsDialog
 from gui.AboutDialog import AboutDialog
 from gui.SourceSelectorDialog import SourceSelectorDialog
+from gui.EditSourceDialog import EditSourceDialog
 
 class PvCoreWindow(QMainWindow):
     def __init__(self):
@@ -314,6 +315,27 @@ class PvCoreWindow(QMainWindow):
                         break
                 break
 
+    def edit_source(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        row = self.sources_table.currentRow()
+        if row == -1:
+            self.status_bar.showMessage("Please select a source to edit")
+            return
+        for obs in self.manipulator.get_observations():
+            if obs.get_observation_code() == selected:
+                source = obs.get_sources().get_all_sources()[row]
+                dialog = EditSourceDialog(source, self)
+                if dialog.exec():
+                    updated_source = dialog.get_updated_source()
+                    obs.get_sources().set_source(row, updated_source)
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
+                    self.status_bar.showMessage(f"Source '{updated_source.get_name()}' updated")
+                break
+
     def update_observation_code(self):
         selected = self.obs_selector.currentText()
         text = self.obs_code_input.text()
@@ -584,14 +606,15 @@ class PvCoreWindow(QMainWindow):
                         break
 
     def show_sources_table_context_menu(self, position):
-            menu = QMenu()
-            menu.addAction("Add Source", self.add_source)
-            menu.addAction("Insert Source", self.insert_source)
-            menu.addAction("Remove Source", self.remove_source)
-            menu.addSeparator()
-            menu.addAction("Activate All", self.activate_all_sources)
-            menu.addAction("Deactivate All", self.deactivate_all_sources)
-            menu.exec(self.sources_table.viewport().mapToGlobal(position))
+        menu = QMenu()
+        menu.addAction("Add Source", self.add_source)
+        menu.addAction("Insert Source", self.insert_source)
+        menu.addAction("Edit Source", self.edit_source)  # Добавляем пункт
+        menu.addAction("Remove Source", self.remove_source)
+        menu.addSeparator()
+        menu.addAction("Activate All", self.activate_all_sources)
+        menu.addAction("Deactivate All", self.deactivate_all_sources)
+        menu.exec(self.sources_table.viewport().mapToGlobal(position))
 
     def remove_source(self):
         selected = self.obs_selector.currentText()

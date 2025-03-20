@@ -236,21 +236,25 @@ class Source(BaseEntity):
     @classmethod
     def from_dict(cls, data: dict) -> 'Source':
         """Create a Source object from a dictionary."""
+        flux_table = data.get("flux_table", {})
+        if flux_table:
+            flux_table = {float(freq): float(flux) for freq, flux in flux_table.items()}
+
         logger.info(f"Created source '{data['name']}' from dictionary")
         return cls(
-            name=data["name"],
-            ra_h=data["ra_h"],
-            ra_m=data["ra_m"],
-            ra_s=data["ra_s"],
-            de_d=data["de_d"],
-            de_m=data["de_m"],
-            de_s=data["de_s"],
-            name_J2000=data.get("name_J2000"),
-            alt_name=data.get("alt_name"),
-            flux_table=data.get("flux_table", {}),
-            spectral_index=data.get("spectral_index"),
-            isactive=data.get("isactive", True)
-        )
+                name=data["name"],
+                ra_h=data["ra_h"],
+                ra_m=data["ra_m"],
+                ra_s=data["ra_s"],
+                de_d=data["de_d"],
+                de_m=data["de_m"],
+                de_s=data["de_s"],
+                name_J2000=data.get("name_J2000"),
+                alt_name=data.get("alt_name"),
+                flux_table=flux_table,
+                spectral_index=data.get("spectral_index"),
+                isactive=data.get("isactive", True)
+            )
 
     def __repr__(self) -> str:
         """Return a string representation of Source."""

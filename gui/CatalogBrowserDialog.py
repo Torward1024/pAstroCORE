@@ -14,6 +14,14 @@ class CatalogBrowserDialog(QDialog):
 
     def init_ui(self):
         layout = QVBoxLayout()
+        
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(QLabel("Search:"))
+        self.search_input = QLineEdit()
+        self.search_input.textChanged.connect(self.filter_table)
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
+    
         if self.catalog_type == "Source":
             self.table = QTableWidget(len(self.catalog_data), 5)
             self.table.setHorizontalHeaderLabels(["B1950 Name", "J2000 Name", "Alt Name", "RA", "Dec"])
@@ -64,3 +72,14 @@ class CatalogBrowserDialog(QDialog):
         layout.addLayout(button_layout)
         self.setLayout(layout)
         self.setMinimumSize(500, 400)
+
+    def filter_table(self, text):
+            text = text.lower()
+            for row in range(self.table.rowCount()):
+                match = False
+                for col in range(self.table.columnCount()):
+                    item = self.table.item(row, col)
+                    if item and text in item.text().lower():
+                        match = True
+                        break
+                self.table.setRowHidden(row, not match)
