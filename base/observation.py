@@ -2,12 +2,12 @@
 from base.base_entity import BaseEntity
 from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
-from base.frequencies import Frequencies
+from base.frequencies import Frequencies, IF
 from base.scans import Scans
 from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 import re
 
 class Observation(BaseEntity):
@@ -138,6 +138,92 @@ class Observation(BaseEntity):
         if not active_scans:
             return None
         return min(scan.get_start_datetime() for scan in active_scans)
+    
+    def _update_scan_indices(self, entity_type: str, removed_index: Optional[int] = None, inserted_index: Optional[int] = None) -> None:
+        """Update scan indices after adding/removing sources, telescopes, or frequencies."""
+        entity_map = {"sources": "_source_index", "telescopes": "_telescope_indices", "frequencies": "_frequency_indices"}
+        if entity_type not in entity_map:
+            raise ValueError(f"Invalid entity type: {entity_type}")
+        attr = entity_map[entity_type]
+        
+        for scan in self._scans.get_all_scans():
+            if entity_type == "sources":
+                current_idx = getattr(scan, attr)
+                if removed_index is not None and current_idx is not None:
+                    if current_idx == removed_index:
+                        scan.set_source_index(None)  # Источник удалён, сбрасываем
+                        scan.is_off_source = True
+                    elif current_idx > removed_index:
+                        scan.set_source_index(current_idx - 1)
+                elif inserted_index is not None and current_idx is not None and current_idx >= inserted_index:
+                    scan.set_source_index(current_idx + 1)
+            else:  # telescopes or frequencies
+                current_indices = getattr(scan, attr)
+                updated_indices = []
+                for idx in current_indices:
+                    if removed_index is not None:
+                        if idx == removed_index:
+                            continue  # Пропускаем удалённый индекс
+                        elif idx > removed_index:
+                            updated_indices.append(idx - 1)
+                        else:
+                            updated_indices.append(idx)
+                    elif inserted_index is not None:
+                        if idx >= inserted_index:
+                            updated_indices.append(idx + 1)
+                        else:
+                            updated_indices.append(idx)
+                if removed_index is not None or inserted_index is not None:
+                    if entity_type == "telescopes":
+                        scan.set_telescope_indices(updated_indices)
+                    else:
+                        scan.set_frequency_indices(updated_indices)
+        logger.debug(f"Updated scan indices for {entity_type} in observation '{self._observation_code}'")
+    
+    def remove_source(self, index: int) -> None:
+        """Remove a source and update scan indices."""
+        check_type(index, int, "Index")
+        self._sources.remove_source(index)
+        self._update_scan_indices("sources", removed_index=index)
+        logger.info(f"Removed source at index {index} and updated scan indices")
+
+    def insert_source(self, source: Source, index: int) -> None:
+        """Insert a source and update scan indices."""
+        check_type(source, Source, "Source")
+        check_type(index, int, "Index")
+        self._sources._data.insert(index, source)
+        self._update_scan_indices("sources", inserted_index=index)
+        logger.info(f"Inserted source '{source.get_name()}' at index {index} and updated scan indices")
+
+    def remove_telescope(self, index: int) -> None:
+        """Remove a telescope and update scan indices."""
+        check_type(index, int, "Index")
+        self._telescopes.remove_telescope(index)
+        self._update_scan_indices("telescopes", removed_index=index)
+        logger.info(f"Removed telescope at index {index} and updated scan indices")
+
+    def insert_telescope(self, telescope: Union[Telescope, SpaceTelescope], index: int) -> None:
+        """Insert a telescope and update scan indices."""
+        check_type(telescope, (Telescope, SpaceTelescope), "Telescope")
+        check_type(index, int, "Index")
+        self._telescopes._data.insert(index, telescope)
+        self._update_scan_indices("telescopes", inserted_index=index)
+        logger.info(f"Inserted telescope '{telescope.get_telescope_code()}' at index {index} and updated scan indices")
+
+    def remove_frequency(self, index: int) -> None:
+        """Remove a frequency and update scan indices."""
+        check_type(index, int, "Index")
+        self._frequencies.remove_frequency(index)
+        self._update_scan_indices("frequencies", removed_index=index)
+        logger.info(f"Removed frequency at index {index} and updated scan indices")
+
+    def insert_frequency(self, if_obj: IF, index: int) -> None:
+        """Insert a frequency and update scan indices."""
+        check_type(if_obj, IF, "IF")
+        check_type(index, int, "Index")
+        self._frequencies._data.insert(index, if_obj)
+        self._update_scan_indices("frequencies", inserted_index=index)
+        logger.info(f"Inserted frequency {if_obj.get_frequency()} MHz at index {index} and updated scan indices")
 
     def validate(self) -> bool:
         """Validate the observation parameters."""

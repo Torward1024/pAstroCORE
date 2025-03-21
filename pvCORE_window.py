@@ -196,11 +196,7 @@ class PvCoreWindow(QMainWindow):
             if row == -1:
                 self.manipulator.add_frequency_to_observation(obs, if_obj)
             else:
-                frequencies = obs.get_frequencies()
-                current_frequencies = frequencies.get_all_frequencies()
-                current_frequencies.insert(row, if_obj)
-                frequencies._data = current_frequencies
-                logger.info(f"Inserted frequency {new_freq} MHz at index {row} in observation '{selected}'")
+                self.manipulator.insert_frequency_to_observation(obs, if_obj, row)
             self.update_all_ui(selected)
             self.status_bar.showMessage(f"Inserted frequency {new_freq} MHz into '{selected}'")
     
@@ -479,6 +475,7 @@ class PvCoreWindow(QMainWindow):
         
         # Исполняем меню и сразу очищаем его после завершения
         menu.popup(self.scans_table.viewport().mapToGlobal(position))
+        menu.aboutToHide.connect(menu.deleteLater)
     
     def insert_scan(self):
         selected = self.obs_selector.currentText()
@@ -664,6 +661,7 @@ class PvCoreWindow(QMainWindow):
         
         # Исполняем меню и сразу очищаем его после завершения
         menu.popup(self.telescopes_table.viewport().mapToGlobal(position))
+        menu.aboutToHide.connect(menu.deleteLater)
     
     def activate_all_telescopes(self):
         selected = self.obs_selector.currentText()
@@ -1060,32 +1058,23 @@ class PvCoreWindow(QMainWindow):
             if not selected_telescopes:
                 self.status_bar.showMessage("No telescopes selected")
                 return
-            for obs in self.manipulator.get_observations():
-                if obs.get_observation_code() == selected:
-                    telescopes = obs.get_telescopes()
-                    initial_count = len(telescopes.get_all_telescopes())
-                    if row == -1:
-                        for telescope in selected_telescopes:
-                            try:
-                                self.manipulator._configurator.add_telescope(obs, telescope)
-                            except ValueError as e:
-                                self.status_bar.showMessage(str(e))
-                                continue
-                    else:
-                        current_telescopes = telescopes.get_all_telescopes()
-                        for i, telescope in enumerate(selected_telescopes):
-                            current_telescopes.insert(row + i, telescope)
-                        telescopes._data = current_telescopes
-                        logger.info(f"Inserted {len(selected_telescopes)} telescope(s) at index {row} in observation '{selected}'")
-                    final_count = len(telescopes.get_all_telescopes())
-                    added_count = final_count - initial_count
-                    if added_count > 0:
-                        self.update_config_tables(obs)
-                        self.update_obs_table()
-                        self.status_bar.showMessage(f"Inserted {added_count} telescope(s) into '{selected}'")
-                    else:
-                        self.status_bar.showMessage(f"No new telescopes inserted into '{selected}' (duplicates skipped)")
-                    break
+            obs = self.get_observation_by_code(selected)
+            if obs:
+                initial_count = len(obs.get_telescopes().get_all_telescopes())
+                if row == -1:
+                    for telescope in selected_telescopes:
+                        self.manipulator.add_telescope_to_observation(obs, telescope)
+                else:
+                    for i, telescope in enumerate(selected_telescopes):
+                        self.manipulator.insert_telescope_to_observation(obs, telescope, row + i)
+                final_count = len(obs.get_telescopes().get_all_telescopes())
+                added_count = final_count - initial_count
+                if added_count > 0:
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
+                    self.status_bar.showMessage(f"Inserted {added_count} telescope(s) into '{selected}'")
+                else:
+                    self.status_bar.showMessage(f"No new telescopes inserted into '{selected}' (duplicates skipped)")
 
     def insert_observation_from_table(self):
         row = self.obs_table.currentRow()
@@ -1165,28 +1154,23 @@ class PvCoreWindow(QMainWindow):
             if not selected_sources:
                 self.status_bar.showMessage("No sources selected")
                 return
-            for obs in self.manipulator.get_observations():
-                if obs.get_observation_code() == selected:
-                    sources = obs.get_sources()
-                    initial_count = len(sources.get_active_sources())
-                    if row == -1:
-                        for source in selected_sources:
-                            self.manipulator._configurator.add_source(obs, source)
-                    else:
-                        current_sources = sources.get_all_sources()
-                        for i, source in enumerate(selected_sources):
-                            current_sources.insert(row + i, source)
-                        sources._data = current_sources
-                        logger.info(f"Inserted {len(selected_sources)} source(s) at index {row} in observation '{selected}'")
-                    final_count = len(sources.get_active_sources())
-                    added_count = final_count - initial_count
-                    if added_count > 0:
-                        self.update_config_tables(obs)
-                        self.update_obs_table()
-                        self.status_bar.showMessage(f"Inserted {added_count} new source(s) into '{selected}'")
-                    else:
-                        self.status_bar.showMessage(f"No new sources inserted into '{selected}' (duplicates skipped)")
-                    break
+            obs = self.get_observation_by_code(selected)
+            if obs:
+                initial_count = len(obs.get_sources().get_active_sources())
+                if row == -1:
+                    for source in selected_sources:
+                        self.manipulator.add_source_to_observation(obs, source)
+                else:
+                    for i, source in enumerate(selected_sources):
+                        self.manipulator.insert_source_to_observation(obs, source, row + i)
+                final_count = len(obs.get_sources().get_active_sources())
+                added_count = final_count - initial_count
+                if added_count > 0:
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
+                    self.status_bar.showMessage(f"Inserted {added_count} new source(s) into '{selected}'")
+                else:
+                    self.status_bar.showMessage(f"No new sources inserted into '{selected}' (duplicates skipped)")
 
     def on_source_is_active_changed(self, source: Source, state: str):
         new_state = state == "True"

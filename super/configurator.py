@@ -35,21 +35,39 @@ class Configurator(ABC):
         check_type(observation, Observation, "Observation")
         check_type(source, Source, "Source")
         observation.get_sources().add_source(source)
-        logger.info(f"Added source '{source.get_name()}' to observation '{observation.get_observation_code()}'")
+    
+    def insert_source(self, observation: Observation, source: Source, index: int) -> None:
+        """Insert a source into the observation at the specified index."""
+        check_type(observation, Observation, "Observation")
+        check_type(source, Source, "Source")
+        check_type(index, int, "Index")
+        observation.insert_source(source, index)
 
     def add_telescope(self, observation: Observation, telescope: Union[Telescope, SpaceTelescope]) -> None:
         """Add a telescope to the observation."""
         check_type(observation, Observation, "Observation")
         check_type(telescope, (Telescope, SpaceTelescope), "Telescope")
         observation.get_telescopes().add_telescope(telescope)
-        logger.info(f"Added telescope '{telescope.get_telescope_code()}' to observation '{observation.get_observation_code()}'")
+    
+    def insert_telescope(self, observation: Observation, telescope: Union[Telescope, SpaceTelescope], index: int) -> None:
+        """Insert a telescope into the observation at the specified index."""
+        check_type(observation, Observation, "Observation")
+        check_type(telescope, (Telescope, SpaceTelescope), "Telescope")
+        check_type(index, int, "Index")
+        observation.insert_telescope(telescope, index)
 
     def add_frequency(self, observation: Observation, if_obj: IF) -> None:
         """Add a frequency object to the observation."""
         check_type(observation, Observation, "Observation")
         check_type(if_obj, IF, "IF")
         observation.get_frequencies().add_frequency(if_obj)
-        logger.info(f"Added frequency {if_obj.get_frequency()} MHz to observation '{observation.get_observation_code()}'")
+    
+    def insert_frequency(self, observation: Observation, if_obj: IF, index: int) -> None:
+        """Insert a frequency into the observation at the specified index."""
+        check_type(observation, Observation, "Observation")
+        check_type(if_obj, IF, "IF")
+        check_type(index, int, "Index")
+        observation.insert_frequency(if_obj, index)
 
     def add_scan(self, observation: Observation, scan: Scan) -> None:
         """Add a scan to the observation."""
@@ -62,37 +80,19 @@ class Configurator(ABC):
         """Remove a source from the observation by index."""
         check_type(observation, Observation, "Observation")
         check_type(index, int, "Index")
-        sources = observation.get_sources()
-        try:
-            source = sources.get_source(index)  # Получаем источник по индексу для логирования
-            sources.remove_source(index)  # Удаляем источник по индексу
-            logger.info(f"Removed source '{source.get_name()}' at index {index} from observation '{observation.get_observation_code()}'")
-        except IndexError:
-            logger.warning(f"Source at index {index} not found in observation '{observation.get_observation_code()}'")
+        observation.remove_source(index)
 
     def remove_telescope(self, observation: Observation, index: int) -> None:
         """Remove a telescope from the observation by index."""
         check_type(observation, Observation, "Observation")
         check_type(index, int, "Index")
-        telescopes = observation.get_telescopes()
-        try:
-            telescope = telescopes.get_telescope(index)
-            telescopes.remove_telescope(index)
-            logger.info(f"Removed telescope '{telescope.get_telescope_code()}' at index {index} from observation '{observation.get_observation_code()}'")
-        except IndexError:
-            logger.warning(f"Telescope at index {index} not found in observation '{observation.get_observation_code()}'")
+        observation.remove_telescope(index)
 
     def remove_frequency(self, observation: Observation, index: int) -> None:
         """Remove a frequency from the observation by index."""
         check_type(observation, Observation, "Observation")
         check_type(index, int, "Index")
-        frequencies = observation.get_frequencies()
-        try:
-            frequency = frequencies.get_frequency(index)
-            frequencies.remove_frequency(index)
-            logger.info(f"Removed IF '{frequency.get_frequency()}' from observation '{observation.get_observation_code()}'")
-        except IndexError:
-            logger.warning(f"IF '{frequency.get_frequency()}' not found in observation '{observation.get_observation_code()}'")          
+        observation.remove_frequency(index)          
 
     def remove_scan(self, observation: Observation, index: int) -> None:
         """Remove a scan from the observation by index."""

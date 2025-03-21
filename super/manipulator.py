@@ -176,6 +176,10 @@ class Manipulator(ABC):
     def add_source_to_observation(self, observation: Observation, source: Source) -> None:
         """Add source to observation via Configurator."""
         self._configurator.add_source(observation, source)
+    
+    def insert_source_to_observation(self, observation: Observation, source: Source, index: int) -> None:
+        """Insert source into observation via Configurator."""
+        self._configurator.insert_source(observation, source, index)
 
     def remove_source_from_observation(self, observation: Observation, index: int) -> None:
         """Remove source from observation via Configurator."""
@@ -184,6 +188,10 @@ class Manipulator(ABC):
     def add_telescope_to_observation(self, observation: Observation, telescope: Union[Telescope, SpaceTelescope]) -> None:
         """Add telescope to observation via Configurator."""
         self._configurator.add_telescope(observation, telescope)
+    
+    def insert_telescope_to_observation(self, observation: Observation, telescope: Union[Telescope, SpaceTelescope], index: int) -> None:
+        """Insert telescope into observation via Configurator."""
+        self._configurator.insert_telescope(observation, telescope, index)
 
     def remove_telescope_from_observation(self, observation: Observation, index: int) -> None:
         """Remove telescope by index via Configurator."""
@@ -192,6 +200,10 @@ class Manipulator(ABC):
     def add_frequency_to_observation(self, observation: Observation, if_obj: IF) -> None:
         """Add frequency object to observation via Configurator."""
         self._configurator.add_frequency(observation, if_obj)
+    
+    def insert_frequency_to_observation(self, observation: Observation, if_obj: IF, index: int) -> None:
+        """Insert frequency into observation via Configurator."""
+        self._configurator.insert_frequency(observation, if_obj, index)
 
     def remove_frequency_from_observation(self, observation: Observation, index: int) -> None:
         """Remove frequency from observation via Configurator."""
