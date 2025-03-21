@@ -7,6 +7,7 @@ from astropy.time import Time
 from astropy import units as u
 from base.observation import Observation
 from base.telescopes import Telescope, SpaceTelescope
+from base.scans import Scan, Scans
 from base.sources import Source
 from base.frequencies import IF
 from utils.validation import check_type

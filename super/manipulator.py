@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 from base.observation import Observation, CatalogManager
 from base.sources import Source
+from base.scans import Scan
 from base.telescopes import Telescope, SpaceTelescope
 from base.frequencies import IF
 from super.configurator import Configurator
@@ -195,6 +196,14 @@ class Manipulator(ABC):
     def remove_frequency_from_observation(self, observation: Observation, index: int) -> None:
         """Remove frequency from observation via Configurator."""
         self._configurator.remove_frequency(observation, index)
+    
+    def add_scan_to_observation(self, observation: Observation, scan: Scan) -> None:
+        """Add scan object to observation via Configurator."""
+        self._configurator.add_scan(observation, scan)
+
+    def remove_scan_from_observation(self, observation: Observation, index: int) -> None:
+        """Remove scan object from observation via Configurator."""
+        self._configurator.remove_scan(observation, index)
 
 class DefaultManipulator(Manipulator):
     """Default implementation of Manipulator."""

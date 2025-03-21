@@ -17,6 +17,7 @@ from super.configurator import DefaultConfigurator
 from super.calculator import DefaultCalculator
 from super.vizualizator import DefaultVizualizator
 from utils.logging_setup import logger
+from base.scans import Scan
 from base.observation import Observation
 from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
@@ -29,7 +30,9 @@ from gui.EditSourceDialog import EditSourceDialog
 from gui.TelescopeSelectorDialog import TelescopeSelectorDialog
 from gui.EditTelescopeDialog import EditTelescopeDialog
 from gui.PolarizationSelectorDialog import PolarizationSelectorDialog
+from gui.EditScanDialog import EditScanDialog
 from typing import Union
+from datetime import datetime
 
 class PvCoreWindow(QMainWindow):
     def __init__(self):
@@ -69,14 +72,18 @@ class PvCoreWindow(QMainWindow):
         self.telescopes_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.telescopes_table.customContextMenuRequested.connect(self.show_telescopes_context_menu)
 
-        self.frequencies_table = QTableWidget(0, 4)  # Было 3, теперь 4
+        self.frequencies_table = QTableWidget(0, 4)  
         self.frequencies_table.setHorizontalHeaderLabels(["Frequency (MHz)", "Bandwidth (MHz)", "Polarizations", "Is Active"])
+        self.telescopes_table.horizontalHeader().setStretchLastSection(True)
         self.frequencies_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.frequencies_table.customContextMenuRequested.connect(self.show_frequencies_context_menu)
         self.frequencies_table.itemChanged.connect(self.on_frequency_item_changed)
 
-        self.scans_table = QTableWidget(0, 3)
-        self.scans_table.setHorizontalHeaderLabels(["Start", "Duration", "Source"])
+        self.scans_table = QTableWidget(0, 6)  
+        self.scans_table.setHorizontalHeaderLabels(["Start", "Duration", "Source", "Telescopes", "Frequencies", "Is Active"])
+        self.scans_table.horizontalHeader().setStretchLastSection(True)
+        self.scans_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.scans_table.customContextMenuRequested.connect(self.show_scans_context_menu)
 
         self.setup_menu()
         main_widget = QWidget()
@@ -90,7 +97,7 @@ class PvCoreWindow(QMainWindow):
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Ready | March 19, 2025")
+        self.status_bar.showMessage(f"Ready | {datetime.now().strftime('%B %d, %Y')}")
 
     def get_observation_by_code(self, code: str) -> Optional[Observation]:
         return next((obs for obs in self.manipulator.get_observations() if obs.get_observation_code() == code), None)
@@ -118,6 +125,22 @@ class PvCoreWindow(QMainWindow):
         menu.addAction("Activate All Frequencies", self.activate_all_frequencies)
         menu.addAction("Deactivate All Frequencies", self.deactivate_all_frequencies)
         menu.exec(self.frequencies_table.viewport().mapToGlobal(position))
+
+    def on_scan_is_active_changed(self, scan: Scan, state: str):
+        new_state = state == "True"
+        if new_state != scan.isactive:
+            if new_state:
+                scan.activate()
+                logger.info(f"Activated scan with start={scan.get_start()}")
+            else:
+                scan.deactivate()
+                logger.info(f"Deactivated scan with start={scan.get_start()}")
+            selected = self.obs_selector.currentText()
+            if selected != "Select Observation...":
+                obs = self.get_observation_by_code(selected)
+                if obs:
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
     
     def activate_all_frequencies(self):
         selected = self.obs_selector.currentText()
@@ -374,7 +397,12 @@ class PvCoreWindow(QMainWindow):
         scans_tab = QWidget()
         scans_layout = QVBoxLayout(scans_tab)
         scans_layout.addWidget(self.scans_table)
-        scans_layout.addWidget(QPushButton("Add Scan", clicked=self.add_scan))
+        scans_buttons_layout = QHBoxLayout()
+        scans_buttons_layout.addWidget(QPushButton("Add Scan", clicked=self.add_scan))
+        scans_buttons_layout.addWidget(QPushButton("Remove Scan", clicked=self.remove_scan))
+        scans_layout.addLayout(scans_buttons_layout)
+        self.scans_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.scans_table.customContextMenuRequested.connect(self.show_scans_context_menu)
         config_subtabs.addTab(scans_tab, "Scans")
         
         config_layout.addWidget(config_subtabs)
@@ -395,6 +423,130 @@ class PvCoreWindow(QMainWindow):
             self.status_bar.showMessage(f"Project name set to '{new_name}'")
         else:
             self.status_bar.showMessage("Project name cannot be empty")
+    
+    def show_scans_context_menu(self, position):
+        menu = QMenu()
+        menu.addAction("Add Scan", self.add_scan)
+        menu.addAction("Insert Scan", self.insert_scan)
+        menu.addAction("Edit Scan", self.edit_scan)
+        menu.addAction("Remove Scan", self.remove_scan)
+        menu.addSeparator()
+        menu.addAction("Activate All", self.activate_all_scans)
+        menu.addAction("Deactivate All", self.deactivate_all_scans)
+        menu.exec(self.scans_table.viewport().mapToGlobal(position))
+        menu.close()
+    
+    def insert_scan(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        obs = self.get_observation_by_code(selected)
+        if not obs:
+            return
+        if not (obs.get_sources().get_active_sources() and obs.get_telescopes().get_active_telescopes() and obs.get_frequencies().get_active_frequencies()):
+            logger.warning(f"Cannot insert scan to '{selected}': missing active sources, telescopes, or frequencies")
+            self.status_bar.showMessage("Cannot insert scan: observation requires active sources, telescopes, and frequencies")
+            return
+        
+        # Вставка ТОЛЬКО через EditScanDialog
+        dialog = EditScanDialog(sources=obs.get_sources().get_active_sources(), 
+                                telescopes=obs.get_telescopes(), 
+                                frequencies=obs.get_frequencies(), 
+                                parent=self)
+        if dialog.exec():
+            new_scan = dialog.get_updated_scan()
+            scans = obs.get_scans()
+            current_scans = scans.get_all_scans()
+            row = self.scans_table.currentRow()
+            if row == -1:  # Если позиция не выбрана, добавляем в конец
+                try:
+                    self.manipulator.add_scan_to_observation(obs, new_scan)
+                except ValueError as e:
+                    logger.error(f"Failed to insert scan: {e}")
+                    self.status_bar.showMessage(f"Error: {e}")
+                    return
+            else:  # Вставка в указанную позицию
+                current_scans.insert(row, new_scan)
+                scans._data = current_scans
+                overlap, reason = scans._check_overlap(new_scan)
+                if overlap:
+                    current_scans.pop(row)
+                    scans._data = current_scans
+                    logger.error(f"Failed to insert scan: {reason}")
+                    self.status_bar.showMessage(f"Error: {reason}")
+                    return
+                logger.info(f"Inserted scan starting at {new_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} at index {row} in '{selected}'")
+            self.update_config_tables(obs)
+            self.update_obs_table()
+            self.status_bar.showMessage(f"Inserted scan starting at {new_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} into '{selected}'")
+    
+    def edit_scan(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        row = self.scans_table.currentRow()
+        if row == -1:
+            self.status_bar.showMessage("Please select a scan to edit")
+            return
+        obs = self.get_observation_by_code(selected)
+        if obs:
+            scan = obs.get_scans().get_scan(row)
+            dialog = EditScanDialog(scan=scan, 
+                                sources=obs.get_sources().get_active_sources(), 
+                                telescopes=obs.get_telescopes(), 
+                                frequencies=obs.get_frequencies(), 
+                                parent=self)
+            if dialog.exec():
+                updated_scan = dialog.get_updated_scan()
+                try:
+                    obs.get_scans().set_scan(updated_scan, row)
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
+                    self.status_bar.showMessage(f"Updated scan with start={updated_scan.get_start()} in '{selected}'")
+                except ValueError as e:
+                    logger.error(f"Failed to update scan: {e}")
+                    self.status_bar.showMessage(f"Error: {e}")
+    
+    def remove_scan(self):
+        obs_code = self.obs_selector.currentText()
+        if obs_code == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        row = self.scans_table.currentRow()
+        if row == -1:
+            self.status_bar.showMessage("Please select a scan to remove")
+            return
+        obs = self.get_observation_by_code(obs_code)
+        if obs:
+            self.manipulator.remove_scan_from_observation(obs, row)
+            self.update_all_ui(obs_code)
+            self.status_bar.showMessage("Scan removed")
+    
+    def activate_all_scans(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        obs = self.get_observation_by_code(selected)
+        if obs:
+            obs.get_scans().activate_all()
+            self.update_config_tables(obs)
+            self.update_obs_table()
+            self.status_bar.showMessage(f"All scans activated for '{selected}'")
+
+    def deactivate_all_scans(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        obs = self.get_observation_by_code(selected)
+        if obs:
+            obs.get_scans().deactivate_all()
+            self.update_config_tables(obs)
+            self.update_obs_table()
+            self.status_bar.showMessage(f"All scans deactivated for '{selected}'")
     
     def set_observation_code(self):
         selected = self.obs_selector.currentText()
@@ -420,17 +572,16 @@ class PvCoreWindow(QMainWindow):
         if row == -1:
             self.status_bar.showMessage("Please select a telescope to edit")
             return
-        for obs in self.manipulator.get_observations():
-            if obs.get_observation_code() == selected:
-                telescope = obs.get_telescopes().get_telescope(row)
-                dialog = EditTelescopeDialog(telescope, self)
-                if dialog.exec():
-                    updated_telescope = dialog.get_updated_telescope()
-                    obs.get_telescopes().set_telescope(row, updated_telescope)
-                    self.update_config_tables(obs)
-                    self.update_obs_table()
-                    self.status_bar.showMessage(f"Telescope '{updated_telescope.get_telescope_code()}' updated")
-                break
+        obs = self.get_observation_by_code(selected)
+        if obs:
+            telescope = obs.get_telescopes().get_telescope(row)
+            dialog = EditTelescopeDialog(telescope, self)
+            if dialog.exec():
+                updated_telescope = dialog.get_updated_telescope()
+                obs.get_telescopes().set_telescope(row, updated_telescope)
+                self.update_config_tables(obs)
+                self.update_obs_table()
+                self.status_bar.showMessage(f"Telescope '{updated_telescope.get_telescope_code()}' updated")
 
     def remove_source(self):
         selected = self.obs_selector.currentText()
@@ -474,6 +625,7 @@ class PvCoreWindow(QMainWindow):
         menu.addAction("Activate All", self.activate_all_telescopes)
         menu.addAction("Deactivate All", self.deactivate_all_telescopes)
         menu.exec(self.telescopes_table.viewport().mapToGlobal(position))
+        menu.close()
     
     def activate_all_telescopes(self):
         selected = self.obs_selector.currentText()
@@ -560,6 +712,8 @@ class PvCoreWindow(QMainWindow):
             self.telescopes_table.setRowCount(0)
             self.scans_table.setRowCount(0)
             self.frequencies_table.setRowCount(0)
+            self.canvas.figure.clf()
+            self.canvas.draw()
             return
         obs = self.get_observation_by_code(text)
         if obs:
@@ -570,6 +724,12 @@ class PvCoreWindow(QMainWindow):
             self.obs_code_input.blockSignals(False)
             self.obs_type_combo.blockSignals(False)
             self.update_config_tables(obs)
+            # Подгружаем только существующие данные
+            if hasattr(obs, '_calculated_data') and obs._calculated_data:
+                self._plot_existing_data(obs)
+            else:
+                self.canvas.figure.clf()
+                self.canvas.draw()
             for i in range(self.project_tree.topLevelItem(0).childCount()):
                 child = self.project_tree.topLevelItem(0).child(i)
                 if child.text(0) == text:
@@ -708,15 +868,99 @@ class PvCoreWindow(QMainWindow):
         self.frequencies_table.blockSignals(False)
 
         self.scans_table.setRowCount(0)
-        for scan in obs.get_scans().get_active_scans():
+        for scan in obs.get_scans().get_all_scans():
             row = self.scans_table.rowCount()
             self.scans_table.insertRow(row)
+            start_dt = scan.get_start_datetime()
+            source_name = scan.get_source().get_name() if scan.get_source() else "None (OFF SOURCE)"
+            telescopes_str = ", ".join(t.get_telescope_code() for t in scan.get_telescopes().get_active_telescopes())
+            frequencies_str = ", ".join(str(f.get_frequency()) for f in scan.get_frequencies().get_active_frequencies())
             for col, value in enumerate([
-                str(scan.get_start()), str(scan.get_duration()),
-                scan.get_source().get_name() if scan.get_source() else "None"
+                start_dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-4],  # До сотых
+                str(scan.get_duration()), source_name, telescopes_str, frequencies_str
             ]):
-                self.scans_table.setItem(row, col, QTableWidgetItem(value))
+                item = QTableWidgetItem(value)
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                self.scans_table.setItem(row, col, item)
+            active_combo = QComboBox()
+            active_combo.addItems(["True", "False"])
+            active_combo.setCurrentText(str(scan.isactive))
+            active_combo.currentTextChanged.connect(lambda state, s=scan: self.on_scan_is_active_changed(s, state))
+            self.scans_table.setCellWidget(row, 5, active_combo)
+        self.scans_table.resizeColumnsToContents()
+        self.scans_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
     
+    def insert_scan(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        obs = self.get_observation_by_code(selected)
+        if not obs:
+            return
+        if not (obs.get_sources().get_active_sources() and obs.get_telescopes().get_active_telescopes() and obs.get_frequencies().get_active_frequencies()):
+            logger.warning(f"Cannot insert scan to '{selected}': missing active sources, telescopes, or frequencies")
+            self.status_bar.showMessage("Cannot insert scan: observation requires active sources, telescopes, and frequencies")
+            return
+        row = self.scans_table.currentRow()
+        dialog = EditScanDialog(sources=obs.get_sources().get_active_sources(), 
+                                telescopes=obs.get_telescopes(), 
+                                frequencies=obs.get_frequencies(), 
+                                parent=self)
+        if dialog.exec():
+            new_scan = dialog.get_updated_scan()
+            scans = obs.get_scans()
+            current_scans = scans.get_all_scans()
+            if row == -1:
+                try:
+                    self.manipulator.add_scan_to_observation(obs, new_scan)
+                except ValueError as e:
+                    logger.error(f"Failed to insert scan: {e}")
+                    self.status_bar.showMessage(f"Error: {e}")
+                    return
+            else:
+                current_scans.insert(row, new_scan)
+                scans._data = current_scans
+                overlap, reason = scans._check_overlap(new_scan)
+                if overlap:
+                    current_scans.pop(row)
+                    scans._data = current_scans
+                    logger.error(f"Failed to insert scan: {reason}")
+                    self.status_bar.showMessage(f"Error: {reason}")
+                    return
+                logger.info(f"Inserted scan starting at {new_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} at index {row} in '{selected}'")
+            self.update_config_tables(obs)
+            self.update_obs_table()
+            self.status_bar.showMessage(f"Inserted scan starting at {new_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} into '{selected}'")
+    
+    def edit_scan(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        row = self.scans_table.currentRow()
+        if row == -1:
+            self.status_bar.showMessage("Please select a scan to edit")
+            return
+        obs = self.get_observation_by_code(selected)
+        if obs:
+            scan = obs.get_scans().get_scan(row)
+            dialog = EditScanDialog(scan=scan, 
+                                    sources=obs.get_sources().get_active_sources(), 
+                                    telescopes=obs.get_telescopes(), 
+                                    frequencies=obs.get_frequencies(), 
+                                    parent=self)
+            if dialog.exec():
+                updated_scan = dialog.get_updated_scan()
+                try:
+                    obs.get_scans().set_scan(updated_scan, row)
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
+                    self.status_bar.showMessage(f"Updated scan starting at {updated_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} in '{selected}'")
+                except ValueError as e:
+                    logger.error(f"Failed to update scan: {e}")
+                    self.status_bar.showMessage(f"Error: {e}")
+
     def on_frequency_is_active_changed(self, freq: IF, state: str):
         new_state = state == "True"
         if new_state != freq.isactive:
@@ -972,6 +1216,7 @@ class PvCoreWindow(QMainWindow):
         menu.addAction("Activate All", self.activate_all_sources)
         menu.addAction("Deactivate All", self.deactivate_all_sources)
         menu.exec(self.sources_table.viewport().mapToGlobal(position))
+        menu.close()
 
     def activate_all_sources(self):
         selected = self.obs_selector.currentText()
@@ -1060,14 +1305,29 @@ class PvCoreWindow(QMainWindow):
         if selected == "Select Observation...":
             self.status_bar.showMessage("Please select an observation first")
             return
-        row = self.scans_table.rowCount()
-        self.scans_table.insertRow(row)
-        for obs in self.manipulator.get_observations():
-            if obs.get_observation_code() == selected:
-                self.manipulator._configurator.add_scan(obs, start=row+1.0, duration=1.0)
+        obs = self.get_observation_by_code(selected)
+        if not obs:
+            return
+        if not (obs.get_sources().get_active_sources() and obs.get_telescopes().get_active_telescopes() and obs.get_frequencies().get_active_frequencies()):
+            logger.warning(f"Cannot add scan to '{selected}': missing active sources, telescopes, or frequencies")
+            self.status_bar.showMessage("Cannot add scan: observation requires active sources, telescopes, and frequencies")
+            return
+        
+        # Добавление ТОЛЬКО через EditScanDialog
+        dialog = EditScanDialog(sources=obs.get_sources().get_active_sources(), 
+                                telescopes=obs.get_telescopes(), 
+                                frequencies=obs.get_frequencies(), 
+                                parent=self)
+        if dialog.exec():
+            new_scan = dialog.get_updated_scan()
+            try:
+                self.manipulator.add_scan_to_observation(obs, new_scan)
                 self.update_config_tables(obs)
                 self.update_obs_table()
-                break
+                self.status_bar.showMessage(f"Added scan starting at {new_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} to '{selected}'")
+            except ValueError as e:
+                logger.error(f"Failed to add scan: {e}")
+                self.status_bar.showMessage(f"Error: {e}")
 
     def add_frequency(self):
         selected = self.obs_selector.currentText()
@@ -1190,7 +1450,12 @@ class PvCoreWindow(QMainWindow):
                 self.obs_selector.setCurrentText(selected_item)
                 self.obs_code_input.setText(obs.get_observation_code())
                 self.update_config_tables(obs)
-                self.refresh_plot()
+                # Убираем автоматический refresh_plot, подгружаем только существующие данные
+                if hasattr(obs, '_calculated_data') and obs._calculated_data:
+                    self._plot_existing_data(obs)
+                else:
+                    self.canvas.figure.clf()
+                    self.canvas.draw()
                 self.status_bar.showMessage("Selected Observation: " + selected_item)
 
     def load_settings(self):

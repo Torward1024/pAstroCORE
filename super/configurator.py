@@ -51,17 +51,12 @@ class Configurator(ABC):
         observation.get_frequencies().add_frequency(if_obj)
         logger.info(f"Added frequency {if_obj.get_frequency()} MHz to observation '{observation.get_observation_code()}'")
 
-    def add_scan(self, observation: Observation, start: float, duration: float, source: Optional[Source] = None,
-                 telescopes: Optional[Telescopes] = None, frequencies: Optional[Frequencies] = None,
-                 is_off_source: bool = False) -> None:
+    def add_scan(self, observation: Observation, scan: Scan) -> None:
         """Add a scan to the observation."""
         check_type(observation, Observation, "Observation")
-        check_positive(start, "Scan start time")
-        check_positive(duration, "Scan duration")
-        scan = Scan(start=start, duration=duration, source=source, telescopes=telescopes,
-                    frequencies=frequencies, is_off_source=is_off_source)
+        check_type(scan, Scan, "Scan")
         observation.get_scans().add_scan(scan)
-        logger.info(f"Added scan with start={start} to observation '{observation.get_observation_code()}'")
+        logger.info(f"Added scan with start_MJD={scan.get_MJD_starttime} to observation '{observation.get_observation_code()}'")
 
     def remove_source(self, observation: Observation, index: int) -> None:
         """Remove a source from the observation by index."""
@@ -99,17 +94,17 @@ class Configurator(ABC):
         except IndexError:
             logger.warning(f"IF '{frequency.get_frequency()}' not found in observation '{observation.get_observation_code()}'")          
 
-    def remove_scan(self, observation: Observation, start: float) -> None:
+    def remove_scan(self, observation: Observation, index: int) -> None:
         """Remove a scan from the observation by start time."""
         check_type(observation, Observation, "Observation")
-        check_positive(start, "Scan start time")
+        check_type(index, int, "Index")
         scans = observation.get_scans()
-        scan = next((s for s in scans.get_active_scans() if s.get_start() == start), None)
-        if scan:
-            scans.remove_scan(scan)
-            logger.info(f"Removed scan with start={start} from observation '{observation.get_observation_code()}'")
-        else:
-            logger.warning(f"Scan with start={start} not found in observation '{observation.get_observation_code()}'")
+        try:
+            scan = scans.get_scan(index)
+            scans.remove_scan(index)
+            logger.info(f"Removed scan with MJD start: '{scan.get_MJD_starttime}' from observation '{observation.get_observation_code()}'")
+        except IndexError:
+            logger.warning(f"Scan with MJD start: '{scan.get_MJD_starttime}' not found in observation '{observation.get_observation_code()}'") 
 
     # Геттеры и сеттеры для параметров Observation
     def get_observation_code(self, observation: Observation) -> str:
