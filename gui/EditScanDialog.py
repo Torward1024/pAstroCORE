@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, 
-                               QComboBox, QTableWidget, QTableWidgetItem, QCheckBox)
+                               QComboBox, QTableWidget, QTableWidgetItem)
 from PySide6.QtCore import Qt
 from base.scans import Scan
 from base.sources import Source
@@ -8,9 +8,10 @@ from base.frequencies import Frequencies
 from utils.validation import check_positive, check_type
 from utils.logging_setup import logger
 from datetime import datetime
+from typing import List, Optional
 
 class EditScanDialog(QDialog):
-    def __init__(self, scan: Scan = None, sources: list[Source] = None, telescopes: Telescopes = None, 
+    def __init__(self, scan: Scan = None, sources: List[Source] = None, telescopes: Telescopes = None, 
                  frequencies: Frequencies = None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Edit Scan" if scan else "Add Scan")
@@ -93,8 +94,9 @@ class EditScanDialog(QDialog):
             start_dt = self.scan.get_start_datetime()
             self.start_input.setText(start_dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-4])  # До сотых
             self.duration_input.setText(str(self.scan.get_duration()))
-            if self.scan.get_source():
-                self.source_combo.setCurrentText(self.scan.get_source().get_name())
+            source_index = self.scan.get_source_index()
+            if source_index is not None and source_index < len(self.sources):
+                self.source_combo.setCurrentText(self.sources[source_index].get_name())
             elif self.scan.is_off_source:
                 self.source_combo.setCurrentText("None (OFF SOURCE)")
             self.active_combo.setCurrentText(str(self.scan.isactive))
@@ -104,64 +106,75 @@ class EditScanDialog(QDialog):
             self.active_combo.setCurrentText("True")
 
         # Populate telescopes table
-        self.telescopes_table.setRowCount(len(self.telescopes.get_all_telescopes()))
-        active_telescopes = self.scan.get_telescopes().get_active_telescopes() if self.scan else []
-        for i, tel in enumerate(self.telescopes.get_all_telescopes()):
+        all_telescopes = self.telescopes.get_all_telescopes()
+        self.telescopes_table.setRowCount(len(all_telescopes))
+        active_telescope_indices = self.scan.get_telescope_indices() if self.scan else []
+        for i, tel in enumerate(all_telescopes):
             self.telescopes_table.setItem(i, 0, QTableWidgetItem(tel.get_telescope_code()))
             active_combo = QComboBox()
             active_combo.addItems(["True", "False"])
-            # Если редактируем скан, проверяем, активен ли телескоп в этом скане
-            is_active_in_scan = tel in active_telescopes if self.scan else tel.isactive
+            # Если редактируем скан, проверяем, есть ли индекс телескопа в списке активных
+            is_active_in_scan = i in active_telescope_indices if self.scan else tel.isactive
             active_combo.setCurrentText(str(is_active_in_scan))
             self.telescopes_table.setCellWidget(i, 1, active_combo)
 
         # Populate frequencies table
-        self.frequencies_table.setRowCount(len(self.frequencies.get_all_frequencies()))
-        active_frequencies = self.scan.get_frequencies().get_active_frequencies() if self.scan else []
-        for i, freq in enumerate(self.frequencies.get_all_frequencies()):
+        all_frequencies = self.frequencies.get_all_frequencies()
+        self.frequencies_table.setRowCount(len(all_frequencies))
+        active_frequency_indices = self.scan.get_frequency_indices() if self.scan else []
+        for i, freq in enumerate(all_frequencies):
             self.frequencies_table.setItem(i, 0, QTableWidgetItem(str(freq.get_frequency())))
             active_combo = QComboBox()
             active_combo.addItems(["True", "False"])
-            # Если редактируем скан, проверяем, активна ли частота в этом скане
-            is_active_in_scan = freq in active_frequencies if self.scan else freq.isactive
+            # Если редактируем скан, проверяем, есть ли индекс частоты в списке активных
+            is_active_in_scan = i in active_frequency_indices if self.scan else freq.isactive
             active_combo.setCurrentText(str(is_active_in_scan))
             self.frequencies_table.setCellWidget(i, 1, active_combo)
 
     def get_updated_scan(self) -> Scan:
         start_str = self.start_input.text().strip()
-        start_dt = datetime.strptime(start_str, "%Y-%m-%d %H:%M:%S.%f")
-        start = start_dt.timestamp()
-        duration = float(self.duration_input.text())
-        check_positive(duration, "Duration")
+        try:
+            start_dt = datetime.strptime(start_str, "%Y-%m-%d %H:%M:%S.%f")
+            start = start_dt.timestamp()
+        except ValueError as e:
+            raise ValueError(f"Invalid start time format: {e}")
+        
+        try:
+            duration = float(self.duration_input.text())
+            check_positive(duration, "Duration")
+        except ValueError as e:
+            raise ValueError(f"Invalid duration: {e}")
 
         source_name = self.source_combo.currentText()
-        source = next((s for s in self.sources if s.get_name() == source_name), None) if source_name != "None (OFF SOURCE)" else None
+        source_index = None
         is_off_source = source_name == "None (OFF SOURCE)"
+        if not is_off_source:
+            source_index = next((i for i, s in enumerate(self.sources) if s.get_name() == source_name), None)
+            if source_index is None and source_name != "None (OFF SOURCE)":
+                raise ValueError(f"Source '{source_name}' not found in available sources")
 
-        # Create new Telescopes and Frequencies based on selections
-        selected_telescopes = Telescopes()
+        # Собираем индексы выбранных телескопов
+        telescope_indices = []
         for i in range(self.telescopes_table.rowCount()):
-            tel = self.telescopes.get_telescope(i)
-            is_active = self.telescopes_table.cellWidget(i, 1).currentText() == "True"
-            if is_active:
-                tel.activate()
-            else:
-                tel.deactivate()
-            selected_telescopes.add_telescope(tel)
+            if self.telescopes_table.cellWidget(i, 1).currentText() == "True":
+                telescope_indices.append(i)
 
-        selected_frequencies = Frequencies()
+        # Собираем индексы выбранных частот
+        frequency_indices = []
         for i in range(self.frequencies_table.rowCount()):
-            freq = self.frequencies.get_frequency(i)
-            is_active = self.frequencies_table.cellWidget(i, 1).currentText() == "True"
-            if is_active:
-                freq.activate()
-            else:
-                freq.deactivate()
-            selected_frequencies.add_frequency(freq)
+            if self.frequencies_table.cellWidget(i, 1).currentText() == "True":
+                frequency_indices.append(i)
 
         isactive = self.active_combo.currentText() == "True"
-        return Scan(start=start, duration=duration, source=source, telescopes=selected_telescopes, 
-                    frequencies=selected_frequencies, is_off_source=is_off_source, isactive=isactive)
+        return Scan(
+            start=start,
+            duration=duration,
+            source_index=source_index,
+            telescope_indices=telescope_indices,
+            frequency_indices=frequency_indices,
+            is_off_source=is_off_source,
+            isactive=isactive
+        )
 
     def on_ok(self):
         try:

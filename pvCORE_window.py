@@ -140,7 +140,7 @@ class PvCoreWindow(QMainWindow):
         deactivate_action.triggered.connect(self.deactivate_all_frequencies)
         menu.addAction(deactivate_action)
         
-        menu.exec(self.frequencies_table.viewport().mapToGlobal(position))
+        menu.popup(self.frequencies_table.viewport().mapToGlobal(position))
 
     def on_scan_is_active_changed(self, scan: Scan, state: str):
         new_state = state == "True"
@@ -477,7 +477,8 @@ class PvCoreWindow(QMainWindow):
         deactivate_action.triggered.connect(self.deactivate_all_scans)
         menu.addAction(deactivate_action)
         
-        menu.exec(self.scans_table.viewport().mapToGlobal(position))
+        # Исполняем меню и сразу очищаем его после завершения
+        menu.popup(self.scans_table.viewport().mapToGlobal(position))
     
     def insert_scan(self):
         selected = self.obs_selector.currentText()
@@ -630,7 +631,7 @@ class PvCoreWindow(QMainWindow):
             self.status_bar.showMessage("Telescope removed")
 
     def show_telescopes_context_menu(self, position):
-        menu = QMenu(self)  # Явно указываем родителя для правильного управления памятью
+        menu = QMenu(self)
         add_action = QAction("Add Telescope", self)
         add_action.triggered.connect(self.add_telescope)
         menu.addAction(add_action)
@@ -661,7 +662,8 @@ class PvCoreWindow(QMainWindow):
         deactivate_action.triggered.connect(self.deactivate_all_telescopes)
         menu.addAction(deactivate_action)
         
-        menu.exec(self.telescopes_table.viewport().mapToGlobal(position))
+        # Исполняем меню и сразу очищаем его после завершения
+        menu.popup(self.telescopes_table.viewport().mapToGlobal(position))
     
     def activate_all_telescopes(self):
         selected = self.obs_selector.currentText()
@@ -904,15 +906,18 @@ class PvCoreWindow(QMainWindow):
         self.frequencies_table.blockSignals(False)
 
         self.scans_table.setRowCount(0)
+        all_sources = obs.get_sources().get_all_sources()
+        all_tels = obs.get_telescopes().get_all_telescopes()
+        all_freqs = obs.get_frequencies().get_all_frequencies()
         for scan in obs.get_scans().get_all_scans():
             row = self.scans_table.rowCount()
             self.scans_table.insertRow(row)
             start_dt = scan.get_start_datetime()
-            source_name = scan.get_source().get_name() if scan.get_source() else "None (OFF SOURCE)"
-            telescopes_str = ", ".join(t.get_telescope_code() for t in scan.get_telescopes().get_active_telescopes())
-            frequencies_str = ", ".join(str(f.get_frequency()) for f in scan.get_frequencies().get_active_frequencies())
+            source_name = "None (OFF SOURCE)" if scan.is_off_source else (all_sources[scan.get_source_index()].get_name() if scan.get_source_index() is not None else "None")
+            telescopes_str = ", ".join(all_tels[idx].get_telescope_code() for idx in scan.get_telescope_indices())
+            frequencies_str = ", ".join(str(all_freqs[idx].get_frequency()) for idx in scan.get_frequency_indices())
             for col, value in enumerate([
-                start_dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-4],  # До сотых
+                start_dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-4],
                 str(scan.get_duration()), source_name, telescopes_str, frequencies_str
             ]):
                 item = QTableWidgetItem(value)
@@ -1001,7 +1006,7 @@ class PvCoreWindow(QMainWindow):
         remove_action.triggered.connect(self.remove_observation)
         menu.addAction(remove_action)
         
-        menu.exec(self.project_tree.viewport().mapToGlobal(position))
+        menu.popup(self.project_tree.viewport().mapToGlobal(position))
 
     def show_obs_table_context_menu(self, position):
         menu = QMenu(self)
@@ -1017,7 +1022,7 @@ class PvCoreWindow(QMainWindow):
         remove_action.triggered.connect(self.remove_observation_from_table)
         menu.addAction(remove_action)
         
-        menu.exec(self.obs_table.viewport().mapToGlobal(position))
+        menu.popup(self.obs_table.viewport().mapToGlobal(position))
 
     def add_observation(self):
         obs = Observation(observation_code=f"Obs{len(self.manipulator.get_observations())+1}", observation_type="VLBI")
@@ -1245,7 +1250,7 @@ class PvCoreWindow(QMainWindow):
         deactivate_action.triggered.connect(self.deactivate_all_sources)
         menu.addAction(deactivate_action)
         
-        menu.exec(self.sources_table.viewport().mapToGlobal(position))
+        menu.popup(self.sources_table.viewport().mapToGlobal(position))
 
     def activate_all_sources(self):
         selected = self.obs_selector.currentText()
@@ -1342,7 +1347,6 @@ class PvCoreWindow(QMainWindow):
             self.status_bar.showMessage("Cannot add scan: observation requires active sources, telescopes, and frequencies")
             return
         
-        # Добавление ТОЛЬКО через EditScanDialog
         dialog = EditScanDialog(sources=obs.get_sources().get_active_sources(), 
                                 telescopes=obs.get_telescopes(), 
                                 frequencies=obs.get_frequencies(), 

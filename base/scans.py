@@ -8,190 +8,180 @@ from datetime import datetime
 import numpy as np
 from typing import Optional
 
+from base.base_entity import BaseEntity
+from base.sources import Source
+from base.telescopes import Telescopes
+from base.frequencies import Frequencies
+from utils.validation import check_type, check_positive
+from utils.logging_setup import logger
+from datetime import datetime
+from typing import Optional, List
+
 class Scan(BaseEntity):
-    def __init__(self, start: float, duration: float, source: Optional[Source] = None,
-                telescopes: Telescopes = None, frequencies: Frequencies = None,
-                is_off_source: bool = False, isactive: bool = True):
-        """Initialize a Scan object with start time, duration, source (optional), telescopes, and frequencies."""
+    def __init__(self, start: float, duration: float, source_index: Optional[int] = None,
+                 telescope_indices: List[int] = None, frequency_indices: List[int] = None,
+                 is_off_source: bool = False, isactive: bool = True):
+        """Initialize a Scan with start time, duration, and indices referencing Observation data."""
         super().__init__(isactive)
         check_type(start, (int, float), "Start time")
         check_positive(duration, "Duration")
-        if source is not None:
-            check_type(source, Source, "Source")
-        if telescopes is not None:
-            check_type(telescopes, Telescopes, "Telescopes")
-        if frequencies is not None:
-            check_type(frequencies, Frequencies, "Frequencies")
-        check_type(is_off_source, bool, "is_off_source")
+        if source_index is not None:
+            check_type(source_index, int, "Source index")
+        if telescope_indices is not None:
+            check_type(telescope_indices, list, "Telescope indices")
+        if frequency_indices is not None:
+            check_type(frequency_indices, list, "Frequency indices")
         self._start = start
         self._duration = duration
-        self._source = source
-        self._telescopes = telescopes if telescopes is not None else Telescopes()
-        self._frequencies = frequencies if frequencies is not None else Frequencies()
-        self.is_off_source = source is None or is_off_source  # Синхронизация
-        source_str = "OFF SOURCE" if self.is_off_source else (f"source '{source.get_name()}'" if source else "no source")
+        self._source_index = source_index  # Индекс источника в Sources или None для OFF SOURCE
+        self._telescope_indices = telescope_indices if telescope_indices is not None else []  # Список индексов телескопов
+        self._frequency_indices = frequency_indices if frequency_indices is not None else []  # Список индексов частот
+        self.is_off_source = source_index is None or is_off_source
+        source_str = "OFF SOURCE" if self.is_off_source else f"source_index={source_index}" if source_index is not None else "no source"
         logger.info(f"Initialized Scan with start={start}, duration={duration}, {source_str}")
 
-    def validate_frequencies_and_sefd(self) -> bool:
-        """Validate that all telescopes have SEFD defined for the scan's frequencies."""
-        active_freqs = self._frequencies.get_active_frequencies()
-        if not active_freqs:
-            logger.warning(f"Scan with start={self._start} has no active frequencies")
-            return False
-        
-        active_tels = self._telescopes.get_active_telescopes()
-        if not active_tels:
-            logger.warning(f"Scan with start={self._start} has no active telescopes")
-            return False
-        
-        for freq_obj in active_freqs:
-            freq = freq_obj.get_frequency()
-            for tel in active_tels:
-                sefd = tel.get_sefd(freq)
-                if sefd is None:
-                    logger.warning(f"Telescope '{tel.get_telescope_code()}' has no SEFD for frequency {freq} MHz")
-                    return False
-        logger.debug(f"Validated frequencies and SEFD for scan with start={self._start}")
-        return True
-
-    def set_scan(self, start: float, duration: float, source: Optional[Source] = None,
-                telescopes: Telescopes = None, frequencies: Frequencies = None,
-                is_off_source: bool = False, isactive: bool = True) -> None:
-        """Set all values for the scan."""
+    def set_scan(self, start: float, duration: float, source_index: Optional[int] = None,
+                 telescope_indices: List[int] = None, frequency_indices: List[int] = None,
+                 is_off_source: bool = False, isactive: bool = True) -> None:
+        """Set all values for the scan using indices."""
         check_type(start, (int, float), "Start time")
         check_positive(duration, "Duration")
-        if source is not None:
-            check_type(source, Source, "Source")
-        if telescopes is not None:
-            check_type(telescopes, Telescopes, "Telescopes")
-        if frequencies is not None:
-            check_type(frequencies, Frequencies, "Frequencies")
-        check_type(is_off_source, bool, "is_off_source")
+        if source_index is not None:
+            check_type(source_index, int, "Source index")
+        if telescope_indices is not None:
+            check_type(telescope_indices, list, "Telescope indices")
+        if frequency_indices is not None:
+            check_type(frequency_indices, list, "Frequency indices")
         self._start = start
         self._duration = duration
-        self._source = source
-        self._telescopes = telescopes if telescopes is not None else Telescopes()
-        self._frequencies = frequencies if frequencies is not None else Frequencies()
-        self.is_off_source = source is None or is_off_source  # Синхронизация
+        self._source_index = source_index
+        self._telescope_indices = telescope_indices if telescope_indices is not None else []
+        self._frequency_indices = frequency_indices if frequency_indices is not None else []
+        self.is_off_source = source_index is None or is_off_source
         self.isactive = isactive
-        source_str = "OFF SOURCE" if self.is_off_source else (f"source '{source.get_name()}'" if source else "no source")
+        source_str = "OFF SOURCE" if self.is_off_source else f"source_index={source_index}" if source_index is not None else "no source"
         logger.info(f"Set Scan with start={start}, duration={duration}, {source_str}")
 
     def set_start(self, start: float) -> None:
-        """Set scan start time in seconds."""
         check_type(start, (int, float), "Start time")
         self._start = start
         logger.info(f"Set scan start to {start}")
 
     def set_duration(self, duration: float) -> None:
-        """Set scan duration in seconds."""
         check_positive(duration, "Duration")
         self._duration = duration
         logger.info(f"Set scan duration to {duration}")
 
-    def set_source(self, source: Optional[Source]) -> None:
-        """Set scan source (can be None for OFF SOURCE)."""
-        if source is not None:
-            check_type(source, Source, "Source")
-        self._source = source
-        self.is_off_source = source is None
-        logger.info(f"Set scan source to {'OFF SOURCE' if source is None else f"'{source.get_name()}'"}")
+    def set_source_index(self, source_index: Optional[int]) -> None:
+        if source_index is not None:
+            check_type(source_index, int, "Source index")
+        self._source_index = source_index
+        self.is_off_source = source_index is None
+        logger.info(f"Set scan source_index to {'OFF SOURCE' if source_index is None else source_index}")
 
-    def set_telescopes(self, telescopes: Telescopes) -> None:
-        """Set scan telescopes."""
-        if telescopes is not None:
-            check_type(telescopes, Telescopes, "Telescopes")
-        self._telescopes = telescopes if telescopes is not None else Telescopes()
-        logger.info(f"Set scan telescopes with {len(self._telescopes.get_all_telescopes())} items")
+    def set_telescope_indices(self, telescope_indices: List[int]) -> None:
+        check_type(telescope_indices, list, "Telescope indices")
+        self._telescope_indices = telescope_indices
+        logger.info(f"Set scan telescope_indices to {telescope_indices}")
 
-    def set_frequencies(self, frequencies: Frequencies) -> None:
-        """Set scan frequencies with polarizations."""
-        if frequencies is not None:
-            check_type(frequencies, Frequencies, "Frequencies")
-        self._frequencies = frequencies if frequencies is not None else Frequencies()
-        logger.info(f"Set scan frequencies with {len(self._frequencies.get_data())} items (polarizations included)")
+    def set_frequency_indices(self, frequency_indices: List[int]) -> None:
+        check_type(frequency_indices, list, "Frequency indices")
+        self._frequency_indices = frequency_indices
+        logger.info(f"Set scan frequency_indices to {frequency_indices}")
 
     def get_start(self) -> float:
-        """Get scan start time in seconds."""
         return self._start
 
     def get_start_datetime(self) -> datetime:
-        """Get scan start time as a datetime object (UTC)."""
         return datetime.fromtimestamp(self._start)
 
     def get_MJD_starttime(self) -> float:
-        """Get scan start time in Modified Julian Date (MJD)."""
         return (self._start / 86400) + 40587
 
     def get_MJD_endtime(self) -> float:
-        """Get scan end time in Modified Julian Date (MJD)."""
         return ((self._start + self._duration) / 86400) + 40587
 
     def get_duration(self) -> float:
-        """Get scan duration in seconds."""
         return self._duration
 
-    def get_source(self) -> Optional[Source]:
-        """Get source from scan (None if OFF SOURCE)."""
-        return self._source
+    def get_source_index(self) -> Optional[int]:
+        return self._source_index
 
-    def get_telescopes(self) -> Telescopes:
-        """Get telescopes from scan."""
-        return self._telescopes
+    def get_telescope_indices(self) -> List[int]:
+        return self._telescope_indices
 
-    def get_frequencies(self) -> Frequencies:
-        """Get frequencies from scan."""
-        return self._frequencies
+    def get_frequency_indices(self) -> List[int]:
+        return self._frequency_indices
 
     def get_end(self) -> float:
-        """Get end of the scan in seconds."""
         return self._start + self._duration
 
     def get_end_datetime(self) -> datetime:
-        """Get scan end time as a datetime object (UTC)."""
         return datetime.fromtimestamp(self._start + self._duration)
 
-    def activate(self) -> None:
-        """Activate scan."""
-        super().activate()
-
-    def deactivate(self) -> None:
-        """Deactivate scan."""
-        super().deactivate()
+    def validate_with_observation(self, observation: 'Observation') -> bool:
+        """Validate scan against an Observation's data."""
+        from base.observation import Observation
+        check_type(observation, Observation, "Observation")
+        
+        if self._source_index is not None and (self._source_index < 0 or self._source_index >= len(observation.get_sources().get_all_sources())):
+            logger.error(f"Invalid source_index {self._source_index} for observation with {len(observation.get_sources().get_all_sources())} sources")
+            return False
+        
+        all_tels = observation.get_telescopes().get_all_telescopes()
+        for idx in self._telescope_indices:
+            if idx < 0 or idx >= len(all_tels):
+                logger.error(f"Invalid telescope_index {idx} for observation with {len(all_tels)} telescopes")
+                return False
+        
+        all_freqs = observation.get_frequencies().get_all_frequencies()
+        for idx in self._frequency_indices:
+            if idx < 0 or idx >= len(all_freqs):
+                logger.error(f"Invalid frequency_index {idx} for observation with {len(all_freqs)} frequencies")
+                return False
+        
+        # Проверка SEFD для активных телескопов и частот
+        for tel_idx in self._telescope_indices:
+            tel = all_tels[tel_idx]
+            for freq_idx in self._frequency_indices:
+                freq = all_freqs[freq_idx].get_frequency()
+                if tel.get_sefd(freq) is None:
+                    logger.warning(f"Telescope '{tel.get_telescope_code()}' has no SEFD for frequency {freq} MHz")
+                    return False
+        
+        logger.debug(f"Validated scan with start={self._start} against observation '{observation.get_observation_code()}'")
+        return True
 
     def to_dict(self) -> dict:
-        """Convert Scan object to a dictionary for serialization."""
         logger.info(f"Converted scan with start={self._start} to dictionary")
         return {
             "start": self._start,
             "duration": self._duration,
-            "source": self._source.to_dict() if self._source is not None else None,
-            "telescopes": self._telescopes.to_dict(),
-            "frequencies": self._frequencies.to_dict(),
+            "source_index": self._source_index,
+            "telescope_indices": self._telescope_indices,
+            "frequency_indices": self._frequency_indices,
             "is_off_source": self.is_off_source,
             "isactive": self.isactive
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Scan':
-        """Create a Scan object from a dictionary."""
         logger.info(f"Created scan with start={data['start']} from dictionary")
         return cls(
             start=data["start"],
             duration=data["duration"],
-            source=Source.from_dict(data["source"]) if data["source"] is not None else None,
-            telescopes=Telescopes.from_dict(data["telescopes"]),
-            frequencies=Frequencies.from_dict(data["frequencies"]),
+            source_index=data["source_index"],
+            telescope_indices=data["telescope_indices"],
+            frequency_indices=data["frequency_indices"],
             is_off_source=data["is_off_source"],
             isactive=data["isactive"]
         )
 
     def __repr__(self) -> str:
-        """Return a string representation of Scan."""
-        source_str = "OFF SOURCE" if self.is_off_source else f"source={self._source}" if self._source else "no source"
-        freq_str = f"frequencies={len(self._frequencies)} (with polarizations)"
+        source_str = "OFF SOURCE" if self.is_off_source else f"source_index={self._source_index}" if self._source_index is not None else "no source"
         return (f"Scan(start={self._start}, duration={self._duration}, {source_str}, "
-                f"telescopes={self._telescopes}, {freq_str}, isactive={self.isactive})")
+                f"telescope_indices={self._telescope_indices}, frequency_indices={self._frequency_indices}, "
+                f"isactive={self.isactive})")
 
 class Scans(BaseEntity):
     def __init__(self, scans: list[Scan] = None):

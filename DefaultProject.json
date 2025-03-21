@@ -5,48 +5,16 @@
             "observation_code": "Obs1",
             "observation_type": "VLBI",
             "sources": {
-                "data": []
-            },
-            "telescopes": {
-                "data": []
-            },
-            "frequencies": {
-                "data": []
-            },
-            "scans": {
-                "data": []
-            },
-            "isactive": true,
-            "calculated_data": {}
-        },
-        {
-            "observation_code": "Obs2",
-            "observation_type": "VLBI",
-            "sources": {
                 "data": [
                     {
-                        "name": "0010+405",
+                        "name": "0003-003",
                         "ra_h": 0.0,
-                        "ra_m": 13.0,
-                        "ra_s": 31.1302,
-                        "de_d": 40.0,
-                        "de_m": 51.0,
-                        "de_s": 37.1444,
-                        "name_J2000": "0010+405",
-                        "alt_name": "$",
-                        "flux_table": {},
-                        "spectral_index": null,
-                        "isactive": true
-                    },
-                    {
-                        "name": "0014+813",
-                        "ra_h": 0.0,
-                        "ra_m": 17.0,
-                        "ra_s": 8.2988,
-                        "de_d": 81.0,
-                        "de_m": 35.0,
-                        "de_s": 6.6314,
-                        "name_J2000": "0014+813",
+                        "ra_m": 6.0,
+                        "ra_s": 22.1399,
+                        "de_d": -0.0,
+                        "de_m": 4.0,
+                        "de_s": 38.4575,
+                        "name_J2000": "0003-003",
                         "alt_name": "$",
                         "flux_table": {},
                         "spectral_index": null,
@@ -58,15 +26,15 @@
                 "data": [
                     {
                         "type": "Telescope",
-                        "code": "AN",
-                        "name": "Anch",
-                        "x": -2674533.924,
-                        "y": 1544142.881,
-                        "z": 5571414.996,
+                        "code": "AP",
+                        "name": "Algopark",
+                        "x": 918036.7274,
+                        "y": 4346133.078,
+                        "z": 4561971.548,
                         "vx": 0.0,
                         "vy": 0.0,
                         "vz": 0.0,
-                        "diameter": 25.0,
+                        "diameter": 47.0,
                         "sefd_table": {},
                         "efficiency_table": {},
                         "elevation_range": [
@@ -97,49 +65,15 @@
             "scans": {
                 "data": [
                     {
-                        "start": 1742553650.0,
+                        "start": 1742555058.0,
                         "duration": 1.0,
-                        "source": null,
-                        "telescopes": {
-                            "data": [
-                                {
-                                    "type": "Telescope",
-                                    "code": "AN",
-                                    "name": "Anch",
-                                    "x": -2674533.924,
-                                    "y": 1544142.881,
-                                    "z": 5571414.996,
-                                    "vx": 0.0,
-                                    "vy": 0.0,
-                                    "vz": 0.0,
-                                    "diameter": 25.0,
-                                    "sefd_table": {},
-                                    "efficiency_table": {},
-                                    "elevation_range": [
-                                        15.0,
-                                        90.0
-                                    ],
-                                    "azimuth_range": [
-                                        0.0,
-                                        360.0
-                                    ],
-                                    "mount_type": "AZIM",
-                                    "isactive": true
-                                }
-                            ]
-                        },
-                        "frequencies": {
-                            "data": [
-                                {
-                                    "frequency": 1000.0,
-                                    "bandwidth": 16.0,
-                                    "polarizations": [
-                                        "LL"
-                                    ],
-                                    "isactive": true
-                                }
-                            ]
-                        },
+                        "source_index": null,
+                        "telescope_indices": [
+                            0
+                        ],
+                        "frequency_indices": [
+                            0
+                        ],
                         "is_off_source": true,
                         "isactive": true
                     }
