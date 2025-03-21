@@ -338,7 +338,7 @@ class SpaceTelescope(Telescope):
         """
         super().__init__(code, name, 0, 0, 0, 0, 0, 0, diameter, sefd_table=sefd_table,
                          efficiency_table=efficiency_table, isactive=isactive)
-        check_non_empty_string(orbit_file, "Orbit file")
+        check_type(orbit_file, str, "Orbit file")
         check_positive(diameter, "Diameter")
         check_type(pitch_range, tuple, "Pitch range")
         check_range(pitch_range[0], -90, 90, "Min pitch")
@@ -349,14 +349,18 @@ class SpaceTelescope(Telescope):
         self._orbit_file = orbit_file
         self._pitch_range = pitch_range
         self._yaw_range = yaw_range
-        self._orbit_data = None
+        self._orbit_data = None  # Данные орбиты хранятся только в памяти
         self._kepler_elements = None
         if orbit_file:
-            self.load_orbit_from_oem(orbit_file)
+            self.load_orbit_from_oem(orbit_file)  # Загружаем в память, но не сериализуем
         logger.info(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
+    
+    def _validate_orbit_data(self) -> bool:
+        """Check if orbit data is available (either from file or Kepler elements)."""
+        return self._orbit_data is not None or self._kepler_elements is not None
 
     def load_orbit_from_oem(self, orbit_file: str) -> None:
-        """Load orbit data from a CCSDS OEM 2.0 file."""
+        """Load orbit data from a CCSDS OEM 2.0 file into memory."""
         check_non_empty_string(orbit_file, "Orbit file")
         times, positions, velocities = [], [], []
         try:
@@ -365,12 +369,12 @@ class SpaceTelescope(Telescope):
                 data_section = False
                 for line in lines:
                     line = line.strip()
-                    if not line or line.startswith('#'):  # Игнорируем пустые строки и комментарии
+                    if not line or line.startswith('#'):
                         continue
                     if line.startswith("META_STOP"):
                         data_section = True
                         continue
-                    if line.startswith("COVARIANCE_START"):  # Пропускаем ковариационные данные
+                    if line.startswith("COVARIANCE_START"):
                         break
                     if not data_section:
                         continue
@@ -401,7 +405,7 @@ class SpaceTelescope(Telescope):
             "velocities": np.array(velocities)
         }
         self._orbit_file = orbit_file
-        logger.info(f"Loaded orbit data from '{orbit_file}' for SpaceTelescope '{self._code}'")
+        logger.info(f"Loaded orbit data from '{orbit_file}' into memory for SpaceTelescope '{self._code}'")
 
     def interpolate_orbit_chebyshev(self, degree: int = 5) -> None:
         """Interpolate orbit data using Chebyshev polynomials."""
@@ -498,12 +502,12 @@ class SpaceTelescope(Telescope):
 
     def get_position_at_time(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
         """Get position and velocity at a given time."""
+        if not self._validate_orbit_data():
+            logger.error(f"No orbit data or Kepler elements defined for '{self._code}'")
+            raise ValueError("No orbit data or Kepler elements available! Define orbit file or Kepler elements first.")
         t = (dt - datetime(2000, 1, 1, 12, 0, 0)).total_seconds()
         if self._kepler_elements:
             return self.get_position_velocity_from_kepler(dt)
-        if self._orbit_data is None:
-            logger.error(f"No orbit data or Kepler elements for '{self._code}'")
-            raise ValueError("No orbit data or Kepler elements available!")
         times = self._orbit_data["times"]
         if t < times[0] or t > times[-1]:
             logger.debug(f"Time {t} outside orbit data range for '{self._code}'")
@@ -538,36 +542,31 @@ class SpaceTelescope(Telescope):
 
     def to_dict(self) -> dict:
         """Convert SpaceTelescope object to a dictionary for serialization.
-            Keplerian elements angles (inclination i, RAAN raan, argument of periapsis argp, true anomaly nu) are stored in degrees (°)."""
+        Orbit data is not serialized, only the file path is stored."""
         base_dict = super().to_dict()
         base_dict.update({
             "type": "SpaceTelescope",
-            "orbit_file": self._orbit_file,
+            "orbit_file": self._orbit_file,  # Сохраняем только путь к файлу
             "pitch_range": self._pitch_range,
             "yaw_range": self._yaw_range,
-            "orbit_data": None if self._orbit_data is None else {
-                "times": self._orbit_data["times"].tolist(),
-                "positions": self._orbit_data["positions"].tolist(),
-                "velocities": self._orbit_data["velocities"].tolist()
-            },
-        "kepler_elements": None if self._kepler_elements is None else {
-            "a": self._kepler_elements["a"],
-            "e": self._kepler_elements["e"],
-            "i": np.degrees(self._kepler_elements["i"]),  # Stored in degrees for serialization, converted back to radians in from_dict
-            "raan": np.degrees(self._kepler_elements["raan"]),
-            "argp": np.degrees(self._kepler_elements["argp"]),
-            "nu": np.degrees(self._kepler_elements["nu"]),
-            "epoch": self._kepler_elements["epoch"].isoformat(),
-            "mu": self._kepler_elements["mu"]
-        }
+            "kepler_elements": None if self._kepler_elements is None else {
+                "a": self._kepler_elements["a"],
+                "e": self._kepler_elements["e"],
+                "i": np.degrees(self._kepler_elements["i"]),
+                "raan": np.degrees(self._kepler_elements["raan"]),
+                "argp": np.degrees(self._kepler_elements["argp"]),
+                "nu": np.degrees(self._kepler_elements["nu"]),
+                "epoch": self._kepler_elements["epoch"].isoformat(),
+                "mu": self._kepler_elements["mu"]
+            }
         })
-        logger.info(f"Converted SpaceTelescope '{self._code}' to dictionary")
+        logger.info(f"Converted SpaceTelescope '{self._code}' to dictionary (orbit data not serialized)")
         return base_dict
 
     @classmethod
     def from_dict(cls, data: dict) -> 'SpaceTelescope':
-        """Create a SpaceTelescope object from a dictionary."""
-        logger.info(f"Created SpaceTelescope '{data['code']}' from dictionary")
+        """Create a SpaceTelescope object from a dictionary.
+        Orbit data is not deserialized; it will be loaded from file if specified."""
         obj = cls(
             code=data["code"],
             name=data["name"],
@@ -579,12 +578,6 @@ class SpaceTelescope(Telescope):
             yaw_range=tuple(data.get("yaw_range", (-180.0, 180.0))),
             isactive=data.get("isactive", True)
         )
-        if data.get("orbit_data"):
-            obj._orbit_data = {
-                "times": np.array(data["orbit_data"]["times"]),
-                "positions": np.array(data["orbit_data"]["positions"]),
-                "velocities": np.array(data["orbit_data"]["velocities"])
-            }
         if data.get("kepler_elements"):
             obj._kepler_elements = {
                 "a": data["kepler_elements"]["a"],
@@ -596,6 +589,13 @@ class SpaceTelescope(Telescope):
                 "epoch": datetime.fromisoformat(data["kepler_elements"]["epoch"]),
                 "mu": data["kepler_elements"]["mu"]
             }
+        # _orbit_data не восстанавливается из словаря, а загружается из файла при необходимости
+        if obj._orbit_file:
+            try:
+                obj.load_orbit_from_oem(obj._orbit_file)
+            except (FileNotFoundError, ValueError) as e:
+                logger.warning(f"Could not load orbit data from '{obj._orbit_file}' during deserialization: {e}")
+        logger.info(f"Created SpaceTelescope '{data['code']}' from dictionary")
         return obj
 
     def __repr__(self) -> str:

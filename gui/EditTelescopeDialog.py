@@ -1,11 +1,12 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
                                QComboBox, QTableWidget, QTableWidgetItem, QPushButton, 
-                               QSpacerItem, QSizePolicy, QRadioButton, QGroupBox, QGridLayout)
+                               QSpacerItem, QSizePolicy, QRadioButton, QGroupBox, QGridLayout, QFileDialog)
 from PySide6.QtCore import Qt
 from base.telescopes import Telescope, SpaceTelescope, MountType
 from utils.validation import check_non_empty_string, check_positive, check_range
 from utils.logging_setup import logger
 from datetime import datetime
+import numpy as np
 
 class EditTelescopeDialog(QDialog):
     def __init__(self, telescope: Telescope | SpaceTelescope = None, parent=None):
@@ -105,11 +106,14 @@ class EditTelescopeDialog(QDialog):
             orbit_switch_layout.addStretch()
             orbit_layout.addLayout(orbit_switch_layout)
 
-            # Поле для файла
+            # Поле для файла с кнопкой Browse
             self.orbit_file_layout = QHBoxLayout()
             self.orbit_file_layout.addWidget(QLabel("Orbit File:"))
             self.orbit_input = QLineEdit(self.telescope._orbit_file if self.telescope and self.telescope._orbit_file else "")
             self.orbit_file_layout.addWidget(self.orbit_input)
+            self.browse_btn = QPushButton("Browse")
+            self.browse_btn.clicked.connect(self.browse_orbit_file)
+            self.orbit_file_layout.addWidget(self.browse_btn)
             orbit_layout.addLayout(self.orbit_file_layout)
 
             # Кеплеровские элементы
@@ -131,6 +135,27 @@ class EditTelescopeDialog(QDialog):
             self.kepler_layout.setEnabled(False)
             orbit_layout.addLayout(self.kepler_layout)
 
+            # Углы тангажа и рыскания
+            attitude_layout = QHBoxLayout()
+            pitch_layout = QHBoxLayout()
+            pitch_layout.addWidget(QLabel("Pitch Range (deg):"))
+            self.pitch_min_input = QLineEdit(str(self.telescope.get_pitch_range()[0]) if self.telescope else "-90.0")
+            self.pitch_max_input = QLineEdit(str(self.telescope.get_pitch_range()[1]) if self.telescope else "90.0")
+            pitch_layout.addWidget(self.pitch_min_input)
+            pitch_layout.addWidget(QLabel("to"))
+            pitch_layout.addWidget(self.pitch_max_input)
+            attitude_layout.addLayout(pitch_layout)
+
+            yaw_layout = QHBoxLayout()
+            yaw_layout.addWidget(QLabel("Yaw Range (deg):"))
+            self.yaw_min_input = QLineEdit(str(self.telescope.get_yaw_range()[0]) if self.telescope else "-180.0")
+            self.yaw_max_input = QLineEdit(str(self.telescope.get_yaw_range()[1]) if self.telescope else "180.0")
+            yaw_layout.addWidget(self.yaw_min_input)
+            yaw_layout.addWidget(QLabel("to"))
+            yaw_layout.addWidget(self.yaw_max_input)
+            attitude_layout.addLayout(yaw_layout)
+
+            orbit_layout.addLayout(attitude_layout)
             orbit_group.setLayout(orbit_layout)
             left_column.addWidget(orbit_group)
             self.orbit_file_radio.toggled.connect(self.toggle_orbit_input)
@@ -193,11 +218,16 @@ class EditTelescopeDialog(QDialog):
         main_layout.addLayout(btn_layout)
 
         self.setLayout(main_layout)
-        self.setMinimumSize(700, 500)  # Пропорциональное окно (шире и ниже)
+        self.setMinimumSize(700, 500)
 
     def toggle_orbit_input(self):
         self.orbit_file_layout.setEnabled(self.orbit_file_radio.isChecked())
         self.kepler_layout.setEnabled(self.kepler_radio.isChecked())
+
+    def browse_orbit_file(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Select Orbit File", "", "OEM Files (*.oem);;All Files (*)")
+        if file_name:
+            self.orbit_input.setText(file_name)
 
     def add_sefd_row(self):
         row = self.sefd_table.rowCount()
@@ -223,6 +253,7 @@ class EditTelescopeDialog(QDialog):
 
     def on_ok(self):
         try:
+            # Валидация основных параметров
             code = self.code_input.text().strip()
             check_non_empty_string(code, "Code")
             name = self.name_input.text().strip()
@@ -232,6 +263,7 @@ class EditTelescopeDialog(QDialog):
             mount_type = self.mount_combo.currentText()
             isactive = self.active_combo.currentText() == "True"
 
+            # Валидация таблиц SEFD и Efficiency
             sefd_table = {}
             for row in range(self.sefd_table.rowCount()):
                 freq = float(self.sefd_table.item(row, 0).text())
@@ -249,13 +281,24 @@ class EditTelescopeDialog(QDialog):
                 efficiency_table[freq] = eff
 
             if self.is_space:
+                # Валидация углов тангажа и рыскания
+                pitch_min = float(self.pitch_min_input.text())
+                pitch_max = float(self.pitch_max_input.text())
+                yaw_min = float(self.yaw_min_input.text())
+                yaw_max = float(self.yaw_max_input.text())
+                check_range(pitch_min, -90, 90, "Min Pitch")
+                check_range(pitch_max, pitch_min, 90, "Max Pitch")
+                check_range(yaw_min, -180, 180, "Min Yaw")
+                check_range(yaw_max, yaw_min, 180, "Max Yaw")
+                pitch_range = (pitch_min, pitch_max)
+                yaw_range = (yaw_min, yaw_max)
+
                 if self.orbit_file_radio.isChecked():
-                    orbit_file = self.orbit_input.text().strip() or None
-                    if orbit_file:
-                        check_non_empty_string(orbit_file, "Orbit File")
+                    orbit_file = self.orbit_input.text().strip() or ""
                     self.telescope = SpaceTelescope(
                         code=code, name=name, orbit_file=orbit_file, diameter=diameter,
-                        sefd_table=sefd_table, efficiency_table=efficiency_table, isactive=isactive
+                        sefd_table=sefd_table, efficiency_table=efficiency_table,
+                        pitch_range=pitch_range, yaw_range=yaw_range, isactive=isactive
                     )
                 else:
                     a = float(self.a_input.text())
@@ -271,8 +314,9 @@ class EditTelescopeDialog(QDialog):
                     check_positive(mu, "Gravitational Parameter")
                     epoch = datetime.strptime(epoch_str, "%Y-%m-%d %H:%M:%S")
                     self.telescope = SpaceTelescope(
-                        code=code, name=name, orbit_file=None, diameter=diameter,
-                        sefd_table=sefd_table, efficiency_table=efficiency_table, isactive=isactive
+                        code=code, name=name, orbit_file="", diameter=diameter,
+                        sefd_table=sefd_table, efficiency_table=efficiency_table,
+                        pitch_range=pitch_range, yaw_range=yaw_range, isactive=isactive
                     )
                     self.telescope.set_orbit_from_kepler_elements(a, e, np.radians(i), np.radians(raan), 
                                                                  np.radians(argp), np.radians(nu), epoch, mu)
@@ -297,11 +341,13 @@ class EditTelescopeDialog(QDialog):
                     )
 
             logger.info(f"Updated/Added telescope '{code}' in EditTelescopeDialog")
-            self.accept()
+            self.accept()  # Закрываем диалог только при успешной валидации
 
         except ValueError as e:
             logger.error(f"Validation error in EditTelescopeDialog: {e}")
-            self.parent().status_bar.showMessage(f"Error: {e}")
+            if self.parent() and hasattr(self.parent(), 'status_bar'):
+                self.parent().status_bar.showMessage(f"Error: {e}")
+            # Диалог остаётся открытым при ошибке
 
     def get_updated_telescope(self):
         return self.telescope

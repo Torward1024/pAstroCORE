@@ -1,0 +1,164 @@
+{
+    "name": "NewProject",
+    "observations": [
+        {
+            "observation_code": "Obs1",
+            "observation_type": "VLBI",
+            "sources": {
+                "data": [
+                    {
+                        "name": "0010+405",
+                        "ra_h": 0.0,
+                        "ra_m": 13.0,
+                        "ra_s": 31.1302,
+                        "de_d": 40.0,
+                        "de_m": 51.0,
+                        "de_s": 37.1444,
+                        "name_J2000": "0010+405",
+                        "alt_name": "$",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": true
+                    }
+                ]
+            },
+            "telescopes": {
+                "data": [
+                    {
+                        "type": "SpaceTelescope",
+                        "code": "ST1",
+                        "name": "New Space Telescope",
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "vx": 0,
+                        "vy": 0,
+                        "vz": 0,
+                        "diameter": 1.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true,
+                        "orbit_file": "I:/pvCORE/final_orbit370.txt",
+                        "pitch_range": [
+                            -90.0,
+                            90.0
+                        ],
+                        "yaw_range": [
+                            -180.0,
+                            180.0
+                        ],
+                        "kepler_elements": null
+                    },
+                    {
+                        "type": "SpaceTelescope",
+                        "code": "ST12",
+                        "name": "New Space Telescope",
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "vx": 0,
+                        "vy": 0,
+                        "vz": 0,
+                        "diameter": 1.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true,
+                        "orbit_file": "",
+                        "pitch_range": [
+                            -90.0,
+                            90.0
+                        ],
+                        "yaw_range": [
+                            -180.0,
+                            180.0
+                        ],
+                        "kepler_elements": {
+                            "a": 6371000.0,
+                            "e": 0.0,
+                            "i": 0.0,
+                            "raan": 0.0,
+                            "argp": 0.0,
+                            "nu": 0.0,
+                            "epoch": "2025-03-21T09:52:30",
+                            "mu": 398600441800000.0
+                        }
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "AA",
+                        "name": "ALMA",
+                        "x": 2222421.244,
+                        "y": 5433180.978,
+                        "z": -2494060.05,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "AN",
+                        "name": "Anch",
+                        "x": -2674533.924,
+                        "y": 1544142.881,
+                        "z": 5571414.996,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    }
+                ]
+            },
+            "frequencies": {
+                "data": []
+            },
+            "scans": {
+                "data": []
+            },
+            "isactive": true,
+            "calculated_data": {}
+        }
+    ]
+}
