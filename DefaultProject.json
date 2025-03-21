@@ -56,7 +56,10 @@
                         "frequency": 1000.0,
                         "bandwidth": 16.0,
                         "polarizations": [
-                            "LL"
+                            "LL",
+                            "RR",
+                            "RL",
+                            "LR"
                         ],
                         "isactive": true
                     }
@@ -65,8 +68,8 @@
             "scans": {
                 "data": [
                     {
-                        "start": 1742559412.0,
-                        "duration": 1.0,
+                        "start": 1734526800.0,
+                        "duration": 600.0,
                         "source_index": null,
                         "telescope_indices": [
                             0
