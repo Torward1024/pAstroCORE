@@ -1420,7 +1420,7 @@ class PvCoreWindow(QMainWindow):
                 break
 
     def new_project(self):
-        self.manipulator.set_project(Project("NewProject"))
+        self.manipulator.set_project(Project("DefaultProject"))
         self.canvas.figure.clf()
         self.canvas.draw()
         self.current_project_file = None

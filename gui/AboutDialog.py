@@ -17,6 +17,7 @@ class AboutDialog(QDialog):
         top_layout = QHBoxLayout()
         icon_label = QLabel()
         icon_path = os.path.join(os.path.dirname(__file__), "pvcore_icon.png")
+        print(icon_path)
         if os.path.exists(icon_path):
             icon_label.setPixmap(QIcon(icon_path).pixmap(64, 64))
         else:
@@ -24,7 +25,7 @@ class AboutDialog(QDialog):
         top_layout.addWidget(icon_label)
         info_label = QLabel(
             "pvCORE\n"
-            "Version: 0.0.1\n"
+            "Version: 0.0.2\n"
             "A versatile tool for radio astronomy observation planning,\n"
             "configuration, optimization, and visualization.\n"
             "\n"
