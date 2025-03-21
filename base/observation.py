@@ -303,46 +303,54 @@ class CatalogManager:
             ValueError: Если данные в файле некорректны.
         """
         sources = []
+        failed_count = 0
         try:
             with open(source_file, 'r', encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith('#'):
                         continue
-                    # Разделяем строку на части
                     parts = re.split(r'\s+', line)
                     if len(parts) < 5:
-                        raise ValueError(f"Invalid source format in line: {line}")
+                        logger.warning(f"Skipping invalid source format: {line}")
+                        failed_count += 1
+                        continue
 
                     b1950_name = parts[0]
                     j2000_name = parts[1] if parts[1] != "ALT_NAME" else None
                     alt_name = parts[2] if parts[2] != "ALT_NAME" else None
                     ra_str, dec_str = parts[-2], parts[-1]
 
-                    # Парсим RA (hh:mm:ss.ssss)
-                    ra_match = re.match(r'(\d{2}):(\d{2}):(\d{2}\.\d+)', ra_str)
-                    if not ra_match:
-                        raise ValueError(f"Invalid RA format: {ra_str}")
-                    ra_h, ra_m, ra_s = map(float, ra_match.groups())
+                    try:
+                        ra_match = re.match(r'(\d{2}):(\d{2}):(\d{2}\.\d+)', ra_str)
+                        if not ra_match:
+                            raise ValueError(f"Invalid RA format: {ra_str}")
+                        ra_h, ra_m, ra_s = map(float, ra_match.groups())
 
-                    # Парсим DEC (±dd:mm:ss.ssss)
-                    dec_match = re.match(r'([-+])?(\d{2}):(\d{2}):(\d{2}\.\d+)', dec_str)
-                    if not dec_match:
-                        raise ValueError(f"Invalid DEC format: {dec_str}")
-                    sign, de_d, de_m, de_s = dec_match.groups()
-                    de_d = float(de_d) if sign != '-' else -float(de_d)
-                    de_m, de_s = float(de_m), float(de_s)
+                        dec_match = re.match(r'([-+])?(\d{2}):(\d{2}):(\d{2}\.\d+)', dec_str)
+                        if not dec_match:
+                            raise ValueError(f"Invalid DEC format: {dec_str}")
+                        sign, de_d, de_m, de_s = dec_match.groups()
+                        de_d = float(de_d) if sign != '-' else -float(de_d)
+                        de_m, de_s = float(de_m), float(de_s)
 
-                    source = Source(
-                        name=b1950_name,
-                        ra_h=ra_h, ra_m=ra_m, ra_s=ra_s,
-                        de_d=de_d, de_m=de_m, de_s=de_s,
-                        name_J2000=j2000_name,
-                        alt_name=alt_name
-                    )
-                    sources.append(source)
+                        source = Source(
+                            name=b1950_name,
+                            ra_h=ra_h, ra_m=ra_m, ra_s=ra_s,
+                            de_d=de_d, de_m=de_m, de_s=de_s,
+                            name_J2000=j2000_name,
+                            alt_name=alt_name
+                        )
+                        sources.append(source)
+                    except ValueError as e:
+                        logger.warning(f"Failed to parse source '{line}': {e}")
+                        failed_count += 1
+                        continue
             self.source_catalog = Sources(sources)
-            logger.info(f"Loaded {len(sources)} sources from '{source_file}'")
+            if failed_count > 0:
+                logger.warning(f"Loaded {len(sources)} sources from '{source_file}', {failed_count} failed")
+            else:
+                logger.info(f"Successfully loaded {len(sources)} sources from '{source_file}'")
         except FileNotFoundError:
             raise FileNotFoundError(f"Source catalog file '{source_file}' not found!")
         except ValueError as e:
@@ -378,34 +386,43 @@ class CatalogManager:
             ValueError: Если данные в файле некорректны.
         """
         telescopes = []
+        failed_count = 0
         try:
             with open(telescope_file, 'r', encoding='utf-8') as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith('#'):
                         continue
-                    # Разделяем строку на части
                     parts = re.split(r'\s+', line)
                     if len(parts) < 6:
-                        raise ValueError(f"Invalid telescope format in line: {line}")
+                        logger.warning(f"Skipping invalid telescope format: {line}")
+                        failed_count += 1
+                        continue
 
-                    number, short_name, full_name = parts[0], parts[1], parts[2]
-                    x, y, z = map(float, parts[3:6])
-                    # Скорости не указаны в каталоге, задаем 0
-                    vx, vy, vz = 0.0, 0.0, 0.0
-                    diameter = float(parts[6])
+                    try:
+                        number, short_name, full_name = parts[0], parts[1], parts[2]
+                        x, y, z = map(float, parts[3:6])
+                        diameter = float(parts[6])
+                        vx, vy, vz = 0.0, 0.0, 0.0  # Скорости не указаны в каталоге
 
-                    telescope = Telescope(
-                        code=short_name,
-                        name=full_name,
-                        x=x, y=y, z=z,
-                        vx=vx, vy=vy, vz=vz,
-                        diameter=diameter,
-                        isactive=True
-                    )
-                    telescopes.append(telescope)
+                        telescope = Telescope(
+                            code=short_name,
+                            name=full_name,
+                            x=x, y=y, z=z,
+                            vx=vx, vy=vy, vz=vz,
+                            diameter=diameter,
+                            isactive=True
+                        )
+                        telescopes.append(telescope)
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Failed to parse telescope '{line}': {e}")
+                        failed_count += 1
+                        continue
             self.telescope_catalog = Telescopes(telescopes)
-            logger.info(f"Loaded {len(telescopes)} telescopes from '{telescope_file}'")
+            if failed_count > 0:
+                logger.warning(f"Loaded {len(telescopes)} telescopes from '{telescope_file}', {failed_count} failed")
+            else:
+                logger.info(f"Successfully loaded {len(telescopes)} telescopes from '{telescope_file}'")
         except FileNotFoundError:
             raise FileNotFoundError(f"Telescope catalog file '{telescope_file}' not found!")
         except ValueError as e:
