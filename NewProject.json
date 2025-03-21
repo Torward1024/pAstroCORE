@@ -3,7 +3,7 @@
     "observations": [
         {
             "observation_code": "Obs1",
-            "observation_type": "VLBI",
+            "observation_type": "SINGLE_DISH",
             "sources": {
                 "data": [
                     {
@@ -24,83 +24,6 @@
             },
             "telescopes": {
                 "data": [
-                    {
-                        "type": "SpaceTelescope",
-                        "code": "ST1",
-                        "name": "New Space Telescope",
-                        "x": 0,
-                        "y": 0,
-                        "z": 0,
-                        "vx": 0,
-                        "vy": 0,
-                        "vz": 0,
-                        "diameter": 1.0,
-                        "sefd_table": {},
-                        "efficiency_table": {},
-                        "elevation_range": [
-                            15.0,
-                            90.0
-                        ],
-                        "azimuth_range": [
-                            0.0,
-                            360.0
-                        ],
-                        "mount_type": "AZIM",
-                        "isactive": true,
-                        "orbit_file": "I:/pvCORE/final_orbit370.txt",
-                        "pitch_range": [
-                            -90.0,
-                            90.0
-                        ],
-                        "yaw_range": [
-                            -180.0,
-                            180.0
-                        ],
-                        "kepler_elements": null
-                    },
-                    {
-                        "type": "SpaceTelescope",
-                        "code": "ST12",
-                        "name": "New Space Telescope",
-                        "x": 0,
-                        "y": 0,
-                        "z": 0,
-                        "vx": 0,
-                        "vy": 0,
-                        "vz": 0,
-                        "diameter": 1.0,
-                        "sefd_table": {},
-                        "efficiency_table": {},
-                        "elevation_range": [
-                            15.0,
-                            90.0
-                        ],
-                        "azimuth_range": [
-                            0.0,
-                            360.0
-                        ],
-                        "mount_type": "AZIM",
-                        "isactive": true,
-                        "orbit_file": "",
-                        "pitch_range": [
-                            -90.0,
-                            90.0
-                        ],
-                        "yaw_range": [
-                            -180.0,
-                            180.0
-                        ],
-                        "kepler_elements": {
-                            "a": 6371000.0,
-                            "e": 0.0,
-                            "i": 0.0,
-                            "raan": 0.0,
-                            "argp": 0.0,
-                            "nu": 0.0,
-                            "epoch": "2025-03-21T09:52:30",
-                            "mu": 398600441800000.0
-                        }
-                    },
                     {
                         "type": "Telescope",
                         "code": "AA",
@@ -152,7 +75,44 @@
                 ]
             },
             "frequencies": {
-                "data": []
+                "data": [
+                    {
+                        "frequency": 1000.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP",
+                            "LCP"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1016.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP",
+                            "LCP"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1026.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP",
+                            "LCP"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1036.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP",
+                            "LCP"
+                        ],
+                        "isactive": true
+                    }
+                ]
             },
             "scans": {
                 "data": []
