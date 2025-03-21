@@ -69,8 +69,8 @@ class PvCoreWindow(QMainWindow):
         self.telescopes_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.telescopes_table.customContextMenuRequested.connect(self.show_telescopes_context_menu)
 
-        self.frequencies_table = QTableWidget(0, 3)
-        self.frequencies_table.setHorizontalHeaderLabels(["Frequency (MHz)", "Bandwidth (MHz)", "Polarizations"])
+        self.frequencies_table = QTableWidget(0, 4)  # Было 3, теперь 4
+        self.frequencies_table.setHorizontalHeaderLabels(["Frequency (MHz)", "Bandwidth (MHz)", "Polarizations", "Is Active"])
         self.frequencies_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.frequencies_table.customContextMenuRequested.connect(self.show_frequencies_context_menu)
         self.frequencies_table.itemChanged.connect(self.on_frequency_item_changed)
@@ -114,8 +114,35 @@ class PvCoreWindow(QMainWindow):
         menu.addAction("Add Frequency", self.add_frequency)
         menu.addAction("Insert Frequency", self.insert_frequency)
         menu.addAction("Remove Frequency", self.remove_frequency)
+        menu.addSeparator()
+        menu.addAction("Activate All Frequencies", self.activate_all_frequencies)
+        menu.addAction("Deactivate All Frequencies", self.deactivate_all_frequencies)
         menu.exec(self.frequencies_table.viewport().mapToGlobal(position))
     
+    def activate_all_frequencies(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        obs = self.get_observation_by_code(selected)
+        if obs:
+            obs.get_frequencies().activate_all()
+            self.update_config_tables(obs)
+            self.update_obs_table()
+            self.status_bar.showMessage(f"All frequencies activated for '{selected}'")
+    
+    def deactivate_all_frequencies(self):
+        selected = self.obs_selector.currentText()
+        if selected == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        obs = self.get_observation_by_code(selected)
+        if obs:
+            obs.get_frequencies().deactivate_all()
+            self.update_config_tables(obs)
+            self.update_obs_table()
+            self.status_bar.showMessage(f"All frequencies deactivated for '{selected}'")
+
     def insert_frequency(self):
         selected = self.obs_selector.currentText()
         if selected == "Select Observation...":
@@ -126,35 +153,32 @@ class PvCoreWindow(QMainWindow):
         if obs:
             new_freq = 1000.0 + len(obs.get_frequencies().get_all_frequencies()) * 10
             default_pol = ["LL"] if obs.get_observation_type() == "VLBI" else ["RCP"]
+            if_obj = IF(freq=new_freq, bandwidth=16.0, polarization=default_pol)
             if row == -1:
-                self.manipulator._configurator.add_frequency(obs, freq=new_freq, bandwidth=16.0, polarization=default_pol)
+                self.manipulator.add_frequency_to_observation(obs, if_obj)
             else:
                 frequencies = obs.get_frequencies()
                 current_frequencies = frequencies.get_all_frequencies()
-                current_frequencies.insert(row, IF(freq=new_freq, bandwidth=16.0, polarization=default_pol))
+                current_frequencies.insert(row, if_obj)
                 frequencies._data = current_frequencies
                 logger.info(f"Inserted frequency {new_freq} MHz at index {row} in observation '{selected}'")
             self.update_all_ui(selected)
             self.status_bar.showMessage(f"Inserted frequency {new_freq} MHz into '{selected}'")
     
     def remove_frequency(self):
-        selected = self.obs_selector.currentText()
-        if selected == "Select Observation...":
+        obs_code = self.obs_selector.currentText()
+        if obs_code == "Select Observation...":
             self.status_bar.showMessage("Please select an observation first")
             return
-        selected_rows = [index.row() for index in self.frequencies_table.selectionModel().selectedRows()]
-        if not selected_rows:
-            self.status_bar.showMessage("No frequencies selected to remove")
+        row = self.frequencies_table.currentRow()
+        if row == -1:
+            self.status_bar.showMessage("Please select a frequency to remove")
             return
-        obs = self.get_observation_by_code(selected)
+        obs = self.get_observation_by_code(obs_code)
         if obs:
-            for row in sorted(selected_rows, reverse=True):
-                frequencies = obs.get_frequencies().get_all_frequencies()
-                if 0 <= row < len(frequencies):
-                    freq_value = frequencies[row].get_frequency()
-                    self.manipulator._configurator.remove_frequency(obs, freq_value)
-            self.update_all_ui(selected)
-            self.status_bar.showMessage(f"Removed {len(selected_rows)} frequency(s) from '{selected}'")
+            self.manipulator.remove_frequency_from_observation(obs, row)
+            self.update_all_ui(obs_code)
+            self.status_bar.showMessage("Telescope removed")        
     
     def on_frequency_item_changed(self, item):
         selected = self.obs_selector.currentText()
@@ -435,7 +459,7 @@ class PvCoreWindow(QMainWindow):
             return
         obs = self.get_observation_by_code(obs_code)
         if obs:
-            self.manipulator.remove_telescope_by_index(obs, row)
+            self.manipulator.remove_telescope_from_observation(obs, row)
             self.update_all_ui(obs_code)
             self.status_bar.showMessage("Telescope removed")
 
@@ -668,11 +692,16 @@ class PvCoreWindow(QMainWindow):
             bw_item = QTableWidgetItem(str(freq.get_bandwidth()))
             bw_item.setFlags(bw_item.flags() | Qt.ItemIsEditable)
             self.frequencies_table.setItem(row, 1, bw_item)
-            # Поляризации как кнопка
             pol_text = ", ".join(freq.get_polarization()) if freq.get_polarization() else "None"
             pol_button = QPushButton(pol_text)
             pol_button.clicked.connect(lambda _, f=freq: self.edit_polarizations(f))
             self.frequencies_table.setCellWidget(row, 2, pol_button)
+            # Добавляем колонку Is Active
+            active_combo = QComboBox()
+            active_combo.addItems(["True", "False"])
+            active_combo.setCurrentText(str(freq.isactive))
+            active_combo.currentTextChanged.connect(lambda state, f=freq: self.on_frequency_is_active_changed(f, state))
+            self.frequencies_table.setCellWidget(row, 3, active_combo)
 
         self.frequencies_table.resizeColumnsToContents()
         self.frequencies_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -687,6 +716,22 @@ class PvCoreWindow(QMainWindow):
                 scan.get_source().get_name() if scan.get_source() else "None"
             ]):
                 self.scans_table.setItem(row, col, QTableWidgetItem(value))
+    
+    def on_frequency_is_active_changed(self, freq: IF, state: str):
+        new_state = state == "True"
+        if new_state != freq.isactive:
+            if new_state:
+                freq.activate()
+                logger.info(f"Activated frequency {freq.get_frequency()} MHz")
+            else:
+                freq.deactivate()
+                logger.info(f"Deactivated frequency {freq.get_frequency()} MHz")
+            selected = self.obs_selector.currentText()
+            if selected != "Select Observation...":
+                obs = self.get_observation_by_code(selected)
+                if obs:
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
     
     def edit_polarizations(self, freq_obj: IF):
         selected = self.obs_selector.currentText()
@@ -1033,9 +1078,9 @@ class PvCoreWindow(QMainWindow):
         obs = self.get_observation_by_code(selected)
         if obs:
             new_freq = 1000.0 + row * 10
-            # Устанавливаем начальную поляризацию по умолчанию: LL для VLBI, RCP для SINGLE_DISH
             default_pol = ["LL"] if obs.get_observation_type() == "VLBI" else ["RCP"]
-            self.manipulator._configurator.add_frequency(obs, freq=new_freq, bandwidth=16.0, polarization=default_pol)
+            if_obj = IF(freq=new_freq, bandwidth=16.0, polarization=default_pol)
+            self.manipulator.add_frequency_to_observation(obs, if_obj)
             self.update_all_ui(selected)
             self.status_bar.showMessage(f"Added frequency {new_freq} MHz to '{selected}'")
 

@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any
 from base.observation import Observation, CatalogManager
 from base.sources import Source
 from base.telescopes import Telescope, SpaceTelescope
+from base.frequencies import IF
 from super.configurator import Configurator
 from super.calculator import Calculator
 from super.vizualizator import Vizualizator
@@ -183,10 +184,17 @@ class Manipulator(ABC):
         """Add telescope to observation via Configurator."""
         self._configurator.add_telescope(observation, telescope)
 
-    def remove_telescope_by_index(self, observation: Observation, index: int) -> None:
+    def remove_telescope_from_observation(self, observation: Observation, index: int) -> None:
         """Remove telescope by index via Configurator."""
-        self._configurator.remove_telescope_by_index(observation, index)
+        self._configurator.remove_telescope(observation, index)
+    
+    def add_frequency_to_observation(self, observation: Observation, if_obj: IF) -> None:
+        """Add frequency object to observation via Configurator."""
+        self._configurator.add_frequency(observation, if_obj)
 
+    def remove_frequency_from_observation(self, observation: Observation, index: int) -> None:
+        """Remove frequency from observation via Configurator."""
+        self._configurator.remove_frequency(observation, index)
 
 class DefaultManipulator(Manipulator):
     """Default implementation of Manipulator."""

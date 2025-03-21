@@ -189,10 +189,18 @@ class Frequencies(BaseEntity):
             logger.error(f"Invalid frequencies index: {index}")
             raise IndexError("Invalid frequencies index!")
 
-    def get_frequencies(self) -> list[float]:
+    def get_frequencies(self) -> list[IF]:
         """Get list of frequencies in MHz."""
         logger.debug(f"Retrieved frequencies with {len(self._data)} items")
         return [if_obj.get_frequency() for if_obj in self._data]
+    
+    def get_frequency(self, index: int) -> list[IF]:
+        """Get frequency by index."""
+        try:
+            return self._data[index]
+        except IndexError:
+            logger.error(f"Invalid IF frequency index: {index}")
+            raise IndexError("Invalid IF frequency index!")
     
     def get_all_frequencies(self) -> list['IF']:
         """Get list of frequency obsject"""

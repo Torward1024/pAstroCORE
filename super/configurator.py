@@ -44,14 +44,12 @@ class Configurator(ABC):
         observation.get_telescopes().add_telescope(telescope)
         logger.info(f"Added telescope '{telescope.get_telescope_code()}' to observation '{observation.get_observation_code()}'")
 
-    def add_frequency(self, observation: Observation, freq: float, bandwidth: float, polarization: Optional[str] = None) -> None:
-        """Add a frequency to the observation."""
+    def add_frequency(self, observation: Observation, if_obj: IF) -> None:
+        """Add a frequency object to the observation."""
         check_type(observation, Observation, "Observation")
-        check_positive(freq, "Frequency")
-        check_positive(bandwidth, "Bandwidth")
-        if_obj = IF(freq=freq, bandwidth=bandwidth, polarization=polarization)
+        check_type(if_obj, IF, "IF")
         observation.get_frequencies().add_frequency(if_obj)
-        logger.info(f"Added frequency {freq} MHz to observation '{observation.get_observation_code()}'")
+        logger.info(f"Added frequency {if_obj.get_frequency()} MHz to observation '{observation.get_observation_code()}'")
 
     def add_scan(self, observation: Observation, start: float, duration: float, source: Optional[Source] = None,
                  telescopes: Optional[Telescopes] = None, frequencies: Optional[Frequencies] = None,
@@ -77,29 +75,29 @@ class Configurator(ABC):
         except IndexError:
             logger.warning(f"Source at index {index} not found in observation '{observation.get_observation_code()}'")
 
-    def remove_telescope(self, observation: Observation, telescope_code: str) -> None:
-        """Remove a telescope from the observation by code."""
+    def remove_telescope(self, observation: Observation, index: int) -> None:
+        """Remove a telescope from the observation by index."""
         check_type(observation, Observation, "Observation")
-        check_non_empty_string(telescope_code, "Telescope code")
+        check_type(index, int, "Index")
         telescopes = observation.get_telescopes()
-        telescope = telescopes.get_telescope_by_code(telescope_code)
-        if telescope:
-            telescopes.remove_telescope(telescope)
-            logger.info(f"Removed telescope '{telescope_code}' from observation '{observation.get_observation_code()}'")
-        else:
-            logger.warning(f"Telescope '{telescope_code}' not found in observation '{observation.get_observation_code()}'")
+        try:
+            telescope = telescopes.get_telescope(index)
+            telescopes.remove_telescope(index)
+            logger.info(f"Removed telescope '{telescope.get_telescope_code()}' at index {index} from observation '{observation.get_observation_code()}'")
+        except IndexError:
+            logger.warning(f"Telescope at index {index} not found in observation '{observation.get_observation_code()}'")
 
-    def remove_frequency(self, observation: Observation, freq: float) -> None:
-        """Remove a frequency from the observation by value."""
+    def remove_frequency(self, observation: Observation, index: int) -> None:
+        """Remove a frequency from the observation by index."""
         check_type(observation, Observation, "Observation")
-        check_positive(freq, "Frequency")
+        check_type(index, int, "Index")
         frequencies = observation.get_frequencies()
-        freq_obj = next((f for f in frequencies.get_active_frequencies() if f.get_freq() == freq), None)
-        if freq_obj:
-            frequencies.remove_frequency(freq_obj)
-            logger.info(f"Removed frequency {freq} MHz from observation '{observation.get_observation_code()}'")
-        else:
-            logger.warning(f"Frequency {freq} MHz not found in observation '{observation.get_observation_code()}'")
+        try:
+            frequency = frequencies.get_frequency(index)
+            frequencies.remove_frequency(index)
+            logger.info(f"Removed IF '{frequency.get_frequency()}' from observation '{observation.get_observation_code()}'")
+        except IndexError:
+            logger.warning(f"IF '{frequency.get_frequency()}' not found in observation '{observation.get_observation_code()}'")          
 
     def remove_scan(self, observation: Observation, start: float) -> None:
         """Remove a scan from the observation by start time."""
@@ -140,18 +138,6 @@ class Configurator(ABC):
             raise ValueError("Observation type must be 'VLBI' or 'SINGLE_DISH'")
         observation._observation_type = obs_type
         logger.info(f"Set observation type to '{obs_type}'")
-    
-    def remove_telescope_by_index(self, observation: Observation, index: int) -> None:
-        """Remove a telescope from the observation by index."""
-        check_type(observation, Observation, "Observation")
-        check_type(index, int, "Index")
-        telescopes = observation.get_telescopes()
-        try:
-            telescope = telescopes.get_telescope(index)
-            telescopes.remove_telescope(index)
-            logger.info(f"Removed telescope '{telescope.get_telescope_code()}' at index {index} from observation '{observation.get_observation_code()}'")
-        except IndexError:
-            logger.warning(f"Telescope at index {index} not found in observation '{observation.get_observation_code()}'")
 
     def get_sefd(self, observation: Observation) -> float:
         """Get the SEFD of the observation."""

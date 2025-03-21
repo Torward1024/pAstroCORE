@@ -19,6 +19,20 @@
                         "flux_table": {},
                         "spectral_index": null,
                         "isactive": true
+                    },
+                    {
+                        "name": "0009+081",
+                        "ra_h": 0.0,
+                        "ra_m": 11.0,
+                        "ra_s": 35.3875,
+                        "de_d": 8.0,
+                        "de_m": 23.0,
+                        "de_s": 10.9784,
+                        "name_J2000": "0009+081",
+                        "alt_name": "$",
+                        "flux_table": {},
+                        "spectral_index": null,
+                        "isactive": false
                     }
                 ]
             },
@@ -47,30 +61,6 @@
                         ],
                         "mount_type": "AZIM",
                         "isactive": true
-                    },
-                    {
-                        "type": "Telescope",
-                        "code": "AN",
-                        "name": "Anch",
-                        "x": -2674533.924,
-                        "y": 1544142.881,
-                        "z": 5571414.996,
-                        "vx": 0.0,
-                        "vy": 0.0,
-                        "vz": 0.0,
-                        "diameter": 25.0,
-                        "sefd_table": {},
-                        "efficiency_table": {},
-                        "elevation_range": [
-                            15.0,
-                            90.0
-                        ],
-                        "azimuth_range": [
-                            0.0,
-                            360.0
-                        ],
-                        "mount_type": "AZIM",
-                        "isactive": true
                     }
                 ]
             },
@@ -80,8 +70,8 @@
                         "frequency": 1000.0,
                         "bandwidth": 16.0,
                         "polarizations": [
-                            "RCP",
-                            "LCP"
+                            "H",
+                            "V"
                         ],
                         "isactive": true
                     },
@@ -109,6 +99,46 @@
                         "polarizations": [
                             "RCP",
                             "LCP"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1040.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1050.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1060.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1070.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1080.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP"
                         ],
                         "isactive": true
                     }
