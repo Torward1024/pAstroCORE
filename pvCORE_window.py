@@ -117,13 +117,29 @@ class PvCoreWindow(QMainWindow):
         return f"{sign}{dec_d}°{dec_m:02d}′{dec_s:05.2f}″"
     
     def show_frequencies_context_menu(self, position):
-        menu = QMenu()
-        menu.addAction("Add Frequency", self.add_frequency)
-        menu.addAction("Insert Frequency", self.insert_frequency)
-        menu.addAction("Remove Frequency", self.remove_frequency)
+        menu = QMenu(self)
+        add_action = QAction("Add Frequency", self)
+        add_action.triggered.connect(self.add_frequency)
+        menu.addAction(add_action)
+        
+        insert_action = QAction("Insert Frequency", self)
+        insert_action.triggered.connect(self.insert_frequency)
+        menu.addAction(insert_action)
+        
+        remove_action = QAction("Remove Frequency", self)
+        remove_action.triggered.connect(self.remove_frequency)
+        menu.addAction(remove_action)
+        
         menu.addSeparator()
-        menu.addAction("Activate All Frequencies", self.activate_all_frequencies)
-        menu.addAction("Deactivate All Frequencies", self.deactivate_all_frequencies)
+        
+        activate_action = QAction("Activate All Frequencies", self)
+        activate_action.triggered.connect(self.activate_all_frequencies)
+        menu.addAction(activate_action)
+        
+        deactivate_action = QAction("Deactivate All Frequencies", self)
+        deactivate_action.triggered.connect(self.deactivate_all_frequencies)
+        menu.addAction(deactivate_action)
+        
         menu.exec(self.frequencies_table.viewport().mapToGlobal(position))
 
     def on_scan_is_active_changed(self, scan: Scan, state: str):
@@ -216,6 +232,9 @@ class PvCoreWindow(QMainWindow):
         if row >= len(frequencies):
             return
         freq_obj = frequencies[row]
+        old_freq = freq_obj.get_frequency()
+        old_bw = freq_obj.get_bandwidth()
+        old_pol = freq_obj.get_polarization()
         try:
             if col == 0:  # Frequency
                 new_freq = float(item.text())
@@ -240,6 +259,12 @@ class PvCoreWindow(QMainWindow):
         except ValueError as e:
             logger.error(f"Invalid input for frequency at row {row}, col {col}: {e}")
             self.status_bar.showMessage(f"Error: {e}")
+            if col == 0:
+                freq_obj.set_frequency(old_freq)
+            elif col == 1:
+                freq_obj.set_bandwidth(old_bw)
+            elif col == 2:
+                freq_obj.set_polarization(old_pol)
             self.update_config_tables(obs)
 
     def update_all_ui(self, selected_obs_code=None):
@@ -425,16 +450,34 @@ class PvCoreWindow(QMainWindow):
             self.status_bar.showMessage("Project name cannot be empty")
     
     def show_scans_context_menu(self, position):
-        menu = QMenu()
-        menu.addAction("Add Scan", self.add_scan)
-        menu.addAction("Insert Scan", self.insert_scan)
-        menu.addAction("Edit Scan", self.edit_scan)
-        menu.addAction("Remove Scan", self.remove_scan)
+        menu = QMenu(self)
+        add_action = QAction("Add Scan", self)
+        add_action.triggered.connect(self.add_scan)
+        menu.addAction(add_action)
+        
+        insert_action = QAction("Insert Scan", self)
+        insert_action.triggered.connect(self.insert_scan)
+        menu.addAction(insert_action)
+        
+        edit_action = QAction("Edit Scan", self)
+        edit_action.triggered.connect(self.edit_scan)
+        menu.addAction(edit_action)
+        
+        remove_action = QAction("Remove Scan", self)
+        remove_action.triggered.connect(self.remove_scan)
+        menu.addAction(remove_action)
+        
         menu.addSeparator()
-        menu.addAction("Activate All", self.activate_all_scans)
-        menu.addAction("Deactivate All", self.deactivate_all_scans)
+        
+        activate_action = QAction("Activate All", self)
+        activate_action.triggered.connect(self.activate_all_scans)
+        menu.addAction(activate_action)
+        
+        deactivate_action = QAction("Deactivate All", self)
+        deactivate_action.triggered.connect(self.deactivate_all_scans)
+        menu.addAction(deactivate_action)
+        
         menu.exec(self.scans_table.viewport().mapToGlobal(position))
-        menu.close()
     
     def insert_scan(self):
         selected = self.obs_selector.currentText()
@@ -480,34 +523,6 @@ class PvCoreWindow(QMainWindow):
             self.update_config_tables(obs)
             self.update_obs_table()
             self.status_bar.showMessage(f"Inserted scan starting at {new_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} into '{selected}'")
-    
-    def edit_scan(self):
-        selected = self.obs_selector.currentText()
-        if selected == "Select Observation...":
-            self.status_bar.showMessage("Please select an observation first")
-            return
-        row = self.scans_table.currentRow()
-        if row == -1:
-            self.status_bar.showMessage("Please select a scan to edit")
-            return
-        obs = self.get_observation_by_code(selected)
-        if obs:
-            scan = obs.get_scans().get_scan(row)
-            dialog = EditScanDialog(scan=scan, 
-                                sources=obs.get_sources().get_active_sources(), 
-                                telescopes=obs.get_telescopes(), 
-                                frequencies=obs.get_frequencies(), 
-                                parent=self)
-            if dialog.exec():
-                updated_scan = dialog.get_updated_scan()
-                try:
-                    obs.get_scans().set_scan(updated_scan, row)
-                    self.update_config_tables(obs)
-                    self.update_obs_table()
-                    self.status_bar.showMessage(f"Updated scan with start={updated_scan.get_start()} in '{selected}'")
-                except ValueError as e:
-                    logger.error(f"Failed to update scan: {e}")
-                    self.status_bar.showMessage(f"Error: {e}")
     
     def remove_scan(self):
         obs_code = self.obs_selector.currentText()
@@ -615,17 +630,38 @@ class PvCoreWindow(QMainWindow):
             self.status_bar.showMessage("Telescope removed")
 
     def show_telescopes_context_menu(self, position):
-        menu = QMenu()
-        menu.addAction("Add Telescope", self.add_telescope)
-        menu.addAction("Add Space Telescope", self.add_space_telescope)  # Новый пункт в контекстном меню
-        menu.addAction("Insert Telescope", self.insert_telescope)
-        menu.addAction("Edit Telescope", self.edit_telescope)
-        menu.addAction("Remove Telescope", self.remove_telescope)
+        menu = QMenu(self)  # Явно указываем родителя для правильного управления памятью
+        add_action = QAction("Add Telescope", self)
+        add_action.triggered.connect(self.add_telescope)
+        menu.addAction(add_action)
+        
+        add_space_action = QAction("Add Space Telescope", self)
+        add_space_action.triggered.connect(self.add_space_telescope)
+        menu.addAction(add_space_action)
+        
+        insert_action = QAction("Insert Telescope", self)
+        insert_action.triggered.connect(self.insert_telescope)
+        menu.addAction(insert_action)
+        
+        edit_action = QAction("Edit Telescope", self)
+        edit_action.triggered.connect(self.edit_telescope)
+        menu.addAction(edit_action)
+        
+        remove_action = QAction("Remove Telescope", self)
+        remove_action.triggered.connect(self.remove_telescope)
+        menu.addAction(remove_action)
+        
         menu.addSeparator()
-        menu.addAction("Activate All", self.activate_all_telescopes)
-        menu.addAction("Deactivate All", self.deactivate_all_telescopes)
+        
+        activate_action = QAction("Activate All", self)
+        activate_action.triggered.connect(self.activate_all_telescopes)
+        menu.addAction(activate_action)
+        
+        deactivate_action = QAction("Deactivate All", self)
+        deactivate_action.triggered.connect(self.deactivate_all_telescopes)
+        menu.addAction(deactivate_action)
+        
         menu.exec(self.telescopes_table.viewport().mapToGlobal(position))
-        menu.close()
     
     def activate_all_telescopes(self):
         selected = self.obs_selector.currentText()
@@ -890,49 +926,6 @@ class PvCoreWindow(QMainWindow):
         self.scans_table.resizeColumnsToContents()
         self.scans_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
     
-    def insert_scan(self):
-        selected = self.obs_selector.currentText()
-        if selected == "Select Observation...":
-            self.status_bar.showMessage("Please select an observation first")
-            return
-        obs = self.get_observation_by_code(selected)
-        if not obs:
-            return
-        if not (obs.get_sources().get_active_sources() and obs.get_telescopes().get_active_telescopes() and obs.get_frequencies().get_active_frequencies()):
-            logger.warning(f"Cannot insert scan to '{selected}': missing active sources, telescopes, or frequencies")
-            self.status_bar.showMessage("Cannot insert scan: observation requires active sources, telescopes, and frequencies")
-            return
-        row = self.scans_table.currentRow()
-        dialog = EditScanDialog(sources=obs.get_sources().get_active_sources(), 
-                                telescopes=obs.get_telescopes(), 
-                                frequencies=obs.get_frequencies(), 
-                                parent=self)
-        if dialog.exec():
-            new_scan = dialog.get_updated_scan()
-            scans = obs.get_scans()
-            current_scans = scans.get_all_scans()
-            if row == -1:
-                try:
-                    self.manipulator.add_scan_to_observation(obs, new_scan)
-                except ValueError as e:
-                    logger.error(f"Failed to insert scan: {e}")
-                    self.status_bar.showMessage(f"Error: {e}")
-                    return
-            else:
-                current_scans.insert(row, new_scan)
-                scans._data = current_scans
-                overlap, reason = scans._check_overlap(new_scan)
-                if overlap:
-                    current_scans.pop(row)
-                    scans._data = current_scans
-                    logger.error(f"Failed to insert scan: {reason}")
-                    self.status_bar.showMessage(f"Error: {reason}")
-                    return
-                logger.info(f"Inserted scan starting at {new_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} at index {row} in '{selected}'")
-            self.update_config_tables(obs)
-            self.update_obs_table()
-            self.status_bar.showMessage(f"Inserted scan starting at {new_scan.get_start_datetime().strftime('%Y-%m-%d %H:%M:%S.%f')[:-4]} into '{selected}'")
-    
     def edit_scan(self):
         selected = self.obs_selector.currentText()
         if selected == "Select Observation...":
@@ -995,17 +988,35 @@ class PvCoreWindow(QMainWindow):
             self.status_bar.showMessage(f"Polarizations updated in '{selected}'")
 
     def show_context_menu(self, position):
-        menu = QMenu()
-        menu.addAction("Add Observation", self.add_observation)
-        menu.addAction("Insert Observation", self.insert_observation)
-        menu.addAction("Remove Observation", self.remove_observation)
+        menu = QMenu(self)
+        add_action = QAction("Add Observation", self)
+        add_action.triggered.connect(self.add_observation)
+        menu.addAction(add_action)
+        
+        insert_action = QAction("Insert Observation", self)
+        insert_action.triggered.connect(self.insert_observation)
+        menu.addAction(insert_action)
+        
+        remove_action = QAction("Remove Observation", self)
+        remove_action.triggered.connect(self.remove_observation)
+        menu.addAction(remove_action)
+        
         menu.exec(self.project_tree.viewport().mapToGlobal(position))
 
     def show_obs_table_context_menu(self, position):
-        menu = QMenu()
-        menu.addAction("Add Observation", self.add_observation)
-        menu.addAction("Insert Observation", self.insert_observation_from_table)
-        menu.addAction("Remove Observation", self.remove_observation_from_table)
+        menu = QMenu(self)
+        add_action = QAction("Add Observation", self)
+        add_action.triggered.connect(self.add_observation)
+        menu.addAction(add_action)
+        
+        insert_action = QAction("Insert Observation", self)
+        insert_action.triggered.connect(self.insert_observation_from_table)
+        menu.addAction(insert_action)
+        
+        remove_action = QAction("Remove Observation", self)
+        remove_action.triggered.connect(self.remove_observation_from_table)
+        menu.addAction(remove_action)
+        
         menu.exec(self.obs_table.viewport().mapToGlobal(position))
 
     def add_observation(self):
@@ -1207,16 +1218,34 @@ class PvCoreWindow(QMainWindow):
                         break
 
     def show_sources_table_context_menu(self, position):
-        menu = QMenu()
-        menu.addAction("Add Source", self.add_source)
-        menu.addAction("Insert Source", self.insert_source)
-        menu.addAction("Edit Source", self.edit_source)
-        menu.addAction("Remove Source", self.remove_source)
+        menu = QMenu(self)
+        add_action = QAction("Add Source", self)
+        add_action.triggered.connect(self.add_source)
+        menu.addAction(add_action)
+        
+        insert_action = QAction("Insert Source", self)
+        insert_action.triggered.connect(self.insert_source)
+        menu.addAction(insert_action)
+        
+        edit_action = QAction("Edit Source", self)
+        edit_action.triggered.connect(self.edit_source)
+        menu.addAction(edit_action)
+        
+        remove_action = QAction("Remove Source", self)
+        remove_action.triggered.connect(self.remove_source)
+        menu.addAction(remove_action)
+        
         menu.addSeparator()
-        menu.addAction("Activate All", self.activate_all_sources)
-        menu.addAction("Deactivate All", self.deactivate_all_sources)
+        
+        activate_action = QAction("Activate All", self)
+        activate_action.triggered.connect(self.activate_all_sources)
+        menu.addAction(activate_action)
+        
+        deactivate_action = QAction("Deactivate All", self)
+        deactivate_action.triggered.connect(self.deactivate_all_sources)
+        menu.addAction(deactivate_action)
+        
         menu.exec(self.sources_table.viewport().mapToGlobal(position))
-        menu.close()
 
     def activate_all_sources(self):
         selected = self.obs_selector.currentText()
