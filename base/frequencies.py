@@ -161,24 +161,23 @@ class Frequencies(BaseEntity):
             if_obj (IF): IF object to add.
 
         Raises:
-            ValueError: If an IF with the same frequency, bandwidth, and polarization already exists.
+            ValueError: If an IF with overlapping frequency range already exists.
         """
         check_type(if_obj, IF, "IF")
-        # Проверяем уникальность по частоте, полосе пропускания и поляризации
+        new_freq = if_obj.get_frequency()
+        new_bw = if_obj.get_bandwidth()
+        new_range = (new_freq - new_bw / 2, new_freq + new_bw / 2)
+
         for existing_if in self._data:
-            if (existing_if.get_frequency() == if_obj.get_frequency() and 
-                existing_if.get_bandwidth() == if_obj.get_bandwidth() and 
-                existing_if.get_polarization() == if_obj.get_polarization()):
-                logger.error(f"IF with frequency={if_obj.get_frequency()} MHz, "
-                            f"bandwidth={if_obj.get_bandwidth()} MHz, "
-                            f"polarization={if_obj.get_polarization()} already exists")
-                raise ValueError(f"IF with frequency={if_obj.get_frequency()} MHz, "
-                                f"bandwidth={if_obj.get_bandwidth()} MHz, "
-                                f"polarization={if_obj.get_polarization()} already exists!")
+            ex_freq = existing_if.get_frequency()
+            ex_bw = existing_if.get_bandwidth()
+            ex_range = (ex_freq - ex_bw / 2, ex_freq + ex_bw / 2)
+            if not (new_range[1] <= ex_range[0] or new_range[0] >= ex_range[1]):
+                logger.error(f"Frequency range {new_range} overlaps with existing range {ex_range}")
+                raise ValueError(f"Frequency range {new_range} overlaps with existing range {ex_range}")
+        
         self._data.append(if_obj)
-        logger.info(f"Added IF with frequency={if_obj.get_frequency()} MHz, "
-                    f"bandwidth={if_obj.get_bandwidth()} MHz, "
-                    f"polarization={if_obj.get_polarization()} to Frequencies")
+        logger.info(f"Added IF with frequency={new_freq} MHz, bandwidth={new_bw} MHz to Frequencies")
 
     def remove_frequency(self, index: int) -> None:
         """Remove frequency by index."""

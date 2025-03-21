@@ -1367,15 +1367,39 @@ class PvCoreWindow(QMainWindow):
         if selected == "Select Observation...":
             self.status_bar.showMessage("Please select an observation first")
             return
-        row = self.frequencies_table.rowCount()
         obs = self.get_observation_by_code(selected)
-        if obs:
-            new_freq = 1000.0 + row * 10
-            default_pol = ["LL"] if obs.get_observation_type() == "VLBI" else ["RCP"]
-            if_obj = IF(freq=new_freq, bandwidth=16.0, polarization=default_pol)
+        if not obs:
+            self.status_bar.showMessage("Observation not found")
+            return
+        
+        # Параметры новой частоты
+        bandwidth = 16.0
+        default_pol = ["LL"] if obs.get_observation_type() == "VLBI" else ["RCP"]
+        
+        # Получаем существующие частоты и сортируем их
+        existing_freqs = obs.get_frequencies().get_all_frequencies()
+        ranges = [(f.get_frequency() - f.get_bandwidth() / 2, f.get_frequency() + f.get_bandwidth() / 2) 
+                for f in existing_freqs]
+        ranges.sort()  # Сортируем по нижней границе диапазона
+        
+        # Ищем свободную частоту, начиная с 1000.0 МГц
+        new_freq = 1000.0
+        step = bandwidth  # Шаг равен ширине полосы для минимизации пересечений
+        if ranges:
+            for lower, upper in ranges:
+                if new_freq + bandwidth / 2 <= lower:  # Если новый диапазон помещается перед текущим
+                    break
+                new_freq = upper + step  # Перескакиваем за верхнюю границу текущего диапазона
+        
+        # Создаём объект IF и добавляем его
+        if_obj = IF(freq=new_freq, bandwidth=bandwidth, polarization=default_pol)
+        try:
             self.manipulator.add_frequency_to_observation(obs, if_obj)
             self.update_all_ui(selected)
             self.status_bar.showMessage(f"Added frequency {new_freq} MHz to '{selected}'")
+        except ValueError as e:
+            logger.warning(f"Failed to add frequency {new_freq} MHz to '{selected}': {e}")
+            self.status_bar.showMessage(f"Error: {e}")
 
     def refresh_plot(self):
         selected = self.project_tree.selectedItems()
@@ -1445,6 +1469,28 @@ class PvCoreWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Failed to save project: {e}")
                 self.status_bar.showMessage("Failed to save project")
+    
+    def load_project(self, filepath: str) -> None:
+        import json
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            self._project = Project.from_dict(data)
+            # Проверка целостности
+            for obs in self._project.get_observations():
+                if not obs.validate():
+                    logger.error(f"Observation '{obs.get_observation_code()}' failed validation after loading")
+                    raise ValueError(f"Observation '{obs.get_observation_code()}' is invalid")
+            logger.info(f"Project loaded from '{filepath}'")
+        except FileNotFoundError:
+            logger.error(f"Project file '{filepath}' not found")
+            raise FileNotFoundError(f"Project file '{filepath}' not found!")
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decoding JSON from '{filepath}': {e}")
+            raise ValueError(f"Invalid JSON in '{filepath}': {e}")
+        except ValueError as e:
+            logger.error(f"Validation error during project load: {e}")
+            raise
 
     def open_project(self):
         filepath, _ = QFileDialog.getOpenFileName(self, "Open Project", "", "JSON Files (*.json)")

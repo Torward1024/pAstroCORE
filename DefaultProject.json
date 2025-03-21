@@ -7,14 +7,14 @@
             "sources": {
                 "data": [
                     {
-                        "name": "0003-003",
+                        "name": "0003-066",
                         "ra_h": 0.0,
                         "ra_m": 6.0,
-                        "ra_s": 22.1399,
-                        "de_d": -0.0,
-                        "de_m": 4.0,
-                        "de_s": 38.4575,
-                        "name_J2000": "0003-003",
+                        "ra_s": 13.68,
+                        "de_d": -6.0,
+                        "de_m": 23.0,
+                        "de_s": 35.5187,
+                        "name_J2000": "0003-066",
                         "alt_name": "$",
                         "flux_table": {},
                         "spectral_index": null,
@@ -26,15 +26,15 @@
                 "data": [
                     {
                         "type": "Telescope",
-                        "code": "AP",
-                        "name": "Algopark",
-                        "x": 918036.7274,
-                        "y": 4346133.078,
-                        "z": 4561971.548,
+                        "code": "AN",
+                        "name": "Anch",
+                        "x": -2674533.924,
+                        "y": 1544142.881,
+                        "z": 5571414.996,
                         "vx": 0.0,
                         "vy": 0.0,
                         "vz": 0.0,
-                        "diameter": 47.0,
+                        "diameter": 25.0,
                         "sefd_table": {},
                         "efficiency_table": {},
                         "elevation_range": [
@@ -65,7 +65,7 @@
             "scans": {
                 "data": [
                     {
-                        "start": 1742555058.0,
+                        "start": 1742556753.0,
                         "duration": 1.0,
                         "source_index": null,
                         "telescope_indices": [
