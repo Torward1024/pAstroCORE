@@ -13,6 +13,7 @@ from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 from typing import Union
 import os
+import json
 
 class Project:
     """Container for managing multiple observations."""
@@ -139,8 +140,28 @@ class Manipulator(ABC):
 
     def save_project(self, filepath: str) -> None:
         import json
+        import astropy.units as u
+        import numpy as np  # Добавляем импорт numpy здесь
+        
+        def json_serializable(obj):
+            """Обработчик для несериализуемых объектов."""
+            if isinstance(obj, bool):
+                return bool(obj)
+            elif isinstance(obj, np.bool_):
+                return bool(obj)
+            elif isinstance(obj, (np.ndarray, u.Quantity)):
+                return obj.tolist() if hasattr(obj, 'tolist') else obj.value.tolist()
+            elif isinstance(obj, dict):
+                # Преобразуем ключи-кортежи в строки
+                return {str(k) if isinstance(k, tuple) else k: json_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, (list, tuple)):
+                return [json_serializable(item) for item in obj]
+            raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+        project_dict = self._project.to_dict()
+        logger.debug(f"Project data before saving: {project_dict}")
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(self._project.to_dict(), f, indent=4)
+            json.dump(project_dict, f, indent=4, default=json_serializable)
         logger.info(f"Project saved to '{filepath}'")
 
     def load_project(self, filepath: str) -> None:
@@ -230,5 +251,5 @@ class DefaultManipulator(Manipulator):
             if self._calculator:
                 self._calculator.calculate_all(obs)
             if self._vizualizator:
-                self._vizualizator.visualize_observation(obs)
+                self._vizualizator.visualize_observation(obs)  # Без параметров, визуализируем всё
         logger.info(f"Executed all tasks for project '{self._project.get_name()}'")

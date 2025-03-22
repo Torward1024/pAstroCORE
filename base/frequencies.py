@@ -242,6 +242,30 @@ class Frequencies(BaseEntity):
         logger.info(f"Cleared {len(self._data)} IFs from Frequencies")
         self._data.clear()
 
+    def activate_frequency(self, index: int) -> None:
+        """Activate frequency by index."""
+        check_type(index, int, "Index")
+        try:
+            self._data[index].activate()
+            if hasattr(self, '_parent') and self._parent:  # Проверяем наличие родителя
+                self._parent._sync_scans_with_activation("frequencies", index, True)
+            logger.info(f"Activated frequency {self._data[index].get_frequency()} MHz at index {index}")
+        except IndexError:
+            logger.error(f"Invalid frequency index: {index}")
+            raise IndexError("Invalid frequency index!")
+
+    def deactivate_frequency(self, index: int) -> None:
+        """Deactivate frequency by index."""
+        check_type(index, int, "Index")
+        try:
+            self._data[index].deactivate()
+            if hasattr(self, '_parent') and self._parent:  # Проверяем наличие родителя
+                self._parent._sync_scans_with_activation("frequencies", index, False)
+            logger.info(f"Deactivated frequency {self._data[index].get_frequency()} MHz at index {index}")
+        except IndexError:
+            logger.error(f"Invalid frequency index: {index}")
+            raise IndexError("Invalid frequency index!")
+
     def activate_all(self) -> None:
         """Activate all frequencies."""
         if not self._data:

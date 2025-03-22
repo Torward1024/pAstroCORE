@@ -691,6 +691,30 @@ class Telescopes(BaseEntity):
         inactive = [t for t in self._data if not t.isactive]
         logger.debug(f"Retrieved {len(inactive)} inactive telescopes")
         return inactive
+    
+    def activate_telescope(self, index: int) -> None:
+        """Activate telescope by index."""
+        check_type(index, int, "Index")
+        try:
+            self._data[index].activate()
+            if hasattr(self, '_parent') and self._parent:  # Проверяем наличие родителя
+                self._parent._sync_scans_with_activation("telescopes", index, True)
+            logger.info(f"Activated telescope '{self._data[index].get_telescope_code()}' at index {index}")
+        except IndexError:
+            logger.error(f"Invalid telescope index: {index}")
+            raise IndexError("Invalid telescope index!")
+
+    def deactivate_telescope(self, index: int) -> None:
+        """Deactivate telescope by index."""
+        check_type(index, int, "Index")
+        try:
+            self._data[index].deactivate()
+            if hasattr(self, '_parent') and self._parent:  # Проверяем наличие родителя
+                self._parent._sync_scans_with_activation("telescopes", index, False)
+            logger.info(f"Deactivated telescope '{self._data[index].get_telescope_code()}' at index {index}")
+        except IndexError:
+            logger.error(f"Invalid telescope index: {index}")
+            raise IndexError("Invalid telescope index!")
 
     def activate_all(self) -> None:
         """Activate all telescopes."""

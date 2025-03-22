@@ -8,6 +8,8 @@ from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Union
+import astropy.units as u
+import numpy as np
 import re
 
 class Observation(BaseEntity):
@@ -34,8 +36,11 @@ class Observation(BaseEntity):
         self._telescopes = telescopes if telescopes is not None else Telescopes()
         self._frequencies = frequencies if frequencies is not None else Frequencies()
         self._scans = scans if scans is not None else Scans()
+        self._sources._parent = self
+        self._telescopes._parent = self
+        self._frequencies._parent = self
         self._scans._parent = self
-        self._calculated_data: Dict[str, Any] = {}  # Хранилище для результатов Calculator
+        self._calculated_data: Dict[str, Any] = {} # Хранилище для результатов Calculator
         logger.info(f"Initialized Observation '{observation_code}' with type '{observation_type}'")
 
     def set_observation(self, observation_code: str, sources: Sources = None,
@@ -135,7 +140,7 @@ class Observation(BaseEntity):
 
     def get_start_datetime(self) -> Optional[datetime]:
         """Get observation start time as a datetime object (UTC), based on earliest scan."""
-        active_scans = self._scans.get_active_scans()
+        active_scans = self._scans.get_active_scans(self)  # Передаем self
         if not active_scans:
             return None
         return min(scan.get_start_datetime() for scan in active_scans)
@@ -271,10 +276,10 @@ class Observation(BaseEntity):
                 return False
 
         # Validate scans
-        if not self._scans.get_active_scans():
+        if not self._scans.get_active_scans(self):  # Передаем self
             logger.error("No active scans defined in observation")
             return False
-        for scan in self._scans.get_active_scans():
+        for scan in self._scans.get_active_scans(self):  # Передаем self
             if not scan.validate():
                 logger.error(f"Scan validation failed for start time {scan.get_start()}")
                 return False
@@ -324,24 +329,56 @@ class Observation(BaseEntity):
         for scan in self._scans.get_all_scans():
             if entity_type == "sources":
                 current_idx = getattr(scan, attr)
-                if current_idx == index and not is_active:
-                    scan.set_source_index(None)
-                    scan.is_off_source = True
-                    logger.debug(f"Scan source index reset to None due to deactivation in '{self._observation_code}'")
+                if current_idx == index:
+                    if not is_active:
+                        scan.set_source_index(None)
+                        scan.is_off_source = True
+                        logger.debug(f"Scan source index reset to None due to deactivation in '{self._observation_code}'")
+                    elif is_active and scan.is_off_source and current_idx is not None:
+                        # Восстанавливаем источник, если он был изначально привязан
+                        scan.set_source_index(index)
+                        scan.is_off_source = False
+                        logger.debug(f"Scan source index restored to {index} due to activation in '{self._observation_code}'")
             else:  # telescopes or frequencies
                 current_indices = getattr(scan, attr)
                 if index in current_indices and not is_active:
+                    # Деактивация: удаляем индекс
                     updated_indices = [i for i in current_indices if i != index]
                     if entity_type == "telescopes":
                         scan.set_telescope_indices(updated_indices)
                     else:
                         scan.set_frequency_indices(updated_indices)
-                    logger.debug(f"Removed {entity_type} index {index} from scan in '{self._observation_code}'")    
+                    logger.debug(f"Removed {entity_type} index {index} from scan in '{self._observation_code}'")
+                elif index not in current_indices and is_active:
+                    # Активация: добавляем индекс, только если он изначально мог быть в скане
+                    # Предполагаем, что индекс добавляется, если он валиден и не нарушает логику
+                    all_entities = (self._telescopes.get_all_telescopes() if entity_type == "telescopes" 
+                                    else self._frequencies.get_all_frequencies())
+                    if index < len(all_entities) and all_entities[index].isactive:
+                        updated_indices = current_indices + [index]
+                        if entity_type == "telescopes":
+                            scan.set_telescope_indices(updated_indices)
+                        else:
+                            scan.set_frequency_indices(updated_indices)
+                        logger.debug(f"Added {entity_type} index {index} to scan in '{self._observation_code}'")    
 
     def to_dict(self) -> dict:
         """Convert Observation object to a dictionary for serialization."""
-        logger.info(f"Converted observation '{self._observation_code}' to dictionary")
-        return {
+        def convert_quantity(obj):
+            """Преобразует Quantity или вложенные структуры в сериализуемые данные."""
+            if isinstance(obj, u.Quantity):
+                return obj.value.tolist() if obj.isscalar else obj.value.tolist()
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, bool):  # Добавляем обработку bool
+                return bool(obj)  # Оставляем как есть, json сам разберётся
+            elif isinstance(obj, dict):
+                return {k: convert_quantity(v) for k, v in obj.items()}
+            elif isinstance(obj, (list, tuple)):
+                return [convert_quantity(item) for item in obj]
+            return obj
+
+        data = {
             "observation_code": self._observation_code,
             "observation_type": self._observation_type,
             "sources": self._sources.to_dict(),
@@ -349,22 +386,26 @@ class Observation(BaseEntity):
             "frequencies": self._frequencies.to_dict(),
             "scans": self._scans.to_dict(),
             "isactive": self.isactive,
-            "calculated_data": self._calculated_data  # Добавляем результаты вычислений
+            "calculated_data": convert_quantity(self._calculated_data) if hasattr(self, '_calculated_data') else {}
         }
+        logger.info(f"Converted observation '{self._observation_code}' to dictionary")
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
         """Create an Observation object from a dictionary."""
         obs = cls(
             observation_code=data["observation_code"],
+            observation_type=data["observation_type"],
             sources=Sources.from_dict(data["sources"]),
             telescopes=Telescopes.from_dict(data["telescopes"]),
             frequencies=Frequencies.from_dict(data["frequencies"]),
             scans=Scans.from_dict(data["scans"]),
-            observation_type=data["observation_type"],
-            isactive=data["isactive"]
+            isactive=data.get("isactive", True)
         )
-        obs._calculated_data = data.get("calculated_data", {})  # Загружаем результаты вычислений
+        if "calculated_data" in data:
+            # При десериализации единицы измерения не восстанавливаем, оставляем как числа
+            obs._calculated_data = data["calculated_data"]
         logger.info(f"Created observation '{data['observation_code']}' from dictionary")
         return obs
 

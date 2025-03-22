@@ -342,6 +342,30 @@ class Sources(BaseEntity):
         inactive = [src_obj for src_obj in self._data if not src_obj.isactive]
         logger.debug(f"Retrieved {len(inactive)} inactive sources")
         return inactive
+    
+    def activate_source(self, index: int) -> None:
+        """Activate source by index."""
+        check_type(index, int, "Index")
+        try:
+            self._data[index].activate()
+            if hasattr(self, '_parent') and self._parent:  # Проверяем наличие родителя
+                self._parent._sync_scans_with_activation("sources", index, True)
+            logger.info(f"Activated source '{self._data[index].get_name()}' at index {index}")
+        except IndexError:
+            logger.error(f"Invalid source index: {index}")
+            raise IndexError("Invalid source index!")
+        
+    def deactivate_source(self, index: int) -> None:
+        """Deactivate source by index."""
+        check_type(index, int, "Index")
+        try:
+            self._data[index].deactivate()
+            if hasattr(self, '_parent') and self._parent:  # Проверяем наличие родителя
+                self._parent._sync_scans_with_activation("sources", index, False)
+            logger.info(f"Deactivated source '{self._data[index].get_name()}' at index {index}")
+        except IndexError:
+            logger.error(f"Invalid source index: {index}")
+            raise IndexError("Invalid source index!")
 
     def activate_all(self) -> None:
         """Activate all sources."""

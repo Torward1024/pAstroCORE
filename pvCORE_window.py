@@ -279,8 +279,8 @@ class PvCoreWindow(QMainWindow):
                 obs.get_observation_type(),
                 f"{len(obs.get_sources().get_active_sources())} ({len(obs.get_sources().get_all_sources())})",
                 f"{len(obs.get_telescopes().get_active_telescopes())} ({len(obs.get_telescopes().get_all_telescopes())})",
-                f"{len(obs.get_scans().get_active_scans())} ({len(obs.get_scans().get_all_scans())})",
-                f"{len(obs.get_frequencies().get_active_frequencies())} ({len(obs.get_frequencies().get_all_frequencies())})"
+                f"{len(obs.get_frequencies().get_active_frequencies())} ({len(obs.get_frequencies().get_all_frequencies())})",
+                f"{len(obs.get_scans().get_active_scans(obs))} ({len(obs.get_scans().get_all_scans())})"
             ]):
                 item = QTableWidgetItem(value)
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
@@ -288,14 +288,19 @@ class PvCoreWindow(QMainWindow):
         self.obs_table.resizeColumnsToContents()
         self.obs_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-        self.obs_selector.blockSignals(True)
+        # Обновляем основной селектор (Configurator)
         self.obs_selector.clear()
         self.obs_selector.addItem("Select Observation...")
         for obs in self.manipulator.get_observations():
             self.obs_selector.addItem(obs.get_observation_code())
         if selected_obs_code:
             self.obs_selector.setCurrentText(selected_obs_code)
-        self.obs_selector.blockSignals(False)
+
+        # Обновляем селектор на вкладке Calculator, если она существует
+        if self.tabs.count() > 2:  # Проверяем, что вкладка Calculator добавлена
+            self.update_calc_obs_selector(self.calc_obs_selector)  # Use instance variable
+            if selected_obs_code:
+                self.calc_obs_selector.setCurrentText(selected_obs_code)
 
         if selected_obs_code and selected_obs_code != "Select Observation...":
             obs = self.get_observation_by_code(selected_obs_code)
@@ -343,6 +348,7 @@ class PvCoreWindow(QMainWindow):
         self.project_dock.setWidget(dock_widget)
 
     def setup_tabs(self):
+        # project tab
         project_tab = QWidget()
         project_layout = QVBoxLayout(project_tab)
         project_name_layout = QHBoxLayout()
@@ -357,6 +363,7 @@ class PvCoreWindow(QMainWindow):
         project_layout.addWidget(self.obs_table)
         self.tabs.addTab(project_tab, "Project")
 
+        # configurator tab
         config_tab = QWidget()
         config_layout = QVBoxLayout(config_tab)
         
@@ -429,12 +436,110 @@ class PvCoreWindow(QMainWindow):
         config_layout.addWidget(config_subtabs)
         self.tabs.addTab(config_tab, "Configurator")
 
+        # Вкладка Calculator
+        calc_tab = QWidget()
+        calc_layout = QVBoxLayout(calc_tab)
+        calc_layout.addWidget(QLabel("Calculator Results:"))
+        
+        # Выбор наблюдения
+        self.calc_obs_selector = QComboBox()  # Store as instance variable
+        self.update_calc_obs_selector(self.calc_obs_selector)  # Initialize it
+        calc_layout.addWidget(QLabel("Select Observation for Calculation:"))
+        calc_layout.addWidget(self.calc_obs_selector)
+        
+        # Кнопка для запуска расчетов
+        calc_button = QPushButton("Calculate All Parameters")
+        calc_button.clicked.connect(lambda: self.run_calculations(self.calc_obs_selector.currentText()))
+        calc_layout.addWidget(calc_button)
+        
+        # Таблица результатов
+        self.calc_results_table = QTableWidget(0, 3)
+        self.calc_results_table.setHorizontalHeaderLabels(["Parameter", "Details", "Value"])
+        self.calc_results_table.horizontalHeader().setStretchLastSection(True)
+        calc_layout.addWidget(self.calc_results_table)
+        
+        self.tabs.addTab(calc_tab, "Calculator")
+
+        # Vizualizator tab
         viz_tab = QWidget()
         viz_layout = QVBoxLayout(viz_tab)
+        
+        # Выбор наблюдения
+        self.viz_obs_selector = QComboBox()
+        self.update_viz_obs_selector()
+        viz_layout.addWidget(QLabel("Select Observation for Visualization:"))
+        viz_layout.addWidget(self.viz_obs_selector)
+        
+        # Выбор типа графика
+        self.plot_type_selector = QComboBox()
+        self.plot_type_selector.addItems([
+            "Select Plot Type...", "uv_coverage", "mollweide_tracks", "beam_pattern", 
+            "field_of_view", "telescope_sensitivity", "baseline_sensitivity"
+        ])
+        viz_layout.addWidget(QLabel("Select Plot Type:"))
+        viz_layout.addWidget(self.plot_type_selector)
+        
+        # Выбор сканирования
+        self.scan_selector = QComboBox()
+        viz_layout.addWidget(QLabel("Select Scan:"))
+        viz_layout.addWidget(self.scan_selector)
+        
+        # Холст для графиков
         self.canvas = FigureCanvas(plt.Figure())
         viz_layout.addWidget(self.canvas)
+        
+        # Кнопка обновления
         viz_layout.addWidget(QPushButton("Refresh Plot", clicked=self.refresh_plot))
+        
         self.tabs.addTab(viz_tab, "Vizualizator")
+        
+        # Подключение сигналов
+        self.viz_obs_selector.currentTextChanged.connect(self.on_viz_obs_selected)
+        self.plot_type_selector.currentTextChanged.connect(self.update_scan_selector)
+        self.tabs.currentChanged.connect(self.on_tab_changed)
+    
+    def on_tab_changed(self, index: int):
+        """Обновляет интерфейс при переключении вкладок."""
+        if index == 1:  # Вкладка Configurator (индекс 1)
+            selected = self.obs_selector.currentText()
+            if selected != "Select Observation...":
+                obs = self.get_observation_by_code(selected)
+                if obs:
+                    self.obs_code_input.blockSignals(True)  # Блокируем сигналы, чтобы избежать лишних вызовов
+                    self.obs_code_input.setText(obs.get_observation_code())
+                    self.obs_code_input.blockSignals(False)
+        if index == 3:  # Vizualizator tab
+            self.update_viz_obs_selector()
+            self.refresh_plot()
+    
+    def update_viz_obs_selector(self):
+        """Update observation selector for Vizualizator tab."""
+        self.viz_obs_selector.clear()
+        self.viz_obs_selector.addItem("Select Observation...")
+        for obs in self.manipulator.get_observations():
+            self.viz_obs_selector.addItem(obs.get_observation_code())
+
+    def on_viz_obs_selected(self, obs_code: str):
+        """Handle observation selection in Vizualizator tab."""
+        self.update_scan_selector()
+        if obs_code != "Select Observation...":
+            obs = self.get_observation_by_code(obs_code)
+            if obs:
+                self.calculator.calculate_all(obs)  # Автоматический расчёт при выборе
+                self.refresh_plot()
+    
+    def update_scan_selector(self):
+        """Update scan selector based on selected observation and plot type."""
+        self.scan_selector.clear()
+        obs_code = self.viz_obs_selector.currentText()
+        if obs_code == "Select Observation...":
+            return
+        obs = self.get_observation_by_code(obs_code)
+        if not obs or not hasattr(obs, '_calculated_data') or not obs._calculated_data:
+            return
+        self.scan_selector.addItem("All Scans")
+        for scan_key in obs._calculated_data.keys():
+            self.scan_selector.addItem(scan_key)
     
     def set_project_name(self):
         new_name = self.project_name_input.text().strip()
@@ -711,16 +816,16 @@ class PvCoreWindow(QMainWindow):
             type_item = QTableWidgetItem(obs.get_observation_type())
             type_item.setFlags(type_item.flags() & ~Qt.ItemIsEditable)
             self.obs_table.setItem(i, 1, type_item)
-            sources_item = QTableWidgetItem(str(len(obs.get_sources().get_active_sources())) + ' (' + str(len(obs.get_sources().get_all_sources())) + ')')
+            sources_item = QTableWidgetItem(f"{len(obs.get_sources().get_active_sources())} ({len(obs.get_sources().get_all_sources())})")
             sources_item.setFlags(sources_item.flags() & ~Qt.ItemIsEditable)
             self.obs_table.setItem(i, 2, sources_item)
-            telescopes_item = QTableWidgetItem(str(len(obs.get_telescopes().get_active_telescopes())) + ' (' + str(len(obs.get_telescopes().get_all_telescopes())) + ')')
+            telescopes_item = QTableWidgetItem(f"{len(obs.get_telescopes().get_active_telescopes())} ({len(obs.get_telescopes().get_all_telescopes())})")
             telescopes_item.setFlags(telescopes_item.flags() & ~Qt.ItemIsEditable)
             self.obs_table.setItem(i, 3, telescopes_item)
-            scans_item = QTableWidgetItem(str(len(obs.get_scans().get_all_scans())) + ' (' + str(len(obs.get_scans().get_active_scans())) + ')')
+            scans_item = QTableWidgetItem(f"{len(obs.get_scans().get_active_scans(obs))} ({len(obs.get_scans().get_all_scans())})")  # Передаем obs
             scans_item.setFlags(scans_item.flags() & ~Qt.ItemIsEditable)
             self.obs_table.setItem(i, 4, scans_item)
-            freqs_item = QTableWidgetItem(str(len(obs.get_frequencies().get_all_frequencies())) + ' (' + str(len(obs.get_frequencies().get_active_frequencies())) +')')
+            freqs_item = QTableWidgetItem(f"{len(obs.get_frequencies().get_active_frequencies())} ({len(obs.get_frequencies().get_all_frequencies())})")
             freqs_item.setFlags(freqs_item.flags() & ~Qt.ItemIsEditable)
             self.obs_table.setItem(i, 5, freqs_item)
         
@@ -829,6 +934,85 @@ class PvCoreWindow(QMainWindow):
             self.update_all_ui(selected)
             self.status_bar.showMessage(f"Observation type set to '{obs_type}'")
 
+    def update_calc_obs_selector(self, selector: QComboBox) -> None:
+        """Синхронизирует селектор наблюдений для вкладки Calculator."""
+        selector.clear()
+        selector.addItem("Select Observation...")
+        for obs in self.manipulator.get_observations():
+            selector.addItem(obs.get_observation_code())
+    
+    def run_calculations(self, obs_code: str) -> None:
+        """Запускает расчеты для выбранного наблюдения и обновляет таблицу результатов."""
+        if obs_code == "Select Observation...":
+            self.status_bar.showMessage("Please select an observation first")
+            return
+        obs = self.get_observation_by_code(obs_code)
+        if not obs:
+            self.status_bar.showMessage("Observation not found")
+            return
+        
+        # Выполняем расчеты
+        self.calculator.calculate_all(obs)
+        self.status_bar.showMessage(f"Calculations completed for '{obs_code}'")
+        
+        # Обновляем таблицу результатов
+        self.update_calc_results_table(obs)
+    
+    def update_calc_results_table(self, obs: Observation) -> None:
+        """Обновляет таблицу результатов на вкладке Calculator."""
+        self.calc_results_table.setRowCount(0)
+        if not hasattr(obs, '_calculated_data') or not obs._calculated_data:
+            return
+        
+        # Пример отображения некоторых параметров
+        for scan_key, scan_data in obs._calculated_data.items():
+            row = self.calc_results_table.rowCount()
+            self.calc_results_table.insertRow(row)
+            self.calc_results_table.setItem(row, 0, QTableWidgetItem("Scan"))
+            self.calc_results_table.setItem(row, 1, QTableWidgetItem(scan_key))
+            self.calc_results_table.setItem(row, 2, QTableWidgetItem("Calculated"))
+
+            # Telescope Positions
+            row += 1
+            self.calc_results_table.insertRow(row)
+            pos_str = "; ".join(f"{k}: {v}" for k, v in scan_data["telescope_positions"].items())
+            self.calc_results_table.setItem(row, 0, QTableWidgetItem("Telescope Positions"))
+            self.calc_results_table.setItem(row, 1, QTableWidgetItem("All Telescopes"))
+            self.calc_results_table.setItem(row, 2, QTableWidgetItem(pos_str[:100] + "..." if len(pos_str) > 100 else pos_str))
+
+            # UV Coverage (для VLBI)
+            if obs.get_observation_type() == "VLBI" and "uv_coverage" in scan_data:
+                row += 1
+                self.calc_results_table.insertRow(row)
+                uv_str = "; ".join(f"{k}: {len(v)} points" for k, v in scan_data["uv_coverage"].items())
+                self.calc_results_table.setItem(row, 0, QTableWidgetItem("UV Coverage"))
+                self.calc_results_table.setItem(row, 1, QTableWidgetItem("Baselines"))
+                self.calc_results_table.setItem(row, 2, QTableWidgetItem(uv_str[:100] + "..." if len(uv_str) > 100 else uv_str))
+
+            # Baseline Sensitivity (пример для всех частот)
+            for key, value in scan_data.items():
+                if key.startswith("baseline_sensitivity_"):
+                    row += 1
+                    self.calc_results_table.insertRow(row)
+                    # Обрабатываем значения None
+                    sens_str = "; ".join(f"{k}: {v:.2e}" if v is not None else f"{k}: N/A" for k, v in value.items())
+                    self.calc_results_table.setItem(row, 0, QTableWidgetItem("Baseline Sensitivity"))
+                    self.calc_results_table.setItem(row, 1, QTableWidgetItem(key.split('_', 2)[-1] + " MHz"))
+                    self.calc_results_table.setItem(row, 2, QTableWidgetItem(sens_str[:100] + "..." if len(sens_str) > 100 else sens_str))
+
+            # Telescope Sensitivity (добавим для полноты)
+            for key, value in scan_data.items():
+                if key.startswith("telescope_sensitivity_"):
+                    row += 1
+                    self.calc_results_table.insertRow(row)
+                    # Обрабатываем значения None
+                    sens_str = "; ".join(f"{k}: {v:.2f}" if v is not None else f"{k}: N/A" for k, v in value.items())
+                    self.calc_results_table.setItem(row, 0, QTableWidgetItem("Telescope Sensitivity"))
+                    self.calc_results_table.setItem(row, 1, QTableWidgetItem(key.split('_', 2)[-1] + " MHz"))
+                    self.calc_results_table.setItem(row, 2, QTableWidgetItem(sens_str[:100] + "..." if len(sens_str) > 100 else sens_str))
+
+        self.calc_results_table.resizeColumnsToContents()
+
     def update_config_tables(self, obs: Observation):
         self.sources_table.setRowCount(0)
         self.sources_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -907,7 +1091,7 @@ class PvCoreWindow(QMainWindow):
         all_sources = obs.get_sources().get_all_sources()
         all_tels = obs.get_telescopes().get_all_telescopes()
         all_freqs = obs.get_frequencies().get_all_frequencies()
-        for scan in obs.get_scans().get_all_scans():
+        for scan in obs.get_scans().get_all_scans():  # Здесь не нужно менять, так как берем все сканы
             row = self.scans_table.rowCount()
             self.scans_table.insertRow(row)
             start_dt = scan.get_start_datetime()
@@ -1389,40 +1573,89 @@ class PvCoreWindow(QMainWindow):
         except ValueError as e:
             logger.warning(f"Failed to add frequency {new_freq} MHz to '{selected}': {e}")
             self.status_bar.showMessage(f"Error: {e}")
-
-    def refresh_plot(self):
-        selected = self.project_tree.selectedItems()
-        if not selected or selected[0].text(0) == self.manipulator.get_project_name():
+    
+    def _plot_existing_data(self, obs: Observation) -> None:
+        """Plot existing calculated data for the selected observation."""
+        if not hasattr(obs, '_calculated_data') or not obs._calculated_data:
             self.canvas.figure.clf()
             self.canvas.draw()
             return
-        selected_code = selected[0].text(0)
-        for obs in self.manipulator.get_observations():
-            if obs.get_observation_code() == selected_code:
-                self.calculator.calculate_all(obs)
-                if not hasattr(obs, '_calculated_data') or not obs._calculated_data:
-                    logger.warning(f"Nothing to plot for observation '{obs.get_observation_code()}': no calculated data")
-                    self.canvas.figure.clf()
-                    self.canvas.draw()
-                    return
-                first_scan_key = list(obs._calculated_data.keys())[0]
-                if "uv_coverage" not in obs._calculated_data[first_scan_key] or not obs._calculated_data[first_scan_key]["uv_coverage"]:
-                    logger.warning(f"Nothing to plot for observation '{obs.get_observation_code()}': no u,v coverage data")
-                    self.canvas.figure.clf()
-                    self.canvas.draw()
-                    return
-                self.canvas.figure.clf()
-                ax = self.canvas.figure.add_subplot(111)
-                for (tel1, tel2), points in obs._calculated_data[first_scan_key]["uv_coverage"].items():
-                    u_vals, v_vals = zip(*points)
-                    ax.scatter(u_vals, v_vals, label=f"{tel1}-{tel2}", s=5)
-                    ax.scatter([-u for u in u_vals], [-v for v in v_vals], s=5)
-                ax.set_xlabel("u (m)")
-                ax.set_ylabel("v (m)")
-                ax.set_title("u,v Coverage")
-                ax.legend()
-                self.canvas.draw()
-                break
+        
+        # Синхронизируем селекторы на вкладке Vizualizator
+        self.viz_obs_selector.blockSignals(True)
+        self.viz_obs_selector.setCurrentText(obs.get_observation_code())
+        self.viz_obs_selector.blockSignals(False)
+        
+        # Обновляем список сканирований
+        self.update_scan_selector()
+        
+        # Если plot_type не выбран, устанавливаем первый доступный тип графика
+        if self.plot_type_selector.currentText() == "Select Plot Type...":
+            available_plots = []
+            for scan_data in obs._calculated_data.values():
+                if "uv_coverage" in scan_data and scan_data["uv_coverage"]:
+                    available_plots.append("uv_coverage")
+                elif "mollweide_tracks" in scan_data and scan_data["mollweide_tracks"]:
+                    available_plots.append("mollweide_tracks")
+                elif "beam_pattern" in scan_data and scan_data["beam_pattern"]:
+                    available_plots.append("beam_pattern")
+                elif "field_of_view" in scan_data and scan_data["field_of_view"]:
+                    available_plots.append("field_of_view")
+                elif any(k.startswith("telescope_sensitivity_") for k in scan_data):
+                    available_plots.append("telescope_sensitivity")
+                elif any(k.startswith("baseline_sensitivity_") for k in scan_data):
+                    available_plots.append("baseline_sensitivity")
+                if available_plots:
+                    break
+            if available_plots:
+                self.plot_type_selector.blockSignals(True)
+                self.plot_type_selector.setCurrentText(available_plots[0])
+                self.plot_type_selector.blockSignals(False)
+        
+        # Обновляем график
+        self.refresh_plot()
+
+    def refresh_plot(self):
+        """Refresh the plot based on selected observation, plot type, and scan."""
+        obs_code = self.viz_obs_selector.currentText()
+        plot_type = self.plot_type_selector.currentText()
+        scan_key = self.scan_selector.currentText() if self.scan_selector.currentText() != "All Scans" else None
+
+        if obs_code == "Select Observation..." or plot_type == "Select Plot Type...":
+            self.canvas.figure.clf()
+            self.canvas.draw()
+            return
+
+        obs = self.get_observation_by_code(obs_code)
+        if not obs:
+            return
+
+        if not hasattr(obs, '_calculated_data') or not obs._calculated_data:
+            self.calculator.calculate_all(obs)
+
+        self.canvas.figure.clf()  # Очищаем текущий график
+        scan_data = obs._calculated_data.get(scan_key, {}) if scan_key else obs._calculated_data[next(iter(obs._calculated_data))]
+
+        if plot_type == "uv_coverage" and "uv_coverage" in scan_data:
+            self.vizualizator.plot_uv_coverage(scan_data["uv_coverage"], self.canvas)
+        elif plot_type == "mollweide_tracks" and "mollweide_tracks" in scan_data:
+            self.vizualizator.plot_mollweide_tracks(scan_data["mollweide_tracks"], self.canvas)
+        elif plot_type == "beam_pattern" and "beam_pattern" in scan_data:
+            self.vizualizator.plot_beam_pattern(scan_data["beam_pattern"], self.canvas)
+        elif plot_type == "field_of_view" and "field_of_view" in scan_data:
+            self.vizualizator.plot_field_of_view(obs, scan_key or next(iter(obs._calculated_data)), scan_data["field_of_view"], self.canvas)
+        elif plot_type == "telescope_sensitivity":
+            for key, value in scan_data.items():
+                if key.startswith("telescope_sensitivity_"):
+                    freq = key.split('_')[-1]
+                    self.vizualizator.plot_sensitivity(value, "SEFD (Jy)", f"Telescope Sensitivity at {freq} MHz", self.canvas)
+                    break
+        elif plot_type == "baseline_sensitivity":
+            for key, value in scan_data.items():
+                if key.startswith("baseline_sensitivity_"):
+                    freq = key.split('_')[-1]
+                    self.vizualizator.plot_sensitivity(value, "Sensitivity (Jy)", f"Baseline Sensitivity at {freq} MHz", self.canvas)
+                    break
 
     def new_project(self):
         self.manipulator.set_project(Project("DefaultProject"))
@@ -1490,7 +1723,13 @@ class PvCoreWindow(QMainWindow):
                 self.project_name_input.setText(self.manipulator.get_project_name())
                 self.canvas.figure.clf()
                 self.canvas.draw()
-                self.update_all_ui()
+                observations = self.manipulator.get_observations()
+                selected_obs_code = observations[0].get_observation_code() if observations else None
+                self.update_all_ui(selected_obs_code)
+                if self.tabs.count() > 2:  # Calculator tab exists
+                    self.update_calc_obs_selector(self.calc_obs_selector)  # Use instance variable
+                    if selected_obs_code:
+                        self.calc_obs_selector.setCurrentText(selected_obs_code)
                 self.status_bar.showMessage(f"Project loaded from '{filepath}'")
             except (FileNotFoundError, ValueError) as e:
                 logger.error(f"Failed to load project: {e}")
