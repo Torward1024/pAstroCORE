@@ -316,8 +316,25 @@ class Scans(BaseEntity):
         return self._data
 
     def get_active_scans(self) -> list[Scan]:
-        """Get active scans."""
-        active = [s for s in self._data if s.isactive]
+        """Get active scans, ensuring referenced entities are active."""
+        active = []
+        for scan in self._data:
+            if not scan.isactive:
+                continue
+            # Проверяем, что все связанные сущности активны (если заданы)
+            if scan._source_index is not None and scan._source_index >= 0:
+                from base.observation import Observation
+                obs = getattr(self, '_parent', None)  # Предполагаем, что Scans знает своего родителя Observation
+                if isinstance(obs, Observation) and scan._source_index < len(obs.get_sources().get_all_sources()):
+                    if not obs.get_sources().get_all_sources()[scan._source_index].isactive:
+                        continue
+            if any(idx >= 0 and idx < len(obs.get_telescopes().get_all_telescopes()) and not obs.get_telescopes().get_all_telescopes()[idx].isactive 
+                for idx in scan._telescope_indices):
+                continue
+            if any(idx >= 0 and idx < len(obs.get_frequencies().get_all_frequencies()) and not obs.get_frequencies().get_all_frequencies()[idx].isactive 
+                for idx in scan._frequency_indices):
+                continue
+            active.append(scan)
         logger.debug(f"Retrieved {len(active)} active scans")
         return active
 

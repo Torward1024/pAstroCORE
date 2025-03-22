@@ -47,6 +47,294 @@
                         ],
                         "mount_type": "AZIM",
                         "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "AA",
+                        "name": "ALMA",
+                        "x": 2222421.244,
+                        "y": 5433180.978,
+                        "z": -2494060.05,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "AN",
+                        "name": "Anch",
+                        "x": -2674533.924,
+                        "y": 1544142.881,
+                        "z": 5571414.996,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "bd",
+                        "name": "Badary",
+                        "x": -838200.724,
+                        "y": -3865751.588,
+                        "z": 4987670.977,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 32.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BA",
+                        "name": "Bang",
+                        "x": 1667729.925,
+                        "y": 4255545.195,
+                        "z": 4437024.453,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BG",
+                        "name": "Banglre",
+                        "x": 1336735.6,
+                        "y": -6070802.7,
+                        "z": 1426962.1,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 32.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BL",
+                        "name": "Bear_Lakes",
+                        "x": 2828547.499,
+                        "y": -2206064.086,
+                        "z": 5256395.99,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 64.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BN",
+                        "name": "Bernal",
+                        "x": -1585175.352,
+                        "y": 4967010.807,
+                        "z": 3659808.295,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BR",
+                        "name": "Bldr",
+                        "x": -1284740.141,
+                        "y": 4708583.152,
+                        "z": 4095923.06,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BT",
+                        "name": "Brst",
+                        "x": -2393437.102,
+                        "y": 4697384.8,
+                        "z": 3576124.73,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BV",
+                        "name": "Brvl",
+                        "x": -737401.5451,
+                        "y": 5677677.396,
+                        "z": 2792446.124,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BB",
+                        "name": "Btrg",
+                        "x": -115434.3432,
+                        "y": 5510777.989,
+                        "z": 3193045.234,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
+                    },
+                    {
+                        "type": "Telescope",
+                        "code": "BE",
+                        "name": "Bver",
+                        "x": -1928006.436,
+                        "y": 4631737.977,
+                        "z": 3926758.905,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "efficiency_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "isactive": true
                     }
                 ]
             },
@@ -62,20 +350,87 @@
                             "LR"
                         ],
                         "isactive": true
+                    },
+                    {
+                        "frequency": 1024.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "LL"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1048.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "LL"
+                        ],
+                        "isactive": true
+                    },
+                    {
+                        "frequency": 1072.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "LL"
+                        ],
+                        "isactive": true
                     }
                 ]
             },
             "scans": {
                 "data": [
                     {
-                        "start": 1734526800.0,
-                        "duration": 600.0,
+                        "start": 1742641211.829,
+                        "duration": 1.0,
                         "source_index": null,
                         "telescope_indices": [
-                            0
+                            0,
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6,
+                            7,
+                            8,
+                            9,
+                            10,
+                            11,
+                            12
                         ],
                         "frequency_indices": [
-                            0
+                            0,
+                            1,
+                            2,
+                            3
+                        ],
+                        "is_off_source": true,
+                        "isactive": true
+                    },
+                    {
+                        "start": 1742554819.97,
+                        "duration": 1.0,
+                        "source_index": null,
+                        "telescope_indices": [
+                            0,
+                            1,
+                            2,
+                            3,
+                            4,
+                            5,
+                            6,
+                            7,
+                            8,
+                            9,
+                            10,
+                            11,
+                            12
+                        ],
+                        "frequency_indices": [
+                            0,
+                            1,
+                            2,
+                            3
                         ],
                         "is_off_source": true,
                         "isactive": true

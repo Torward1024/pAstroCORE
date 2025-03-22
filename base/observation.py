@@ -34,6 +34,7 @@ class Observation(BaseEntity):
         self._telescopes = telescopes if telescopes is not None else Telescopes()
         self._frequencies = frequencies if frequencies is not None else Frequencies()
         self._scans = scans if scans is not None else Scans()
+        self._scans._parent = self
         self._calculated_data: Dict[str, Any] = {}  # Хранилище для результатов Calculator
         logger.info(f"Initialized Observation '{observation_code}' with type '{observation_type}'")
 
@@ -312,6 +313,30 @@ class Observation(BaseEntity):
     def deactivate(self) -> None:
         """Deactivate observation."""
         super().deactivate()
+
+    def _sync_scans_with_activation(self, entity_type: str, index: int, is_active: bool) -> None:
+        """Sync scans when an entity (source, telescope, frequency) is activated/deactivated."""
+        entity_map = {"sources": "_source_index", "telescopes": "_telescope_indices", "frequencies": "_frequency_indices"}
+        if entity_type not in entity_map:
+            raise ValueError(f"Invalid entity type: {entity_type}")
+        attr = entity_map[entity_type]
+        
+        for scan in self._scans.get_all_scans():
+            if entity_type == "sources":
+                current_idx = getattr(scan, attr)
+                if current_idx == index and not is_active:
+                    scan.set_source_index(None)
+                    scan.is_off_source = True
+                    logger.debug(f"Scan source index reset to None due to deactivation in '{self._observation_code}'")
+            else:  # telescopes or frequencies
+                current_indices = getattr(scan, attr)
+                if index in current_indices and not is_active:
+                    updated_indices = [i for i in current_indices if i != index]
+                    if entity_type == "telescopes":
+                        scan.set_telescope_indices(updated_indices)
+                    else:
+                        scan.set_frequency_indices(updated_indices)
+                    logger.debug(f"Removed {entity_type} index {index} from scan in '{self._observation_code}'")    
 
     def to_dict(self) -> dict:
         """Convert Observation object to a dictionary for serialization."""

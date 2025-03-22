@@ -970,6 +970,8 @@ class PvCoreWindow(QMainWindow):
             if selected != "Select Observation...":
                 obs = self.get_observation_by_code(selected)
                 if obs:
+                    index = obs.get_frequencies().get_all_frequencies().index(freq)
+                    obs._sync_scans_with_activation("frequencies", index, new_state)
                     self.update_config_tables(obs)
                     self.update_obs_table()
     
@@ -1183,11 +1185,12 @@ class PvCoreWindow(QMainWindow):
                 logger.info(f"Deactivated source '{source.get_name()}'")
             selected = self.obs_selector.currentText()
             if selected != "Select Observation...":
-                for obs in self.manipulator.get_observations():
-                    if obs.get_observation_code() == selected:
-                        self.update_config_tables(obs)
-                        self.update_obs_table()
-                        break
+                obs = self.get_observation_by_code(selected)
+                if obs:
+                    index = obs.get_sources().get_all_sources().index(source)
+                    obs._sync_scans_with_activation("sources", index, new_state)
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
 
     def on_telescope_is_active_changed(self, telescope: Union[Telescope, SpaceTelescope], state: str):
         new_state = state == "True"
@@ -1200,11 +1203,13 @@ class PvCoreWindow(QMainWindow):
                 logger.info(f"Deactivated telescope '{telescope.get_telescope_code()}'")
             selected = self.obs_selector.currentText()
             if selected != "Select Observation...":
-                for obs in self.manipulator.get_observations():
-                    if obs.get_observation_code() == selected:
-                        self.update_config_tables(obs)
-                        self.update_obs_table()
-                        break
+                obs = self.get_observation_by_code(selected)
+                if obs:
+                    # Находим индекс телескопа
+                    index = obs.get_telescopes().get_all_telescopes().index(telescope)
+                    obs._sync_scans_with_activation("telescopes", index, new_state)
+                    self.update_config_tables(obs)
+                    self.update_obs_table()
 
     def show_sources_table_context_menu(self, position):
         menu = QMenu(self)
