@@ -40,13 +40,18 @@ class PvCoreWindow(QMainWindow):
         self.setWindowTitle("pvCORE")
         self.setGeometry(100, 100, 1200, 800)
         
-        self.manipulator = DefaultManipulator()
-        self.configurator = DefaultConfigurator()
-        self.calculator = DefaultCalculator()
-        self.vizualizator = DefaultVizualizator()
-        self.manipulator.set_configurator(self.configurator)
-        self.manipulator.set_calculator(self.calculator)
-        self.manipulator.set_vizualizator(self.vizualizator)
+        try:
+            self.manipulator = DefaultManipulator()
+            self.configurator = DefaultConfigurator()
+            self.calculator = DefaultCalculator()
+            self.vizualizator = DefaultVizualizator()
+            self.manipulator.set_configurator(self.configurator)
+            self.manipulator.set_calculator(self.calculator)
+            self.manipulator.set_vizualizator(self.vizualizator)
+        except Exception as e:
+            logger.error(f"Failed to initialize superclasses: {e}")
+            self.status_bar.showMessage("Critical error: Failed to initialize application")
+            raise
 
         self.settings_file = "settings.json"
         self.current_project_file = None
@@ -74,7 +79,7 @@ class PvCoreWindow(QMainWindow):
 
         self.frequencies_table = QTableWidget(0, 4)  
         self.frequencies_table.setHorizontalHeaderLabels(["Frequency (MHz)", "Bandwidth (MHz)", "Polarizations", "Is Active"])
-        self.telescopes_table.horizontalHeader().setStretchLastSection(True)
+        self.frequencies_table.horizontalHeader().setStretchLastSection(True)
         self.frequencies_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.frequencies_table.customContextMenuRequested.connect(self.show_frequencies_context_menu)
         self.frequencies_table.itemChanged.connect(self.on_frequency_item_changed)
@@ -101,6 +106,17 @@ class PvCoreWindow(QMainWindow):
 
     def get_observation_by_code(self, code: str) -> Optional[Observation]:
         return next((obs for obs in self.manipulator.get_observations() if obs.get_observation_code() == code), None)
+    
+    def sync_all_obs_selectors(self, obs_code: str = None):
+        for selector in [self.obs_selector, self.calc_obs_selector, self.viz_obs_selector]:
+            selector.blockSignals(True)
+            selector.clear()
+            selector.addItem("Select Observation...")
+            for obs in self.manipulator.get_observations():
+                selector.addItem(obs.get_observation_code())
+            if obs_code:
+                selector.setCurrentText(obs_code)
+            selector.blockSignals(False)
 
     def format_ra(self, ra_deg: float) -> str:
         ra_h = int(ra_deg / 15)
@@ -851,8 +867,9 @@ class PvCoreWindow(QMainWindow):
             self.obs_type_combo.blockSignals(False)
             self.sources_table.setRowCount(0)
             self.telescopes_table.setRowCount(0)
-            self.scans_table.setRowCount(0)
             self.frequencies_table.setRowCount(0)
+            self.scans_table.setRowCount(0)
+            self.calc_results_table.setRowCount(0)  # Очистка результатов Calculator
             self.canvas.figure.clf()
             self.canvas.draw()
             return

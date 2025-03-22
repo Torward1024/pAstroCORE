@@ -41,17 +41,21 @@ class Vizualizator(ABC):
         canvas.draw()
 
     def plot_mollweide_tracks(self, tracks: Dict[str, List[Tuple[float, float]]], canvas: FigureCanvas) -> None:
-        """Plot Mollweide tracks for telescopes on the provided canvas."""
+        """Plot Mollweide tracks for telescopes in Mollweide projection on the provided canvas."""
         fig = canvas.figure
         fig.clf()
-        ax = fig.add_subplot(111)
+        ax = fig.add_subplot(111, projection='mollweide')  # Устанавливаем проекцию Мольвейде
         for tel_code, track in tracks.items():
-            x_vals, y_vals = zip(*track)
-            ax.plot(x_vals, y_vals, label=tel_code)
-        ax.set_xlabel("x (Mollweide)")
-        ax.set_ylabel("y (Mollweide)")
-        ax.set_title("Mollweide Tracks")
-        ax.legend()
+            ra_vals, dec_vals = zip(*track)  # Предполагаем, что track содержит (ra, dec) в градусах
+            # Преобразуем RA (инвертируем и переводим в радианы)
+            ra_rad = [np.deg2rad(360 - ra) if ra <= 360 else np.deg2rad(360 - (ra % 360)) for ra in ra_vals]
+            # Преобразуем Dec в радианы
+            dec_rad = [np.deg2rad(dec) for dec in dec_vals]
+            ax.plot(ra_rad, dec_rad, label=tel_code, linewidth=1.5)
+        ax.set_xlabel("Right Ascension (radians)")
+        ax.set_ylabel("Declination (radians)")
+        ax.set_title("Mollweide Tracks of Telescopes")
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         ax.grid(True)
         canvas.draw()
 
