@@ -12,6 +12,7 @@ from enum import Enum
 class MountType(Enum):
     EQUATORIAL = "EQUA"
     AZIMUTHAL = "AZIM"
+    SPACE = 'NONE'
 
 class Telescope(BaseEntity):
     def __init__(self, code: str, name: str, x: float, y: float, z: float, 
@@ -27,19 +28,19 @@ class Telescope(BaseEntity):
         Args:
             code (str): Telescope short name.
             name (str): Telescope name.
-            x (float): Telescope x coordinate (ITRF) in meters.
-            y (float): Telescope y coordinate (ITRF) in meters.
-            z (float): Telescope z coordinate (ITRF) in meters.
-            vx (float): Telescope vx velocity (ITRF) in m/s.
-            vy (float): Telescope vy velocity (ITRF) in m/s.
-            vz (float): Telescope vz velocity (ITRF) in m/s.
-            diameter (float): Antenna diameter in meters.
-            sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy).
-            efficiency_table (Dict[float, float], optional): Efficiency table (frequency in MHz: efficiency 0-1).
-            elevation_range (Tuple[float, float]): Min and max elevation in degrees (default: 15-90).
-            azimuth_range (Tuple[float, float]): Min and max azimuth in degrees (default: 0-360).
-            mount_type (str): Mount type ('EQUA' or 'AZIM', default: 'AZIM').
-            isactive (bool): Whether the telescope is active (default: True).
+            x (float): Telescope x coordinate (ITRF) in meters
+            y (float): Telescope y coordinate (ITRF) in meters
+            z (float): Telescope z coordinate (ITRF) in meters
+            vx (float): Telescope vx velocity (ITRF) in m/s
+            vy (float): Telescope vy velocity (ITRF) in m/s
+            vz (float): Telescope vz velocity (ITRF) in m/s
+            diameter (float): Antenna diameter in meters
+            sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
+            efficiency_table (Dict[float, float], optional): Efficiency table (frequency in MHz: efficiency 0-1)
+            elevation_range (Tuple[float, float]): Min and max elevation in degrees (default: 15-90)
+            azimuth_range (Tuple[float, float]): Min and max azimuth in degrees (default: 0-360)
+            mount_type (str): Mount type ('EQUA' or 'AZIM', default: 'AZIM')
+            isactive (bool): Whether the telescope is active (default: True)
         """
         super().__init__(isactive)
         check_non_empty_string(code, "Code")

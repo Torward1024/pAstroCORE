@@ -7,8 +7,11 @@ from typing import Optional, Union, List
 # Speed of light constant in MHz * cm
 C_MHZ_CM = 29979.2458
 
-# Допустимые значения поляризаций
-VALID_POLARIZATIONS = {"RCP", "LCP", "LL", "RL", "RR", "LR", "H", "V"}
+# allowed polarization code values
+CIRCULAR_POLARIZATIONS = {"RCP", "LCP"}
+PAIRED_LINEAR_POLARIZATIONS = {"RR", "LL", "RL", "LR"}
+SINGLE_LINEAR_POLARIZATIONS = {"H", "V"}
+VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(PAIRED_LINEAR_POLARIZATIONS).union(SINGLE_LINEAR_POLARIZATIONS)
 
 
 """Base-class of an IF object with frequency, bandwidth, and polarization
@@ -154,18 +157,38 @@ class IF(BaseEntity):
         )
     
     def _validate_polarizations(self, polarization: Optional[Union[str, List[str]]]) -> List[str]:
-        """Validate polarizations values"""
+        """Validate polarizations values ensuring they belong to only one group"""
         if polarization is None:
             return []
         if isinstance(polarization, str):
             polarization = [polarization]
         check_list_type(polarization, str, "Polarization")
         polarizations = [p.upper() for p in polarization if p]
+
+        # general check for polariozatons validity
         for p in polarizations:
             if p not in VALID_POLARIZATIONS:
                 logger.error(f"Invalid polarization value: {p}")
                 raise ValueError(f"Polarization must be one of {VALID_POLARIZATIONS}, got {p}")
-        return polarizations    
+
+        # check group belonging
+        if not polarizations:
+            return polarizations
+
+        # check whether polarization belongs to a specific group
+        if all(p in CIRCULAR_POLARIZATIONS for p in polarizations):
+            group = "circular (RCP, LCP)"
+        elif all(p in PAIRED_LINEAR_POLARIZATIONS for p in polarizations):
+            group = "paired linear (RR, LL, RL, LR)"
+        elif all(p in SINGLE_LINEAR_POLARIZATIONS for p in polarizations):
+            group = "single linear (H, V)"
+        else:
+            logger.error(f"Polarizations {polarizations} mix different groups")
+            raise ValueError(f"Polarizations {polarizations} must belong to a single group: "
+                            f"either {CIRCULAR_POLARIZATIONS}, {PAIRED_LINEAR_POLARIZATIONS}, or {SINGLE_LINEAR_POLARIZATIONS}")
+
+        logger.debug(f"Validated polarizations {polarizations} as {group}")
+        return polarizations  
 
     def __repr__(self) -> str:
         """Return a string representation of IF"""
