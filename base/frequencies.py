@@ -307,7 +307,7 @@ class Frequencies(BaseEntity):
     def get_wavelengths(self) -> list[float]:
         """Get list of IF wavelengths in cm"""
         logger.debug(f"Retrieved IF wavelengths with {len(self._data)} items")
-        return [if_obj.get_freq_wavelength() for if_obj in self._data]
+        return [if_obj.get_frequency_wavelength() for if_obj in self._data]
 
     def get_active_frequencies(self) -> list[IF]:
         """Get active IF frequencies"""
@@ -412,15 +412,15 @@ class Frequencies(BaseEntity):
         """Check IF frequency overlapping with existis IF frequencies"""
         new_freq = if_obj.get_frequency()
         new_bw = if_obj.get_bandwidth()
-        new_range = new_freq + new_bw
+        new_end = new_freq + new_bw
 
         for existing_if in self._data:
             ex_freq = existing_if.get_frequency()
             ex_bw = existing_if.get_bandwidth()
-            ex_range = ex_freq + ex_bw
-            if not (new_range <= ex_range or new_range >= ex_range):
-                logger.error(f"Frequency range {new_range} overlaps with existing range {ex_range}")
-                raise ValueError(f"Frequency range {new_range} overlaps with existing range {ex_range}")
+            ex_end = ex_freq + ex_bw
+            if (new_freq < ex_end and new_end > ex_freq):
+                logger.error(f"Frequency range [{new_freq}, {new_end}] overlaps with existing range [{ex_freq}, {ex_end}]")
+                raise ValueError(f"Frequency range [{new_freq}, {new_end}] overlaps with existing range [{ex_freq}, {ex_end}]")
 
     def __len__(self) -> int:
         """Return the number of IFs in Frequencies"""

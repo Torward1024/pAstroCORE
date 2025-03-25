@@ -170,6 +170,8 @@ class Source(BaseEntity):
     
     def get_spectral_index(self) -> Optional[float]:
         """Get spectral index"""
+        if self._spectral_index is None:
+            logger.debug(f"No data for spectral index of source: '{self._name}'")
         return self._spectral_index
 
     def get_flux(self, frequency: float) -> Optional[float]:
@@ -206,10 +208,10 @@ class Source(BaseEntity):
     
     def get_flux_table(self) -> Dict[float, float]:
         """Retrieve flux table from Source"""
-        if self._flux_table is not None:
+        if self._flux_table:
             return self._flux_table
-        else:
-            logger.debug(f"No data in flux table for source: '{self._name}'")
+        logger.debug(f"No data in flux table for source: '{self._name}'")
+        return {}
     
     def set_source(self, name: str, ra_h: float, ra_m: float, ra_s: float, de_d: float, de_m: float, de_s: float,
                    name_J2000: str = None, alt_name: str = None,
@@ -250,12 +252,6 @@ class Source(BaseEntity):
         self.isactive = isactive
         logger.info(f"Set source '{name}' with new coordinates RA={ra_h}h{ra_m}m{ra_s}s, DEC={de_d}d{de_m}m{de_s}s")
     
-    def get_spectral_index(self) -> float:
-        if self._spectral_index is not None:
-            return self._spectral_index
-        else:
-            logger.debug(f"No data for spectral index of source: '{self._name}'")
-
     def set_name(self, name: str) -> None:
         """Set source name (B1950)"""
         if name is not None:
