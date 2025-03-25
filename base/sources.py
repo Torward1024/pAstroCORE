@@ -2,7 +2,6 @@
 from base.base_entity import BaseEntity
 from utils.validation import check_type, check_range, check_list_type, check_positive
 from utils.logging_setup import logger
-import numpy as np
 from typing import Optional, Dict
 
 """Base-class of a Source object with name, J2000 coordinates, and optional flux and spectral index

@@ -19,10 +19,10 @@ VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(PAIRED_LINEAR_POLARIZATIONS).
     Notes: IF frequency range is supposed as follows: freq is the leftmost (lower) value + bandwidth
     Contains:
     Atributes:
-        freq (float): IF frequency in MHz.
-        bandwidth (float): Bandwidth in MHz.
+        freq (float): IF frequency in MHz
+        bandwidth (float): Bandwidth in MHz
         polarization (str, optional): polarization type (RCP, LCP, LL, RL, RR, LR, H, V) from VALID_POLARIZATIONS
-        isactive (bool): whether the frequency is active (default: True).
+        isactive (bool): whether the frequency is active (default: True)
 
     Methods:
         activate
