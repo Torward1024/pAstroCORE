@@ -88,48 +88,48 @@ class IF(BaseEntity):
         check_non_zero(freq, "Frequency")
         self._frequency = freq
         self.isactive = isactive
-        logger.info(f"Set frequency to {freq} MHz for IF")
+        logger.info(f"Set IF frequency to {freq} MHz for IF")
 
     def set_bandwidth(self, bandwidth: float) -> None:
         """Set IF bandwidth value in MHz"""
         check_non_negative(bandwidth, "Bandwidth")
         self._bandwidth = bandwidth
-        logger.info(f"Set bandwidth to {bandwidth} MHz for IF")
+        logger.info(f"Set IF bandwidth to {bandwidth} MHz for IF")
     
     def set_polarization(self, polarization: Union[str, List[str]]) -> None:
-        """Set polarization value(s)"""
+        """Set IF polarization value(s)"""
         self._polarizations = self._validate_polarizations(polarization)
-        logger.info(f"Set polarizations to {self._polarizations} for IF")
+        logger.info(f"Set IF polarizations to {self._polarizations} for IF")
 
     def set_frequency_wavelength(self, wavelength_cm: float) -> None:
         """Set IF frequency value in MHz through wavelength value in cm"""
         check_positive(wavelength_cm, "Wavelength")
         check_non_zero(wavelength_cm, "Wavelength")
         self._frequency = C_MHZ_CM / wavelength_cm
-        logger.info(f"Set frequency to {self._frequency} MHz from wavelength={wavelength_cm} cm for IF")  
+        logger.info(f"Set IF frequency to {self._frequency} MHz from wavelength={wavelength_cm} cm for IF")  
 
     def get_frequency(self) -> float:
         """Return the IF frequency value in MHz"""
-        logger.debug(f"Retrieved frequency={self._frequency} MHz for IF")
+        logger.debug(f"Retrieved IF frequency={self._frequency} MHz for IF")
         return self._frequency
 
     def get_bandwidth(self) -> float:
         """Return the IF bandwidth value in MHz"""
-        logger.debug(f"Retrieved bandwidth={self._bandwidth} MHz for IF")
+        logger.debug(f"Retrieved IF bandwidth={self._bandwidth} MHz for IF")
         return self._bandwidth
 
     def get_polarization(self) -> List[str]:
         """Return the IF polarization values as a list"""
-        logger.debug(f"Retrieved polarizations={self._polarizations} for IF")
+        logger.debug(f"Retrieved IF polarizations={self._polarizations} for IF")
         return self._polarizations
 
     def get_frequency_wavelength(self) -> float:
-        """Get wavelength in cm for the frequency"""
+        """Get wavelength in cm for the IF frequency"""
         if self._frequency == 0:
-            logger.error("Frequency cannot be zero for wavelength calculation")
-            raise ValueError("Frequency cannot be zero for wavelength calculation!")
+            logger.error("IF frequency cannot be zero for wavelength calculation")
+            raise ValueError("IF frequency cannot be zero for wavelength calculation!")
         wavelength = C_MHZ_CM / self._frequency
-        logger.debug(f"Calculated wavelength={wavelength} cm for frequency={self._frequency} MHz")
+        logger.debug(f"Calculated wavelength={wavelength} cm for IF frequency={self._frequency} MHz")
         return wavelength
 
     def to_dict(self) -> dict:
@@ -154,6 +154,7 @@ class IF(BaseEntity):
         )
     
     def _validate_polarizations(self, polarization: Optional[Union[str, List[str]]]) -> List[str]:
+        """Validate polarizations values"""
         if polarization is None:
             return []
         if isinstance(polarization, str):
@@ -167,7 +168,7 @@ class IF(BaseEntity):
         return polarizations    
 
     def __repr__(self) -> str:
-        """Return a string representation of IF."""
+        """Return a string representation of IF"""
         logger.debug(f"Generated string representation for IF with frequency={self._frequency} MHz")
         return (f"IF(frequency={self._frequency} MHz, bandwidth={self._bandwidth} MHz, "
                 f"polarizations={self._polarizations}, isactive={self.isactive})")
@@ -199,6 +200,8 @@ class IF(BaseEntity):
         activate_all
         deactivate_all
 
+        drop_active
+        drop_inactive
         clear
 
         to_dict
@@ -256,31 +259,31 @@ class Frequencies(BaseEntity):
         try:
             return self._data[index]
         except IndexError:
-            logger.error(f"Invalid IF frequency index: {index}")
-            raise IndexError("Invalid IF frequency index!")
+            logger.error(f"Invalid IF index: {index}")
+            raise IndexError("Invalid IF index!")
         
     def get_all_IF(self) -> list[IF]:
         """Get list of IF objects"""
         return self._data
         
     def get_frequencies(self) -> list[float]:
-        """Get list of frequencies in MHz"""
-        logger.debug(f"Retrieved frequencies with {len(self._data)} items")
+        """Get list of IF frequencies in MHz"""
+        logger.debug(f"Retrieved IF frequencies with {len(self._data)} items")
         return [if_obj.get_frequency() for if_obj in self._data]
 
     def get_bandwidths(self) -> list[float]:
-        """Get list of bandwidths in MHz"""
-        logger.debug(f"Retrieved bandwidths with {len(self._data)} items")
+        """Get list of IF bandwidths in MHz"""
+        logger.debug(f"Retrieved IF bandwidths with {len(self._data)} items")
         return [if_obj.get_bandwidth() for if_obj in self._data]
 
     def get_polarizations(self) -> list[Optional[str]]:
-        """Get list of polarizations"""
+        """Get list of IF polarizations"""
         logger.debug(f"Retrieved polarizations with {len(self._data)} items")
         return [if_obj.get_polarization() for if_obj in self._data]
     
     def get_wavelengths(self) -> list[float]:
-        """Get list of wavelengths in cm"""
-        logger.debug(f"Retrieved wavelengths with {len(self._data)} items")
+        """Get list of IF wavelengths in cm"""
+        logger.debug(f"Retrieved IF wavelengths with {len(self._data)} items")
         return [if_obj.get_freq_wavelength() for if_obj in self._data]
 
     def get_active_frequencies(self) -> list[IF]:
@@ -320,22 +323,50 @@ class Frequencies(BaseEntity):
             raise IndexError("Invalid IF index!")
 
     def activate_all(self) -> None:
-        """Activate all frequencies."""
+        """Activate all IF"""
         if not self._data:
-            logger.error("No frequencies to activate")
-            raise ValueError("No frequencies to activate!")
+            logger.error("No IFs to activate")
+            raise ValueError("No IFs to activate!")
         for if_obj in self._data:
             if_obj.activate()
-        logger.info("Activated all frequencies")
+        logger.info("Activated all IFs")
 
     def deactivate_all(self) -> None:
-        """Deactivate all frequencies"""
+        """Deactivate all IF"""
         if not self._data:
-            logger.error("No frequencies to deactivate")
-            raise ValueError("No frequencies to deactivate!")
+            logger.error("No IFs to deactivate")
+            raise ValueError("No IFs to deactivate!")
         for if_obj in self._data:
             if_obj.deactivate()
-        logger.info("Deactivated all frequencies")
+        logger.info("Deactivated all IFs")
+    
+    def drop_active(self) -> None:
+        """Remove all active IFs from the Frequencies list
+
+        Raises:
+            ValueError: If there are no active IFs to remove
+        """
+        active_ifs = self.get_active_frequencies()
+        if not active_ifs:
+            logger.warning("No active IFs to drop")
+            raise ValueError("No active IFs to remove!")
+        
+        self._data = [if_obj for if_obj in self._data if not if_obj.isactive]
+        logger.info(f"Dropped {len(active_ifs)} active IFs from Frequencies")
+
+    def drop_inactive(self) -> None:
+        """Remove all inactive IFs from the Frequencies list
+
+        Raises:
+            ValueError: If there are no inactive IFs to remove
+        """
+        inactive_ifs = self.get_inactive_frequencies()
+        if not inactive_ifs:
+            logger.warning("No inactive IFs to drop")
+            raise ValueError("No inactive IFs to remove!")
+        
+        self._data = [if_obj for if_obj in self._data if if_obj.isactive]
+        logger.info(f"Dropped {len(inactive_ifs)} inactive IFs from Frequencies")
 
     def clear(self) -> None:
         """Clear IF data"""
@@ -355,6 +386,7 @@ class Frequencies(BaseEntity):
         return cls(ifs=ifs)
 
     def _check_overlap(self, if_obj:IF):
+        """Check IF frequency overlapping with existis IF frequencies"""
         new_freq = if_obj.get_frequency()
         new_bw = if_obj.get_bandwidth()
         new_range = new_freq + new_bw
