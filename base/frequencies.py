@@ -27,15 +27,18 @@ VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(PAIRED_LINEAR_POLARIZATIONS).
     Methods:
         activate
         deactivate
+
+        get_frequency
+        get_bandwidth
+        get_polarization
+        get_frequency_wavelength
+
         set_if
         set_frequency
         set_bandwidth
         set_frequency_wavelength
         set_polarization
-        get_frequency
-        get_bandwidth
-        get_polarization
-        get_frequency_wavelength
+
         to_dict
         from_dict
         _validate_polarizations
@@ -69,6 +72,30 @@ class IF(BaseEntity):
         """Deactivate IF frequency"""
         super().deactivate()
 
+    def get_frequency(self) -> float:
+        """Return the IF frequency value in MHz"""
+        logger.debug(f"Retrieved IF frequency={self._frequency} MHz for IF")
+        return self._frequency
+
+    def get_bandwidth(self) -> float:
+        """Return the IF bandwidth value in MHz"""
+        logger.debug(f"Retrieved IF bandwidth={self._bandwidth} MHz for IF")
+        return self._bandwidth
+
+    def get_polarization(self) -> List[str]:
+        """Return the IF polarization values as a list"""
+        logger.debug(f"Retrieved IF polarizations={self._polarizations} for IF")
+        return self._polarizations
+
+    def get_frequency_wavelength(self) -> float:
+        """Get wavelength in cm for the IF frequency"""
+        if self._frequency == 0:
+            logger.error("IF frequency cannot be zero for wavelength calculation")
+            raise ValueError("IF frequency cannot be zero for wavelength calculation!")
+        wavelength = C_MHZ_CM / self._frequency
+        logger.debug(f"Calculated wavelength={wavelength} cm for IF frequency={self._frequency} MHz")
+        return wavelength
+    
     def set_if(self, freq: float, bandwidth: float, 
                polarization: Optional[str] = None, isactive: bool = True) -> None:
         """Set IF values"""
@@ -109,31 +136,7 @@ class IF(BaseEntity):
         check_positive(wavelength_cm, "Wavelength")
         check_non_zero(wavelength_cm, "Wavelength")
         self._frequency = C_MHZ_CM / wavelength_cm
-        logger.info(f"Set IF frequency to {self._frequency} MHz from wavelength={wavelength_cm} cm for IF")  
-
-    def get_frequency(self) -> float:
-        """Return the IF frequency value in MHz"""
-        logger.debug(f"Retrieved IF frequency={self._frequency} MHz for IF")
-        return self._frequency
-
-    def get_bandwidth(self) -> float:
-        """Return the IF bandwidth value in MHz"""
-        logger.debug(f"Retrieved IF bandwidth={self._bandwidth} MHz for IF")
-        return self._bandwidth
-
-    def get_polarization(self) -> List[str]:
-        """Return the IF polarization values as a list"""
-        logger.debug(f"Retrieved IF polarizations={self._polarizations} for IF")
-        return self._polarizations
-
-    def get_frequency_wavelength(self) -> float:
-        """Get wavelength in cm for the IF frequency"""
-        if self._frequency == 0:
-            logger.error("IF frequency cannot be zero for wavelength calculation")
-            raise ValueError("IF frequency cannot be zero for wavelength calculation!")
-        wavelength = C_MHZ_CM / self._frequency
-        logger.debug(f"Calculated wavelength={wavelength} cm for IF frequency={self._frequency} MHz")
-        return wavelength
+        logger.info(f"Set IF frequency to {self._frequency} MHz from wavelength={wavelength_cm} cm for IF")
 
     def to_dict(self) -> dict:
         """Convert IF object to a dictionary for serialization"""

@@ -24,6 +24,10 @@ from typing import Optional, Dict
         isactive (bool): Whether the source is active (default: True)
 
     Methods:
+        add_flux
+        insert_flux
+        remove_flux
+
         activate
         deactivate
 
@@ -57,6 +61,7 @@ from typing import Optional, Dict
 
         clear_flux_table
 
+        _check_flux
         __init__
         __repr__
     """
@@ -115,6 +120,31 @@ class Source(BaseEntity):
         self._flux_table = flux_table if flux_table is not None else {}
         self._spectral_index = spectral_index
         logger.info(f"Initialized Source '{name}' at RA={ra_h}h{ra_m}m{ra_s}s, DEC={de_d}d{de_m}m{de_s}s")
+    
+    def add_flux(self, frequency: float, flux: float) -> None:
+        """Add a flux value for a specific frequency to the table"""
+        check_type(frequency, (int, float), "Frequency")
+        check_positive(flux, "Flux")
+        self._check_flux(frequency, flux)
+        self._flux_table[frequency] = flux
+        logger.info(f"Added flux={flux} Jy for frequency {frequency} MHz to source '{self._name}'")
+    
+    def insert_flux(self, frequency: float, flux: float) -> None:
+        """Insert a flux value for a specific frequency into the table"""
+        check_type(frequency, (int, float), "Frequency")
+        check_positive(flux, "Flux")
+        self._check_flux(frequency, flux)
+        self._flux_table[frequency] = flux
+        logger.info(f"Inserted flux={flux} Jy for frequency {frequency} MHz into source '{self._name}'")
+    
+    def remove_flux(self, frequency: float) -> None:
+        """Remove a flux value for a specific frequency from the table"""
+        check_type(frequency, (int, float), "Frequency")
+        if frequency in self._flux_table:
+            removed_flux = self._flux_table.pop(frequency)
+            logger.info(f"Removed flux={removed_flux} Jy for frequency {frequency} MHz from source '{self._name}'")
+        else:
+            logger.warning(f"No flux value found for frequency {frequency} MHz in source '{self._name}'")
 
     def activate(self) -> None:
         """Activate source"""
@@ -390,7 +420,7 @@ class Source(BaseEntity):
             for freq, flux in flux_table.items():
                 check_type(freq, (int, float), "Flux frequency")
                 check_positive(flux, f"Flux at {freq} MHz")
-            self._flux_table = flux_table
+            self._flux_table = flux_table.copy()
             logger.info(f"Set flux table with {len(flux_table)} entries for source '{self._name}'")
         else:
             self._flux_table = {}
@@ -447,6 +477,16 @@ class Source(BaseEntity):
                 spectral_index=data.get("spectral_index"),
                 isactive=data.get("isactive", True)
             )
+    
+    def _check_flux(self, frequency: float, flux: float) -> bool:
+        """Check if the flux value for the given frequency is a duplicate with a different value"""
+        if frequency in self._flux_table:
+            current_flux = self._flux_table[frequency]
+            if current_flux != flux:
+                logger.warning(f"Overwriting flux for frequency {frequency} MHz on source '{self._name}': "
+                               f"old value={current_flux} Jy, new value={flux} Jy")
+                return True
+        return False
 
     def __repr__(self) -> str:
         """Return a string representation of Source"""
@@ -479,6 +519,8 @@ class Source(BaseEntity):
         
         activate_source
         deactivate_source
+
+        set_source
 
         activate_all
         deactivate_all
