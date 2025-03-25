@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
-from base.observation import Observation, CatalogManager
+from base.observation import Observation
+from utils.catalogmanager import CatalogManager
 from base.sources import Source
 from base.scans import Scan
 from base.telescopes import Telescope, SpaceTelescope

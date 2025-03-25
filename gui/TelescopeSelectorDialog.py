@@ -28,8 +28,8 @@ class TelescopeSelectorDialog(QDialog):
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.MultiSelection)
         for row, telescope in enumerate(self.telescopes):
-            self.table.setItem(row, 0, QTableWidgetItem(telescope.get_telescope_code()))
-            self.table.setItem(row, 1, QTableWidgetItem(telescope.get_telescope_name()))
+            self.table.setItem(row, 0, QTableWidgetItem(telescope.get_code()))
+            self.table.setItem(row, 1, QTableWidgetItem(telescope.get_name()))
             self.table.setItem(row, 2, QTableWidgetItem(f"{telescope.get_diameter():.2f}"))
             self.table.setItem(row, 3, QTableWidgetItem(telescope.get_mount_type().value))
             self.table.setItem(row, 4, QTableWidgetItem("SpaceTelescope" if hasattr(telescope, "_orbit_file") else "Telescope"))

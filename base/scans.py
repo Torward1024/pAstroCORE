@@ -1,6 +1,5 @@
 # base/scans.py
 from base.base_entity import BaseEntity
-from base.observation import Observation
 from base.frequencies import Frequencies
 from base.sources import Source
 from base.telescopes import Telescopes, SpaceTelescope
@@ -148,7 +147,7 @@ class Scan(BaseEntity):
         """Get the frequencies associated with this scan from the Observation"""
         from base.observation import Observation
         check_type(observation, Observation, "Observation")
-        all_freqs = observation.get_frequencies().get_all_frequencies()
+        all_freqs = observation.get_frequencies().get_all_IF()
         selected = [all_freqs[idx] for idx in self._frequency_indices if 0 <= idx < len(all_freqs)]
         return Frequencies(selected)
 
@@ -227,7 +226,7 @@ class Scan(BaseEntity):
                 logger.error(f"Invalid telescope_index {idx} for observation with {len(all_tels)} telescopes")
                 return False
         
-        all_freqs = observation.get_frequencies().get_all_frequencies()
+        all_freqs = observation.get_frequencies().get_all_IF()
         for idx in self._frequency_indices:
             if idx < 0 or idx >= len(all_freqs):
                 logger.error(f"Invalid frequency_index {idx} for observation with {len(all_freqs)} frequencies")
@@ -451,8 +450,8 @@ class Scans(BaseEntity):
                    not observation.get_telescopes().get_all_telescopes()[idx].isactive 
                    for idx in scan._telescope_indices):
                 continue
-            if any(idx >= 0 and idx < len(observation.get_frequencies().get_all_frequencies()) and 
-                   not observation.get_frequencies().get_all_frequencies()[idx].isactive 
+            if any(idx >= 0 and idx < len(observation.get_frequencies().get_all_IF()) and 
+                   not observation.get_frequencies().get_all_IF()[idx].isactive 
                    for idx in scan._frequency_indices):
                 continue
             active.append(scan)

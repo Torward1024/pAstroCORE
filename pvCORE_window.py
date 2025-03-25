@@ -1,11 +1,11 @@
 import sys
 import os
 import json
-from typing import Optional, List
+from typing import Optional
 from PySide6.QtWidgets import (QApplication, QMainWindow, QTreeWidget, QTreeWidgetItem, 
                                QTabWidget, QWidget, QVBoxLayout, QLineEdit, QPushButton, 
                                QTableWidget, QTableWidgetItem, QStatusBar, QDockWidget, QHBoxLayout, QMenu, 
-                               QDialog, QFileDialog, QLabel, QGridLayout, QComboBox, QHeaderView)
+                               QFileDialog, QLabel, QComboBox, QHeaderView)
 from PySide6.QtGui import QAction, QCloseEvent, QIcon
 from PySide6.QtCore import Qt
 import matplotlib
@@ -715,7 +715,7 @@ class PvCoreWindow(QMainWindow):
                 obs.get_telescopes().set_telescope(row, updated_telescope)
                 self.update_config_tables(obs)
                 self.update_obs_table()
-                self.status_bar.showMessage(f"Telescope '{updated_telescope.get_telescope_code()}' updated")
+                self.status_bar.showMessage(f"Telescope '{updated_telescope.get_code()}' updated")
 
     def remove_source(self):
         selected = self.obs_selector.currentText()
@@ -1058,9 +1058,9 @@ class PvCoreWindow(QMainWindow):
         for tel in obs.get_telescopes().get_all_telescopes():
             row = self.telescopes_table.rowCount()
             self.telescopes_table.insertRow(row)
-            coords = tel.get_telescope_coordinates() if not isinstance(tel, SpaceTelescope) else [0, 0, 0]
+            coords = tel.get_coordinates() if not isinstance(tel, SpaceTelescope) else [0, 0, 0]
             for col, value in enumerate([
-                tel.get_telescope_code(), tel.get_telescope_name(),
+                tel.get_code(), tel.get_name(),
                 f"{coords[0]:.2f}", f"{coords[1]:.2f}", f"{coords[2]:.2f}",
                 f"{tel.get_diameter():.2f}", tel.get_mount_type().value if isinstance(tel, Telescope) else "N/A"
             ]):
@@ -1113,7 +1113,7 @@ class PvCoreWindow(QMainWindow):
             self.scans_table.insertRow(row)
             start_dt = scan.get_start_datetime()
             source_name = "None (OFF SOURCE)" if scan.is_off_source else (all_sources[scan.get_source_index()].get_name() if scan.get_source_index() is not None else "None")
-            telescopes_str = ", ".join(all_tels[idx].get_telescope_code() for idx in scan.get_telescope_indices())
+            telescopes_str = ", ".join(all_tels[idx].get_code() for idx in scan.get_telescope_indices())
             frequencies_str = ", ".join(str(all_freqs[idx].get_frequency()) for idx in scan.get_frequency_indices())
             for col, value in enumerate([
                 start_dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-4],
@@ -1398,10 +1398,10 @@ class PvCoreWindow(QMainWindow):
         if new_state != telescope.isactive:
             if new_state:
                 telescope.activate()
-                logger.info(f"Activated telescope '{telescope.get_telescope_code()}'")
+                logger.info(f"Activated telescope '{telescope.get_code()}'")
             else:
                 telescope.deactivate()
-                logger.info(f"Deactivated telescope '{telescope.get_telescope_code()}'")
+                logger.info(f"Deactivated telescope '{telescope.get_code()}'")
             selected = self.obs_selector.currentText()
             if selected != "Select Observation...":
                 obs = self.get_observation_by_code(selected)
@@ -1520,7 +1520,7 @@ class PvCoreWindow(QMainWindow):
                 try:
                     self.manipulator.add_telescope_to_observation(obs, new_space_telescope)
                     self.update_all_ui(selected)
-                    self.status_bar.showMessage(f"Added space telescope '{new_space_telescope.get_telescope_code()}' to '{selected}'")
+                    self.status_bar.showMessage(f"Added space telescope '{new_space_telescope.get_code()}' to '{selected}'")
                 except ValueError as e:
                     self.status_bar.showMessage(str(e))
 

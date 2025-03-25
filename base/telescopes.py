@@ -568,6 +568,7 @@ class Telescope(BaseEntity):
         interpolate_orbit_chebyshev
         interpolate_orbit_cubic_spline
 
+        get_state_vector
         get_state_vector_from_orbit
         get_state_vector_from_kepler
 
@@ -737,6 +738,13 @@ class SpaceTelescope(Telescope):
             "velocities": [CubicSpline(times, vel) for vel in velocities.T]
         }
         logger.info(f"Interpolated orbit for '{self._code}' using cubic splines")
+    
+    def get_state_vector(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
+        """Get state vector to date"""
+        if self._use_kep:
+            self.get_state_vector_from_kepler(self, dt)
+        else:
+            self.get_state_vector_from_orbit(self, dt)
 
     def get_state_vector_from_kepler(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
         """Get position and velocity from Keplerian elements at a given time"""

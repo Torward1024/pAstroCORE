@@ -125,10 +125,10 @@ class EditScanDialog(QDialog):
             is_active_in_scan = i in active_telescope_indices if self.scan else tel.isactive
             checkbox.setChecked(is_active_in_scan)
             self.telescopes_table.setCellWidget(i, 0, checkbox)
-            self.telescopes_table.setItem(i, 1, QTableWidgetItem(tel.get_telescope_code()))
+            self.telescopes_table.setItem(i, 1, QTableWidgetItem(tel.get_code()))
 
         # Populate frequencies table
-        all_frequencies = self.frequencies.get_all_frequencies()
+        all_frequencies = self.frequencies.get_all_IF()
         self.frequencies_table.setRowCount(len(all_frequencies))
         active_frequency_indices = self.scan.get_frequency_indices() if self.scan else []
         for i, freq in enumerate(all_frequencies):

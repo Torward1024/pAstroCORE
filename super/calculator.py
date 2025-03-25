@@ -37,12 +37,12 @@ class Calculator(ABC):
         dt = Time(time, format='unix')
         logger.info(f"Calculating telescope positions in J2000 for time={dt.iso} ({time})")
         for tel in observation.get_telescopes().get_active_telescopes():
-            tel_code = tel.get_telescope_code()
+            tel_code = tel.get_code()
             if isinstance(tel, SpaceTelescope):
-                pos, _ = tel.get_position_at_time(dt.datetime)
+                pos, _ = tel.get_state_vector(dt.datetime)
                 logger.debug(f"Position for SpaceTelescope '{tel_code}': {pos}")
             else:
-                itrf_coords = np.array(tel.get_telescope_coordinates())
+                itrf_coords = np.array(tel.get_coordinates())
                 pos = self._itrf_to_j2000(itrf_coords, dt)
                 logger.debug(f"Converted ITRF {itrf_coords} to J2000 {pos} for '{tel_code}'")
             positions[tel_code] = pos
@@ -85,18 +85,18 @@ class Calculator(ABC):
             
             if isinstance(tel, SpaceTelescope):
                 pos, _ = tel.get_position_at_time(time.datetime)
-                visibility[tel.get_telescope_code()] = np.linalg.norm(pos) < 1e9
+                visibility[tel.get_code()] = np.linalg.norm(pos) < 1e9
             else:
-                loc = EarthLocation(x=tel.get_telescope_coordinates()[0]*u.m,
-                                   y=tel.get_telescope_coordinates()[1]*u.m,
-                                   z=tel.get_telescope_coordinates()[2]*u.m)
+                loc = EarthLocation(x=tel.get_coordinates()[0]*u.m,
+                                   y=tel.get_coordinates()[1]*u.m,
+                                   z=tel.get_coordinates()[2]*u.m)
                 altaz_frame = AltAz(obstime=time, location=loc)
                 altaz = source_coord.transform_to(altaz_frame)
                 el_range = tel.get_elevation_range()
                 az_range = tel.get_azimuth_range()
                 visible = (el_range[0] <= altaz.alt.deg <= el_range[1] and
                           az_range[0] <= (altaz.az.deg % 360) <= az_range[1])
-                visibility[tel.get_telescope_code()] = visible
+                visibility[tel.get_code()] = visible
         
         logger.debug(f"Calculated visibility for scan with start={scan.get_start()}: {visibility}")
         return visibility
@@ -163,15 +163,15 @@ class Calculator(ABC):
         check_type(observation, Observation, "Observation")
         check_type(freq, IF, "Frequency")
         sensitivities = {}
-        frequency_mhz = freq.get_frequency()  # Частота в МГц
+        frequency_mhz = freq.get_frequency()
         for tel in observation.get_telescopes().get_active_telescopes():
             sefd = tel.get_sefd(frequency_mhz)
             if sefd is None:
-                logger.warning(f"No SEFD data for telescope '{tel.get_telescope_code()}' at frequency {frequency_mhz} MHz")
-                sensitivities[tel.get_telescope_code()] = None  # Используем None вместо float('inf')
+                logger.warning(f"No SEFD data for telescope '{tel.get_code()}' at frequency {frequency_mhz} MHz")
+                sensitivities[tel.get_code()] = None
             else:
-                sensitivities[tel.get_telescope_code()] = sefd
-                logger.debug(f"SEFD for '{tel.get_telescope_code()}' at {frequency_mhz} MHz: {sefd} Jy")
+                sensitivities[tel.get_code()] = sefd
+                logger.debug(f"SEFD for '{tel.get_code()}' at {frequency_mhz} MHz: {sefd} Jy")
         return sensitivities
 
     def calculate_baseline_sensitivity(self, observation: Observation, scan: 'Scan', freq: IF) -> Dict[str, float]:
@@ -189,11 +189,11 @@ class Calculator(ABC):
         for i in range(len(tels)):
             for j in range(i + 1, len(tels)):
                 tel1, tel2 = tels[i], tels[j]
-                tel_pair = f"{tel1.get_telescope_code()}-{tel2.get_telescope_code()}"  # Преобразуем в строку
-                sefd1 = tel_sefd[tel1.get_telescope_code()]
-                sefd2 = tel_sefd[tel2.get_telescope_code()]
+                tel_pair = f"{tel1.get_code()}-{tel2.get_code()}"
+                sefd1 = tel_sefd[tel1.get_code()]
+                sefd2 = tel_sefd[tel2.get_code()]
                 if sefd1 is None or sefd2 is None:
-                    sensitivity = None  # Если SEFD отсутствует, устанавливаем None
+                    sensitivity = None
                 else:
                     sensitivity = np.sqrt(sefd1 * sefd2) / np.sqrt(2 * bandwidth * duration)
                 sensitivities[tel_pair] = sensitivity
@@ -228,9 +228,9 @@ class Calculator(ABC):
             if not tel.isactive or isinstance(tel, SpaceTelescope):
                 continue
             
-            loc = EarthLocation(x=tel.get_telescope_coordinates()[0]*u.m,
-                               y=tel.get_telescope_coordinates()[1]*u.m,
-                               z=tel.get_telescope_coordinates()[2]*u.m)
+            loc = EarthLocation(x=tel.get_coordinates()[0]*u.m,
+                               y=tel.get_coordinates()[1]*u.m,
+                               z=tel.get_coordinates()[2]*u.m)
             track = []
             for t in time_steps:
                 dt = Time(t, format='unix')
@@ -240,7 +240,7 @@ class Calculator(ABC):
                 x = 2 * np.sqrt(2) * np.cos(dec_rad) * np.sin(ra_rad / 2) / np.pi
                 y = np.sqrt(2) * np.sin(dec_rad)
                 track.append((x, y))
-            tracks[tel.get_telescope_code()] = track
+            tracks[tel.get_code()] = track
         return tracks
 
     def calculate_mollweide_distance(self, observation: Observation, scan: 'Scan') -> Dict[str, float]:
@@ -286,9 +286,9 @@ class Calculator(ABC):
             if not tel.isactive or isinstance(tel, SpaceTelescope):
                 continue
             
-            loc = EarthLocation(x=tel.get_telescope_coordinates()[0]*u.m,
-                            y=tel.get_telescope_coordinates()[1]*u.m,
-                            z=tel.get_telescope_coordinates()[2]*u.m)
+            loc = EarthLocation(x=tel.get_coordinates()[0]*u.m,
+                            y=tel.get_coordinates()[1]*u.m,
+                            z=tel.get_coordinates()[2]*u.m)
             altaz_frame = AltAz(obstime=time, location=loc)
             diameter = tel.get_diameter() * u.m
             tel_fov = {}
@@ -309,7 +309,7 @@ class Calculator(ABC):
                     "sun_az": sun_altaz.az.deg,
                     "fov_radius": fov_radius
                 }
-            fov_data[tel.get_telescope_code()] = tel_fov
+            fov_data[tel.get_code()] = tel_fov
         logger.debug(f"Calculated field of view for scan with start={scan.get_start()}: {fov_data}")
         return fov_data
 
@@ -341,7 +341,7 @@ class Calculator(ABC):
             if not tel.isactive:
                 continue
             separation = source_coord.separation(sun_coord).deg
-            angles[tel.get_telescope_code()] = separation
+            angles[tel.get_code()] = separation
         logger.debug(f"Calculated sun angles for scan with start={scan.get_start()}: {angles}")
         return angles
 
@@ -366,11 +366,11 @@ class Calculator(ABC):
                 fwhm = (1.22 * wavelength / diameter).to(u.deg).value * 2
                 theta = np.linspace(-1, 1, 100) * u.deg
                 pattern = np.exp(-4 * np.log(2) * (theta / fwhm)**2)
-                beam_patterns[tel.get_telescope_code()] = pattern
+                beam_patterns[tel.get_code()] = pattern
             elif observation.get_observation_type() == "VLBI":
                 uv_coverage = self.calculate_uv_coverage(observation, scan)
                 if not uv_coverage:
-                    beam_patterns[tel.get_telescope_code()] = np.ones(100)
+                    beam_patterns[tel.get_code()] = np.ones(100)
                     continue
                 u_vals = []
                 v_vals = []
@@ -389,7 +389,7 @@ class Calculator(ABC):
                         uv_grid[u_idx, v_idx] += 1
                 beam = np.abs(np.fft.fftshift(np.fft.fft2(uv_grid)))
                 beam_1d = beam[grid_size // 2, :]
-                beam_patterns[tel.get_telescope_code()] = beam_1d / beam_1d.max()
+                beam_patterns[tel.get_code()] = beam_1d / beam_1d.max()
         return beam_patterns
 
 
