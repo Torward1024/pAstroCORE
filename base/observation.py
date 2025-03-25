@@ -196,10 +196,9 @@ class Observation(BaseEntity):
         """Get observation scans"""
         return self._scans
     
-    def get_calculated_data(self, key: str) -> Any:
+    def get_calculated_data(self) -> Any:
         """Retrieve calculated data by key"""
-        check_non_empty_string(key, "Key")
-        return self._calculated_data.get(key)
+        return self._calculated_data
 
     def get_start_datetime(self) -> Optional[datetime]:
         """Get observation start time as a datetime object (UTC), based on earliest scan"""

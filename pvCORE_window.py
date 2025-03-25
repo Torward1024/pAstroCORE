@@ -594,7 +594,6 @@ class PvCoreWindow(QMainWindow):
         deactivate_action.triggered.connect(self.deactivate_all_scans)
         menu.addAction(deactivate_action)
         
-        # Исполняем меню и сразу очищаем его после завершения
         menu.popup(self.scans_table.viewport().mapToGlobal(position))
         menu.aboutToHide.connect(menu.deleteLater)
     
@@ -611,7 +610,6 @@ class PvCoreWindow(QMainWindow):
             self.status_bar.showMessage("Cannot insert scan: observation requires active sources, telescopes, and frequencies")
             return
         
-        # Вставка ТОЛЬКО через EditScanDialog
         dialog = EditScanDialog(sources=obs.get_sources().get_active_sources(), 
                                 telescopes=obs.get_telescopes(), 
                                 frequencies=obs.get_frequencies(), 
@@ -621,14 +619,14 @@ class PvCoreWindow(QMainWindow):
             scans = obs.get_scans()
             current_scans = scans.get_all_scans()
             row = self.scans_table.currentRow()
-            if row == -1:  # Если позиция не выбрана, добавляем в конец
+            if row == -1:
                 try:
                     self.manipulator.add_scan_to_observation(obs, new_scan)
                 except ValueError as e:
                     logger.error(f"Failed to insert scan: {e}")
                     self.status_bar.showMessage(f"Error: {e}")
                     return
-            else:  # Вставка в указанную позицию
+            else:
                 current_scans.insert(row, new_scan)
                 scans._data = current_scans
                 overlap, reason = scans._check_overlap(new_scan)
@@ -780,7 +778,6 @@ class PvCoreWindow(QMainWindow):
         deactivate_action.triggered.connect(self.deactivate_all_telescopes)
         menu.addAction(deactivate_action)
         
-        # Исполняем меню и сразу очищаем его после завершения
         menu.popup(self.telescopes_table.viewport().mapToGlobal(position))
         menu.aboutToHide.connect(menu.deleteLater)
     
@@ -1651,14 +1648,14 @@ class PvCoreWindow(QMainWindow):
             self.calculator.calculate_all(obs)
 
         self.canvas.figure.clf()  # Очищаем текущий график
-        scan_data = obs._calculated_data.get(scan_key, {}) if scan_key else obs._calculated_data[next(iter(obs._calculated_data))]
+        scan_data = obs.get_calculated_data().get(scan_key, {}) if scan_key else obs._calculated_data[next(iter(obs._calculated_data))]
 
         if plot_type == "uv_coverage" and "uv_coverage" in scan_data:
-            self.vizualizator.plot_uv_coverage(scan_data["uv_coverage"], self.canvas)
+            self.vizualizator.plot_uv_coverage(obs, "uv_coverage", self.canvas)
         elif plot_type == "mollweide_tracks" and "mollweide_tracks" in scan_data:
-            self.vizualizator.plot_mollweide_tracks(scan_data["mollweide_tracks"], self.canvas)
+            self.vizualizator.plot_mollweide_tracks(obs, "mollweide_tracks", self.canvas)
         elif plot_type == "beam_pattern" and "beam_pattern" in scan_data:
-            self.vizualizator.plot_beam_pattern(scan_data["beam_pattern"], self.canvas)
+            self.vizualizator.plot_beam_pattern(obs, "beam_pattern", self.canvas)
         elif plot_type == "field_of_view" and "field_of_view" in scan_data:
             self.vizualizator.plot_field_of_view(obs, scan_key or next(iter(obs._calculated_data)), scan_data["field_of_view"], self.canvas)
         elif plot_type == "telescope_sensitivity":

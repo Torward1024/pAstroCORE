@@ -3,13 +3,12 @@ from abc import ABC, abstractmethod
 from typing import Optional, List, Tuple, Union
 from base.observation import Observation
 from utils.catalogmanager import CatalogManager
-from base.sources import Source, Sources
-from base.telescopes import Telescope, SpaceTelescope, Telescopes
-from base.frequencies import IF, Frequencies
-from base.scans import Scan, Scans
+from base.sources import Source
+from base.telescopes import Telescope, SpaceTelescope
+from base.frequencies import IF
+from base.scans import Scan
 from utils.validation import check_type, check_non_empty_string, check_positive
 from utils.logging_setup import logger
-
 
 class Configurator(ABC):
     """Abstract base class for configuring observations"""
@@ -22,7 +21,6 @@ class Configurator(ABC):
         """Configure the observation"""
         pass
 
-    # Методы загрузки каталогов
     def load_catalogs(self, source_file: Optional[str] = None, telescope_file: Optional[str] = None) -> None:
         """Load source and telescope catalogs"""
         if source_file:
@@ -30,7 +28,6 @@ class Configurator(ABC):
         if telescope_file:
             self._catalog_manager.load_telescope_catalog(telescope_file)
 
-    # Методы добавления
     def add_source(self, observation: Observation, source: Source) -> None:
         """Add a source to the observation"""
         check_type(observation, Observation, "Observation")
@@ -43,6 +40,12 @@ class Configurator(ABC):
         check_type(source, Source, "Source")
         check_type(index, int, "Index")
         observation.get_sources().insert_source(source, index)
+    
+    def remove_source(self, observation: Observation, index: int) -> None:
+        """Remove a source from the observation by index"""
+        check_type(observation, Observation, "Observation")
+        check_type(index, int, "Index")
+        observation.get_sources().remove_source(index)
 
     def add_telescope(self, observation: Observation, telescope: Union[Telescope, SpaceTelescope]) -> None:
         """Add a telescope to the observation"""
@@ -57,6 +60,12 @@ class Configurator(ABC):
         check_type(index, int, "Index")
         observation.get_telescopes().insert_telescope(telescope, index)
 
+    def remove_telescope(self, observation: Observation, index: int) -> None:
+        """Remove a telescope from the observation by index"""
+        check_type(observation, Observation, "Observation")
+        check_type(index, int, "Index")
+        observation.get_telescopes().remove_telescope(index)
+
     def add_frequency(self, observation: Observation, if_obj: IF) -> None:
         """Add a frequency object to the observation"""
         check_type(observation, Observation, "Observation")
@@ -70,6 +79,12 @@ class Configurator(ABC):
         check_type(index, int, "Index")
         observation.get_frequencies().insert_IF(if_obj, index)
 
+    def remove_frequency(self, observation: Observation, index: int) -> None:
+        """Remove a frequency from the observation by index"""
+        check_type(observation, Observation, "Observation")
+        check_type(index, int, "Index")
+        observation.get_frequencies().remove_frequency(index)  
+
     def add_scan(self, observation: Observation, scan: Scan) -> None:
         """Add a scan to the observation"""
         check_type(observation, Observation, "Observation")
@@ -77,23 +92,12 @@ class Configurator(ABC):
         observation.get_scans().add_scan(scan)
         logger.info(f"Added scan with start={scan.get_start()} to observation '{observation.get_observation_code()}'")
 
-    def remove_source(self, observation: Observation, index: int) -> None:
-        """Remove a source from the observation by index"""
+    def insert_scan(self, observation: Observation, scan: Scan, index: int) -> None:
+        """Insert a scan to the observation"""
         check_type(observation, Observation, "Observation")
-        check_type(index, int, "Index")
-        observation.get_sources().remove_source(index)
-
-    def remove_telescope(self, observation: Observation, index: int) -> None:
-        """Remove a telescope from the observation by index"""
-        check_type(observation, Observation, "Observation")
-        check_type(index, int, "Index")
-        observation.get_telescopes().remove_telescope(index)
-
-    def remove_frequency(self, observation: Observation, index: int) -> None:
-        """Remove a frequency from the observation by index"""
-        check_type(observation, Observation, "Observation")
-        check_type(index, int, "Index")
-        observation.get_frequencies().remove_frequency(index)          
+        check_type(scan, Scan, "Scan")
+        observation.get_scans().insert_scan(scan, index)
+        logger.info(f"Added scan with start={scan.get_start()} to observation '{observation.get_observation_code()}'")          
 
     def remove_scan(self, observation: Observation, index: int) -> None:
         """Remove a scan from the observation by index"""
@@ -107,23 +111,42 @@ class Configurator(ABC):
         except IndexError:
             logger.warning(f"Scan at index {index} not found in observation '{observation.get_observation_code()}'") 
 
-    # Геттеры и сеттеры для параметров Observation
+    def get_sources(self, observation: Observation) -> List[Source]:
+        """Get the list of active sources"""
+        check_type(observation, Observation, "Observation")
+        return observation.get_sources().get_sources()
+
+    def get_telescopes(self, observation: Observation) -> List[Union[Telescope, SpaceTelescope]]:
+        """Get the list of active telescopes"""
+        check_type(observation, Observation, "Observation")
+        return observation.get_telescopes().get_telescopes()
+
+    def get_frequencies(self, observation: Observation) -> List[IF]:
+        """Get the list of active frequencies"""
+        check_type(observation, Observation, "Observation")
+        return observation.get_frequencies().get_frequencies()
+
+    def get_scans(self, observation: Observation) -> List[Scan]:
+        """Get the list of active scans"""
+        check_type(observation, Observation, "Observation")
+        return observation.get_scans().get_scans()
+    
     def get_observation_code(self, observation: Observation) -> str:
         """Get the observation code"""
         check_type(observation, Observation, "Observation")
         return observation.get_observation_code()
 
+    def get_observation_type(self, observation: Observation) -> str:
+        """Get the observation type"""
+        check_type(observation, Observation, "Observation")
+        return observation.get_observation_type()
+    
     def set_observation_code(self, observation: Observation, code: str) -> None:
         """Set the observation code"""
         check_type(observation, Observation, "Observation")
         check_non_empty_string(code, "Observation code")
         observation._observation_code = code
         logger.info(f"Set observation code to '{code}'")
-
-    def get_observation_type(self, observation: Observation) -> str:
-        """Get the observation type"""
-        check_type(observation, Observation, "Observation")
-        return observation.get_observation_type()
 
     def set_observation_type(self, observation: Observation, obs_type: str) -> None:
         """Set the observation type"""
@@ -135,61 +158,8 @@ class Configurator(ABC):
         observation._observation_type = obs_type
         logger.info(f"Set observation type to '{obs_type}'")
 
-    def get_sefd(self, observation: Observation) -> float:
-        """Get the SEFD of the observation"""
-        check_type(observation, Observation, "Observation")
-        return observation._sefd
-
-    def set_sefd(self, observation: Observation, sefd: float) -> None:
-        """Set the SEFD of the observation"""
-        check_type(observation, Observation, "Observation")
-        check_positive(sefd, "SEFD")
-        observation._sefd = sefd
-        logger.info(f"Set SEFD to {sefd}")
-
-    def get_sources(self, observation: Observation) -> List[Source]:
-        """Get the list of active sources"""
-        check_type(observation, Observation, "Observation")
-        return observation.get_sources().get_active_sources()
-
-    def get_telescopes(self, observation: Observation) -> List[Union[Telescope, SpaceTelescope]]:
-        """Get the list of active telescopes"""
-        check_type(observation, Observation, "Observation")
-        return observation.get_telescopes().get_active_telescopes()
-
-    def get_frequencies(self, observation: Observation) -> List[IF]:
-        """Get the list of active frequencies"""
-        check_type(observation, Observation, "Observation")
-        return observation.get_frequencies().get_active_frequencies()
-
-    def get_scans(self, observation: Observation) -> List[Scan]:
-        """Get the list of active scans"""
-        check_type(observation, Observation, "Observation")
-        return observation.get_scans().get_active_scans()
-
-    def bulk_configure(self, observation: Observation, sources: List[Source], 
-                       telescopes: List[Union[Telescope, SpaceTelescope]],
-                       frequencies: List[Tuple[float, float]], scans: List[Tuple[float, float]], 
-                       off_source: bool = False) -> None:
-        """Configure observation with multiple sources, telescopes, frequencies, and scans"""
-        for src in sources:
-            self.add_source(observation, src)
-        for tel in telescopes:
-            self.add_telescope(observation, tel)
-        for freq, bw in frequencies:
-            self.add_frequency(observation, freq, bw)
-        for start, duration in scans:
-            self.add_scan(observation, 
-                         start=start, 
-                         duration=duration, 
-                         source=observation.get_sources().get_active_sources()[0] if sources and not off_source else None,
-                         telescopes=observation.get_telescopes(), 
-                         frequencies=observation.get_frequencies(),
-                         is_off_source=off_source)
-
-
 class DefaultConfigurator(Configurator):
-    """Default implementation of Configurator."""
+    """Default implementation of Configurator"""
     def configure_observation(self, observation: Observation) -> None:
         """Basic observation configuration."""
         check_type(observation, Observation, "Observation")

@@ -14,7 +14,6 @@ from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 from typing import Union
 import os
-import json
 
 class Project:
     """Container for managing multiple observations."""
@@ -71,7 +70,7 @@ class Manipulator(ABC):
         self._calculator = None
         self._vizualizator = None
         self._optimizator = None
-        self._catalog_manager = CatalogManager()  # Добавляем CatalogManager
+        self._catalog_manager = CatalogManager()
         logger.info(f"Initialized Manipulator with project '{self._project.get_name()}'")
 
     def set_project(self, project: Project) -> None:
@@ -136,7 +135,7 @@ class Manipulator(ABC):
 
     @abstractmethod
     def execute(self) -> None:
-        """Execute the task."""
+        """Execute the task"""
         pass
 
     def save_project(self, filepath: str) -> None:
@@ -180,67 +179,71 @@ class Manipulator(ABC):
             raise ValueError(f"Invalid JSON in '{filepath}': {e}")
 
     def get_project_name(self) -> str:
-        """Get the project name."""
+        """Get the project name"""
         return self._project.get_name()
     
     def get_observations(self) -> List[Observation]:
-        """Get the list of observations in the project."""
+        """Get the list of observations in the project"""
         return self._project.get_observations()
     
     def configure_observation_code(self, observation: Observation, code: str) -> None:
-        """Set observation code via Configurator."""
+        """Set observation code via Configurator"""
         self._configurator.set_observation_code(observation, code)
 
     def configure_observation_type(self, observation: Observation, obs_type: str) -> None:
-        """Set observation type via Configurator."""
+        """Set observation type via Configurator"""
         self._configurator.set_observation_type(observation, obs_type)
 
     def add_source_to_observation(self, observation: Observation, source: Source) -> None:
-        """Add source to observation via Configurator."""
+        """Add source to observation via Configurator"""
         self._configurator.add_source(observation, source)
     
     def insert_source_to_observation(self, observation: Observation, source: Source, index: int) -> None:
-        """Insert source into observation via Configurator."""
+        """Insert source into observation via Configurator"""
         self._configurator.insert_source(observation, source, index)
 
     def remove_source_from_observation(self, observation: Observation, index: int) -> None:
-        """Remove source from observation via Configurator."""
+        """Remove source from observation via Configurator"""
         self._configurator.remove_source(observation, index)
 
     def add_telescope_to_observation(self, observation: Observation, telescope: Union[Telescope, SpaceTelescope]) -> None:
-        """Add telescope to observation via Configurator."""
+        """Add telescope to observation via Configurator"""
         self._configurator.add_telescope(observation, telescope)
     
     def insert_telescope_to_observation(self, observation: Observation, telescope: Union[Telescope, SpaceTelescope], index: int) -> None:
-        """Insert telescope into observation via Configurator."""
+        """Insert telescope into observation via Configurator"""
         self._configurator.insert_telescope(observation, telescope, index)
 
     def remove_telescope_from_observation(self, observation: Observation, index: int) -> None:
-        """Remove telescope by index via Configurator."""
+        """Remove telescope by index via Configurator"""
         self._configurator.remove_telescope(observation, index)
     
     def add_frequency_to_observation(self, observation: Observation, if_obj: IF) -> None:
-        """Add frequency object to observation via Configurator."""
+        """Add frequency object to observation via Configurator"""
         self._configurator.add_frequency(observation, if_obj)
     
     def insert_frequency_to_observation(self, observation: Observation, if_obj: IF, index: int) -> None:
-        """Insert frequency into observation via Configurator."""
+        """Insert frequency into observation via Configurator"""
         self._configurator.insert_frequency(observation, if_obj, index)
 
     def remove_frequency_from_observation(self, observation: Observation, index: int) -> None:
-        """Remove frequency from observation via Configurator."""
+        """Remove frequency from observation via Configurator"""
         self._configurator.remove_frequency(observation, index)
     
     def add_scan_to_observation(self, observation: Observation, scan: Scan) -> None:
-        """Add scan object to observation via Configurator."""
+        """Add scan object to observation via Configurator"""
         self._configurator.add_scan(observation, scan)
 
+    def insert_scan_to_observation(self, observation: Observation, scan: Scan, index: int) -> None:
+        """Add scan object to observation via Configurator"""
+        self._configurator.insert_scan(observation, scan, index)
+
     def remove_scan_from_observation(self, observation: Observation, index: int) -> None:
-        """Remove scan object from observation via Configurator."""
+        """Remove scan object from observation via Configurator"""
         self._configurator.remove_scan(observation, index)
 
 class DefaultManipulator(Manipulator):
-    """Default implementation of Manipulator."""
+    """Default implementation of Manipulator"""
     def execute(self) -> None:
         """Execute the default task: configure, calculate, and visualize all observations."""
         if not self._project.get_observations():

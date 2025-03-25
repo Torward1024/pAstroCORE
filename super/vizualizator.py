@@ -23,8 +23,18 @@ class Vizualizator(ABC):
         """Visualize the observation data."""
         pass
 
-    def plot_uv_coverage(self, uv_coverage: Dict[str, List[Tuple[float, float]]], canvas: FigureCanvas) -> None:
-        """Plot u,v coverage for VLBI on the provided canvas."""
+    def plot_uv_coverage(self, observation: Observation, scan_key: str, canvas: FigureCanvas) -> None:
+        """Plot u,v coverage for VLBI on the provided canvas using calculated data."""
+        check_type(observation, Observation, "Observation")
+        check_type(scan_key, str, "Scan key")
+        if not hasattr(observation, '_calculated_data') or scan_key not in observation._calculated_data:
+            logger.error(f"No calculated data available for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+        uv_coverage = observation._calculated_data[scan_key].get("uv_coverage", {})
+        if not uv_coverage:
+            logger.warning(f"No u,v coverage data for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+
         fig = canvas.figure
         fig.clf()
         ax = fig.add_subplot(111)
@@ -39,17 +49,26 @@ class Vizualizator(ABC):
         ax.legend()
         ax.grid(True)
         canvas.draw()
+        logger.debug(f"Plotted u,v coverage for {scan_key}")
 
-    def plot_mollweide_tracks(self, tracks: Dict[str, List[Tuple[float, float]]], canvas: FigureCanvas) -> None:
-        """Plot Mollweide tracks for telescopes in Mollweide projection on the provided canvas."""
+    def plot_mollweide_tracks(self, observation: Observation, scan_key: str, canvas: FigureCanvas) -> None:
+        """Plot Mollweide tracks for telescopes in Mollweide projection on the provided canvas using calculated data."""
+        check_type(observation, Observation, "Observation")
+        check_type(scan_key, str, "Scan key")
+        if not hasattr(observation, '_calculated_data') or scan_key not in observation._calculated_data:
+            logger.error(f"No calculated data available for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+        tracks = observation._calculated_data[scan_key].get("mollweide_tracks", {})
+        if not tracks:
+            logger.warning(f"No Mollweide tracks data for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+
         fig = canvas.figure
         fig.clf()
-        ax = fig.add_subplot(111, projection='mollweide')  # Устанавливаем проекцию Мольвейде
+        ax = fig.add_subplot(111, projection='mollweide')
         for tel_code, track in tracks.items():
-            ra_vals, dec_vals = zip(*track)  # Предполагаем, что track содержит (ra, dec) в градусах
-            # Преобразуем RA (инвертируем и переводим в радианы)
+            ra_vals, dec_vals = zip(*track)
             ra_rad = [np.deg2rad(360 - ra) if ra <= 360 else np.deg2rad(360 - (ra % 360)) for ra in ra_vals]
-            # Преобразуем Dec в радианы
             dec_rad = [np.deg2rad(dec) for dec in dec_vals]
             ax.plot(ra_rad, dec_rad, label=tel_code, linewidth=1.5)
         ax.set_xlabel("Right Ascension (radians)")
@@ -58,9 +77,20 @@ class Vizualizator(ABC):
         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         ax.grid(True)
         canvas.draw()
+        logger.debug(f"Plotted Mollweide tracks for {scan_key}")
 
-    def plot_beam_pattern(self, beam_patterns: Dict[str, np.ndarray], canvas: FigureCanvas) -> None:
-        """Plot beam patterns for telescopes or baselines on the provided canvas."""
+    def plot_beam_pattern(self, observation: Observation, scan_key: str, canvas: FigureCanvas) -> None:
+        """Plot beam patterns for telescopes or baselines on the provided canvas using calculated data."""
+        check_type(observation, Observation, "Observation")
+        check_type(scan_key, str, "Scan key")
+        if not hasattr(observation, '_calculated_data') or scan_key not in observation._calculated_data:
+            logger.error(f"No calculated data available for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+        beam_patterns = observation._calculated_data[scan_key].get("beam_pattern", {})
+        if not beam_patterns:
+            logger.warning(f"No beam pattern data for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+
         fig = canvas.figure
         fig.clf()
         ax = fig.add_subplot(111)
@@ -73,10 +103,20 @@ class Vizualizator(ABC):
         ax.legend()
         ax.grid(True)
         canvas.draw()
+        logger.debug(f"Plotted beam pattern for {scan_key}")
 
-    def plot_field_of_view(self, observation: Observation, scan_key: str, fov_data: Dict[str, Dict[str, Dict]], 
-                          canvas: FigureCanvas) -> None:
-        """Plot field of view with sources and Sun position for a specific scan on the provided canvas."""
+    def plot_field_of_view(self, observation: Observation, scan_key: str, canvas: FigureCanvas) -> None:
+        """Plot field of view with sources and Sun position for a specific scan on the provided canvas using calculated data."""
+        check_type(observation, Observation, "Observation")
+        check_type(scan_key, str, "Scan key")
+        if not hasattr(observation, '_calculated_data') or scan_key not in observation._calculated_data:
+            logger.error(f"No calculated data available for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+        fov_data = observation._calculated_data[scan_key].get("field_of_view", {})
+        if not fov_data:
+            logger.warning(f"No field of view data for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+
         fig = canvas.figure
         fig.clf()
         ax = fig.add_subplot(111)
@@ -118,9 +158,20 @@ class Vizualizator(ABC):
         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
         ax.grid(True)
         canvas.draw()
+        logger.debug(f"Plotted field of view for {scan_key}")
 
-    def plot_sensitivity(self, sensitivity_data: Dict[str, float], ylabel: str, title: str, canvas: FigureCanvas) -> None:
-        """Plot sensitivity data for telescopes or baselines on the provided canvas."""
+    def plot_sensitivity(self, observation: Observation, scan_key: str, ylabel: str, title: str, canvas: FigureCanvas) -> None:
+        """Plot sensitivity data for telescopes or baselines on the provided canvas using calculated data."""
+        check_type(observation, Observation, "Observation")
+        check_type(scan_key, str, "Scan key")
+        if not hasattr(observation, '_calculated_data') or scan_key not in observation._calculated_data:
+            logger.error(f"No calculated data available for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+        sensitivity_data = observation._calculated_data[scan_key].get("telescope_sensitivity", {})
+        if not sensitivity_data:
+            logger.warning(f"No sensitivity data for {scan_key} in observation '{observation.get_observation_code()}'")
+            return
+
         fig = canvas.figure
         fig.clf()
         ax = fig.add_subplot(111)
@@ -132,6 +183,7 @@ class Vizualizator(ABC):
         ax.set_title(title)
         ax.tick_params(axis='x', rotation=45)
         canvas.draw()
+        logger.debug(f"Plotted sensitivity for {scan_key}")
 
 
 class DefaultVizualizator(Vizualizator):
@@ -143,16 +195,19 @@ class DefaultVizualizator(Vizualizator):
             logger.error("No calculated data available for visualization")
             return
 
-        all_plots = ["uv_coverage", "mollweide_tracks", "beam_pattern", "field_of_view"]
+        all_plots = ["uv_coverage", "mollweide_tracks", "beam_pattern", "field_of_view", "sensitivity"]
         plots_to_show = plot_types if plot_types else all_plots
+        canvas = FigureCanvas(plt.figure(figsize=(10, 6)))
 
         for scan_key, scan_data in observation._calculated_data.items():
             logger.info(f"Visualizing data for {scan_key}")
             if "uv_coverage" in plots_to_show and "uv_coverage" in scan_data and scan_data["uv_coverage"]:
-                self.plot_uv_coverage(scan_data["uv_coverage"])
+                self.plot_uv_coverage(observation, scan_key, canvas)
             if "mollweide_tracks" in plots_to_show and "mollweide_tracks" in scan_data and scan_data["mollweide_tracks"]:
-                self.plot_mollweide_tracks(scan_data["mollweide_tracks"])
+                self.plot_mollweide_tracks(observation, scan_key, canvas)
             if "beam_pattern" in plots_to_show and "beam_pattern" in scan_data and scan_data["beam_pattern"]:
-                self.plot_beam_pattern(scan_data["beam_pattern"])
+                self.plot_beam_pattern(observation, scan_key, canvas)
             if "field_of_view" in plots_to_show and "field_of_view" in scan_data and scan_data["field_of_view"]:
-                self.plot_field_of_view(observation, scan_key, scan_data["field_of_view"])
+                self.plot_field_of_view(observation, scan_key, canvas)
+            if "sensitivity" in plots_to_show and "telescope_sensitivity" in scan_data and scan_data["telescope_sensitivity"]:
+                self.plot_sensitivity(observation, scan_key, "SEFD (Jy)", "Telescope Sensitivity", canvas)

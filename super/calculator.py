@@ -40,6 +40,8 @@ class Calculator(ABC):
             tel_code = tel.get_code()
             if isinstance(tel, SpaceTelescope):
                 pos, _ = tel.get_state_vector(dt.datetime)
+                # Преобразуем в np.ndarray, если это список
+                pos = np.array(pos) if not isinstance(pos, np.ndarray) else pos
                 logger.debug(f"Position for SpaceTelescope '{tel_code}': {pos}")
             else:
                 itrf_coords = np.array(tel.get_coordinates())
@@ -105,19 +107,26 @@ class Calculator(ABC):
         """Calculate baseline projections relative to Earth's center."""
         if observation.get_observation_type() != "VLBI":
             return {}
-        positions = self.calculate_telescope_positions(observation, scan.get_start())
+        scan_key = f"scan_{scan.get_start()}"
+        calculated_data = observation._calculated_data.get(scan_key, {})
+        positions = calculated_data.get("telescope_positions")
+        if positions is None:
+            positions = self.calculate_telescope_positions(observation, scan.get_start())
+            logger.debug(f"Recalculated telescope positions for scan with start={scan.get_start()}")
         baselines = {}
         tels = list(positions.keys())
         for i in range(len(tels)):
             for j in range(i + 1, len(tels)):
-                tel_pair = f"{tels[i]}-{tels[j]}"  # Преобразуем кортеж в строку
-                baseline = positions[tels[i]] - positions[tels[j]]
+                tel_pair = f"{tels[i]}-{tels[j]}"
+                pos_i = np.array(positions[tels[i]]) if not isinstance(positions[tels[i]], np.ndarray) else positions[tels[i]]
+                pos_j = np.array(positions[tels[j]]) if not isinstance(positions[tels[j]], np.ndarray) else positions[tels[j]]
+                baseline = pos_i - pos_j
                 baselines[tel_pair] = baseline
         logger.debug(f"Calculated baseline projections for scan with start={scan.get_start()}: {baselines}")
         return baselines
 
     def calculate_uv_coverage(self, observation: Observation, scan: 'Scan') -> Dict[str, List[Tuple[float, float]]]:
-        """Calculate u,v coverage for VLBI."""
+        """Calculate u,v coverage for VLBI"""
         if observation.get_observation_type() != "VLBI":
             return {}
         
@@ -135,11 +144,22 @@ class Calculator(ABC):
         time_steps = np.linspace(scan.get_start(), scan.get_start() + scan.get_duration(), num=100)
         source_coord = SkyCoord(ra=source.get_ra_degrees()*u.deg, dec=source.get_dec_degrees()*u.deg, frame='icrs')
         uv_coverage = {}
-        visibility = self.calculate_source_visibility(observation, scan)
-        baselines = self.calculate_baseline_projections(observation, scan)
+        
+        scan_key = f"scan_{scan.get_start()}"
+        calculated_data = observation.get_calculated_data().get(scan_key, {})
+        
+        visibility = calculated_data.get("source_visibility")
+        if visibility is None:
+            visibility = self.calculate_source_visibility(observation, scan)
+            logger.debug(f"Recalculated source visibility for scan with start={scan.get_start()}")
+        
+        baselines = calculated_data.get("baseline_projections")
+        if baselines is None:
+            baselines = self.calculate_baseline_projections(observation, scan)
+            logger.debug(f"Recalculated baseline projections for scan with start={scan.get_start()}")
         
         for tel_pair, baseline in baselines.items():
-            tel1, tel2 = tel_pair.split("-")  # Разделяем строку обратно на имена телескопов
+            tel1, tel2 = tel_pair.split("-")
             if not (visibility.get(tel1, False) and visibility.get(tel2, False)):
                 continue
             uv_points = []
@@ -159,7 +179,7 @@ class Calculator(ABC):
         return uv_coverage
 
     def calculate_telescope_sensitivity(self, observation: Observation, freq: IF) -> Dict[str, float]:
-        """Calculate SEFD for each telescope at the given frequency."""
+        """Calculate SEFD for each telescope at the given frequency"""
         check_type(observation, Observation, "Observation")
         check_type(freq, IF, "Frequency")
         sensitivities = {}
@@ -181,9 +201,14 @@ class Calculator(ABC):
         check_type(observation, Observation, "Observation")
         check_type(scan, Scan, "Scan")
         check_type(freq, IF, "Frequency")
+        scan_key = f"scan_{scan.get_start()}"
+        calculated_data = observation.get_calculated_data().get(scan_key, {})
+        tel_sefd = calculated_data.get(f"telescope_sensitivity_{freq.get_frequency()}")
+        if tel_sefd is None:
+            tel_sefd = self.calculate_telescope_sensitivity(observation, freq)
+            logger.debug(f"Recalculated telescope sensitivity for frequency {freq.get_frequency()} MHz")
         sensitivities = {}
         tels = observation.get_telescopes().get_active_telescopes()
-        tel_sefd = self.calculate_telescope_sensitivity(observation, freq)
         bandwidth = freq.get_bandwidth() * 1e6  # MHz -> Hz
         duration = scan.get_duration()
         for i in range(len(tels)):
@@ -256,7 +281,13 @@ class Calculator(ABC):
             return {}
         source = sources[source_index]
         
-        tracks = self.calculate_mollweide_tracks(observation, scan)
+        scan_key = f"scan_{scan.get_start()}"
+        calculated_data = observation.get_calculated_data().get(scan_key, {})
+        tracks = calculated_data.get("mollweide_tracks")
+        if tracks is None:
+            tracks = self.calculate_mollweide_tracks(observation, scan)
+            logger.debug(f"Recalculated Mollweide tracks for scan with start={scan.get_start()}")
+        
         source_coord = SkyCoord(ra=source.get_ra_degrees()*u.deg, dec=source.get_dec_degrees()*u.deg, frame='icrs')
         ra_rad = source_coord.ra.rad
         dec_rad = source_coord.dec.rad
@@ -274,7 +305,7 @@ class Calculator(ABC):
             return {}
         time = Time(scan.get_start(), format='unix')
         fov_data = {}
-        sun_coord = get_sun(time)  # Замена SkyCoord.from_name("Sun") на get_sun
+        sun_coord = get_sun(time)
         
         all_tels = observation.get_telescopes().get_all_telescopes()
         active_tel_indices = scan.get_telescope_indices()
@@ -293,7 +324,7 @@ class Calculator(ABC):
             diameter = tel.get_diameter() * u.m
             tel_fov = {}
             for freq in observation.get_frequencies().get_active_frequencies():
-                freq_hz = freq.get_frequency() * 1e6  # Используем get_frequency()
+                freq_hz = freq.get_frequency() * 1e6
                 wavelength = (3e8 / freq_hz) * u.m
                 fov_radius = (1.22 * wavelength / diameter).to(u.deg).value
                 sources_in_fov = []
@@ -302,7 +333,7 @@ class Calculator(ABC):
                     altaz_src = src_coord.transform_to(altaz_frame)
                     if altaz_src.separation(altaz_frame).deg < fov_radius:
                         sources_in_fov.append(src.get_name())
-                sun_altaz = sun_coord.transform_to(altaz_frame)  # Преобразуем координаты Солнца в AltAz
+                sun_altaz = sun_coord.transform_to(altaz_frame)
                 tel_fov[f"freq_{freq.get_frequency()}"] = {
                     "sources": sources_in_fov,
                     "sun_alt": sun_altaz.alt.deg,
@@ -328,7 +359,7 @@ class Calculator(ABC):
         
         time = Time(scan.get_start(), format='unix')
         source_coord = SkyCoord(ra=source.get_ra_degrees()*u.deg, dec=source.get_dec_degrees()*u.deg, frame='icrs')
-        sun_coord = get_sun(time)  # Получаем координаты Солнца напрямую
+        sun_coord = get_sun(time)
         angles = {}
         
         all_tels = observation.get_telescopes().get_all_telescopes()
@@ -368,7 +399,12 @@ class Calculator(ABC):
                 pattern = np.exp(-4 * np.log(2) * (theta / fwhm)**2)
                 beam_patterns[tel.get_code()] = pattern
             elif observation.get_observation_type() == "VLBI":
-                uv_coverage = self.calculate_uv_coverage(observation, scan)
+                scan_key = f"scan_{scan.get_start()}"
+                calculated_data = observation.get_calculated_data().get(scan_key, {})
+                uv_coverage = calculated_data.get("uv_coverage")
+                if uv_coverage is None:
+                    uv_coverage = self.calculate_uv_coverage(observation, scan)
+                    logger.debug(f"Recalculated UV coverage for scan with start={scan.get_start()}")
                 if not uv_coverage:
                     beam_patterns[tel.get_code()] = np.ones(100)
                     continue
@@ -419,5 +455,5 @@ class DefaultCalculator(Calculator):
             scan_data["sun_angles"] = self.calculate_sun_angles(observation, scan)
             scan_data["beam_pattern"] = self.calculate_beam_pattern(observation, scan)
             calculated_data[f"scan_{scan.get_start()}"] = scan_data
-        observation._calculated_data = calculated_data
+        observation.set_calculated_data(calculated_data)
         logger.info(f"Calculated all parameters for observation '{observation.get_observation_code()}'")
