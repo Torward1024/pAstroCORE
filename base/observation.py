@@ -219,7 +219,7 @@ class Observation(BaseEntity):
     def remove_frequency(self, index: int) -> None:
         """Remove a frequency and update scan indices."""
         check_type(index, int, "Index")
-        self._frequencies.remove_frequency(index)
+        self._frequencies.remove_IF(index)
         self._update_scan_indices("frequencies", removed_index=index)
         logger.info(f"Removed frequency at index {index} and updated scan indices")
 

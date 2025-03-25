@@ -60,7 +60,7 @@ class Configurator(ABC):
         """Add a frequency object to the observation."""
         check_type(observation, Observation, "Observation")
         check_type(if_obj, IF, "IF")
-        observation.get_frequencies().add_frequency(if_obj)
+        observation.get_frequencies().add_IF(if_obj)
     
     def insert_frequency(self, observation: Observation, if_obj: IF, index: int) -> None:
         """Insert a frequency into the observation at the specified index."""

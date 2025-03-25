@@ -206,7 +206,7 @@ class PvCoreWindow(QMainWindow):
         row = self.frequencies_table.currentRow()
         obs = self.get_observation_by_code(selected)
         if obs:
-            new_freq = 1000.0 + len(obs.get_frequencies().get_all_frequencies()) * 10
+            new_freq = 1000.0 + len(obs.get_frequencies().get_all_IF()) * 10 # ----> !!!!!! при добавлении частоты нужно учитывать пересечения
             default_pol = ["LL"] if obs.get_observation_type() == "VLBI" else ["RCP"]
             if_obj = IF(freq=new_freq, bandwidth=16.0, polarization=default_pol)
             if row == -1:
@@ -240,7 +240,7 @@ class PvCoreWindow(QMainWindow):
             return
         row = item.row()
         col = item.column()
-        frequencies = obs.get_frequencies().get_all_frequencies()
+        frequencies = obs.get_frequencies().get_all_IF()
         if row >= len(frequencies):
             return
         freq_obj = frequencies[row]
@@ -295,7 +295,7 @@ class PvCoreWindow(QMainWindow):
                 obs.get_observation_type(),
                 f"{len(obs.get_sources().get_active_sources())} ({len(obs.get_sources().get_all_sources())})",
                 f"{len(obs.get_telescopes().get_active_telescopes())} ({len(obs.get_telescopes().get_all_telescopes())})",
-                f"{len(obs.get_frequencies().get_active_frequencies())} ({len(obs.get_frequencies().get_all_frequencies())})",
+                f"{len(obs.get_frequencies().get_active_frequencies())} ({len(obs.get_frequencies().get_all_IF())})",
                 f"{len(obs.get_scans().get_active_scans(obs))} ({len(obs.get_scans().get_all_scans())})"
             ]):
                 item = QTableWidgetItem(value)
@@ -841,7 +841,7 @@ class PvCoreWindow(QMainWindow):
             scans_item = QTableWidgetItem(f"{len(obs.get_scans().get_active_scans(obs))} ({len(obs.get_scans().get_all_scans())})")  # Передаем obs
             scans_item.setFlags(scans_item.flags() & ~Qt.ItemIsEditable)
             self.obs_table.setItem(i, 4, scans_item)
-            freqs_item = QTableWidgetItem(f"{len(obs.get_frequencies().get_active_frequencies())} ({len(obs.get_frequencies().get_all_frequencies())})")
+            freqs_item = QTableWidgetItem(f"{len(obs.get_frequencies().get_active_frequencies())} ({len(obs.get_frequencies().get_all_IF())})")
             freqs_item.setFlags(freqs_item.flags() & ~Qt.ItemIsEditable)
             self.obs_table.setItem(i, 5, freqs_item)
         
@@ -940,7 +940,7 @@ class PvCoreWindow(QMainWindow):
             # Устанавливаем дефолтные поляризации, если текущие не подходят
             default_pols = ["LL", "RR", "LR", "RL"] if obs_type == "VLBI" else ["RCP", "LCP"]
             valid_pols = {"VLBI": ["LL", "RR", "LR", "RL"], "SINGLE_DISH": ["RCP", "LCP", "H", "V"]}
-            for freq in obs.get_frequencies().get_all_frequencies():
+            for freq in obs.get_frequencies().get_all_IF():
                 current_pols = freq.get_polarization()
                 # Если текущие поляризации пустые или не подходят для нового типа, устанавливаем дефолтные
                 if not current_pols or not all(p in valid_pols[obs_type] for p in current_pols):
@@ -1080,7 +1080,7 @@ class PvCoreWindow(QMainWindow):
         self.frequencies_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.frequencies_table.setSelectionMode(QTableWidget.MultiSelection)
 
-        for freq in obs.get_frequencies().get_all_frequencies():
+        for freq in obs.get_frequencies().get_all_IF():
             row = self.frequencies_table.rowCount()
             self.frequencies_table.insertRow(row)
             freq_item = QTableWidgetItem(str(freq.get_frequency()))
@@ -1107,7 +1107,7 @@ class PvCoreWindow(QMainWindow):
         self.scans_table.setRowCount(0)
         all_sources = obs.get_sources().get_all_sources()
         all_tels = obs.get_telescopes().get_all_telescopes()
-        all_freqs = obs.get_frequencies().get_all_frequencies()
+        all_freqs = obs.get_frequencies().get_all_IF()
         for scan in obs.get_scans().get_all_scans():  # Здесь не нужно менять, так как берем все сканы
             row = self.scans_table.rowCount()
             self.scans_table.insertRow(row)
@@ -1171,7 +1171,7 @@ class PvCoreWindow(QMainWindow):
             if selected != "Select Observation...":
                 obs = self.get_observation_by_code(selected)
                 if obs:
-                    index = obs.get_frequencies().get_all_frequencies().index(freq)
+                    index = obs.get_frequencies().get_all_IF().index(freq)
                     obs._sync_scans_with_activation("frequencies", index, new_state)
                     self.update_config_tables(obs)
                     self.update_obs_table()
@@ -1182,7 +1182,7 @@ class PvCoreWindow(QMainWindow):
             self.status_bar.showMessage("Please select an observation first")
             return
         obs = self.get_observation_by_code(selected)
-        if not obs or freq_obj not in obs.get_frequencies().get_all_frequencies():
+        if not obs or freq_obj not in obs.get_frequencies().get_all_IF():
             return
         dialog = PolarizationSelectorDialog(freq_obj.get_polarization(), obs.get_observation_type(), self)
         if dialog.exec():
@@ -1567,8 +1567,8 @@ class PvCoreWindow(QMainWindow):
         default_pol = ["LL"] if obs.get_observation_type() == "VLBI" else ["RCP"]
         
         # Получаем существующие частоты и сортируем их
-        existing_freqs = obs.get_frequencies().get_all_frequencies()
-        ranges = [(f.get_frequency() - f.get_bandwidth() / 2, f.get_frequency() + f.get_bandwidth() / 2) 
+        existing_freqs = obs.get_frequencies().get_all_IF()
+        ranges = [(f.get_frequency(), f.get_frequency() + f.get_bandwidth()) 
                 for f in existing_freqs]
         ranges.sort()  # Сортируем по нижней границе диапазона
         
