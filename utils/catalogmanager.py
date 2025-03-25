@@ -99,33 +99,31 @@ class CatalogManager:
             raise ValueError(f"Error parsing source catalog: {e}")
 
     def get_source(self, name: str) -> Optional[Source]:
-        """Получить источник по имени (B1950 или J2000)."""
+        """Get source from catalog by name (B1950 или J2000)"""
         return next((s for s in self.source_catalog.get_all_sources() 
                      if s.name == name or (s.name_J2000 and s.name_J2000 == name)), None)
 
     def get_sources_by_ra_range(self, ra_min: float, ra_max: float) -> List[Source]:
-        """Получить список источников в заданном диапазоне прямого восхождения (RA) в градусах."""
+        """Get list of sources in the range of (RA) (degrees)"""
         return [s for s in self.source_catalog.get_all_sources() 
                 if ra_min <= s.get_ra_degrees() <= ra_max]
 
     def get_sources_by_dec_range(self, dec_min: float, dec_max: float) -> List[Source]:
-        """Получить список источников в заданном диапазоне склонения (DEC) в градусах."""
+        """Get list of sources in the range of (DEC) (degrees)"""
         return [s for s in self.source_catalog.get_all_sources() 
                 if dec_min <= s.get_dec_degrees() <= dec_max]
 
-    # --- Методы для работы с каталогом телескопов ---
-
     def load_telescope_catalog(self, telescope_file: str) -> None:
-        """Загрузка каталога телескопов из текстового файла.
+        """Load telescope catalog from text file
         
-        Формат: number short_name full_name x y z
+        Format: number short_name full_name x y z diameter
         
         Args:
-            telescope_file (str): Путь к файлу каталога телескопов.
+            telescope_file (str): path to telescopes catalog file
         
         Raises:
-            FileNotFoundError: Если файл не найден.
-            ValueError: Если данные в файле некорректны.
+            FileNotFoundError: file not found
+            ValueError: incorrect data in the catalog
         """
         telescopes = []
         failed_count = 0
@@ -171,11 +169,11 @@ class CatalogManager:
             raise ValueError(f"Error parsing telescope catalog: {e}")
 
     def get_telescope(self, code: str) -> Optional[Telescope]:
-        """Получить телескоп по коду."""
+        """Get telescope by code"""
         return next((t for t in self.telescope_catalog.get_all_telescopes() if t.code == code), None)
 
     def get_telescopes_by_type(self, telescope_type: str = "Telescope") -> List[Telescope]:
-        """Получить список телескопов заданного типа."""
+        """Get telescopes by type"""
         return [t for t in self.telescope_catalog.get_all_telescopes() 
                 if (telescope_type == "Telescope" and isinstance(t, Telescope))]
 

@@ -73,6 +73,8 @@ class Scan(BaseEntity):
         self._source_index = source_index
         self._telescope_indices = telescope_indices if telescope_indices is not None else []
         self._frequency_indices = frequency_indices if frequency_indices is not None else []
+        self._original_telescope_indices = self._telescope_indices.copy()
+        self._original_frequency_indices = self._frequency_indices.copy()
         self.is_off_source = source_index is None or is_off_source
         source_str = "OFF SOURCE" if self.is_off_source else f"source_index={source_index}" if source_index is not None else "no source"
         logger.info(f"Initialized Scan with start={start}, duration={duration}, {source_str}")
@@ -319,11 +321,11 @@ class Scan(BaseEntity):
     Notes: 
     Contains:
     Atributes:
-        isactive (bool): whether the frequency is active (default: True)
+        isactive (bool): whether the scan is active (default: True)
 
     Methods:
         add_scan
-        *insert_scan
+        insert_scan
         remove_scan
         set_scan
 
@@ -332,14 +334,14 @@ class Scan(BaseEntity):
         get_active_scans
         get_inactive_scans
 
-        *activate_scan
-        *deactivate_scan
+        activate_scan
+        deactivate_scan
 
         activate_all
         deactivate_all
 
-        *drop_active
-        *drop_inactive
+        drop_active
+        drop_inactive
         clear
         to_dict
         from_dict
