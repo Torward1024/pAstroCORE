@@ -217,7 +217,7 @@ class Telescope(BaseEntity):
         logger.debug(f"Retrieved coordinate Y={self._y} m for telescope '{self._code}'")
         return self._y
     
-    def get_z(self) -> tuple[float, float, float]:
+    def get_z(self) -> float:
         """Get telescope coordinate z in meters (ITRF)"""
         logger.debug(f"Retrieved coordinate Z={self._z} m for telescope '{self._code}'")
         return self._z
@@ -232,7 +232,7 @@ class Telescope(BaseEntity):
         logger.debug(f"Retrieved velocity Vy={self._y} m for telescope '{self._code}'")
         return self._vy
     
-    def get_vz(self) -> tuple[float, float, float]:
+    def get_vz(self) -> float:
         """Get telescope velocity vz in meters (ITRF)"""
         logger.debug(f"Retrieved velocit Vz={self._z} m for telescope '{self._code}'")
         return self._vz
@@ -773,7 +773,7 @@ class SpaceTelescope(Telescope):
             raise ValueError("No orbit data or Kepler elements available! Define orbit file or Kepler elements first.")
         t = (dt - datetime(2000, 1, 1, 12, 0, 0)).total_seconds()
         if self._kepler_elements:
-            return self.get_position_velocity_from_kepler(dt)
+            return self.get_state_vector_from_kepler(dt)
         times = self._orbit_data["times"]
         if t < times[0] or t > times[-1]:
             logger.debug(f"Time {t} outside orbit data range for '{self._code}'")
