@@ -181,6 +181,7 @@ class IF(BaseEntity):
 
     Methods:
         add_IF
+        insert_IF
         remove_IF
         set_IF
 
@@ -234,6 +235,28 @@ class Frequencies(BaseEntity):
         self._check_overlap(if_obj)
         self._data.append(if_obj)
         logger.info(f"Added IF with frequency={if_obj.get_frequency()} MHz, bandwidth={if_obj.get_bandwidth()} MHz to Frequencies")
+    
+    def insert_IF(self, index: int, if_obj: 'IF') -> None:
+        """Insert a new IF object at the specified index
+
+        Args:
+            index (int): The index at which to insert the IF (0 to len(frequencies))
+            if_obj (IF): The IF object to insert
+
+        Raises:
+            IndexError: If the index is out of range
+            ValueError: If the IF frequency range overlaps with an existing range
+        """
+        check_type(index, int, "Index")
+        check_type(if_obj, IF, "IF")
+        
+        if not (0 <= index <= len(self._data)):
+            logger.error(f"Index {index} is out of range for Frequencies with {len(self._data)} elements")
+            raise IndexError(f"Index {index} is out of range!")
+        
+        self._check_overlap(if_obj)
+        self._data.insert(index, if_obj)
+        logger.info(f"Inserted IF with frequency={if_obj.get_frequency()} MHz, bandwidth={if_obj.get_bandwidth()} MHz at index {index} in Frequencies")
 
     def remove_IF(self, index: int) -> None:
         """Remove IF by index"""
