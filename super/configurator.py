@@ -582,7 +582,11 @@ class Configurator(ABC):
         return "Configurator()"
 
 class DefaultConfigurator(Configurator):
-    """Default implementation of Configurator."""
+    """Default implementation of Configurator for configuring Project and its components.
+
+    Inherits all configuration methods from Configurator and provides a ready-to-use instance
+    for managing observations, telescopes, sources, frequencies, and scans.
+    """
     def __init__(self):
         super().__init__()
         logger.info("Initialized DefaultConfigurator")
