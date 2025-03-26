@@ -22,22 +22,22 @@ class Configurator(ABC):
         _get_config_methods: Cached method to retrieve configuration method mappings.
     """
     def __init__(self):
-        """Initialize the Configurator."""
+        """Initialize the Configurator"""
         logger.info("Initialized Configurator")
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any, valid_methods: Dict[str, Callable], 
                                   extra_args: Dict[str, Any] = None) -> bool:
-        """Validate and apply a method to an object.
+        """Validate and apply a method to an object
 
         Args:
-            obj: The object to apply the method to.
-            method_name: Name of the method to call.
-            method_args: Arguments for the method.
-            valid_methods: Dictionary of valid methods for the object's type.
-            extra_args: Optional additional arguments to pass to the method (e.g., observation for Scan).
+            obj: The object to apply the method to
+            method_name: Name of the method to call
+            method_args: Arguments for the method
+            valid_methods: Dictionary of valid methods for the object's type
+            extra_args: Optional additional arguments to pass to the method (e.g., observation for Scan)
 
         Returns:
-            bool: True if the method was applied successfully, False otherwise.
+            bool: True if the method was applied successfully, False otherwise
         """
         if method_name not in valid_methods:
             logger.error(f"Invalid method {method_name} for {type(obj).__name__} object")
@@ -65,7 +65,7 @@ class Configurator(ABC):
             return False
 
     def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> bool:
-        """Configure an IF object."""
+        """Configure an IF object"""
         try:
             valid_methods = self._get_config_methods()[IF]["methods"]
             applied = False
@@ -85,7 +85,7 @@ class Configurator(ABC):
             return False
 
     def _configure_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> bool:
-        """Configure a Frequencies object."""
+        """Configure a Frequencies object"""
         try:
             valid_methods = self._get_config_methods()[Frequencies]["methods"]
             applied = False
@@ -114,7 +114,7 @@ class Configurator(ABC):
             return False
 
     def _configure_source(self, source_obj: Source, attributes: Dict[str, Any]) -> bool:
-        """Configure a Source object."""
+        """Configure a Source object"""
         try:
             valid_methods = self._get_config_methods()[Source]["methods"]
             applied = False
@@ -163,7 +163,7 @@ class Configurator(ABC):
             return False
 
     def _configure_telescope(self, tel_obj: Telescope | SpaceTelescope, attributes: Dict[str, Any]) -> bool:
-        """Configure a Telescope or SpaceTelescope object."""
+        """Configure a Telescope or SpaceTelescope object"""
         try:
             obj_type = type(tel_obj)
             valid_methods = self._get_config_methods()[obj_type]["methods"]
@@ -184,7 +184,7 @@ class Configurator(ABC):
             return False
 
     def _configure_telescopes(self, tel_obj: Telescopes, attributes: Dict[str, Any]) -> bool:
-        """Configure a Telescopes object."""
+        """Configure a Telescopes object"""
         try:
             valid_methods = self._get_config_methods()[Telescopes]["methods"]
             applied = False
@@ -213,7 +213,7 @@ class Configurator(ABC):
             return False
 
     def _configure_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> bool:
-        """Configure a Scan object, validating with observation if provided."""
+        """Configure a Scan object, validating with observation if provided"""
         try:
             valid_methods = self._get_config_methods()[Scan]["methods"]
             applied = False
@@ -241,7 +241,7 @@ class Configurator(ABC):
             return False
 
     def _configure_scans(self, scans_obj: Scans, attributes: Dict[str, Any]) -> bool:
-        """Configure a Scans object, checking overlaps for nested Scan changes."""
+        """Configure a Scans object, checking overlaps for nested Scan changes"""
         try:
             valid_methods = self._get_config_methods()[Scans]["methods"]
             applied = False
@@ -276,7 +276,7 @@ class Configurator(ABC):
             return False
 
     def _configure_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> bool:
-        """Configure an Observation object, validating its state afterward."""
+        """Configure an Observation object, validating its state afterward"""
         try:
             valid_methods = self._get_config_methods()[Observation]["methods"]
             applied = False
@@ -300,7 +300,7 @@ class Configurator(ABC):
             return False
 
     def _configure_project(self, project_obj: Project, attributes: Dict[str, Any]) -> bool:
-        """Configure a Project object, including nested Observation configuration by index."""
+        """Configure a Project object, including nested Observation configuration by index"""
         try:
             valid_methods = self._get_config_methods()[Project]["methods"]
             applied = False
@@ -330,7 +330,7 @@ class Configurator(ABC):
 
     @lru_cache(maxsize=1)
     def _get_config_methods(self) -> Dict[type, Dict[str, Any]]:
-        """Retrieve and cache the mapping of object types to configuration functions and valid methods."""
+        """Retrieve and cache the mapping of object types to configuration functions and valid methods"""
         return {
             IF: {
                 "config_func": self._configure_if,
@@ -540,11 +540,11 @@ class Configurator(ABC):
         }
 
     def configure(self, obj: Any, attributes: Dict[str, Any]) -> bool:
-        """Universal method to configure an object using method calls in a single attributes dictionary.
+        """Universal method to configure an object using method calls in a single attributes dictionary
 
         Args:
-            obj: The object to configure (e.g., IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Scan, Observation, etc.).
-            attributes: Dictionary where keys are method names and values are their arguments.
+            obj: The object to configure (e.g., IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Scan, Observation, etc.)
+            attributes: Dictionary where keys are method names and values are their arguments
                        Example: {"set_frequency": {"freq": 1420.0}}
                        For nested config: {"if_index": 0, "set_frequency": {"freq": 1420.0}}
                        For Source: {"set_source": {"name": "3C 286", "ra_h": 13, "ra_m": 31, ...}}
@@ -555,10 +555,10 @@ class Configurator(ABC):
                        For Scans: {"scan_index": 0, "set_duration": {"duration": 600.0}}
 
         Returns:
-            bool: True if configuration succeeds, False otherwise.
+            bool: True if configuration succeeds, False otherwise
 
         Raises:
-            ValueError: If the object type is not supported.
+            ValueError: If the object type is not supported
         """
         if obj is None:
             logger.error("Configuration object cannot be None")
@@ -578,14 +578,14 @@ class Configurator(ABC):
             return False
 
     def __repr__(self) -> str:
-        """String representation of Configurator."""
+        """String representation of Configurator"""
         return "Configurator()"
 
 class DefaultConfigurator(Configurator):
-    """Default implementation of Configurator for configuring Project and its components.
+    """Default implementation of Configurator for configuring Project and its components
 
     Inherits all configuration methods from Configurator and provides a ready-to-use instance
-    for managing observations, telescopes, sources, frequencies, and scans.
+    for managing observations, telescopes, sources, frequencies, and scans
     """
     def __init__(self):
         super().__init__()
