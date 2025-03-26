@@ -35,6 +35,8 @@ import numpy as np
         set_telescopes
         set_scans
         set_calculated_data
+        set_calculated_data_by_key
+
 
         get_observation_type
         get_observation_code
@@ -43,6 +45,7 @@ import numpy as np
         get_telescopes
         get_scans
         get_calculated_data
+        set_calculated_data_by_key
 
         get_start_datetime
 
@@ -166,8 +169,13 @@ class Observation(BaseEntity):
         self._calculated_data.clear()  # Очищаем результаты, так как данные изменились
         logger.info(f"Set scans for observation '{self._observation_code}'")
 
-    def set_calculated_data(self, key: str, data: Any) -> None:
+    def set_calculated_data(self, data: Any) -> None:
         """Save calculated data for this observation"""
+        self._calculated_data = data.copy()
+        logger.info(f"Stored calculated data for observation '{self._observation_code}'")
+
+    def set_calculated_data_by_key(self, key: str, data: Any) -> None:
+        """Save concrete calculated data for this observation"""
         check_non_empty_string(key, "Key")
         self._calculated_data[key] = data
         logger.info(f"Stored calculated data '{key}' for observation '{self._observation_code}'")
@@ -197,8 +205,14 @@ class Observation(BaseEntity):
         return self._scans
     
     def get_calculated_data(self) -> Any:
-        """Retrieve calculated data by key"""
+        """Retrieve calculated data"""
         return self._calculated_data
+    
+    def get_calculated_data_by_key(self, key: str) -> Any:
+        """Get concrete calculated data by key for this observation"""
+        check_non_empty_string(key, "Key")
+        logger.info(f"Retrieved calculated data '{key}' for observation '{self._observation_code}'")
+        return self._calculated_data[key]
 
     def get_start_datetime(self) -> Optional[datetime]:
         """Get observation start time as a datetime object (UTC), based on earliest scan"""

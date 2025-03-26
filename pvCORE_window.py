@@ -42,14 +42,8 @@ class PvCoreWindow(QMainWindow):
         
         try:
             self.manipulator = DefaultManipulator()
-            self.configurator = DefaultConfigurator()
-            self.calculator = DefaultCalculator()
-            self.vizualizator = DefaultVizualizator()
-            self.manipulator.set_configurator(self.configurator)
-            self.manipulator.set_calculator(self.calculator)
-            self.manipulator.set_vizualizator(self.vizualizator)
         except Exception as e:
-            logger.error(f"Failed to initialize superclasses: {e}")
+            logger.error(f"Failed to initialize Manipulator: {e}")
             self.status_bar.showMessage("Critical error: Failed to initialize application")
             raise
 
@@ -541,7 +535,6 @@ class PvCoreWindow(QMainWindow):
         if obs_code != "Select Observation...":
             obs = self.get_observation_by_code(obs_code)
             if obs:
-                self.calculator.calculate_all(obs)  # Автоматический расчёт при выборе
                 self.refresh_plot()
     
     def update_scan_selector(self):
@@ -691,7 +684,7 @@ class PvCoreWindow(QMainWindow):
             return
         obs = self.get_observation_by_code(selected)
         if obs:
-            self.manipulator.configure_observation_code(obs, new_code)
+            self.manipulator.configure_observation_code(obs, new_code)  # Через Manipulator
             self.update_all_ui(new_code)
             self.status_bar.showMessage(f"Observation code set to '{new_code}'")
 
@@ -956,7 +949,6 @@ class PvCoreWindow(QMainWindow):
             selector.addItem(obs.get_observation_code())
     
     def run_calculations(self, obs_code: str) -> None:
-        """Запускает расчеты для выбранного наблюдения и обновляет таблицу результатов."""
         if obs_code == "Select Observation...":
             self.status_bar.showMessage("Please select an observation first")
             return
@@ -964,12 +956,8 @@ class PvCoreWindow(QMainWindow):
         if not obs:
             self.status_bar.showMessage("Observation not found")
             return
-        
-        # Выполняем расчеты
-        self.calculator.calculate_all(obs)
+        self.manipulator.calculate_observation(obs)  # Через Manipulator
         self.status_bar.showMessage(f"Calculations completed for '{obs_code}'")
-        
-        # Обновляем таблицу результатов
         self.update_calc_results_table(obs)
     
     def update_calc_results_table(self, obs: Observation) -> None:
@@ -1651,13 +1639,13 @@ class PvCoreWindow(QMainWindow):
         scan_data = obs.get_calculated_data().get(scan_key, {}) if scan_key else obs._calculated_data[next(iter(obs._calculated_data))]
 
         if plot_type == "uv_coverage" and "uv_coverage" in scan_data:
-            self.vizualizator.plot_uv_coverage(obs, "uv_coverage", self.canvas)
+            self.manipulator.vizualizator.plot_uv_coverage(obs, "uv_coverage", self.canvas)
         elif plot_type == "mollweide_tracks" and "mollweide_tracks" in scan_data:
-            self.vizualizator.plot_mollweide_tracks(obs, "mollweide_tracks", self.canvas)
+            self.manipulator.vizualizator.plot_mollweide_tracks(obs, "mollweide_tracks", self.canvas)
         elif plot_type == "beam_pattern" and "beam_pattern" in scan_data:
-            self.vizualizator.plot_beam_pattern(obs, "beam_pattern", self.canvas)
+            self.manipulator.vizualizator.plot_beam_pattern(obs, "beam_pattern", self.canvas)
         elif plot_type == "field_of_view" and "field_of_view" in scan_data:
-            self.vizualizator.plot_field_of_view(obs, scan_key or next(iter(obs._calculated_data)), scan_data["field_of_view"], self.canvas)
+            self.manipulator.vizualizator.plot_field_of_view(obs, scan_key or next(iter(obs._calculated_data)), scan_data["field_of_view"], self.canvas)
         elif plot_type == "telescope_sensitivity":
             for key, value in scan_data.items():
                 if key.startswith("telescope_sensitivity_"):
