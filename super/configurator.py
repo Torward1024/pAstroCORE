@@ -1,5 +1,5 @@
-# configurator.py
-from base.base_entity import BaseEntity
+# /super/configurator.py
+from abc import ABC
 from base.frequencies import IF, Frequencies
 from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
@@ -11,7 +11,7 @@ from typing import Dict, Any, Callable
 from functools import lru_cache
 import inspect
 
-class Configurator(BaseEntity):
+class Configurator(ABC):
     """Super-class for configuring Project and its components.
 
     Attributes:
@@ -23,7 +23,6 @@ class Configurator(BaseEntity):
     """
     def __init__(self):
         """Initialize the Configurator."""
-        super().__init__()
         logger.info("Initialized Configurator")
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any, valid_methods: Dict[str, Callable], 
@@ -581,3 +580,9 @@ class Configurator(BaseEntity):
     def __repr__(self) -> str:
         """String representation of Configurator."""
         return "Configurator()"
+
+class DefaultConfigurator(Configurator):
+    """Default implementation of Configurator."""
+    def __init__(self):
+        super().__init__()
+        logger.info("Initialized DefaultConfigurator")
