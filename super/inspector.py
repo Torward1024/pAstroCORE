@@ -61,6 +61,29 @@ class Inspector(ABC):
         except Exception as e:
             logger.error(f"Failed to apply {getter_name} to {type(obj).__name__}: {str(e)}")
             return None
+        
+    def _inspect_nested(self, obj: Any, attributes: Dict[str, Any], index_key: str, getter_method: Callable, nested_inspector: Callable) -> Dict[str, Any]:
+        """Inspect a nested object by index using a getter and a nested inspector function
+
+        Args:
+            obj: The parent object containing the nested object (e.g., Sources, Telescopes)
+            attributes: Dictionary with inspection attributes
+            index_key: Key for the index (e.g., 'source_index')
+            getter_method: Method to retrieve the nested object (e.g., Sources.get_source)
+            nested_inspector: Inspector function for the nested object (e.g., self._inspect_source)
+
+        Returns:
+            Dict[str, Any]: Inspection results for the nested object
+        """
+        index = attributes.get(index_key)
+        if index is not None:
+            if not isinstance(index, int) or not 0 <= index < len(obj):
+                logger.error(f"Invalid {index_key} {index} for {type(obj).__name__}")
+                return {}
+            nested_obj = getter_method(index)
+            nested_attrs = {k: v for k, v in attributes.items() if k != index_key}
+            return nested_inspector(nested_obj, nested_attrs)
+        return {}
 
     def _inspect_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect an IF object"""
@@ -284,42 +307,17 @@ class Inspector(ABC):
             valid_getters = self._get_inspection_methods()[Observation]["getters"]
             result = {}
 
+            # Nested inspection using _inspect_nested
             if "source_index" in attributes:
-                source_index = attributes["source_index"]
-                if not isinstance(source_index, int) or not 0 <= source_index < len(obs_obj.get_sources()):
-                    logger.error(f"Invalid source_index {source_index} for Sources with {len(obs_obj.get_sources())} sources")
-                    return {}
-                source_obj = obs_obj.get_sources().get_source(source_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "source_index"}
-                return self._inspect_source(source_obj, nested_attrs)
-
+                return self._inspect_nested(obs_obj.get_sources(), attributes, "source_index", Sources.get_source, self._inspect_source)
             if "telescope_index" in attributes:
-                telescope_index = attributes["telescope_index"]
-                if not isinstance(telescope_index, int) or not 0 <= telescope_index < len(obs_obj.get_telescopes()):
-                    logger.error(f"Invalid telescope_index {telescope_index} for Telescopes with {len(obs_obj.get_telescopes())} telescopes")
-                    return {}
-                telescope_obj = obs_obj.get_telescopes().get_telescope(telescope_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_index"}
-                return self._inspect_telescope(telescope_obj, nested_attrs)
-
+                return self._inspect_nested(obs_obj.get_telescopes(), attributes, "telescope_index", Telescopes.get_telescope, self._inspect_telescope)
             if "if_index" in attributes:
-                if_index = attributes["if_index"]
-                if not isinstance(if_index, int) or not 0 <= if_index < len(obs_obj.get_frequencies()):
-                    logger.error(f"Invalid if_index {if_index} for Frequencies with {len(obs_obj.get_frequencies())} IFs")
-                    return {}
-                if_obj = obs_obj.get_frequencies().get_IF(if_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "if_index"}
-                return self._inspect_if(if_obj, nested_attrs)
-
+                return self._inspect_nested(obs_obj.get_frequencies(), attributes, "if_index", Frequencies.get_IF, self._inspect_if)
             if "scan_index" in attributes:
-                scan_index = attributes["scan_index"]
-                if not isinstance(scan_index, int) or not 0 <= scan_index < len(obs_obj.get_scans()):
-                    logger.error(f"Invalid scan_index {scan_index} for Scans with {len(obs_obj.get_scans())} scans")
-                    return {}
-                scan_obj = obs_obj.get_scans().get_scan(scan_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "scan_index"}
-                return self._inspect_scan(scan_obj, nested_attrs)
+                return self._inspect_nested(obs_obj.get_scans(), attributes, "scan_index", Scans.get_scan, self._inspect_scan)
 
+            # Direct inspection of Observation
             for getter_name, getter_args in attributes.items():
                 value = self._validate_and_apply_getter(obs_obj, getter_name, getter_args, valid_getters)
                 if value is not None:
