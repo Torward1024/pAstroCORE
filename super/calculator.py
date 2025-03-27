@@ -12,39 +12,52 @@ from functools import lru_cache
 import numpy as np
 from astropy.time import Time
 from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, EarthLocation, HADec
+from astropy.coordinates import SphericalRepresentation, precess_from_J2000, nutation_components
+import astropy.coordinates as coord
 import astropy.units as u
 from concurrent.futures import ThreadPoolExecutor
 import threading
 from scipy.special import j1
 
-class Calculator(ABC):
-    """Super-class for performing calculations on Project and its components
 
-    Attributes:
-        _calculation_methods (dict): Cached dictionary mapping object types to calculation functions
-        _lock (threading.Lock): Thread-safe lock for calculated data updates
-    """
+class Calculator(ABC):
+    """Super-class for performing calculations on Project or Observation objects"""
     def __init__(self):
         """Initialize the Calculator"""
         self._lock = threading.Lock()
         logger.info("Initialized Calculator")
 
-    def _calculate_telescope_positions(self, observation: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate telescope positions in J2000 for all scans in the observation"""
+    def _calculate_telescope_positions(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate telescope positions in J2000 for all scans in the observation or project"""
         try:
-            time_step = attributes.get("time_step")  # None для среднего значения
+            time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "telescope_positions")
             recalculate = attributes.get("recalculate", False)
-            telescopes = observation.get_telescopes()
-            scans = observation.get_scans().get_active_scans(observation)
+
+            # Определяем, работаем с Observation или Project
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_telescope_positions(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            # Логика для Observation
+            telescopes = obj.get_telescopes()
+            scans = obj.get_scans().get_active_scans(obj)
 
             if not scans:
-                logger.warning(f"No active scans in observation '{observation.get_observation_code()}'")
+                logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
                 return {}
 
-            existing_data = observation.get_calculated_data_by_key(store_key)
+            existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
-                logger.info(f"Using cached telescope positions for '{observation.get_observation_code()}'")
+                logger.info(f"Using cached telescope positions for '{obj.get_observation_code()}'")
                 return existing_data["data"]
 
             results = {}
@@ -62,8 +75,8 @@ class Calculator(ABC):
 
             metadata = {"time_step": time_step, "scan_count": len(scans), "telescope_count": len(telescopes.get_active_telescopes())}
             with self._lock:
-                observation.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated telescope positions for {len(scans)} scans in '{observation.get_observation_code()}'")
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated telescope positions for {len(scans)} scans in '{obj.get_observation_code()}'")
             return results
         except Exception as e:
             logger.error(f"Failed to calculate telescope positions: {str(e)}")
@@ -108,19 +121,32 @@ class Calculator(ABC):
             return tuple(float(p) for p in pos)
         raise ValueError(f"Unsupported telescope type: {type(telescope)}")
 
-    def _calculate_source_visibility(self, observation: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate source visibility for all scans"""
+    def _calculate_source_visibility(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate source visibility for all scans in the observation or project"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "source_visibility")
             recalculate = attributes.get("recalculate", False)
-            scans = observation.get_scans().get_active_scans(observation)
-            telescopes = observation.get_telescopes()
-            sources = observation.get_sources()
 
-            existing_data = observation.get_calculated_data_by_key(store_key)
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_source_visibility(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            scans = obj.get_scans().get_active_scans(obj)
+            telescopes = obj.get_telescopes()
+            sources = obj.get_sources()
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
-                logger.info(f"Using cached source visibility for '{observation.get_observation_code()}'")
+                logger.info(f"Using cached source visibility for '{obj.get_observation_code()}'")
                 return existing_data["data"]
 
             results = {}
@@ -135,8 +161,8 @@ class Calculator(ABC):
 
             metadata = {"time_step": time_step, "scan_count": len(scans)}
             with self._lock:
-                observation.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated source visibility for {len(scans)} scans in '{observation.get_observation_code()}'")
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated source visibility for {len(scans)} scans in '{obj.get_observation_code()}'")
             return results
         except Exception as e:
             logger.error(f"Failed to calculate source visibility: {str(e)}")
@@ -210,6 +236,54 @@ class Calculator(ABC):
             
             visibility[tel.get_code()] = is_visible
         return visibility
+    
+    def _calculate_uv_coverage(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate (u,v) coverage for all scans in the observation or project"""
+        try:
+            time_step = attributes.get("time_step")
+            freq_idx = attributes.get("freq_idx", 0)
+            store_key = attributes.get("store_key", f"uv_coverage_f{freq_idx}")
+            recalculate = attributes.get("recalculate", False)
+
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_uv_coverage(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated (u,v) coverage for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            scans = obj.get_scans().get_active_scans(obj)
+            telescopes = obj.get_telescopes()
+            frequencies = obj.get_frequencies()
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
+            if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
+                logger.info(f"Using cached (u,v) coverage for '{obj.get_observation_code()}'")
+                return existing_data["data"]
+
+            results = {}
+            with ThreadPoolExecutor() as executor:
+                futures = {
+                    executor.submit(self._process_uv_coverage, scan, telescopes, frequencies, time_step, freq_idx): i
+                    for i, scan in enumerate(scans)
+                }
+                for future in futures:
+                    scan_idx = futures[future]
+                    results[scan_idx] = future.result()
+
+            metadata = {"time_step": time_step, "freq_idx": freq_idx, "scan_count": len(scans)}
+            with self._lock:
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated (u,v) coverage for {len(scans)} scans in '{obj.get_observation_code()}'")
+            return results
+        except Exception as e:
+            logger.error(f"Failed to calculate (u,v) coverage: {str(e)}")
+            return {}
 
     def _process_uv_coverage(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: Optional[int]) -> Dict[str, Any]:
         """Process (u,v) coverage for a single scan"""
@@ -234,31 +308,48 @@ class Calculator(ABC):
             return {"times": [t.isot for t in times], "uv_points": uv_points}
 
     def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float]) -> Dict[float, List[Tuple[float, float]]]:
-        """Compute (u,v) points at a given time for given frequencies"""
+        """Compute (u,v) points at a given time for given frequencies, relative to Earth's center"""
         positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
+        itrs_center = ITRS(CartesianRepresentation(0, 0, 0, unit=u.m), obstime=time)
+        gcrs_center = itrs_center.transform_to(GCRS(obstime=time))
+        center_pos = np.array([gcrs_center.x.value, gcrs_center.y.value, gcrs_center.z.value])
+
         uv_points = {f: [] for f in frequencies}
         c = 299792458  # m/s
         for i, pos1 in enumerate(positions):
             for j, pos2 in enumerate(positions[i + 1:], i + 1):
-                baseline = np.array(pos1) - np.array(pos2)  # meters
+                baseline = (np.array(pos1) - center_pos) - (np.array(pos2) - center_pos)  # meters
                 for freq in frequencies:
                     wavelength = c / freq
-                    u, v = baseline[0] / wavelength, baseline[1] / wavelength  # dimensionless
+                    u, v = baseline[0] / wavelength, baseline[1] / wavelength  # in wavelength numbers
                     uv_points[freq].append((u, v))
         return uv_points
 
-    def _calculate_sun_angles(self, observation: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate angles between source and Sun for all scans"""
+    def _calculate_sun_angles(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate angles between source and Sun for all scans in the observation or project"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "sun_angles")
             recalculate = attributes.get("recalculate", False)
-            scans = observation.get_scans().get_active_scans(observation)
-            sources = observation.get_sources()
 
-            existing_data = observation.get_calculated_data_by_key(store_key)
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_sun_angles(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated Sun angles for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            scans = obj.get_scans().get_active_scans(obj)
+            sources = obj.get_sources()
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
-                logger.info(f"Using cached Sun angles for '{observation.get_observation_code()}'")
+                logger.info(f"Using cached Sun angles for '{obj.get_observation_code()}'")
                 return existing_data["data"]
 
             results = {}
@@ -273,8 +364,8 @@ class Calculator(ABC):
 
             metadata = {"time_step": time_step, "scan_count": len(scans)}
             with self._lock:
-                observation.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated Sun angles for {len(scans)} scans in '{observation.get_observation_code()}'")
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated Sun angles for {len(scans)} scans in '{obj.get_observation_code()}'")
             return results
         except Exception as e:
             logger.error(f"Failed to calculate Sun angles: {str(e)}")
@@ -301,19 +392,32 @@ class Calculator(ABC):
         sun = get_sun(time)
         return source_coord.separation(sun).deg
 
-    def _calculate_az_el(self, observation: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate azimuth/elevation or hour angle/declination for ground telescopes"""
+    def _calculate_az_el(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate azimuth/elevation or hour angle/declination for ground telescopes in the observation or project"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "az_el")
             recalculate = attributes.get("recalculate", False)
-            scans = observation.get_scans().get_active_scans(observation)
-            telescopes = observation.get_telescopes()
-            sources = observation.get_sources()
 
-            existing_data = observation.get_calculated_data_by_key(store_key)
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_az_el(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated Az/El or HA/Dec for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            scans = obj.get_scans().get_active_scans(obj)
+            telescopes = obj.get_telescopes()
+            sources = obj.get_sources()
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
-                logger.info(f"Using cached Az/El or HA/Dec for '{observation.get_observation_code()}'")
+                logger.info(f"Using cached Az/El or HA/Dec for '{obj.get_observation_code()}'")
                 return existing_data["data"]
 
             results = {}
@@ -328,8 +432,8 @@ class Calculator(ABC):
 
             metadata = {"time_step": time_step, "scan_count": len(scans)}
             with self._lock:
-                observation.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated Az/El or HA/Dec for {len(scans)} scans in '{observation.get_observation_code()}'")
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated Az/El or HA/Dec for {len(scans)} scans in '{obj.get_observation_code()}'")
             return results
         except Exception as e:
             logger.error(f"Failed to calculate Az/El or HA/Dec: {str(e)}")
@@ -388,17 +492,30 @@ class Calculator(ABC):
 
         return az_el
 
-    def _calculate_time_on_source(self, observation: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate time on source for all scans"""
+    def _calculate_time_on_source(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate time on source for all scans in the observation or project"""
         try:
             store_key = attributes.get("store_key", "time_on_source")
             recalculate = attributes.get("recalculate", False)
-            scans = observation.get_scans().get_active_scans(observation)
-            sources = observation.get_sources()
 
-            existing_data = observation.get_calculated_data_by_key(store_key)
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_time_on_source(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated time on source for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            scans = obj.get_scans().get_active_scans(obj)
+            sources = obj.get_sources()
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate:
-                logger.info(f"Using cached time on source for '{observation.get_observation_code()}'")
+                logger.info(f"Using cached time on source for '{obj.get_observation_code()}'")
                 return existing_data["data"]
 
             time_on_source = {}
@@ -411,28 +528,42 @@ class Calculator(ABC):
                       for source, scans in time_on_source.items()}
             metadata = {"scan_count": len(scans)}
             with self._lock:
-                observation.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated time on source for {len(scans)} scans in '{observation.get_observation_code()}'")
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated time on source for {len(scans)} scans in '{obj.get_observation_code()}'")
             return results
         except Exception as e:
             logger.error(f"Failed to calculate time on source: {str(e)}")
             return {}
 
-    def _calculate_beam_pattern(self, observation: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate Gaussian beam pattern for SINGLE_DISH observation"""
-        if observation.get_observation_type() != "SINGLE_DISH":
-            logger.warning(f"Beam pattern calculation is only for SINGLE_DISH, got {observation.get_observation_type()}")
-            return {}
+    def _calculate_beam_pattern(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate Gaussian beam pattern for SINGLE_DISH observation or project"""
         try:
             freq_idx = attributes.get("freq_idx", 0)
             store_key = attributes.get("store_key", f"beam_pattern_f{freq_idx}")
             recalculate = attributes.get("recalculate", False)
-            telescopes = observation.get_telescopes().get_active_telescopes()
-            frequency = observation.get_frequencies().get_IF(freq_idx).get_frequency() * 1e6  # MHz -> Hz
 
-            existing_data = observation.get_calculated_data_by_key(store_key)
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_beam_pattern(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated beam pattern for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            if obj.get_observation_type() != "SINGLE_DISH":
+                logger.warning(f"Beam pattern calculation is only for SINGLE_DISH, got {obj.get_observation_type()}")
+                return {}
+
+            telescopes = obj.get_telescopes().get_active_telescopes()
+            frequency = obj.get_frequencies().get_IF(freq_idx).get_frequency() * 1e6  # MHz -> Hz
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate:
-                logger.info(f"Using cached beam pattern for '{observation.get_observation_code()}'")
+                logger.info(f"Using cached beam pattern for '{obj.get_observation_code()}'")
                 return existing_data["data"]
 
             results = {}
@@ -450,30 +581,44 @@ class Calculator(ABC):
 
             metadata = {"freq_idx": freq_idx}
             with self._lock:
-                observation.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated beam pattern for '{observation.get_observation_code()}' at {frequency/1e6} MHz")
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated beam pattern for '{obj.get_observation_code()}' at {frequency/1e6} MHz")
             return results
         except Exception as e:
             logger.error(f"Failed to calculate beam pattern: {str(e)}")
             return {}
 
-    def _calculate_synthesized_beam(self, observation: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate synthesized beam for VLBI observation"""
-        if observation.get_observation_type() != "VLBI":
-            logger.warning(f"Synthesized beam calculation is only for VLBI, got {observation.get_observation_type()}")
-            return {}
+    def _calculate_synthesized_beam(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate synthesized beam for VLBI observation or project"""
         try:
             freq_idx = attributes.get("freq_idx", 0)
             store_key = attributes.get("store_key", f"synthesized_beam_f{freq_idx}")
             recalculate = attributes.get("recalculate", False)
-            frequency = observation.get_frequencies().get_IF(freq_idx).get_frequency() * 1e6  # MHz -> Hz
 
-            existing_data = observation.get_calculated_data_by_key(store_key)
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_synthesized_beam(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated synthesized beam for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            if obj.get_observation_type() != "VLBI":
+                logger.warning(f"Synthesized beam calculation is only for VLBI, got {obj.get_observation_type()}")
+                return {}
+
+            frequency = obj.get_frequencies().get_IF(freq_idx).get_frequency() * 1e6  # MHz -> Hz
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate:
-                logger.info(f"Using cached synthesized beam for '{observation.get_observation_code()}'")
+                logger.info(f"Using cached synthesized beam for '{obj.get_observation_code()}'")
                 return existing_data["data"]
 
-            uv_data = self._calculate_uv_coverage(observation, {"time_step": attributes.get("time_step"), "freq_idx": freq_idx})
+            uv_data = self._calculate_uv_coverage(obj, {"time_step": attributes.get("time_step"), "freq_idx": freq_idx})
             results = {}
             c = 299792458  # m/s
             wavelength = c / frequency
@@ -488,12 +633,251 @@ class Calculator(ABC):
 
             metadata = {"freq_idx": freq_idx}
             with self._lock:
-                observation.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated synthesized beam for '{observation.get_observation_code()}' at {frequency/1e6} MHz")
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated synthesized beam for '{obj.get_observation_code()}' at {frequency/1e6} MHz")
             return results
         except Exception as e:
             logger.error(f"Failed to calculate synthesized beam: {str(e)}")
             return {}
+        
+    def _calculate_baseline_projections(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate baseline projections for VLBI observation or project, reusing (u,v) if available"""
+        try:
+            time_step = attributes.get("time_step")
+            freq_idx = attributes.get("freq_idx", 0)
+            store_key = attributes.get("store_key", f"baseline_projections_f{freq_idx}")
+            recalculate = attributes.get("recalculate", False)
+
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_baseline_projections(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated baseline projections for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            if obj.get_observation_type() != "VLBI":
+                logger.warning(f"Baseline projections are only for VLBI, got {obj.get_observation_type()}")
+                return {}
+
+            scans = obj.get_scans().get_active_scans(obj)
+            telescopes = obj.get_telescopes()
+            frequencies = obj.get_frequencies()
+
+            active_telescopes = telescopes.get_active_telescopes()
+            if len(active_telescopes) < 2:
+                logger.error(f"VLBI requires at least 2 active telescopes, got {len(active_telescopes)}")
+                return {}
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
+            if existing_data and not recalculate:
+                logger.info(f"Using cached baseline projections for '{obj.get_observation_code()}'")
+                return existing_data["data"]
+
+            uv_store_key = attributes.get("uv_store_key", f"uv_coverage_f{freq_idx}")
+            uv_data = obj.get_calculated_data_by_key(uv_store_key)
+            if uv_data and not recalculate and uv_data["metadata"]["time_step"] == time_step:
+                logger.info(f"Reusing existing (u,v) data for baseline projections in '{obj.get_observation_code()}'")
+            else:
+                uv_data = self._calculate_uv_coverage(obj, {"time_step": time_step, "freq_idx": freq_idx, "store_key": uv_store_key})
+                if not uv_data:
+                    logger.error(f"Failed to calculate (u,v) coverage for baseline projections")
+                    return {}
+
+            results = {}
+            with ThreadPoolExecutor() as executor:
+                futures = {
+                    executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_idx, uv_data.get(scan_idx, {})): i
+                    for i, scan in enumerate(scans)
+                }
+                for future in futures:
+                    scan_idx = futures[future]
+                    results[scan_idx] = future.result()
+
+            metadata = {"time_step": time_step, "freq_idx": freq_idx, "scan_count": len(scans)}
+            with self._lock:
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated baseline projections for {len(scans)} scans in '{obj.get_observation_code()}'")
+            return results
+        except Exception as e:
+            logger.error(f"Failed to calculate baseline projections: {str(e)}")
+            return {}
+
+    def _process_baseline_projections(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: int, uv_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process baseline projections for a single scan, using pre-calculated (u,v) if available"""
+        start_time = Time(scan.get_start_datetime())
+        duration = scan.get_duration()
+        telescope_indices = scan.get_telescope_indices()
+        active_telescopes = [telescopes.get_telescope(i) for i in telescope_indices if telescopes.get_telescope(i).isactive]
+        frequency = frequencies.get_IF(freq_idx).get_frequency() * 1e6  # MHz -> Hz
+        source = scan.get_source(observation=None)  # Предполагаем, что Observation доступен через контекст
+        source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs') if source else None
+
+        if time_step is None:
+            mean_time = start_time + (duration / 2) * u.s
+            if uv_data and "uv_points" in uv_data:
+                projections = self._compute_projections_from_uv(uv_data["uv_points"], active_telescopes, frequency)
+            else:
+                projections = self._compute_baseline_projections_at_time(active_telescopes, mean_time, frequency, source_coord)
+            return {"projections": projections}
+        else:
+            times = np.arange(0, duration, time_step) * u.s + start_time
+            projections = {}
+            if uv_data and "uv_points" in uv_data and "times" in uv_data:
+                for t, uv_points in zip(uv_data["times"], uv_data["uv_points"][frequency]):
+                    proj = self._compute_projections_from_uv({frequency: uv_points}, active_telescopes, frequency)
+                    for pair, (u, v, w) in proj.items():
+                        projections.setdefault(pair, {"u": [], "v": [], "w": []})
+                        projections[pair]["u"].append(u)
+                        projections[pair]["v"].append(v)
+                        projections[pair]["w"].append(w)
+            else:
+                for t in times:
+                    proj = self._compute_baseline_projections_at_time(active_telescopes, t, frequency, source_coord)
+                    for pair, (u, v, w) in proj.items():
+                        projections.setdefault(pair, {"u": [], "v": [], "w": []})
+                        projections[pair]["u"].append(u)
+                        projections[pair]["v"].append(v)
+                        projections[pair]["w"].append(w)
+            return {"times": [t.isot for t in times], "projections": projections}
+        
+    def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, Tuple[float, float, float]]:
+        """Compute (u, v, w) baseline projections at a given time for a given frequency"""
+        positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
+        c = 299792458  # m/s
+        wavelength = c / frequency
+        projections = {}
+        
+        # Если источник не указан, используем упрощенную систему (w = 0)
+        if source_coord is None:
+            for i, pos1 in enumerate(positions):
+                for j, pos2 in enumerate(positions[i + 1:], i + 1):
+                    baseline = np.array(pos1) - np.array(pos2)  # meters
+                    u, v, w = baseline[0] / wavelength, baseline[1] / wavelength, 0.0
+                    pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
+                    projections[pair] = (u, v, w)
+        else:
+            # Полное вычисление с учетом направления источника
+            source_vec = source_coord.cartesian.xyz.value  # Единичный вектор источника
+            for i, pos1 in enumerate(positions):
+                for j, pos2 in enumerate(positions[i + 1:], i + 1):
+                    baseline = np.array(pos1) - np.array(pos2)  # meters
+                    uvw = np.dot(baseline, source_vec) / wavelength  # Проекция на источник
+                    u, v = baseline[0] / wavelength, baseline[1] / wavelength  # Упрощенные u, v
+                    w = uvw  # w как проекция на линию визирования
+                    pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
+                    projections[pair] = (u, v, w)
+    
+        return projections
+
+    def _compute_projections_from_uv(self, uv_points: Dict[float, List[Tuple[float, float]]], telescopes: List[Telescope | SpaceTelescope], frequency: float) -> Dict[str, Tuple[float, float, float]]:
+        """Compute (u, v, w) projections from pre-calculated (u,v) data"""
+        projections = {}
+        uv_list = uv_points[frequency]
+        idx = 0
+        for i, tel1 in enumerate(telescopes):
+            for j, tel2 in enumerate(telescopes[i + 1:], i + 1):
+                u, v = uv_list[idx]
+                # w вычисляем как заглушку (нужно полное моделирование для точного w, здесь упрощение)
+                w = 0.0  # Для точного w требуется направление источника и полная геометрия
+                pair = f"{tel1.get_code()}-{tel2.get_code()}"
+                projections[pair] = (u, v, w)
+                idx += 1
+        return projections
+
+    def _calculate_mollweide_tracks(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate Mollweide projection tracks for VLBI or SINGLE_DISH observation or project"""
+        try:
+            time_step = attributes.get("time_step")
+            store_key = attributes.get("store_key", "mollweide_tracks")
+            recalculate = attributes.get("recalculate", False)
+
+            if isinstance(obj, Project):
+                observations = obj.get_observations()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.get_name()}'")
+                    return {}
+                results = {}
+                for obs in observations:
+                    obs_result = self._calculate_mollweide_tracks(obs, attributes)
+                    results[obs.get_observation_code()] = obs_result
+                logger.info(f"Calculated Mollweide tracks for {len(observations)} observations in project '{obj.get_name()}'")
+                return results
+
+            scans = obj.get_scans().get_active_scans(obj)
+            sources = obj.get_sources()
+
+            existing_data = obj.get_calculated_data_by_key(store_key)
+            if existing_data and not recalculate:
+                logger.info(f"Using cached Mollweide tracks for '{obj.get_observation_code()}'")
+                return existing_data["data"]
+
+            results = {}
+            with ThreadPoolExecutor() as executor:
+                futures = {
+                    executor.submit(self._process_mollweide_tracks, scan, sources, time_step): i
+                    for i, scan in enumerate(scans)
+                }
+                for future in futures:
+                    scan_idx = futures[future]
+                    results[scan_idx] = future.result()
+
+            metadata = {"time_step": time_step, "scan_count": len(scans)}
+            with self._lock:
+                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
+            logger.info(f"Calculated Mollweide tracks for {len(scans)} scans in '{obj.get_observation_code()}'")
+            return results
+        except Exception as e:
+            logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
+            return {}
+
+    def _process_mollweide_tracks(self, scan: Scan, sources: Sources, time_step: Optional[float]) -> Dict[str, Any]:
+        """Process Mollweide tracks for a single scan with precession and nutation"""
+        start_time = Time(scan.get_start_datetime())
+        duration = scan.get_duration()
+        source = sources.get_source(scan.get_source_index())
+        source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
+
+        if time_step is None:
+            mean_time = start_time + (duration / 2) * u.s
+            lon, lat = self._compute_mollweide_coords(source_coord, mean_time)
+            return {"source": source.get_name(), "mollweide": {"lon": lon, "lat": lat}}
+        else:
+            times = np.arange(0, duration, time_step) * u.s + start_time
+            tracks = {"lon": [], "lat": []}
+            for t in times:
+                lon, lat = self._compute_mollweide_coords(source_coord, t)
+                tracks["lon"].append(lon)
+                tracks["lat"].append(lat)
+            return {"source": source.get_name(), "times": [t.isot for t in times], "mollweide": tracks}
+
+    def _compute_mollweide_coords(self, coord: SkyCoord, time: Time) -> Tuple[float, float]:
+        """Compute Mollweide projection coordinates with precession and nutation"""
+        # Применяем прецессию и нутацию от J2000 к текущему времени
+        j2000 = Time("J2000")
+        dpsi, deps = nutation_components(time)  # Нутация
+        precessed_coord = precess_from_J2000(coord, time)  # Прецессия
+        # Применяем нутацию вручную (Astropy не делает это автоматически)
+        nutated_coord = SkyCoord(
+            ra=precessed_coord.ra + dpsi * np.cos(precessed_coord.dec.rad) * u.radian,
+            dec=precessed_coord.dec + deps * u.radian,
+            frame='icrs'
+        )
+
+        ra = nutated_coord.ra.rad
+        dec = nutated_coord.dec.rad
+        # Mollweide projection
+        theta = dec
+        if abs(dec) >= np.pi / 2:
+            lat = np.sign(dec) * np.pi / 2
+        else:
+            lat = dec
+        lon = ra - np.pi  # Центрирование на 0
+        return np.degrees(lon), np.degrees(lat)
 
     @lru_cache(maxsize=1)
     def _get_calculation_methods(self) -> Dict[type, Dict[str, Any]]:
@@ -508,7 +892,23 @@ class Calculator(ABC):
                     "az_el": self._calculate_az_el,
                     "time_on_source": self._calculate_time_on_source,
                     "beam_pattern": self._calculate_beam_pattern,
-                    "synthesized_beam": self._calculate_synthesized_beam
+                    "synthesized_beam": self._calculate_synthesized_beam,
+                    "baseline_projections": self._calculate_baseline_projections,
+                    "mollweide_tracks": self._calculate_mollweide_tracks
+                }
+            },
+            Project: {
+                "calc_func": {
+                    "telescope_positions": self._calculate_telescope_positions,
+                    "source_visibility": self._calculate_source_visibility,
+                    "uv_coverage": self._calculate_uv_coverage,
+                    "sun_angles": self._calculate_sun_angles,
+                    "az_el": self._calculate_az_el,
+                    "time_on_source": self._calculate_time_on_source,
+                    "beam_pattern": self._calculate_beam_pattern,
+                    "synthesized_beam": self._calculate_synthesized_beam,
+                    "baseline_projections": self._calculate_baseline_projections,
+                    "mollweide_tracks": self._calculate_mollweide_tracks
                 }
             }
         }
