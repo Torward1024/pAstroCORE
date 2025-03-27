@@ -1,13 +1,13 @@
 # base/observation.py
 from base.base_entity import BaseEntity
-from base.sources import Source, Sources
-from base.telescopes import Telescope, SpaceTelescope, Telescopes
-from base.frequencies import Frequencies, IF
+from base.sources import Sources
+from base.telescopes import Telescopes
+from base.frequencies import Frequencies
 from base.scans import Scans
 from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
 from datetime import datetime
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any
 import astropy.units as u
 import numpy as np
 

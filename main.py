@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
-from pvCORE_window import PvCoreWindow
+from gui.MainWindow import PvCoreWindow
 
 import sys
 
