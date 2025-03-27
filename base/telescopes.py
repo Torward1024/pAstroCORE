@@ -742,9 +742,9 @@ class SpaceTelescope(Telescope):
     def get_state_vector(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
         """Get state vector to date"""
         if self._use_kep:
-            self.get_state_vector_from_kepler(self, dt)
+            return self.get_state_vector_from_kepler(self, dt)
         else:
-            self.get_state_vector_from_orbit(self, dt)
+            return self.get_state_vector_from_orbit(self, dt)
 
     def get_state_vector_from_kepler(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
         """Get position and velocity from Keplerian elements at a given time"""
