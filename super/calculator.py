@@ -1,5 +1,6 @@
 # super/calculator.py
 from abc import ABC
+from super.manipulator import Manipulator
 from base.frequencies import Frequencies
 from base.sources import Sources, Source
 from base.telescopes import Telescope, SpaceTelescope, Telescopes, MountType
@@ -22,8 +23,9 @@ from scipy.special import j1
 
 class Calculator(ABC):
     """Super-class for performing calculations on Project or Observation objects"""
-    def __init__(self):
+    def __init__(self, manipulator: 'Manipulator'):
         """Initialize the Calculator"""
+        self._manipulator = manipulator
         self._lock = threading.Lock()
         logger.info("Initialized Calculator")
 
@@ -879,40 +881,6 @@ class Calculator(ABC):
         lon = ra - np.pi  # Центрирование на 0
         return np.degrees(lon), np.degrees(lat)
 
-    @lru_cache(maxsize=1)
-    def _get_calculation_methods(self) -> Dict[type, Dict[str, Any]]:
-        """Retrieve and cache the mapping of object types to calculation functions"""
-        return {
-            Observation: {
-                "calc_func": {
-                    "telescope_positions": self._calculate_telescope_positions,
-                    "source_visibility": self._calculate_source_visibility,
-                    "uv_coverage": self._calculate_uv_coverage,
-                    "sun_angles": self._calculate_sun_angles,
-                    "az_el": self._calculate_az_el,
-                    "time_on_source": self._calculate_time_on_source,
-                    "beam_pattern": self._calculate_beam_pattern,
-                    "synthesized_beam": self._calculate_synthesized_beam,
-                    "baseline_projections": self._calculate_baseline_projections,
-                    "mollweide_tracks": self._calculate_mollweide_tracks
-                }
-            },
-            Project: {
-                "calc_func": {
-                    "telescope_positions": self._calculate_telescope_positions,
-                    "source_visibility": self._calculate_source_visibility,
-                    "uv_coverage": self._calculate_uv_coverage,
-                    "sun_angles": self._calculate_sun_angles,
-                    "az_el": self._calculate_az_el,
-                    "time_on_source": self._calculate_time_on_source,
-                    "beam_pattern": self._calculate_beam_pattern,
-                    "synthesized_beam": self._calculate_synthesized_beam,
-                    "baseline_projections": self._calculate_baseline_projections,
-                    "mollweide_tracks": self._calculate_mollweide_tracks
-                }
-            }
-        }
-
     def calculate(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Universal method to perform calculations on an object
 
@@ -927,16 +895,17 @@ class Calculator(ABC):
             logger.error("Calculation object cannot be None")
             raise ValueError("Calculation object cannot be None")
 
-        calc_methods = self._get_calculation_methods()
+        calc_registry = self._manipulator.get_registry_section("calculate")
         obj_type = type(obj)
         calc_type = attributes.get("type", "telescope_positions")
 
-        if obj_type not in calc_methods or calc_type not in calc_methods[obj_type]["calc_func"]:
+        if obj_type not in calc_registry or calc_type not in calc_registry[obj_type]["methods"]:
             logger.error(f"Unsupported object type {obj_type} or calculation type {calc_type}")
             raise ValueError(f"Unsupported calculation for {obj_type}: {calc_type}")
 
         try:
-            return calc_methods[obj_type]["calc_func"][calc_type](obj, attributes)
+            calc_method = calc_registry[obj_type]["methods"][calc_type]
+            return calc_method(self, obj, attributes)
         except Exception as e:
             logger.error(f"Failed to calculate {calc_type} for {obj_type}: {str(e)}")
             return {}
@@ -946,6 +915,6 @@ class Calculator(ABC):
 
 class DefaultCalculator(Calculator):
     """Default implementation of Calculator"""
-    def __init__(self):
-        super().__init__()
+    def __init__(self, manipulator: 'Manipulator'):
+        super().__init__(manipulator)
         logger.info("Initialized DefaultCalculator")

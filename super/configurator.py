@@ -1,5 +1,6 @@
 # /super/configurator.py
 from abc import ABC
+from super.manipulator import Manipulator
 from base.frequencies import IF, Frequencies
 from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
@@ -8,7 +9,6 @@ from base.observation import Observation
 from base.project import Project 
 from utils.logging_setup import logger
 from typing import Dict, Any, Callable
-from functools import lru_cache
 import inspect
 
 class Configurator(ABC):
@@ -21,8 +21,9 @@ class Configurator(ABC):
         configure: Universal method to configure objects using method calls in attributes dictionary.
         _get_config_methods: Cached method to retrieve configuration method mappings.
     """
-    def __init__(self):
+    def __init__(self, manipulator: 'Manipulator'):
         """Initialize the Configurator"""
+        self._manipulator = manipulator
         logger.info("Initialized Configurator")
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any, valid_methods: Dict[str, Callable], 
@@ -328,217 +329,6 @@ class Configurator(ABC):
             logger.error(f"Failed to configure Project: {str(e)}")
             return False
 
-    @lru_cache(maxsize=1)
-    def _get_config_methods(self) -> Dict[type, Dict[str, Any]]:
-        """Retrieve and cache the mapping of object types to configuration functions and valid methods"""
-        return {
-            IF: {
-                "config_func": self._configure_if,
-                "methods": {
-                    "activate": IF.activate,
-                    "deactivate": IF.deactivate,
-                    "set_if": IF.set_if,
-                    "set_frequency": IF.set_frequency,
-                    "set_bandwidth": IF.set_bandwidth,
-                    "set_polarization": IF.set_polarization,
-                    "set_frequency_wavelength": IF.set_frequency_wavelength
-                }
-            },
-            Frequencies: {
-                "config_func": self._configure_frequencies,
-                "methods": {
-                    "add_IF": Frequencies.add_IF,
-                    "insert_IF": Frequencies.insert_IF,
-                    "remove_IF": Frequencies.remove_IF,
-                    "set_IF": Frequencies.set_IF,
-                    "activate_IF": Frequencies.activate_IF,
-                    "deactivate_IF": Frequencies.deactivate_IF,
-                    "activate_all": Frequencies.activate_all,
-                    "deactivate_all": Frequencies.deactivate_all,
-                    "drop_active": Frequencies.drop_active,
-                    "drop_inactive": Frequencies.drop_inactive,
-                    "clear": Frequencies.clear
-                }
-            },
-            Source: {
-                "config_func": self._configure_source,
-                "methods": {
-                    "add_flux": Source.add_flux,
-                    "insert_flux": Source.insert_flux,
-                    "remove_flux": Source.remove_flux,
-                    "activate": Source.activate,
-                    "deactivate": Source.deactivate,
-                    "set_source": Source.set_source,
-                    "set_name": Source.set_name,
-                    "set_name_J2000": Source.set_name_J2000,
-                    "set_alt_name": Source.set_alt_name,
-                    "set_ra": Source.set_ra,
-                    "set_dec": Source.set_dec,
-                    "set_ra_degrees": Source.set_ra_degrees,
-                    "set_dec_degrees": Source.set_dec_degrees,
-                    "set_source_coordinates": Source.set_source_coordinates,
-                    "set_source_coordinates_deg": Source.set_source_coordinates_deg,
-                    "set_flux": Source.set_flux,
-                    "set_flux_table": Source.set_flux_table,
-                    "set_spectral_index": Source.set_spectral_index,
-                    "clear_flux_table": Source.clear_flux_table
-                }
-            },
-            Sources: {
-                "config_func": self._configure_sources,
-                "methods": {
-                    "add_source": Sources.add_source,
-                    "insert_source": Sources.insert_source,
-                    "remove_source": Sources.remove_source,
-                    "set_source": Sources.set_source,
-                    "activate_source": Sources.activate_source,
-                    "deactivate_source": Sources.deactivate_source,
-                    "activate_all": Sources.activate_all,
-                    "deactivate_all": Sources.deactivate_all,
-                    "drop_active": Sources.drop_active,
-                    "drop_inactive": Sources.drop_inactive,
-                    "clear": Sources.clear
-                }
-            },
-            Telescope: {
-                "config_func": self._configure_telescope,
-                "methods": {
-                    "add_sefd": Telescope.add_sefd,
-                    "insert_sefd": Telescope.insert_sefd,
-                    "remove_sefd": Telescope.remove_sefd,
-                    "activate": Telescope.activate,
-                    "deactivate": Telescope.deactivate,
-                    "set_telescope": Telescope.set_telescope,
-                    "set_name": Telescope.set_name,
-                    "set_code": Telescope.set_code,
-                    "set_coordinates": Telescope.set_coordinates,
-                    "set_velocities": Telescope.set_velocities,
-                    "set_coordinates_and_velocities": Telescope.set_coordinates_and_velocities,
-                    "set_x": Telescope.set_x,
-                    "set_y": Telescope.set_y,
-                    "set_z": Telescope.set_z,
-                    "set_vx": Telescope.set_vx,
-                    "set_vy": Telescope.set_vy,
-                    "set_vz": Telescope.set_vz,
-                    "set_diameter": Telescope.set_diameter,
-                    "set_elevation_range": Telescope.set_elevation_range,
-                    "set_azimuth_range": Telescope.set_azimuth_range,
-                    "set_mount_type": Telescope.set_mount_type,
-                    "set_sefd": Telescope.set_sefd,
-                    "set_sefd_table": Telescope.set_sefd_table,
-                    "clear_sefd_table": Telescope.clear_sefd_table
-                }
-            },
-            SpaceTelescope: {
-                "config_func": self._configure_telescope,
-                "methods": {
-                    "add_sefd": SpaceTelescope.add_sefd,
-                    "insert_sefd": SpaceTelescope.insert_sefd,
-                    "remove_sefd": SpaceTelescope.remove_sefd,
-                    "activate": SpaceTelescope.activate,
-                    "deactivate": SpaceTelescope.deactivate,
-                    "set_telescope": SpaceTelescope.set_telescope,
-                    "set_name": SpaceTelescope.set_name,
-                    "set_code": SpaceTelescope.set_code,
-                    "set_coordinates": SpaceTelescope.set_coordinates,
-                    "set_velocities": SpaceTelescope.set_velocities,
-                    "set_coordinates_and_velocities": SpaceTelescope.set_coordinates_and_velocities,
-                    "set_x": SpaceTelescope.set_x,
-                    "set_y": SpaceTelescope.set_y,
-                    "set_z": SpaceTelescope.set_z,
-                    "set_vx": SpaceTelescope.set_vx,
-                    "set_vy": SpaceTelescope.set_vy,
-                    "set_vz": SpaceTelescope.set_vz,
-                    "set_diameter": SpaceTelescope.set_diameter,
-                    "set_elevation_range": SpaceTelescope.set_elevation_range,
-                    "set_azimuth_range": SpaceTelescope.set_azimuth_range,
-                    "set_mount_type": SpaceTelescope.set_mount_type,
-                    "set_sefd": SpaceTelescope.set_sefd,
-                    "set_sefd_table": SpaceTelescope.set_sefd_table,
-                    "clear_sefd_table": SpaceTelescope.clear_sefd_table,
-                    "load_orbit": SpaceTelescope.load_orbit,
-                    "interpolate_orbit_chebyshev": SpaceTelescope.interpolate_orbit_chebyshev,
-                    "interpolate_orbit_cubic_spline": SpaceTelescope.interpolate_orbit_cubic_spline,
-                    "set_space_telescope": SpaceTelescope.set_space_telescope,
-                    "set_keplerian": SpaceTelescope.set_keplerian,
-                    "set_pitch_range": SpaceTelescope.set_pitch_range,
-                    "set_yaw_range": SpaceTelescope.set_yaw_range,
-                    "set_use_kep": SpaceTelescope.set_use_kep
-                }
-            },
-            Telescopes: {
-                "config_func": self._configure_telescopes,
-                "methods": {
-                    "add_telescope": Telescopes.add_telescope,
-                    "insert_telescope": Telescopes.insert_telescope,
-                    "remove_telescope": Telescopes.remove_telescope,
-                    "set_telescope": Telescopes.set_telescope,
-                    "activate_telescope": Telescopes.activate_telescope,
-                    "deactivate_telescope": Telescopes.deactivate_telescope,
-                    "activate_all": Telescopes.activate_all,
-                    "deactivate_all": Telescopes.deactivate_all,
-                    "drop_active": Telescopes.drop_active,
-                    "drop_inactive": Telescopes.drop_inactive,
-                    "clear": Telescopes.clear
-                }
-            },
-            Scan: {
-                "config_func": self._configure_scan,
-                "methods": {
-                    "activate": Scan.activate,
-                    "deactivate": Scan.deactivate,
-                    "set_scan": Scan.set_scan,
-                    "set_start": Scan.set_start,
-                    "set_duration": Scan.set_duration,
-                    "set_source_index": Scan.set_source_index,
-                    "set_telescope_indices": Scan.set_telescope_indices,
-                    "set_frequency_indices": Scan.set_frequency_indices
-                }
-            },
-            Scans: {
-                "config_func": self._configure_scans,
-                "methods": {
-                    "add_scan": Scans.add_scan,
-                    "insert_scan": Scans.insert_scan,
-                    "remove_scan": Scans.remove_scan,
-                    "set_scan": Scans.set_scan,
-                    "activate_scan": Scans.activate_scan,
-                    "deactivate_scan": Scans.deactivate_scan,
-                    "activate_all": Scans.activate_all,
-                    "deactivate_all": Scans.deactivate_all,
-                    "drop_active": Scans.drop_active,
-                    "drop_inactive": Scans.drop_inactive,
-                    "clear": Scans.clear
-                }
-            },
-            Observation: {
-                "config_func": self._configure_observation,
-                "methods": {
-                    "activate": Observation.activate,
-                    "deactivate": Observation.deactivate,
-                    "set_observation": Observation.set_observation,
-                    "set_observation_type": Observation.set_observation_type,
-                    "set_observation_code": Observation.set_observation_code,
-                    "set_sources": Observation.set_sources,
-                    "set_frequencies": Observation.set_frequencies,
-                    "set_telescopes": Observation.set_telescopes,
-                    "set_scans": Observation.set_scans,
-                    "set_calculated_data": Observation.set_calculated_data,
-                    "set_calculated_data_by_key": Observation.set_calculated_data_by_key
-                }
-            },
-            Project: {
-                "config_func": self._configure_project,
-                "methods": {
-                    "add_observation": Project.add_observation,
-                    "insert_observation": Project.insert_observation,
-                    "remove_observation": Project.remove_observation,
-                    "set_observation": Project.set_observation,
-                    "set_name": Project.set_name
-                }
-            }
-        }
-
     def configure(self, obj: Any, attributes: Dict[str, Any]) -> bool:
         """Universal method to configure an object using method calls in a single attributes dictionary
 
@@ -564,7 +354,7 @@ class Configurator(ABC):
             logger.error("Configuration object cannot be None")
             raise ValueError("Configuration object cannot be None")
 
-        config_methods = self._get_config_methods()
+        config_methods = self._manipulator.get_registry_section("configure")
         obj_type = type(obj)
 
         if obj_type not in config_methods:
@@ -587,6 +377,6 @@ class DefaultConfigurator(Configurator):
     Inherits all configuration methods from Configurator and provides a ready-to-use instance
     for managing observations, telescopes, sources, frequencies, and scans
     """
-    def __init__(self):
-        super().__init__()
+    def __init__(self, manipulator: 'Manipulator'):
+        super().__init__(manipulator)
         logger.info("Initialized DefaultConfigurator")

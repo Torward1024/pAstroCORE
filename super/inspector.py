@@ -1,5 +1,6 @@
 # /super/inspector.py
 from abc import ABC
+from super.manipulator import Manipulator
 from base.frequencies import IF, Frequencies
 from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
@@ -21,8 +22,9 @@ class Inspector(ABC):
         inspect: Universal method to retrieve data from objects using getter calls in attributes dictionary
         _get_inspection_methods: Cached method to retrieve inspection method mappings
     """
-    def __init__(self):
+    def __init__(self, manipulator: 'Manipulator'):
         """Initialize the Inspector"""
+        self._manipulator = manipulator
         logger.info("Initialized Inspector")
 
     def _validate_and_apply_getter(self, obj: Any, getter_name: str, getter_args: Any, valid_getters: Dict[str, Callable]) -> Optional[Any]:
@@ -363,167 +365,6 @@ class Inspector(ABC):
             logger.error(f"Failed to inspect Project: {str(e)}")
             return {}
 
-    @lru_cache(maxsize=1)
-    def _get_inspection_methods(self) -> Dict[type, Dict[str, Any]]:
-        """Retrieve and cache the mapping of object types to inspection functions and valid getters"""
-        return {
-            IF: {
-                "inspect_func": self._inspect_if,
-                "getters": {
-                    "get_frequency": IF.get_frequency,
-                    "get_bandwidth": IF.get_bandwidth,
-                    "get_polarization": IF.get_polarization,
-                    "get_frequency_wavelength": IF.get_frequency_wavelength
-                }
-            },
-            Frequencies: {
-                "inspect_func": self._inspect_frequencies,
-                "getters": {
-                    "get_IF": Frequencies.get_IF,
-                    "get_all_IF": Frequencies.get_all_IF,
-                    "get_frequencies": Frequencies.get_frequencies,
-                    "get_bandwidths": Frequencies.get_bandwidths,
-                    "get_polarizations": Frequencies.get_polarizations,
-                    "get_wavelengths": Frequencies.get_wavelengths,
-                    "get_active_frequencies": Frequencies.get_active_frequencies,
-                    "get_inactive_frequencies": Frequencies.get_inactive_frequencies
-                }
-            },
-            Source: {
-                "inspect_func": self._inspect_source,
-                "getters": {
-                    "get_name": Source.get_name,
-                    "get_name_J2000": Source.get_name_J2000,
-                    "get_alt_name": Source.get_alt_name,
-                    "get_ra": Source.get_ra,
-                    "get_dec": Source.get_dec,
-                    "get_ra_degrees": Source.get_ra_degrees,
-                    "get_dec_degrees": Source.get_dec_degrees,
-                    "get_source_coordinates": Source.get_source_coordinates,
-                    "get_source_coordinates_deg": Source.get_source_coordinates_deg,
-                    "get_spectral_index": Source.get_spectral_index,
-                    "get_flux": Source.get_flux,
-                    "get_flux_table": Source.get_flux_table
-                }
-            },
-            Sources: {
-                "inspect_func": self._inspect_sources,
-                "getters": {
-                    "get_source": Sources.get_source,
-                    "get_all_sources": Sources.get_all_sources,
-                    "get_active_sources": Sources.get_active_sources,
-                    "get_inactive_sources": Sources.get_inactive_sources
-                }
-            },
-            Telescope: {
-                "inspect_func": self._inspect_telescope,
-                "getters": {
-                    "get_name": Telescope.get_name,
-                    "get_code": Telescope.get_code,
-                    "get_coordinates": Telescope.get_coordinates,
-                    "get_velocities": Telescope.get_velocities,
-                    "get_coordinates_and_velocities": Telescope.get_coordinates_and_velocities,
-                    "get_x": Telescope.get_x,
-                    "get_y": Telescope.get_y,
-                    "get_z": Telescope.get_z,
-                    "get_vx": Telescope.get_vx,
-                    "get_vy": Telescope.get_vy,
-                    "get_vz": Telescope.get_vz,
-                    "get_diameter": Telescope.get_diameter,
-                    "get_elevation_range": Telescope.get_elevation_range,
-                    "get_azimuth_range": Telescope.get_azimuth_range,
-                    "get_mount_type": Telescope.get_mount_type,
-                    "get_sefd": Telescope.get_sefd,
-                    "get_sefd_table": Telescope.get_sefd_table
-                }
-            },
-            SpaceTelescope: {
-                "inspect_func": self._inspect_telescope,
-                "getters": {
-                    "get_name": SpaceTelescope.get_name,
-                    "get_code": SpaceTelescope.get_code,
-                    "get_coordinates": SpaceTelescope.get_coordinates,
-                    "get_velocities": SpaceTelescope.get_velocities,
-                    "get_coordinates_and_velocities": SpaceTelescope.get_coordinates_and_velocities,
-                    "get_x": SpaceTelescope.get_x,
-                    "get_y": SpaceTelescope.get_y,
-                    "get_z": SpaceTelescope.get_z,
-                    "get_vx": SpaceTelescope.get_vx,
-                    "get_vy": SpaceTelescope.get_vy,
-                    "get_vz": SpaceTelescope.get_vz,
-                    "get_diameter": SpaceTelescope.get_diameter,
-                    "get_sefd": SpaceTelescope.get_sefd,
-                    "get_sefd_table": SpaceTelescope.get_sefd_table,
-                    "get_state_vector": SpaceTelescope.get_state_vector,
-                    "get_state_vector_from_orbit": SpaceTelescope.get_state_vector_from_orbit,
-                    "get_state_vector_from_kepler": SpaceTelescope.get_state_vector_from_kepler,
-                    "get_keplerian": SpaceTelescope.get_keplerian,
-                    "get_pitch_range": SpaceTelescope.get_pitch_range,
-                    "get_yaw_range": SpaceTelescope.get_yaw_range,
-                    "get_use_kep": SpaceTelescope.get_use_kep
-                }
-            },
-            Telescopes: {
-                "inspect_func": self._inspect_telescopes,
-                "getters": {
-                    "get_telescope": Telescopes.get_telescope,
-                    "get_all_telescopes": Telescopes.get_all_telescopes,
-                    "get_active_telescopes": Telescopes.get_active_telescopes,
-                    "get_inactive_telescopes": Telescopes.get_inactive_telescopes
-                }
-            },
-            Scan: {
-                "inspect_func": self._inspect_scan,
-                "getters": {
-                    "get_start": Scan.get_start,
-                    "get_end": Scan.get_end,
-                    "get_start_datetime": Scan.get_start_datetime,
-                    "get_end_datetime": Scan.get_end_datetime,
-                    "get_MJD_starttime": Scan.get_MJD_starttime,
-                    "get_MJD_endtime": Scan.get_MJD_endtime,
-                    "get_duration": Scan.get_duration,
-                    "get_source_index": Scan.get_source_index,
-                    "get_telescope_indices": Scan.get_telescope_indices,
-                    "get_frequency_indices": Scan.get_frequency_indices,
-                    "get_source": Scan.get_source,
-                    "get_telescopes": Scan.get_telescopes,
-                    "get_frequencies": Scan.get_frequencies,
-                    "check_telescope_availability": Scan.check_telescope_availability
-                }
-            },
-            Scans: {
-                "inspect_func": self._inspect_scans,
-                "getters": {
-                    "get_scan": Scans.get_scan,
-                    "get_all_scans": Scans.get_all_scans,
-                    "get_active_scans": Scans.get_active_scans,
-                    "get_inactive_scans": Scans.get_inactive_scans
-                }
-            },
-            Observation: {
-                "inspect_func": self._inspect_observation,
-                "getters": {
-                    "get_observation_code": Observation.get_observation_code,
-                    "get_observation_type": Observation.get_observation_type,
-                    "get_sources": Observation.get_sources,
-                    "get_frequencies": Observation.get_frequencies,
-                    "get_telescopes": Observation.get_telescopes,
-                    "get_scans": Observation.get_scans,
-                    "get_calculated_data": Observation.get_calculated_data,
-                    "get_calculated_data_by_key": Observation.get_calculated_data_by_key,
-                    "get_start_datetime": Observation.get_start_datetime
-                }
-            },
-            Project: {
-                "inspect_func": self._inspect_project,
-                "getters": {
-                    "get_name": Project.get_name,
-                    "get_observation": Project.get_observation,
-                    "get_observations": Project.get_observations
-                }
-            }
-        }
-
     def inspect(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Universal method to inspect an object using getter calls in a single attributes dictionary
 
@@ -544,7 +385,7 @@ class Inspector(ABC):
             logger.error("Inspection object cannot be None")
             raise ValueError("Inspection object cannot be None")
 
-        inspection_methods = self._get_inspection_methods()
+        inspection_methods = self._manipulator.get_registry_section("inspect")
         obj_type = type(obj)
 
         if obj_type not in inspection_methods:
@@ -563,6 +404,6 @@ class Inspector(ABC):
 
 class DefaultInspector(Inspector):
     """Default implementation of Inspector for inspecting Project and its components"""
-    def __init__(self):
-        super().__init__()
+    def __init__(self, manipulator: 'Manipulator'):
+        super().__init__(manipulator)
         logger.info("Initialized DefaultInspector")
