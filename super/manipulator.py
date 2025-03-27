@@ -1,6 +1,6 @@
 # super/manipulator.py
 from abc import ABC
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, Callable
 from base.project import Project
 from base.observation import Observation
 from base.frequencies import IF, Frequencies
@@ -20,11 +20,11 @@ class Manipulator(ABC):
              configurator: Optional[Configurator] = None,
              inspector: Optional[Inspector] = None,
              calculator: Optional[Calculator] = None):
-        logger.info("Initialized Manipulator")
         self._project = project
         self._configurator = configurator if configurator else DefaultConfigurator(self)
         self._inspector = inspector if inspector else DefaultInspector(self)
         self._calculator = calculator if calculator else DefaultCalculator(self)
+        self._registry = self._get_method_registry()
         logger.info("Initialized Manipulator")
 
     def set_project(self, project: Project) -> None:
@@ -56,16 +56,15 @@ class Manipulator(ABC):
             raise ValueError(f"Unsupported operation: {operation}")
         return operation_map[operation]
     
-    def get_registry_section(self, section: str) -> Dict[type, Dict[str, Any]]:
+    def get_methods_for_type(self, obj_type: type) -> Dict[str, Callable]:
         """Get a specific section of the method registry (e.g., 'configure', 'inspect', 'calculate')"""
-        registry = self._get_method_registry()
-        if section not in registry:
-            logger.error(f"Invalid registry section requested: {section}")
-            raise ValueError(f"Invalid section: {section}")
-        return registry[section]
+        if obj_type not in self._registry:
+            logger.error(f"No methods registered for type {obj_type.__name__}")
+            raise ValueError(f"No methods registered for type {obj_type.__name__}")
+        return self._registry[obj_type]
 
     @lru_cache(maxsize=1)
-    def _get_method_registry(self) -> Dict[str, Dict[type, Dict[str, Any]]]:
+    def _get_method_registry(self) -> Dict[type, Dict[str, Callable]]:
         from base.frequencies import IF, Frequencies
         from base.sources import Source, Sources
         from base.telescopes import Telescope, SpaceTelescope, Telescopes
@@ -75,94 +74,39 @@ class Manipulator(ABC):
 
         base_classes = [
             Project, Observation, IF, Frequencies, Source, Sources,
-            Telescope, SpaceTelescope, Telescopes, Scan, Scans
+            Telescope, SpaceTelescope, Telescopes, Scan, Scans,
+            Configurator, Inspector, Calculator
         ]
-        type_map = {cls.__name__.lower(): cls for cls in base_classes}
 
-        access_map = {
-            IF: ("frequencies", "get_frequencies", "get_IF"),
-            Frequencies: ("frequencies", "get_frequencies", None),
-            Source: ("sources", "get_sources", "get_source"),
-            Sources: ("sources", "get_sources", None),
-            Telescope: ("telescopes", "get_telescopes", "get_telescope"), 
-            SpaceTelescope: ("telescopes", "get_telescopes", "get_telescope"),
-            Telescopes: ("telescopes", "get_telescopes", None),
-            Scan: ("scans", "get_scans", "get_scan"),
-            Scans: ("scans", "get_scans", None),
-            Observation: ("observation", None, None),
-            Project: ("project", None, "get_observation")
-        }
+        registry = {}
 
-        registry = {"configure": {}, "inspect": {}, "calculate": {}}
+        for super_class, instance in [
+            (Configurator, self._configurator),
+            (Inspector, self._inspector),
+            (Calculator, self._calculator)
+        ]:
+            methods = {
+                name: method for name, method in inspect.getmembers(instance, predicate=inspect.ismethod)
+                if not name.startswith('__')
+            }
+            registry[super_class] = methods
+            logger.debug(f"Registered {len(methods)} methods for {super_class.__name__}")
 
-        # Configure methods
-        for name, method in inspect.getmembers(self._configurator, predicate=inspect.isfunction):
-            if name.startswith("_configure_"):
-                target_name = name[len("_configure_"):]
-                target_type = type_map.get(target_name)
-                if target_type:
-                    target_str, access_method, item_method = access_map.get(target_type, (target_name, None, None))
-                    registry["configure"][target_type] = {
-                        "config_func": method,
-                        "target_name": target_str,
-                        "access_method": access_method,
-                        "item_method": item_method
-                    }
-                elif target_name == "telescope":
-                    for t in [Telescope, SpaceTelescope]:
-                        target_str, access_method, item_method = access_map[t]
-                        registry["configure"][t] = {
-                            "config_func": method,
-                            "target_name": target_str,
-                            "access_method": access_method,
-                            "item_method": item_method
-                        }
+        for cls in base_classes:
+            if cls in {Configurator, Inspector, Calculator}:  # Пропускаем супер-классы, уже обработаны
+                continue
+            methods = {
+                name: method for name, method in inspect.getmembers(cls, predicate=inspect.ismethod)
+                if not name.startswith('_')  # Только публичные методы
+            }
+            registry[cls] = methods
+            logger.debug(f"Registered {len(methods)} methods for {cls.__name__}")
 
-        # Inspect methods (аналогично)
-        for name, method in inspect.getmembers(self._inspector, predicate=inspect.isfunction):
-            if name.startswith("_inspect_"):
-                target_name = name[len("_inspect_"):]
-                target_type = type_map.get(target_name)
-                if target_type:
-                    target_str, access_method, item_method = access_map.get(target_type, (target_name, None, None))
-                    registry["inspect"][target_type] = {
-                        "inspect_func": method,
-                        "target_name": target_str,
-                        "access_method": access_method,
-                        "item_method": item_method
-                    }
-                elif target_name == "telescope":
-                    for t in [Telescope, SpaceTelescope]:
-                        target_str, access_method, item_method = access_map[t]
-                        registry["inspect"][t] = {
-                            "inspect_func": method,
-                            "target_name": target_str,
-                            "access_method": access_method,
-                            "item_method": item_method
-                        }
-
-        # Calculate methods
-        calc_methods = {}
-        for name, method in inspect.getmembers(Calculator, predicate=inspect.isfunction):
-            if name.startswith("_calculate_"):
-                calc_name = name[len("_calculate_"):]
-                calc_methods[calc_name] = method
-        if calc_methods:
-            for t in [Observation, Project]:
-                target_str, access_method, item_method = access_map[t]
-                registry["calculate"][t] = {
-                    "methods": calc_methods,
-                    "target_name": target_str,
-                    "access_method": access_method,
-                    "item_method": item_method
-                }
-
-        logger.debug(f"Method registry initialized with {len(registry['configure'])} configure, "
-                    f"{len(registry['inspect'])} inspect, and {len(registry['calculate'])} calculate entries")
+        logger.info(f"Method registry initialized with {len(registry)} types")
         return registry
 
     def process_request(self, operation: str, target: str, attributes: Dict[str, Any],
-                    obj: Optional[Union[Project, Observation]] = None) -> Dict[str, Any]:
+                        obj: Optional[Union[Project, Observation]] = None) -> Any:
         if not isinstance(attributes, dict):
             logger.error(f"Attributes must be a dictionary, got {type(attributes)}")
             raise ValueError(f"Attributes must be a dictionary, got {type(attributes)}")
@@ -170,67 +114,33 @@ class Manipulator(ABC):
         target_obj = obj if obj is not None else self._project
         self._validate_object(target_obj, target)
 
-        registry = self._get_method_registry()
-        super_instance = self._get_super_class_instance(operation)
-        section = registry[operation]
+        operation_map = {
+            "configure": Configurator,
+            "inspect": Inspector,
+            "calculate": Calculator
+        }
 
-        
-        target_types = {t: info for t, info in section.items() if info["target_name"] == target}
-        if not target_types:
-            logger.error(f"Unsupported target: {target}")
-            raise ValueError(f"Unsupported target: {target}")
+        if operation not in operation_map:
+            logger.error(f"Unsupported operation: {operation}")
+            raise ValueError(f"Unsupported operation: {operation}")
 
-        
+        super_type = operation_map[operation]
+        super_instance = {
+            Configurator: self._configurator,
+            Inspector: self._inspector,
+            Calculator: self._calculator
+        }[super_type]
+
         obj_type = type(target_obj)
-        if obj_type not in section:
-            logger.error(f"Object type {obj_type} not supported for operation {operation}")
+        if obj_type not in self._registry:
+            logger.error(f"Object type {obj_type} not supported")
             raise ValueError(f"Object type {obj_type} not supported")
 
-        
-        if obj_type in {Project, Observation} and target != section[obj_type]["target_name"]:
-            
-            for t, info in target_types.items():
-                if info["access_method"] and hasattr(target_obj, info["access_method"]):
-                    index_key = f"{target}_index"
-                    if index_key in attributes:
-                        index = attributes[index_key]
-                        if not isinstance(index, int):
-                            logger.error(f"Invalid {index_key} {index} for {target}")
-                            raise ValueError(f"Invalid {index_key}: {index}")
-                        
-                        container = getattr(target_obj, info["access_method"])()
-                        
-                        if info["item_method"] and hasattr(container, info["item_method"]):
-                            try:
-                                target_obj = getattr(container, info["item_method"])(index)
-                            except IndexError:
-                                logger.error(f"Index {index} out of range for {target}")
-                                raise ValueError(f"Index {index} out of range for {target}")
-                        else:
-                            # Если item_method нет (например, для Telescopes), используем список
-                            all_items = container.get_all_telescopes()  # Предполагаем для Telescopes
-                            if not (0 <= index < len(all_items)):
-                                logger.error(f"Invalid {index_key} {index} for {target}")
-                                raise ValueError(f"Invalid {index_key}: {index}")
-                            target_obj = all_items[index]
-                        attributes = {k: v for k, v in attributes.items() if k != index_key}
-                        break
-                    else:
-                        target_obj = getattr(target_obj, info["access_method"])()
-                        break
-            else:
-                logger.error(f"No valid access method for {target} in {obj_type}")
-                raise ValueError(f"Cannot access {target} from {obj_type}")
+        if "execute" not in self._registry[super_type]:
+            logger.error(f"No execute method found for {super_type.__name__}")
+            raise ValueError(f"No execute method for {operation}")
 
-        if target == "observation" and isinstance(target_obj, Project):
-            obs_index = attributes.get("observation_index")
-            if obs_index is None or not isinstance(obs_index, int) or not (0 <= obs_index < len(target_obj.get_observations())):
-                logger.error(f"Invalid or missing observation_index for project '{target_obj.get_name()}'")
-                raise ValueError(f"Invalid observation_index: {obs_index}")
-            target_obj = target_obj.get_observation(obs_index)
-            attributes = {k: v for k, v in attributes.items() if k != "observation_index"}
-
-        return super_instance.execute(operation, target_obj, attributes, section)
+        return super_instance.execute(target_obj, attributes)
 
     def __repr__(self) -> str:
         project_name = self._project.get_name() if self._project else "None"

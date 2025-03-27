@@ -1,6 +1,5 @@
 # /super/inspector.py
 from abc import ABC
-from super.manipulator import Manipulator
 from base.frequencies import IF, Frequencies
 from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
@@ -89,283 +88,197 @@ class Inspector(ABC):
 
     def _inspect_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect an IF object"""
-        try:
-            valid_getters = self._get_inspection_methods()[IF]["getters"]
-            result = {}
-
-            for getter_name, getter_args in attributes.items():
-                value = self._validate_and_apply_getter(if_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters provided or applied for IF inspection")
-                return {}
-
-            logger.info(f"Successfully inspected IF: freq={if_obj.get_frequency()} MHz")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect IF: {str(e)}")
+        valid_getters = self._manipulator.get_methods_for_type(IF)
+        result = {}
+        for getter_name, getter_args in attributes.items():
+            value = self._validate_and_apply_getter(if_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for IF inspection")
             return {}
+        logger.info(f"Successfully inspected IF: freq={if_obj.get_frequency()} MHz")
+        return result
 
     def _inspect_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Frequencies object"""
-        try:
-            valid_getters = self._get_inspection_methods()[Frequencies]["getters"]
-            result = {}
-
-            if "if_index" in attributes:
-                if_index = attributes["if_index"]
-                if not isinstance(if_index, int) or not 0 <= if_index < len(freq_obj):
-                    logger.error(f"Invalid if_index {if_index} for Frequencies with {len(freq_obj)} IFs")
-                    return {}
-                if_obj = freq_obj.get_IF(if_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "if_index"}
-                return self._inspect_if(if_obj, nested_attrs)
-
-            for getter_name, getter_args in attributes.items():
-                value = self._validate_and_apply_getter(freq_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters or nested IF inspection provided for Frequencies")
+        valid_getters = self._manipulator.get_methods_for_type(Frequencies)
+        result = {}
+        if "if_index" in attributes:
+            if_index = attributes["if_index"]
+            if not isinstance(if_index, int) or not 0 <= if_index < len(freq_obj):
+                logger.error(f"Invalid if_index {if_index} for Frequencies with {len(freq_obj)} IFs")
                 return {}
-
-            logger.info(f"Successfully inspected Frequencies: count={len(freq_obj)}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect Frequencies: {str(e)}")
+            if_obj = freq_obj.get_IF(if_index)
+            nested_attrs = {k: v for k, v in attributes.items() if k != "if_index"}
+            return self._inspect_if(if_obj, nested_attrs)
+        for getter_name, getter_args in attributes.items():
+            value = self._validate_and_apply_getter(freq_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for Frequencies inspection")
             return {}
+        logger.info(f"Successfully inspected Frequencies: count={len(freq_obj)}")
+        return result
 
     def _inspect_source(self, source_obj: Source, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Source object"""
-        try:
-            valid_getters = self._get_inspection_methods()[Source]["getters"]
-            result = {}
-
-            for getter_name, getter_args in attributes.items():
-                value = self._validate_and_apply_getter(source_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters provided or applied for Source inspection")
-                return {}
-
-            logger.info(f"Successfully inspected Source: name='{source_obj.get_name()}'")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect Source: {str(e)}")
+        valid_getters = self._manipulator.get_methods_for_type(Source)
+        result = {}
+        for getter_name, getter_args in attributes.items():
+            value = self._validate_and_apply_getter(source_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for Source inspection")
             return {}
+        logger.info(f"Successfully inspected Source: name='{source_obj.get_name()}'")
+        return result
 
     def _inspect_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Sources object"""
-        try:
-            valid_getters = self._get_inspection_methods()[Sources]["getters"]
-            result = {}
-
-            if "source_index" in attributes:
-                source_index = attributes["source_index"]
-                if not isinstance(source_index, int) or not 0 <= source_index < len(sources_obj):
-                    logger.error(f"Invalid source_index {source_index} for Sources with {len(sources_obj)} sources")
-                    return {}
-                source_obj = sources_obj.get_source(source_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "source_index"}
-                return self._inspect_source(source_obj, nested_attrs)
-
-            for getter_name, getter_args in attributes.items():
-                value = self._validate_and_apply_getter(sources_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters or nested Source inspection provided for Sources")
+        valid_getters = self._manipulator.get_methods_for_type(Sources)
+        result = {}
+        if "source_index" in attributes:
+            source_index = attributes["source_index"]
+            if not isinstance(source_index, int) or not 0 <= source_index < len(sources_obj):
+                logger.error(f"Invalid source_index {source_index} for Sources with {len(sources_obj)} sources")
                 return {}
-
-            logger.info(f"Successfully inspected Sources: count={len(sources_obj)}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect Sources: {str(e)}")
+            source_obj = sources_obj.get_source(source_index)
+            nested_attrs = {k: v for k, v in attributes.items() if k != "source_index"}
+            return self._inspect_source(source_obj, nested_attrs)
+        for getter_name, getter_args in attributes.items():
+            value = self._validate_and_apply_getter(sources_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for Sources inspection")
             return {}
+        logger.info(f"Successfully inspected Sources: count={len(sources_obj)}")
+        return result
 
     def _inspect_telescope(self, telescope_obj: Union[Telescope, SpaceTelescope], attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Telescope or SpaceTelescope object"""
-        try:
-            obj_type = type(telescope_obj)
-            valid_getters = self._get_inspection_methods()[obj_type]["getters"]
-            result = {}
-
-            for getter_name, getter_args in attributes.items():
-                value = self._validate_and_apply_getter(telescope_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning(f"No valid getters provided or applied for {obj_type.__name__} inspection")
-                return {}
-
-            logger.info(f"Successfully inspected {obj_type.__name__}: code='{telescope_obj.get_code()}'")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect {type(telescope_obj).__name__}: {str(e)}")
+        obj_type = type(telescope_obj)
+        valid_getters = self._manipulator.get_methods_for_type(obj_type)
+        result = {}
+        for getter_name, getter_args in attributes.items():
+            value = self._validate_and_apply_getter(telescope_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning(f"No valid getters provided for {obj_type.__name__} inspection")
             return {}
+        logger.info(f"Successfully inspected {obj_type.__name__}: code='{telescope_obj.get_code()}'")
+        return result
 
     def _inspect_telescopes(self, telescopes_obj: Telescopes, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Telescopes object"""
-        try:
-            valid_getters = self._get_inspection_methods()[Telescopes]["getters"]
-            result = {}
-
-            if "telescope_index" in attributes:
-                telescope_index = attributes["telescope_index"]
-                if not isinstance(telescope_index, int) or not 0 <= telescope_index < len(telescopes_obj):
-                    logger.error(f"Invalid telescope_index {telescope_index} for Telescopes with {len(telescopes_obj)} telescopes")
-                    return {}
-                telescope_obj = telescopes_obj.get_telescope(telescope_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_index"}
-                return self._inspect_telescope(telescope_obj, nested_attrs)
-
-            for getter_name, getter_args in attributes.items():
-                value = self._validate_and_apply_getter(telescopes_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters or nested Telescope inspection provided for Telescopes")
+        valid_getters = self._manipulator.get_methods_for_type(Telescopes)
+        result = {}
+        if "telescope_index" in attributes:
+            telescope_index = attributes["telescope_index"]
+            if not isinstance(telescope_index, int) or not 0 <= telescope_index < len(telescopes_obj):
+                logger.error(f"Invalid telescope_index {telescope_index} for Telescopes with {len(telescopes_obj)} telescopes")
                 return {}
-
-            logger.info(f"Successfully inspected Telescopes: count={len(telescopes_obj)}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect Telescopes: {str(e)}")
+            telescope_obj = telescopes_obj.get_telescope(telescope_index)
+            nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_index"}
+            return self._inspect_telescope(telescope_obj, nested_attrs)
+        for getter_name, getter_args in attributes.items():
+            value = self._validate_and_apply_getter(telescopes_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for Telescopes inspection")
             return {}
+        logger.info(f"Successfully inspected Telescopes: count={len(telescopes_obj)}")
+        return result
 
     def _inspect_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Scan object"""
-        try:
-            valid_getters = self._get_inspection_methods()[Scan]["getters"]
-            result = {}
-
-            for getter_name, getter_args in attributes.items():
-                if getter_name in {"get_source", "get_telescopes", "get_frequencies", "check_telescope_availability"}:
-                    if not getter_args or "observation" not in getter_args:
-                        logger.error(f"Getter {getter_name} requires an 'observation' argument for Scan")
-                        continue
-                    if not isinstance(getter_args["observation"], Observation):
-                        logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
-                        continue
-                value = self._validate_and_apply_getter(scan_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters provided or applied for Scan inspection")
-                return {}
-
-            logger.info(f"Successfully inspected Scan: start={scan_obj.get_start()}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect Scan: {str(e)}")
+        valid_getters = self._manipulator.get_methods_for_type(Scan)
+        result = {}
+        for getter_name, getter_args in attributes.items():
+            if getter_name in {"get_source", "get_telescopes", "get_frequencies", "check_telescope_availability"}:
+                if not getter_args or "observation" not in getter_args:
+                    logger.error(f"Getter {getter_name} requires an 'observation' argument for Scan")
+                    continue
+                if not isinstance(getter_args["observation"], Observation):
+                    logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
+                    continue
+            value = self._validate_and_apply_getter(scan_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for Scan inspection")
             return {}
+        logger.info(f"Successfully inspected Scan: start={scan_obj.get_start()}")
+        return result
 
     def _inspect_scans(self, scans_obj: Scans, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Scans object"""
-        try:
-            valid_getters = self._get_inspection_methods()[Scans]["getters"]
-            result = {}
-
-            if "scan_index" in attributes:
-                scan_index = attributes["scan_index"]
-                if not isinstance(scan_index, int) or not 0 <= scan_index < len(scans_obj):
-                    logger.error(f"Invalid scan_index {scan_index} for Scans with {len(scans_obj)} scans")
-                    return {}
-                scan_obj = scans_obj.get_scan(scan_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "scan_index"}
-                return self._inspect_scan(scan_obj, nested_attrs)
-
-            for getter_name, getter_args in attributes.items():
-                if getter_name == "get_active_scans" and getter_args and "observation" in getter_args:
-                    if not isinstance(getter_args["observation"], Observation):
-                        logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
-                        continue
-                value = self._validate_and_apply_getter(scans_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters or nested Scan inspection provided for Scans")
+        valid_getters = self._manipulator.get_methods_for_type(Scans)
+        result = {}
+        if "scan_index" in attributes:
+            scan_index = attributes["scan_index"]
+            if not isinstance(scan_index, int) or not 0 <= scan_index < len(scans_obj):
+                logger.error(f"Invalid scan_index {scan_index} for Scans with {len(scans_obj)} scans")
                 return {}
-
-            logger.info(f"Successfully inspected Scans: count={len(scans_obj)}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect Scans: {str(e)}")
+            scan_obj = scans_obj.get_scan(scan_index)
+            nested_attrs = {k: v for k, v in attributes.items() if k != "scan_index"}
+            return self._inspect_scan(scan_obj, nested_attrs)
+        for getter_name, getter_args in attributes.items():
+            if getter_name == "get_active_scans" and getter_args and "observation" in getter_args:
+                if not isinstance(getter_args["observation"], Observation):
+                    logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
+                    continue
+            value = self._validate_and_apply_getter(scans_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for Scans inspection")
             return {}
+        logger.info(f"Successfully inspected Scans: count={len(scans_obj)}")
+        return result
 
     def _inspect_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect an Observation object"""
-        try:
-            valid_getters = self._get_inspection_methods()[Observation]["getters"]
-            result = {}
-
-            # Nested inspection using _inspect_nested
-            if "source_index" in attributes:
-                return self._inspect_nested(obs_obj.get_sources(), attributes, "source_index", Sources.get_source, self._inspect_source)
-            if "telescope_index" in attributes:
-                return self._inspect_nested(obs_obj.get_telescopes(), attributes, "telescope_index", Telescopes.get_telescope, self._inspect_telescope)
-            if "if_index" in attributes:
-                return self._inspect_nested(obs_obj.get_frequencies(), attributes, "if_index", Frequencies.get_IF, self._inspect_if)
-            if "scan_index" in attributes:
-                return self._inspect_nested(obs_obj.get_scans(), attributes, "scan_index", Scans.get_scan, self._inspect_scan)
-
-            # Direct inspection of Observation
-            for getter_name, getter_args in attributes.items():
-                value = self._validate_and_apply_getter(obs_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters or nested inspection provided for Observation")
-                return {}
-
-            logger.info(f"Successfully inspected Observation: code='{obs_obj.get_observation_code()}'")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect Observation: {str(e)}")
+        valid_getters = self._manipulator.get_methods_for_type(Observation)
+        result = {}
+        for getter_name, getter_args in attributes.items():
+            value = self._validate_and_apply_getter(obs_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for Observation inspection")
             return {}
+        logger.info(f"Successfully inspected Observation: code='{obs_obj.get_observation_code()}'")
+        return result
 
     def _inspect_project(self, project_obj: Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Project object"""
-        try:
-            valid_getters = self._get_inspection_methods()[Project]["getters"]
-            result = {}
-
-            if "observation_index" in attributes:
-                observation_index = attributes["observation_index"]
-                if not isinstance(observation_index, int) or not 0 <= observation_index < len(project_obj.get_observations()):
-                    logger.error(f"Invalid observation_index {observation_index} for Project with {len(project_obj.get_observations())} observations")
-                    return {}
-                observation_obj = project_obj.get_observation(observation_index)
-                nested_attrs = {k: v for k, v in attributes.items() if k != "observation_index"}
-                return self._inspect_observation(observation_obj, nested_attrs)
-
-            for getter_name, getter_args in attributes.items():
-                value = self._validate_and_apply_getter(project_obj, getter_name, getter_args, valid_getters)
-                if value is not None:
-                    result[getter_name] = value
-
-            if not result:
-                logger.warning("No valid getters or nested inspection provided for Project")
+        valid_getters = self._manipulator.get_methods_for_type(Project)
+        result = {}
+        if "observation_index" in attributes:
+            observation_index = attributes["observation_index"]
+            if not isinstance(observation_index, int) or not 0 <= observation_index < len(project_obj.get_observations()):
+                logger.error(f"Invalid observation_index {observation_index} for Project with {len(project_obj.get_observations())} observations")
                 return {}
-
-            logger.info(f"Successfully inspected Project: name='{project_obj.get_name()}'")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to inspect Project: {str(e)}")
+            observation_obj = project_obj.get_observation(observation_index)
+            nested_attrs = {k: v for k, v in attributes.items() if k != "observation_index"}
+            return self._inspect_observation(observation_obj, nested_attrs)
+        for getter_name, getter_args in attributes.items():
+            value = self._validate_and_apply_getter(project_obj, getter_name, getter_args, valid_getters)
+            if value is not None:
+                result[getter_name] = value
+        if not result:
+            logger.warning("No valid getters provided for Project inspection")
             return {}
+        logger.info(f"Successfully inspected Project: name='{project_obj.get_name()}'")
+        return result
 
-    def inspect(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Universal method to inspect an object using getter calls in a single attributes dictionary
 
         Args:
@@ -385,15 +298,16 @@ class Inspector(ABC):
             logger.error("Inspection object cannot be None")
             raise ValueError("Inspection object cannot be None")
 
-        inspection_methods = self._manipulator.get_registry_section("inspect")
         obj_type = type(obj)
+        inspect_methods = self._manipulator.get_methods_for_type(Inspector)
+        inspect_method_name = f"_inspect_{obj_type.__name__.lower()}"
 
-        if obj_type not in inspection_methods:
-            logger.error(f"Unsupported object type for inspection: {obj_type}")
-            raise ValueError(f"Unsupported object type: {obj_type}")
+        if inspect_method_name not in inspect_methods:
+            logger.error(f"No inspection method found for {obj_type.__name__}")
+            raise ValueError(f"No inspection method for {obj_type.__name__}")
 
         try:
-            return inspection_methods[obj_type]["inspect_func"](obj, attributes)
+            return inspect_methods[inspect_method_name](self, obj, attributes)
         except Exception as e:
             logger.error(f"Failed to inspect {obj_type}: {str(e)}")
             return {}

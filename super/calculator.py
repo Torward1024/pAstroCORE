@@ -1,6 +1,5 @@
 # super/calculator.py
 from abc import ABC
-from super.manipulator import Manipulator
 from base.frequencies import Frequencies
 from base.sources import Sources, Source
 from base.telescopes import Telescope, SpaceTelescope, Telescopes, MountType
@@ -13,7 +12,6 @@ from functools import lru_cache
 import numpy as np
 from astropy.time import Time
 from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, EarthLocation, HADec
-from astropy.coordinates import SphericalRepresentation, precess_from_J2000, nutation_components
 import astropy.coordinates as coord
 import astropy.units as u
 from concurrent.futures import ThreadPoolExecutor
@@ -859,29 +857,23 @@ class Calculator(ABC):
 
     def _compute_mollweide_coords(self, coord: SkyCoord, time: Time) -> Tuple[float, float]:
         """Compute Mollweide projection coordinates with precession and nutation"""
-        # Применяем прецессию и нутацию от J2000 к текущему времени
-        j2000 = Time("J2000")
-        dpsi, deps = nutation_components(time)  # Нутация
-        precessed_coord = precess_from_J2000(coord, time)  # Прецессия
-        # Применяем нутацию вручную (Astropy не делает это автоматически)
-        nutated_coord = SkyCoord(
-            ra=precessed_coord.ra + dpsi * np.cos(precessed_coord.dec.rad) * u.radian,
-            dec=precessed_coord.dec + deps * u.radian,
-            frame='icrs'
-        )
-
-        ra = nutated_coord.ra.rad
-        dec = nutated_coord.dec.rad
-        # Mollweide projection
+        cirs_coord = coord.transform_to(coord.CIRS(obstime=time))
+        
+        # Получаем RA и Dec в радианах
+        ra = cirs_coord.ra.rad
+        dec = cirs_coord.dec.rad
+        
+        # Mollweide-проекция
         theta = dec
         if abs(dec) >= np.pi / 2:
             lat = np.sign(dec) * np.pi / 2
         else:
             lat = dec
         lon = ra - np.pi  # Центрирование на 0
+        
         return np.degrees(lon), np.degrees(lat)
 
-    def calculate(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Universal method to perform calculations on an object
 
         Args:
@@ -895,17 +887,21 @@ class Calculator(ABC):
             logger.error("Calculation object cannot be None")
             raise ValueError("Calculation object cannot be None")
 
-        calc_registry = self._manipulator.get_registry_section("calculate")
         obj_type = type(obj)
-        calc_type = attributes.get("type", "telescope_positions")
+        calc_methods = self._manipulator.get_methods_for_type(Calculator)
 
-        if obj_type not in calc_registry or calc_type not in calc_registry[obj_type]["methods"]:
-            logger.error(f"Unsupported object type {obj_type} or calculation type {calc_type}")
-            raise ValueError(f"Unsupported calculation for {obj_type}: {calc_type}")
+        calc_type = attributes.get("type")
+        if not calc_type:
+            logger.error("Calculation type must be specified in attributes")
+            raise ValueError("Calculation type must be specified in attributes")
+
+        calc_method_name = f"_calculate_{calc_type}"
+        if calc_method_name not in calc_methods:
+            logger.error(f"No calculation method found for type '{calc_type}'")
+            raise ValueError(f"No calculation method for type '{calc_type}'")
 
         try:
-            calc_method = calc_registry[obj_type]["methods"][calc_type]
-            return calc_method(self, obj, attributes)
+            return calc_methods[calc_method_name](self, obj, attributes)
         except Exception as e:
             logger.error(f"Failed to calculate {calc_type} for {obj_type}: {str(e)}")
             return {}
