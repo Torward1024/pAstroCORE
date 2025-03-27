@@ -116,6 +116,7 @@ class Manipulator(ABC):
             "scan": "scans",
             "scans": "scans"
         }
+        
         if target not in target_map:
             logger.error(f"Unsupported target: {target}")
             raise ValueError(f"Unsupported target: {target}")
