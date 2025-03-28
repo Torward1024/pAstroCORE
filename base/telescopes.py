@@ -224,17 +224,17 @@ class Telescope(BaseEntity):
     
     def get_vx(self) -> float:
         """Get telescope velocity vx in meters (ITRF)"""
-        logger.debug(f"Retrieved velocity Vx={self._x} m for telescope '{self._code}'")
+        logger.debug(f"Retrieved velocity Vx={self._vx} m for telescope '{self._code}'")
         return self._vx
     
     def get_vy(self) -> float:
         """Get telescope velocity vy in meters (ITRF)"""
-        logger.debug(f"Retrieved velocity Vy={self._y} m for telescope '{self._code}'")
+        logger.debug(f"Retrieved velocity Vy={self._vy} m for telescope '{self._code}'")
         return self._vy
     
     def get_vz(self) -> float:
         """Get telescope velocity vz in meters (ITRF)"""
-        logger.debug(f"Retrieved velocit Vz={self._z} m for telescope '{self._code}'")
+        logger.debug(f"Retrieved velocit Vz={self._vz} m for telescope '{self._code}'")
         return self._vz
 
     def get_diameter(self) -> float:
@@ -596,12 +596,12 @@ class Telescope(BaseEntity):
 
 class SpaceTelescope(Telescope):
     def __init__(self, code: str = "TEMP_SPACE", name: str = "Temporary Space Telescope",
-                 orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
-                 sefd_table: Optional[Dict[float, float]] = None,
-                 pitch_range: Tuple[float, float] = (-90.0, 90.0),
-                 yaw_range: Tuple[float, float] = (-180.0, 180.0),
-                 isactive: bool = True, use_kep: bool = True,
-                 kepler_elements: Optional[dict] = None):
+             orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
+             sefd_table: Optional[Dict[float, float]] = None,
+             pitch_range: Tuple[float, float] = (-90.0, 90.0),
+             yaw_range: Tuple[float, float] = (-180.0, 180.0),
+             isactive: bool = True, use_kep: bool = True,
+             kepler_elements: Optional[dict] = None):
         """Initialize a SpaceTelescope object with code, name, orbit file, diameter, and additional parameters.
 
         Args:
@@ -617,7 +617,8 @@ class SpaceTelescope(Telescope):
             kepler_elements (dict, optional): Keplerian elements dictionary with keys: a, e, i, raan, argp, nu, epoch, mu
         """
         super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0, 
-                        diameter=diameter, sefd_table=sefd_table, isactive=isactive)
+                     diameter=diameter, sefd_table=sefd_table, isactive=isactive,
+                     mount_type="NONE")
         check_non_empty_string(orbit_file, "Orbit file")
         check_positive(diameter, "Diameter")
         check_type(pitch_range, tuple, "Pitch range")
@@ -743,9 +744,9 @@ class SpaceTelescope(Telescope):
     def get_state_vector(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
         """Get state vector to date"""
         if self._use_kep:
-            return self.get_state_vector_from_kepler(self, dt)
+            return self.get_state_vector_from_kepler(dt)
         else:
-            return self.get_state_vector_from_orbit(self, dt)
+            return self.get_state_vector_from_orbit(dt)
 
     def get_state_vector_from_kepler(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
         """Get position and velocity from Keplerian elements at a given time"""
@@ -776,13 +777,10 @@ class SpaceTelescope(Telescope):
         return pos, vel
 
     def get_state_vector_from_orbit(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
-        """Get position and velocity at a given time"""
-        if not self._validate_orbit_data():
-            logger.error(f"No orbit data or Kepler elements defined for '{self._code}'")
-            raise ValueError("No orbit data or Kepler elements available! Define orbit file or Kepler elements first.")
+        if self._orbit_data is None:
+            logger.error(f"No orbit data defined for '{self._code}'")
+            raise ValueError("No orbit data available! Load an orbit file first.")
         t = (dt - datetime(2000, 1, 1, 12, 0, 0)).total_seconds()
-        if self._kepler_elements:
-            return self.get_state_vector_from_kepler(dt)
         times = self._orbit_data["times"]
         if t < times[0] or t > times[-1]:
             logger.debug(f"Time {t} outside orbit data range for '{self._code}'")
@@ -803,7 +801,7 @@ class SpaceTelescope(Telescope):
             frac = (t - t1) / (t2 - t1)
             pos = pos1 + (pos2 - pos1) * frac
             vel = vel1 + (vel2 - vel1) * frac
-            logger.warning(f"Using linear interpolation for position and velocity at time {t} for '{self._code}' (consider using splines or Chebyshev)")
+            logger.warning(f"Using linear interpolation for position and velocity at time {t} for '{self._code}'")
         logger.debug(f"Retrieved position={pos}, velocity={vel} for '{self._code}' at {dt}")
         return pos, vel
     
