@@ -88,7 +88,7 @@ class Calculator(ABC):
         duration = scan.get_duration()
         end_time = Time(start_time) + duration * u.s
         telescope_indices = scan.get_telescope_indices()
-        active_telescopes = [telescopes.get_telescope(i) for i in telescope_indices if telescopes.get_telescope(i).isactive]
+        active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
 
         if not active_telescopes:
             logger.warning(f"No active telescopes for scan starting at {start_time}")
@@ -173,9 +173,9 @@ class Calculator(ABC):
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
         source_idx = scan.get_source_index()
-        source = sources.get_source(source_idx)
+        source = sources.get_by_index(source_idx)
         telescope_indices = scan.get_telescope_indices()
-        active_telescopes = [telescopes.get_telescope(i) for i in telescope_indices if telescopes.get_telescope(i).isactive]
+        active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
@@ -290,9 +290,9 @@ class Calculator(ABC):
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
         telescope_indices = scan.get_telescope_indices()
-        active_telescopes = [telescopes.get_telescope(i) for i in telescope_indices if telescopes.get_telescope(i).isactive]
+        active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
         freq_indices = scan.get_frequency_indices() if freq_idx is None else [freq_idx]
-        freqs = [frequencies.get_IF(i).get_frequency() * 1e6 for i in freq_indices if frequencies.get_IF(i).isactive]  # MHz -> Hz
+        freqs = [frequencies.get_by_index(i).get_frequency() * 1e6 for i in freq_indices if frequencies.get_by_index(i).isactive]  # MHz -> Hz
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
@@ -375,7 +375,7 @@ class Calculator(ABC):
         """Process Sun angles for a single scan"""
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
-        source = sources.get_source(scan.get_source_index())
+        source = sources.get_by_index(scan.get_source_index())
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
 
         if time_step is None:
@@ -393,7 +393,6 @@ class Calculator(ABC):
         return source_coord.separation(sun).deg
 
     def _calculate_az_el(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate azimuth/elevation or hour angle/declination for ground telescopes in the observation or project"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "az_el")
@@ -414,22 +413,21 @@ class Calculator(ABC):
             scans = obj.get_scans().get_active_scans(obj)
             telescopes = obj.get_telescopes()
             sources = obj.get_sources()
+            logger.debug(f"Active scans: {len(scans)}, Telescopes: {len(telescopes.get_all_telescopes())}, Sources: {len(sources.get_all_sources())}")
 
-            existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
-                logger.info(f"Using cached Az/El or HA/Dec for '{obj.get_observation_code()}'")
-                return existing_data["data"]
+            if not scans:
+                logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                return {}
 
             results = {}
-            with ThreadPoolExecutor() as executor:
-                futures = {
-                    executor.submit(self._process_az_el, scan, telescopes, sources, time_step): i
-                    for i, scan in enumerate(scans)
-                }
-                for future in futures:
-                    scan_idx = futures[future]
-                    results[scan_idx] = future.result()
+            for i, scan in enumerate(scans):
+                try:
+                    results[i] = self._process_az_el(scan, telescopes, sources, time_step)
+                except Exception as e:
+                    logger.error(f"Failed to process scan {i}: {str(e)}")
+                    results[i] = {}
 
+            logger.debug(f"Results after processing: {results}")
             metadata = {"time_step": time_step, "scan_count": len(scans)}
             with self._lock:
                 obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
@@ -443,10 +441,10 @@ class Calculator(ABC):
         """Process Az/El or HA/Dec for a single scan"""
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
-        source = sources.get_source(scan.get_source_index())
+        source = sources.get_by_index(scan.get_source_index())
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
         telescope_indices = scan.get_telescope_indices()
-        active_ground_tels = [tel for tel in (telescopes.get_telescope(i) for i in telescope_indices) 
+        active_ground_tels = [tel for tel in (telescopes.get_by_index(i) for i in telescope_indices) 
                              if tel.isactive and not isinstance(tel, SpaceTelescope)]
 
         if time_step is None:
@@ -520,7 +518,7 @@ class Calculator(ABC):
 
             time_on_source = {}
             for i, scan in enumerate(scans):
-                source_name = sources.get_source(scan.get_source_index()).get_name()
+                source_name = sources.get_by_index(scan.get_source_index()).get_name()
                 duration = scan.get_duration()
                 time_on_source.setdefault(source_name, []).append({"scan_idx": i, "duration": duration})
 
@@ -559,7 +557,7 @@ class Calculator(ABC):
                 return {}
 
             telescopes = obj.get_telescopes().get_active_telescopes()
-            frequency = obj.get_frequencies().get_IF(freq_idx).get_frequency() * 1e6  # MHz -> Hz
+            frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6  # MHz -> Hz
 
             existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate:
@@ -611,7 +609,7 @@ class Calculator(ABC):
                 logger.warning(f"Synthesized beam calculation is only for VLBI, got {obj.get_observation_type()}")
                 return {}
 
-            frequency = obj.get_frequencies().get_IF(freq_idx).get_frequency() * 1e6  # MHz -> Hz
+            frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6  # MHz -> Hz
 
             existing_data = obj.get_calculated_data_by_key(store_key)
             if existing_data and not recalculate:
@@ -712,8 +710,8 @@ class Calculator(ABC):
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
         telescope_indices = scan.get_telescope_indices()
-        active_telescopes = [telescopes.get_telescope(i) for i in telescope_indices if telescopes.get_telescope(i).isactive]
-        frequency = frequencies.get_IF(freq_idx).get_frequency() * 1e6  # MHz -> Hz
+        active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
+        frequency = frequencies.get_by_index(freq_idx).get_frequency() * 1e6  # MHz -> Hz
         source = scan.get_source(observation=None)  # Предполагаем, что Observation доступен через контекст
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs') if source else None
 
@@ -839,7 +837,7 @@ class Calculator(ABC):
         """Process Mollweide tracks for a single scan with precession and nutation"""
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
-        source = sources.get_source(scan.get_source_index())
+        source = sources.get_by_index(scan.get_source_index())
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
 
         if time_step is None:
