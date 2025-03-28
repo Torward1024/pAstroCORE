@@ -112,11 +112,10 @@ class IF(BaseEntity):
         self.isactive = isactive
         logger.info(f"Set IF to frequency={freq} MHz, bandwidth={bandwidth} MHz, polarizations={self._polarization}")
 
-    def set_frequency(self, freq: float, isactive: bool = True) -> None:
+    def set_frequency(self, freq: float) -> None:
         """Set IF frequency value in MHz"""
         check_positive(freq, "Frequency")
         self._frequency = freq
-        self.isactive = isactive
         logger.info(f"Set IF frequency to {freq} MHz for IF")
 
     def set_bandwidth(self, bandwidth: float) -> None:

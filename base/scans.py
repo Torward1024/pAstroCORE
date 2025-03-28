@@ -372,7 +372,6 @@ class Scans(BaseEntity):
         overlap, reason = self._check_overlap(scan)
         if overlap:
             logger.error(f"Scan with start={scan.get_start()}, duration={scan.get_duration()} {reason}")
-            raise ValueError(f"Scan conflicts: {reason}")
         self._data.append(scan)
         logger.info(f"Added scan with start={scan.get_start()}, duration={scan.get_duration()} to Scans")
     
@@ -593,26 +592,19 @@ class Scans(BaseEntity):
         return cls(scans=scans)
     
     def _check_overlap(self, scan: 'Scan', exclude_index: int = -1, observation: 'Observation' = None) -> tuple[bool, str]:
-        """Check if the scan overlaps with existing scans by time and telescopes (source optional)."""
+        """Check if the scan overlaps with existing scans by time"""
         from base.observation import Observation
         for i, existing in enumerate(self._data):
             if i == exclude_index or not existing.isactive or not scan.isactive:
                 continue
             time_overlap = (existing.get_start() < scan.get_start() + scan.get_duration() and
                             scan.get_start() < existing.get_start() + existing.get_duration())
-            if not time_overlap:
-                continue
-            if observation:
-                existing_tels = {t.get_telescope_code() for t in existing.get_telescopes(observation).get_active_telescopes()}
-                new_tels = {t.get_telescope_code() for t in scan.get_telescopes(observation).get_active_telescopes()}
-                common_tels = existing_tels.intersection(new_tels)
-                if common_tels:
-                    return True, f"overlaps with scan {i} by telescopes {common_tels}"
-            else:
-                # Если observation не передан, проверяем только пересечение индексов телескопов
-                common_tels = set(existing.get_telescope_indices()).intersection(scan.get_telescope_indices())
-                if common_tels:
-                    return True, f"overlaps with scan {i} by telescope indices {common_tels}"
+            if time_overlap:
+                reason = (f"overlaps with scan at index {i} (start={existing.get_start()}, "
+                        f"duration={existing.get_duration()})")
+                logger.debug(f"Overlap detected: {reason}")
+                return True, reason
+        logger.debug(f"No overlap detected for scan with start={scan.get_start()}")
         return False, ""
 
     def __len__(self) -> int:

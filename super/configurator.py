@@ -197,7 +197,7 @@ class Configurator(ABC):
             if not isinstance(scan_index, int) or not 0 <= scan_index < len(scans_obj):
                 logger.error(f"Invalid scan_index {scan_index} for Scans with {len(scans_obj)} scans")
                 return False
-            scan_obj = scans_obj.get_scan(scan_index)
+            scan_obj = scans_obj.get_by_index(scan_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "scan_index"}
             success = self._configure_scan(scan_obj, nested_attrs)
             if success:
@@ -240,7 +240,7 @@ class Configurator(ABC):
             if not isinstance(obs_index, int) or not 0 <= obs_index < len(project_obj.get_observations()):
                 logger.error(f"Invalid observation_index {obs_index} for Project '{project_obj.get_name()}' with {len(project_obj.get_observations())} observations")
                 return False
-            obs_obj = project_obj.get_observation(obs_index)
+            obs_obj = project_obj.get_by_index(obs_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "observation_index"}
             return self._configure_observation(obs_obj, nested_attrs)
         for method_name, method_args in attributes.items():
