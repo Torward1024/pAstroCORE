@@ -109,7 +109,7 @@ class Inspector(ABC):
             if not isinstance(if_index, int) or not 0 <= if_index < len(freq_obj):
                 logger.error(f"Invalid if_index {if_index} for Frequencies with {len(freq_obj)} IFs")
                 return {}
-            if_obj = freq_obj.get_IF(if_index)
+            if_obj = freq_obj.get_by_index(if_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "if_index"}
             return self._inspect_if(if_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
@@ -145,7 +145,7 @@ class Inspector(ABC):
             if not isinstance(source_index, int) or not 0 <= source_index < len(sources_obj):
                 logger.error(f"Invalid source_index {source_index} for Sources with {len(sources_obj)} sources")
                 return {}
-            source_obj = sources_obj.get_source(source_index)
+            source_obj = sources_obj.get_by_index(source_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "source_index"}
             return self._inspect_source(source_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
@@ -182,7 +182,7 @@ class Inspector(ABC):
             if not isinstance(telescope_index, int) or not 0 <= telescope_index < len(telescopes_obj):
                 logger.error(f"Invalid telescope_index {telescope_index} for Telescopes with {len(telescopes_obj)} telescopes")
                 return {}
-            telescope_obj = telescopes_obj.get_telescope(telescope_index)
+            telescope_obj = telescopes_obj.get_by_index(telescope_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_index"}
             return self._inspect_telescope(telescope_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
@@ -225,7 +225,7 @@ class Inspector(ABC):
             if not isinstance(scan_index, int) or not 0 <= scan_index < len(scans_obj):
                 logger.error(f"Invalid scan_index {scan_index} for Scans with {len(scans_obj)} scans")
                 return {}
-            scan_obj = scans_obj.get_scan(scan_index)
+            scan_obj = scans_obj.get_by_index(scan_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "scan_index"}
             return self._inspect_scan(scan_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
@@ -265,7 +265,7 @@ class Inspector(ABC):
             if not isinstance(observation_index, int) or not 0 <= observation_index < len(project_obj.get_observations()):
                 logger.error(f"Invalid observation_index {observation_index} for Project with {len(project_obj.get_observations())} observations")
                 return {}
-            observation_obj = project_obj.get_observation(observation_index)
+            observation_obj = project_obj.get_by_index(observation_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "observation_index"}
             return self._inspect_observation(observation_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
