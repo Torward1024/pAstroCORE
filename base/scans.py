@@ -592,23 +592,27 @@ class Scans(BaseEntity):
         logger.info(f"Created Scans with {len(scans)} scans from dictionary")
         return cls(scans=scans)
     
-    def _check_overlap(self, scan: 'Scan', exclude_index: int = -1) -> tuple[bool, str]:
+    def _check_overlap(self, scan: 'Scan', exclude_index: int = -1, observation: 'Observation' = None) -> tuple[bool, str]:
         """Check if the scan overlaps with existing scans by time and telescopes (source optional)."""
+        from base.observation import Observation
         for i, existing in enumerate(self._data):
-            # check whether scans are active
-            if i == exclude_index or not existing.isactive or not scan.isactive:  
+            if i == exclude_index or not existing.isactive or not scan.isactive:
                 continue
-            # check time overlap
             time_overlap = (existing.get_start() < scan.get_start() + scan.get_duration() and
                             scan.get_start() < existing.get_start() + existing.get_duration())
             if not time_overlap:
                 continue
-            # check telescope overlap
-            existing_tels = {t.get_telescope_code() for t in existing.get_telescopes().get_active_telescopes()}
-            new_tels = {t.get_telescope_code() for t in scan.get_telescopes().get_active_telescopes()}
-            common_tels = existing_tels.intersection(new_tels)
-            if common_tels:
-                return True, f"overlaps with scan {i} by telescopes {common_tels}"
+            if observation:
+                existing_tels = {t.get_telescope_code() for t in existing.get_telescopes(observation).get_active_telescopes()}
+                new_tels = {t.get_telescope_code() for t in scan.get_telescopes(observation).get_active_telescopes()}
+                common_tels = existing_tels.intersection(new_tels)
+                if common_tels:
+                    return True, f"overlaps with scan {i} by telescopes {common_tels}"
+            else:
+                # Если observation не передан, проверяем только пересечение индексов телескопов
+                common_tels = set(existing.get_telescope_indices()).intersection(scan.get_telescope_indices())
+                if common_tels:
+                    return True, f"overlaps with scan {i} by telescope indices {common_tels}"
         return False, ""
 
     def __len__(self) -> int:
