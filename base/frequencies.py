@@ -57,8 +57,8 @@ class IF(BaseEntity):
             isactive (bool): Whether the frequency is active (default: True).
         """
         super().__init__(isactive)
-        check_non_negative(freq, "Frequency")
-        check_non_negative(bandwidth, "Bandwidth")
+        check_positive(freq, "Frequency")
+        check_positive(bandwidth, "Bandwidth")
         self._frequency = freq
         self._bandwidth = bandwidth
         self._polarizations = self._validate_polarizations(polarization)
@@ -99,8 +99,8 @@ class IF(BaseEntity):
     def set_if(self, freq: float, bandwidth: float, 
                polarization: Optional[str] = None, isactive: bool = True) -> None:
         """Set IF values"""
-        check_non_negative(freq, "Frequency")
-        check_non_negative(bandwidth, "Bandwidth")
+        check_positive(freq, "Frequency")
+        check_positive(bandwidth, "Bandwidth")
 
         if polarization is not None:
             check_type(polarization, str, "Polarization")
@@ -114,14 +114,14 @@ class IF(BaseEntity):
 
     def set_frequency(self, freq: float, isactive: bool = True) -> None:
         """Set IF frequency value in MHz"""
-        check_non_negative(freq, "Frequency")
+        check_positive(freq, "Frequency")
         self._frequency = freq
         self.isactive = isactive
         logger.info(f"Set IF frequency to {freq} MHz for IF")
 
     def set_bandwidth(self, bandwidth: float) -> None:
         """Set IF bandwidth value in MHz"""
-        check_non_negative(bandwidth, "Bandwidth")
+        check_positive(bandwidth, "Bandwidth")
         self._bandwidth = bandwidth
         logger.info(f"Set IF bandwidth to {bandwidth} MHz for IF")
     
@@ -133,7 +133,6 @@ class IF(BaseEntity):
     def set_frequency_wavelength(self, wavelength_cm: float) -> None:
         """Set IF frequency value in MHz through wavelength value in cm"""
         check_positive(wavelength_cm, "Wavelength")
-        check_non_zero(wavelength_cm, "Wavelength")
         self._frequency = C_MHZ_CM / wavelength_cm
         logger.info(f"Set IF frequency to {self._frequency} MHz from wavelength={wavelength_cm} cm for IF")
 
