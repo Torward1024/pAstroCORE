@@ -5,7 +5,7 @@ from utils.logging_setup import logger
 
 class Project:
     """Container for managing multiple observations"""
-    def __init__(self, name: str, observations: List[Observation] = None):
+    def __init__(self, name: str = "PROJECT_DEFAULT", observations: List[Observation] = None):
         """Initialize a Project with a name and optional list of observations."""
         check_non_empty_string(name, "Project name")
         self._name = name

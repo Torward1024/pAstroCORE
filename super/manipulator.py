@@ -93,7 +93,7 @@ class Manipulator(ABC):
             logger.debug(f"Registered {len(methods)} methods for {super_class.__name__}")
 
         for cls in base_classes:
-            if cls in {Configurator, Inspector, Calculator}:  # Пропускаем супер-классы, уже обработаны
+            if cls in {Configurator, Inspector, Calculator}:
                 continue
             methods = {
                 name: method for name, method in inspect.getmembers(cls, predicate=inspect.ismethod)

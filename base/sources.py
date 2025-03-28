@@ -66,8 +66,9 @@ from typing import Optional, Dict
     """
 
 class Source(BaseEntity):
-    def __init__(self, name: str, ra_h: float, ra_m: float, ra_s: float, de_d: float, de_m: float, de_s: float,
-                 name_J2000: str = None, alt_name: str = None,
+    def __init__(self, name: str = "SOURCE_DEFAULT", ra_h: float = 0.0, ra_m: float = 0.0, ra_s: float = 0.0,
+                 de_d: float = 0.0, de_m: float = 0.0, de_s: float = 0.0,
+                 name_J2000: Optional[str] = None, alt_name: Optional[str] = None,
                  flux_table: Optional[Dict[float, float]] = None,
                  spectral_index: Optional[float] = None,
                  isactive: bool = True):

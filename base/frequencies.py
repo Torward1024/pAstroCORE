@@ -46,7 +46,7 @@ VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(PAIRED_LINEAR_POLARIZATIONS).
         __repr__
     """
 class IF(BaseEntity):
-    def __init__(self, freq: float, bandwidth: float, 
+    def __init__(self, freq: float = 1000.0, bandwidth: float = 16.0, 
                  polarization: Optional[str] = None, isactive: bool = True):
         """Initialize an IF object with frequency, bandwidth, and polarization
 

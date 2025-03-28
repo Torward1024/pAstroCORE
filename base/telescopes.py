@@ -89,25 +89,25 @@ class MountType(Enum):
     """
 
 class Telescope(BaseEntity):
-    def __init__(self, code: str, name: str, x: float, y: float, z: float, 
-                 vx: float, vy: float, vz: float, diameter: float,
-                 sefd_table: Optional[Dict[float, float]] = None,
+    def __init__(self, code: str = "TEMP", name: str = "Temporary Telescope",
+                 x: float = 0.0, y: float = 0.0, z: float = 0.0,
+                 vx: float = 0.0, vy: float = 0.0, vz: float = 0.0,
+                 diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,
                  elevation_range: Tuple[float, float] = (15.0, 90.0),
                  azimuth_range: Tuple[float, float] = (0.0, 360.0),
-                 mount_type: str = "AZIM",
-                 isactive: bool = True):
-        """Initialize a Telescope object with code, name, coordinates (ITRF), velocities (ITRF), diameter, and additional parameters
+                 mount_type: str = "AZIM", isactive: bool = True):
+        """Initialize a Telescope object with code, name, coordinates (ITRF), velocities (ITRF), diameter, and additional parameters.
 
         Args:
-            code (str): Telescope short name
-            name (str): Telescope name
-            x (float): Telescope x coordinate (ITRF) in meters
-            y (float): Telescope y coordinate (ITRF) in meters
-            z (float): Telescope z coordinate (ITRF) in meters
-            vx (float): Telescope vx velocity (ITRF) in m/s
-            vy (float): Telescope vy velocity (ITRF) in m/s
-            vz (float): Telescope vz velocity (ITRF) in m/s
-            diameter (float): Antenna diameter in meters
+            code (str): Telescope short name (default: "TEMP")
+            name (str): Telescope name (default: "Temporary Telescope")
+            x (float): Telescope x coordinate (ITRF) in meters (default: 0.0)
+            y (float): Telescope y coordinate (ITRF) in meters (default: 0.0)
+            z (float): Telescope z coordinate (ITRF) in meters (default: 0.0)
+            vx (float): Telescope vx velocity (ITRF) in m/s (default: 0.0)
+            vy (float): Telescope vy velocity (ITRF) in m/s (default: 0.0)
+            vz (float): Telescope vz velocity (ITRF) in m/s (default: 0.0)
+            diameter (float): Antenna diameter in meters (default: 1.0)
             sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
             elevation_range (Tuple[float, float]): Min and max elevation in degrees (default: 15-90)
             azimuth_range (Tuple[float, float]): Min and max azimuth in degrees (default: 0-360)
@@ -595,20 +595,20 @@ class Telescope(BaseEntity):
     """
 
 class SpaceTelescope(Telescope):
-    def __init__(self, code: str, name: str, orbit_file: str, diameter: float,
+    def __init__(self, code: str = "TEMP_SPACE", name: str = "Temporary Space Telescope",
+                 orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
                  sefd_table: Optional[Dict[float, float]] = None,
                  pitch_range: Tuple[float, float] = (-90.0, 90.0),
                  yaw_range: Tuple[float, float] = (-180.0, 180.0),
-                 isactive: bool = True,
-                 use_kep: bool = True,
+                 isactive: bool = True, use_kep: bool = True,
                  kepler_elements: Optional[dict] = None):
-        """Initialize a SpaceTelescope object with code, name, orbit file, diameter, and additional parameters
+        """Initialize a SpaceTelescope object with code, name, orbit file, diameter, and additional parameters.
 
         Args:
-            code (str): Telescope short name
-            name (str): Telescope name
-            orbit_file (str): Path to the orbit file (coordinates in km, velocities in km/s)
-            diameter (float): Antenna diameter in meters
+            code (str): Telescope short name (default: "TEMP_SPACE")
+            name (str): Telescope name (default: "Temporary Space Telescope")
+            orbit_file (str): Path to the orbit file (coordinates in km, velocities in km/s) (default: "dummy_orbit.oem")
+            diameter (float): Antenna diameter in meters (default: 1.0)
             sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
             pitch_range (Tuple[float, float]): Min and max pitch in degrees (default: -90 to 90)
             yaw_range (Tuple[float, float]): Min and max yaw in degrees (default: -180 to 180)
@@ -616,7 +616,8 @@ class SpaceTelescope(Telescope):
             use_kep (bool): Whether to use Keplerian elements (True) or orbit file (False) (default: True)
             kepler_elements (dict, optional): Keplerian elements dictionary with keys: a, e, i, raan, argp, nu, epoch, mu
         """
-        super().__init__(code, name, 0, 0, 0, 0, 0, 0, diameter, sefd_table=sefd_table, isactive=isactive)
+        super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0, 
+                        diameter=diameter, sefd_table=sefd_table, isactive=isactive)
         check_non_empty_string(orbit_file, "Orbit file")
         check_positive(diameter, "Diameter")
         check_type(pitch_range, tuple, "Pitch range")
@@ -650,14 +651,14 @@ class SpaceTelescope(Telescope):
                 self._kepler_elements = kepler_elements.copy()
             else:
                 logger.warning(f"Initialized SpaceTelescope '{code}' with use_kep=True but no kepler_elements provided")
-            self._orbit_data = None  # Сбрасываем орбитальные данные, если используем Kepler
+            self._orbit_data = None
         else:
             if orbit_file:
                 self.load_orbit(orbit_file)
                 logger.info(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
             else:
                 logger.warning(f"Initialized SpaceTelescope '{code}' with use_kep=False but no orbit_file provided")
-            self._kepler_elements = None  # Сбрасываем Kepler, если используем orbit_file
+            self._kepler_elements = None
 
     def load_orbit(self, orbit_file: str) -> None:
         """Load orbit data from a CCSDS OEM 2.0 file into memory"""

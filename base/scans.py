@@ -54,7 +54,7 @@ from typing import Optional, List
     """
 
 class Scan(BaseEntity):
-    def __init__(self, start: float, duration: float, source_index: Optional[int] = None,
+    def __init__(self, start: float = 0.0, duration: float = 1.0, source_index: Optional[int] = None,
                  telescope_indices: List[int] = None, frequency_indices: List[int] = None,
                  is_off_source: bool = False, isactive: bool = True):
         """Initialize a Scan with start time, duration, and indices referencing Observation data."""
