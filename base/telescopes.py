@@ -1061,10 +1061,11 @@ class SpaceTelescope(Telescope):
 
     Methods:
         add_telescope
+        create_telescope
         insert_telescope
         remove_telescope
     
-        get_telescope
+        get_by_index
         get_all_telescopes      
 
         get_active_telescopes
@@ -1109,6 +1110,64 @@ class Telescopes(BaseEntity):
             raise ValueError(f"Telescope with code '{telescope.get_code()}' already exists!")
         self._data.append(telescope)
         logger.info(f"Added telescope '{telescope.get_code()}' to Telescopes")
+
+    def create_telescope(self, code: str = "TEMP", name: str = "Temporary Telescope",
+                     x: float = 0.0, y: float = 0.0, z: float = 0.0,
+                     vx: float = 0.0, vy: float = 0.0, vz: float = 0.0,
+                     diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,
+                     elevation_range: Tuple[float, float] = (15.0, 90.0),
+                     azimuth_range: Tuple[float, float] = (0.0, 360.0),
+                     mount_type: str = "AZIM", isactive: bool = True) -> None:
+        """Create and add a new Telescope object to the Telescopes collection.
+
+        Args:
+            code (str): Telescope short name (default: "TEMP")
+            name (str): Telescope name (default: "Temporary Telescope")
+            x (float): Telescope x coordinate (ITRF) in meters (default: 0.0)
+            y (float): Telescope y coordinate (ITRF) in meters (default: 0.0)
+            z (float): Telescope z coordinate (ITRF) in meters (default: 0.0)
+            vx (float): Telescope vx velocity (ITRF) in m/s (default: 0.0)
+            vy (float): Telescope vy velocity (ITRF) in m/s (default: 0.0)
+            vz (float): Telescope vz velocity (ITRF) in m/s (default: 0.0)
+            diameter (float): Antenna diameter in meters (default: 1.0)
+            sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
+            elevation_range (Tuple[float, float]): Min and max elevation in degrees (default: 15-90)
+            azimuth_range (Tuple[float, float]): Min and max azimuth in degrees (default: 0-360)
+            mount_type (str): Mount type ('EQUA', 'AZIM', or 'NONE', default: 'AZIM')
+            isactive (bool): Whether the telescope is active (default: True)
+
+        Returns:
+            Telescope: The newly created Telescope object
+
+        Raises:
+            ValueError: If a telescope with the same code already exists or if input validation fails
+        """
+        # сreate a new Telescope object
+        new_telescope = Telescope(
+            code=code,
+            name=name,
+            x=x,
+            y=y,
+            z=z,
+            vx=vx,
+            vy=vy,
+            vz=vz,
+            diameter=diameter,
+            sefd_table=sefd_table,
+            elevation_range=elevation_range,
+            azimuth_range=azimuth_range,
+            mount_type=mount_type,
+            isactive=isactive
+        )
+
+        # check for duplicates
+        if self._is_duplicate(new_telescope):
+            logger.error(f"Telescope with code '{code}' already exists")
+            raise ValueError(f"Telescope with code '{code}' already exists!")
+
+        # add the new telescope to the collection
+        self._data.append(new_telescope)
+        logger.info(f"Created and added telescope '{code}' to Telescopes")
     
     def insert_telescope(self, index: int, telescope: Telescope | SpaceTelescope) -> None:
         """Insert a new telescope at the specified index.
@@ -1137,7 +1196,7 @@ class Telescopes(BaseEntity):
             logger.error(f"Invalid telescope index: {index}")
             raise IndexError("Invalid telescope index!")
 
-    def get_telescope(self, index: int) -> Telescope | SpaceTelescope:
+    def get_by_index(self, index: int) -> Telescope | SpaceTelescope:
         """Get telescope by index"""
         try:
             return self._data[index]

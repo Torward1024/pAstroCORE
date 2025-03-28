@@ -324,11 +324,12 @@ class Scan(BaseEntity):
 
     Methods:
         add_scan
+        create_scan
         insert_scan
         remove_scan
         set_scan
 
-        get_scan
+        get_by_index
         get_all_scans
         get_active_scans
         get_inactive_scans
@@ -375,6 +376,57 @@ class Scans(BaseEntity):
         self._data.append(scan)
         logger.info(f"Added scan with start={scan.get_start()}, duration={scan.get_duration()} to Scans")
     
+    def create_scan(self, start: float = 0.0, duration: float = 1.0, source_index: Optional[int] = None,
+                telescope_indices: List[int] = None, frequency_indices: List[int] = None,
+                is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None) -> None:
+        """Create and add a new Scan object to the Scans collection.
+
+        Args:
+            start (float): Start time of the scan in seconds since epoch (default: 0.0)
+            duration (float): Duration of the scan in seconds (default: 1.0)
+            source_index (int, optional): Index of the source in the Observation's sources list
+            telescope_indices (List[int], optional): List of telescope indices in the Observation's telescopes list
+            frequency_indices (List[int], optional): List of frequency indices in the Observation's frequencies list
+            is_off_source (bool): Whether this is an off-source scan (default: False)
+            isactive (bool): Whether the scan is active (default: True)
+            observation (Observation, optional): Observation object for validation and overlap checking
+
+        Returns:
+            Scan: The newly created Scan object
+
+        Raises:
+            ValueError: If the scan overlaps with an existing scan or fails validation against the observation
+        """
+        # create a new Scan object
+        new_scan = Scan(
+            start=start,
+            duration=duration,
+            source_index=source_index,
+            telescope_indices=telescope_indices,
+            frequency_indices=frequency_indices,
+            is_off_source=is_off_source,
+            isactive=isactive
+        )
+
+        # validate with observation if provided
+        if observation:
+            from base.observation import Observation
+            check_type(observation, Observation, "Observation")
+            if not new_scan.validate_with_observation(observation):
+                logger.error(f"Scan with start={start} failed validation against observation '{observation.get_observation_code()}'")
+                raise ValueError("Scan validation failed")
+
+        # check for overlaps
+        overlap, reason = self._check_overlap(new_scan)
+        if overlap:
+            logger.error(f"Scan with start={start}, duration={duration} {reason}")
+            raise ValueError(f"Scan conflicts: {reason}")
+
+        # add the new scan to the collection
+        self._data.append(new_scan)
+        source_str = "OFF SOURCE" if is_off_source else f"source_index={source_index}"
+        logger.info(f"Created and added scan with start={start}, duration={duration}, {source_str} to Scans")
+    
     def insert_scan(self, scan: 'Scan', index: int, observation: 'Observation' = None) -> None:
         """Insert a scan at the specified index with overlap checking"""
         check_type(scan, Scan, "Scan")
@@ -420,7 +472,7 @@ class Scans(BaseEntity):
             logger.error(f"Invalid scan index: {index}")
             raise IndexError("Invalid scan index!")
 
-    def get_scan(self, index: int) -> Scan:
+    def get_by_index(self, index: int) -> Scan:
         """Get scan by index"""
         try:
             return self._data[index]

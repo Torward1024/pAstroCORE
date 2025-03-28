@@ -901,7 +901,7 @@ class Calculator(ABC):
             raise ValueError(f"No calculation method for type '{calc_type}'")
 
         try:
-            return calc_methods[calc_method_name](self, obj, attributes)
+            return calc_methods[calc_method_name](obj, attributes)
         except Exception as e:
             logger.error(f"Failed to calculate {calc_type} for {obj_type}: {str(e)}")
             return {}

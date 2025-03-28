@@ -19,6 +19,28 @@ class Project:
         check_type(observation, Observation, "Observation")
         self._observations.append(observation)
         logger.info(f"Added observation '{observation.get_observation_code()}' to Project '{self._name}'")
+    
+    def create_observation(self, observation_code: str = "OBS_DEFAULT", isactive: bool = True) -> None:
+        """Create and add a new Observation object to the Project.
+
+        Args:
+            observation_code (str): Unique code for the observation (default: "OBS_DEFAULT")
+            isactive (bool): Whether the observation is active (default: True)
+
+        Raises:
+            ValueError: If the observation_code is not a non-empty string
+        """
+        from base.observation import Observation
+        
+        # validate observation_code
+        check_non_empty_string(observation_code, "Observation code")
+        
+        # create a new Observation object
+        new_observation = Observation(observation_code=observation_code, isactive=isactive)
+        
+        # add the new observation to the collection
+        self._observations.append(new_observation)
+        logger.info(f"Created and added observation '{observation_code}' to Project '{self._name}'")
 
     def insert_observation(self, observation: Observation, index: int) -> None:
         """Insert an observation at the specified index"""

@@ -97,7 +97,7 @@ class Manipulator(ABC):
                 continue
             methods = {
                 name: method for name, method in inspect.getmembers(cls, predicate=inspect.ismethod)
-                if not name.startswith('_')  # Только публичные методы
+                if not name.startswith('_')
             }
             registry[cls] = methods
             logger.debug(f"Registered {len(methods)} methods for {cls.__name__}")

@@ -206,11 +206,12 @@ class IF(BaseEntity):
 
     Methods:
         add_IF
+        create_IF
         insert_IF
         remove_IF
         set_IF
 
-        get_IF
+        get_by_index
         get_all_IF
 
         get_frequencies
@@ -261,6 +262,35 @@ class Frequencies(BaseEntity):
         self._data.append(if_obj)
         logger.info(f"Added IF with frequency={if_obj.get_frequency()} MHz, bandwidth={if_obj.get_bandwidth()} MHz to Frequencies")
     
+    def create_IF(self, freq: float = 1000.0, bandwidth: float = 16.0, 
+              polarization: Optional[str] = None, isactive: bool = True) -> None:
+        """Create and add a new IF object to the Frequencies collection.
+
+        Args:
+            freq (float): Frequency in MHz (default: 1000.0)
+            bandwidth (float): Bandwidth in MHz (default: 16.0)
+            polarization (str, optional): Polarization type (RCP, LCP, LL, RL, RR, LR, H, V)
+            isactive (bool): Whether the IF is active (default: True)
+
+        Raises:
+            ValueError: If the frequency range overlaps with an existing range
+        """
+        # create a new IF object
+        new_if = IF(
+            freq=freq,
+            bandwidth=bandwidth,
+            polarization=polarization,
+            isactive=isactive
+        )
+
+        # check for frequency overlap
+        self._check_overlap(new_if)
+
+        # add the new IF to the collection
+        self._data.append(new_if)
+        logger.info(f"Created and added IF with frequency={freq} MHz, bandwidth={bandwidth} MHz, "
+                    f"polarizations={new_if.get_polarization()} to Frequencies")
+    
     def insert_IF(self, index: int, if_obj: 'IF') -> None:
         """Insert a new IF object at the specified index
 
@@ -302,7 +332,7 @@ class Frequencies(BaseEntity):
             logger.error(f"Invalid IF index: {index}")
             raise IndexError("Invalid IF index!")
 
-    def get_IF(self, index: int) -> IF:
+    def get_by_index(self, index: int) -> IF:
         """Get IF by index"""
         try:
             return self._data[index]

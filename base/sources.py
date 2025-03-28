@@ -508,10 +508,11 @@ class Source(BaseEntity):
 
     Methods:
         add_source
+        create_source
         insert_source
         remove_source
     
-        get_source
+        get_by_index
         get_all_sources      
 
         get_active_sources
@@ -555,6 +556,59 @@ class Sources(BaseEntity):
             return
         self._data.append(source)
         logger.info(f"Added source '{source.get_name()}' to Sources")
+
+    def create_source(self, name: str = "SOURCE_DEFAULT", ra_h: float = 0.0, ra_m: float = 0.0, ra_s: float = 0.0,
+                  de_d: float = 0.0, de_m: float = 0.0, de_s: float = 0.0,
+                  name_J2000: Optional[str] = None, alt_name: Optional[str] = None,
+                  flux_table: Optional[Dict[float, float]] = None,
+                  spectral_index: Optional[float] = None,
+                  isactive: bool = True) -> None:
+        """Create and add a new Source object to the Sources collection.
+
+        Args:
+            name (str): Source name in B1950 (default: "SOURCE_DEFAULT")
+            ra_h (float): Right Ascension hours (0-23, default: 0.0)
+            ra_m (float): Right Ascension minutes (0-59, default: 0.0)
+            ra_s (float): Right Ascension seconds (0-59.999, default: 0.0)
+            de_d (float): Declination degrees (-90 to 90, default: 0.0)
+            de_m (float): Declination minutes (0-59, default: 0.0)
+            de_s (float): Declination seconds (0-59.999, default: 0.0)
+            name_J2000 (str, optional): Source name in J2000
+            alt_name (str, optional): Alternative source name (e.g., BL Lac)
+            flux_table (Dict[float, float], optional): Flux table (frequency in MHz: flux in Jy)
+            spectral_index (float, optional): Spectral index for flux extrapolation (F ~ nu^alpha)
+            isactive (bool): Whether the source is active (default: True)
+
+        Returns:
+            Source: The newly created Source object
+
+        Raises:
+            ValueError: If a source with the same name already exists or if input validation fails
+        """
+        # Create a new Source object
+        new_source = Source(
+            name=name,
+            ra_h=ra_h,
+            ra_m=ra_m,
+            ra_s=ra_s,
+            de_d=de_d,
+            de_m=de_m,
+            de_s=de_s,
+            name_J2000=name_J2000,
+            alt_name=alt_name,
+            flux_table=flux_table,
+            spectral_index=spectral_index,
+            isactive=isactive
+        )
+
+        # check for duplicates
+        if self._is_duplicate(new_source):
+            logger.error(f"Source with name '{name}' already exists")
+            raise ValueError(f"Source with name '{name}' already exists!")
+
+        # add the new source to the collection
+        self._data.append(new_source)
+        logger.info(f"Created and added source '{name}' to Sources")
     
     def insert_source(self, index: int, source: 'Source') -> None:
         """Insert a new source at the specified index
@@ -590,7 +644,7 @@ class Sources(BaseEntity):
             logger.error(f"Invalid source index: {index}")
             raise IndexError("Invalid source index!")
 
-    def get_source(self, index: int) -> 'Source':
+    def get_by_index(self, index: int) -> 'Source':
         """Get source by index"""
         try:
             return self._data[index]

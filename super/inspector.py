@@ -307,7 +307,7 @@ class Inspector(ABC):
             raise ValueError(f"No inspection method for {obj_type.__name__}")
 
         try:
-            return inspect_methods[inspect_method_name](self, obj, attributes)
+            return inspect_methods[inspect_method_name](obj, attributes)
         except Exception as e:
             logger.error(f"Failed to inspect {obj_type}: {str(e)}")
             return {}

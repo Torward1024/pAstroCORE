@@ -1,6 +1,10 @@
-# tests/test_vlbi_m87_uv_coverage.py
 import unittest
 from base.project import Project
+from base.observation import Observation
+from base.telescopes import Telescope
+from base.frequencies import IF
+from base.sources import Source
+from base.scans import Scan
 from super.manipulator import DefaultManipulator
 from utils.logging_setup import logger
 import numpy as np
@@ -18,7 +22,11 @@ class TestVLBIM87Observation(unittest.TestCase):
     def test_configure_and_calculate_uv_coverage(self):
         """Тест конфигурации наблюдения M87 и расчета (u,v)-покрытия через Manipulator"""
         # 1. Добавление пустого наблюдения в проект
-        self.manipulator.process_request("configure", "project", {"add_observation": {"code": "M87_VLBI_2025", "type": "VLBI"}})
+        config_attrs = {
+            "add_observation": Observation(observation_code="M87_VLBI_2025", observation_type="VLBI")
+        }
+        success = self.manipulator.process_request("configure", "project", config_attrs)
+        self.assertTrue(success, "Failed to add observation")
 
         # 2. Конфигурация телескопов EHT
         eht_telescopes = [
@@ -32,13 +40,27 @@ class TestVLBIM87Observation(unittest.TestCase):
             {"name": "SMT", "code": "SMT", "coordinates": (-1829000, -5054000, 3426000), "diameter": 10.0}
         ]
         for i, tel in enumerate(eht_telescopes):
+            # Добавляем пустой телескоп
+            config_attrs = {
+                "observation_index": 0,
+                "add_telescope": Telescope(code=f"TEMP_{i}")
+            }
+            success = self.manipulator.process_request("configure", "project", config_attrs)
+            self.assertTrue(success, f"Failed to add temporary telescope at index {i}")
+
+            # Настраиваем телескоп
             config_attrs = {
                 "observation_index": 0,
                 "telescope_index": i,
                 "set_telescope": {
-                    "name": tel["name"],
                     "code": tel["code"],
-                    "coordinates": tel["coordinates"],
+                    "name": tel["name"],
+                    "x": tel["coordinates"][0],
+                    "y": tel["coordinates"][1],
+                    "z": tel["coordinates"][2],
+                    "vx": 0.0,
+                    "vy": 0.0,
+                    "vz": 0.0,
                     "diameter": tel["diameter"]
                 }
             }
@@ -46,6 +68,13 @@ class TestVLBIM87Observation(unittest.TestCase):
             self.assertTrue(success, f"Failed to configure telescope {tel['code']}")
 
         # 3. Конфигурация источника M87
+        config_attrs = {
+            "observation_index": 0,
+            "add_source": Source()  # Пустой источник
+        }
+        success = self.manipulator.process_request("configure", "project", config_attrs)
+        self.assertTrue(success, "Failed to add source")
+
         config_attrs = {
             "observation_index": 0,
             "source_index": 0,
@@ -65,14 +94,28 @@ class TestVLBIM87Observation(unittest.TestCase):
         # 4. Конфигурация частот
         config_attrs = {
             "observation_index": 0,
+            "add_IF": IF()  # Пустой IF
+        }
+        success = self.manipulator.process_request("configure", "project", config_attrs)
+        self.assertTrue(success, "Failed to add IF")
+
+        config_attrs = {
+            "observation_index": 0,
             "if_index": 0,
-            "set_frequency": {"freq": 230.0, "bw": 4.0}  # 230 GHz
+            "set_frequency": {"freq": 230.0, "bw": 4.0}
         }
         success = self.manipulator.process_request("configure", "project", config_attrs)
         self.assertTrue(success, "Failed to configure frequency")
 
         # 5. Конфигурация скана (1 час наблюдения)
         start_time = Time("2025-04-01T00:00:00").unix
+        config_attrs = {
+            "observation_index": 0,
+            "add_scan": Scan()  # Пустой скан
+        }
+        success = self.manipulator.process_request("configure", "project", config_attrs)
+        self.assertTrue(success, "Failed to add scan")
+
         config_attrs = {
             "observation_index": 0,
             "scan_index": 0,
@@ -104,7 +147,7 @@ class TestVLBIM87Observation(unittest.TestCase):
         # 7. Расчет (u,v)-покрытия через Calculator
         calc_attrs = {
             "type": "uv_coverage",
-            "time_step": 60.0,  # Шаг 1 минута
+            "time_step": 60.0,
             "freq_idx": 0
         }
         uv_result = self.manipulator.process_request("calculate", "project", calc_attrs)

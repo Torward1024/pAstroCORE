@@ -286,7 +286,7 @@ class Configurator(ABC):
             raise ValueError(f"No configuration method for {obj_type.__name__}")
 
         try:
-            return config_methods[config_method_name](self, obj, attributes)
+            return config_methods[config_method_name](obj, attributes)
         except Exception as e:
             logger.error(f"Failed to configure {obj_type}: {str(e)}")
             return False
