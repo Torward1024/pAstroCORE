@@ -239,14 +239,14 @@ class Scan(BaseEntity):
         """Check telescope availability for this scan at a given time (defaults to scan start)"""
         from base.observation import Observation
         check_type(observation, Observation, "Observation")
-        check_type(time, (int, float), "Time", allow_none=True)
+        check_type(time, (int, float), "Time")
         time = time if time is not None else self._start
         availability = {}
         dt = datetime.fromtimestamp(time)
         source = self.get_source(observation) if not self.is_off_source else None
         
         for telescope in self.get_telescopes(observation).get_active_telescopes():
-            code = telescope.get_telescope_code()
+            code = telescope.get_code()
             if self.is_off_source:
                 availability[code] = True
                 continue
@@ -265,7 +265,7 @@ class Scan(BaseEntity):
                            pitch_range[0] <= 0 <= pitch_range[1] and 
                            yaw_range[0] <= 0 <= yaw_range[1])
             else:
-                x, y, z = telescope.get_telescope_coordinates()
+                x, y, z = telescope.get_coordinates()
                 lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
                 ha = np.radians(lst - source.get_ra_degrees())
                 alt = np.arcsin(np.sin(lat) * np.sin(dec_rad) + 
