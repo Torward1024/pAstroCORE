@@ -212,7 +212,7 @@ class Observation(BaseEntity):
         """Get concrete calculated data by key for this observation"""
         check_non_empty_string(key, "Key")
         logger.info(f"Retrieved calculated data '{key}' for observation '{self._observation_code}'")
-        return self._calculated_data[key]
+        return self._calculated_data.get(key)
 
     def get_start_datetime(self) -> Optional[datetime]:
         """Get observation start time as a datetime object (UTC), based on earliest scan"""

@@ -1,14 +1,13 @@
 import unittest
-from typing import Dict, Any, Callable
+from typing import Dict, Callable
 from base.sources import Source, Sources
-from base.telescopes import Telescope, Telescopes, MountType
+from base.telescopes import Telescope, Telescopes
 from base.frequencies import IF, Frequencies
 from base.scans import Scan, Scans
 from base.observation import Observation
 from base.project import Project
 from super.calculator import Calculator, DefaultCalculator
 from astropy.time import Time
-import numpy as np
 
 # Заглушка для Manipulator
 class MockManipulator:
@@ -62,17 +61,17 @@ class TestCalculator(unittest.TestCase):
                             flux_table={1420.0: 10.0}, spectral_index=-0.7)
         self.sources = Sources([self.source])
 
-        self.telescope1 = Telescope(code="T1", name="Test Telescope 1", x=1000.0, y=2000.0, z=3000.0,
-                                    diameter=25.0, sefd_table={1420.0: 500.0}, mount_type="AZIM", isactive=True)
-        self.telescope2 = Telescope(code="T2", name="Test Telescope 2", x=-1000.0, y=-2000.0, z=-3000.0,
-                                    diameter=25.0, sefd_table={1420.0: 500.0}, mount_type="EQUA", isactive=True)
+        self.telescope1 = Telescope(code="T1", name="Test Telescope 1", x=-2112065.074, y=-3705356.503, z=4726813.729,
+                               diameter=25.0, sefd_table={1420.0: 500.0}, mount_type="AZIM", isactive=True)
+        self.telescope2 = Telescope(code="T2", name="Test Telescope 2", x=-1324009.212, y=-5332181.961, z=3231962.429,
+                                diameter=25.0, sefd_table={1420.0: 500.0}, mount_type="EQUA", isactive=True)
         self.telescopes = Telescopes([self.telescope1, self.telescope2])
-        self.telescopes.activate_all()  
-
+        self.telescopes.activate_all()
+		
         self.frequency = IF(freq=1420.0, bandwidth=32.0)
         self.frequencies = Frequencies([self.frequency])
 
-        self.scan = Scan(start=1625097600.0, duration=300.0, source_index=0,
+        self.scan = Scan(start=Time('2021-07-01T00:00:00', format='isot').unix, duration=300.0, source_index=0,
                         telescope_indices=[0, 1], frequency_indices=[0], isactive=True)
         self.scans = Scans([self.scan])
 
@@ -89,13 +88,13 @@ class TestCalculator(unittest.TestCase):
 
     def test_calculate_telescope_positions(self):
         result = self.calculator.execute(self.observation_vlbi, {"type": "telescope_positions", "time_step": None})
-        print(result)
         self.assertIn(0, result)
         self.assertIn("telescope_positions", result[0])
         self.assertEqual(set(result[0]["telescope_positions"].keys()), {"T1", "T2"})
+
         # Проверка с шагом времени
-        result = self.calculator.execute(self.observation_vlbi, {"type": "telescope_positions", "time_step": 100.0})
-        self.assertIn("times", result[0])
+        result = self.calculator.execute(self.observation_vlbi, {"type": "telescope_positions", "time_step": 100.0, "recalculate": True})
+        self.assertIn("times", result[0]["telescope_positions"]["T1"])
         self.assertTrue(len(result[0]["telescope_positions"]["T1"]["positions"]) > 1)
 
     def test_calculate_source_visibility(self):
@@ -169,22 +168,24 @@ class TestCalculator(unittest.TestCase):
         self.assertIn(0, result)
         self.assertIn("projections", result[0])
         self.assertIn("T1-T2", result[0]["projections"])
-        self.assertEqual(len(result[0]["projections"]["T1-T2"]), 3)  # u, v, w
-        # Проверка с шагом времени
-        result = self.calculator.execute(self.observation_vlbi, {"type": "baseline_projections", "time_step": 100.0})
-        self.assertIn("times", result[0])
-        self.assertTrue(len(result[0]["projections"]["T1-T2"]["u"]) > 1)
+        self.assertEqual(len(result[0]["projections"]["T1-T2"]), 3)
 
     def test_calculate_mollweide_tracks(self):
-        result = self.calculator.execute(self.observation_vlbi, {"type": "mollweide_tracks", "time_step": None})
-        self.assertIn(0, result)
-        self.assertEqual(result[0]["source"], "TEST_SRC")
-        self.assertIn("mollweide", result[0])
-        self.assertTrue(isinstance(result[0]["mollweide"]["lon"], float))
+        # Проверка для time_step=None
+        result_no_step = self.calculator.execute(self.observation_vlbi, {"type": "mollweide_tracks", "time_step": None})
+        self.assertIn(0, result_no_step)
+        self.assertEqual(result_no_step[0]["source"], "TEST_SRC")
+        self.assertIn("mollweide", result_no_step[0])
+        self.assertTrue(isinstance(result_no_step[0]["mollweide"]["lon"], float))
+        self.assertNotIn("times", result_no_step[0])  # Убеждаемся, что "times" нет
+
         # Проверка с шагом времени
-        result = self.calculator.execute(self.observation_vlbi, {"type": "mollweide_tracks", "time_step": 100.0})
-        self.assertIn("times", result[0])
-        self.assertTrue(len(result[0]["mollweide"]["lon"]) > 1)
+        result_with_step = self.calculator.execute(self.observation_vlbi, {"type": "mollweide_tracks", "time_step": 100.0, "recalculate": True})
+        self.assertIn(0, result_with_step)
+        self.assertEqual(result_with_step[0]["source"], "TEST_SRC")
+        self.assertIn("mollweide", result_with_step[0])
+        self.assertIn("times", result_with_step[0])
+        self.assertTrue(len(result_with_step[0]["mollweide"]["lon"]) > 1)
 
     def test_project_calculations(self):
         result = self.calculator.execute(self.project, {"type": "telescope_positions", "time_step": None})

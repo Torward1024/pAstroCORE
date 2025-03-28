@@ -34,7 +34,6 @@ class Calculator(ABC):
             store_key = attributes.get("store_key", "telescope_positions")
             recalculate = attributes.get("recalculate", False)
 
-            # Определяем, работаем с Observation или Project
             if isinstance(obj, Project):
                 observations = obj.get_observations()
                 if not observations:
@@ -47,7 +46,6 @@ class Calculator(ABC):
                 logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.get_name()}'")
                 return results
 
-            # Логика для Observation
             telescopes = obj.get_telescopes()
             scans = obj.get_scans().get_active_scans(obj)
 
@@ -96,8 +94,8 @@ class Calculator(ABC):
 
         if time_step is None:
             mean_time = Time(start_time) + (duration / 2) * u.s
-            positions = self._compute_positions_at_time(active_telescopes, mean_time)
-            return {"telescope_positions": {tel.get_code(): pos for tel, pos in positions.items()}}
+            positions = {tel.get_code(): self._compute_telescope_position(tel, mean_time) for tel in active_telescopes}
+            return {"telescope_positions": positions}
         else:
             times = np.arange(0, duration, time_step) * u.s + Time(start_time)
             result = {}
@@ -115,7 +113,7 @@ class Calculator(ABC):
             itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
             itrs = ITRS(itrs_coords, obstime=time)
             gcrs = itrs.transform_to(GCRS(obstime=time))
-            return (gcrs.x.value, gcrs.y.value, gcrs.z.value)
+            return (gcrs.cartesian.x.value, gcrs.cartesian.y.value, gcrs.cartesian.z.value)
         elif isinstance(telescope, SpaceTelescope):
             pos, _ = telescope.get_state_vector(time.to_datetime())
             return tuple(float(p) for p in pos)
@@ -312,7 +310,7 @@ class Calculator(ABC):
         positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
         itrs_center = ITRS(CartesianRepresentation(0, 0, 0, unit=u.m), obstime=time)
         gcrs_center = itrs_center.transform_to(GCRS(obstime=time))
-        center_pos = np.array([gcrs_center.x.value, gcrs_center.y.value, gcrs_center.z.value])
+        center_pos = np.array([gcrs_center.cartesian.x.value, gcrs_center.cartesian.y.value, gcrs_center.cartesian.z.value])
 
         uv_points = {f: [] for f in frequencies}
         c = 299792458  # m/s
@@ -321,8 +319,8 @@ class Calculator(ABC):
                 baseline = (np.array(pos1) - center_pos) - (np.array(pos2) - center_pos)  # meters
                 for freq in frequencies:
                     wavelength = c / freq
-                    u, v = baseline[0] / wavelength, baseline[1] / wavelength  # in wavelength numbers
-                    uv_points[freq].append((u, v))
+                    uu, vv = baseline[0] / wavelength, baseline[1] / wavelength  # in wavelength numbers
+                    uv_points[freq].append((uu, vv))
         return uv_points
 
     def _calculate_sun_angles(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -393,6 +391,7 @@ class Calculator(ABC):
         return source_coord.separation(sun).deg
 
     def _calculate_az_el(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate azimuth/elevation or hour angle/declination for ground telescopes in the observation or project"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "az_el")
@@ -413,21 +412,22 @@ class Calculator(ABC):
             scans = obj.get_scans().get_active_scans(obj)
             telescopes = obj.get_telescopes()
             sources = obj.get_sources()
-            logger.debug(f"Active scans: {len(scans)}, Telescopes: {len(telescopes.get_all_telescopes())}, Sources: {len(sources.get_all_sources())}")
 
-            if not scans:
-                logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
-                return {}
+            existing_data = obj.get_calculated_data_by_key(store_key)
+            if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
+                logger.info(f"Using cached Az/El or HA/Dec for '{obj.get_observation_code()}'")
+                return existing_data["data"]
 
             results = {}
-            for i, scan in enumerate(scans):
-                try:
-                    results[i] = self._process_az_el(scan, telescopes, sources, time_step)
-                except Exception as e:
-                    logger.error(f"Failed to process scan {i}: {str(e)}")
-                    results[i] = {}
+            with ThreadPoolExecutor() as executor:
+                futures = {
+                    executor.submit(self._process_az_el, scan, telescopes, sources, time_step): i
+                    for i, scan in enumerate(scans)
+                }
+                for future in futures:
+                    scan_idx = futures[future]
+                    results[scan_idx] = future.result()
 
-            logger.debug(f"Results after processing: {results}")
             metadata = {"time_step": time_step, "scan_count": len(scans)}
             with self._lock:
                 obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
@@ -617,11 +617,23 @@ class Calculator(ABC):
                 return existing_data["data"]
 
             uv_data = self._calculate_uv_coverage(obj, {"time_step": attributes.get("time_step"), "freq_idx": freq_idx})
+            if not uv_data:
+                logger.error(f"No UV data available for synthesized beam calculation in '{obj.get_observation_code()}'")
+                return {}
+
             results = {}
             c = 299792458  # m/s
             wavelength = c / frequency
             for scan_idx, scan_data in uv_data.items():
-                uv_points = scan_data["uv_points"][frequency] if "times" in scan_data else scan_data["uv_points"]
+                if "times" in scan_data:
+                    uv_points = scan_data["uv_points"].get(frequency, [])
+                else:
+                    uv_points = scan_data["uv_points"].get(frequency, [])
+                
+                if not uv_points or not isinstance(uv_points, (list, tuple)):
+                    logger.warning(f"No valid UV points for scan {scan_idx} at frequency {frequency/1e6} MHz")
+                    continue
+
                 u, v = zip(*uv_points)
                 max_baseline = np.max(np.sqrt(np.array(u)**2 + np.array(v)**2)) * wavelength
                 theta_fwhm = 1.22 * wavelength / max_baseline  # radians
@@ -689,12 +701,16 @@ class Calculator(ABC):
             results = {}
             with ThreadPoolExecutor() as executor:
                 futures = {
-                    executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_idx, uv_data.get(scan_idx, {})): i
+                    executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_idx, uv_data.get(i, {}), obj): i
                     for i, scan in enumerate(scans)
                 }
                 for future in futures:
                     scan_idx = futures[future]
-                    results[scan_idx] = future.result()
+                    try:
+                        results[scan_idx] = future.result()
+                    except Exception as e:
+                        logger.error(f"Failed to process scan {scan_idx} in baseline projections: {str(e)}")
+                        results[scan_idx] = {}
 
             metadata = {"time_step": time_step, "freq_idx": freq_idx, "scan_count": len(scans)}
             with self._lock:
@@ -705,14 +721,14 @@ class Calculator(ABC):
             logger.error(f"Failed to calculate baseline projections: {str(e)}")
             return {}
 
-    def _process_baseline_projections(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: int, uv_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_baseline_projections(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: int, uv_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
         """Process baseline projections for a single scan, using pre-calculated (u,v) if available"""
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
         telescope_indices = scan.get_telescope_indices()
         active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
         frequency = frequencies.get_by_index(freq_idx).get_frequency() * 1e6  # MHz -> Hz
-        source = scan.get_source(observation=None)  # Предполагаем, что Observation доступен через контекст
+        source = scan.get_source(observation=observation)
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs') if source else None
 
         if time_step is None:
@@ -728,19 +744,19 @@ class Calculator(ABC):
             if uv_data and "uv_points" in uv_data and "times" in uv_data:
                 for t, uv_points in zip(uv_data["times"], uv_data["uv_points"][frequency]):
                     proj = self._compute_projections_from_uv({frequency: uv_points}, active_telescopes, frequency)
-                    for pair, (u, v, w) in proj.items():
+                    for pair, (uu, vv, ww) in proj.items():
                         projections.setdefault(pair, {"u": [], "v": [], "w": []})
-                        projections[pair]["u"].append(u)
-                        projections[pair]["v"].append(v)
-                        projections[pair]["w"].append(w)
+                        projections[pair]["u"].append(uu)
+                        projections[pair]["v"].append(vv)
+                        projections[pair]["w"].append(ww)
             else:
                 for t in times:
                     proj = self._compute_baseline_projections_at_time(active_telescopes, t, frequency, source_coord)
-                    for pair, (u, v, w) in proj.items():
+                    for pair, (uu, vv, ww) in proj.items():
                         projections.setdefault(pair, {"u": [], "v": [], "w": []})
-                        projections[pair]["u"].append(u)
-                        projections[pair]["v"].append(v)
-                        projections[pair]["w"].append(w)
+                        projections[pair]["u"].append(uu)
+                        projections[pair]["v"].append(vv)
+                        projections[pair]["w"].append(ww)
             return {"times": [t.isot for t in times], "projections": projections}
         
     def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, Tuple[float, float, float]]:
@@ -755,9 +771,9 @@ class Calculator(ABC):
             for i, pos1 in enumerate(positions):
                 for j, pos2 in enumerate(positions[i + 1:], i + 1):
                     baseline = np.array(pos1) - np.array(pos2)  # meters
-                    u, v, w = baseline[0] / wavelength, baseline[1] / wavelength, 0.0
+                    uu, vv, ww = baseline[0] / wavelength, baseline[1] / wavelength, 0.0
                     pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                    projections[pair] = (u, v, w)
+                    projections[pair] = (uu, vv, ww)
         else:
             # Полное вычисление с учетом направления источника
             source_vec = source_coord.cartesian.xyz.value  # Единичный вектор источника
@@ -765,10 +781,10 @@ class Calculator(ABC):
                 for j, pos2 in enumerate(positions[i + 1:], i + 1):
                     baseline = np.array(pos1) - np.array(pos2)  # meters
                     uvw = np.dot(baseline, source_vec) / wavelength  # Проекция на источник
-                    u, v = baseline[0] / wavelength, baseline[1] / wavelength  # Упрощенные u, v
-                    w = uvw  # w как проекция на линию визирования
+                    uu, vv = baseline[0] / wavelength, baseline[1] / wavelength  # Упрощенные u, v
+                    ww = uvw  # w как проекция на линию визирования
                     pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                    projections[pair] = (u, v, w)
+                    projections[pair] = (uu, vv, ww)
     
         return projections
 
@@ -779,11 +795,11 @@ class Calculator(ABC):
         idx = 0
         for i, tel1 in enumerate(telescopes):
             for j, tel2 in enumerate(telescopes[i + 1:], i + 1):
-                u, v = uv_list[idx]
+                uu, vv = uv_list[idx]
                 # w вычисляем как заглушку (нужно полное моделирование для точного w, здесь упрощение)
-                w = 0.0  # Для точного w требуется направление источника и полная геометрия
+                ww = 0.0  # Для точного w требуется направление источника и полная геометрия
                 pair = f"{tel1.get_code()}-{tel2.get_code()}"
-                projections[pair] = (u, v, w)
+                projections[pair] = (uu, vv, ww)
                 idx += 1
         return projections
 
@@ -855,7 +871,9 @@ class Calculator(ABC):
 
     def _compute_mollweide_coords(self, coord: SkyCoord, time: Time) -> Tuple[float, float]:
         """Compute Mollweide projection coordinates with precession and nutation"""
-        cirs_coord = coord.transform_to(coord.CIRS(obstime=time))
+        from astropy.coordinates import CIRS
+        
+        cirs_coord = coord.transform_to(CIRS(obstime=time))
         
         # Получаем RA и Dec в радианах
         ra = cirs_coord.ra.rad
