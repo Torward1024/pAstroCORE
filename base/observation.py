@@ -238,37 +238,21 @@ class Observation(BaseEntity):
         if not self._sources.get_active_sources():
             logger.error("No active sources defined in observation")
             return False
-        for source in self._sources.get_active_sources():
-            if not source.validate():
-                logger.error(f"Source validation failed for {source.get_name()}")
-                return False
 
         # validate telescopes
         if not self._telescopes.get_active_telescopes():
             logger.error("No active telescopes defined in observation")
             return False
-        for telescope in self._telescopes.get_active_telescopes():
-            if not telescope.validate():
-                logger.error(f"Telescope validation failed for {telescope.get_telescope_code()}")
-                return False
 
         # validate frequencies
         if not self._frequencies.get_active_frequencies():
             logger.error("No active frequencies defined in observation")
             return False
-        for freq in self._frequencies.get_active_frequencies():
-            if not freq.validate():
-                logger.error(f"Frequency validation failed for {freq}")
-                return False
 
         # validate scans
         if not self._scans.get_active_scans(self):
             logger.error("No active scans defined in observation")
             return False
-        for scan in self._scans.get_active_scans(self):
-            if not scan.validate():
-                logger.error(f"Scan validation failed for start time {scan.get_start()}")
-                return False
 
         # check temporal consistency of scans
         active_scans = sorted(self._scans.get_active_scans(), key=lambda x: x.get_start())
@@ -278,13 +262,13 @@ class Observation(BaseEntity):
             scan_end = scan_start + scan.get_duration()
             
             # check telescope availability for scan
-            if not scan.check_telescope_availability():
+            if not scan.check_telescope_availability(self):
                 logger.error(f"Telescope availability check failed for scan starting at {scan_start}")
                 return False
 
             # check time overlap for telescopes
-            for telescope in scan.get_telescopes().get_active_telescopes():
-                tel_code = telescope.get_telescope_code()
+            for telescope in scan.get_telescopes(self).get_active_telescopes():
+                tel_code = telescope.get_code()
                 if tel_code not in telescope_scans:
                     telescope_scans[tel_code] = []
                 for prev_start, prev_end in telescope_scans[tel_code]:
@@ -430,4 +414,5 @@ class Observation(BaseEntity):
         return (f"Observation(code='{self._observation_code}', sources={self._sources}, "
                 f"telescopes={self._telescopes}, frequencies={self._frequencies}, "
                 f"scans={self._scans}, isactive={self.isactive}, "
+                f"observation_type={self._observation_type}, "
                 f"calculated_data={len(self._calculated_data)} items)")

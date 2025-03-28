@@ -86,7 +86,7 @@ class Configurator(ABC):
             if not isinstance(if_index, int) or not 0 <= if_index < len(freq_obj):
                 logger.error(f"Invalid if_index {if_index} for Frequencies with {len(freq_obj)} IFs")
                 return False
-            if_obj = freq_obj.get_IF(if_index)
+            if_obj = freq_obj.get_by_index(if_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "if_index"}
             return self._configure_if(if_obj, nested_attrs)
         for method_name, method_args in attributes.items():
@@ -120,7 +120,7 @@ class Configurator(ABC):
             if not isinstance(source_index, int) or not 0 <= source_index < len(sources_obj):
                 logger.error(f"Invalid source_index {source_index} for Sources with {len(sources_obj)} sources")
                 return False
-            source_obj = sources_obj.get_source(source_index)
+            source_obj = sources_obj.get_by_index(source_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "source_index"}
             return self._configure_source(source_obj, nested_attrs)
         for method_name, method_args in attributes.items():
@@ -155,7 +155,7 @@ class Configurator(ABC):
             if not isinstance(telescope_index, int) or not 0 <= telescope_index < len(tel_obj):
                 logger.error(f"Invalid telescope_index {telescope_index} for Telescopes with {len(tel_obj)} telescopes")
                 return False
-            telescope_obj = tel_obj.get_telescope(telescope_index)
+            telescope_obj = tel_obj.get_by_index(telescope_index)
             nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_index"}
             return self._configure_telescope(telescope_obj, nested_attrs)
         for method_name, method_args in attributes.items():

@@ -68,7 +68,7 @@ class Project:
         self._observations[index] = observation
         logger.info(f"Set observation '{observation.get_observation_code()}' at index {index} in Project '{self._name}'")
 
-    def get_observation(self, index: int) -> Observation:
+    def get_by_index(self, index: int) -> Observation:
         """Get an observation at the specified index"""
         if not (0 <= index < len(self._observations)):
             logger.error(f"Invalid index {index} for retrieval in Project '{self._name}' with {len(self._observations)} observations")
