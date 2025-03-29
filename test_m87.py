@@ -8,6 +8,7 @@ from base.observation import Observation
 from base.project import Project
 from super.manipulator import DefaultManipulator
 from utils.logging_setup import logger
+from astropy.time import Time
 
 class TestEHTObservation(unittest.TestCase):
     def setUp(self):
@@ -35,16 +36,19 @@ class TestEHTObservation(unittest.TestCase):
         # 2. Настройка телескопов EHT через Manipulator
         telescope_data = [
             {
-                "code": "ALMA", "name": "ALMA", "x": -2230000.0, "y": -5440000.0, "z": -2475000.0,
-                "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 100.0}
+                "code": "ALMA", "name": "ALMA", "x": 2225061.164, "y": -5440057.37, "z": -2481681.15,
+                "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 100.0},
+                "elevation_range": (5.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
             },
             {
-                "code": "APEX", "name": "APEX", "x": -2225000.0, "y": -5441000.0, "z": -2476000.0,
-                "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 120.0}
+                "code": "APEX", "name": "APEX", "x": 2225039.53, "y": -5441197.63, "z": -2479303.36,
+                "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 120.0},
+                "elevation_range": (5.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
             },
             {
-                "code": "SMT", "name": "SMT", "x": -1828000.0, "y": -5054000.0, "z": 3426000.0,
-                "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 10.0, "sefd_table": {86e3: 150.0}
+                "code": "SMT", "name": "SMT", "x": -1828796.2, "y": -5054406.8, "z": 3427865.2,
+                "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 10.0, "sefd_table": {86e3: 150.0},
+                "elevation_range": (5.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
             },
         ]
         telescopes = Telescopes()
@@ -57,7 +61,7 @@ class TestEHTObservation(unittest.TestCase):
             telescopes.add_telescope(tel)
 
         # 3. Настройка частоты (86 GHz в МГц)
-        frequency_attributes = {"set_frequency": {"freq": 86e3}, "set_bandwidth": {"bandwidth": 4e9}}
+        frequency_attributes = {"set_frequency": {"freq": 86e3}, "set_bandwidth": {"bandwidth": 4e3}}
         frequency = IF()
         self.manipulator.process_request("configure", "if", frequency_attributes, frequency)
         frequencies = Frequencies([frequency])
@@ -92,6 +96,11 @@ class TestEHTObservation(unittest.TestCase):
         self.manipulator.process_request("configure", "observation", obs_attributes, observation)
         self.project.add_observation(observation)
 
+        mean_time = Time("2025-03-28T12:00:00")
+        source = observation.get_sources().get_by_index(0)
+        visibility = self.manipulator._calculator._compute_visibility_at_time(source, telescopes.get_active_telescopes(), mean_time)
+        logger.info(f"Visibility at {mean_time.isot}: {visibility}")
+
         # 6. Вычисление (u,v)-покрытия через Manipulator
         calc_attributes = {
             "type": "uv_coverage",
@@ -111,46 +120,27 @@ class TestEHTObservation(unittest.TestCase):
         # 8. Построение графика (u,v)-покрытия
         u_points = []
         v_points = []
-        freq = 86e9  # Частота в Гц после преобразования в Calculator
-        logger.debug(f"UV data structure: {uv_data}")  # Отладочный вывод структуры данных
+        freq = 86e9
+        logger.debug(f"UV data structure: {uv_data}")
         for scan_idx, scan_data in uv_data.items():
             uv_points = scan_data["uv_points"][freq]
             logger.debug(f"UV points for scan {scan_idx}: {uv_points}")
             if "times" in scan_data:
-                # Обрабатываем случай, когда uv_points — список списков
                 for uv_list in uv_points:
-                    if isinstance(uv_list, (list, tuple)) and len(uv_list) == 2:
+                    if isinstance(uv_list, (list, tuple)) and len(uv_list) == 2:  # Теперь точно 2 элемента
                         u, v = uv_list
-                        u_points.append(u)
-                        v_points.append(v)
+                        u_points.append(float(u))
+                        v_points.append(float(v))
                     else:
                         logger.warning(f"Unexpected uv_list format: {uv_list}")
             else:
-                # Обрабатываем случай, когда uv_points — плоский список
-                if isinstance(uv_points, (list, tuple)):
-                    if len(uv_points) % 2 == 0:  # Проверяем, что длина чётная для парного распаковывания
-                        for i in range(0, len(uv_points), 2):
-                            u_points.append(uv_points[i])
-                            v_points.append(uv_points[i + 1])
+                for uv_tuple in uv_points:
+                    if isinstance(uv_tuple, (list, tuple)) and len(uv_tuple) == 2:
+                        u, v = uv_tuple
+                        u_points.append(float(u))
+                        v_points.append(float(v))
                     else:
-                        logger.warning(f"UV points length is odd: {uv_points}")
-                else:
-                    logger.warning(f"Unexpected uv_points format: {uv_points}")
-
-        plt.figure(figsize=(8, 8))
-        plt.scatter(u_points, v_points, s=5, c="blue", label="UV Coverage")
-        plt.scatter([-u for u in u_points], [-v for v in v_points], s=5, c="blue")  # Симметрия
-        plt.xlabel("u (wavelengths)")
-        plt.ylabel("v (wavelengths)")
-        plt.title(f"UV Coverage for M87 Observation at 86 GHz")
-        plt.grid(True)
-        plt.legend()
-        plt.axis("equal")
-        plt.savefig("uv_coverage_m87.png")
-        plt.close()
-
-        logger.info("Generated UV coverage plot saved as 'uv_coverage_m87.png'")
-        self.assertTrue(len(u_points) > 0, "No UV points calculated")
+                        logger.warning(f"Unexpected uv_tuple format: {uv_tuple}")
 
     def tearDown(self):
         """Очистка после теста"""

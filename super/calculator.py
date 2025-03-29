@@ -3,20 +3,19 @@ from abc import ABC
 from base.frequencies import Frequencies
 from base.sources import Sources, Source
 from base.telescopes import Telescope, SpaceTelescope, Telescopes, MountType
-from base.scans import Scan, Scans
+from base.scans import Scan
 from base.observation import Observation
 from base.project import Project
 from utils.logging_setup import logger
 from typing import Dict, Any, Optional, Tuple, List
-from functools import lru_cache
 import numpy as np
 from astropy.time import Time
-from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, EarthLocation, HADec
-import astropy.coordinates as coord
+from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, HADec
 import astropy.units as u
 from concurrent.futures import ThreadPoolExecutor
-import threading
 from scipy.special import j1
+import threading
+import math
 
 
 class Calculator(ABC):
@@ -267,7 +266,7 @@ class Calculator(ABC):
             results = {}
             with ThreadPoolExecutor() as executor:
                 futures = {
-                    executor.submit(self._process_uv_coverage, scan, telescopes, frequencies, time_step, freq_idx): i
+                    executor.submit(self._process_uv_coverage, scan, telescopes, frequencies, time_step, freq_idx, obj): i
                     for i, scan in enumerate(scans)
                 }
                 for future in futures:
@@ -283,44 +282,79 @@ class Calculator(ABC):
             logger.error(f"Failed to calculate (u,v) coverage: {str(e)}")
             return {}
 
-    def _process_uv_coverage(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: Optional[int]) -> Dict[str, Any]:
+    def _process_uv_coverage(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: Optional[int], observation: Observation) -> Dict[str, Any]:
         """Process (u,v) coverage for a single scan"""
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
         telescope_indices = scan.get_telescope_indices()
         active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
         freq_indices = scan.get_frequency_indices() if freq_idx is None else [freq_idx]
-        freqs = [frequencies.get_by_index(i).get_frequency() * 1e6 for i in freq_indices if frequencies.get_by_index(i).isactive]  # MHz -> Hz
+        freqs = [frequencies.get_by_index(i).get_frequency() * 1e6 for i in freq_indices if frequencies.get_by_index(i).isactive]
+        source = scan.get_source(observation=observation)
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
-            uv = self._compute_uv_at_time(active_telescopes, mean_time, freqs)
+            uv = self._compute_uv_at_time(active_telescopes, mean_time, freqs, source)
             return {"uv_points": uv}
         else:
             times = np.arange(0, duration, time_step) * u.s + start_time
             uv_points = {f: [] for f in freqs}
             for t in times:
-                uv = self._compute_uv_at_time(active_telescopes, t, freqs)
+                uv = self._compute_uv_at_time(active_telescopes, t, freqs, source)
                 for f, points in uv.items():
                     uv_points[f].extend(points)
             return {"times": [t.isot for t in times], "uv_points": uv_points}
 
-    def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float]) -> Dict[float, List[Tuple[float, float]]]:
-        """Compute (u,v) points at a given time for given frequencies, relative to Earth's center"""
-        positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
-        itrs_center = ITRS(CartesianRepresentation(0, 0, 0, unit=u.m), obstime=time)
-        gcrs_center = itrs_center.transform_to(GCRS(obstime=time))
-        center_pos = np.array([gcrs_center.cartesian.x.value, gcrs_center.cartesian.y.value, gcrs_center.cartesian.z.value])
-
+    def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float], source: Optional[Source] = None) -> Dict[float, List[Tuple[float, float]]]:
+        """Compute (u,v,w) points at a given time for given frequencies, relative to source direction, considering visibility"""
         uv_points = {f: [] for f in frequencies}
         c = 299792458  # m/s
+
+        if not telescopes or len(telescopes) < 2:
+            logger.warning(f"Insufficient telescopes ({len(telescopes)}) to compute (u,v) at {time.isot}")
+            return uv_points
+
+        if source is None:
+            logger.warning("No source provided; computing simplified (u,v) with no visibility check")
+            positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
+            for i, pos1 in enumerate(positions):
+                for j, pos2 in enumerate(positions[i + 1:], i + 1):
+                    baseline = np.array(pos1) - np.array(pos2)  # meters
+                    for freq in frequencies:
+                        wavelength = c / freq
+                        uu, vv = baseline[0] / wavelength, baseline[1] / wavelength
+                        uv_points[freq].append((uu, vv))
+            logger.debug(f"Computed {len(uv_points[frequencies[0]])} simplified (u,v) points at {time.isot}")
+            return uv_points
+
+        # Проверяем видимость источника
+        logger.debug(f"Checking visibility for telescopes: {[tel.get_code() for tel in telescopes]}, Source: {source.get_name()}")
+        visibility = self._compute_visibility_at_time(source, telescopes, time)
+        visible_telescopes = [tel for tel in telescopes if visibility[tel.get_code()]]
+        logger.debug(f"Visible telescopes: {[tel.get_code() for tel in visible_telescopes]}")
+
+        if len(visible_telescopes) < 2:
+            logger.debug(f"Less than 2 telescopes can see the source at {time.isot}; no (u,v) points calculated")
+            return uv_points
+
+        positions = [self._compute_telescope_position(tel, time) for tel in visible_telescopes]
+        
+        # Вычисляем (u,v) с учётом направления источника
+        ra = math.radians(source.get_ra_degrees())
+        dec = math.radians(source.get_dec_degrees())
+        u_hat = np.array([-np.sin(ra), np.cos(ra), 0])  # Eastward in sky plane
+        v_hat = np.cross(np.array([0, 0, 1]), u_hat)  # Northward, perpendicular to u and zenith
+
         for i, pos1 in enumerate(positions):
             for j, pos2 in enumerate(positions[i + 1:], i + 1):
-                baseline = (np.array(pos1) - center_pos) - (np.array(pos2) - center_pos)  # meters
+                baseline = np.array(pos1) - np.array(pos2)  # meters in GCRS
+                uu = np.dot(baseline, u_hat)
+                vv = np.dot(baseline, v_hat)
                 for freq in frequencies:
                     wavelength = c / freq
-                    uu, vv = baseline[0] / wavelength, baseline[1] / wavelength  # in wavelength numbers
-                    uv_points[freq].append((uu, vv))
+                    uv_points[freq].append((uu / wavelength, vv / wavelength))
+
+        logger.debug(f"Computed {len(uv_points[frequencies[0]])} (u,v) points at {time.isot} with visibility check")
         return uv_points
 
     def _calculate_sun_angles(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
