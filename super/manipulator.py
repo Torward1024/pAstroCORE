@@ -41,7 +41,7 @@ class Manipulator(ABC):
         if obj is None and self._project is None:
             logger.error(f"No {obj_type} or project provided for operation")
             raise ValueError(f"No {obj_type} or project provided")
-        if obj is not None and not isinstance(obj, (Project, Observation)):
+        if obj is not None and not isinstance(obj, (Project, Observation, IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Telescopes, Scan, Scans)):
             logger.error(f"Unsupported object type for {obj_type}: {type(obj)}")
             raise ValueError(f"Unsupported object type: {type(obj)}")
 
@@ -96,8 +96,9 @@ class Manipulator(ABC):
             if cls in {Configurator, Inspector, Calculator}:
                 continue
             methods = {
-                name: method for name, method in inspect.getmembers(cls, predicate=inspect.ismethod)
-                if not name.startswith('_')
+                name: getattr(cls, name) for name, _ in inspect.getmembers(cls)
+                if inspect.isfunction(getattr(cls, name, None)) or inspect.ismethod(getattr(cls, name, None))
+                and not name.startswith('_')
             }
             registry[cls] = methods
             logger.debug(f"Registered {len(methods)} methods for {cls.__name__}")
