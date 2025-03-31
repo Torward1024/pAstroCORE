@@ -295,7 +295,6 @@ class Calculator(ABC):
         ra = source_coord.ra.rad
         dec = source_coord.dec.rad
 
-        # Используем переданную видимость или вычисляем новую
         if visibility is None:
             visibility = self._compute_visibility_at_time(source, telescopes, time)
 
@@ -319,7 +318,6 @@ class Calculator(ABC):
                     vvv = vv / wavelength
                     www = ww / wavelength
                     uv_points[freq].append((pair, uuu, vvv, www))
-                    logger.info(f"Time: {time.isot}, Baseline: {pair}, Freq: {freq/1e6:.2f} MHz, u: {uuu:.4f}, v: {vvv:.4f}, w: {www:.4f}")
 
         return uv_points
     
