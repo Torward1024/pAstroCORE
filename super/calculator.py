@@ -106,12 +106,13 @@ class Calculator(ABC):
     def _compute_telescope_position(self, telescope: Telescope | SpaceTelescope, time: Time) -> Tuple[float, float, float]:
         """Compute the J2000 position of a telescope at a given time"""
         if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope):
-            x, y, z = telescope.get_coordinates()
+            x, y, z = telescope.get_coordinates()  # Фиксированные ITRS-координаты
             vx, vy, vz = telescope.get_velocities()
             dt = (time - Time("2000-01-01T12:00:00")).sec
             itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
             itrs = ITRS(itrs_coords, obstime=time)
-            return (itrs.cartesian.x.value, itrs.cartesian.y.value, itrs.cartesian.z.value)
+            gcrs = itrs.transform_to(GCRS(obstime=time))
+            return (gcrs.cartesian.x.value, gcrs.cartesian.y.value, gcrs.cartesian.z.value)
         elif isinstance(telescope, SpaceTelescope):
             pos, _ = telescope.get_state_vector(time.to_datetime())
             return tuple(float(p) for p in pos)
@@ -185,50 +186,6 @@ class Calculator(ABC):
                 for tel_code, is_visible in vis.items():
                     visibility[tel_code].append(is_visible)
             return {"source": source.get_name(), "times": [t.isot for t in times], "visibility": visibility}
-
-    def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time) -> Dict[str, bool]:
-        """Compute visibility of a source for telescopes at a given time, considering mount type"""
-        source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
-        visibility = {}
-        for tel in telescopes:
-            if isinstance(tel, SpaceTelescope):
-                pos, _ = tel.get_state_vector(time.to_datetime())
-                itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
-                altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
-                pitch = altaz.alt.deg
-                yaw = altaz.az.deg
-                pitch_range = tel.get_pitch_range()
-                yaw_range = tel.get_yaw_range()
-                is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
-                logger.info(f"Space Telescope {tel.get_code()} at {time.isot}: Pitch={pitch:.2f}, Yaw={yaw:.2f}, Visible={is_visible}")
-            else:
-                pos = self._compute_telescope_position(tel, time)
-                itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
-                location = itrs.earth_location
-                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
-                el = altaz.alt.deg
-                az = altaz.az.deg
-                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
-                ha = hadec.ha.deg
-
-                mount_type = tel.get_mount_type()
-                if mount_type == MountType.AZIMUTHAL:
-                    el_range = tel.get_elevation_range()
-                    az_range = tel.get_azimuth_range()
-                    is_visible = (el_range[0] <= el <= el_range[1]) and (az_range[0] <= az <= az_range[1])
-                    logger.info(f"Telescope {tel.get_code()} (AZIM) at {time.isot}: Alt={el:.2f}, Az={az:.2f}, HA={ha:.2f}, ElRange={el_range}, AzRange={az_range}, Visible={is_visible}")
-                elif mount_type == MountType.EQUATORIAL:
-                    dec = hadec.dec.deg
-                    ha_range = tel.get_azimuth_range()
-                    dec_range = tel.get_elevation_range()
-                    is_visible = (dec_range[0] <= dec <= dec_range[1]) and (ha_range[0] <= ha <= ha_range[1])
-                    logger.info(f"Telescope {tel.get_code()} (EQUA) at {time.isot}: Alt={el:.2f}, Az={az:.2f}, HA={ha:.2f}, Dec={dec:.2f}, Visible={is_visible}")
-                else:
-                    logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel.get_code()}'")
-                    is_visible = False
-
-            visibility[tel.get_code()] = is_visible
-        return visibility
     
     def _calculate_uv_coverage(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate (u,v) coverage for all scans in the observation or project"""
@@ -301,8 +258,8 @@ class Calculator(ABC):
                     uv_points[f].extend(points)
             return {"times": [t.isot for t in times], "uv_points": uv_points}
 
-    def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float], source: Optional[Source] = None) -> Dict[float, List[Tuple[float, float]]]:
-        """Compute (u,v) points at a given time for given frequencies, relative to source direction, considering visibility"""
+    def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float], source: Optional[Source] = None) -> Dict[float, List[Tuple[str, float, float]]]:
+        """Compute visibility of a source for telescopes at a given time, considering mount type"""
         uv_points = {f: [] for f in frequencies}
         c = 299792458  # m/s
 
@@ -310,15 +267,13 @@ class Calculator(ABC):
             logger.warning(f"Insufficient telescopes ({len(telescopes)}) to compute (u,v) at {time.isot}")
             return uv_points
 
-        # Получаем фиксированные ITRS-позиции телескопов
-        itrs_positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
-        itrs_coords = [ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time) for pos in itrs_positions]
+        gcrs_positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
 
         if source is None:
             logger.warning("No source provided; computing simplified (u,v) with no visibility check")
-            for i, pos1 in enumerate(itrs_positions):
-                for j, pos2 in enumerate(itrs_positions[i + 1:], i + 1):
-                    baseline = np.array(pos1) - np.array(pos2)
+            for i, pos1 in enumerate(gcrs_positions):
+                for j, pos2 in enumerate(gcrs_positions[i + 1:], i + 1):
+                    baseline = np.array(pos1) - np.array(pos2)  # Преобразуем кортежи в массивы и вычитаем
                     for freq in frequencies:
                         wavelength = c / freq
                         uuu = baseline[0] / wavelength
@@ -327,29 +282,23 @@ class Calculator(ABC):
                         uv_points[freq].append((pair, uuu, vvv))
             return uv_points
 
-        # Координаты источника
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
         ra = source_coord.ra.rad
         dec = source_coord.dec.rad
 
-        # Проверка видимости
         visibility = self._compute_visibility_at_time(source, telescopes, time)
-
-        # Преобразуем позиции в GCRS для учёта вращения Земли
-        gcrs_positions = [itrs.transform_to(GCRS(obstime=time)).cartesian.xyz.value for itrs in itrs_coords]
 
         for i, tel1 in enumerate(telescopes):
             if not visibility[tel1.get_code()]:
                 continue
-            pos1 = gcrs_positions[i]
+            pos1 = np.array(gcrs_positions[i])  # Преобразуем кортеж в массив
             for j, tel2 in enumerate(telescopes[i + 1:], i + 1):
                 if not visibility[tel2.get_code()]:
                     continue
-                pos2 = gcrs_positions[j]
-                baseline = pos1 - pos2  # Базовая линия в GCRS
+                pos2 = np.array(gcrs_positions[j])  # Преобразуем кортеж в массив
+                baseline = pos1 - pos2  # Теперь вычитание работает
                 X, Y, Z = baseline
 
-                # Проекция базовой линии на (u, v)-плоскость
                 uu = -math.sin(ra) * X + math.cos(ra) * Y
                 vv = -math.cos(ra) * math.sin(dec) * X - math.sin(ra) * math.sin(dec) * Y + math.cos(dec) * Z
 
@@ -362,6 +311,54 @@ class Calculator(ABC):
                     logger.info(f"Time: {time.isot}, Baseline: {pair}, Freq: {freq/1e6:.2f} MHz, u: {uuu:.4f}, v: {vvv:.4f}")
 
         return uv_points
+    
+    def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time) -> Dict[str, bool]:
+        """Compute visibility of a source for telescopes at a given time, considering mount type"""
+        source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
+        visibility = {}
+        for tel in telescopes:
+            if isinstance(tel, SpaceTelescope):
+                pos, _ = tel.get_state_vector(time.to_datetime())
+                itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
+                altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
+                pitch = altaz.alt.deg
+                yaw = altaz.az.deg
+                pitch_range = tel.get_pitch_range()
+                yaw_range = tel.get_yaw_range()
+                is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
+                logger.info(f"Space Telescope {tel.get_code()} at {time.isot}: Pitch={pitch:.2f}, Yaw={yaw:.2f}, Visible={is_visible}")
+            else:
+                x, y, z = tel.get_coordinates()
+                vx, vy, vz = tel.get_velocities()
+                dt = (time - Time("2000-01-01T12:00:00")).sec
+                itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
+                itrs = ITRS(itrs_coords, obstime=time)
+                location = itrs.earth_location
+                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
+                el = altaz.alt.deg
+                az = altaz.az.deg
+                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
+                ha = hadec.ha.deg
+
+                mount_type = tel.get_mount_type()
+                if mount_type == MountType.AZIMUTHAL:
+                    el_range = tel.get_elevation_range()
+                    az_range = tel.get_azimuth_range()
+                    is_visible = (el_range[0] <= el <= el_range[1]) and (az_range[0] <= az <= az_range[1])
+                    logger.info(f"Telescope {tel.get_code()} (AZIM) at {time.isot}: Alt={el:.2f}, Az={az:.2f}, HA={ha:.2f}, ElRange={el_range}, AzRange={az_range}, Visible={is_visible}")
+                elif mount_type == MountType.EQUATORIAL:
+                    dec = hadec.dec.deg
+                    ha_range = tel.get_azimuth_range()
+                    dec_range = tel.get_elevation_range()
+                    is_visible = (dec_range[0] <= dec <= dec_range[1]) and (ha_range[0] <= ha <= ha_range[1])
+                    logger.info(f"Telescope {tel.get_code()} (EQUA) at {time.isot}: Alt={el:.2f}, Az={az:.2f}, HA={ha:.2f}, Dec={dec:.2f}, Visible={is_visible}")
+                else:
+                    logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel.get_code()}'")
+                    is_visible = False
+
+                logger.debug(f"Telescope {tel.get_code()} at {time.isot}: Lat={location.lat.deg:.2f}, Lon={location.lon.deg:.2f}, Pos={(x, y, z)}")
+            visibility[tel.get_code()] = is_visible
+        return visibility
 
     def _calculate_sun_angles(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate angles between source and Sun for all scans in the observation or project"""
