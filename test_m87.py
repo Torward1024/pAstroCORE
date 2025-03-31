@@ -8,12 +8,8 @@ from base.observation import Observation
 from base.project import Project
 from super.manipulator import DefaultManipulator
 from utils.logging_setup import logger
-from astropy.time import Time
-from astropy.coordinates import ITRS, CartesianRepresentation, HADec, SkyCoord
 import datetime
 from datetime import timezone
-import astropy.units as u
-import numpy as np
 
 class TestEHTObservation(unittest.TestCase):
     def setUp(self):
@@ -117,11 +113,11 @@ class TestEHTObservation(unittest.TestCase):
         for scan_idx, scan_data in uv_data.items():
             uv_points = scan_data["uv_points"][freq]  # Список кортежей (pair, u, v)
             times = scan_data["times"]
-            for t, (pair, uu, vv) in zip(times, uv_points):
+            for t, (pair, uu, vv, ww) in zip(times, uv_points):
                 if pair in u_points_dict:
                     u_points_dict[pair].append(float(uu))
                     v_points_dict[pair].append(float(vv))
-                    logger.debug(f"Time: {t}, Pair: {pair}, u: {uu:.4f}, v: {vv:.4f}")
+                    logger.debug(f"Time: {t}, Pair: {pair}, u: {uu:.4f}, v: {vv:.4f}, w: {ww:.4f}")
 
         # Проверка данных
         self.assertGreater(len(u_points_dict['ALMA-APEX']), 0, "No points for ALMA-APEX baseline")
@@ -139,8 +135,8 @@ class TestEHTObservation(unittest.TestCase):
         plt.legend()
         plt.xlim(-2e9, 2e9)
         plt.ylim(-2e9, 2e9)
-        plt.gca().invert_xaxis()  # Инверсия оси u для соответствия астрономической конвенции
-        plt.savefig("uv_coverage_m87.png")  # Сохранение графика
+        plt.gca().invert_xaxis()  
+        plt.savefig("uv_coverage_m87.png")
         plt.show()
 
     def tearDown(self):
