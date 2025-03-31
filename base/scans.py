@@ -9,6 +9,7 @@ from utils.logging_setup import logger
 from datetime import datetime
 import numpy as np
 from typing import Optional, List
+from datetime import timezone
 
 """Base-class of a Scan object with start_time, duration (s), source, telescopes and frequencies
 
@@ -96,7 +97,8 @@ class Scan(BaseEntity):
 
     def get_start_datetime(self) -> datetime:
         """Get start time of scan in DateTime format"""
-        return datetime.fromtimestamp(self._start)
+        dt = datetime.fromtimestamp(self._start, tz=timezone.utc)
+        return dt
     
     def get_end_datetime(self) -> datetime:
         """Get end time of scan in DateTime format"""
@@ -242,7 +244,7 @@ class Scan(BaseEntity):
         check_type(time, (int, float), "Time")
         time = time if time is not None else self._start
         availability = {}
-        dt = datetime.fromtimestamp(time)
+        dt = datetime.fromtimestamp(time, tz=timezone.utc)
         source = self.get_source(observation) if not self.is_off_source else None
         
         for telescope in self.get_telescopes(observation).get_active_telescopes():

@@ -306,7 +306,7 @@ class Calculator(ABC):
             return {"times": [t.isot for t in times], "uv_points": uv_points}
 
     def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float], source: Optional[Source] = None) -> Dict[float, List[Tuple[float, float]]]:
-        """Compute (u,v,w) points at a given time for given frequencies, relative to source direction, considering visibility"""
+        """Compute (u,v) points at a given time for given frequencies, relative to source direction, considering visibility"""
         uv_points = {f: [] for f in frequencies}
         c = 299792458  # m/s
 
@@ -323,38 +323,50 @@ class Calculator(ABC):
                     for freq in frequencies:
                         wavelength = c / freq
                         uu, vv = baseline[0] / wavelength, baseline[1] / wavelength
-                        uv_points[freq].append((uu, vv))
-            logger.debug(f"Computed {len(uv_points[frequencies[0]])} simplified (u,v) points at {time.isot}")
+                        pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
+                        uv_points[freq].append((pair, uu, vv))
             return uv_points
 
-        # Проверяем видимость источника
-        logger.debug(f"Checking visibility for telescopes: {[tel.get_code() for tel in telescopes]}, Source: {source.get_name()}")
         visibility = self._compute_visibility_at_time(source, telescopes, time)
-        visible_telescopes = [tel for tel in telescopes if visibility[tel.get_code()]]
-        logger.debug(f"Visible telescopes: {[tel.get_code() for tel in visible_telescopes]}")
 
-        if len(visible_telescopes) < 2:
-            logger.debug(f"Less than 2 telescopes can see the source at {time.isot}; no (u,v) points calculated")
-            return uv_points
+        source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
+        dec = source_coord.dec.rad
 
-        positions = [self._compute_telescope_position(tel, time) for tel in visible_telescopes]
-        
-        # Вычисляем (u,v) с учётом направления источника
-        ra = math.radians(source.get_ra_degrees())
-        dec = math.radians(source.get_dec_degrees())
-        u_hat = np.array([-np.sin(ra), np.cos(ra), 0])  # Eastward in sky plane
-        v_hat = np.cross(np.array([0, 0, 1]), u_hat)  # Northward, perpendicular to u and zenith
+        for i, tel1 in enumerate(telescopes):
+            if not visibility[tel1.get_code()]:
+                continue
+            pos1 = self._compute_telescope_position(tel1, time)
+            #itrs1 = ITRS(CartesianRepresentation(*pos1, unit=u.m), obstime=time)
 
-        for i, pos1 in enumerate(positions):
-            for j, pos2 in enumerate(positions[i + 1:], i + 1):
+            for j, tel2 in enumerate(telescopes[i + 1:], i + 1):
+                if not visibility[tel2.get_code()]:
+                    continue
+                pos2 = self._compute_telescope_position(tel2, time)
+                #itrs2 = ITRS(CartesianRepresentation(*pos2, unit=u.m), obstime=time)
+
+                # Среднее положение базовой линии
+                mean_pos = (np.array(pos1) + np.array(pos2)) / 2
+                mean_itrs = ITRS(CartesianRepresentation(*mean_pos, unit=u.m), obstime=time)
+                location = mean_itrs.earth_location
+                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
+                ha = hadec.ha.rad
+
                 baseline = np.array(pos1) - np.array(pos2)  # meters in GCRS
-                uu = np.dot(baseline, u_hat)
-                vv = np.dot(baseline, v_hat)
+                X, Y, Z = baseline
+
+                # Вычисляем (u,v) координаты
+                #uu = X * math.cos(ha) - Y * math.sin(ha)
+                #vv = -X * math.sin(ha) * math.sin(dec) + Y * math.cos(ha) * math.sin(dec) + Z * math.cos(dec)
+                uu = -math.sin(ha) * X + math.cos(ha) * Y
+                vv = -math.sin(dec) * math.cos(ha) * X - math.sin(dec) * math.sin(ha) * Y + math.cos(dec) * Z
+
+                pair = f"{tel1.get_code()}-{tel2.get_code()}"
                 for freq in frequencies:
                     wavelength = c / freq
-                    uv_points[freq].append((uu / wavelength, vv / wavelength))
+                    uuu = uu / wavelength
+                    vvv = vv / wavelength
+                    uv_points[freq].append((pair, uuu, vvv))
 
-        logger.debug(f"Computed {len(uv_points[frequencies[0]])} (u,v) points at {time.isot} with visibility check")
         return uv_points
 
     def _calculate_sun_angles(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -800,7 +812,6 @@ class Calculator(ABC):
         wavelength = c / frequency
         projections = {}
         
-        # Если источник не указан, используем упрощенную систему (w = 0)
         if source_coord is None:
             for i, pos1 in enumerate(positions):
                 for j, pos2 in enumerate(positions[i + 1:], i + 1):
@@ -809,14 +820,13 @@ class Calculator(ABC):
                     pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
                     projections[pair] = (uu, vv, ww)
         else:
-            # Полное вычисление с учетом направления источника
-            source_vec = source_coord.cartesian.xyz.value  # Единичный вектор источника
+            source_vec = source_coord.cartesian.xyz.value
             for i, pos1 in enumerate(positions):
                 for j, pos2 in enumerate(positions[i + 1:], i + 1):
-                    baseline = np.array(pos1) - np.array(pos2)  # meters
-                    uvw = np.dot(baseline, source_vec) / wavelength  # Проекция на источник
-                    uu, vv = baseline[0] / wavelength, baseline[1] / wavelength  # Упрощенные u, v
-                    ww = uvw  # w как проекция на линию визирования
+                    baseline = np.array(pos1) - np.array(pos2)
+                    uvw = np.dot(baseline, source_vec) / wavelength 
+                    uu, vv = baseline[0] / wavelength, baseline[1] / wavelength
+                    ww = uvw 
                     pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
                     projections[pair] = (uu, vv, ww)
     
