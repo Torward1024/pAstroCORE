@@ -38,13 +38,13 @@ class TestEHTObservation(unittest.TestCase):
         telescope_data = [
             {"code": "ALMA", "name": "ALMA", "x": 2225061.164, "y": -5440057.37, "z": -2481681.15,
              "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 100.0},
-             "elevation_range": (10.0, 85.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"},
+             "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"},
             {"code": "APEX", "name": "APEX", "x": 2225039.53, "y": -5441197.63, "z": -2479303.36,
              "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 120.0},
-             "elevation_range": (10.0, 85.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"},
+             "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"},
             {"code": "SMT", "name": "SMT", "x": -1828796.2, "y": -5054406.8, "z": 3427865.2,
              "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 10.0, "sefd_table": {86e3: 150.0},
-             "elevation_range": (10.0, 85.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"},
+             "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"},
         ]
         telescopes = Telescopes()
         for tel_data in telescope_data:
@@ -94,7 +94,7 @@ class TestEHTObservation(unittest.TestCase):
         # 6. Вычисление (u,v)-покрытия
         calc_attributes = {
             "type": "uv_coverage",
-            "time_step": 300.0,  # Шаг 5 минут
+            "time_step": 300.0,
             "freq_idx": 0,
             "store_key": "uv_coverage_f0",
             "recalculate": True
@@ -104,19 +104,21 @@ class TestEHTObservation(unittest.TestCase):
 
         # 7. Визуализация
         uv_data = observation.get_calculated_data_by_key("uv_coverage_f0")["data"]
-        freq = 86e9  # Частота в Гц (86 GHz)
+        freq = 86e9  # 86 GHz в Гц
 
         colors = {'ALMA-APEX': 'red', 'ALMA-SMT': 'blue', 'APEX-SMT': 'green'}
         u_points_dict = {'ALMA-APEX': [], 'ALMA-SMT': [], 'APEX-SMT': []}
         v_points_dict = {'ALMA-APEX': [], 'ALMA-SMT': [], 'APEX-SMT': []}
+        w_points_dict = {'ALMA-APEX': [], 'ALMA-SMT': [], 'APEX-SMT': []}  # Добавляем w
 
         for scan_idx, scan_data in uv_data.items():
-            uv_points = scan_data["uv_points"][freq]  # Список кортежей (pair, u, v)
+            uv_points = scan_data["uv_points"][freq]  # Список кортежей (pair, u, v, w)
             times = scan_data["times"]
             for t, (pair, uu, vv, ww) in zip(times, uv_points):
                 if pair in u_points_dict:
                     u_points_dict[pair].append(float(uu))
                     v_points_dict[pair].append(float(vv))
+                    w_points_dict[pair].append(float(ww))
                     logger.debug(f"Time: {t}, Pair: {pair}, u: {uu:.4f}, v: {vv:.4f}, w: {ww:.4f}")
 
         # Проверка данных
@@ -135,7 +137,7 @@ class TestEHTObservation(unittest.TestCase):
         plt.legend()
         plt.xlim(-2e9, 2e9)
         plt.ylim(-2e9, 2e9)
-        plt.gca().invert_xaxis()  
+        plt.gca().invert_xaxis()
         plt.savefig("uv_coverage_m87.png")
         plt.show()
 
