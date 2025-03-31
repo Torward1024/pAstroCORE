@@ -95,20 +95,6 @@ class TestEHTObservation(unittest.TestCase):
         self.manipulator.process_request("configure", "observation", obs_attributes, observation)
         self.project.add_observation(observation)
 
-        # 6. Вычисление позиций телескопов (для проверки)
-        pos_attributes = {
-            "type": "telescope_positions",
-            "time_step": 300.0,
-            "store_key": "telescope_positions",
-            "recalculate": True
-        }
-        pos_results = self.manipulator.process_request("calculate", "observation", pos_attributes, observation)
-        pos_data = observation.get_calculated_data_by_key("telescope_positions")["data"]
-        logger.info("Telescope positions (first few points):")
-        for scan_idx, scan_data in pos_data.items():
-            for tel_code, tel_pos in scan_data["telescope_positions"].items():
-                logger.info(f"Scan {scan_idx}, {tel_code}: Times={tel_pos['times'][:2]}, Positions={tel_pos['positions'][:2]}")
-
         # 7. Вычисление (u,v)-покрытия
         calc_attributes = {
             "type": "uv_coverage",

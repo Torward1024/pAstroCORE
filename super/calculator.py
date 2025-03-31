@@ -205,16 +205,17 @@ class Calculator(ABC):
             else:  # ground telescopes
                 pos = self._compute_telescope_position(tel, time)
                 itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
-                mount_type = tel.get_mount_type()
                 location = itrs.earth_location
-                
+                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
+                el = altaz.alt.deg
+                az = altaz.az.deg
+
+                mount_type = tel.get_mount_type()
                 if mount_type == MountType.AZIMUTHAL:
-                    altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
-                    el = altaz.alt.deg
-                    az = altaz.az.deg
                     el_range = tel.get_elevation_range()
                     az_range = tel.get_azimuth_range()
                     is_visible = (el_range[0] <= el <= el_range[1]) and (az_range[0] <= az <= az_range[1])
+                    logger.info(f"Telescope {tel.get_code()} (AZIM) at {time.isot}: Alt={el:.2f}, Az={az:.2f}, ElRange={el_range}, AzRange={az_range}, Visible={is_visible}")
                 elif mount_type == MountType.EQUATORIAL:
                     
                     hadec = source_coord.transform_to(HADec(obstime=time, location=location))
@@ -347,6 +348,7 @@ class Calculator(ABC):
                     uuu = uu / wavelength
                     vvv = vv / wavelength
                     uv_points[freq].append((pair, uuu, vvv))
+                    logger.info(f"Time: {time.isot}, Baseline: {pair}, Freq: {freq/1e6:.2f} MHz, u: {uuu:.4f}, v: {vvv:.4f}")
 
         return uv_points
 
