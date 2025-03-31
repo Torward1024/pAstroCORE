@@ -25,9 +25,9 @@ class MountType(Enum):
         x (float): Telescope x coordinate (ITRF) in meters
         y (float): Telescope y coordinate (ITRF) in meters
         z (float): Telescope z coordinate (ITRF) in meters
-        vx (float): Telescope vx velocity (ITRF) in m/s
-        vy (float): Telescope vy velocity (ITRF) in m/s
-        vz (float): Telescope vz velocity (ITRF) in m/s
+        vx (float): Telescope vx velocity (ITRF) in mm/year
+        vy (float): Telescope vy velocity (ITRF) in mm/year
+        vz (float): Telescope vz velocity (ITRF) in mm/year
         diameter (float): Antenna diameter in meters
         sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
         elevation_range (Tuple[float, float]): Min and max elevation in degrees (default: 15-90)

@@ -314,9 +314,10 @@ class Calculator(ABC):
             logger.warning(f"Insufficient telescopes ({len(telescopes)}) to compute (u,v) at {time.isot}")
             return uv_points
 
+        positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
+
         if source is None:
             logger.warning("No source provided; computing simplified (u,v) with no visibility check")
-            positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
             for i, pos1 in enumerate(positions):
                 for j, pos2 in enumerate(positions[i + 1:], i + 1):
                     baseline = np.array(pos1) - np.array(pos2)  # meters
@@ -327,38 +328,26 @@ class Calculator(ABC):
                         uv_points[freq].append((pair, uu, vv))
             return uv_points
 
-        visibility = self._compute_visibility_at_time(source, telescopes, time)
-
+        
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
+        ra = source_coord.ra.rad
         dec = source_coord.dec.rad
+
+        visibility = self._compute_visibility_at_time(source, telescopes, time)
 
         for i, tel1 in enumerate(telescopes):
             if not visibility[tel1.get_code()]:
                 continue
-            pos1 = self._compute_telescope_position(tel1, time)
-            #itrs1 = ITRS(CartesianRepresentation(*pos1, unit=u.m), obstime=time)
-
+            pos1 = np.array(positions[i])
             for j, tel2 in enumerate(telescopes[i + 1:], i + 1):
                 if not visibility[tel2.get_code()]:
                     continue
-                pos2 = self._compute_telescope_position(tel2, time)
-                #itrs2 = ITRS(CartesianRepresentation(*pos2, unit=u.m), obstime=time)
-
-                # Среднее положение базовой линии
-                mean_pos = (np.array(pos1) + np.array(pos2)) / 2
-                mean_itrs = ITRS(CartesianRepresentation(*mean_pos, unit=u.m), obstime=time)
-                location = mean_itrs.earth_location
-                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
-                ha = hadec.ha.rad
-
-                baseline = np.array(pos1) - np.array(pos2)  # meters in GCRS
+                pos2 = np.array(positions[j])
+                baseline = pos1 - pos2
                 X, Y, Z = baseline
 
-                # Вычисляем (u,v) координаты
-                #uu = X * math.cos(ha) - Y * math.sin(ha)
-                #vv = -X * math.sin(ha) * math.sin(dec) + Y * math.cos(ha) * math.sin(dec) + Z * math.cos(dec)
-                uu = -math.sin(ha) * X + math.cos(ha) * Y
-                vv = -math.sin(dec) * math.cos(ha) * X - math.sin(dec) * math.sin(ha) * Y + math.cos(dec) * Z
+                uu = -math.sin(ra) * X + math.cos(ra) * Y
+                vv = -math.cos(ra) * math.sin(dec) * X - math.sin(ra) * math.sin(dec) * Y + math.cos(dec) * Z
 
                 pair = f"{tel1.get_code()}-{tel2.get_code()}"
                 for freq in frequencies:

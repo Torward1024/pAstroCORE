@@ -120,27 +120,10 @@ class TestEHTObservation(unittest.TestCase):
         uv_results = self.manipulator.process_request("calculate", "observation", calc_attributes, observation)
         self.assertTrue(uv_results, "UV calculation failed")
 
-        # 8. Анализ (u,v)-данных с диагностикой
+        # 8. Визуализация
         uv_data = observation.get_calculated_data_by_key("uv_coverage_f0")["data"]
         freq = 86e9  # Частота в Гц
-        source_coord = SkyCoord(ra=m87_source.get_ra_degrees() * u.deg, dec=m87_source.get_dec_degrees() * u.deg, frame='icrs')
 
-        logger.info("UV diagnostics (first few points):")
-        for scan_idx, scan_data in uv_data.items():
-            times = [Time(t) for t in scan_data["times"][:2]]  # Ограничимся первыми двумя точками для примера
-            uv_points = scan_data["uv_points"][freq][:2]
-            for t, (pair, uu, vv) in zip(times, uv_points):
-                tel1_code, tel2_code = pair.split('-')
-                tel1_pos = pos_data[scan_idx]["telescope_positions"][tel1_code]["positions"][times.index(t)]
-                tel2_pos = pos_data[scan_idx]["telescope_positions"][tel2_code]["positions"][times.index(t)]
-                baseline = np.array(tel1_pos) - np.array(tel2_pos)
-                mean_pos = (np.array(tel1_pos) + np.array(tel2_pos)) / 2
-                itrs = ITRS(CartesianRepresentation(*mean_pos, unit=u.m), obstime=t)
-                hadec = source_coord.transform_to(HADec(obstime=t, location=itrs.earth_location))
-                ha, dec = hadec.ha.rad, hadec.dec.rad
-                logger.info(f"Time: {t.isot}, Pair: {pair}, Baseline: {baseline}, HA: {np.degrees(ha):.2f} deg, Dec: {np.degrees(dec):.2f} deg, u: {uu:.2e}, v: {vv:.2e}")
-
-        # 9. Визуализация
         colors = {'ALMA-APEX': 'red', 'ALMA-SMT': 'blue', 'APEX-SMT': 'green'}
         u_points_dict = {'ALMA-APEX': [], 'ALMA-SMT': [], 'APEX-SMT': []}
         v_points_dict = {'ALMA-APEX': [], 'ALMA-SMT': [], 'APEX-SMT': []}
