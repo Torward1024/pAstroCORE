@@ -318,14 +318,6 @@ class Calculator(ABC):
 
         if source is None:
             logger.warning("No source provided; computing simplified (u,v) with no visibility check")
-            for i, pos1 in enumerate(positions):
-                for j, pos2 in enumerate(positions[i + 1:], i + 1):
-                    baseline = np.array(pos1) - np.array(pos2)  # meters
-                    for freq in frequencies:
-                        wavelength = c / freq
-                        uu, vv = baseline[0] / wavelength, baseline[1] / wavelength
-                        pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                        uv_points[freq].append((pair, uu, vv))
             return uv_points
 
         
