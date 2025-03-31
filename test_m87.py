@@ -10,6 +10,7 @@ from super.manipulator import DefaultManipulator
 from utils.logging_setup import logger
 import datetime
 from datetime import timezone
+import time
 
 class TestEHTObservation(unittest.TestCase):
     def setUp(self):
@@ -99,8 +100,10 @@ class TestEHTObservation(unittest.TestCase):
             "store_key": "uv_coverage_f0",
             "recalculate": True
         }
+        start = time.time()
         uv_results = self.manipulator.process_request("calculate", "observation", calc_attributes, observation)
         self.assertTrue(uv_results, "UV calculation failed")
+        print(f"UV calculation took {time.time() - start:.2f} seconds")
 
         # 7. Визуализация
         uv_data = observation.get_calculated_data_by_key("uv_coverage_f0")["data"]

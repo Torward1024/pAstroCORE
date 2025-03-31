@@ -242,7 +242,6 @@ class Calculator(ABC):
             return {}
 
     def _process_uv_coverage(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: Optional[int], observation: Observation) -> Dict[str, Any]:
-        """Process (u,v) coverage for a single scan"""
         start_time = Time(scan.get_start_datetime())
         duration = scan.get_duration()
         telescope_indices = scan.get_telescope_indices()
@@ -257,29 +256,30 @@ class Calculator(ABC):
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
             visibility = visibility_data["data"][0]["visibility"] if visibility_data and "data" in visibility_data and 0 in visibility_data["data"] else None
-            uv = self._compute_uv_at_time(active_telescopes, mean_time, freqs, source, visibility=visibility)
+            gcrs_positions = [self._compute_telescope_position(tel, mean_time) for tel in active_telescopes]
+            uv = self._compute_uv_at_time(active_telescopes, mean_time, freqs, source, visibility=visibility, gcrs_positions=gcrs_positions)
             return {"uv_points": uv}
         else:
             times = np.arange(0, duration, time_step) * u.s + start_time
             uv_points = {f: [] for f in freqs}
+            # Кэшируем позиции для всех времён
+            gcrs_positions = {t: [self._compute_telescope_position(tel, t) for tel in active_telescopes] for t in times}
             if visibility_data and "data" in visibility_data and 0 in visibility_data["data"] and "times" in visibility_data["data"][0]:
                 visibility_list = visibility_data["data"][0]["visibility"]
                 for t, vis_dict in zip(times, [{tel: vis[i] for tel, vis in visibility_list.items()} for i in range(len(times))]):
-                    uv = self._compute_uv_at_time(active_telescopes, t, freqs, source, visibility=vis_dict)
+                    uv = self._compute_uv_at_time(active_telescopes, t, freqs, source, visibility=vis_dict, gcrs_positions=gcrs_positions[t])
                     for f, points in uv.items():
                         uv_points[f].extend(points)
             else:
-                # Если данных нет, вычисляем видимость и кэшируем её
                 visibility_results = self._calculate_source_visibility(observation, {"time_step": time_step, "store_key": visibility_key})
                 visibility_list = visibility_results[0]["visibility"]
                 for t, vis_dict in zip(times, [{tel: vis[i] for tel, vis in visibility_list.items()} for i in range(len(times))]):
-                    uv = self._compute_uv_at_time(active_telescopes, t, freqs, source, visibility=vis_dict)
+                    uv = self._compute_uv_at_time(active_telescopes, t, freqs, source, visibility=vis_dict, gcrs_positions=gcrs_positions[t])
                     for f, points in uv.items():
                         uv_points[f].extend(points)
             return {"times": [t.isot for t in times], "uv_points": uv_points}
 
-    def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float], source: Optional[Source] = None, visibility: Optional[Dict[str, bool]] = None) -> Dict[float, List[Tuple[str, float, float, float]]]:
-        """Compute u,v,w for telescopes at a given time, considering mount type, source and frequencies"""
+    def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float], source: Optional[Source] = None, visibility: Optional[Dict[str, bool]] = None, gcrs_positions: Optional[List[Tuple[float, float, float]]] = None) -> Dict[float, List[Tuple[str, float, float, float]]]:
         uv_points = {f: [] for f in frequencies}
         c = 299792458  # m/s
 
@@ -287,7 +287,8 @@ class Calculator(ABC):
             logger.warning(f"Insufficient telescopes ({len(telescopes)}) to compute (u,v) at {time.isot}")
             return uv_points
 
-        gcrs_positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
+        if gcrs_positions is None:
+            gcrs_positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
 
         if source is None:
             logger.warning("No source provided; cannot calculate (u,v,w)")
