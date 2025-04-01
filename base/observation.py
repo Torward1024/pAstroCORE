@@ -1,4 +1,3 @@
-# base/observation.py
 from base.base_entity import BaseEntity
 from base.sources import Sources
 from base.telescopes import Telescopes
@@ -6,66 +5,15 @@ from base.frequencies import Frequencies
 from base.scans import Scans
 from utils.validation import check_type, check_non_empty_string
 from utils.logging_setup import logger
-from datetime import datetime
+from astropy.time import Time
 from typing import Optional, Dict, Any
 import astropy.units as u
 import numpy as np
-
-"""Base-class of an Observation object with start_time, sources, telescopes, frequencies and scans
-
-    Notes: 
-    Contains:
-    Atributes:
-        observation code
-        observation type
-        sources
-        telescopes
-        frequencies
-        scans
-
-    Methods:
-        activate
-        deactivate
-
-        set_observation
-        set_observation_type
-        set_observation_code
-        set_sources
-        set_frequencies
-        set_telescopes
-        set_scans
-        set_calculated_data
-        set_calculated_data_by_key
-
-
-        get_observation_type
-        get_observation_code
-        get_sources
-        get_frequencies
-        get_telescopes
-        get_scans
-        get_calculated_data
-        set_calculated_data_by_key
-
-        get_start_datetime
-
-        validate
-
-        to_dict
-        from_dict
-
-        _update_scan_indices
-        _sync_scans_with_activation
-
-        __init__
-        __repr__
-    """
 
 class Observation(BaseEntity):
     def __init__(self, observation_code: str = "OBS_DEFAULT", sources: Sources = None,
                  telescopes: Telescopes = None, frequencies: Frequencies = None,
                  scans: Scans = None, observation_type: str = "VLBI", isactive: bool = True):
-        """Initialize an Observation object"""
         super().__init__(isactive)
         check_type(observation_code, str, "Observation code")
         if observation_type not in ("VLBI", "SINGLE_DISH"):
@@ -89,13 +37,12 @@ class Observation(BaseEntity):
         self._telescopes._parent = self
         self._frequencies._parent = self
         self._scans._parent = self
-        self._calculated_data: Dict[str, Any] = {} # Хранилище для результатов Calculator
+        self._calculated_data: Dict[str, Any] = {}
         logger.info(f"Initialized Observation '{observation_code}' with type '{observation_type}'")
 
     def set_observation(self, observation_code: str, sources: Sources = None,
                         telescopes: Telescopes = None, frequencies: Frequencies = None,
                         scans: Scans = None, observation_type: str = "VLBI", isactive: bool = True) -> None:
-        """Set observation parameters"""
         check_type(observation_code, str, "Observation code")
         if observation_type not in ("VLBI", "SINGLE_DISH"):
             logger.error(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
@@ -119,15 +66,12 @@ class Observation(BaseEntity):
         logger.info(f"Set observation '{observation_code}' with type '{observation_type}'")
     
     def activate(self) -> None:
-        """Activate observation"""
         super().activate()
 
     def deactivate(self) -> None:
-        """Deactivate observation"""
         super().deactivate()
 
     def set_observation_type(self, observation_type: str) -> None:
-        """Set observation type (VLBI or SINGLE_DISH)"""
         check_type(observation_type, str, "Observation type")
         if observation_type not in ("VLBI", "SINGLE_DISH"):
             logger.error(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
@@ -136,137 +80,111 @@ class Observation(BaseEntity):
         logger.info(f"Set observation type to '{observation_type}' for observation '{self._observation_code}'")
 
     def set_observation_code(self, observation_code: str) -> None:
-        """Set observation code"""
         check_type(observation_code, str, "Observation code")
         self._observation_code = observation_code
         logger.info(f"Set observation code to '{observation_code}'")
 
     def set_sources(self, sources: Sources) -> None:
-        """Set observation sources"""
         check_type(sources, Sources, "Sources")
         self._sources = sources
         self._calculated_data.clear()
         logger.info(f"Set sources for observation '{self._observation_code}'")
 
     def set_frequencies(self, frequencies: Frequencies) -> None:
-        """Set observation frequencies with polarizations"""
         check_type(frequencies, Frequencies, "Frequencies")
         self._frequencies = frequencies
         self._calculated_data.clear()
         logger.info(f"Set frequencies with polarizations for observation '{self._observation_code}'")
 
     def set_telescopes(self, telescopes: Telescopes) -> None:
-        """Set observation telescopes"""
         check_type(telescopes, Telescopes, "Telescopes")
         self._telescopes = telescopes
         self._calculated_data.clear()
         logger.info(f"Set telescopes for observation '{self._observation_code}'")    
 
     def set_scans(self, scans: Scans) -> None:
-        """Set observation scans"""
         check_type(scans, Scans, "Scans")
         self._scans = scans
-        self._calculated_data.clear()  # Очищаем результаты, так как данные изменились
+        self._calculated_data.clear()
         logger.info(f"Set scans for observation '{self._observation_code}'")
 
     def set_calculated_data(self, data: Any) -> None:
-        """Save calculated data for this observation"""
         self._calculated_data = data.copy()
         logger.info(f"Stored calculated data for observation '{self._observation_code}'")
 
     def set_calculated_data_by_key(self, key: str, data: Any) -> None:
-        """Save concrete calculated data for this observation"""
         check_non_empty_string(key, "Key")
         self._calculated_data[key] = data
         logger.info(f"Stored calculated data '{key}' for observation '{self._observation_code}'")
 
     def get_observation_code(self) -> str:
-        """Get observation code"""
         return self._observation_code
     
     def get_observation_type(self) -> str:
-        """Get observation type"""
         return self._observation_type
 
     def get_sources(self) -> Sources:
-        """Get observation sources"""
         return self._sources
     
     def get_frequencies(self) -> Frequencies:
-        """Get observation frequencies"""
         return self._frequencies
 
     def get_telescopes(self) -> Telescopes:
-        """Get observation telescopes."""
         return self._telescopes
 
     def get_scans(self) -> Scans:
-        """Get observation scans"""
         return self._scans
     
     def get_calculated_data(self) -> Any:
-        """Retrieve calculated data"""
         return self._calculated_data
     
     def get_calculated_data_by_key(self, key: str) -> Any:
-        """Get concrete calculated data by key for this observation"""
         check_non_empty_string(key, "Key")
         logger.info(f"Retrieved calculated data '{key}' for observation '{self._observation_code}'")
         return self._calculated_data.get(key)
 
-    def get_start_datetime(self) -> Optional[datetime]:
-        """Get observation start time as a datetime object (UTC), based on earliest scan"""
-        active_scans = self._scans.get_active_scans(self)  # Передаем self
+    def get_start_datetime(self) -> Optional[Time]:
+        """Get observation start time as an astropy.time.Time object (UTC), based on earliest scan"""
+        active_scans = self._scans.get_active_scans(self)
         if not active_scans:
             return None
-        return min(scan.get_start_datetime() for scan in active_scans)
+        return min(scan.get_start() for scan in active_scans)
     
     def validate(self) -> bool:
-        """Validate the observation parameters"""
-
-        # check observation code
         if not self._observation_code or not isinstance(self._observation_code, str):
             logger.error("Observation code must be a non-empty string")
             return False
 
-        # check observation type
         if self._observation_type not in ["VLBI", "SINGLE_DISH"]:
             logger.error(f"Invalid observation type: {self._observation_type}. Must be 'VLBI' or 'SINGLE_DISH'")
             return False
 
-        # validate sources
         if not self._sources.get_active_sources():
             logger.error("No active sources defined in observation")
             return False
 
-        # validate telescopes
         if not self._telescopes.get_active_telescopes():
             logger.error("No active telescopes defined in observation")
             return False
 
-        # validate frequencies
         if not self._frequencies.get_active_frequencies():
             logger.error("No active frequencies defined in observation")
             return False
 
-        # validate scans
         if not self._scans.get_active_scans(self):
             logger.error("No active scans defined in observation")
             return False
 
-        # check temporal consistency of scans
         active_scans = sorted(self._scans.get_active_scans(), key=lambda x: x.get_start())
         telescope_scans = {}
         for scan in active_scans:
             scan_start = scan.get_start()
             scan_end = scan_start + scan.get_duration()
             
-            # check telescope availability for scan
             if not scan.check_telescope_availability(self):
-                logger.error(f"Telescope availability check failed for scan starting at {scan_start}")
+                logger.error(f"Telescope availability check failed for scan starting at {scan_start.isot}")
                 return False
 
-            # check time overlap for telescopes
             for telescope in scan.get_telescopes(self).get_active_telescopes():
                 tel_code = telescope.get_code()
                 if tel_code not in telescope_scans:
@@ -274,7 +192,7 @@ class Observation(BaseEntity):
                 for prev_start, prev_end in telescope_scans[tel_code]:
                     if not (scan_end <= prev_start or scan_start >= prev_end):
                         logger.error(f"Scan overlap detected for telescope {tel_code}: "
-                                    f"[{prev_start}, {prev_end}] vs [{scan_start}, {scan_end}]")
+                                    f"[{prev_start.isot}, {prev_end.isot}] vs [{scan_start.isot}, {scan_end.isot}]")
                         return False
                 telescope_scans[tel_code].append((scan_start, scan_end))
 
@@ -282,7 +200,6 @@ class Observation(BaseEntity):
         return True
     
     def _update_scan_indices(self, entity_type: str, removed_index: Optional[int] = None, inserted_index: Optional[int] = None) -> None:
-        """Update scan indices after adding/removing sources, telescopes, or frequencies."""
         entity_map = {"sources": "_source_index", "telescopes": "_telescope_indices", "frequencies": "_frequency_indices"}
         if entity_type not in entity_map:
             raise ValueError(f"Invalid entity type: {entity_type}")
@@ -293,19 +210,19 @@ class Observation(BaseEntity):
                 current_idx = getattr(scan, attr)
                 if removed_index is not None and current_idx is not None:
                     if current_idx == removed_index:
-                        scan.set_source_index(None)  # Источник удалён, сбрасываем
+                        scan.set_source_index(None)
                         scan.is_off_source = True
                     elif current_idx > removed_index:
                         scan.set_source_index(current_idx - 1)
                 elif inserted_index is not None and current_idx is not None and current_idx >= inserted_index:
                     scan.set_source_index(current_idx + 1)
-            else:  # telescopes or frequencies
+            else:
                 current_indices = getattr(scan, attr)
                 updated_indices = []
                 for idx in current_indices:
                     if removed_index is not None:
                         if idx == removed_index:
-                            continue  # Пропускаем удалённый индекс
+                            continue
                         elif idx > removed_index:
                             updated_indices.append(idx - 1)
                         else:
@@ -323,7 +240,6 @@ class Observation(BaseEntity):
         logger.debug(f"Updated scan indices for {entity_type} in observation '{self._observation_code}'")
 
     def _sync_scans_with_activation(self, entity_type: str, index: int, is_active: bool) -> None:
-        """Sync scans when an entity (source, telescope, frequency) is activated/deactivated"""
         entity_map = {"sources": "_source_index", "telescopes": "_telescope_indices", "frequencies": "_frequency_indices"}
         original_map = {"telescopes": "_original_telescope_indices", "frequencies": "_original_frequency_indices"}
         if entity_type not in entity_map:
@@ -342,9 +258,9 @@ class Observation(BaseEntity):
                         scan.set_source_index(index)
                         scan.is_off_source = False
                         logger.debug(f"Scan source index restored to {index} due to activation in '{self._observation_code}'")
-            else:  # telescopes or frequencies
+            else:
                 current_indices = getattr(scan, attr)
-                original_indices = getattr(scan, original_map[entity_type])  # Используем правильный атрибут
+                original_indices = getattr(scan, original_map[entity_type])
                 if index in current_indices and not is_active:
                     updated_indices = [i for i in current_indices if i != index]
                     if entity_type == "telescopes":
@@ -365,7 +281,6 @@ class Observation(BaseEntity):
                             logger.debug(f"Added {entity_type} index {index} to scan in '{self._observation_code}'")    
 
     def to_dict(self) -> dict:
-        """Convert Observation object to a dictionary for serialization"""
         def convert_quantity(obj):
             if isinstance(obj, u.Quantity):
                 return obj.value.tolist() if obj.isscalar else obj.value.tolist()
@@ -394,7 +309,6 @@ class Observation(BaseEntity):
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
-        """Create an Observation object from a dictionary."""
         obs = cls(
             observation_code=data["observation_code"],
             observation_type=data["observation_type"],
@@ -410,7 +324,6 @@ class Observation(BaseEntity):
         return obs
 
     def __repr__(self) -> str:
-        """Return a string representation of Observation."""
         return (f"Observation(code='{self._observation_code}', sources={self._sources}, "
                 f"telescopes={self._telescopes}, frequencies={self._frequencies}, "
                 f"scans={self._scans}, isactive={self.isactive}, "

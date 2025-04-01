@@ -3,19 +3,18 @@ from base.base_entity import BaseEntity
 from base.frequencies import Frequencies
 from base.sources import Source
 from base.telescopes import Telescopes, SpaceTelescope
-
 from utils.validation import check_type, check_positive
 from utils.logging_setup import logger
-from datetime import datetime
 import numpy as np
 from typing import Optional, List
-from datetime import timezone
+from astropy.time import Time
+import astropy.units as u
 
-"""Base-class of a Scan object with start_time, duration (s), source, telescopes and frequencies
+"""Base-class of a Scan object with start_time (Time), duration (s), source, telescopes and frequencies
 
     Notes: 
     Contains:
-    Atributes:
+    Attributes:
         isactive (bool): whether the frequency is active (default: True)
 
     Methods:
@@ -24,8 +23,6 @@ from datetime import timezone
 
         get_start
         get_end
-        get_start_datetime
-        get_end_datetime
         get_MJD_starttime
         get_MJD_endtime
         get_duration
@@ -55,12 +52,14 @@ from datetime import timezone
     """
 
 class Scan(BaseEntity):
-    def __init__(self, start: float = 0.0, duration: float = 1.0, source_index: Optional[int] = None,
+    def __init__(self, start: Time = None, duration: float = 1.0, source_index: Optional[int] = None,
                  telescope_indices: List[int] = None, frequency_indices: List[int] = None,
                  is_off_source: bool = False, isactive: bool = True):
-        """Initialize a Scan with start time, duration, and indices referencing Observation data."""
+        """Initialize a Scan with start time (Time), duration (s), and indices referencing Observation data."""
         super().__init__(isactive)
-        check_type(start, (int, float), "Start time")
+        if start is None:
+            start = Time.now()  # По умолчанию текущее время
+        check_type(start, Time, "Start time")
         check_positive(duration, "Duration")
         if source_index is not None:
             check_type(source_index, int, "Source index")
@@ -77,40 +76,31 @@ class Scan(BaseEntity):
         self._original_frequency_indices = self._frequency_indices.copy()
         self.is_off_source = source_index is None or is_off_source
         source_str = "OFF SOURCE" if self.is_off_source else f"source_index={source_index}" if source_index is not None else "no source"
-        logger.info(f"Initialized Scan with start={start}, duration={duration}, {source_str}")
-    
+        logger.info(f"Initialized Scan with start={self._start.isot}, duration={duration}, {source_str}")
+
     def activate(self):
         """Activate scan"""
         return super().activate()
-    
+
     def deactivate(self):
         """Deactivate scan"""
         return super().deactivate()
-    
-    def get_start(self) -> float:
-        """Get start time of scan"""
-        return self._start
-    
-    def get_end(self) -> float:
-        """Get end time of scan"""
-        return self._start + self._duration
 
-    def get_start_datetime(self) -> datetime:
-        """Get start time of scan in DateTime format"""
-        dt = datetime.fromtimestamp(self._start, tz=timezone.utc)
-        return dt
-    
-    def get_end_datetime(self) -> datetime:
-        """Get end time of scan in DateTime format"""
-        return datetime.fromtimestamp(self._start + self._duration, tz=timezone.utc)
+    def get_start(self) -> Time:
+        """Get start time of scan as Time object"""
+        return self._start
+
+    def get_end(self) -> Time:
+        """Get end time of scan as Time object"""
+        return self._start + self._duration * u.s
 
     def get_MJD_starttime(self) -> float:
         """Get start time of scan in MJD"""
-        return (self._start / 86400) + 40587
+        return self._start.mjd
 
     def get_MJD_endtime(self) -> float:
         """Get end time of scan in MJD"""
-        return ((self._start + self._duration) / 86400) + 40587
+        return (self._start + self._duration * u.s).mjd
 
     def get_duration(self) -> float:
         """Get scan duration (s)"""
@@ -126,7 +116,7 @@ class Scan(BaseEntity):
 
     def get_frequency_indices(self) -> List[int]:
         """Get scan frequency indices"""
-        return self._frequency_indices   
+        return self._frequency_indices
 
     def get_source(self, observation: 'Observation') -> Optional[Source]:
         """Get the source associated with this scan from the Observation"""
@@ -144,7 +134,7 @@ class Scan(BaseEntity):
         all_tels = observation.get_telescopes().get_all_telescopes()
         selected = [all_tels[idx] for idx in self._telescope_indices if 0 <= idx < len(all_tels)]
         return Telescopes(selected)
-    
+
     def get_frequencies(self, observation: 'Observation') -> Frequencies:
         """Get the frequencies associated with this scan from the Observation"""
         from base.observation import Observation
@@ -153,11 +143,11 @@ class Scan(BaseEntity):
         selected = [all_freqs[idx] for idx in self._frequency_indices if 0 <= idx < len(all_freqs)]
         return Frequencies(selected)
 
-    def set_scan(self, start: float, duration: float, source_index: Optional[int] = None,
+    def set_scan(self, start: Time, duration: float, source_index: Optional[int] = None,
                  telescope_indices: List[int] = None, frequency_indices: List[int] = None,
                  is_off_source: bool = False, isactive: bool = True) -> None:
         """Set all values for the scan using indices"""
-        check_type(start, (int, float), "Start time")
+        check_type(start, Time, "Start time")
         check_positive(duration, "Duration")
         if source_index is not None:
             check_type(source_index, int, "Source index")
@@ -173,13 +163,13 @@ class Scan(BaseEntity):
         self.is_off_source = source_index is None or is_off_source
         self.isactive = isactive
         source_str = "OFF SOURCE" if self.is_off_source else f"source_index={source_index}" if source_index is not None else "no source"
-        logger.info(f"Set Scan with start={start}, duration={duration}, {source_str}")
+        logger.info(f"Set Scan with start={self._start.isot}, duration={duration}, {source_str}")
 
-    def set_start(self, start: float) -> None:
+    def set_start(self, start: Time) -> None:
         """Set start time of scan"""
-        check_type(start, (int, float), "Start time")
+        check_type(start, Time, "Start time")
         self._start = start
-        logger.info(f"Set scan start to {start}")
+        logger.info(f"Set scan start to {self._start.isot}")
 
     def set_duration(self, duration: float) -> None:
         """Set duration of scan in (s)"""
@@ -234,17 +224,17 @@ class Scan(BaseEntity):
                 logger.error(f"Invalid frequency_index {idx} for observation with {len(all_freqs)} frequencies")
                 return False
                 
-        logger.debug(f"Validated scan with start={self._start} against observation '{observation.get_observation_code()}'")
+        logger.debug(f"Validated scan with start={self._start.isot} against observation '{observation.get_observation_code()}'")
         return True
-    
-    def check_telescope_availability(self, observation: 'Observation', time: float = None) -> dict[str, bool]:
+
+    def check_telescope_availability(self, observation: 'Observation', time: Time = None) -> dict[str, bool]:
         """Check telescope availability for this scan at a given time (defaults to scan start)"""
         from base.observation import Observation
         check_type(observation, Observation, "Observation")
-        check_type(time, (int, float), "Time")
+        if time is not None:
+            check_type(time, Time, "Time")
         time = time if time is not None else self._start
         availability = {}
-        dt = datetime.fromtimestamp(time, tz=timezone.utc)
         source = self.get_source(observation) if not self.is_off_source else None
         
         for telescope in self.get_telescopes(observation).get_active_telescopes():
@@ -254,18 +244,17 @@ class Scan(BaseEntity):
                 continue
             ra_rad = np.radians(source.get_ra_degrees())
             dec_rad = np.radians(source.get_dec_degrees())
-            # rough LST estimation
-            lst = (time / 86164.0905 * 360 + 280.46061837) % 360  
+            # Rough LST estimation using Time
+            lst = (time.sidereal_time('apparent', 'greenwich').degree + 280.46061837) % 360
             if isinstance(telescope, SpaceTelescope):
-                pos, _ = telescope.get_state_vector(dt)
+                pos, _ = telescope.get_state_vector(time)  # Теперь принимает Time
                 dist = np.linalg.norm(pos)
-                # conditional visibility threshold
-                visible = dist < 1e9  
+                visible = dist < 1e9  # Условный порог видимости
                 pitch_range = telescope.get_pitch_range()
                 yaw_range = telescope.get_yaw_range()
                 visible = (visible and 
                            pitch_range[0] <= 0 <= pitch_range[1] and 
-                           yaw_range[0] <= 0 <= yaw_range[1])
+                           yaw_range[0] <= 0 <= yaw_range[1])  # Упрощение, требует точной геометрии
             else:
                 x, y, z = telescope.get_coordinates()
                 lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
@@ -283,13 +272,13 @@ class Scan(BaseEntity):
                 visible = (el_range[0] <= alt_deg <= el_range[1] and 
                            az_range[0] <= az_deg <= az_range[1])
             availability[code] = visible
-        logger.debug(f"Checked telescope availability for scan at time={time}: {availability}")
+        logger.debug(f"Checked telescope availability for scan at time={time.isot}: {availability}")
         return availability
 
     def to_dict(self) -> dict:
-        logger.info(f"Converted scan with start={self._start} to dictionary")
+        logger.info(f"Converted scan with start={self._start.isot} to dictionary")
         return {
-            "start": self._start,
+            "start": self._start.isot,  # Сохраняем как ISO-строку для сериализации
             "duration": self._duration,
             "source_index": self._source_index,
             "telescope_indices": self._telescope_indices,
@@ -300,9 +289,10 @@ class Scan(BaseEntity):
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Scan':
-        logger.info(f"Created scan with start={data['start']} from dictionary")
+        start = Time(data["start"])  # Восстанавливаем Time из ISO-строки
+        logger.info(f"Created scan with start={start.isot} from dictionary")
         return cls(
-            start=data["start"],
+            start=start,
             duration=data["duration"],
             source_index=data["source_index"],
             telescope_indices=data["telescope_indices"],
@@ -313,48 +303,13 @@ class Scan(BaseEntity):
 
     def __repr__(self) -> str:
         source_str = "OFF SOURCE" if self.is_off_source else f"source_index={self._source_index}" if self._source_index is not None else "no source"
-        return (f"Scan(start={self._start}, duration={self._duration}, {source_str}, "
+        return (f"Scan(start={self._start.isot}, duration={self._duration}, {source_str}, "
                 f"telescope_indices={self._telescope_indices}, frequency_indices={self._frequency_indices}, "
                 f"isactive={self.isactive})")
 
-"""Base-class of a Scan object with start_time, duration (s), source, telescopes and frequencies
-
-    Notes: 
-    Contains:
-    Atributes:
-        isactive (bool): whether the scan is active (default: True)
-
-    Methods:
-        add_scan
-        create_scan
-        insert_scan
-        remove_scan
-        set_scan
-
-        get_by_index
-        get_all_scans
-        get_active_scans
-        get_inactive_scans
-
-        activate_scan
-        deactivate_scan
-
-        activate_all
-        deactivate_all
-
-        drop_active
-        drop_inactive
-        clear
-        to_dict
-        from_dict
-
-        _check_overlap
-        __init__
-        __repr__
-    """
 
 class Scans(BaseEntity):
-    def __init__(self, scans: list[Scan] = None):
+    def __init__(self, scans: List[Scan] = None):
         """Initialize Scans with a list of Scan objects"""
         super().__init__()
         if scans is not None:
@@ -369,36 +324,22 @@ class Scans(BaseEntity):
         check_type(scan, Scan, "Scan")
         if observation:
             if not scan.validate_with_observation(observation):
-                logger.error(f"Scan with start={scan.get_start()} failed validation against observation '{observation.get_observation_code()}'")
+                logger.error(f"Scan with start={scan.get_start().isot} failed validation against observation '{observation.get_observation_code()}'")
                 raise ValueError("Scan validation failed")
         overlap, reason = self._check_overlap(scan)
         if overlap:
-            logger.error(f"Scan with start={scan.get_start()}, duration={scan.get_duration()} {reason}")
+            logger.error(f"Scan with start={scan.get_start().isot}, duration={scan.get_duration()} {reason}")
+            raise ValueError(f"Scan conflicts: {reason}")
         self._data.append(scan)
-        logger.info(f"Added scan with start={scan.get_start()}, duration={scan.get_duration()} to Scans")
-    
-    def create_scan(self, start: float = 0.0, duration: float = 1.0, source_index: Optional[int] = None,
-                telescope_indices: List[int] = None, frequency_indices: List[int] = None,
-                is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None) -> None:
-        """Create and add a new Scan object to the Scans collection.
+        logger.info(f"Added scan with start={scan.get_start().isot}, duration={scan.get_duration()} to Scans")
 
-        Args:
-            start (float): Start time of the scan in seconds since epoch (default: 0.0)
-            duration (float): Duration of the scan in seconds (default: 1.0)
-            source_index (int, optional): Index of the source in the Observation's sources list
-            telescope_indices (List[int], optional): List of telescope indices in the Observation's telescopes list
-            frequency_indices (List[int], optional): List of frequency indices in the Observation's frequencies list
-            is_off_source (bool): Whether this is an off-source scan (default: False)
-            isactive (bool): Whether the scan is active (default: True)
-            observation (Observation, optional): Observation object for validation and overlap checking
-
-        Returns:
-            Scan: The newly created Scan object
-
-        Raises:
-            ValueError: If the scan overlaps with an existing scan or fails validation against the observation
-        """
-        # create a new Scan object
+    def create_scan(self, start: Time = None, duration: float = 1.0, source_index: Optional[int] = None,
+                    telescope_indices: List[int] = None, frequency_indices: List[int] = None,
+                    is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None) -> None:
+        """Create and add a new Scan object to the Scans collection."""
+        if start is None:
+            start = Time.now()
+        check_type(start, Time, "Start time")
         new_scan = Scan(
             start=start,
             duration=duration,
@@ -408,26 +349,20 @@ class Scans(BaseEntity):
             is_off_source=is_off_source,
             isactive=isactive
         )
-
-        # validate with observation if provided
         if observation:
             from base.observation import Observation
             check_type(observation, Observation, "Observation")
             if not new_scan.validate_with_observation(observation):
-                logger.error(f"Scan with start={start} failed validation against observation '{observation.get_observation_code()}'")
+                logger.error(f"Scan with start={start.isot} failed validation against observation '{observation.get_observation_code()}'")
                 raise ValueError("Scan validation failed")
-
-        # check for overlaps
         overlap, reason = self._check_overlap(new_scan)
         if overlap:
-            logger.error(f"Scan with start={start}, duration={duration} {reason}")
+            logger.error(f"Scan with start={start.isot}, duration={duration} {reason}")
             raise ValueError(f"Scan conflicts: {reason}")
-
-        # add the new scan to the collection
         self._data.append(new_scan)
         source_str = "OFF SOURCE" if is_off_source else f"source_index={source_index}"
-        logger.info(f"Created and added scan with start={start}, duration={duration}, {source_str} to Scans")
-    
+        logger.info(f"Created and added scan with start={start.isot}, duration={duration}, {source_str} to Scans")
+
     def insert_scan(self, scan: 'Scan', index: int, observation: 'Observation' = None) -> None:
         """Insert a scan at the specified index with overlap checking"""
         check_type(scan, Scan, "Scan")
@@ -437,14 +372,14 @@ class Scans(BaseEntity):
             raise IndexError(f"Insert index {index} out of range")
         if observation:
             if not scan.validate_with_observation(observation):
-                logger.error(f"Scan with start={scan.get_start()} failed validation against observation '{observation.get_observation_code()}'")
+                logger.error(f"Scan with start={scan.get_start().isot} failed validation against observation '{observation.get_observation_code()}'")
                 raise ValueError("Scan validation failed")
         overlap, reason = self._check_overlap(scan)
         if overlap:
-            logger.error(f"Scan with start={scan.get_start()}, duration={scan.get_duration()} {reason}")
+            logger.error(f"Scan with start={scan.get_start().isot}, duration={scan.get_duration()} {reason}")
             raise ValueError(f"Scan conflicts: {reason}")
         self._data.insert(index, scan)
-        logger.info(f"Inserted scan with start={scan.get_start()} at index {index} in Scans")
+        logger.info(f"Inserted scan with start={scan.get_start().isot} at index {index} in Scans")
 
     def remove_scan(self, index: int) -> None:
         """Remove scan by index"""
@@ -461,14 +396,14 @@ class Scans(BaseEntity):
         try:
             if observation:
                 if not scan.validate_with_observation(observation):
-                    logger.error(f"Scan with start={scan.get_start()} failed validation against observation '{observation.get_observation_code()}'")
+                    logger.error(f"Scan with start={scan.get_start().isot} failed validation against observation '{observation.get_observation_code()}'")
                     raise ValueError("Scan validation failed")
             overlap, reason = self._check_overlap(scan, exclude_index=index)
             if overlap:
-                logger.error(f"Scan with start={scan.get_start()}, duration={scan.get_duration()} {reason}")
+                logger.error(f"Scan with start={scan.get_start().isot}, duration={scan.get_duration()} {reason}")
                 raise ValueError(f"Scan conflicts: {reason}")
             self._data[index] = scan
-            logger.info(f"Set scan with start={scan.get_start()} at index {index}")
+            logger.info(f"Set scan with start={scan.get_start().isot} at index {index}")
         except IndexError:
             logger.error(f"Invalid scan index: {index}")
             raise IndexError("Invalid scan index!")
@@ -481,12 +416,12 @@ class Scans(BaseEntity):
             logger.error(f"Invalid scan index: {index}")
             raise IndexError("Invalid scan index!")
 
-    def get_all_scans(self) -> list[Scan]:
+    def get_all_scans(self) -> List[Scan]:
         """Get all scans"""
         return self._data
 
-    def get_active_scans(self, observation: 'Observation' = None) -> list[Scan]:
-        """Get active scans, ensuring referenced entities are active. Requires Observation for context"""
+    def get_active_scans(self, observation: 'Observation' = None) -> List[Scan]:
+        """Get active scans, ensuring referenced entities are active"""
         from base.observation import Observation
         active = []
         for scan in self._data:
@@ -512,28 +447,28 @@ class Scans(BaseEntity):
                      (f" for observation '{observation.get_observation_code()}'" if observation else ""))
         return active
 
-    def get_inactive_scans(self) -> list[Scan]:
+    def get_inactive_scans(self) -> List[Scan]:
         """Get inactive scans"""
         inactive = [s for s in self._data if not s.isactive]
         logger.debug(f"Retrieved {len(inactive)} inactive scans")
         return inactive
-    
+
     def activate_scan(self, index: int) -> None:
         """Activate a specific scan by index"""
         try:
             scan = self._data[index]
             scan.activate()
-            logger.info(f"Activated scan at index {index} with start={scan.get_start()}")
+            logger.info(f"Activated scan at index {index} with start={scan.get_start().isot}")
         except IndexError:
             logger.error(f"Invalid scan index: {index}")
             raise IndexError("Invalid scan index!")
-    
+
     def deactivate_scan(self, index: int) -> None:
         """Deactivate a specific scan by index"""
         try:
             scan = self._data[index]
             scan.deactivate()
-            logger.info(f"Deactivated scan at index {index} with start={scan.get_start()}")
+            logger.info(f"Deactivated scan at index {index} with start={scan.get_start().isot}")
         except IndexError:
             logger.error(f"Invalid scan index: {index}")
             raise IndexError("Invalid scan index!")
@@ -565,7 +500,7 @@ class Scans(BaseEntity):
             logger.info(f"Removed {removed} active scans from Scans")
         else:
             logger.debug("No active scans to drop")
-        
+
     def drop_inactive(self) -> None:
         """Remove all inactive scans"""
         initial_len = len(self._data)
@@ -592,21 +527,24 @@ class Scans(BaseEntity):
         scans = [Scan.from_dict(scan_data) for scan_data in data["data"]]
         logger.info(f"Created Scans with {len(scans)} scans from dictionary")
         return cls(scans=scans)
-    
+
     def _check_overlap(self, scan: 'Scan', exclude_index: int = -1, observation: 'Observation' = None) -> tuple[bool, str]:
         """Check if the scan overlaps with existing scans by time"""
         from base.observation import Observation
         for i, existing in enumerate(self._data):
             if i == exclude_index or not existing.isactive or not scan.isactive:
                 continue
-            time_overlap = (existing.get_start() < scan.get_start() + scan.get_duration() and
-                            scan.get_start() < existing.get_start() + existing.get_duration())
+            scan_start = scan.get_start()
+            scan_end = scan.get_end()
+            existing_start = existing.get_start()
+            existing_end = existing.get_end()
+            time_overlap = (existing_start < scan_end and scan_start < existing_end)
             if time_overlap:
-                reason = (f"overlaps with scan at index {i} (start={existing.get_start()}, "
-                        f"duration={existing.get_duration()})")
+                reason = (f"overlaps with scan at index {i} (start={existing_start.isot}, "
+                          f"duration={existing.get_duration()})")
                 logger.debug(f"Overlap detected: {reason}")
                 return True, reason
-        logger.debug(f"No overlap detected for scan with start={scan.get_start()}")
+        logger.debug(f"No overlap detected for scan with start={scan.get_start().isot}")
         return False, ""
 
     def __len__(self) -> int:

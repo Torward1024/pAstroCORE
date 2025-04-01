@@ -1,14 +1,13 @@
 from base.base_entity import BaseEntity
 from utils.validation import check_type, check_non_empty_string, check_positive, check_range
 from utils.logging_setup import logger
-from datetime import timezone
 import numpy as np
 from scipy.interpolate import CubicSpline
 from numpy.polynomial import chebyshev
-from datetime import datetime
 import re
 from typing import Optional, Dict, Tuple
 from enum import Enum
+from astropy.time import Time
 
 class MountType(Enum):
     EQUATORIAL = "EQUA"
@@ -20,7 +19,7 @@ class MountType(Enum):
     Notes:  All coordinates are stored in meters in ITRF
             Telescope name and short name (code) MUST be unique
     Contains:
-    Atributes:
+    Attributes:
         code (str): Telescope short name
         name (str): Telescope name
         x (float): Telescope x coordinate (ITRF) in meters
@@ -64,10 +63,10 @@ class MountType(Enum):
         
         set_telescope
         set_name
-        set__code
+        set_code
         set_coordinates
         set_velocities
-        set_coordinate_and_velocities
+        set_coordinates_and_velocities
         set_x
         set_y
         set_z
@@ -97,24 +96,7 @@ class Telescope(BaseEntity):
                  elevation_range: Tuple[float, float] = (15.0, 90.0),
                  azimuth_range: Tuple[float, float] = (0.0, 360.0),
                  mount_type: str = "AZIM", isactive: bool = True):
-        """Initialize a Telescope object with code, name, coordinates (ITRF), velocities (ITRF), diameter, and additional parameters.
-
-        Args:
-            code (str): Telescope short name (default: "TEMP")
-            name (str): Telescope name (default: "Temporary Telescope")
-            x (float): Telescope x coordinate (ITRF) in meters (default: 0.0)
-            y (float): Telescope y coordinate (ITRF) in meters (default: 0.0)
-            z (float): Telescope z coordinate (ITRF) in meters (default: 0.0)
-            vx (float): Telescope vx velocity (ITRF) in m/s (default: 0.0)
-            vy (float): Telescope vy velocity (ITRF) in m/s (default: 0.0)
-            vz (float): Telescope vz velocity (ITRF) in m/s (default: 0.0)
-            diameter (float): Antenna diameter in meters (default: 1.0)
-            sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
-            elevation_range (Tuple[float, float]): Min and max elevation in degrees (default: 15-90)
-            azimuth_range (Tuple[float, float]): Min and max azimuth in degrees (default: 0-360)
-            mount_type (str): Mount type ('EQUA' or 'AZIM', default: 'AZIM')
-            isactive (bool): Whether the telescope is active (default: True)
-        """
+        """Initialize a Telescope object with code, name, coordinates (ITRF), velocities (ITRF), diameter, and additional parameters."""
         super().__init__(isactive)
         check_non_empty_string(code, "Code")
         check_non_empty_string(name, "Name")
@@ -155,7 +137,6 @@ class Telescope(BaseEntity):
         logger.info(f"Initialized Telescope '{code}' at ({x}, {y}, {z}) m, diameter={diameter} m")
 
     def add_sefd(self, frequency: float, sefd: float) -> None:
-        """Add an SEFD value for a specific frequency to the table"""
         check_type(frequency, (int, float), "Frequency")
         check_positive(sefd, "SEFD")
         self._check_sefd(frequency, sefd)
@@ -163,15 +144,13 @@ class Telescope(BaseEntity):
         logger.info(f"Added SEFD={sefd} Jy for frequency {frequency} MHz to telescope '{self._code}'")
     
     def insert_sefd(self, frequency: float, sefd: float) -> None:
-        """Insert an SEFD value for a specific frequency into the table"""
         check_type(frequency, (int, float), "Frequency")
         check_positive(sefd, "SEFD")
-        self._check_sefd(frequency, sefd)  # Проверка на дубликат
+        self._check_sefd(frequency, sefd)
         self._sefd_table[frequency] = sefd
         logger.info(f"Inserted SEFD={sefd} Jy for frequency {frequency} MHz into telescope '{self._code}'")
     
     def remove_sefd(self, frequency: float) -> None:
-        """Remove an SEFD value for a specific frequency from the table"""
         check_type(frequency, (int, float), "Frequency")
         if frequency in self._sefd_table:
             removed_sefd = self._sefd_table.pop(frequency)
@@ -180,82 +159,64 @@ class Telescope(BaseEntity):
             logger.warning(f"No SEFD value found for frequency {frequency} MHz in telescope '{self._code}'")
 
     def activate(self):
-        """Activate telescope"""
         return super().activate()
     
     def deactivate(self):
-        """Deactivate telescope"""
         return super().deactivate()
 
     def get_name(self) -> str:
-        """Get telescope name"""
         return self._name
 
     def get_code(self) -> str:
-        """Get telescope code"""
         return self._code
 
     def get_coordinates(self) -> tuple[float, float, float]:
-        """Get telescope coordinates x, y, z in meters (ITRF)"""
         logger.debug(f"Retrieved coordinates ({self._x}, {self._y}, {self._z}) m for telescope '{self._code}'")
         return self._x, self._y, self._z
     
     def get_velocities(self) -> tuple[float, float, float]:
-        """Get telescope velocities vx, vy, vz in m/s (ITRF)"""
         return self._vx, self._vy, self._vz
     
     def get_coordinates_and_velocities(self) -> tuple[float, float, float, float, float, float]:
-        """Get telescope coordinates and velocities x, y, z, vx, vy, vz in m/s (ITRF)"""
         return self._x, self._y, self._z, self._vx, self._vy, self._vz
     
     def get_x(self) -> float:
-        """Get telescope coordinate x in meters (ITRF)"""
         logger.debug(f"Retrieved coordinate X={self._x} m for telescope '{self._code}'")
         return self._x
     
     def get_y(self) -> float:
-        """Get telescope coordinate y in meters (ITRF)"""
         logger.debug(f"Retrieved coordinate Y={self._y} m for telescope '{self._code}'")
         return self._y
     
     def get_z(self) -> float:
-        """Get telescope coordinate z in meters (ITRF)"""
         logger.debug(f"Retrieved coordinate Z={self._z} m for telescope '{self._code}'")
         return self._z
     
     def get_vx(self) -> float:
-        """Get telescope velocity vx in meters (ITRF)"""
         logger.debug(f"Retrieved velocity Vx={self._vx} m for telescope '{self._code}'")
         return self._vx
     
     def get_vy(self) -> float:
-        """Get telescope velocity vy in meters (ITRF)"""
         logger.debug(f"Retrieved velocity Vy={self._vy} m for telescope '{self._code}'")
         return self._vy
     
     def get_vz(self) -> float:
-        """Get telescope velocity vz in meters (ITRF)"""
-        logger.debug(f"Retrieved velocit Vz={self._vz} m for telescope '{self._code}'")
+        logger.debug(f"Retrieved velocity Vz={self._vz} m for telescope '{self._code}'")
         return self._vz
 
     def get_diameter(self) -> float:
-        """Get telescope diameter in meters"""
         return self._diameter
 
     def get_elevation_range(self) -> Tuple[float, float]:
-        """Get elevation range in degrees"""
         return self._elevation_range
 
     def get_azimuth_range(self) -> Tuple[float, float]:
-        """Get azimuth range in degrees"""
         return self._azimuth_range
 
     def get_mount_type(self) -> MountType:
-        """Get mount type"""
         return self._mount_type
 
     def get_sefd(self, frequency: float) -> Optional[float]:
-        """Get SEFD for a given frequency with interpolation if necessary"""
         check_type(frequency, (int, float), "Frequency")
         if not self._sefd_table:
             logger.debug(f"No SEFD data available for telescope '{self._code}'")
@@ -276,7 +237,6 @@ class Telescope(BaseEntity):
         return None
     
     def get_sefd_table(self) -> Dict[float, float]:
-        """Get the SEFD table (frequency in MHz: SEFD in Jy)"""
         logger.debug(f"Retrieved SEFD table {self._sefd_table} for telescope '{self._code}'")
         return self._sefd_table
     
@@ -287,7 +247,6 @@ class Telescope(BaseEntity):
                       azimuth_range: Tuple[float, float] = (0.0, 360.0),
                       mount_type: str = "AZIM",
                       isactive: bool = True) -> None:
-        """Set Telescope values, including SEFD table"""
         check_non_empty_string(code, "Code")
         check_non_empty_string(name, "Name")
         check_type(x, (int, float), "X coordinate")
@@ -297,13 +256,11 @@ class Telescope(BaseEntity):
         check_type(vy, (int, float), "VY velocity")
         check_type(vz, (int, float), "VZ velocity")
         check_positive(diameter, "Diameter")
-
         if sefd_table is not None:
             check_type(sefd_table, dict, "SEFD table")
             for freq, sefd in sefd_table.items():
                 check_type(freq, (int, float), "SEFD frequency")
                 check_type(sefd, (int, float), "SEFD value")
-
         check_type(elevation_range, tuple, "Elevation range")
         check_range(elevation_range[0], 0, 90, "Min elevation")
         check_range(elevation_range[1], elevation_range[0], 90, "Max elevation")
@@ -330,19 +287,16 @@ class Telescope(BaseEntity):
         logger.info(f"Set telescope '{code}' with new parameters")
     
     def set_name(self, name: str) -> None:
-        """Set telescope name."""
         check_non_empty_string(name, "Name")
         self._name = name
         logger.info(f"Set name '{name}' for telescope '{self._code}'")
 
     def set_code(self, code: str) -> None:
-        """Set telescope code."""
         check_non_empty_string(code, "Code")
         self._code = code
         logger.info(f"Set code '{code}' for telescope with name '{self._name}'")
     
     def set_coordinates(self, coordinates: Tuple[float, float, float]) -> None:
-        """Set telescope coordinates x, y, z in meters (ITRF)"""
         check_type(coordinates, tuple, "Coordinates")
         if len(coordinates) != 3:
             raise ValueError("Coordinates must contain exactly 3 values (x, y, z)")
@@ -354,7 +308,6 @@ class Telescope(BaseEntity):
         logger.info(f"Set coordinates ({x}, {y}, {z}) m for telescope '{self._code}'")
 
     def set_velocities(self, velocities: Tuple[float, float, float]) -> None:
-        """Set telescope velocities vx, vy, vz in m/s (ITRF)"""
         check_type(velocities, tuple, "Velocities")
         if len(velocities) != 3:
             raise ValueError("Velocities must contain exactly 3 values (vx, vy, vz)")
@@ -367,7 +320,6 @@ class Telescope(BaseEntity):
     
     def set_coordinates_and_velocities(self, coordinates: Tuple[float, float, float], 
                                       velocities: Tuple[float, float, float]) -> None:
-        """Set telescope coordinates x, y, z in meters and velocities vx, vy, vz in m/s (ITRF)"""
         check_type(coordinates, tuple, "Coordinates")
         check_type(velocities, tuple, "Velocities")
         if len(coordinates) != 3:
@@ -387,49 +339,41 @@ class Telescope(BaseEntity):
         logger.info(f"Set coordinates ({x}, {y}, {z}) m and velocities ({vx}, {vy}, {vz}) m/s for telescope '{self._code}'")
 
     def set_x(self, x: float) -> None:
-        """Set telescope x coordinate in meters (ITRF)"""
         check_type(x, (int, float), "X coordinate")
         self._x = x
         logger.info(f"Set x={x} m for telescope '{self._code}'")
 
     def set_y(self, y: float) -> None:
-        """Set telescope y coordinate in meters (ITRF)"""
         check_type(y, (int, float), "Y coordinate")
         self._y = y
         logger.info(f"Set y={y} m for telescope '{self._code}'")
 
     def set_z(self, z: float) -> None:
-        """Set telescope z coordinate in meters (ITRF)"""
         check_type(z, (int, float), "Z coordinate")
         self._z = z
         logger.info(f"Set z={z} m for telescope '{self._code}'")
     
     def set_vx(self, vx: float) -> None:
-        """Set telescope vx velocity in m/s (ITRF)"""
         check_type(vx, (int, float), "VX velocity")
         self._vx = vx
         logger.info(f"Set vx={vx} m/s for telescope '{self._code}'")
 
     def set_vy(self, vy: float) -> None:
-        """Set telescope vy velocity in m/s (ITRF)"""
         check_type(vy, (int, float), "VY velocity")
         self._vy = vy
         logger.info(f"Set vy={vy} m/s for telescope '{self._code}'")
 
     def set_vz(self, vz: float) -> None:
-        """Set telescope vz velocity in m/s (ITRF)"""
         check_type(vz, (int, float), "VZ velocity")
         self._vz = vz
         logger.info(f"Set vz={vz} m/s for telescope '{self._code}'")
     
     def set_diameter(self, diameter: float) -> None:
-        """Set telescope diameter in meters"""
         check_positive(diameter, "Diameter")
         self._diameter = diameter
         logger.info(f"Set diameter={diameter} m for telescope '{self._code}'")
     
     def set_elevation_range(self, elevation_range: Tuple[float, float]) -> None:
-        """Set elevation range in degrees"""
         check_type(elevation_range, tuple, "Elevation range")
         if len(elevation_range) != 2:
             raise ValueError("Elevation range must contain exactly 2 values (min, max)")
@@ -440,7 +384,6 @@ class Telescope(BaseEntity):
         logger.info(f"Set elevation range={elevation_range} degrees for telescope '{self._code}'")
     
     def set_azimuth_range(self, azimuth_range: Tuple[float, float]) -> None:
-        """Set azimuth range in degrees"""
         check_type(azimuth_range, tuple, "Azimuth range")
         if len(azimuth_range) != 2:
             raise ValueError("Azimuth range must contain exactly 2 values (min, max)")
@@ -451,7 +394,6 @@ class Telescope(BaseEntity):
         logger.info(f"Set azimuth range={azimuth_range} degrees for telescope '{self._code}'")
     
     def set_mount_type(self, mount_type: str) -> None:
-        """Set mount type ('EQUA', 'AZIM', or 'NONE')"""
         check_non_empty_string(mount_type, "Mount type")
         if mount_type.upper() not in {mt.value for mt in MountType}:
             raise ValueError(f"Mount type must be one of {[mt.value for mt in MountType]}, got {mount_type}")
@@ -459,15 +401,13 @@ class Telescope(BaseEntity):
         logger.info(f"Set mount type='{self._mount_type.value}' for telescope '{self._code}'")
     
     def set_sefd(self, frequency: float, sefd: float) -> None:
-        """Set SEFD for a specific frequency."""
         check_type(frequency, (int, float), "Frequency")
         check_positive(sefd, "SEFD")
-        self._check_sefd(frequency, sefd)  # Проверка на дубликат
+        self._check_sefd(frequency, sefd)
         self._sefd_table[frequency] = sefd
         logger.info(f"Set SEFD={sefd} Jy for frequency {frequency} MHz on telescope '{self._code}'")
     
     def set_sefd_table(self, sefd_table: Dict[float, float]) -> None:
-        """Set the entire SEFD table (frequency in MHz: SEFD in Jy) -- overwrites existing table"""
         check_type(sefd_table, dict, "SEFD table")
         for freq, sefd in sefd_table.items():
             check_type(freq, (int, float), "SEFD frequency")
@@ -476,12 +416,10 @@ class Telescope(BaseEntity):
         logger.info(f"Set SEFD table with {len(sefd_table)} entries for telescope '{self._code}'")
     
     def clear_sefd_table(self) -> None:
-        """Clear the SEFD table"""
         self._sefd_table.clear()
         logger.info(f"Cleared SEFD table for telescope '{self._code}'")
 
     def to_dict(self) -> dict:
-        """Convert Telescope object to a dictionary for serialization"""
         logger.info(f"Converted telescope '{self._code}' to dictionary")
         return {
             "type": "Telescope",
@@ -503,11 +441,9 @@ class Telescope(BaseEntity):
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Telescope':
-        """Create a Telescope object from a dictionary"""
         sefd_table = data.get("sefd_table", {})
         if sefd_table:
             sefd_table = {float(freq): float(flux) for freq, flux in sefd_table.items()}
-
         logger.info(f"Created telescope '{data['code']}' from dictionary")
         return cls(
             code=data["code"],
@@ -527,7 +463,6 @@ class Telescope(BaseEntity):
         )
     
     def _check_sefd(self, frequency: float, sefd: float) -> bool:
-        """Check if the SEFD value for the given frequency is a duplicate with a different value"""
         if frequency in self._sefd_table:
             current_sefd = self._sefd_table[frequency]
             if current_sefd != sefd:
@@ -537,7 +472,6 @@ class Telescope(BaseEntity):
         return False
 
     def __repr__(self) -> str:
-        """Return a string representation of Telescope."""
         return (f"Telescope(code='{self._code}', name='{self._name}', "
                 f"x={self._x}, y={self._y}, z={self._z}, "
                 f"vx={self._vx}, vy={self._vy}, vz={self._vz}, "
@@ -546,81 +480,18 @@ class Telescope(BaseEntity):
                 f"mount_type={self._mount_type.value}, isactive={self.isactive})")
 
 
-"""Base classe of a SpaceTelescope object with code, name, orbit file, diameter, and additional parameters.
-
-    Contains:
-    Atributes:
-        code (str): Telescope short name
-        name (str): Telescope name
-        orbit_file (str): Path to the orbit file (coordinates in km, velocities in km/s)
-        diameter (float): Antenna diameter in meters
-        sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
-        pitch_range (Tuple[float, float]): Min and max pitch in degrees (default: -90 to 90)
-        yaw_range (Tuple[float, float]): Min and max yaw in degrees (default: -180 to 180)
-        isactive (bool): Whether the telescope is active (default: True)
-        keplerian (bool): Whether to use keplerian elements of orbit file (default: True -- will use keplerian)
-    
-    Methods:
-        inherits basic methods from Telescope
-
-    Additional Methods:
-        load_orbit
-
-        set_interpolation_method
-        interpolate_orbit
-
-        get_state_vector
-        get_state_vector_from_orbit
-        get_state_vector_from_kepler
-
-        get_keplerian
-        get_pitch_range
-        get_yaw_range
-        get_use_kep
-
-        set_telescope
-        set_keplerian
-        set_pitch_range
-        set_yaw_range
-        set_use_kep
-
-        to_dict
-        from_dict
-
-        _solve_kepler
-        _validate_orbit_data
-
-        __init__
-        __repr__
-
-    """
-
 class SpaceTelescope(Telescope):
     def __init__(self, code: str = "TEMP_SPACE", name: str = "Temporary Space Telescope",
-             orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
-             sefd_table: Optional[Dict[float, float]] = None,
-             pitch_range: Tuple[float, float] = (-90.0, 90.0),
-             yaw_range: Tuple[float, float] = (-180.0, 180.0),
-             isactive: bool = True, use_kep: bool = True,
-             kepler_elements: Optional[dict] = None,
-             interpolation_method: str = "chebyshev"):
-        """Initialize a SpaceTelescope object with code, name, orbit file, diameter, and additional parameters.
-
-        Args:
-            code (str): Telescope short name (default: "TEMP_SPACE")
-            name (str): Telescope name (default: "Temporary Space Telescope")
-            orbit_file (str): Path to the orbit file (coordinates in km, velocities in km/s) (default: "dummy_orbit.oem")
-            diameter (float): Antenna diameter in meters (default: 1.0)
-            sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
-            pitch_range (Tuple[float, float]): Min and max pitch in degrees (default: -90 to 90)
-            yaw_range (Tuple[float, float]): Min and max yaw in degrees (default: -180 to 180)
-            isactive (bool): Whether the telescope is active (default: True)
-            use_kep (bool): Whether to use Keplerian elements (True) or orbit file (False) (default: True)
-            kepler_elements (dict, optional): Keplerian elements dictionary with keys: a, e, i, raan, argp, nu, epoch, mu
-        """
+                 orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
+                 sefd_table: Optional[Dict[float, float]] = None,
+                 pitch_range: Tuple[float, float] = (-90.0, 90.0),
+                 yaw_range: Tuple[float, float] = (-180.0, 180.0),
+                 isactive: bool = True, use_kep: bool = True,
+                 kepler_elements: Optional[dict] = None,
+                 interpolation_method: str = "chebyshev"):
         super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0, 
-                     diameter=diameter, sefd_table=sefd_table, isactive=isactive,
-                     mount_type="NONE")
+                         diameter=diameter, sefd_table=sefd_table, isactive=isactive,
+                         mount_type="NONE")
         check_non_empty_string(orbit_file, "Orbit file")
         check_positive(diameter, "Diameter")
         check_type(pitch_range, tuple, "Pitch range")
@@ -652,10 +523,8 @@ class SpaceTelescope(Telescope):
                 check_type(kepler_elements["raan"], (int, float), "RAAN")
                 check_type(kepler_elements["argp"], (int, float), "Argument of periapsis")
                 check_type(kepler_elements["nu"], (int, float), "True anomaly")
-                check_type(kepler_elements["epoch"], datetime, "Epoch")
+                check_type(kepler_elements["epoch"], Time, "Epoch")
                 check_positive(kepler_elements["mu"], "Gravitational parameter")
-                if isinstance(kepler_elements["epoch"], datetime) and kepler_elements["epoch"].tzinfo is None:
-                    kepler_elements["epoch"] = kepler_elements["epoch"].replace(tzinfo=timezone.utc)
                 self._kepler_elements = kepler_elements.copy()
             else:
                 logger.warning(f"Initialized SpaceTelescope '{code}' with use_kep=True but no kepler_elements provided")
@@ -667,100 +536,98 @@ class SpaceTelescope(Telescope):
             else:
                 logger.warning(f"Initialized SpaceTelescope '{code}' with use_kep=False but no orbit_file provided")
             self._kepler_elements = None
-        
-
 
     def load_orbit(self, orbit_file: str) -> None:
-        """Load orbit data from a CCSDS OEM 2.0 file into memory"""
         check_non_empty_string(orbit_file, "Orbit file")
-        times, positions, velocities = [], [], []
         try:
             with open(orbit_file, 'r') as f:
                 lines = f.readlines()
-                data_section = False
-                for line in lines:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    if line.startswith("META_STOP"):
-                        data_section = True
-                        continue
-                    if line.startswith("COVARIANCE_START"):
-                        break
-                    if not data_section:
-                        continue
-                    parts = re.split(r'\s+', line)
-                    if len(parts) != 7:
-                        continue
-                    time_str = parts[0]
-                    time = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%f")
-                    time = time.replace(tzinfo=timezone.utc)  # Ensure timezone is UTC
-                    j2000_epoch = datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-                    time_sec = (time - j2000_epoch).total_seconds()
-                    x, y, z = map(float, parts[1:4])  # km -> m
-                    vx, vy, vz = map(float, parts[4:7])  # km/s -> m/s
-                    times.append(time_sec)
-                    positions.append([x * 1000, y * 1000, z * 1000])
-                    velocities.append([vx * 1000, vy * 1000, vz * 1000])
+            
+            # Фильтруем только пустые строки и комментарии
+            data_lines = [line.strip() for line in lines if line.strip() and not line.startswith('#')]
+            data_section = False
+            valid_lines = []
+            
+            for line in data_lines:
+                if "META_STOP" in line:  # Учитываем "META_STOP" в любом месте строки
+                    data_section = True
+                    continue
+                if not data_section:
+                    continue
+                if "COVARIANCE_START" in line:  # Останавливаемся, если начинается ковариация
+                    break
+                # Обрабатываем строки с данными, убирая лишние пробелы
+                parts = re.split(r'\s+', line.strip())
+                if len(parts) == 7:
+                    valid_lines.append(line)
+            
+            if len(valid_lines) < 2:
+                raise ValueError(f"Orbit file must contain at least 2 data points, got {len(valid_lines)}")
+            
+            # Парсим все временные строки сразу
+            time_strs = [re.split(r'\s+', line)[0] for line in valid_lines]
+            j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
+            times = Time(time_strs, format='isot', scale='utc') - j2000_epoch
+            times_sec = times.sec
+            
+            # Заполняем позиции и скорости
+            positions = np.zeros((len(valid_lines), 3))
+            velocities = np.zeros((len(valid_lines), 3))
+            for i, line in enumerate(valid_lines):
+                parts = re.split(r'\s+', line)
+                x, y, z = map(float, parts[1:4])  # km -> m
+                vx, vy, vz = map(float, parts[4:7])  # km/s -> m/s
+                positions[i] = [x * 1000, y * 1000, z * 1000]
+                velocities[i] = [vx * 1000, vy * 1000, vz * 1000]
+            
+            self._orbit_data = {
+                "times": times_sec,
+                "positions": positions,
+                "velocities": velocities
+            }
+            self._orbit_file = orbit_file
+            logger.info(f"Loaded orbit data from '{orbit_file}' with {len(valid_lines)} points")
+        
         except FileNotFoundError:
             logger.error(f"Orbit file '{orbit_file}' not found")
             raise FileNotFoundError(f"Orbit file '{orbit_file}' not found!")
         except ValueError as e:
             logger.error(f"Error parsing orbit file: {str(e)}")
             raise ValueError(f"Error parsing orbit file: {e}")
-        if len(times) < 2:
-            logger.error(f"Orbit file '{orbit_file}' contains insufficient data points ({len(times)} < 2)")
-            raise ValueError(f"Orbit file must contain at least 2 data points, got {len(times)}")
-        self._orbit_data = {
-            "times": np.array(times),
-            "positions": np.array(positions),
-            "velocities": np.array(velocities)
-        }
-        self._orbit_file = orbit_file
-        logger.info(f"Loaded orbit data from '{orbit_file}' into memory for SpaceTelescope '{self._code}'")
+        except Exception as e:
+            logger.error(f"Unexpected error parsing orbit file: {str(e)}")
+            raise
 
     def set_interpolation_method(self, method: str) -> None:
-        """Set interpolation method for orbit data"""
         valid_methods = {"linear", "chebyshev", "cubic_spline"}
         if method not in valid_methods:
             raise ValueError(f"Interpolation method must be one of {valid_methods}, got {method}")
         self._interpolation_method = method
-        self._interpolated_orbit = None  # Сбрасываем интерполяцию при смене метода
+        self._interpolated_orbit = None
         logger.info(f"Set interpolation method to '{method}' for SpaceTelescope '{self._code}'")
 
-    def interpolate_orbit(self, start_time: datetime, end_time: datetime, time_step: float) -> None:
-        """ Interpolate orbit data """
+    def interpolate_orbit(self, start_time: Time, end_time: Time, time_step: float) -> None:
         if self._use_kep:
             logger.info(f"Using Keplerian elements for '{self._code}', skipping interpolation")
             return
-
         if self._orbit_data is None:
             raise ValueError(f"No orbit data loaded for '{self._code}'")
-
         times = self._orbit_data["times"]
         positions = self._orbit_data["positions"]
         velocities = self._orbit_data["velocities"]
-
-        # convert start_time and end_time to UTC if not already
-        start_time = start_time.replace(tzinfo=timezone.utc) 
-        end_time = end_time.replace(tzinfo=timezone.utc)
-        t_start = (start_time - datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)).total_seconds()
-        t_end = (end_time - datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)).total_seconds()
+        j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
+        t_start = (start_time - j2000_epoch).sec
+        t_end = (end_time - j2000_epoch).sec
         logger.info(f"Interpolating orbit for '{self._code}' from {start_time.isot} to {end_time.isot}")
-        # filter out orbit data outside the time range
         mask = (times >= t_start) & (times <= t_end)
         if not np.any(mask):
             raise ValueError(f"No orbit data within time range {start_time.isot} to {end_time.isot}")
-        
         filtered_times = times[mask]
         filtered_positions = positions[mask]
         filtered_velocities = velocities[mask]
-
-        # generate homogeneous grid of times for interpolation
         interp_times = np.arange(t_start, t_end + time_step, time_step)
-        
         if self._interpolation_method == "chebyshev":
-            degree = 5 # implement adjustable later
+            degree = 5
             norm_times = 2 * (filtered_times - t_start) / (t_end - t_start) - 1
             self._interpolated_orbit = {
                 "time_range": (t_start, t_end),
@@ -784,52 +651,42 @@ class SpaceTelescope(Telescope):
             }
         logger.info(f"Interpolated orbit for '{self._code}' using {self._interpolation_method} from {start_time.isot} to {end_time.isot}")
     
-    def get_state_vector(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
-        """Get state vector to date"""
+    def get_state_vector(self, time: Time) -> tuple[np.ndarray, np.ndarray]:
         if self._use_kep:
-            return self.get_state_vector_from_kepler(dt)
+            return self.get_state_vector_from_kepler(time)
         else:
-            return self.get_state_vector_from_orbit(dt)
+            return self.get_state_vector_from_orbit(time)
 
-    def get_state_vector_from_kepler(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
-        """Get position and velocity from Keplerian elements at a given time"""
+    def get_state_vector_from_kepler(self, time: Time) -> tuple[np.ndarray, np.ndarray]:
         if self._kepler_elements is None:
             logger.error(f"No Keplerian elements set for '{self._code}'")
             raise ValueError("No Keplerian elements set!")
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
         a, e, i, raan, argp, nu0, epoch, mu = (
             self._kepler_elements[k] for k in ["a", "e", "i", "raan", "argp", "nu", "epoch", "mu"]
         )
-        if epoch.tzinfo is None:
-            epoch = epoch.replace(tzinfo=timezone.utc)  # Ensure epoch is timezone-aware
-        t = (dt - epoch).total_seconds()
+        t = (time - epoch).sec  # Разница в секундах
         M = np.sqrt(mu / a**3) * t + self._solve_kepler(nu0, e)  # Mean anomaly
         E = self._solve_kepler(M, e)  # Eccentric anomaly
         nu = 2 * np.arctan2(np.sqrt(1 + e) * np.sin(E / 2), np.sqrt(1 - e) * np.cos(E / 2))  # True anomaly
         r = a * (1 - e * np.cos(E))  # Distance
         p = a * (1 - e**2)  # Semi-latus rectum
         h = np.sqrt(mu * p)  # Angular momentum
-        # Position and velocity in perifocal frame
         pos_p = np.array([r * np.cos(nu), r * np.sin(nu), 0])
         vel_p = np.array([-np.sin(nu), e + np.cos(nu), 0]) * (h / p)
-        # Rotation matrices
         R1 = np.array([[np.cos(raan), -np.sin(raan), 0], [np.sin(raan), np.cos(raan), 0], [0, 0, 1]])
         R2 = np.array([[1, 0, 0], [0, np.cos(i), -np.sin(i)], [0, np.sin(i), np.cos(i)]])
         R3 = np.array([[np.cos(argp), -np.sin(argp), 0], [np.sin(argp), np.cos(argp), 0], [0, 0, 1]])
         R = R1 @ R2 @ R3
         pos = R @ pos_p
         vel = R @ vel_p
-        logger.debug(f"Calculated position={pos}, velocity={vel} for '{self._code}' at {dt}")
+        logger.debug(f"Calculated position={pos}, velocity={vel} for '{self._code}' at {time.isot}")
         return pos, vel
 
-    def get_state_vector_from_orbit(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
-        """Get telescope position and velocity from orbit data at a given time"""
+    def get_state_vector_from_orbit(self, time: Time) -> tuple[np.ndarray, np.ndarray]:
         if self._orbit_data is None:
             raise ValueError(f"No orbit data defined for '{self._code}'")
-
-        t = (dt - datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)).total_seconds()
-        
+        j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
+        t = (time - j2000_epoch).sec
         if self._interpolated_orbit and "time_range" in self._interpolated_orbit:
             t_min, t_max = self._interpolated_orbit["time_range"]
             if t_min <= t <= t_max:
@@ -843,7 +700,6 @@ class SpaceTelescope(Telescope):
                 vel = np.array([v[idx - 1] + (v[idx] - v[idx - 1]) * (t - interp_times[idx - 1]) / (interp_times[idx] - interp_times[idx - 1]) 
                                 for v in self._interpolated_orbit["velocities"]])
                 return pos, vel
-
         times = self._orbit_data["times"]
         if t < times[0] or t > times[-1]:
             return np.array([self._x, self._y, self._z]), np.array([self._vx, self._vy, self._vz])
@@ -857,11 +713,6 @@ class SpaceTelescope(Telescope):
         return pos, vel
     
     def get_keplerian(self) -> Optional[Dict[str, any]]:
-        """Get the Keplerian elements of the SpaceTelescope
-
-        Returns:
-            Optional[Dict[str, any]]: Dictionary of Keplerian elements (a, e, i, raan, argp, nu, epoch, mu) if set, None otherwise
-        """
         if self._kepler_elements is not None:
             logger.debug(f"Retrieved Keplerian elements for SpaceTelescope '{self._code}': {self._kepler_elements}")
             return self._kepler_elements.copy()
@@ -869,44 +720,23 @@ class SpaceTelescope(Telescope):
         return None
 
     def get_pitch_range(self) -> Tuple[float, float]:
-        """Get pitch range in degrees"""
         return self._pitch_range
 
     def get_yaw_range(self) -> Tuple[float, float]:
-        """Get yaw range in degrees"""
         return self._yaw_range
     
     def get_use_kep(self) -> bool:
-        """Get whether Keplerian elements are used for orbit calculations
-
-        Returns:
-            bool: True if Keplerian elements are used, False if orbit file data is used
-        """
         logger.debug(f"Retrieved use_keplerian={self._use_kep} for SpaceTelescope '{self._code}'")
         return self._use_kep
     
     def set_telescope(self, code: str, name: str, orbit_file: str, diameter: float,
-                           sefd_table: Optional[Dict[float, float]] = None,
-                           pitch_range: Tuple[float, float] = (-90.0, 90.0),
-                           yaw_range: Tuple[float, float] = (-180.0, 180.0),
-                           isactive: bool = True,
-                           use_kep: bool = True,
-                           kepler_elements: Optional[dict] = None,
-                           interpolation_method: str = "chebyshev") -> None:
-        """Set SpaceTelescope parameters, choosing between orbit file or Keplerian elements based on use_kep
-
-        Args:
-            code (str): Telescope short name
-            name (str): Telescope name
-            orbit_file (str): Path to the orbit file (coordinates in km, velocities in km/s)
-            diameter (float): Antenna diameter in meters
-            sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
-            pitch_range (Tuple[float, float]): Min and max pitch in degrees (default: -90 to 90)
-            yaw_range (Tuple[float, float]): Min and max yaw in degrees (default: -180 to 180)
-            isactive (bool): Whether the telescope is active (default: True)
-            use_kep (bool): Whether to use Keplerian elements (True) or orbit file (False) (default: True)
-            kepler_elements (dict, optional): Keplerian elements dictionary with keys: a, e, i, raan, argp, nu, epoch, mu
-        """
+                      sefd_table: Optional[Dict[float, float]] = None,
+                      pitch_range: Tuple[float, float] = (-90.0, 90.0),
+                      yaw_range: Tuple[float, float] = (-180.0, 180.0),
+                      isactive: bool = True,
+                      use_kep: bool = True,
+                      kepler_elements: Optional[dict] = None,
+                      interpolation_method: str = "chebyshev") -> None:
         check_non_empty_string(code, "Code")
         check_non_empty_string(name, "Name")
         check_non_empty_string(orbit_file, "Orbit file")
@@ -945,7 +775,7 @@ class SpaceTelescope(Telescope):
                 check_type(kepler_elements["raan"], (int, float), "RAAN")
                 check_type(kepler_elements["argp"], (int, float), "Argument of periapsis")
                 check_type(kepler_elements["nu"], (int, float), "True anomaly")
-                check_type(kepler_elements["epoch"], datetime, "Epoch")
+                check_type(kepler_elements["epoch"], Time, "Epoch")
                 check_positive(kepler_elements["mu"], "Gravitational parameter")
                 self._kepler_elements = kepler_elements.copy()
             else:
@@ -962,15 +792,14 @@ class SpaceTelescope(Telescope):
         self._interpolated_orbit = None
         logger.info(f"Set SpaceTelescope '{code}' with use_kep={use_kep}, diameter={diameter} m")
     
-    def set_keplerian(self, a: float, e: float, i: float, raan: float, argp: float, nu: float, epoch: datetime, mu: float = 398600.4418e9) -> None:
-        """Set orbit from Keplerian elements (angles in degrees)"""
+    def set_keplerian(self, a: float, e: float, i: float, raan: float, argp: float, nu: float, epoch: Time, mu: float = 398600.4418e9) -> None:
         check_positive(a, "Semi-major axis")
         check_range(e, 0, 1, "Eccentricity")
         check_type(i, (int, float), "Inclination")
         check_type(raan, (int, float), "RAAN")
         check_type(argp, (int, float), "Argument of periapsis")
         check_type(nu, (int, float), "True anomaly")
-        check_type(epoch, datetime, "Epoch")
+        check_type(epoch, Time, "Epoch")
         check_positive(mu, "Gravitational parameter")
         self._kepler_elements = {
             "a": a, "e": e, "i": i, "raan": raan, "argp": argp, "nu": nu,
@@ -980,11 +809,6 @@ class SpaceTelescope(Telescope):
         logger.info(f"Set Keplerian elements for '{self._code}'")
     
     def set_pitch_range(self, pitch_range: Tuple[float, float]) -> None:
-        """Set pitch range in degrees for the SpaceTelescope
-
-        Args:
-            pitch_range (Tuple[float, float]): Min and max pitch in degrees (must be within -90 to 90)
-        """
         check_type(pitch_range, tuple, "Pitch range")
         if len(pitch_range) != 2:
             raise ValueError("Pitch range must contain exactly 2 values (min, max)")
@@ -995,11 +819,6 @@ class SpaceTelescope(Telescope):
         logger.info(f"Set pitch range={pitch_range} degrees for SpaceTelescope '{self._code}'")
 
     def set_yaw_range(self, yaw_range: Tuple[float, float]) -> None:
-        """Set yaw range in degrees for the SpaceTelescope
-
-        Args:
-            yaw_range (Tuple[float, float]): Min and max yaw in degrees (must be within -180 to 180)
-        """
         check_type(yaw_range, tuple, "Yaw range")
         if len(yaw_range) != 2:
             raise ValueError("Yaw range must contain exactly 2 values (min, max)")
@@ -1010,19 +829,11 @@ class SpaceTelescope(Telescope):
         logger.info(f"Set yaw range={yaw_range} degrees for SpaceTelescope '{self._code}'")
 
     def set_use_kep(self, use_kep: bool) -> None:
-        """Set whether to use Keplerian elements for orbit calculations.
-
-        Args:
-            use_kep (bool): True to use Keplerian elements, False to use orbit file data.
-        """
         check_type(use_kep, bool, "Use Keplerian flag")
         self._use_kep = use_kep
         logger.info(f"Set use_keplerian={use_kep} for SpaceTelescope '{self._code}'")
 
-
     def to_dict(self) -> dict:
-        """Convert SpaceTelescope object to a dictionary for serialization
-        Orbit data is not serialized, only the file path is stored"""
         base_dict = super().to_dict()
         base_dict.update({
             "type": "SpaceTelescope",
@@ -1036,7 +847,7 @@ class SpaceTelescope(Telescope):
                 "raan": np.degrees(self._kepler_elements["raan"]),
                 "argp": np.degrees(self._kepler_elements["argp"]),
                 "nu": np.degrees(self._kepler_elements["nu"]),
-                "epoch": self._kepler_elements["epoch"].isoformat(),
+                "epoch": self._kepler_elements["epoch"].isot,  # Используем isot для сериализации
                 "mu": self._kepler_elements["mu"]
             }
         })
@@ -1045,8 +856,6 @@ class SpaceTelescope(Telescope):
 
     @classmethod
     def from_dict(cls, data: dict) -> 'SpaceTelescope':
-        """Create a SpaceTelescope object from a dictionary.
-        Orbit data is not deserialized; it will be loaded from file if specified."""
         obj = cls(
             code=data["code"],
             name=data["name"],
@@ -1065,10 +874,9 @@ class SpaceTelescope(Telescope):
                 "raan": np.radians(data["kepler_elements"]["raan"]),
                 "argp": np.radians(data["kepler_elements"]["argp"]),
                 "nu": np.radians(data["kepler_elements"]["nu"]),
-                "epoch": datetime.fromisoformat(data["kepler_elements"]["epoch"]),
+                "epoch": Time(data["kepler_elements"]["epoch"], scale='utc'),  # Десериализация в Time
                 "mu": data["kepler_elements"]["mu"]
             }
-        # load orbit from file
         if obj._orbit_file:
             try:
                 obj.load_orbit(obj._orbit_file)
@@ -1078,7 +886,6 @@ class SpaceTelescope(Telescope):
         return obj
     
     def _solve_kepler(self, initial: float, e: float, tol: float = 1e-8, max_iter: int = 200) -> float:
-        """Solve Kepler's equation using Newton-Raphson"""
         if e >= 1:
             logger.error(f"Eccentricity {e} not supported for elliptical orbit")
             raise ValueError("Eccentricity must be < 1 for elliptical orbit!")
@@ -1094,58 +901,18 @@ class SpaceTelescope(Telescope):
         return x
 
     def _validate_orbit_data(self) -> bool:
-        """Check if orbit data is available (either from file or Kepler elements)"""
         return self._orbit_data is not None or self._kepler_elements is not None
 
     def __repr__(self) -> str:
-        """Return a string representation of SpaceTelescope"""
         orbit_info = f"orbit_file='{self._orbit_file}'" if self._orbit_file else "no orbit loaded"
         kep_info = "kepler_elements_set" if self._kepler_elements else "no kepler elements"
         return (f"SpaceTelescope(code='{self._code}', name='{self._name}', "
                 f"{orbit_info}, {kep_info}, diameter={self._diameter}, "
                 f"pitch_range={self._pitch_range}, yaw_range={self._yaw_range}, isactive={self.isactive})")
 
-"""Base-class of Telescopes object with the list of object with Telescope/SpaceTelescope type
 
-    Contains:
-    Atributes:
-        data (Telescope/SpaceTelescope): list of objsects of Telescope/SpaceTelescope type
-
-    Methods:
-        add_telescope
-        create_telescope
-        insert_telescope
-        remove_telescope
-    
-        get_by_index
-        get_all_telescopes      
-
-        get_active_telescopes
-        get_inactive_telescopes
-
-        set_telescope
-        
-        activate_telescope
-        deactivate_telescope
-
-        activate_all
-        deactivate_all
-
-        drop_active
-        drop_inactive
-        clear
-
-        to_dict
-        from_dict
-
-        _is_duplicate
-        __len__
-        __init__
-        __repr__
-    """
 class Telescopes(BaseEntity):
     def __init__(self, telescopes: list[Telescope | SpaceTelescope] = None):
-        """Initialize Telescopes with a list of Telescope or SpaceTelescope objects."""
         super().__init__()
         if telescopes is not None:
             check_type(telescopes, (list, tuple), "Telescopes")
@@ -1155,7 +922,6 @@ class Telescopes(BaseEntity):
         logger.info(f"Initialized Telescopes with {len(self._data)} telescopes")
 
     def add_telescope(self, telescope: Telescope | SpaceTelescope) -> None:
-        """Add a new telescope"""
         check_type(telescope, (Telescope, SpaceTelescope), "Telescope")
         if self._is_duplicate(telescope):
             logger.error(f"Telescope with code '{telescope.get_code()}' already exists")
@@ -1164,70 +930,25 @@ class Telescopes(BaseEntity):
         logger.info(f"Added telescope '{telescope.get_code()}' to Telescopes")
 
     def create_telescope(self, code: str = "TEMP", name: str = "Temporary Telescope",
-                     x: float = 0.0, y: float = 0.0, z: float = 0.0,
-                     vx: float = 0.0, vy: float = 0.0, vz: float = 0.0,
-                     diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,
-                     elevation_range: Tuple[float, float] = (15.0, 90.0),
-                     azimuth_range: Tuple[float, float] = (0.0, 360.0),
-                     mount_type: str = "AZIM", isactive: bool = True) -> None:
-        """Create and add a new Telescope object to the Telescopes collection.
-
-        Args:
-            code (str): Telescope short name (default: "TEMP")
-            name (str): Telescope name (default: "Temporary Telescope")
-            x (float): Telescope x coordinate (ITRF) in meters (default: 0.0)
-            y (float): Telescope y coordinate (ITRF) in meters (default: 0.0)
-            z (float): Telescope z coordinate (ITRF) in meters (default: 0.0)
-            vx (float): Telescope vx velocity (ITRF) in m/s (default: 0.0)
-            vy (float): Telescope vy velocity (ITRF) in m/s (default: 0.0)
-            vz (float): Telescope vz velocity (ITRF) in m/s (default: 0.0)
-            diameter (float): Antenna diameter in meters (default: 1.0)
-            sefd_table (Dict[float, float], optional): SEFD table (frequency in MHz: SEFD in Jy)
-            elevation_range (Tuple[float, float]): Min and max elevation in degrees (default: 15-90)
-            azimuth_range (Tuple[float, float]): Min and max azimuth in degrees (default: 0-360)
-            mount_type (str): Mount type ('EQUA', 'AZIM', or 'NONE', default: 'AZIM')
-            isactive (bool): Whether the telescope is active (default: True)
-
-        Returns:
-            Telescope: The newly created Telescope object
-
-        Raises:
-            ValueError: If a telescope with the same code already exists or if input validation fails
-        """
-        # сreate a new Telescope object
+                         x: float = 0.0, y: float = 0.0, z: float = 0.0,
+                         vx: float = 0.0, vy: float = 0.0, vz: float = 0.0,
+                         diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,
+                         elevation_range: Tuple[float, float] = (15.0, 90.0),
+                         azimuth_range: Tuple[float, float] = (0.0, 360.0),
+                         mount_type: str = "AZIM", isactive: bool = True) -> None:
         new_telescope = Telescope(
-            code=code,
-            name=name,
-            x=x,
-            y=y,
-            z=z,
-            vx=vx,
-            vy=vy,
-            vz=vz,
-            diameter=diameter,
-            sefd_table=sefd_table,
-            elevation_range=elevation_range,
-            azimuth_range=azimuth_range,
-            mount_type=mount_type,
-            isactive=isactive
+            code=code, name=name, x=x, y=y, z=z, vx=vx, vy=vy, vz=vz,
+            diameter=diameter, sefd_table=sefd_table,
+            elevation_range=elevation_range, azimuth_range=azimuth_range,
+            mount_type=mount_type, isactive=isactive
         )
-
-        # check for duplicates
         if self._is_duplicate(new_telescope):
             logger.error(f"Telescope with code '{code}' already exists")
             raise ValueError(f"Telescope with code '{code}' already exists!")
-
-        # add the new telescope to the collection
         self._data.append(new_telescope)
         logger.info(f"Created and added telescope '{code}' to Telescopes")
     
     def insert_telescope(self, index: int, telescope: Telescope | SpaceTelescope) -> None:
-        """Insert a new telescope at the specified index.
-
-        Args:
-            index (int): Index at which to insert the telescope.
-            telescope (Telescope | SpaceTelescope): Telescope object to insert.
-        """
         check_type(index, int, "Index")
         check_type(telescope, (Telescope, SpaceTelescope), "Telescope")
         if not 0 <= index <= len(self._data):
@@ -1240,7 +961,6 @@ class Telescopes(BaseEntity):
         logger.info(f"Inserted telescope '{telescope.get_code()}' at index {index}")
 
     def remove_telescope(self, index: int) -> None:
-        """Remove telescope by index"""
         try:
             self._data.pop(index)
             logger.info(f"Removed telescope at index {index} from Telescopes")
@@ -1249,7 +969,6 @@ class Telescopes(BaseEntity):
             raise IndexError("Invalid telescope index!")
 
     def get_by_index(self, index: int) -> Telescope | SpaceTelescope:
-        """Get telescope by index"""
         try:
             return self._data[index]
         except IndexError:
@@ -1257,7 +976,6 @@ class Telescopes(BaseEntity):
             raise IndexError("Invalid telescope index!")
 
     def set_telescope(self, index: int, telescope: Telescope | SpaceTelescope) -> None:
-        """Set telescope data by index."""
         check_type(telescope, (Telescope, SpaceTelescope), "Telescope")
         try:
             if any(t.get_code() == telescope.get_code() and i != index for i, t in enumerate(self._data)):
@@ -1270,27 +988,23 @@ class Telescopes(BaseEntity):
             raise IndexError("Invalid telescope index!")
 
     def get_all_telescopes(self) -> list[Telescope | SpaceTelescope]:
-        """Get all telescopes"""
         return self._data
 
     def get_active_telescopes(self) -> list[Telescope | SpaceTelescope]:
-        """Get active telescopes"""
         active = [t for t in self._data if t.isactive]
         logger.debug(f"Retrieved {len(active)} active telescopes")
         return active
 
     def get_inactive_telescopes(self) -> list[Telescope | SpaceTelescope]:
-        """Get inactive telescopes"""
         inactive = [t for t in self._data if not t.isactive]
         logger.debug(f"Retrieved {len(inactive)} inactive telescopes")
         return inactive
     
     def activate_telescope(self, index: int) -> None:
-        """Activate telescope by index"""
         check_type(index, int, "Index")
         try:
             self._data[index].activate()
-            if hasattr(self, '_parent') and self._parent:  # Проверяем наличие родителя
+            if hasattr(self, '_parent') and self._parent:
                 self._parent._sync_scans_with_activation("telescopes", index, True)
             logger.info(f"Activated telescope '{self._data[index].get_code()}' at index {index}")
         except IndexError:
@@ -1298,11 +1012,10 @@ class Telescopes(BaseEntity):
             raise IndexError("Invalid telescope index!")
 
     def deactivate_telescope(self, index: int) -> None:
-        """Deactivate telescope by index"""
         check_type(index, int, "Index")
         try:
             self._data[index].deactivate()
-            if hasattr(self, '_parent') and self._parent:  # Проверяем наличие родителя
+            if hasattr(self, '_parent') and self._parent:
                 self._parent._sync_scans_with_activation("telescopes", index, False)
             logger.info(f"Deactivated telescope '{self._data[index].get_code()}' at index {index}")
         except IndexError:
@@ -1310,7 +1023,6 @@ class Telescopes(BaseEntity):
             raise IndexError("Invalid telescope index!")
 
     def activate_all(self) -> None:
-        """Activate all telescopes"""
         if not self._data:
             logger.error("No telescopes to activate")
             raise ValueError("No telescopes to activate!")
@@ -1319,7 +1031,6 @@ class Telescopes(BaseEntity):
         logger.info("Activated all telescopes")
 
     def deactivate_all(self) -> None:
-        """Deactivate all telescopes"""
         if not self._data:
             logger.error("No telescopes to deactivate")
             raise ValueError("No telescopes to deactivate!")
@@ -1328,7 +1039,6 @@ class Telescopes(BaseEntity):
         logger.info("Deactivated all telescopes")
 
     def drop_active(self) -> None:
-        """Remove all active telescopes from the list"""
         active_count = len(self.get_active_telescopes())
         if active_count == 0:
             logger.debug("No active telescopes to drop")
@@ -1337,7 +1047,6 @@ class Telescopes(BaseEntity):
         logger.info(f"Dropped {active_count} active telescopes from Telescopes")
     
     def drop_inactive(self) -> None:
-        """Remove all inactive telescopes from the list"""
         inactive_count = len(self.get_inactive_telescopes())
         if inactive_count == 0:
             logger.debug("No inactive telescopes to drop")
@@ -1346,18 +1055,15 @@ class Telescopes(BaseEntity):
         logger.info(f"Dropped {inactive_count} inactive telescopes from Telescopes")
 
     def clear(self) -> None:
-        """Clear telescopes data"""
         logger.info(f"Cleared {len(self._data)} telescopes from Telescopes")
         self._data.clear()
 
     def to_dict(self) -> dict:
-        """Convert Telescopes object to a dictionary for serialization"""
         logger.info(f"Converted Telescopes with {len(self._data)} telescopes to dictionary")
         return {"data": [t.to_dict() for t in self._data]}
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Telescopes':
-        """Create a Telescopes object from a dictionary"""
         telescopes = []
         for t_data in data["data"]:
             if t_data["type"] == "Telescope":
@@ -1368,24 +1074,14 @@ class Telescopes(BaseEntity):
         return cls(telescopes=telescopes)
     
     def _is_duplicate(self, telescope: Telescope | SpaceTelescope) -> bool:
-        """Check if a telescope with the same code already exists
-
-        Args:
-            telescope (Telescope | SpaceTelescope): Telescope to check
-
-        Returns:
-            bool: True if a duplicate exists, False otherwise
-        """
         check_type(telescope, (Telescope, SpaceTelescope), "Telescope")
         is_dup = any(t.get_code() == telescope.get_code() for t in self._data)
         logger.debug(f"Checked for duplicate: code '{telescope.get_code()}', result={is_dup}")
         return is_dup
 
     def __len__(self) -> int:
-        """Return the number of telescopes"""
         return len(self._data)
 
     def __repr__(self) -> str:
-        """Return a string representation of Telescopes"""
         active_count = len(self.get_active_telescopes())
         return f"Telescopes(count={len(self._data)}, active={active_count}, inactive={len(self._data) - active_count})"

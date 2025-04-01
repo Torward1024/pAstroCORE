@@ -8,11 +8,10 @@ from base.observation import Observation
 from base.project import Project
 from super.manipulator import DefaultManipulator
 from utils.logging_setup import logger
-import datetime
-from datetime import timezone
 import time
 import os
 from astropy.time import Time
+import astropy.units as u
 
 class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
     def setUp(self):
@@ -84,13 +83,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         frequencies = Frequencies([frequency])
 
         # 4. Настройка сканирования (15.03.2031 - 17.03.2031, шаг 10 минут)
-        start_time = datetime.datetime(2031, 3, 15, 0, 0, 0, tzinfo=timezone.utc)
-        epoch = datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)
-        ts = int((start_time - epoch).total_seconds())
+        start_time = Time("2031-03-15T00:00:00", format="isot", scale="utc")
+        duration = 172800 * u.s  # 2 дня в секундах
         scan_attributes = {
             "set_scan": {
-                "start": ts,
-                "duration": 172800,
+                "start": start_time,
+                "duration": duration.value,  # Передаем значение в секундах
                 "source_index": 0,
                 "telescope_indices": [0, 1, 2, 3],  # ALMA, APEX, SMT, SPACE370
                 "frequency_indices": [0]
@@ -124,6 +122,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "store_key": "uv_coverage_f0",
             "recalculate": True
         }
+
         start = time.time()
         uv_results = self.manipulator.process_request("calculate", "observation", calc_attributes, observation)
         self.assertTrue(uv_results, "UV calculation failed")

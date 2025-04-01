@@ -271,14 +271,14 @@ class Configurator(ABC):
         Args:
             obj: The object to configure (e.g., IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Scan, Observation, etc.)
             attributes: Dictionary where keys are method names and values are their arguments
-                       Example: {"set_frequency": {"freq": 1420.0}}
-                       For nested config: {"if_index": 0, "set_frequency": {"freq": 1420.0}}
-                       For Source: {"set_source": {"name": "3C 286", "ra_h": 13, "ra_m": 31, ...}}
-                       For Sources: {"source_index": 0, "set_name": {"name": "New Name"}}
-                       For Telescope: {"set_coordinates": {"coordinates": (1000.0, 2000.0, 3000.0)}}
-                       For Telescopes: {"telescope_index": 0, "set_name": {"name": "New Name"}}
-                       For Scan: {"set_scan": {"start": 1234567890, "duration": 300.0}}
-                       For Scans: {"scan_index": 0, "set_duration": {"duration": 600.0}}
+                    Example: {"set_frequency": {"freq": 1420.0}}
+                    For nested config: {"if_index": 0, "set_frequency": {"freq": 1420.0}}
+                    For Source: {"set_source": {"name": "3C 286", "ra_h": 13, "ra_m": 31, ...}}
+                    For Sources: {"source_index": 0, "set_name": {"name": "New Name"}}
+                    For Telescope: {"set_coordinates": {"coordinates": (1000.0, 2000.0, 3000.0)}}
+                    For Telescopes: {"telescope_index": 0, "set_name": {"name": "New Name"}}
+                    For Scan: {"set_scan": {"start": Time object or ISO string (e.g., "2023-01-01T00:00:00") or Unix timestamp, "duration": 300.0}}
+                    For Scans: {"scan_index": 0, "set_duration": {"duration": 600.0}}
 
         Returns:
             bool: True if configuration succeeds, False otherwise
