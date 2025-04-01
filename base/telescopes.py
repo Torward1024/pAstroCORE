@@ -566,8 +566,8 @@ class Telescope(BaseEntity):
     Additional Methods:
         load_orbit
 
-        interpolate_orbit_chebyshev
-        interpolate_orbit_cubic_spline
+        set_interpolation_method
+        interpolate_orbit
 
         get_state_vector
         get_state_vector_from_orbit
@@ -638,6 +638,9 @@ class SpaceTelescope(Telescope):
         self._orbit_data = None
         self._kepler_elements = None
 
+        self._interpolation_method = interpolation_method
+        self._interpolated_orbit = None
+
         if self._use_kep:
             if kepler_elements is not None:
                 required_keys = {"a", "e", "i", "raan", "argp", "nu", "epoch", "mu"}
@@ -665,8 +668,7 @@ class SpaceTelescope(Telescope):
                 logger.warning(f"Initialized SpaceTelescope '{code}' with use_kep=False but no orbit_file provided")
             self._kepler_elements = None
         
-        self._interpolation_method = interpolation_method
-        self._interpolated_orbit = None
+
 
     def load_orbit(self, orbit_file: str) -> None:
         """Load orbit data from a CCSDS OEM 2.0 file into memory"""
@@ -718,7 +720,7 @@ class SpaceTelescope(Telescope):
         logger.info(f"Loaded orbit data from '{orbit_file}' into memory for SpaceTelescope '{self._code}'")
 
     def set_interpolation_method(self, method: str) -> None:
-        """Установить метод интерполяции."""
+        """Set interpolation method for orbit data"""
         valid_methods = {"linear", "chebyshev", "cubic_spline"}
         if method not in valid_methods:
             raise ValueError(f"Interpolation method must be one of {valid_methods}, got {method}")
@@ -729,7 +731,7 @@ class SpaceTelescope(Telescope):
     def interpolate_orbit(self, start_time: datetime, end_time: datetime, time_step: float) -> None:
         """ Interpolate orbit data """
         if self._use_kep:
-            logger.debug(f"Using Keplerian elements for '{self._code}', skipping interpolation")
+            logger.info(f"Using Keplerian elements for '{self._code}', skipping interpolation")
             return
 
         if self._orbit_data is None:
@@ -744,7 +746,7 @@ class SpaceTelescope(Telescope):
         end_time = end_time.replace(tzinfo=timezone.utc)
         t_start = (start_time - datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)).total_seconds()
         t_end = (end_time - datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)).total_seconds()
-
+        logger.info(f"Interpolating orbit for '{self._code}' from {start_time.isot} to {end_time.isot}")
         # filter out orbit data outside the time range
         mask = (times >= t_start) & (times <= t_end)
         if not np.any(mask):
@@ -842,7 +844,6 @@ class SpaceTelescope(Telescope):
                                 for v in self._interpolated_orbit["velocities"]])
                 return pos, vel
 
-        # Если интерполяция не готова, используем линейную интерполяцию как fallback
         times = self._orbit_data["times"]
         if t < times[0] or t > times[-1]:
             return np.array([self._x, self._y, self._z]), np.array([self._vx, self._vy, self._vz])
@@ -890,7 +891,8 @@ class SpaceTelescope(Telescope):
                            yaw_range: Tuple[float, float] = (-180.0, 180.0),
                            isactive: bool = True,
                            use_kep: bool = True,
-                           kepler_elements: Optional[dict] = None) -> None:
+                           kepler_elements: Optional[dict] = None,
+                           interpolation_method: str = "chebyshev") -> None:
         """Set SpaceTelescope parameters, choosing between orbit file or Keplerian elements based on use_kep
 
         Args:
@@ -956,6 +958,8 @@ class SpaceTelescope(Telescope):
                 logger.warning(f"Set SpaceTelescope '{code}' with use_kep=False but no orbit_file provided")
             self._kepler_elements = None
 
+        self._interpolation_method = interpolation_method
+        self._interpolated_orbit = None
         logger.info(f"Set SpaceTelescope '{code}' with use_kep={use_kep}, diameter={diameter} m")
     
     def set_keplerian(self, a: float, e: float, i: float, raan: float, argp: float, nu: float, epoch: datetime, mu: float = 398600.4418e9) -> None:

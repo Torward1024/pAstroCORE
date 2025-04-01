@@ -108,10 +108,6 @@ class Calculator(ABC):
             logger.warning(f"No active telescopes for scan starting at {start_time}")
             return {"telescope_positions": {}}
 
-        for tel in active_telescopes:
-            if isinstance(tel, SpaceTelescope) and not tel._use_kep:
-                tel.interpolate_orbit(Time(start_time), end_time, time_step or duration / 2)
-
         if time_step is None:
             mean_time = Time(start_time) + (duration / 2) * u.s
             positions = {tel.get_code(): self._compute_telescope_position(tel, mean_time) for tel in active_telescopes}
@@ -345,7 +341,8 @@ class Calculator(ABC):
                 yaw = altaz.az.deg
                 pitch_range = tel.get_pitch_range()
                 yaw_range = tel.get_yaw_range()
-                is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
+                #is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
+                is_visibile = True
             else:
                 x, y, z = tel.get_coordinates()
                 vx, vy, vz = tel.get_velocities()

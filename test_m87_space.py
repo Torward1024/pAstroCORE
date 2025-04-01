@@ -12,6 +12,7 @@ import datetime
 from datetime import timezone
 import time
 import os
+from astropy.time import Time
 
 class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
     def setUp(self):
@@ -36,7 +37,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.manipulator.process_request("configure", "source", m87_attributes, m87_source)
         sources = Sources([m87_source])
 
-        # 2. Настройка телескопов (ALMA + космический телескоп)
+        # 2. Настройка телескопов (ALMA + APEX + SMT + космический телескоп)
         telescope_data = [
             {"code": "ALMA", "name": "ALMA", "x": 2225061.164, "y": -5440057.37, "z": -2481681.15,
              "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 100.0},
@@ -64,12 +65,16 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "sefd_table": {86e3: 200.0},
                 "pitch_range": (-90.0, 90.0),
                 "yaw_range": (0.0, 180.0),
-                "orbit_file": "i:\\pAstroCORE\\final_orbit370.txt"
+                "orbit_file": "i:\\pAstroCORE\\final_orbit370.txt",
+                "interpolation_method": "chebyshev"
             }
         }
-        space_tel = SpaceTelescope(use_kep=False, orbit_file="i:\\pAstroCORE\\final_orbit370.txt")
+        space_tel = SpaceTelescope(
+            use_kep=False,
+            orbit_file="i:\\pAstroCORE\\final_orbit370.txt",
+            interpolation_method="chebyshev"
+        )
         self.manipulator.process_request("configure", "telescope", space_tel_attributes, space_tel)
-        #space_tel.interpolate_orbit_chebyshev()
         telescopes.add_telescope(space_tel)
 
         # 3. Настройка частоты (86 GHz)
@@ -78,7 +83,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.manipulator.process_request("configure", "if", frequency_attributes, frequency)
         frequencies = Frequencies([frequency])
 
-        # 4. Настройка сканирования (15.03.2031 - 17.03.2031, шаг 1 час)
+        # 4. Настройка сканирования (15.03.2031 - 17.03.2031, шаг 10 минут)
         start_time = datetime.datetime(2031, 3, 15, 0, 0, 0, tzinfo=timezone.utc)
         epoch = datetime.datetime(1970, 1, 1, tzinfo=timezone.utc)
         ts = int((start_time - epoch).total_seconds())
@@ -87,7 +92,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "start": ts,
                 "duration": 172800,  # 48 часов (2 дня)
                 "source_index": 0,
-                "telescope_indices": [0, 1],  # ALMA, SPACE370
+                "telescope_indices": [0, 1, 2, 3],  # ALMA, APEX, SMT, SPACE370
                 "frequency_indices": [0]
             }
         }
@@ -111,10 +116,10 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.manipulator.process_request("configure", "observation", obs_attributes, observation)
         self.project.add_observation(observation)
 
-        # 6. Вычисление (u,v)-покрытия с шагом 1 час
+        # 6. Вычисление (u,v)-покрытия с шагом 10 минут
         calc_attributes = {
             "type": "uv_coverage",
-            "time_step": 600.0,  # 1 час
+            "time_step": 600.0,  # 10 минут
             "freq_idx": 0,
             "store_key": "uv_coverage_f0",
             "recalculate": True
@@ -128,38 +133,67 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         uv_data = observation.get_calculated_data_by_key("uv_coverage_f0")["data"]
         freq = 86e9  # 86 GHz в Гц
 
-        colors = {'ALMA-SPACE370': 'purple'}
-        u_points_dict = {'ALMA-SPACE370': []}
-        v_points_dict = {'ALMA-SPACE370': []}
-        w_points_dict = {'ALMA-SPACE370': []}
+        # Определяем все возможные пары и их цвета
+        colors = {
+            'ALMA-SPACE370': 'purple',
+            'APEX-SPACE370': 'blue',
+            'SMT-SPACE370': 'green',
+            'ALMA-APEX': 'red',
+            'ALMA-SMT': 'orange',
+            'APEX-SMT': 'yellow'
+        }
+        u_points_dict = {pair: [] for pair in colors.keys()}
+        v_points_dict = {pair: [] for pair in colors.keys()}
+        w_points_dict = {pair: [] for pair in colors.keys()}
+        u_conj_points_dict = {pair: [] for pair in colors.keys()}  # Для сопряжённых
+        v_conj_points_dict = {pair: [] for pair in colors.keys()}  # Для сопряжённых
 
         for scan_idx, scan_data in uv_data.items():
+            if "uv_points" not in scan_data or freq not in scan_data["uv_points"]:
+                logger.error(f"No valid UV points for scan {scan_idx} at frequency {freq}")
+                continue
             uv_points = scan_data["uv_points"][freq]  # Список кортежей (pair, u, v, w)
-            times = scan_data["times"]
-            for t, (pair, uu, vv, ww) in zip(times, uv_points):
-                if pair in u_points_dict:
-                    u_points_dict[pair].append(float(uu))
-                    v_points_dict[pair].append(float(vv))
-                    w_points_dict[pair].append(float(ww))
-                    logger.debug(f"Time: {t}, Pair: {pair}, u: {uu:.4f}, v: {vv:.4f}, w: {ww:.4f}")
+            times = scan_data.get("times", [])
+            if not times:
+                logger.warning(f"No times available for scan {scan_idx}, skipping time-based processing")
+                for pair, uu, vv, ww in uv_points:
+                    if pair in u_points_dict:
+                        u_points_dict[pair].append(float(uu))
+                        v_points_dict[pair].append(float(vv))
+                        w_points_dict[pair].append(float(ww))
+                        u_conj_points_dict[pair].append(-float(uu))
+                        v_conj_points_dict[pair].append(-float(vv))
+            else:
+                for t, (pair, uu, vv, ww) in zip(times, uv_points):
+                    if pair in u_points_dict:
+                        u_points_dict[pair].append(float(uu))
+                        v_points_dict[pair].append(float(vv))
+                        w_points_dict[pair].append(float(ww))
+                        u_conj_points_dict[pair].append(-float(uu))
+                        v_conj_points_dict[pair].append(-float(vv))
+                        logger.debug(f"Time: {t}, Pair: {pair}, u: {uu:.4f}, v: {vv:.4f}, w: {ww:.4f}, conj_u: {-uu:.4f}, conj_v: {-vv:.4f}")
 
         # Проверка данных
         self.assertGreater(len(u_points_dict['ALMA-SPACE370']), 0, "No points for ALMA-SPACE370 baseline")
+        self.assertGreater(len(u_points_dict['APEX-SPACE370']), 0, "No points for APEX-SPACE370 baseline")
+        self.assertGreater(len(u_points_dict['SMT-SPACE370']), 0, "No points for SMT-SPACE370 baseline")
 
         # Визуализация
-        plt.figure(figsize=(10, 10))
+        plt.figure(figsize=(12, 12))
         for pair in u_points_dict:
-            plt.scatter(u_points_dict[pair], v_points_dict[pair], s=10, label=pair, color=colors[pair])  # Увеличиваем размер точек
+            if u_points_dict[pair]:  # Пропускаем пустые пары
+                # Оригинальные точки
+                plt.scatter(u_points_dict[pair], v_points_dict[pair], s=10, label=f"{pair}", color=colors[pair])
+                # Комплексно сопряжённые точки (с другим стилем)
+                plt.scatter(u_conj_points_dict[pair], v_conj_points_dict[pair], s=10, color=colors[pair], 
+                            alpha=0.5, marker='x', label=f"{pair} (conj)")
         plt.xlabel("u (wavelengths)")
         plt.ylabel("v (wavelengths)")
-        plt.title("UV Coverage for M87 Observation with Space Telescope (86 GHz)")
+        plt.title("UV Coverage for M87 Observation with Space Telescope (86 GHz) with Conjugates")
         plt.grid(True)
         plt.legend()
-        # Убираем фиксированные пределы
-        # plt.xlim(-5e9, 5e9)
-        # plt.ylim(-5e9, 5e9)
         plt.gca().invert_xaxis()
-        plt.savefig("uv_coverage_m87_space.png")
+        plt.savefig("uv_coverage_m87_space_with_conjugates.png")
         plt.show()
 
     def tearDown(self):
