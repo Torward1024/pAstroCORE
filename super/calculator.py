@@ -201,6 +201,52 @@ class Calculator(ABC):
                     visibility[tel_code].append(is_visible)
             return {"source": source.get_name(), "times": [t.isot for t in times], "visibility": visibility}
     
+    def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time) -> Dict[str, bool]:
+        """Compute visibility of a source for telescopes at a given time, considering mount type"""
+        source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
+        visibility = {}
+        for tel in telescopes:
+            if isinstance(tel, SpaceTelescope):
+                tm = time.to_datetime()
+                tm = tm.replace(tzinfo=timezone.utc)
+                pos, _ = tel.get_state_vector(tm)
+                itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
+                altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
+                pitch = altaz.alt.deg
+                yaw = altaz.az.deg
+                pitch_range = tel.get_pitch_range()
+                yaw_range = tel.get_yaw_range()
+                is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
+            else:
+                x, y, z = tel.get_coordinates()
+                vx, vy, vz = tel.get_velocities()
+                dt = (time - Time("2000-01-01T12:00:00")).sec
+                itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
+                itrs = ITRS(itrs_coords, obstime=time)
+                location = itrs.earth_location
+                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
+                el = altaz.alt.deg
+                az = altaz.az.deg
+                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
+                ha = hadec.ha.deg
+
+                mount_type = tel.get_mount_type()
+                if mount_type == MountType.AZIMUTHAL:
+                    el_range = tel.get_elevation_range()
+                    az_range = tel.get_azimuth_range()
+                    is_visible = (el_range[0] <= el <= el_range[1]) and (az_range[0] <= az <= az_range[1])
+                elif mount_type == MountType.EQUATORIAL:
+                    dec = hadec.dec.deg
+                    ha_range = tel.get_azimuth_range()
+                    dec_range = tel.get_elevation_range()
+                    is_visible = (dec_range[0] <= dec <= dec_range[1]) and (ha_range[0] <= ha <= ha_range[1])
+                    
+                else:
+                    logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel.get_code()}'")
+                    is_visible = False
+            visibility[tel.get_code()] = is_visible
+        return visibility
+    
     def _calculate_uv_coverage(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate (u,v) coverage for all scans in the observation or project"""
         try:
@@ -325,54 +371,6 @@ class Calculator(ABC):
                     uv_points[freq].append((pair, uuu, vvv, www))
 
         return uv_points
-    
-    def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time) -> Dict[str, bool]:
-        """Compute visibility of a source for telescopes at a given time, considering mount type"""
-        source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
-        visibility = {}
-        for tel in telescopes:
-            if isinstance(tel, SpaceTelescope):
-                tm = time.to_datetime()
-                tm = tm.replace(tzinfo=timezone.utc)
-                pos, _ = tel.get_state_vector(tm)
-                itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
-                altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
-                pitch = altaz.alt.deg
-                yaw = altaz.az.deg
-                pitch_range = tel.get_pitch_range()
-                yaw_range = tel.get_yaw_range()
-                #is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
-                is_visibile = True
-            else:
-                x, y, z = tel.get_coordinates()
-                vx, vy, vz = tel.get_velocities()
-                dt = (time - Time("2000-01-01T12:00:00")).sec
-                itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
-                itrs = ITRS(itrs_coords, obstime=time)
-                location = itrs.earth_location
-                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
-                el = altaz.alt.deg
-                az = altaz.az.deg
-                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
-                ha = hadec.ha.deg
-
-                mount_type = tel.get_mount_type()
-                if mount_type == MountType.AZIMUTHAL:
-                    el_range = tel.get_elevation_range()
-                    az_range = tel.get_azimuth_range()
-                    is_visible = (el_range[0] <= el <= el_range[1]) and (az_range[0] <= az <= az_range[1])
-                elif mount_type == MountType.EQUATORIAL:
-                    dec = hadec.dec.deg
-                    ha_range = tel.get_azimuth_range()
-                    dec_range = tel.get_elevation_range()
-                    is_visible = (dec_range[0] <= dec <= dec_range[1]) and (ha_range[0] <= ha <= ha_range[1])
-                else:
-                    logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel.get_code()}'")
-                    is_visible = False
-
-                logger.debug(f"Telescope {tel.get_code()} at {time.isot}: Lat={location.lat.deg:.2f}, Lon={location.lon.deg:.2f}, Pos={(x, y, z)}")
-            visibility[tel.get_code()] = is_visible
-        return visibility
 
     def _calculate_sun_angles(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate angles between source and Sun for all scans in the observation or project"""

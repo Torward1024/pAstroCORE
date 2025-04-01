@@ -90,7 +90,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         scan_attributes = {
             "set_scan": {
                 "start": ts,
-                "duration": 172800,  # 48 часов (2 дня)
+                "duration": 172800,
                 "source_index": 0,
                 "telescope_indices": [0, 1, 2, 3],  # ALMA, APEX, SMT, SPACE370
                 "frequency_indices": [0]
@@ -129,11 +129,9 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.assertTrue(uv_results, "UV calculation failed")
         print(f"UV calculation took {time.time() - start:.2f} seconds")
 
-        # 7. Визуализация
         uv_data = observation.get_calculated_data_by_key("uv_coverage_f0")["data"]
         freq = 86e9  # 86 GHz в Гц
 
-        # Определяем все возможные пары и их цвета
         colors = {
             'ALMA-SPACE370': 'purple',
             'APEX-SPACE370': 'blue',
@@ -145,33 +143,22 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         u_points_dict = {pair: [] for pair in colors.keys()}
         v_points_dict = {pair: [] for pair in colors.keys()}
         w_points_dict = {pair: [] for pair in colors.keys()}
-        u_conj_points_dict = {pair: [] for pair in colors.keys()}  # Для сопряжённых
-        v_conj_points_dict = {pair: [] for pair in colors.keys()}  # Для сопряжённых
+        u_conj_points_dict = {pair: [] for pair in colors.keys()}
+        v_conj_points_dict = {pair: [] for pair in colors.keys()}
 
         for scan_idx, scan_data in uv_data.items():
             if "uv_points" not in scan_data or freq not in scan_data["uv_points"]:
                 logger.error(f"No valid UV points for scan {scan_idx} at frequency {freq}")
                 continue
-            uv_points = scan_data["uv_points"][freq]  # Список кортежей (pair, u, v, w)
-            times = scan_data.get("times", [])
-            if not times:
-                logger.warning(f"No times available for scan {scan_idx}, skipping time-based processing")
-                for pair, uu, vv, ww in uv_points:
-                    if pair in u_points_dict:
-                        u_points_dict[pair].append(float(uu))
-                        v_points_dict[pair].append(float(vv))
-                        w_points_dict[pair].append(float(ww))
-                        u_conj_points_dict[pair].append(-float(uu))
-                        v_conj_points_dict[pair].append(-float(vv))
-            else:
-                for t, (pair, uu, vv, ww) in zip(times, uv_points):
-                    if pair in u_points_dict:
-                        u_points_dict[pair].append(float(uu))
-                        v_points_dict[pair].append(float(vv))
-                        w_points_dict[pair].append(float(ww))
-                        u_conj_points_dict[pair].append(-float(uu))
-                        v_conj_points_dict[pair].append(-float(vv))
-                        logger.debug(f"Time: {t}, Pair: {pair}, u: {uu:.4f}, v: {vv:.4f}, w: {ww:.4f}, conj_u: {-uu:.4f}, conj_v: {-vv:.4f}")
+            uv_points = scan_data["uv_points"][freq]
+            
+            for i, (pair, uu, vv, ww) in enumerate(uv_points):
+                if pair in u_points_dict:
+                    u_points_dict[pair].append(float(uu))
+                    v_points_dict[pair].append(float(vv))
+                    w_points_dict[pair].append(float(ww))
+                    u_conj_points_dict[pair].append(-float(uu))
+                    v_conj_points_dict[pair].append(-float(vv))
 
         # Проверка данных
         self.assertGreater(len(u_points_dict['ALMA-SPACE370']), 0, "No points for ALMA-SPACE370 baseline")
