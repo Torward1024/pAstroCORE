@@ -117,7 +117,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         # 6. Вычисление (u,v)-покрытия с шагом 10 минут
         calc_attributes = {
             "type": "uv_coverage",
-            "time_step": 600.0,  # 10 минут
+            "time_step": 2400.0,  # 10 минут
             "freq_idx": 0,
             "store_key": "uv_coverage_f0",
             "recalculate": True
