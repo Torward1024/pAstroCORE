@@ -145,6 +145,19 @@ class Configurator(ABC):
             return False
         logger.info(f"Successfully configured {obj_type.__name__}: code='{tel_obj.get_code()}'")
         return True
+    
+    def _configure_space_telescope(self, tel_obj: SpaceTelescope, attributes: Dict[str, Any]) -> bool:
+        """Configure a SpaceTelescope object"""
+        valid_methods = self._manipulator.get_methods_for_type(SpaceTelescope)
+        applied = False
+        for method_name, method_args in attributes.items():
+            if self._validate_and_apply_method(tel_obj, method_name, method_args, valid_methods):
+                applied = True
+        if not applied:
+            logger.warning("No valid methods provided for SpaceTelescope configuration")
+            return False
+        logger.info(f"Successfully configured SpaceTelescope: code='{tel_obj.get_code()}'")
+        return True
 
     def _configure_telescopes(self, tel_obj: Telescopes, attributes: Dict[str, Any]) -> bool:
         """Configure a Telescopes object"""
@@ -279,7 +292,13 @@ class Configurator(ABC):
 
         obj_type = type(obj)
         config_methods = self._manipulator.get_methods_for_type(Configurator)
-        config_method_name = f"_configure_{obj_type.__name__.lower()}"
+
+        if isinstance(obj, SpaceTelescope):
+            config_method_name = "_configure_space_telescope"
+        elif isinstance(obj, Telescope):
+            config_method_name = "_configure_telescope"
+        else:
+            config_method_name = f"_configure_{obj_type.__name__.lower()}"
 
         if config_method_name not in config_methods:
             logger.error(f"No configuration method found for {obj_type.__name__}")

@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
 import threading
 import math
+from datetime import timezone
 
 
 class Calculator(ABC):
@@ -107,6 +108,10 @@ class Calculator(ABC):
             logger.warning(f"No active telescopes for scan starting at {start_time}")
             return {"telescope_positions": {}}
 
+        for tel in active_telescopes:
+            if isinstance(tel, SpaceTelescope) and not tel._use_kep:
+                tel.interpolate_orbit(Time(start_time), end_time, time_step or duration / 2)
+
         if time_step is None:
             mean_time = Time(start_time) + (duration / 2) * u.s
             positions = {tel.get_code(): self._compute_telescope_position(tel, mean_time) for tel in active_telescopes}
@@ -122,7 +127,7 @@ class Calculator(ABC):
     def _compute_telescope_position(self, telescope: Telescope | SpaceTelescope, time: Time) -> Tuple[float, float, float]:
         """Compute the J2000 position of a telescope at a given time"""
         if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope):
-            x, y, z = telescope.get_coordinates()  # Фиксированные ITRS-координаты
+            x, y, z = telescope.get_coordinates()
             vx, vy, vz = telescope.get_velocities()
             dt = (time - Time("2000-01-01T12:00:00")).sec
             itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
@@ -130,7 +135,9 @@ class Calculator(ABC):
             gcrs = itrs.transform_to(GCRS(obstime=time))
             return (gcrs.cartesian.x.value, gcrs.cartesian.y.value, gcrs.cartesian.z.value)
         elif isinstance(telescope, SpaceTelescope):
-            pos, _ = telescope.get_state_vector(time.to_datetime())
+            tm = time.to_datetime()
+            tm = tm.replace(tzinfo=timezone.utc)
+            pos, _ = telescope.get_state_vector(tm)
             return tuple(float(p) for p in pos)
         raise ValueError(f"Unsupported telescope type: {type(telescope)}")
 
@@ -262,7 +269,6 @@ class Calculator(ABC):
         else:
             times = np.arange(0, duration, time_step) * u.s + start_time
             uv_points = {f: [] for f in freqs}
-            # Кэшируем позиции для всех времён
             gcrs_positions = {t: [self._compute_telescope_position(tel, t) for tel in active_telescopes] for t in times}
             if visibility_data and "data" in visibility_data and 0 in visibility_data["data"] and "times" in visibility_data["data"][0]:
                 visibility_list = visibility_data["data"][0]["visibility"]
@@ -330,7 +336,9 @@ class Calculator(ABC):
         visibility = {}
         for tel in telescopes:
             if isinstance(tel, SpaceTelescope):
-                pos, _ = tel.get_state_vector(time.to_datetime())
+                tm = time.to_datetime()
+                tm = tm.replace(tzinfo=timezone.utc)
+                pos, _ = tel.get_state_vector(tm)
                 itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
                 altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
                 pitch = altaz.alt.deg

@@ -1,6 +1,7 @@
 from base.base_entity import BaseEntity
 from utils.validation import check_type, check_non_empty_string, check_positive, check_range
 from utils.logging_setup import logger
+from datetime import timezone
 import numpy as np
 from scipy.interpolate import CubicSpline
 from numpy.polynomial import chebyshev
@@ -577,7 +578,7 @@ class Telescope(BaseEntity):
         get_yaw_range
         get_use_kep
 
-        set_space_telescope
+        set_telescope
         set_keplerian
         set_pitch_range
         set_yaw_range
@@ -601,7 +602,8 @@ class SpaceTelescope(Telescope):
              pitch_range: Tuple[float, float] = (-90.0, 90.0),
              yaw_range: Tuple[float, float] = (-180.0, 180.0),
              isactive: bool = True, use_kep: bool = True,
-             kepler_elements: Optional[dict] = None):
+             kepler_elements: Optional[dict] = None,
+             interpolation_method: str = "chebyshev"):
         """Initialize a SpaceTelescope object with code, name, orbit file, diameter, and additional parameters.
 
         Args:
@@ -649,6 +651,8 @@ class SpaceTelescope(Telescope):
                 check_type(kepler_elements["nu"], (int, float), "True anomaly")
                 check_type(kepler_elements["epoch"], datetime, "Epoch")
                 check_positive(kepler_elements["mu"], "Gravitational parameter")
+                if isinstance(kepler_elements["epoch"], datetime) and kepler_elements["epoch"].tzinfo is None:
+                    kepler_elements["epoch"] = kepler_elements["epoch"].replace(tzinfo=timezone.utc)
                 self._kepler_elements = kepler_elements.copy()
             else:
                 logger.warning(f"Initialized SpaceTelescope '{code}' with use_kep=True but no kepler_elements provided")
@@ -660,6 +664,9 @@ class SpaceTelescope(Telescope):
             else:
                 logger.warning(f"Initialized SpaceTelescope '{code}' with use_kep=False but no orbit_file provided")
             self._kepler_elements = None
+        
+        self._interpolation_method = interpolation_method
+        self._interpolated_orbit = None
 
     def load_orbit(self, orbit_file: str) -> None:
         """Load orbit data from a CCSDS OEM 2.0 file into memory"""
@@ -685,7 +692,8 @@ class SpaceTelescope(Telescope):
                         continue
                     time_str = parts[0]
                     time = datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%f")
-                    j2000_epoch = datetime(2000, 1, 1, 12, 0, 0)
+                    time = time.replace(tzinfo=timezone.utc)  # Ensure timezone is UTC
+                    j2000_epoch = datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
                     time_sec = (time - j2000_epoch).total_seconds()
                     x, y, z = map(float, parts[1:4])  # km -> m
                     vx, vy, vz = map(float, parts[4:7])  # km/s -> m/s
@@ -709,37 +717,70 @@ class SpaceTelescope(Telescope):
         self._orbit_file = orbit_file
         logger.info(f"Loaded orbit data from '{orbit_file}' into memory for SpaceTelescope '{self._code}'")
 
-    def interpolate_orbit_chebyshev(self, degree: int = 5) -> None:
-        """Interpolate orbit data using Chebyshev polynomials"""
-        if self._orbit_data is None:
-            logger.error(f"No orbit data loaded for '{self._code}'")
-            raise ValueError("No orbit data loaded!")
-        times = self._orbit_data["times"]
-        t_min, t_max = min(times), max(times)
-        norm_times = 2 * (times - t_min) / (t_max - t_min) - 1  # Нормализация к [-1, 1]
-        positions = self._orbit_data["positions"]
-        velocities = self._orbit_data["velocities"]
-        self._chebyshev_coeffs = {
-            "time_range": (t_min, t_max),
-            "positions": [chebyshev.Chebyshev.fit(norm_times, pos, degree) for pos in positions.T],
-            "velocities": [chebyshev.Chebyshev.fit(norm_times, vel, degree) for vel in velocities.T]
-        }
-        logger.info(f"Interpolated orbit for '{self._code}' using Chebyshev polynomials (degree={degree})")
+    def set_interpolation_method(self, method: str) -> None:
+        """Установить метод интерполяции."""
+        valid_methods = {"linear", "chebyshev", "cubic_spline"}
+        if method not in valid_methods:
+            raise ValueError(f"Interpolation method must be one of {valid_methods}, got {method}")
+        self._interpolation_method = method
+        self._interpolated_orbit = None  # Сбрасываем интерполяцию при смене метода
+        logger.info(f"Set interpolation method to '{method}' for SpaceTelescope '{self._code}'")
 
-    def interpolate_orbit_cubic_spline(self) -> None:
-        """Interpolate orbit data using cubic splines"""
+    def interpolate_orbit(self, start_time: datetime, end_time: datetime, time_step: float) -> None:
+        """ Interpolate orbit data """
+        if self._use_kep:
+            logger.debug(f"Using Keplerian elements for '{self._code}', skipping interpolation")
+            return
+
         if self._orbit_data is None:
-            logger.error(f"No orbit data loaded for '{self._code}'")
-            raise ValueError("No orbit data loaded!")
+            raise ValueError(f"No orbit data loaded for '{self._code}'")
+
         times = self._orbit_data["times"]
         positions = self._orbit_data["positions"]
         velocities = self._orbit_data["velocities"]
-        self._cubic_splines = {
-            "time_range": (min(times), max(times)),
-            "positions": [CubicSpline(times, pos) for pos in positions.T],
-            "velocities": [CubicSpline(times, vel) for vel in velocities.T]
-        }
-        logger.info(f"Interpolated orbit for '{self._code}' using cubic splines")
+
+        # convert start_time and end_time to UTC if not already
+        start_time = start_time.replace(tzinfo=timezone.utc) 
+        end_time = end_time.replace(tzinfo=timezone.utc)
+        t_start = (start_time - datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)).total_seconds()
+        t_end = (end_time - datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)).total_seconds()
+
+        # filter out orbit data outside the time range
+        mask = (times >= t_start) & (times <= t_end)
+        if not np.any(mask):
+            raise ValueError(f"No orbit data within time range {start_time.isot} to {end_time.isot}")
+        
+        filtered_times = times[mask]
+        filtered_positions = positions[mask]
+        filtered_velocities = velocities[mask]
+
+        # generate homogeneous grid of times for interpolation
+        interp_times = np.arange(t_start, t_end + time_step, time_step)
+        
+        if self._interpolation_method == "chebyshev":
+            degree = 5 # implement adjustable later
+            norm_times = 2 * (filtered_times - t_start) / (t_end - t_start) - 1
+            self._interpolated_orbit = {
+                "time_range": (t_start, t_end),
+                "times": interp_times,
+                "positions": [chebyshev.Chebyshev.fit(norm_times, pos, degree)(norm_times) for pos in filtered_positions.T],
+                "velocities": [chebyshev.Chebyshev.fit(norm_times, vel, degree)(norm_times) for vel in filtered_velocities.T]
+            }
+        elif self._interpolation_method == "cubic_spline":
+            self._interpolated_orbit = {
+                "time_range": (t_start, t_end),
+                "times": interp_times,
+                "positions": [CubicSpline(filtered_times, pos)(interp_times) for pos in filtered_positions.T],
+                "velocities": [CubicSpline(filtered_times, vel)(interp_times) for vel in filtered_velocities.T]
+            }
+        else:  # linear
+            self._interpolated_orbit = {
+                "time_range": (t_start, t_end),
+                "times": interp_times,
+                "positions": [np.interp(interp_times, filtered_times, pos) for pos in filtered_positions.T],
+                "velocities": [np.interp(interp_times, filtered_times, vel) for vel in filtered_velocities.T]
+            }
+        logger.info(f"Interpolated orbit for '{self._code}' using {self._interpolation_method} from {start_time.isot} to {end_time.isot}")
     
     def get_state_vector(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
         """Get state vector to date"""
@@ -753,9 +794,13 @@ class SpaceTelescope(Telescope):
         if self._kepler_elements is None:
             logger.error(f"No Keplerian elements set for '{self._code}'")
             raise ValueError("No Keplerian elements set!")
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
         a, e, i, raan, argp, nu0, epoch, mu = (
             self._kepler_elements[k] for k in ["a", "e", "i", "raan", "argp", "nu", "epoch", "mu"]
         )
+        if epoch.tzinfo is None:
+            epoch = epoch.replace(tzinfo=timezone.utc)  # Ensure epoch is timezone-aware
         t = (dt - epoch).total_seconds()
         M = np.sqrt(mu / a**3) * t + self._solve_kepler(nu0, e)  # Mean anomaly
         E = self._solve_kepler(M, e)  # Eccentric anomaly
@@ -777,32 +822,37 @@ class SpaceTelescope(Telescope):
         return pos, vel
 
     def get_state_vector_from_orbit(self, dt: datetime) -> tuple[np.ndarray, np.ndarray]:
+        """Get telescope position and velocity from orbit data at a given time"""
         if self._orbit_data is None:
-            logger.error(f"No orbit data defined for '{self._code}'")
-            raise ValueError("No orbit data available! Load an orbit file first.")
-        t = (dt - datetime(2000, 1, 1, 12, 0, 0)).total_seconds()
+            raise ValueError(f"No orbit data defined for '{self._code}'")
+
+        t = (dt - datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc)).total_seconds()
+        
+        if self._interpolated_orbit and "time_range" in self._interpolated_orbit:
+            t_min, t_max = self._interpolated_orbit["time_range"]
+            if t_min <= t <= t_max:
+                interp_times = self._interpolated_orbit["times"]
+                idx = np.searchsorted(interp_times, t)
+                if idx == 0 or idx == len(interp_times):
+                    logger.debug(f"Time {t} outside interpolated range, falling back to last known state")
+                    return np.array([self._x, self._y, self._z]), np.array([self._vx, self._vy, self._vz])
+                pos = np.array([p[idx - 1] + (p[idx] - p[idx - 1]) * (t - interp_times[idx - 1]) / (interp_times[idx] - interp_times[idx - 1]) 
+                                for p in self._interpolated_orbit["positions"]])
+                vel = np.array([v[idx - 1] + (v[idx] - v[idx - 1]) * (t - interp_times[idx - 1]) / (interp_times[idx] - interp_times[idx - 1]) 
+                                for v in self._interpolated_orbit["velocities"]])
+                return pos, vel
+
+        # Если интерполяция не готова, используем линейную интерполяцию как fallback
         times = self._orbit_data["times"]
         if t < times[0] or t > times[-1]:
-            logger.debug(f"Time {t} outside orbit data range for '{self._code}'")
             return np.array([self._x, self._y, self._z]), np.array([self._vx, self._vy, self._vz])
-        if hasattr(self, "_cubic_splines") and self._cubic_splines:
-            pos = np.array([spline(t) for spline in self._cubic_splines["positions"]])
-            vel = np.array([spline(t, 1) for spline in self._cubic_splines["velocities"]])
-        elif hasattr(self, "_chebyshev_coeffs") and self._chebyshev_coeffs:
-            t_min, t_max = self._chebyshev_coeffs["time_range"]
-            norm_t = 2 * (t - t_min) / (t_max - t_min) - 1
-            pos = np.array([coeff(norm_t) for coeff in self._chebyshev_coeffs["positions"]])
-            vel = np.array([coeff.deriv()(norm_t) for coeff in self._chebyshev_coeffs["velocities"]])
-        else:
-            pos_idx = np.searchsorted(times, t)
-            t1, t2 = times[pos_idx - 1], times[pos_idx]
-            pos1, pos2 = self._orbit_data["positions"][pos_idx - 1], self._orbit_data["positions"][pos_idx]
-            vel1, vel2 = self._orbit_data["velocities"][pos_idx - 1], self._orbit_data["velocities"][pos_idx]
-            frac = (t - t1) / (t2 - t1)
-            pos = pos1 + (pos2 - pos1) * frac
-            vel = vel1 + (vel2 - vel1) * frac
-            logger.warning(f"Using linear interpolation for position and velocity at time {t} for '{self._code}'")
-        logger.debug(f"Retrieved position={pos}, velocity={vel} for '{self._code}' at {dt}")
+        pos_idx = np.searchsorted(times, t)
+        t1, t2 = times[pos_idx - 1], times[pos_idx]
+        pos1, pos2 = self._orbit_data["positions"][pos_idx - 1], self._orbit_data["positions"][pos_idx]
+        vel1, vel2 = self._orbit_data["velocities"][pos_idx - 1], self._orbit_data["velocities"][pos_idx]
+        frac = (t - t1) / (t2 - t1)
+        pos = pos1 + (pos2 - pos1) * frac
+        vel = vel1 + (vel2 - vel1) * frac
         return pos, vel
     
     def get_keplerian(self) -> Optional[Dict[str, any]]:
@@ -834,7 +884,7 @@ class SpaceTelescope(Telescope):
         logger.debug(f"Retrieved use_keplerian={self._use_kep} for SpaceTelescope '{self._code}'")
         return self._use_kep
     
-    def set_space_telescope(self, code: str, name: str, orbit_file: str, diameter: float,
+    def set_telescope(self, code: str, name: str, orbit_file: str, diameter: float,
                            sefd_table: Optional[Dict[float, float]] = None,
                            pitch_range: Tuple[float, float] = (-90.0, 90.0),
                            yaw_range: Tuple[float, float] = (-180.0, 180.0),

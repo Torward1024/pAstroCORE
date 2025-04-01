@@ -102,7 +102,7 @@ class Scan(BaseEntity):
     
     def get_end_datetime(self) -> datetime:
         """Get end time of scan in DateTime format"""
-        return datetime.fromtimestamp(self._start + self._duration)
+        return datetime.fromtimestamp(self._start + self._duration, tz=timezone.utc)
 
     def get_MJD_starttime(self) -> float:
         """Get start time of scan in MJD"""
@@ -257,7 +257,7 @@ class Scan(BaseEntity):
             # rough LST estimation
             lst = (time / 86164.0905 * 360 + 280.46061837) % 360  
             if isinstance(telescope, SpaceTelescope):
-                pos, _ = telescope.get_position_at_time(dt)
+                pos, _ = telescope.get_state_vector(dt)
                 dist = np.linalg.norm(pos)
                 # conditional visibility threshold
                 visible = dist < 1e9  
