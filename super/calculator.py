@@ -15,6 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
 import threading
 import math
+import numpy as np
+from scipy.fft import fft2, fftshift
 
 class Calculator(ABC):
     """Super-class for performing calculations on Project or Observation objects"""
@@ -34,10 +36,10 @@ class Calculator(ABC):
             logger.info(f"Using cached data for '{store_key}' in '{obj.get_observation_code()}'")
             return existing_data["data"]
 
-        logger.info(f"Calculating data for '{store_key}' in '{obj.get_observation_code()}'")
         result = calc_func(obj, attributes)
         with self._lock:
             obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": result})
+
         return result
 
     def _calculate_telescope_positions(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -621,7 +623,6 @@ class Calculator(ABC):
             return {}
 
     def _calculate_synthesized_beam(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate synthesized beam for VLBI observation or project"""
         try:
             freq_idx = attributes.get("freq_idx", 0)
             store_key = attributes.get("store_key", f"synthesized_beam_f{freq_idx}")
@@ -629,14 +630,10 @@ class Calculator(ABC):
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
-                if not observations:
-                    logger.warning(f"No observations in project '{obj.get_name()}'")
-                    return {}
                 results = {}
                 for obs in observations:
                     obs_result = self._calculate_synthesized_beam(obs, attributes)
                     results[obs.get_observation_code()] = obs_result
-                logger.info(f"Calculated synthesized beam for {len(observations)} observations in project '{obj.get_name()}'")
                 return results
 
             if obj.get_observation_type() != "VLBI":
@@ -644,49 +641,99 @@ class Calculator(ABC):
                 return {}
 
             frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6  # MHz -> Hz
+            uv_store_key = f"uv_coverage_f{freq_idx}"
 
-            existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate:
+            # Проверяем кэш synthesized_beam
+            existing_beam_data = obj.get_calculated_data_by_key(store_key)
+            if existing_beam_data and not recalculate:
                 logger.info(f"Using cached synthesized beam for '{obj.get_observation_code()}'")
-                return existing_data["data"]
+                return existing_beam_data["data"]
 
-            uv_data = self._calculate_uv_coverage(obj, {"time_step": attributes.get("time_step"), "freq_idx": freq_idx})
+            # Получаем UV-данные
+            uv_data = obj.get_calculated_data_by_key(uv_store_key)
             if not uv_data:
-                logger.error(f"No UV data available for synthesized beam calculation in '{obj.get_observation_code()}'")
+                logger.info(f"Recalculating UV coverage for '{obj.get_observation_code()}' as no cache found")
+                uv_data = self._calculate_uv_coverage(obj, {
+                    "time_step": attributes.get("time_step"),
+                    "freq_idx": freq_idx,
+                    "store_key": uv_store_key,
+                    "recalculate": False
+                })
+
+            if not uv_data:
+                logger.error(f"No UV data available for synthesized beam calculation")
                 return {}
 
-            results = {}
-            c = 299792458  # m/s
-            wavelength = c / frequency
-            for scan_idx, scan_data in uv_data.items():
-                if "times" in scan_data:
-                    uv_points = scan_data["uv_points"].get(frequency, [])
-                else:
-                    uv_points = scan_data["uv_points"].get(frequency, [])
-                
-                if not uv_points or not isinstance(uv_points, (list, tuple)):
-                    logger.warning(f"No valid UV points for scan {scan_idx} at frequency {frequency/1e6} MHz")
+            # Собираем все (u,v)-точки из 'data'
+            u = []
+            v = []
+            for scan_idx, scan_data in uv_data.get('data', {}).items():  # Исправлено: итерируемся по 'data'
+                uv_points = scan_data.get("uv_points", {}).get(frequency, [])
+                logger.debug(f"Scan {scan_idx} uv_points for {frequency/1e6} MHz: {uv_points}")  # Добавляем отладку
+                if not uv_points:
                     continue
+                u.extend([point[1] for point in uv_points])  # u в длинах волн
+                v.extend([point[2] for point in uv_points])  # v в длинах волн
 
-                u = [point[1] for point in uv_points]  # Исправляем доступ к данным
-                v = [point[2] for point in uv_points]
-                max_baseline = np.max(np.sqrt(np.array(u)**2 + np.array(v)**2)) * wavelength
-                theta_fwhm = 1.22 * wavelength / max_baseline  # radians
-                theta = np.linspace(-theta_fwhm*2, theta_fwhm*2, 1000)
-                pattern = np.exp(-4 * np.log(2) * (theta / theta_fwhm) ** 2)  # Gaussian
-                results[scan_idx] = {"theta": theta.tolist(), "pattern": pattern.tolist()}
+            if not u or not v:
+                logger.warning(f"No valid UV points for frequency {frequency/1e6} MHz")
+                return {}
 
+            # Создаём 2D-сетку для UV-плоскости
+            u_max = max(abs(min(u)), abs(max(u)))
+            v_max = max(abs(min(v)), abs(max(v)))
+            grid_size = 512  # Размер сетки для FFT
+            u_grid = np.linspace(-u_max, u_max, grid_size)
+            v_grid = np.linspace(-v_max, v_max, grid_size)
+            uv_plane = np.zeros((grid_size, grid_size), dtype=complex)
+
+            # Заполняем UV-плоскость
+            for uu, vv in zip(u, v):
+                u_idx = int((uu + u_max) / (2 * u_max) * (grid_size - 1))
+                v_idx = int((vv + v_max) / (2 * v_max) * (grid_size - 1))
+                if 0 <= u_idx < grid_size and 0 <= v_idx < grid_size:
+                    uv_plane[v_idx, u_idx] = 1.0
+
+            # Добавляем сопряжённые точки
+            for uu, vv in zip(u, v):
+                u_idx = int((-uu + u_max) / (2 * u_max) * (grid_size - 1))
+                v_idx = int((-vv + v_max) / (2 * v_max) * (grid_size - 1))
+                if 0 <= u_idx < grid_size and 0 <= v_idx < grid_size:
+                    uv_plane[v_idx, u_idx] = 1.0
+
+            # Выполняем обратное 2D-Фурье
+            beam_2d = fftshift(fft2(uv_plane))
+            beam_2d = np.abs(beam_2d)
+            beam_2d /= beam_2d.max()
+
+            # Вычисляем угловые координаты
+            wavelength = 299792458 / frequency
+            theta_u_max = wavelength / (2 * u_max)
+            theta_v_max = wavelength / (2 * v_max)
+            theta_u = np.linspace(-theta_u_max, theta_u_max, grid_size)
+            theta_v = np.linspace(-theta_v_max, theta_v_max, grid_size)
+            theta_u_deg = np.degrees(theta_u)
+            theta_v_deg = np.degrees(theta_v)
+
+            # Формируем результат
+            results = {
+                0: {
+                    "theta_u": theta_u_deg.tolist(),
+                    "theta_v": theta_v_deg.tolist(),
+                    "beam_2d": beam_2d.tolist()
+                }
+            }
             metadata = {"freq_idx": freq_idx}
             with self._lock:
                 obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated synthesized beam for '{obj.get_observation_code()}' at {frequency/1e6} MHz")
+            logger.info(f"Calculated 2D synthesized beam for '{obj.get_observation_code()}' at {frequency/1e6} MHz via FFT")
             return results
+
         except Exception as e:
             logger.error(f"Failed to calculate synthesized beam: {str(e)}")
             return {}
         
     def _calculate_baseline_projections(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate baseline projections for VLBI observation or project, reusing (u,v) if available"""
         try:
             time_step = attributes.get("time_step")
             freq_idx = attributes.get("freq_idx", 0)
@@ -719,16 +766,23 @@ class Calculator(ABC):
                 return {}
 
             existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate:
+            if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
                 logger.info(f"Using cached baseline projections for '{obj.get_observation_code()}'")
                 return existing_data["data"]
 
-            uv_store_key = attributes.get("uv_store_key", f"uv_coverage_f{freq_idx}")
+            # Проверяем наличие (u,v) данных
+            uv_store_key = f"uv_coverage_f{freq_idx}"
             uv_data = obj.get_calculated_data_by_key(uv_store_key)
-            if uv_data and not recalculate and uv_data["metadata"]["time_step"] == time_step:
-                logger.info(f"Reusing existing (u,v) data for baseline projections in '{obj.get_observation_code()}'")
-            else:
-                uv_data = self._calculate_uv_coverage(obj, {"time_step": time_step, "freq_idx": freq_idx, "store_key": uv_store_key})
+            logger.debug(f"Retrieved uv_data for '{uv_store_key}': {uv_data}")  # Добавляем отладочный вывод
+            if not uv_data or recalculate or uv_data["metadata"].get("time_step") != time_step:
+                logger.info(f"Recalculating UV coverage for '{obj.get_observation_code()}'")
+                uv_data = self._calculate_uv_coverage(obj, {
+                    "time_step": time_step,
+                    "freq_idx": freq_idx,
+                    "store_key": uv_store_key,
+                    "recalculate": False
+                })
+                logger.debug(f"Recalculated uv_data: {uv_data}")
                 if not uv_data:
                     logger.error(f"Failed to calculate (u,v) coverage for baseline projections")
                     return {}
@@ -736,17 +790,20 @@ class Calculator(ABC):
             results = {}
             with ThreadPoolExecutor() as executor:
                 futures = {
-                    executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_idx, uv_data.get(i, {}), obj): i
+                    executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_idx, uv_data, obj): i
                     for i, scan in enumerate(scans)
                 }
                 for future in futures:
                     scan_idx = futures[future]
                     try:
-                        results[scan_idx] = future.result()
+                        result = future.result()
+                        logger.debug(f"Scan {scan_idx} result: {result}")
+                        results[scan_idx] = result
                     except Exception as e:
-                        logger.error(f"Failed to process scan {scan_idx} in baseline projections: {str(e)}")
+                        logger.error(f"Failed to process scan {scan_idx}: {str(e)}")
                         results[scan_idx] = {}
 
+            logger.debug(f"Final results before caching: {results}")
             metadata = {"time_step": time_step, "freq_idx": freq_idx, "scan_count": len(scans)}
             with self._lock:
                 obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
@@ -762,72 +819,66 @@ class Calculator(ABC):
         telescope_indices = scan.get_telescope_indices()
         active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
         frequency = frequencies.get_by_index(freq_idx).get_frequency() * 1e6
-        source = scan.get_source(observation=observation)
-        source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs') if source else None
+        scan_idx = list(observation.get_scans().get_active_scans(observation)).index(scan)
+
+
+        scan_uv_data = uv_data.get('data', {}).get(scan_idx, {})
+        if not scan_uv_data or "uv_points" not in scan_uv_data:
+            logger.error(f"No UV data available for scan {scan_idx} at {start_time.isot}")
+            return {"projections": {} if time_step is None else {"times": [], "projections": {}}}
 
         if time_step is None:
-            mean_time = start_time + (duration / 2) * u.s
-            if uv_data and "uv_points" in uv_data:
-                projections = self._compute_projections_from_uv(uv_data["uv_points"], active_telescopes, frequency)
-            else:
-                projections = self._compute_baseline_projections_at_time(active_telescopes, mean_time, frequency, source_coord)
+            projections = self._compute_projections_from_uv(scan_uv_data["uv_points"], active_telescopes, frequency)
+            logger.info(f"Static projections: {projections}")
             return {"projections": projections}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')  # Массовое создание Time
-            projections = {}
-            if uv_data and "uv_points" in uv_data and "times" in uv_data:
-                uv_points = uv_data["uv_points"].get(frequency, [])
-                for t_idx, uv_list in enumerate(uv_points):
-                    proj = self._compute_projections_from_uv({frequency: [uv_list]}, active_telescopes, frequency)
-                    for pair, (uu, vv, ww) in proj.items():
-                        projections.setdefault(pair, {"u": [], "v": [], "w": []})
-                        projections[pair]["u"].append(uu)
-                        projections[pair]["v"].append(vv)
-                        projections[pair]["w"].append(ww)
-            else:
-                for t in times:
-                    proj = self._compute_baseline_projections_at_time(active_telescopes, t, frequency, source_coord)
-                    for pair, (uu, vv, ww) in proj.items():
-                        projections.setdefault(pair, {"u": [], "v": [], "w": []})
-                        projections[pair]["u"].append(uu)
-                        projections[pair]["v"].append(vv)
-                        projections[pair]["w"].append(ww)
+            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+            projections = {
+                f"{t1.get_code()}-{t2.get_code()}": [] 
+                for i, t1 in enumerate(active_telescopes) 
+                for t2 in active_telescopes[i+1:]
+            }
+            uv_points = scan_uv_data.get("uv_points", {}).get(frequency, [])
+            if not uv_points:
+                logger.warning(f"No UV points found for frequency {frequency} in scan {scan_idx}")
+                return {"times": times.isot.tolist(), "projections": projections}
+
+            for uv_list in uv_points:
+                proj = self._compute_projections_from_uv({frequency: [uv_list]}, active_telescopes, frequency)
+                for pair, bl in proj.items():
+                    if pair in projections:
+                        projections[pair].append(bl)
+
+            logger.debug(f"Returning times: {len(times)}, projections: {projections}")
             return {"times": times.isot.tolist(), "projections": projections}
         
-    def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, Tuple[float, float, float]]:
-        """Compute (u, v, w) baseline projections at a given time for a given frequency"""
+    def _compute_projections_from_uv(self, uv_points: Dict[float, List[Tuple[str, float, float, float]]], telescopes: List[Telescope | SpaceTelescope], frequency: float) -> Dict[str, float]:
+        """Compute baseline projection BL = sqrt(u² + v²) from pre-calculated (u,v) data"""
+        projections = {}
+        uv_list = uv_points.get(frequency, [])
+        for pair, uuu, vvv, _ in uv_list:
+            bl = math.sqrt(uuu * uuu + vvv * vvv)  # BL = sqrt(u² + v²)
+            projections[pair] = bl
+        return projections
+
+    def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, float]:
+        """Fallback method to compute BL = sqrt(u² + v²) at a given time if UV data is unavailable"""
+        logger.warning(f"Fallback to direct computation of baseline projections at {time.isot}")
         positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
         c = 299792458  # m/s
         wavelength = c / frequency
         projections = {}
         
-        if source_coord is None:
-            for i, pos1 in enumerate(positions):
-                for j, pos2 in enumerate(positions[i + 1:], i + 1):
-                    baseline = np.array(pos1) - np.array(pos2)  # meters
-                    uu, vv, ww = baseline[0] / wavelength, baseline[1] / wavelength, 0.0
-                    pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                    projections[pair] = (uu, vv, ww)
-        else:
-            source_vec = source_coord.cartesian.xyz.value
-            for i, pos1 in enumerate(positions):
-                for j, pos2 in enumerate(positions[i + 1:], i + 1):
-                    baseline = np.array(pos1) - np.array(pos2)
-                    uvw = np.dot(baseline, source_vec) / wavelength 
-                    uu, vv = baseline[0] / wavelength, baseline[1] / wavelength
-                    ww = uvw 
-                    pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                    projections[pair] = (uu, vv, ww)
-    
-        return projections
-
-    def _compute_projections_from_uv(self, uv_points: Dict[float, List[Tuple[str, float, float, float]]], telescopes: List[Telescope | SpaceTelescope], frequency: float) -> Dict[str, Tuple[float, float, float]]:
-        """Compute (u, v, w) projections from pre-calculated (u,v) data"""
-        projections = {}
-        uv_list = uv_points[frequency]
-        for pair, uuu, vvv, www in uv_list:
-            projections[pair] = (uuu, vvv, www)
+        for i, pos1 in enumerate(positions):
+            for j, pos2 in enumerate(positions[i + 1:], i + 1):
+                baseline = np.array(pos1) - np.array(pos2)
+                uu = baseline[0] / wavelength
+                vv = baseline[1] / wavelength
+                bl = math.sqrt(uu * uu + vv * vv)  # BL = sqrt(u² + v²)
+                pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
+                projections[pair] = bl
+        
         return projections
 
     def _calculate_mollweide_tracks(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -922,10 +973,6 @@ class Calculator(ABC):
                         lon, lat = self._compute_mollweide_coords_from_position(pos, t)
                         tracks[tel.get_code()]["lon"].append(lon)
                         tracks[tel.get_code()]["lat"].append(lat)
-            for tel in active_telescopes:
-                tel_code = tel.get_code()
-                lon_range = [min(tracks[tel_code]["lon"]), max(tracks[tel_code]["lon"])] if tracks[tel_code]["lon"] else [None, None]
-                lat_range = [min(tracks[tel_code]["lat"]), max(tracks[tel_code]["lat"])] if tracks[tel_code]["lat"] else [None, None]
 
         return {
             "source": {"name": source.get_name(), "lon": source_lon, "lat": source_lat},

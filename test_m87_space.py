@@ -22,7 +22,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         logger.info("Set up test environment with Manipulator and Project")
 
     def test_eht_observation_with_space_telescope(self):
-        """Тест полного цикла с космическим телескопом: настройка, вычисление (u,v), визуализация"""
+        """Тест полного цикла с космическим телескопом: настройка, вычисление (u,v), проекций базы, визуализация + beam_pattern и synthesized_beam"""
         # 1. Настройка источника M87
         m87_attributes = {
             "set_source": {
@@ -54,7 +54,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             self.manipulator.process_request("configure", "telescope", {"set_telescope": tel_data}, tel)
             telescopes.add_telescope(tel)
 
-        # Добавляем космический телескоп с орбитальным файлом
         space_tel_attributes = {
             "set_telescope": {
                 "code": "SPACE370",
@@ -82,13 +81,13 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.manipulator.process_request("configure", "if", frequency_attributes, frequency)
         frequencies = Frequencies([frequency])
 
-        # 4. Настройка сканирования (15.03.2031 - 17.03.2031, шаг 10 минут)
+        # 4. Настройка сканирования (10.03.2031 - 20.03.2031, шаг 10 минут)
         start_time = Time("2031-03-10T00:00:00", format="isot", scale="utc")
-        duration = 365*172800 * u.s  # 365 дней в секундах
+        duration = 10 * 24 * 3600 * u.s  # 10 дней в секундах
         scan_attributes = {
             "set_scan": {
                 "start": start_time,
-                "duration": duration.value,  # Передаем значение в секундах
+                "duration": duration.value,
                 "source_index": 0,
                 "telescope_indices": [0, 1, 2, 3],  # ALMA, APEX, SMT, SPACE370
                 "frequency_indices": [0]
@@ -98,7 +97,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.manipulator.process_request("configure", "scan", scan_attributes, scan)
         scans = Scans([scan])
 
-        # 5. Создание наблюдения
+        # 5. Создание VLBI наблюдения
         observation = Observation(observation_code="M87_SPACE_OBS")
         obs_attributes = {
             "set_observation": {
@@ -114,35 +113,88 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.manipulator.process_request("configure", "observation", obs_attributes, observation)
         self.project.add_observation(observation)
 
-        # 6. Вычисление (u,v)-покрытия с шагом 10 минут
+        # 6. Создание SINGLE_DISH наблюдения для beam_pattern
+        single_dish_obs = Observation(observation_code="M87_SINGLE_DISH", observation_type="SINGLE_DISH")
+        single_dish_attributes = {
+            "set_observation": {
+                "observation_code": "M87_SINGLE_DISH",
+                "sources": sources,
+                "telescopes": Telescopes([telescopes.get_by_index(0), telescopes.get_by_index(1)]),  # ALMA, APEX
+                "frequencies": frequencies,
+                "scans": Scans([Scan(start=start_time, duration=3600, source_index=0, telescope_indices=[0, 1], frequency_indices=[0])]),
+                "observation_type": "SINGLE_DISH",
+                "isactive": True
+            }
+        }
+        self.manipulator.process_request("configure", "observation", single_dish_attributes, single_dish_obs)
+        self.project.add_observation(single_dish_obs)
+
+        # 7. Вычисление (u,v)-покрытия с шагом 10 минут
         calc_attributes = {
             "type": "uv_coverage",
-            "time_step": 7200,  # 10 минут
+            "time_step": 600,
             "freq_idx": 0,
             "store_key": "uv_coverage_f0",
-            "recalculate": True
+            "recalculate": False
         }
-
         start = time.time()
-        uv_results = self.manipulator.process_request("calculate", "observation", calc_attributes, observation)
+        uv_results = self.manipulator.process_request("calculate", "observation", calc_attributes, self.project.get_by_index(0))
         self.assertTrue(uv_results, "UV calculation failed")
         print(f"UV calculation took {time.time() - start:.2f} seconds")
 
-        # 7. Вычисление Mollweide tracks с шагом 10 минут
+        # 8. Вычисление Mollweide tracks с шагом 10 минут
         calc_attributes_moll = {
             "type": "mollweide_tracks",
-            "time_step": 7200,  # 10 минут
+            "time_step": 600,
             "store_key": "mollweide_tracks",
-            "recalculate": True
+            "recalculate": False
         }
         start = time.time()
-        moll_results = self.manipulator.process_request("calculate", "observation", calc_attributes_moll, observation)
+        moll_results = self.manipulator.process_request("calculate", "observation", calc_attributes_moll, self.project.get_by_index(0))
         self.assertTrue(moll_results, "Mollweide calculation failed")
         print(f"Mollweide calculation took {time.time() - start:.2f} seconds")
 
+        # 9. Вычисление проекций базы с шагом 10 минут
+        calc_attributes_bl = {
+            "type": "baseline_projections",
+            "time_step": 600,
+            "freq_idx": 0,
+            "store_key": "baseline_projections_f0",
+            "recalculate": False
+        }
+        start = time.time()
+        bl_results = self.manipulator.process_request("calculate", "observation", calc_attributes_bl, self.project.get_by_index(0))
+        self.assertTrue(bl_results, "Baseline projections calculation failed")
+        print(f"Baseline projections calculation took {time.time() - start:.2f} seconds")
+
+        # 10. Вычисление beam_pattern для SINGLE_DISH
+        beam_attributes = {
+            "type": "beam_pattern",
+            "freq_idx": 0,
+            "store_key": "beam_pattern_f0",
+            "recalculate": False
+        }
+        start = time.time()
+        beam_results = self.manipulator.process_request("calculate", "observation", beam_attributes, self.project.get_by_index(1))
+        self.assertTrue(beam_results, "Beam pattern calculation failed")
+        print(f"Beam pattern calculation took {time.time() - start:.2f} seconds")
+
+        # 11. Вычисление synthesized_beam для VLBI
+        synth_attributes = {
+            "type": "synthesized_beam",
+            "freq_idx": 0,
+            "store_key": "synthesized_beam_f0",
+            "recalculate": False,
+            "time_step": 600  # Добавляем для совместимости с uv_coverage
+        }
+        start = time.time()
+        synth_results = self.manipulator.process_request("calculate", "observation", synth_attributes, self.project.get_by_index(0))
+        self.assertTrue(synth_results, "Synthesized beam calculation failed")
+        print(f"Synthesized beam calculation took {time.time() - start:.2f} seconds")
+
+        # Извлечение данных UV
         uv_data = observation.get_calculated_data_by_key("uv_coverage_f0")["data"]
         freq = 86e9  # 86 GHz в Гц
-
         colors = {
             'ALMA-SPACE370': 'purple',
             'APEX-SPACE370': 'blue',
@@ -162,8 +214,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 logger.error(f"No valid UV points for scan {scan_idx} at frequency {freq}")
                 continue
             uv_points = scan_data["uv_points"][freq]
-            
-            for i, (pair, uu, vv, ww) in enumerate(uv_points):
+            for pair, uu, vv, ww in uv_points:
                 if pair in u_points_dict:
                     u_points_dict[pair].append(float(uu))
                     v_points_dict[pair].append(float(vv))
@@ -171,18 +222,15 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                     u_conj_points_dict[pair].append(-float(uu))
                     v_conj_points_dict[pair].append(-float(vv))
 
-        # Проверка данных
         self.assertGreater(len(u_points_dict['ALMA-SPACE370']), 0, "No points for ALMA-SPACE370 baseline")
         self.assertGreater(len(u_points_dict['APEX-SPACE370']), 0, "No points for APEX-SPACE370 baseline")
         self.assertGreater(len(u_points_dict['SMT-SPACE370']), 0, "No points for SMT-SPACE370 baseline")
 
-        # Визуализация
+        # Визуализация UV
         plt.figure(figsize=(12, 12))
         for pair in u_points_dict:
-            if u_points_dict[pair]:  # Пропускаем пустые пары
-                # Оригинальные точки
+            if u_points_dict[pair]:
                 plt.scatter(u_points_dict[pair], v_points_dict[pair], s=10, label=f"{pair}", color=colors[pair])
-                # Комплексно сопряжённые точки (с другим стилем)
                 plt.scatter(u_conj_points_dict[pair], v_conj_points_dict[pair], s=10, color=colors[pair], 
                             alpha=0.5, marker='x', label=f"{pair} (conj)")
         plt.xlabel("u (wavelengths)")
@@ -198,64 +246,33 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         moll_data = observation.get_calculated_data_by_key("mollweide_tracks")["data"]
         self.assertGreater(len(moll_data), 0, "No Mollweide data calculated")
 
-        # Отладочный вывод для проверки значений
-        for scan_idx, scan_data in moll_data.items():
-            print(f"Scan {scan_idx}:")
-            source_data = scan_data.get("source", {})
-            print(f"  Source {source_data.get('name')}: lon={source_data.get('lon')}, lat={source_data.get('lat')}")
-            telescope_tracks = scan_data.get("telescope_tracks", {})
-            for tel_code in ['ALMA', 'APEX', 'SMT', 'SPACE370']:
-                track = telescope_tracks.get(tel_code, {})
-                if track:
-                    print(f"  {tel_code}: lon_range={min(track['lon']) if track['lon'] else None} to {max(track['lon']) if track['lon'] else None}, "
-                        f"lat_range={min(track['lat']) if track['lat'] else None} to {max(track['lat']) if track['lat'] else None}")
-
-        # В test_eht_observation_with_space_telescope
+        # Визуализация Mollweide
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111, projection='mollweide', facecolor='LightCyan')
-
-        # Отрисовка треков телескопов
-        colors = ['blue', 'green', 'red', 'purple']
         tel_codes = ['ALMA', 'APEX', 'SMT', 'SPACE370']
+        colors_moll = ['blue', 'green', 'red', 'purple']
         for scan_idx, scan_data in moll_data.items():
             telescope_tracks = scan_data.get("telescope_tracks", {})
             for i, tel_code in enumerate(tel_codes):
                 track = telescope_tracks.get(tel_code)
                 if track and track["lon"]:
-                    # lon уже в диапазоне [-180, 180], lat в [-90, 90] (в градусах)
-                    lon_points = np.array(track["lon"])
-                    lat_points = np.array(track["lat"])
-                    # Переводим в радианы для Matplotlib
-                    lon_points_rad = np.radians(lon_points)
-                    lat_points_rad = np.radians(lat_points)
-                    logger.debug(f"{tel_code} track: lon_points={track['lon'][:5]}, lat_points={track['lat'][:5]}")
-                    ax.scatter(lon_points_rad, lat_points_rad, s=20, c=colors[i], label=f"{tel_code} Track")
-                    ax.scatter(lon_points_rad[0], lat_points_rad[0], s=20, c=colors[i], marker='o')  # Начало
-                    ax.scatter(lon_points_rad[-1], lat_points_rad[-1], s=20, c=colors[i], marker='x')  # Конец
-
-            # Отрисовка положения источника
+                    lon_points = np.radians(np.array(track["lon"]))
+                    lat_points = np.radians(np.array(track["lat"]))
+                    ax.scatter(lon_points, lat_points, s=20, c=colors_moll[i], label=f"{tel_code} Track")
+                    ax.scatter(lon_points[0], lat_points[0], s=20, c=colors_moll[i], marker='o')
+                    ax.scatter(lon_points[-1], lat_points[-1], s=20, c=colors_moll[i], marker='x')
             source_data = scan_data.get("source", {})
-            source_lon = source_data.get("lon")  # Уже в [-180, 180]
-            source_lat = source_data.get("lat")  # Уже в [-90, 90]
-            source_lon_rad = np.radians(source_lon)
-            source_lat_rad = np.radians(source_lat)
-            logger.debug(f"Source {source_data.get('name')}: lon={source_lon}, lat={source_lat}")
+            source_lon_rad = np.radians(source_data.get("lon"))
+            source_lat_rad = np.radians(source_data.get("lat"))
             ax.scatter([source_lon_rad], [source_lat_rad], s=100, c='black', marker='*', label=f"{source_data.get('name')} (J2000)")
-
-        # Настройка меток
-        # RA в часах (0h–24h), что соответствует 0°–360°
-        ra_ticks_rad = ax.get_xticks()  # Matplotlib возвращает тики в радианах в диапазоне [-π, π]
-        ra_ticks_deg = np.degrees(ra_ticks_rad)  # Переводим в градусы: [-180, 180]
-        ra_ticks_hours = (ra_ticks_deg + 180) / 15.0  # Преобразуем в часы: 0h–24h
-
-        dec_ticks_rad = ax.get_yticks()  # Тики по Dec в радианах
-        dec_ticks_deg = np.degrees(dec_ticks_rad)  # Переводим в градусы
-
+        ra_ticks_rad = ax.get_xticks()
+        ra_ticks_hours = (np.degrees(ra_ticks_rad) + 180) / 15.0
+        dec_ticks_rad = ax.get_yticks()
+        dec_ticks_deg = np.degrees(dec_ticks_rad)
         ax.set_xticks(ra_ticks_rad)
         ax.set_xticklabels([f"{int(np.round(h))}h" for h in ra_ticks_hours])
         ax.set_yticks(dec_ticks_rad)
         ax.set_yticklabels([f"{int(np.round(d))}°" for d in dec_ticks_deg])
-
         ax.grid(True, linestyle='--', alpha=0.5)
         ax.set_title("Mollweide Projection of Telescope Tracks and M87 (J2000, 10-20 March 2031)")
         ax.set_xlabel("Right Ascension (hours)")
@@ -265,11 +282,94 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         plt.savefig("mollweide_track_m87_space_matplotlib_mollweide_j2000_fixed.png")
         plt.show()
 
-    def tearDown(self):
-        """Очистка после теста"""
-        self.manipulator = None
-        self.project = None
-        logger.info("Tore down test environment")
+        # Визуализация проекций базы
+        bl_data = observation.get_calculated_data_by_key("baseline_projections_f0")["data"]
+        self.assertGreater(len(bl_data), 0, "No baseline projections data calculated")
+
+        # Константы для перевода в диаметры Земли
+        c = 299792458  # м/с
+        freq = 86e9  # 86 GHz в Гц
+        wavelength = c / freq  # длина волны в метрах
+        earth_diameter = 12742000  # метры
+
+        # Извлечение данных проекций
+        if not bl_data[0]:
+            logger.error("No projection data available in bl_data[0]")
+            projections = {}
+            time_values = None
+        elif "times" in bl_data[0]:
+            times = bl_data[0]["times"]
+            time_values = [Time(t).mjd for t in times]
+            projections = bl_data[0]["projections"]
+        else:
+            projections = bl_data[0]["projections"]
+            time_values = None
+
+        plt.figure(figsize=(12, 6))
+        if time_values and projections:
+            for pair, bl_values in projections.items():
+                if bl_values:
+                    bl_meters = np.array(bl_values) * wavelength
+                    bl_earth_diameters = bl_meters / earth_diameter
+                    valid_indices = [i for i, bl in enumerate(bl_values) if bl is not None]
+                    filtered_times = [time_values[i] for i in valid_indices]
+                    filtered_bl_earth_diameters = [bl_earth_diameters[i] for i in valid_indices]
+                    if filtered_times and filtered_bl_earth_diameters:
+                        plt.plot(filtered_times, filtered_bl_earth_diameters, label=pair, color=colors.get(pair, 'black'))
+                    else:
+                        logger.debug(f"No valid data to plot for pair {pair}")
+                else:
+                    logger.debug(f"No baseline projections for pair {pair}")
+            plt.xlabel("Time (MJD)")
+        elif projections:
+            pairs = list(projections.keys())
+            bl_values = [projections[pair] for pair in pairs if pair in projections]
+            bl_meters = np.array(bl_values) * wavelength
+            bl_earth_diameters = bl_meters / earth_diameter
+            plt.bar(pairs, bl_earth_diameters, color=[colors.get(pair, 'black') for pair in pairs])
+            plt.xlabel("Baseline Pair")
+        else:
+            logger.warning("No data to plot for baseline projections")
+        plt.ylabel("Baseline Projection (Earth Diameters)")
+        plt.title("Baseline Projections for M87 Observation (86 GHz, 10-20 March 2031)")
+        plt.grid(True)
+        if projections and any(projections.values()):
+            plt.legend()
+        plt.tight_layout()
+        plt.savefig("baseline_projections_m87_space.png")
+        plt.show()
+
+        # Визуализация beam_pattern
+        plt.figure(figsize=(10, 6))
+        for tel_code, data in beam_results.items():
+            theta = np.array(data["theta"]) * 180 / np.pi  # Перевод в градусы
+            pattern = data["pattern"]
+            plt.plot(theta, pattern, label=f"{tel_code} (D={telescopes.get_by_index(0 if tel_code == 'ALMA' else 1).get_diameter()} m)")
+        plt.xlabel("Угол (градусы)")
+        plt.ylabel("Интенсивность (нормированная)")
+        plt.title("Диаграмма направленности (Beam Pattern) при 86 ГГц")
+        plt.grid(True)
+        plt.legend()
+        plt.savefig("beam_pattern_m87_single_dish.png")
+        plt.show()
+
+        # Визуализация 2D synthesized beam
+        plt.figure(figsize=(10, 8))
+        for scan_idx, data in synth_results.items():
+            theta_u = np.array(data["theta_u"])  # RA в градусах
+            theta_v = np.array(data["theta_v"])  # Dec в градусах
+            beam_2d = np.array(data["beam_2d"])  # 2D карта
+            
+            # Создаём тепловую карту
+            plt.imshow(beam_2d, extent=[theta_u.min(), theta_u.max(), theta_v.min(), theta_v.max()],
+                    cmap='viridis', origin='lower', aspect='equal')
+            plt.colorbar(label='Нормированная интенсивность')
+            plt.xlabel("Right Ascension (градусы)")
+            plt.ylabel("Declination (градусы)")
+            plt.title(f"2D Синтезированная диаграмма направленности (VLBI, 86 ГГц, Скан {scan_idx})")
+        plt.grid(False)  # Убираем сетку для чистоты изображения
+        plt.savefig("synthesized_beam_2d_m87_vlbi.png")
+        plt.show()
 
 if __name__ == "__main__":
     unittest.main()
