@@ -538,25 +538,24 @@ class SpaceTelescope(Telescope):
             self._kepler_elements = None
 
     def load_orbit(self, orbit_file: str) -> None:
+        """Parse CSDSS OEM 2.0 styled orbit file"""
         check_non_empty_string(orbit_file, "Orbit file")
         try:
             with open(orbit_file, 'r') as f:
                 lines = f.readlines()
             
-            # Фильтруем только пустые строки и комментарии
             data_lines = [line.strip() for line in lines if line.strip() and not line.startswith('#')]
             data_section = False
             valid_lines = []
             
             for line in data_lines:
-                if "META_STOP" in line:  # Учитываем "META_STOP" в любом месте строки
+                if "META_STOP" in line:
                     data_section = True
                     continue
                 if not data_section:
                     continue
-                if "COVARIANCE_START" in line:  # Останавливаемся, если начинается ковариация
+                if "COVARIANCE_START" in line:
                     break
-                # Обрабатываем строки с данными, убирая лишние пробелы
                 parts = re.split(r'\s+', line.strip())
                 if len(parts) == 7:
                     valid_lines.append(line)
@@ -564,13 +563,11 @@ class SpaceTelescope(Telescope):
             if len(valid_lines) < 2:
                 raise ValueError(f"Orbit file must contain at least 2 data points, got {len(valid_lines)}")
             
-            # Парсим все временные строки сразу
             time_strs = [re.split(r'\s+', line)[0] for line in valid_lines]
             j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
             times = Time(time_strs, format='isot', scale='utc') - j2000_epoch
             times_sec = times.sec
             
-            # Заполняем позиции и скорости
             positions = np.zeros((len(valid_lines), 3))
             velocities = np.zeros((len(valid_lines), 3))
             for i, line in enumerate(valid_lines):

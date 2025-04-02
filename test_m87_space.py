@@ -9,16 +9,16 @@ from base.project import Project
 from super.manipulator import DefaultManipulator
 from utils.logging_setup import logger
 import time
-import os
 from astropy.time import Time
 import astropy.units as u
+import numpy as np
 
 class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
     def setUp(self):
-        """Инициализация Manipulator и базовых данных"""
         self.manipulator = DefaultManipulator()
         self.project = Project(name="EHT_M87_SPACE_PROJECT")
         self.manipulator.set_project(self.project)
+        logger.setLevel("DEBUG")  # Включаем отладочные логи
         logger.info("Set up test environment with Manipulator and Project")
 
     def test_eht_observation_with_space_telescope(self):
@@ -83,8 +83,8 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         frequencies = Frequencies([frequency])
 
         # 4. Настройка сканирования (15.03.2031 - 17.03.2031, шаг 10 минут)
-        start_time = Time("2031-03-15T00:00:00", format="isot", scale="utc")
-        duration = 172800 * u.s  # 2 дня в секундах
+        start_time = Time("2031-03-10T00:00:00", format="isot", scale="utc")
+        duration = 365*172800 * u.s  # 365 дней в секундах
         scan_attributes = {
             "set_scan": {
                 "start": start_time,
@@ -117,7 +117,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         # 6. Вычисление (u,v)-покрытия с шагом 10 минут
         calc_attributes = {
             "type": "uv_coverage",
-            "time_step": 2400.0,  # 10 минут
+            "time_step": 7200,  # 10 минут
             "freq_idx": 0,
             "store_key": "uv_coverage_f0",
             "recalculate": True
@@ -127,6 +127,18 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         uv_results = self.manipulator.process_request("calculate", "observation", calc_attributes, observation)
         self.assertTrue(uv_results, "UV calculation failed")
         print(f"UV calculation took {time.time() - start:.2f} seconds")
+
+        # 7. Вычисление Mollweide tracks с шагом 10 минут
+        calc_attributes_moll = {
+            "type": "mollweide_tracks",
+            "time_step": 7200,  # 10 минут
+            "store_key": "mollweide_tracks",
+            "recalculate": True
+        }
+        start = time.time()
+        moll_results = self.manipulator.process_request("calculate", "observation", calc_attributes_moll, observation)
+        self.assertTrue(moll_results, "Mollweide calculation failed")
+        print(f"Mollweide calculation took {time.time() - start:.2f} seconds")
 
         uv_data = observation.get_calculated_data_by_key("uv_coverage_f0")["data"]
         freq = 86e9  # 86 GHz в Гц
@@ -180,6 +192,77 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         plt.legend()
         plt.gca().invert_xaxis()
         plt.savefig("uv_coverage_m87_space_with_conjugates.png")
+        plt.show()
+
+        # Извлечение данных Mollweide
+        moll_data = observation.get_calculated_data_by_key("mollweide_tracks")["data"]
+        self.assertGreater(len(moll_data), 0, "No Mollweide data calculated")
+
+        # Отладочный вывод для проверки значений
+        for scan_idx, scan_data in moll_data.items():
+            print(f"Scan {scan_idx}:")
+            source_data = scan_data.get("source", {})
+            print(f"  Source {source_data.get('name')}: lon={source_data.get('lon')}, lat={source_data.get('lat')}")
+            telescope_tracks = scan_data.get("telescope_tracks", {})
+            for tel_code in ['ALMA', 'APEX', 'SMT', 'SPACE370']:
+                track = telescope_tracks.get(tel_code, {})
+                if track:
+                    print(f"  {tel_code}: lon_range={min(track['lon']) if track['lon'] else None} to {max(track['lon']) if track['lon'] else None}, "
+                        f"lat_range={min(track['lat']) if track['lat'] else None} to {max(track['lat']) if track['lat'] else None}")
+
+        # В test_eht_observation_with_space_telescope
+        fig = plt.figure(figsize=(10, 6))
+        ax = fig.add_subplot(111, projection='mollweide', facecolor='LightCyan')
+
+        # Отрисовка треков телескопов
+        colors = ['blue', 'green', 'red', 'purple']
+        tel_codes = ['ALMA', 'APEX', 'SMT', 'SPACE370']
+        for scan_idx, scan_data in moll_data.items():
+            telescope_tracks = scan_data.get("telescope_tracks", {})
+            for i, tel_code in enumerate(tel_codes):
+                track = telescope_tracks.get(tel_code)
+                if track and track["lon"]:
+                    # lon уже в диапазоне [-180, 180], lat в [-90, 90] (в градусах)
+                    lon_points = np.array(track["lon"])
+                    lat_points = np.array(track["lat"])
+                    # Переводим в радианы для Matplotlib
+                    lon_points_rad = np.radians(lon_points)
+                    lat_points_rad = np.radians(lat_points)
+                    logger.debug(f"{tel_code} track: lon_points={track['lon'][:5]}, lat_points={track['lat'][:5]}")
+                    ax.scatter(lon_points_rad, lat_points_rad, s=20, c=colors[i], label=f"{tel_code} Track")
+                    ax.scatter(lon_points_rad[0], lat_points_rad[0], s=20, c=colors[i], marker='o')  # Начало
+                    ax.scatter(lon_points_rad[-1], lat_points_rad[-1], s=20, c=colors[i], marker='x')  # Конец
+
+            # Отрисовка положения источника
+            source_data = scan_data.get("source", {})
+            source_lon = source_data.get("lon")  # Уже в [-180, 180]
+            source_lat = source_data.get("lat")  # Уже в [-90, 90]
+            source_lon_rad = np.radians(source_lon)
+            source_lat_rad = np.radians(source_lat)
+            logger.debug(f"Source {source_data.get('name')}: lon={source_lon}, lat={source_lat}")
+            ax.scatter([source_lon_rad], [source_lat_rad], s=100, c='black', marker='*', label=f"{source_data.get('name')} (J2000)")
+
+        # Настройка меток
+        # RA в часах (0h–24h), что соответствует 0°–360°
+        ra_ticks_rad = ax.get_xticks()  # Matplotlib возвращает тики в радианах в диапазоне [-π, π]
+        ra_ticks_deg = np.degrees(ra_ticks_rad)  # Переводим в градусы: [-180, 180]
+        ra_ticks_hours = (ra_ticks_deg + 180) / 15.0  # Преобразуем в часы: 0h–24h
+
+        dec_ticks_rad = ax.get_yticks()  # Тики по Dec в радианах
+        dec_ticks_deg = np.degrees(dec_ticks_rad)  # Переводим в градусы
+
+        ax.set_xticks(ra_ticks_rad)
+        ax.set_xticklabels([f"{int(np.round(h))}h" for h in ra_ticks_hours])
+        ax.set_yticks(dec_ticks_rad)
+        ax.set_yticklabels([f"{int(np.round(d))}°" for d in dec_ticks_deg])
+
+        ax.grid(True, linestyle='--', alpha=0.5)
+        ax.set_title("Mollweide Projection of Telescope Tracks and M87 (J2000, 10-20 March 2031)")
+        ax.set_xlabel("Right Ascension (hours)")
+        ax.set_ylabel("Declination (degrees)")
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        plt.savefig("mollweide_track_m87_space_matplotlib_mollweide_j2000_fixed.png")
         plt.show()
 
     def tearDown(self):

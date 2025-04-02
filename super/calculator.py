@@ -9,7 +9,7 @@ from utils.logging_setup import logger
 from typing import Dict, Any, Optional, Tuple, List
 import numpy as np
 from astropy.time import Time
-from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, HADec
+from astropy.coordinates import ITRS, GCRS, ICRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, HADec
 import astropy.units as u
 from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
@@ -831,7 +831,7 @@ class Calculator(ABC):
         return projections
 
     def _calculate_mollweide_tracks(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate Mollweide projection tracks for VLBI or SINGLE_DISH observation or project"""
+        """Calculate Mollweide projection tracks for telescopes and source positions in J2000"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "mollweide_tracks")
@@ -851,16 +851,20 @@ class Calculator(ABC):
 
             scans = obj.get_scans().get_active_scans(obj)
             sources = obj.get_sources()
+            telescopes = obj.get_telescopes()
 
             existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate:
+            if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
                 logger.info(f"Using cached Mollweide tracks for '{obj.get_observation_code()}'")
                 return existing_data["data"]
+
+            position_attrs = {"time_step": time_step, "store_key": "telescope_positions"}
+            position_data = self._calculate_telescope_positions(obj, position_attrs)
 
             results = {}
             with ThreadPoolExecutor() as executor:
                 futures = {
-                    executor.submit(self._process_mollweide_tracks, scan, sources, time_step): i
+                    executor.submit(self._process_mollweide_tracks, scan, sources, telescopes, time_step, position_data, obj): i
                     for i, scan in enumerate(scans)
                 }
                 for future in futures:
@@ -876,45 +880,108 @@ class Calculator(ABC):
             logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
             return {}
 
-    def _process_mollweide_tracks(self, scan: Scan, sources: Sources, time_step: Optional[float]) -> Dict[str, Any]:
+    def _process_mollweide_tracks(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = sources.get_by_index(scan.get_source_index())
+        telescope_indices = scan.get_telescope_indices()
+        active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
+        scan_idx = list(observation.get_scans().get_active_scans(observation)).index(scan)
+
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
+        source_lon, source_lat = self._compute_mollweide_coords(source_coord)
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
-            lon, lat = self._compute_mollweide_coords(source_coord, mean_time)
-            return {"source": source.get_name(), "mollweide": {"lon": lon, "lat": lat}}
+            tel_positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
+            tracks = {}
+            for tel in active_telescopes:
+                pos = tel_positions.get(tel.get_code())
+                if pos:
+                    lon, lat = self._compute_mollweide_coords_from_position(pos, mean_time)
+                    tracks[tel.get_code()] = {"lon": [lon], "lat": [lat]}
+                    logger.debug(f"{tel.get_code()} at mean time: lon={lon}, lat={lat}")
         else:
             time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')  # Массовое создание Time
-            tracks = {"lon": [], "lat": []}
-            for t in times:
-                lon, lat = self._compute_mollweide_coords(source_coord, t)
-                tracks["lon"].append(lon)
-                tracks["lat"].append(lat)
-            return {"source": source.get_name(), "times": times.isot.tolist(), "mollweide": tracks}
+            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+            tel_positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
+            for t_idx, t in enumerate(times[:5]):  # Первые 5 точек для отладки
+                positions_at_t = {}
+                for tel in active_telescopes:
+                    pos_data = tel_positions.get(tel.get_code(), {})
+                    pos = pos_data.get("positions", [])[t_idx] if "positions" in pos_data else None
+                    if pos:
+                        positions_at_t[tel.get_code()] = pos
 
-    def _compute_mollweide_coords(self, coord: SkyCoord, time: Time) -> Tuple[float, float]:
-        """Compute Mollweide projection coordinates with precession and nutation"""
-        from astropy.coordinates import CIRS
+            tracks = {tel.get_code(): {"lon": [], "lat": []} for tel in active_telescopes}
+            for t_idx, t in enumerate(times):
+                for tel in active_telescopes:
+                    pos_data = tel_positions.get(tel.get_code(), {})
+                    pos = pos_data.get("positions", [])[t_idx] if "positions" in pos_data else None
+                    if pos:
+                        lon, lat = self._compute_mollweide_coords_from_position(pos, t)
+                        tracks[tel.get_code()]["lon"].append(lon)
+                        tracks[tel.get_code()]["lat"].append(lat)
+            for tel in active_telescopes:
+                tel_code = tel.get_code()
+                lon_range = [min(tracks[tel_code]["lon"]), max(tracks[tel_code]["lon"])] if tracks[tel_code]["lon"] else [None, None]
+                lat_range = [min(tracks[tel_code]["lat"]), max(tracks[tel_code]["lat"])] if tracks[tel_code]["lat"] else [None, None]
+
+        return {
+            "source": {"name": source.get_name(), "lon": source_lon, "lat": source_lat},
+            "times": times.isot.tolist() if time_step else [mean_time.isot],
+            "telescope_tracks": tracks
+        }
+    
+    def _compute_mollweide_coords_from_position(self, position: Tuple[float, float, float], time: Time) -> Tuple[float, float]:
+        """
+        Compute Mollweide coordinates from GCRS position in J2000 (returns RA, Dec in degrees).
         
-        cirs_coord = coord.transform_to(CIRS(obstime=time))
+        Parameters:
+        - position: GCRS position of the telescope (x, y, z in meters).
+        - time: Observation time (astropy.time.Time).
         
-        # Получаем RA и Dec в радианах
-        ra = cirs_coord.ra.rad
-        dec = cirs_coord.dec.rad
+        Returns:
+        - (lon, lat): RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
+        """
+        logger.debug(f"Computing Mollweide coords from position: {position}, time: {time.isot}")
         
-        # Mollweide-проекция
-        theta = dec
-        if abs(dec) >= np.pi / 2:
-            lat = np.sign(dec) * np.pi / 2
-        else:
-            lat = dec
-        lon = ra - np.pi  # Центрирование на 0
+        # Извлекаем x, y, z из позиции
+        x, y, z = position
         
-        return np.degrees(lon), np.degrees(lat)
+        # Вычисляем сферические координаты (как в эталонном коде)
+        r = np.sqrt(x**2 + y**2 + z**2)  # Расстояние до точки
+        ra_rad = np.arctan2(y, x)  # RA в радианах
+        dec_rad = np.arcsin(z / r)  # Dec в радианах
+        
+        # Переводим в градусы
+        ra = np.degrees(ra_rad)  # 0° to 360°
+        dec = np.degrees(dec_rad)  # -90° to 90°
+        logger.debug(f"Telescope ICRS coords: RA={ra} deg, Dec={dec} deg")
+
+        # Приводим RA к диапазону [-180, 180] для Mollweide
+        lon = ra
+        if lon > 180.0:
+            lon -= 360.0
+        lat = np.clip(dec, -90.0, 90.0)
+        logger.debug(f"Adjusted for Mollweide: lon={lon} deg, lat={lat} deg")
+
+        return lon, lat
+
+    def _compute_mollweide_coords(self, coord: SkyCoord) -> Tuple[float, float]:
+        """Compute coordinates for Mollweide projection in J2000 (returns RA, Dec in degrees)."""
+        ra = coord.ra.deg  # 0° to 360°
+        dec = coord.dec.deg
+        logger.debug(f"Source coords: RA={ra} deg, Dec={dec} deg")
+
+        # Приводим RA к диапазону [-180, 180] для Mollweide
+        lon = ra
+        if lon > 180.0:
+            lon -= 360.0
+        lat = np.clip(dec, -90.0, 90.0)
+        logger.debug(f"Adjusted for Mollweide: lon={lon} deg, lat={lat} deg")
+
+        return lon, lat
 
     def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Universal method to perform calculations on an object"""
