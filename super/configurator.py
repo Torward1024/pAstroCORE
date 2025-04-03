@@ -7,7 +7,7 @@ from base.scans import Scan, Scans
 from base.observation import Observation
 from base.project import Project 
 from utils.logging_setup import logger
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Type, Optional
 import inspect
 
 class Configurator(ABC):
@@ -20,9 +20,17 @@ class Configurator(ABC):
         configure: Universal method to configure objects using method calls in attributes dictionary.
         _get_config_methods: Cached method to retrieve configuration method mappings.
     """
-    def __init__(self, manipulator: 'Manipulator'):
+    def __init__(self, manipulator: 'Manipulator'= None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None):
         """Initialize the Configurator"""
         self._manipulator = manipulator
+        self._methods = methods
+
+    def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
+        if self._methods and obj_type in self._methods:
+            return self._methods[obj_type]
+        if self._manipulator:
+            return self._manipulator.get_methods_for_type(obj_type)
+        raise ValueError(f"No methods provided for {obj_type.__name__}")
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any, valid_methods: Dict[str, Callable], 
                                   extra_args: Dict[str, Any] = None) -> bool:
@@ -62,22 +70,34 @@ class Configurator(ABC):
         except Exception as e:
             logger.error(f"Failed to apply {method_name} to {type(obj).__name__}: {str(e)}")
             return False
+    
+    def _configure_nested(self, obj: Any, attributes: Dict[str, Any], index_key: str, getter_method: Callable,
+                         nested_configurator: Callable) -> bool:
+        index = attributes.get(index_key)
+        if index is not None:
+            if not isinstance(index, int) or not 0 <= index < len(obj):
+                logger.error(f"Invalid {index_key} {index} for {type(obj).__name__}")
+                return False
+            nested_obj = getter_method(index)
+            nested_attrs = {k: v for k, v in attributes.items() if k != index_key}
+            return nested_configurator(nested_obj, nested_attrs)
+        return False
+    
+    def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
+        if self._methods is None:
+            self._methods = {}
+        if obj_type not in self._methods:
+            self._methods[obj_type] = {}
+        self._methods[obj_type][method_name] = method
 
-    def execute(self, obj: Any, attributes: Dict[str, Any]) -> bool:
-        
+    def execute(self, obj: Any, attributes: Dict[str, Any]) -> bool:    
         if obj is None:
             logger.error("Configuration object cannot be None")
             raise ValueError("Configuration object cannot be None")
 
         obj_type = type(obj)
         config_methods = self._manipulator.get_methods_for_type(type(self))
-
-        if isinstance(obj, SpaceTelescope):
-            config_method_name = "_configure_space_telescope"
-        elif isinstance(obj, Telescope):
-            config_method_name = "_configure_telescope"
-        else:
-            config_method_name = f"_configure_{obj_type.__name__.lower()}"
+        config_method_name = f"_configure_{obj_type.__name__.lower()}"
 
         if config_method_name not in config_methods:
             logger.error(f"No configuration method found for {obj_type.__name__}")
@@ -138,16 +158,11 @@ class DefaultConfigurator(Configurator):
 
     def _configure_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> bool:
         """Configure a Frequencies object"""
+        result = self._configure_nested(freq_obj, attributes, "if_index", freq_obj.get_by_index, self._configure_if)
+        if result:
+            return result
         valid_methods = self._manipulator.get_methods_for_type(Frequencies)
         applied = False
-        if "if_index" in attributes:
-            if_index = attributes["if_index"]
-            if not isinstance(if_index, int) or not 0 <= if_index < len(freq_obj):
-                logger.error(f"Invalid if_index {if_index} for Frequencies with {len(freq_obj)} IFs")
-                return False
-            if_obj = freq_obj.get_by_index(if_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "if_index"}
-            return self._configure_if(if_obj, nested_attrs)
         for method_name, method_args in attributes.items():
             if self._validate_and_apply_method(freq_obj, method_name, method_args, valid_methods):
                 applied = True
@@ -172,16 +187,11 @@ class DefaultConfigurator(Configurator):
 
     def _configure_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> bool:
         """Configure a Sources object."""
+        result = self._configure_nested(sources_obj, attributes, "source_index", sources_obj.get_by_index, self._configure_source)
+        if result:
+            return result
         valid_methods = self._manipulator.get_methods_for_type(Sources)
         applied = False
-        if "source_index" in attributes:
-            source_index = attributes["source_index"]
-            if not isinstance(source_index, int) or not 0 <= source_index < len(sources_obj):
-                logger.error(f"Invalid source_index {source_index} for Sources with {len(sources_obj)} sources")
-                return False
-            source_obj = sources_obj.get_by_index(source_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "source_index"}
-            return self._configure_source(source_obj, nested_attrs)
         for method_name, method_args in attributes.items():
             if self._validate_and_apply_method(sources_obj, method_name, method_args, valid_methods):
                 applied = True
@@ -205,7 +215,7 @@ class DefaultConfigurator(Configurator):
         logger.info(f"Successfully configured {obj_type.__name__}: code='{tel_obj.get_code()}'")
         return True
     
-    def _configure_space_telescope(self, tel_obj: SpaceTelescope, attributes: Dict[str, Any]) -> bool:
+    def _configure_spacetelescope(self, tel_obj: SpaceTelescope, attributes: Dict[str, Any]) -> bool:
         """Configure a SpaceTelescope object"""
         valid_methods = self._manipulator.get_methods_for_type(SpaceTelescope)
         applied = False
@@ -220,16 +230,11 @@ class DefaultConfigurator(Configurator):
 
     def _configure_telescopes(self, tel_obj: Telescopes, attributes: Dict[str, Any]) -> bool:
         """Configure a Telescopes object"""
+        result = self._configure_nested(tel_obj, attributes, "telescope_index", tel_obj.get_by_index, self._configure_telescope)
+        if result:
+            return result
         valid_methods = self._manipulator.get_methods_for_type(Telescopes)
         applied = False
-        if "telescope_index" in attributes:
-            telescope_index = attributes["telescope_index"]
-            if not isinstance(telescope_index, int) or not 0 <= telescope_index < len(tel_obj):
-                logger.error(f"Invalid telescope_index {telescope_index} for Telescopes with {len(tel_obj)} telescopes")
-                return False
-            telescope_obj = tel_obj.get_by_index(telescope_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_index"}
-            return self._configure_telescope(telescope_obj, nested_attrs)
         for method_name, method_args in attributes.items():
             if self._validate_and_apply_method(tel_obj, method_name, method_args, valid_methods):
                 applied = True
@@ -262,22 +267,15 @@ class DefaultConfigurator(Configurator):
 
     def _configure_scans(self, scans_obj: Scans, attributes: Dict[str, Any]) -> bool:
         """Configure a Scans object, checking overlaps for nested Scan changes"""
+        nested_result = self._configure_nested(scans_obj, attributes, "scan_index", scans_obj.get_by_index, self._configure_scan)
+        if nested_result:
+            overlap, reason = scans_obj._check_overlap(scans_obj.get_by_index(attributes["scan_index"]), exclude_index=attributes["scan_index"])
+            if overlap:
+                logger.error(f"Modified scan at index {attributes['scan_index']} {reason}")
+                return False
+            return True
         valid_methods = self._manipulator.get_methods_for_type(Scans)
         applied = False
-        if "scan_index" in attributes:
-            scan_index = attributes["scan_index"]
-            if not isinstance(scan_index, int) or not 0 <= scan_index < len(scans_obj):
-                logger.error(f"Invalid scan_index {scan_index} for Scans with {len(scans_obj)} scans")
-                return False
-            scan_obj = scans_obj.get_by_index(scan_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "scan_index"}
-            success = self._configure_scan(scan_obj, nested_attrs)
-            if success:
-                overlap, reason = scans_obj._check_overlap(scan_obj, exclude_index=scan_index)
-                if overlap:
-                    logger.error(f"Modified scan at index {scan_index} {reason}")
-                    return False
-            return success
         for method_name, method_args in attributes.items():
             if self._validate_and_apply_method(scans_obj, method_name, method_args, valid_methods):
                 applied = True
@@ -305,16 +303,11 @@ class DefaultConfigurator(Configurator):
 
     def _configure_project(self, project_obj: Project, attributes: Dict[str, Any]) -> bool:
         """Configure a Project object, including nested Observation configuration by index"""
+        result = self._configure_nested(project_obj, attributes, "observation_index", project_obj.get_by_index, self._configure_observation)
+        if result:
+            return result
         valid_methods = self._manipulator.get_methods_for_type(Project)
         applied = False
-        if "observation_index" in attributes:
-            obs_index = attributes["observation_index"]
-            if not isinstance(obs_index, int) or not 0 <= obs_index < len(project_obj.get_observations()):
-                logger.error(f"Invalid observation_index {obs_index} for Project '{project_obj.get_name()}' with {len(project_obj.get_observations())} observations")
-                return False
-            obs_obj = project_obj.get_by_index(obs_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "observation_index"}
-            return self._configure_observation(obs_obj, nested_attrs)
         for method_name, method_args in attributes.items():
             if self._validate_and_apply_method(project_obj, method_name, method_args, valid_methods):
                 applied = True

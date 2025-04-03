@@ -33,7 +33,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         logger.info("Set up test environment with Manipulator and Project")
 
     def test_eht_observation_with_space_telescope(self):
-
         """Тест полного цикла с космическим телескопом: настройка, вычисление (u,v), проекций базы, визуализация + beam_pattern и synthesized_beam"""
         # 1. Настройка источника M87
         m87_attributes = {
@@ -45,7 +44,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "set_flux": {"frequency": 86e3, "flux": 1.2}  # 86 GHz в МГц
         }
         m87_source = Source()
-        self.manipulator.process_request("configure", "source", m87_attributes, m87_source)
+        self.manipulator.process_request({
+            "operation": "configure",
+            "target": "source",
+            "attributes": m87_attributes,
+            "obj": m87_source
+        })
         sources = Sources([m87_source])
 
         # 2. Настройка телескопов (ALMA + APEX + SMT + космический телескоп)
@@ -63,7 +67,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         telescopes = Telescopes()
         for tel_data in telescope_data:
             tel = Telescope()
-            self.manipulator.process_request("configure", "telescope", {"set_telescope": tel_data}, tel)
+            self.manipulator.process_request({
+                "operation": "configure",
+                "target": "telescope",
+                "attributes": {"set_telescope": tel_data},
+                "obj": tel
+            })
             telescopes.add_telescope(tel)
 
         space_tel_attributes = {
@@ -84,13 +93,23 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             orbit_file="e:\\Python\\pAstroCORE\\final_orbit370.txt",
             interpolation_method="linear"
         )
-        self.manipulator.process_request("configure", "telescope", space_tel_attributes, space_tel)
+        self.manipulator.process_request({
+            "operation": "configure",
+            "target": "telescope",
+            "attributes": space_tel_attributes,
+            "obj": space_tel
+        })
         telescopes.add_telescope(space_tel)
 
         # 3. Настройка частоты (86 GHz)
         frequency_attributes = {"set_frequency": {"freq": 86e3}, "set_bandwidth": {"bandwidth": 4e3}}
         frequency = IF()
-        self.manipulator.process_request("configure", "if", frequency_attributes, frequency)
+        self.manipulator.process_request({
+            "operation": "configure",
+            "target": "if",
+            "attributes": frequency_attributes,
+            "obj": frequency
+        })
         frequencies = Frequencies([frequency])
 
         # 4. Настройка сканирования (10.03.2031 - 20.03.2031, шаг 10 минут)
@@ -106,7 +125,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             }
         }
         scan = Scan()
-        self.manipulator.process_request("configure", "scan", scan_attributes, scan)
+        self.manipulator.process_request({
+            "operation": "configure",
+            "target": "scan",
+            "attributes": scan_attributes,
+            "obj": scan
+        })
         scans = Scans([scan])
 
         # 5. Создание VLBI наблюдения
@@ -122,7 +146,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "isactive": True
             }
         }
-        self.manipulator.process_request("configure", "observation", obs_attributes, observation)
+        self.manipulator.process_request({
+            "operation": "configure",
+            "target": "observation",
+            "attributes": obs_attributes,
+            "obj": observation
+        })
         self.project.add_observation(observation)
 
         # 6. Создание SINGLE_DISH наблюдения для beam_pattern
@@ -138,7 +167,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "isactive": True
             }
         }
-        self.manipulator.process_request("configure", "observation", single_dish_attributes, single_dish_obs)
+        self.manipulator.process_request({
+            "operation": "configure",
+            "target": "observation",
+            "attributes": single_dish_attributes,
+            "obj": single_dish_obs
+        })
         self.project.add_observation(single_dish_obs)
 
         # 7. Вычисление (u,v)-покрытия с шагом 10 минут
@@ -150,7 +184,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "recalculate": False
         }
         start = time.time()
-        uv_results = self.manipulator.process_request("calculate", "observation", calc_attributes, self.project.get_by_index(0))
+        uv_results = self.manipulator.process_request({
+            "operation": "calculate",
+            "target": "observation",
+            "attributes": calc_attributes,
+            "obj": self.project.get_by_index(0)
+        })
         self.assertTrue(uv_results, "UV calculation failed")
         print(f"UV calculation took {time.time() - start:.2f} seconds")
 
@@ -162,7 +201,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "recalculate": False
         }
         start = time.time()
-        moll_results = self.manipulator.process_request("calculate", "observation", calc_attributes_moll, self.project.get_by_index(0))
+        moll_results = self.manipulator.process_request({
+            "operation": "calculate",
+            "target": "observation",
+            "attributes": calc_attributes_moll,
+            "obj": self.project.get_by_index(0)
+        })
         self.assertTrue(moll_results, "Mollweide calculation failed")
         print(f"Mollweide calculation took {time.time() - start:.2f} seconds")
 
@@ -175,7 +219,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "recalculate": False
         }
         start = time.time()
-        bl_results = self.manipulator.process_request("calculate", "observation", calc_attributes_bl, self.project.get_by_index(0))
+        bl_results = self.manipulator.process_request({
+            "operation": "calculate",
+            "target": "observation",
+            "attributes": calc_attributes_bl,
+            "obj": self.project.get_by_index(0)
+        })
         self.assertTrue(bl_results, "Baseline projections calculation failed")
         print(f"Baseline projections calculation took {time.time() - start:.2f} seconds")
 
@@ -187,7 +236,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "recalculate": False
         }
         start = time.time()
-        beam_results = self.manipulator.process_request("calculate", "observation", beam_attributes, self.project.get_by_index(1))
+        beam_results = self.manipulator.process_request({
+            "operation": "calculate",
+            "target": "observation",
+            "attributes": beam_attributes,
+            "obj": self.project.get_by_index(1)
+        })
         self.assertTrue(beam_results, "Beam pattern calculation failed")
         print(f"Beam pattern calculation took {time.time() - start:.2f} seconds")
 
@@ -200,7 +254,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "time_step": 18000  # Добавляем для совместимости с uv_coverage
         }
         start = time.time()
-        synth_results = self.manipulator.process_request("calculate", "observation", synth_attributes, self.project.get_by_index(0))
+        synth_results = self.manipulator.process_request({
+            "operation": "calculate",
+            "target": "observation",
+            "attributes": synth_attributes,
+            "obj": self.project.get_by_index(0)
+        })
         self.assertTrue(synth_results, "Synthesized beam calculation failed")
         print(f"Synthesized beam calculation took {time.time() - start:.2f} seconds")
 
@@ -381,7 +440,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         plt.savefig("synthesized_beam_2d_m87_vlbi.png")
         plt.show()
 
-    # 12. Вычисление time_on_source с шагом 10 минут
+        # 12. Вычисление time_on_source с шагом 10 минут
         calc_attributes_time = {
             "type": "time_on_source",
             "time_step": 18000,
@@ -389,7 +448,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "recalculate": False
         }
         start = time.time()
-        time_results = self.manipulator.process_request("calculate", "observation", calc_attributes_time, self.project.get_by_index(0))
+        time_results = self.manipulator.process_request({
+            "operation": "calculate",
+            "target": "observation",
+            "attributes": calc_attributes_time,
+            "obj": self.project.get_by_index(0)
+        })
         self.assertTrue(time_results, "Time on source calculation failed")
         print(f"Time on source calculation took {time.time() - start:.2f} seconds")
 
@@ -422,7 +486,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         plt.savefig("time_on_source_m87_space.png")
         plt.show()
 
-    # 13. Вычисление sun_angles с шагом 10 минут
+        # 13. Вычисление sun_angles с шагом 10 минут
         calc_attributes_sun = {
             "type": "sun_angles",
             "time_step": 18000,
@@ -430,7 +494,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "recalculate": False
         }
         start = time.time()
-        sun_results = self.manipulator.process_request("calculate", "observation", calc_attributes_sun, self.project.get_by_index(0))
+        sun_results = self.manipulator.process_request({
+            "operation": "calculate",
+            "target": "observation",
+            "attributes": calc_attributes_sun,
+            "obj": self.project.get_by_index(0)
+        })
         self.assertTrue(sun_results, "Sun angles calculation failed")
         print(f"Sun angles calculation took {time.time() - start:.2f} seconds")
 
@@ -465,7 +534,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "recalculate": False
         }
         start = time.time()
-        azel_results = self.manipulator.process_request("calculate", "observation", calc_attributes_azel, self.project.get_by_index(0))
+        azel_results = self.manipulator.process_request({
+            "operation": "calculate",
+            "target": "observation",
+            "attributes": calc_attributes_azel,
+            "obj": self.project.get_by_index(0)
+        })
         self.assertTrue(azel_results, "Az/El calculation failed")
         print(f"Az/El calculation took {time.time() - start:.2f} seconds")
 

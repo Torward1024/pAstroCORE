@@ -1,24 +1,29 @@
 from abc import ABC
+
 from base.frequencies import Frequencies
 from base.sources import Sources, Source
 from base.telescopes import Telescope, SpaceTelescope, Telescopes, MountType
 from base.scans import Scan
 from base.observation import Observation
 from base.project import Project
+
 from utils.logging_setup import logger
-from typing import Dict, Any, Optional, Tuple, List
-import numpy as np
-from astropy.time import Time
-from astropy.coordinates import ITRS, GCRS, ICRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, HADec
-import astropy.units as u
+from typing import Dict, Any, Optional, Tuple, List, Callable, Type
 from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
+from scipy.fft import fft2, fftshift
+from functools import wraps
+
+import astropy.units as u
+from astropy.time import Time
+from astropy.coordinates import ITRS, GCRS, ICRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, HADec
+
+import numpy as np
+
 import threading
 import math
-import numpy as np
-from scipy.fft import fft2, fftshift
 import time
-from functools import wraps
+
 
 def time_execution(func):
     """Decorator to time the execution of a function and log the duration"""
@@ -40,31 +45,24 @@ class Calculator(ABC):
         """Initialize the Calculator"""
         self._manipulator = manipulator
         self._lock = threading.Lock()
+    
+    def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
+        methods = self._manipulator.get_methods_for_type(obj_type) if self._manipulator else {}
+        if hasattr(self, '_custom_methods'):
+            methods.update(self._custom_methods)
+        return methods
 
-    def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Universal method to perform calculations on an object"""
+    def execute(self, obj: Any, attributes: Dict[str, Any], method_name: Optional[str] = None) -> Dict[str, Any]:
         if obj is None:
-            logger.error("Calculation object cannot be None")
             raise ValueError("Calculation object cannot be None")
-
-        obj_type = type(obj)
-        calc_methods = self._manipulator.get_methods_for_type(type(self))
-
-        calc_type = attributes.get("type")
+        calc_type = method_name or attributes.get("type")
         if not calc_type:
-            logger.error("Calculation type must be specified in attributes")
-            raise ValueError("Calculation type must be specified in attributes")
-
+            raise ValueError("Calculation type or method name must be specified")
+        calc_methods = self._get_methods(type(self))
         calc_method_name = f"_calculate_{calc_type}"
         if calc_method_name not in calc_methods:
-            logger.error(f"No calculation method found for type '{calc_type}'")
             raise ValueError(f"No calculation method for type '{calc_type}'")
-
-        try:
-            return calc_methods[calc_method_name](obj, attributes)
-        except Exception as e:
-            logger.error(f"Failed to calculate {calc_type} for {obj_type}: {str(e)}")
-            return {}
+        return calc_methods[calc_method_name](obj, attributes)
 
     def __repr__(self) -> str:
         return "Calculator()"

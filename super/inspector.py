@@ -7,7 +7,7 @@ from base.scans import Scan, Scans
 from base.observation import Observation
 from base.project import Project
 from utils.logging_setup import logger
-from typing import Dict, Any, Callable, Union, Optional
+from typing import Dict, Any, Callable, Union, Optional, Type
 from functools import lru_cache
 import inspect
 
@@ -21,11 +21,19 @@ class Inspector(ABC):
         inspect: Universal method to retrieve data from objects using getter calls in attributes dictionary
         _get_inspection_methods: Cached method to retrieve inspection method mappings
     """
-    def __init__(self, manipulator: 'Manipulator'):
+    def __init__(self, manipulator: 'Manipulator' = None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None):
         """Initialize the Inspector"""
         self._manipulator = manipulator
+        self._methods = methods
 
-    def _validate_and_apply_getter(self, obj: Any, getter_name: str, getter_args: Any, valid_getters: Dict[str, Callable]) -> Optional[Any]:
+    def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
+        if self._methods and obj_type in self._methods:
+            return self._methods[obj_type]
+        if self._manipulator:
+            return self._manipulator.get_methods_for_type(obj_type)
+        raise ValueError(f"No methods provided for {obj_type.__name__}")
+
+    def _validate_and_apply_method(self, obj: Any, getter_name: str, getter_args: Any, valid_getters: Dict[str, Callable]) -> Optional[Any]:
         """Validate and apply a getter to an object
 
         Args:
@@ -84,6 +92,13 @@ class Inspector(ABC):
             nested_attrs = {k: v for k, v in attributes.items() if k != index_key}
             return nested_inspector(nested_obj, nested_attrs)
         return {}
+    
+    def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
+        if self._methods is None:
+            self._methods = {}
+        if obj_type not in self._methods:
+            self._methods[obj_type] = {}
+        self._methods[obj_type][method_name] = method
 
     def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Universal method to inspect an object using getter calls in a single attributes dictionary
@@ -134,7 +149,7 @@ class DefaultInspector(Inspector):
         valid_getters = self._manipulator.get_methods_for_type(IF)
         result = {}
         for getter_name, getter_args in attributes.items():
-            value = self._validate_and_apply_getter(if_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(if_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:
@@ -145,18 +160,13 @@ class DefaultInspector(Inspector):
 
     def _inspect_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Frequencies object"""
+        result = self._inspect_nested(freq_obj, attributes, "if_index", freq_obj.get_by_index, self._inspect_if)
+        if result:
+            return result
         valid_getters = self._manipulator.get_methods_for_type(Frequencies)
         result = {}
-        if "if_index" in attributes:
-            if_index = attributes["if_index"]
-            if not isinstance(if_index, int) or not 0 <= if_index < len(freq_obj):
-                logger.error(f"Invalid if_index {if_index} for Frequencies with {len(freq_obj)} IFs")
-                return {}
-            if_obj = freq_obj.get_by_index(if_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "if_index"}
-            return self._inspect_if(if_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
-            value = self._validate_and_apply_getter(freq_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(freq_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:
@@ -170,7 +180,7 @@ class DefaultInspector(Inspector):
         valid_getters = self._manipulator.get_methods_for_type(Source)
         result = {}
         for getter_name, getter_args in attributes.items():
-            value = self._validate_and_apply_getter(source_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(source_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:
@@ -181,16 +191,11 @@ class DefaultInspector(Inspector):
 
     def _inspect_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Sources object"""
+        result = self._inspect_nested(sources_obj, attributes, "source_index", sources_obj.get_by_index, self._inspect_source)
+        if result:
+            return result
         valid_getters = self._manipulator.get_methods_for_type(Sources)
         result = {}
-        if "source_index" in attributes:
-            source_index = attributes["source_index"]
-            if not isinstance(source_index, int) or not 0 <= source_index < len(sources_obj):
-                logger.error(f"Invalid source_index {source_index} for Sources with {len(sources_obj)} sources")
-                return {}
-            source_obj = sources_obj.get_by_index(source_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "source_index"}
-            return self._inspect_source(source_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_getter(sources_obj, getter_name, getter_args, valid_getters)
             if value is not None:
@@ -207,7 +212,7 @@ class DefaultInspector(Inspector):
         valid_getters = self._manipulator.get_methods_for_type(obj_type)
         result = {}
         for getter_name, getter_args in attributes.items():
-            value = self._validate_and_apply_getter(telescope_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(telescope_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:
@@ -218,18 +223,13 @@ class DefaultInspector(Inspector):
 
     def _inspect_telescopes(self, telescopes_obj: Telescopes, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Telescopes object"""
+        result = self._inspect_nested(telescopes_obj, attributes, "telescope_index", telescopes_obj.get_by_index, self._inspect_telescope)
+        if result:
+            return result
         valid_getters = self._manipulator.get_methods_for_type(Telescopes)
         result = {}
-        if "telescope_index" in attributes:
-            telescope_index = attributes["telescope_index"]
-            if not isinstance(telescope_index, int) or not 0 <= telescope_index < len(telescopes_obj):
-                logger.error(f"Invalid telescope_index {telescope_index} for Telescopes with {len(telescopes_obj)} telescopes")
-                return {}
-            telescope_obj = telescopes_obj.get_by_index(telescope_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_index"}
-            return self._inspect_telescope(telescope_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
-            value = self._validate_and_apply_getter(telescopes_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(telescopes_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:
@@ -250,7 +250,7 @@ class DefaultInspector(Inspector):
                 if not isinstance(getter_args["observation"], Observation):
                     logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
                     continue
-            value = self._validate_and_apply_getter(scan_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(scan_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:
@@ -261,22 +261,17 @@ class DefaultInspector(Inspector):
 
     def _inspect_scans(self, scans_obj: Scans, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Scans object"""
+        result = self._inspect_nested(scans_obj, attributes, "scan_index", scans_obj.get_by_index, self._inspect_scan)
+        if result:
+            return result
         valid_getters = self._manipulator.get_methods_for_type(Scans)
         result = {}
-        if "scan_index" in attributes:
-            scan_index = attributes["scan_index"]
-            if not isinstance(scan_index, int) or not 0 <= scan_index < len(scans_obj):
-                logger.error(f"Invalid scan_index {scan_index} for Scans with {len(scans_obj)} scans")
-                return {}
-            scan_obj = scans_obj.get_by_index(scan_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "scan_index"}
-            return self._inspect_scan(scan_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
             if getter_name == "get_active_scans" and getter_args and "observation" in getter_args:
                 if not isinstance(getter_args["observation"], Observation):
                     logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
                     continue
-            value = self._validate_and_apply_getter(scans_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(scans_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:
@@ -290,7 +285,7 @@ class DefaultInspector(Inspector):
         valid_getters = self._manipulator.get_methods_for_type(Observation)
         result = {}
         for getter_name, getter_args in attributes.items():
-            value = self._validate_and_apply_getter(obs_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(obs_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:
@@ -301,18 +296,13 @@ class DefaultInspector(Inspector):
 
     def _inspect_project(self, project_obj: Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a Project object"""
+        result = self._inspect_nested(project_obj, attributes, "observation_index", project_obj.get_by_index, self._inspect_observation)
+        if result:
+            return result
         valid_getters = self._manipulator.get_methods_for_type(Project)
         result = {}
-        if "observation_index" in attributes:
-            observation_index = attributes["observation_index"]
-            if not isinstance(observation_index, int) or not 0 <= observation_index < len(project_obj.get_observations()):
-                logger.error(f"Invalid observation_index {observation_index} for Project with {len(project_obj.get_observations())} observations")
-                return {}
-            observation_obj = project_obj.get_by_index(observation_index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != "observation_index"}
-            return self._inspect_observation(observation_obj, nested_attrs)
         for getter_name, getter_args in attributes.items():
-            value = self._validate_and_apply_getter(project_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(project_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:

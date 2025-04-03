@@ -2,11 +2,6 @@
 from abc import ABC
 from typing import Dict, Any, Optional, Union, Callable, List, Type
 from base.project import Project
-from base.observation import Observation
-from base.frequencies import IF, Frequencies
-from base.sources import Source, Sources
-from base.scans import Scan, Scans
-from base.telescopes import Telescope, SpaceTelescope, Telescopes
 from super.configurator import Configurator, DefaultConfigurator
 from super.inspector import Inspector, DefaultInspector
 from super.calculator import Calculator, DefaultCalculator
@@ -20,13 +15,20 @@ class Manipulator(ABC):
                  configurator: Optional['Configurator'] = None,
                  inspector: Optional['Inspector'] = None,
                  calculator: Optional['Calculator'] = None,
-                 base_classes: Optional[List[Type]] = None):
+                 base_classes: Optional[List[Type]] = None,
+                 operations: Dict[str, Callable] = None):
         self._managing_object = managing_object
         self._configurator = configurator if configurator else DefaultConfigurator(self)
         self._inspector = inspector if inspector else DefaultInspector(self)
         self._calculator = calculator if calculator else DefaultCalculator(self)
         self._base_classes = base_classes if base_classes is not None else []
         self._registry = self._get_method_registry()
+        self._managing_object = managing_object
+        self._operations = operations or {
+            "configure": self._configurator,
+            "inspect": self._inspector,
+            "calculate": self._calculator
+        }
 
     def set_managing_object(self, obj: Any) -> None:
         """Set the object to be managed."""
@@ -72,6 +74,9 @@ class Manipulator(ABC):
         self._registry = self._get_method_registry.cache_clear() or self._get_method_registry()
         logger.info(f"Registry updated with {len(self._registry)} types")
 
+    def register_operation(self, operation: str, super_instance: Any) -> None:
+        self._operations[operation] = super_instance
+
     @lru_cache(maxsize=1)
     def _get_method_registry(self) -> Dict[Type, Dict[str, Callable]]:
         """Build a registry of methods for supported types."""
@@ -104,37 +109,49 @@ class Manipulator(ABC):
         logger.info(f"Method registry initialized with {len(registry)} types")
         return registry
 
-    def process_request(self, operation: str, target: str, attributes: Dict[str, Any],
-                        obj: Optional[Any] = None) -> Any:
-        """Process a request by delegating to the appropriate super-class."""
-        if not isinstance(attributes, dict):
-            logger.error(f"Attributes must be a dictionary, got {type(attributes)}")
-            raise ValueError(f"Attributes must be a dictionary, got {type(attributes)}")
-
-        target_obj = obj if obj is not None else self._managing_object
-        self._validate_object(target_obj, target)
-
-        operation_map = {
-            "configure": 'Configurator',
-            "inspect": 'Inspector',
-            "calculate": 'Calculator'
-        }
-
-        if operation not in operation_map:
+    def process_request(self, request: Dict[str, Any]) -> Any:
+        """
+        Process a request by delegating to the appropriate super-class using a dictionary of arguments.
+        
+        Args:
+            request: Dictionary containing operation details (e.g., {"operation": "configure", "target": "source", "attributes": {...}, "obj": ...})
+        
+        Returns:
+            Any: Result of the operation
+        
+        Raises:
+            ValueError: If operation is unsupported or arguments are invalid
+        """
+        operation = request.get("operation")
+        if not operation or operation not in self._operations:
             logger.error(f"Unsupported operation: {operation}")
             raise ValueError(f"Unsupported operation: {operation}")
 
-        super_instance = self._get_super_class_instance(operation)
-        obj_type = type(target_obj)
-        if obj_type not in self._registry:
-            logger.error(f"Object type {obj_type} not supported")
-            raise ValueError(f"Object type {obj_type} not supported")
+        super_instance = self._operations[operation]
+        target_obj = request.get("obj", self._managing_object)
+        target = request.get("target")  # Извлекаем target для валидации
 
-        if "execute" not in self._registry[type(super_instance)]:
-            logger.error(f"No execute method found for {type(super_instance).__name__}")
-            raise ValueError(f"No execute method for {operation}")
+        # Извлекаем только те аргументы, которые нужны для execute
+        execute_args = {
+            "obj": target_obj,
+            "attributes": request.get("attributes", {})
+        }
 
-        return super_instance.execute(target_obj, attributes)
+        if target and target_obj:
+            self._validate_object(target_obj, target)
+
+        try:
+            if hasattr(super_instance, "execute"):
+                result = super_instance.execute(**execute_args)
+                logger.debug(f"Processed request '{operation}' with args: {execute_args}")
+                return result
+            else:
+                result = super_instance(**execute_args)
+                logger.debug(f"Processed callable operation '{operation}' with args: {execute_args}")
+                return result
+        except Exception as e:
+            logger.error(f"Failed to process request '{operation}': {str(e)}")
+            raise
 
     def __repr__(self) -> str:
         obj_type = type(self._managing_object).__name__ if self._managing_object else "None"
@@ -149,6 +166,9 @@ class DefaultManipulator(Manipulator):
         from base.sources import Source, Sources
         from base.telescopes import Telescope, SpaceTelescope, Telescopes
         from base.scans import Scan, Scans
+        self._configurator = DefaultConfigurator
+        self._calculator = DefaultCalculator
+        self._inspector = DefaultInspector
 
         base_classes = [
             Project, Observation, IF, Frequencies, Source, Sources,
