@@ -1,3 +1,14 @@
+import warnings
+warnings.filterwarnings("ignore", category=Warning)
+warnings.filterwarnings("ignore", module="erfa.*", category=Warning)
+
+# Отключаем IERS-проверки
+from astropy.utils import iers
+iers.conf.auto_download = False  # Отключаем загрузку свежих данных
+iers.conf.iers_auto_url = None
+from astropy.utils.iers import conf
+conf.auto_max_age = None
+
 import unittest
 import matplotlib.pyplot as plt
 from base.sources import Source, Sources
@@ -22,6 +33,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         logger.info("Set up test environment with Manipulator and Project")
 
     def test_eht_observation_with_space_telescope(self):
+
         """Тест полного цикла с космическим телескопом: настройка, вычисление (u,v), проекций базы, визуализация + beam_pattern и synthesized_beam"""
         # 1. Настройка источника M87
         m87_attributes = {
@@ -64,13 +76,13 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "pitch_range": (-90.0, 90.0),
                 "yaw_range": (0.0, 180.0),
                 "orbit_file": "i:\\pAstroCORE\\final_orbit370.txt",
-                "interpolation_method": "chebyshev"
+                "interpolation_method": "linear"
             }
         }
         space_tel = SpaceTelescope(
             use_kep=False,
             orbit_file="i:\\pAstroCORE\\final_orbit370.txt",
-            interpolation_method="chebyshev"
+            interpolation_method="linear"
         )
         self.manipulator.process_request("configure", "telescope", space_tel_attributes, space_tel)
         telescopes.add_telescope(space_tel)
@@ -83,7 +95,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
 
         # 4. Настройка сканирования (10.03.2031 - 20.03.2031, шаг 10 минут)
         start_time = Time("2031-03-10T00:00:00", format="isot", scale="utc")
-        duration = 10 * 24 * 3600 * u.s  # 10 дней в секундах
+        duration = 365 * 24 * 3600 * u.s  # 1 год
         scan_attributes = {
             "set_scan": {
                 "start": start_time,
@@ -132,7 +144,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         # 7. Вычисление (u,v)-покрытия с шагом 10 минут
         calc_attributes = {
             "type": "uv_coverage",
-            "time_step": 600,
+            "time_step": 18000,
             "freq_idx": 0,
             "store_key": "uv_coverage_f0",
             "recalculate": False
@@ -145,7 +157,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         # 8. Вычисление Mollweide tracks с шагом 10 минут
         calc_attributes_moll = {
             "type": "mollweide_tracks",
-            "time_step": 600,
+            "time_step": 18000,
             "store_key": "mollweide_tracks",
             "recalculate": False
         }
@@ -157,7 +169,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         # 9. Вычисление проекций базы с шагом 10 минут
         calc_attributes_bl = {
             "type": "baseline_projections",
-            "time_step": 600,
+            "time_step": 18000,
             "freq_idx": 0,
             "store_key": "baseline_projections_f0",
             "recalculate": False
@@ -185,7 +197,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "freq_idx": 0,
             "store_key": "synthesized_beam_f0",
             "recalculate": False,
-            "time_step": 600  # Добавляем для совместимости с uv_coverage
+            "time_step": 18000  # Добавляем для совместимости с uv_coverage
         }
         start = time.time()
         synth_results = self.manipulator.process_request("calculate", "observation", synth_attributes, self.project.get_by_index(0))
@@ -286,7 +298,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         bl_data = observation.get_calculated_data_by_key("baseline_projections_f0")["data"]
         self.assertGreater(len(bl_data), 0, "No baseline projections data calculated")
 
-        # Константы для перевода в диаметры Земли
         c = 299792458  # м/с
         freq = 86e9  # 86 GHz в Гц
         wavelength = c / freq  # длина волны в метрах
@@ -353,12 +364,11 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         plt.savefig("beam_pattern_m87_single_dish.png")
         plt.show()
 
-        # Визуализация 2D synthesized beam
         plt.figure(figsize=(10, 8))
         for scan_idx, data in synth_results.items():
-            theta_u = np.array(data["theta_u"])  # RA в градусах
-            theta_v = np.array(data["theta_v"])  # Dec в градусах
-            beam_2d = np.array(data["beam_2d"])  # 2D карта
+            theta_u = np.array(data["theta_u"])
+            theta_v = np.array(data["theta_v"])
+            beam_2d = np.array(data["beam_2d"])
             
             # Создаём тепловую карту
             plt.imshow(beam_2d, extent=[theta_u.min(), theta_u.max(), theta_v.min(), theta_v.max()],
@@ -369,6 +379,138 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             plt.title(f"2D Синтезированная диаграмма направленности (VLBI, 86 ГГц, Скан {scan_idx})")
         plt.grid(False)  # Убираем сетку для чистоты изображения
         plt.savefig("synthesized_beam_2d_m87_vlbi.png")
+        plt.show()
+
+    # 12. Вычисление time_on_source с шагом 10 минут
+        calc_attributes_time = {
+            "type": "time_on_source",
+            "time_step": 18000,
+            "store_key": "time_on_source",
+            "recalculate": False
+        }
+        start = time.time()
+        time_results = self.manipulator.process_request("calculate", "observation", calc_attributes_time, self.project.get_by_index(0))
+        self.assertTrue(time_results, "Time on source calculation failed")
+        print(f"Time on source calculation took {time.time() - start:.2f} seconds")
+
+        # Извлечение данных time_on_source
+        time_data = observation.get_calculated_data_by_key("time_on_source")["data"]
+        self.assertGreater(len(time_data), 0, "No time on source data calculated")
+
+        # Визуализация блок-диаграммы (Gantt chart)
+        plt.figure(figsize=(12, 6))
+        telescopes_list = ['ALMA', 'APEX', 'SMT', 'SPACE370']
+        colors_time = {'ALMA': 'blue', 'APEX': 'green', 'SMT': 'red', 'SPACE370': 'purple'}
+        y_pos = np.arange(len(telescopes_list))
+
+        for source_name, source_data in time_data.items():
+            tel_blocks = source_data["telescopes"]
+            for i, tel_code in enumerate(telescopes_list):
+                if tel_code in tel_blocks:
+                    blocks = tel_blocks[tel_code]
+                    for block in blocks:
+                        start_mjd = Time(block["start"]).mjd
+                        duration_days = block["duration"] / (24 * 3600)  # Переводим секунды в дни
+                        plt.barh(i, duration_days, left=start_mjd, color=colors_time[tel_code], edgecolor='black', alpha=0.7)
+
+        plt.yticks(y_pos, telescopes_list)
+        plt.xlabel("Time (MJD)")
+        plt.ylabel("Telescope")
+        plt.title(f"Time on Source: {source_name} (10-20 March 2031)")
+        plt.grid(True, axis='x', linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        plt.savefig("time_on_source_m87_space.png")
+        plt.show()
+
+    # 13. Вычисление sun_angles с шагом 10 минут
+        calc_attributes_sun = {
+            "type": "sun_angles",
+            "time_step": 18000,
+            "store_key": "sun_angles",
+            "recalculate": False
+        }
+        start = time.time()
+        sun_results = self.manipulator.process_request("calculate", "observation", calc_attributes_sun, self.project.get_by_index(0))
+        self.assertTrue(sun_results, "Sun angles calculation failed")
+        print(f"Sun angles calculation took {time.time() - start:.2f} seconds")
+
+        # Извлечение данных sun_angles
+        sun_data = observation.get_calculated_data_by_key("sun_angles")["data"]
+        self.assertGreater(len(sun_data), 0, "No sun angles data calculated")
+
+        # Визуализация sun_angles
+        plt.figure(figsize=(12, 6))
+        telescopes_list = ['ALMA', 'APEX', 'SMT', 'SPACE370']
+        colors_sun = {'ALMA': 'blue', 'APEX': 'green', 'SMT': 'red', 'SPACE370': 'purple'}
+        for scan_idx, scan_data in sun_data.items():
+            times = [Time(t).jd for t in scan_data["times"]]
+            for tel_code in telescopes_list:
+                if tel_code in scan_data["sun_angles"]:
+                    angles = scan_data["sun_angles"][tel_code]
+                    plt.plot(times, angles, label=f"{tel_code}", color=colors_sun[tel_code])
+        plt.xlabel("Time (JD)")
+        plt.ylabel("Sun Angle (degrees)")
+        plt.title(f"Sun Angles for {scan_data['source']} from Telescopes (10-20 March 2031)")
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("sun_angles_m87_space.png")
+        plt.show()
+
+        # 14. Вычисление az_el с шагом 10 минут
+        calc_attributes_azel = {
+            "type": "az_el",
+            "time_step": 18000,
+            "store_key": "az_el",
+            "recalculate": False
+        }
+        start = time.time()
+        azel_results = self.manipulator.process_request("calculate", "observation", calc_attributes_azel, self.project.get_by_index(0))
+        self.assertTrue(azel_results, "Az/El calculation failed")
+        print(f"Az/El calculation took {time.time() - start:.2f} seconds")
+
+        # Извлечение данных az_el
+        azel_data = observation.get_calculated_data_by_key("az_el")["data"]
+        self.assertGreater(len(azel_data), 0, "No az/el data calculated")
+
+        # Визуализация az_el (отдельно для Az/HA и El/Dec)
+        telescopes_list = ['ALMA', 'APEX', 'SMT']  # Только наземные телескопы
+        colors_azel = {'ALMA': 'blue', 'APEX': 'green', 'SMT': 'red'}  # Определяем цвета для Az/El
+
+        # График для Azimuth/HA
+        plt.figure(figsize=(12, 6))
+        for scan_idx, scan_data in azel_data.items():
+            times = [Time(t).mjd for t in scan_data["times"]]
+            for tel_code in telescopes_list:
+                if tel_code in scan_data["az_el"]:
+                    coord_type = scan_data["az_el"][tel_code]["coord_type"]
+                    coord1_label = "Azimuth" if coord_type == "AzEl" else "Hour Angle"
+                    plt.plot(times, scan_data["az_el"][tel_code]["coord1"], label=f"{tel_code} ({coord1_label})", color=colors_azel[tel_code])
+        plt.xlabel("Time (MJD)")
+        plt.ylabel(f"{coord1_label} (degrees)")
+        plt.title(f"{coord1_label} for M87 Observation (10-20 March 2031)")
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("az_ha_m87_space.png")
+        plt.show()
+
+        # График для Elevation/Dec
+        plt.figure(figsize=(12, 6))
+        for scan_idx, scan_data in azel_data.items():
+            times = [Time(t).mjd for t in scan_data["times"]]
+            for tel_code in telescopes_list:
+                if tel_code in scan_data["az_el"]:
+                    coord_type = scan_data["az_el"][tel_code]["coord_type"]
+                    coord2_label = "Elevation" if coord_type == "AzEl" else "Declination"
+                    plt.plot(times, scan_data["az_el"][tel_code]["coord2"], label=f"{tel_code} ({coord2_label})", color=colors_azel[tel_code])
+        plt.xlabel("Time (JD)")
+        plt.ylabel(f"{coord2_label} (degrees)")
+        plt.title(f"{coord2_label} for M87 Observation (10-20 March 2031)")
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("el_dec_m87_space.png")
         plt.show()
 
 if __name__ == "__main__":

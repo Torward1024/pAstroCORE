@@ -71,6 +71,16 @@ class Calculator(ABC):
             if not scans:
                 logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
                 return {}
+            
+            if time_step and scans:
+                start_times = [scan.get_start() for scan in scans]
+                end_times = [scan.get_start() + scan.get_duration() * u.s for scan in scans]
+                obs_start = min(start_times)
+                obs_end = max(end_times)
+                for tel in telescopes.get_active_telescopes():
+                    if isinstance(tel, SpaceTelescope) and not tel.get_use_kep():
+                        logger.info(f"Interpolating orbit for {tel.get_code()}")
+                        tel.interpolate_orbit(obs_start, obs_end, time_step)
 
             results = {}
             with ThreadPoolExecutor() as executor:
@@ -133,10 +143,11 @@ class Calculator(ABC):
         raise ValueError(f"Unsupported telescope type: {type(telescope)}")
 
     def _calculate_source_visibility(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate source visibility for all scans in the observation or project"""
+        """Calculate source visibility for all scans in the observation or project using cached telescope positions"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "source_visibility")
+            position_store_key = attributes.get("position_store_key", "telescope_positions")  # Ключ для позиций
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
@@ -154,18 +165,23 @@ class Calculator(ABC):
                 scans = obj.get_scans().get_active_scans(obj)
                 telescopes = obj.get_telescopes()
                 sources = obj.get_sources()
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": attrs.get("recalculate", False)}
+                position_data = self._calculate_telescope_positions(obj, position_attrs)
+                if not position_data:
+                    logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
+                    return {}
                 results = {}
                 if len(scans) > 1:
                     with ThreadPoolExecutor() as executor:
                         futures = {
-                            executor.submit(self._process_source_visibility, scan, telescopes, sources, time_step): i
+                            executor.submit(self._process_source_visibility, scan, telescopes, sources, time_step, position_data, obj): i
                             for i, scan in enumerate(scans)
                         }
                         for future in futures:
                             scan_idx = futures[future]
                             results[scan_idx] = future.result()
                 else:
-                    results[0] = self._process_source_visibility(scans[0], telescopes, sources, time_step)
+                    results[0] = self._process_source_visibility(scans[0], telescopes, sources, time_step, position_data, obj)
                 return results
 
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_scans(obj))}
@@ -174,35 +190,51 @@ class Calculator(ABC):
             logger.error(f"Failed to calculate source visibility: {str(e)}")
             return {}
 
-    def _process_source_visibility(self, scan: Scan, telescopes: Telescopes, sources: Sources, time_step: Optional[float]) -> Dict[str, Any]:
+    def _process_source_visibility(self, scan: Scan, telescopes: Telescopes, sources: Sources, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
         start_time = scan.get_start()
         duration = scan.get_duration()
         source_idx = scan.get_source_index()
         source = sources.get_by_index(source_idx)
         telescope_indices = scan.get_telescope_indices()
         active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
+        scan_idx = list(observation.get_scans().get_active_scans(observation)).index(scan)  # Используем observation напрямую
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
-            visibility = self._compute_visibility_at_time(source, active_telescopes, mean_time)
+            positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
+            visibility = self._compute_visibility_at_time(source, active_telescopes, mean_time, positions)
             return {"source": source.get_name(), "visibility": visibility}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')  # Массовое создание Time
+            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
             visibility = {tel.get_code(): [] for tel in active_telescopes}
-            for t in times:
-                vis = self._compute_visibility_at_time(source, active_telescopes, t)
+            positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
+            for t_idx, t in enumerate(times):
+                pos_at_time = {}
+                for tel in active_telescopes:
+                    pos_data = positions.get(tel.get_code(), {})
+                    if "positions" in pos_data:
+                        pos_at_time[tel.get_code()] = pos_data["positions"][t_idx]
+                    else:
+                        pos_at_time[tel.get_code()] = pos_data  # Статическая позиция
+                vis = self._compute_visibility_at_time(source, active_telescopes, t, pos_at_time)
                 for tel_code, is_visible in vis.items():
                     visibility[tel_code].append(is_visible)
             return {"source": source.get_name(), "times": times.isot.tolist(), "visibility": visibility}
     
-    def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time) -> Dict[str, bool]:
-        """Compute visibility of a source for telescopes at a given time, considering mount type"""
+    def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
+        """Compute visibility of a source for telescopes at a given time using precomputed positions from _calculate_telescope_positions"""
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
         visibility = {}
         for tel in telescopes:
+            pos = positions.get(tel.get_code())
+            if pos is None:
+                logger.warning(f"No position data for telescope '{tel.get_code()}' at {time.isot}")
+                visibility[tel.get_code()] = False
+                continue
+
             if isinstance(tel, SpaceTelescope):
-                pos, _ = tel.get_state_vector(time)
+                # Позиция из get_state_vector (предполагается GCRS)
                 itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
                 altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
                 pitch = altaz.alt.deg
@@ -211,11 +243,9 @@ class Calculator(ABC):
                 yaw_range = tel.get_yaw_range()
                 is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
             else:
-                x, y, z = tel.get_coordinates()
-                vx, vy, vz = tel.get_velocities()
-                dt = (time - Time("2000-01-01T12:00:00")).sec
-                itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
-                itrs = ITRS(itrs_coords, obstime=time)
+                # Наземный телескоп: позиция в GCRS, преобразуем в ITRS
+                gcrs = GCRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
+                itrs = gcrs.transform_to(ITRS(obstime=time))
                 location = itrs.earth_location
                 altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
                 el = altaz.alt.deg
@@ -338,7 +368,8 @@ class Calculator(ABC):
         dec = source_coord.dec.rad
 
         if visibility is None:
-            visibility = self._compute_visibility_at_time(source, telescopes, time)
+            positions_dict = {tel.get_code(): pos for tel, pos in zip(telescopes, gcrs_positions)}
+            visibility = self._compute_visibility_at_time(source, telescopes, time, positions_dict)
 
         def compute_baseline(i, j):
             tel1, tel2 = telescopes[i], telescopes[j]
@@ -364,11 +395,9 @@ class Calculator(ABC):
         return uv_points
 
     def _calculate_sun_angles(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate angles between source and Sun for all scans in the observation or project"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "sun_angles")
-            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
@@ -382,60 +411,114 @@ class Calculator(ABC):
                 logger.info(f"Calculated Sun angles for {len(observations)} observations in project '{obj.get_name()}'")
                 return results
 
-            scans = obj.get_scans().get_active_scans(obj)
-            sources = obj.get_sources()
+            def calculate_sun_angles(obj, attrs):
+                scans = obj.get_scans().get_active_scans(obj)
+                sources = obj.get_sources()
+                telescopes = obj.get_telescopes()
+                results = {}
+                with ThreadPoolExecutor() as executor:
+                    futures = {
+                        executor.submit(self._process_sun_angles, scan, sources, telescopes, time_step, obj): i
+                        for i, scan in enumerate(scans)
+                    }
+                    for future in futures:
+                        scan_idx = futures[future]
+                        results[scan_idx] = future.result()
+                return results
 
-            existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
-                logger.info(f"Using cached Sun angles for '{obj.get_observation_code()}'")
-                return existing_data["data"]
-
-            results = {}
-            with ThreadPoolExecutor() as executor:
-                futures = {
-                    executor.submit(self._process_sun_angles, scan, sources, time_step): i
-                    for i, scan in enumerate(scans)
-                }
-                for future in futures:
-                    scan_idx = futures[future]
-                    results[scan_idx] = future.result()
-
-            metadata = {"time_step": time_step, "scan_count": len(scans)}
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated Sun angles for {len(scans)} scans in '{obj.get_observation_code()}'")
-            return results
+            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_scans(obj))}
+            return self._get_cached_or_calculate(obj, store_key, calculate_sun_angles, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate Sun angles: {str(e)}")
             return {}
 
-    def _process_sun_angles(self, scan: Scan, sources: Sources, time_step: Optional[float]) -> Dict[str, Any]:
+    def _process_sun_angles(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: Optional[float], observation: Observation) -> Dict[str, Any]:
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = sources.get_by_index(scan.get_source_index())
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
+        telescope_indices = scan.get_telescope_indices()
+        active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
-            angle = self._compute_sun_angle(source_coord, mean_time)
-            return {"source": source.get_name(), "sun_angle": angle}
+            angles = self._compute_sun_angle(source_coord, mean_time, active_telescopes)
+            return {"source": source.get_name(), "sun_angles": angles}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')  # Массовое создание Time
-            angles = [self._compute_sun_angle(source_coord, t) for t in times]
+            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+            angles = {tel.get_code(): [] for tel in active_telescopes}
+            for t in times:
+                tel_angles = self._compute_sun_angle(source_coord, t, active_telescopes)
+                for tel_code, angle in tel_angles.items():
+                    angles[tel_code].append(angle)
             return {"source": source.get_name(), "times": times.isot.tolist(), "sun_angles": angles}
 
-    def _compute_sun_angle(self, source_coord: SkyCoord, time: Time) -> float:
-        """Compute angle between source and Sun at a given time"""
-        sun = get_sun(time)
-        return source_coord.separation(sun).deg
+    def _compute_sun_angle(self, source_coord: SkyCoord, time: Time, telescopes: List[Telescope | SpaceTelescope]) -> Dict[str, float]:
+        """Compute angle between the direction from telescope to source and to Sun for each telescope at a given time."""
+        sun_gcrs = get_sun(time)  # Координаты Солнца в GCRS
+        angles = {}
+
+        for tel in telescopes:
+            if isinstance(tel, SpaceTelescope):
+                # Получаем позицию телескопа в GCRS
+                tel_pos, _ = tel.get_state_vector(time)  # Предполагается, что возвращает (x, y, z) в метрах
+                tel_pos = np.array(tel_pos)  # Позиция телескопа в GCRS
+
+                # Позиция Солнца в GCRS (в метрах)
+                sun_pos = np.array([sun_gcrs.cartesian.x.to(u.m).value,
+                                    sun_gcrs.cartesian.y.to(u.m).value,
+                                    sun_gcrs.cartesian.z.to(u.m).value])
+
+                # Позиция источника в GCRS (приближение: бесконечно далеко, используем единичный вектор)
+                source_icrs = source_coord.icrs  # Убедимся, что в ICRS
+                source_dir = np.array([source_icrs.cartesian.x.value,
+                                    source_icrs.cartesian.y.value,
+                                    source_icrs.cartesian.z.value])
+                source_dir /= np.linalg.norm(source_dir)  # Нормируем, так как источник бесконечно далеко
+
+                # Вектор от телескопа к Солнцу
+                vec_to_sun = sun_pos - tel_pos
+                vec_to_sun /= np.linalg.norm(vec_to_sun)  # Нормируем
+
+                # Вектор от телескопа к источнику (для бесконечно удалённого источника это просто направление)
+                vec_to_source = source_dir
+
+                # Угол между векторами через скалярное произведение
+                cos_angle = np.clip(np.dot(vec_to_source, vec_to_sun), -1.0, 1.0)
+                angle = np.degrees(np.arccos(cos_angle))
+
+                angles[tel.get_code()] = angle
+                logger.debug(f"{tel.get_code()} at {time.isot}: Sun angle={angle:.2f} deg (SpaceTelescope, vector-based)")
+            else:
+                # Для наземного телескопа: сохраняем текущую логику
+                x, y, z = tel.get_coordinates()
+                vx, vy, vz = tel.get_velocities()
+                dt = (time - Time("2000-01-01T12:00:00")).sec
+                itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
+                itrs = ITRS(itrs_coords, obstime=time)
+                location = itrs.earth_location
+                
+                # Преобразуем координаты источника и Солнца в AltAz
+                altaz_frame = AltAz(obstime=time, location=location)
+                source_altaz = source_coord.transform_to(altaz_frame)
+                sun_altaz = sun_gcrs.transform_to(altaz_frame)
+
+                # Проверяем видимость (высота > 0 для наземных телескопов)
+                if source_altaz.alt.deg < 0 or sun_altaz.alt.deg < 0:
+                    angle = float('nan')  # Указываем, что угол не определён
+                    logger.debug(f"{tel.get_code()} at {time.isot}: Source or Sun below horizon (alt={source_altaz.alt.deg:.2f}, sun_alt={sun_altaz.alt.deg:.2f})")
+                else:
+                    angle = source_altaz.separation(sun_altaz).deg
+                    logger.debug(f"{tel.get_code()} at {time.isot}: Sun angle={angle:.2f} deg (alt={source_altaz.alt.deg:.2f}, sun_alt={sun_altaz.alt.deg:.2f})")
+                angles[tel.get_code()] = angle
+
+        return angles
 
     def _calculate_az_el(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate azimuth/elevation or hour angle/declination for ground telescopes in the observation or project"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "az_el")
-            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
@@ -449,30 +532,23 @@ class Calculator(ABC):
                 logger.info(f"Calculated Az/El or HA/Dec for {len(observations)} observations in project '{obj.get_name()}'")
                 return results
 
-            existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate and existing_data["metadata"]["time_step"] == time_step:
-                logger.info(f"Using cached Az/El or HA/Dec for '{obj.get_observation_code()}'")
-                return existing_data["data"]
+            def calculate_az_el(obj, attrs):
+                scans = obj.get_scans().get_active_scans(obj)
+                telescopes = obj.get_telescopes()
+                sources = obj.get_sources()
+                results = {}
+                with ThreadPoolExecutor() as executor:
+                    futures = {
+                        executor.submit(self._process_az_el, scan, telescopes, sources, time_step): i
+                        for i, scan in enumerate(scans)
+                    }
+                    for future in futures:
+                        scan_idx = futures[future]
+                        results[scan_idx] = future.result()
+                return results
 
-            scans = obj.get_scans().get_active_scans(obj)
-            telescopes = obj.get_telescopes()
-            sources = obj.get_sources()
-
-            results = {}
-            with ThreadPoolExecutor() as executor:
-                futures = {
-                    executor.submit(self._process_az_el, scan, telescopes, sources, time_step): i
-                    for i, scan in enumerate(scans)
-                }
-                for future in futures:
-                    scan_idx = futures[future]
-                    results[scan_idx] = future.result()
-
-            metadata = {"time_step": time_step, "scan_count": len(scans)}
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated Az/El or HA/Dec for {len(scans)} scans in '{obj.get_observation_code()}'")
-            return results
+            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_scans(obj))}
+            return self._get_cached_or_calculate(obj, store_key, calculate_az_el, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate Az/El or HA/Dec: {str(e)}")
             return {}
@@ -505,7 +581,7 @@ class Calculator(ABC):
             return {"source": source.get_name(), "times": times.isot.tolist(), "az_el": az_el}
 
     def _compute_az_el_at_time(self, source_coord: SkyCoord, telescopes: List[Telescope], time: Time) -> Dict[str, Tuple[float, float]]:
-        """Compute Az/El or HA/Dec for ground telescopes at a given time, depending on mount type"""
+        """Compute Az/El or HA/Dec for ground telescopes at a given time, depending on mount type, respecting telescope limits"""
         az_el = {}
         for tel in telescopes:
             x, y, z = tel.get_coordinates()
@@ -515,22 +591,36 @@ class Calculator(ABC):
             itrs = ITRS(itrs_coords, obstime=time)
             location = itrs.earth_location
             mount_type = tel.get_mount_type()
+            
             if mount_type == MountType.AZIMUTHAL:
                 altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
-                az_el[tel.get_code()] = (altaz.az.deg, altaz.alt.deg)
+                az, el = altaz.az.deg, altaz.alt.deg
+                el_range = tel.get_elevation_range()
+                az_range = tel.get_azimuth_range()
+                if not (el_range[0] <= el <= el_range[1] and az_range[0] <= az <= az_range[1]):
+                    az_el[tel.get_code()] = (None, None)
+                    logger.debug(f"{tel.get_code()} at {time.isot}: Az={az:.2f}, El={el:.2f} outside limits (Az: {az_range}, El: {el_range})")
+                else:
+                    az_el[tel.get_code()] = (az, el)
             elif mount_type == MountType.EQUATORIAL:
                 hadec = source_coord.transform_to(HADec(obstime=time, location=location))
-                az_el[tel.get_code()] = (hadec.ha.deg, hadec.dec.deg)
+                ha, dec = hadec.ha.deg, hadec.dec.deg
+                ha_range = tel.get_azimuth_range()  # HA uses azimuth range
+                dec_range = tel.get_elevation_range()  # Dec uses elevation range
+                if not (ha_range[0] <= ha <= ha_range[1] and dec_range[0] <= dec <= dec_range[1]):
+                    az_el[tel.get_code()] = (None, None)
+                    logger.debug(f"{tel.get_code()} at {time.isot}: HA={ha:.2f}, Dec={dec:.2f} outside limits (HA: {ha_range}, Dec: {dec_range})")
+                else:
+                    az_el[tel.get_code()] = (ha, dec)
             else:
                 logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel.get_code()}'")
                 az_el[tel.get_code()] = (0.0, 0.0)
         return az_el
 
     def _calculate_time_on_source(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate time on source for all scans in the observation or project"""
         try:
+            time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "time_on_source")
-            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
@@ -544,37 +634,103 @@ class Calculator(ABC):
                 logger.info(f"Calculated time on source for {len(observations)} observations in project '{obj.get_name()}'")
                 return results
 
-            scans = obj.get_scans().get_active_scans(obj)
-            sources = obj.get_sources()
+            def calculate_time_on_source(obj, attrs):
+                scans = obj.get_scans().get_active_scans(obj)
+                sources = obj.get_sources()
+                telescopes = obj.get_telescopes()
+                visibility_store_key = "source_visibility"
+                visibility_data = obj.get_calculated_data_by_key(visibility_store_key)
+                if not visibility_data or attrs.get("recalculate", False) or visibility_data["metadata"].get("time_step") != time_step:
+                    logger.info(f"Recalculating source visibility for '{obj.get_observation_code()}'")
+                    visibility_data = self._calculate_source_visibility(obj, {
+                        "time_step": time_step,
+                        "store_key": visibility_store_key,
+                        "recalculate": attrs.get("recalculate", False)
+                    })
+                if not visibility_data:
+                    logger.error(f"No visibility data available for '{obj.get_observation_code()}'")
+                    return {}
+                results = {}
+                with ThreadPoolExecutor() as executor:
+                    futures = {
+                        executor.submit(self._process_time_on_source, scan, sources, telescopes, time_step, visibility_data, obj): i
+                        for i, scan in enumerate(scans)
+                    }
+                    for future in futures:
+                        scan_idx = futures[future]
+                        scan_result = future.result()
+                        source_name = scan_result["source"]
+                        if source_name not in results:
+                            results[source_name] = {"telescopes": {}, "total_time": 0.0}
+                        for tel_code, blocks in scan_result["visibility_blocks"].items():
+                            if tel_code not in results[source_name]["telescopes"]:
+                                results[source_name]["telescopes"][tel_code] = []
+                            results[source_name]["telescopes"][tel_code].extend(blocks)
+                            results[source_name]["total_time"] += sum(block["duration"] for block in blocks)
+                return results
 
-            existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate:
-                logger.info(f"Using cached time on source for '{obj.get_observation_code()}'")
-                return existing_data["data"]
-
-            time_on_source = {}
-            for i, scan in enumerate(scans):
-                source_name = sources.get_by_index(scan.get_source_index()).get_name()
-                duration = scan.get_duration()
-                time_on_source.setdefault(source_name, []).append({"scan_idx": i, "duration": duration})
-
-            results = {source: {"total_time": sum(s["duration"] for s in scans), "scans": scans} 
-                      for source, scans in time_on_source.items()}
-            metadata = {"scan_count": len(scans)}
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated time on source for {len(scans)} scans in '{obj.get_observation_code()}'")
-            return results
+            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_scans(obj))}
+            return self._get_cached_or_calculate(obj, store_key, calculate_time_on_source, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate time on source: {str(e)}")
             return {}
+        
+    def _process_time_on_source(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: float, visibility_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
+        start_time = scan.get_start()
+        duration = scan.get_duration()
+        source = sources.get_by_index(scan.get_source_index())
+        scan_idx = list(observation.get_scans().get_active_scans(observation)).index(scan)
+        telescope_indices = scan.get_telescope_indices()
+        active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
+
+        time_values = np.arange(0, duration, time_step) * u.s
+        times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+
+        scan_data = visibility_data.get('data', {}).get(scan_idx, {})
+
+        visibility = scan_data.get("visibility", {})
+        if not visibility:
+            logger.warning(f"No visibility data for scan {scan_idx} in observation '{observation.get_observation_code()}'")
+            return {"source": source.get_name(), "visibility_blocks": {}}
+
+        blocks = {tel.get_code(): [] for tel in active_telescopes}
+        for tel in active_telescopes:
+            tel_code = tel.get_code()
+            vis = visibility.get(tel_code, [])
+            if not vis:
+                logger.debug(f"No visibility data for telescope '{tel_code}' in scan {scan_idx}")
+                continue
+
+            start_block = None
+            for t_idx, is_visible in enumerate(vis):
+                current_time = times[t_idx]
+                if is_visible and start_block is None:
+                    start_block = current_time
+                elif not is_visible and start_block is not None:
+                    end_block = times[t_idx - 1]
+                    duration_block = (end_block - start_block).sec
+                    blocks[tel_code].append({
+                        "start": start_block.isot,
+                        "end": end_block.isot,
+                        "duration": duration_block
+                    })
+                    start_block = None
+                # Закрываем последний блок, если он открыт
+                if t_idx == len(vis) - 1 and start_block is not None:
+                    end_block = current_time
+                    duration_block = (end_block - start_block).sec
+                    blocks[tel_code].append({
+                        "start": start_block.isot,
+                        "end": end_block.isot,
+                        "duration": duration_block
+                    })
+
+        return {"source": source.get_name(), "visibility_blocks": blocks}
 
     def _calculate_beam_pattern(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate Gaussian beam pattern for SINGLE_DISH observation or project"""
         try:
             freq_idx = attributes.get("freq_idx", 0)
             store_key = attributes.get("store_key", f"beam_pattern_f{freq_idx}")
-            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
@@ -592,32 +748,25 @@ class Calculator(ABC):
                 logger.warning(f"Beam pattern calculation is only for SINGLE_DISH, got {obj.get_observation_type()}")
                 return {}
 
-            telescopes = obj.get_telescopes().get_active_telescopes()
-            frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6  # MHz -> Hz
-
-            existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate:
-                logger.info(f"Using cached beam pattern for '{obj.get_observation_code()}'")
-                return existing_data["data"]
-
-            results = {}
-            c = 299792458  # m/s
-            wavelength = c / frequency
-            for tel in telescopes:
-                if isinstance(tel, SpaceTelescope):
-                    continue
-                D = tel.get_diameter()
-                theta = np.linspace(-np.pi/2, np.pi/2, 1000)  # radians
-                x = (np.pi * D / wavelength) * np.sin(theta)
-                pattern = (2 * j1(x) / x) ** 2  # Gaussian approximation
-                pattern[np.isnan(pattern)] = 1.0  # Center fix
-                results[tel.get_code()] = {"theta": theta.tolist(), "pattern": pattern.tolist()}
+            def calculate_beam_pattern(obj, attrs):
+                telescopes = obj.get_telescopes().get_active_telescopes()
+                frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6
+                results = {}
+                c = 299792458
+                wavelength = c / frequency
+                for tel in telescopes:
+                    if isinstance(tel, SpaceTelescope):
+                        continue
+                    D = tel.get_diameter()
+                    theta = np.linspace(-np.pi/2, np.pi/2, 1000)
+                    x = (np.pi * D / wavelength) * np.sin(theta)
+                    pattern = (2 * j1(x) / x) ** 2
+                    pattern[np.isnan(pattern)] = 1.0
+                    results[tel.get_code()] = {"theta": theta.tolist(), "pattern": pattern.tolist()}
+                return results
 
             metadata = {"freq_idx": freq_idx}
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated beam pattern for '{obj.get_observation_code()}' at {frequency/1e6} MHz")
-            return results
+            return self._get_cached_or_calculate(obj, store_key, calculate_beam_pattern, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate beam pattern: {str(e)}")
             return {}
@@ -626,7 +775,6 @@ class Calculator(ABC):
         try:
             freq_idx = attributes.get("freq_idx", 0)
             store_key = attributes.get("store_key", f"synthesized_beam_f{freq_idx}")
-            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
@@ -640,95 +788,68 @@ class Calculator(ABC):
                 logger.warning(f"Synthesized beam calculation is only for VLBI, got {obj.get_observation_type()}")
                 return {}
 
-            frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6  # MHz -> Hz
-            uv_store_key = f"uv_coverage_f{freq_idx}"
-
-            # Проверяем кэш synthesized_beam
-            existing_beam_data = obj.get_calculated_data_by_key(store_key)
-            if existing_beam_data and not recalculate:
-                logger.info(f"Using cached synthesized beam for '{obj.get_observation_code()}'")
-                return existing_beam_data["data"]
-
-            # Получаем UV-данные
-            uv_data = obj.get_calculated_data_by_key(uv_store_key)
-            if not uv_data:
-                logger.info(f"Recalculating UV coverage for '{obj.get_observation_code()}' as no cache found")
-                uv_data = self._calculate_uv_coverage(obj, {
-                    "time_step": attributes.get("time_step"),
-                    "freq_idx": freq_idx,
-                    "store_key": uv_store_key,
-                    "recalculate": False
-                })
-
-            if not uv_data:
-                logger.error(f"No UV data available for synthesized beam calculation")
-                return {}
-
-            # Собираем все (u,v)-точки из 'data'
-            u = []
-            v = []
-            for scan_idx, scan_data in uv_data.get('data', {}).items():  # Исправлено: итерируемся по 'data'
-                uv_points = scan_data.get("uv_points", {}).get(frequency, [])
-                logger.debug(f"Scan {scan_idx} uv_points for {frequency/1e6} MHz: {uv_points}")  # Добавляем отладку
-                if not uv_points:
-                    continue
-                u.extend([point[1] for point in uv_points])  # u в длинах волн
-                v.extend([point[2] for point in uv_points])  # v в длинах волн
-
-            if not u or not v:
-                logger.warning(f"No valid UV points for frequency {frequency/1e6} MHz")
-                return {}
-
-            # Создаём 2D-сетку для UV-плоскости
-            u_max = max(abs(min(u)), abs(max(u)))
-            v_max = max(abs(min(v)), abs(max(v)))
-            grid_size = 512  # Размер сетки для FFT
-            u_grid = np.linspace(-u_max, u_max, grid_size)
-            v_grid = np.linspace(-v_max, v_max, grid_size)
-            uv_plane = np.zeros((grid_size, grid_size), dtype=complex)
-
-            # Заполняем UV-плоскость
-            for uu, vv in zip(u, v):
-                u_idx = int((uu + u_max) / (2 * u_max) * (grid_size - 1))
-                v_idx = int((vv + v_max) / (2 * v_max) * (grid_size - 1))
-                if 0 <= u_idx < grid_size and 0 <= v_idx < grid_size:
-                    uv_plane[v_idx, u_idx] = 1.0
-
-            # Добавляем сопряжённые точки
-            for uu, vv in zip(u, v):
-                u_idx = int((-uu + u_max) / (2 * u_max) * (grid_size - 1))
-                v_idx = int((-vv + v_max) / (2 * v_max) * (grid_size - 1))
-                if 0 <= u_idx < grid_size and 0 <= v_idx < grid_size:
-                    uv_plane[v_idx, u_idx] = 1.0
-
-            # Выполняем обратное 2D-Фурье
-            beam_2d = fftshift(fft2(uv_plane))
-            beam_2d = np.abs(beam_2d)
-            beam_2d /= beam_2d.max()
-
-            # Вычисляем угловые координаты
-            wavelength = 299792458 / frequency
-            theta_u_max = wavelength / (2 * u_max)
-            theta_v_max = wavelength / (2 * v_max)
-            theta_u = np.linspace(-theta_u_max, theta_u_max, grid_size)
-            theta_v = np.linspace(-theta_v_max, theta_v_max, grid_size)
-            theta_u_deg = np.degrees(theta_u)
-            theta_v_deg = np.degrees(theta_v)
-
-            # Формируем результат
-            results = {
-                0: {
-                    "theta_u": theta_u_deg.tolist(),
-                    "theta_v": theta_v_deg.tolist(),
-                    "beam_2d": beam_2d.tolist()
+            def calculate_synthesized_beam(obj, attrs):
+                frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6
+                uv_store_key = f"uv_coverage_f{freq_idx}"
+                uv_data = obj.get_calculated_data_by_key(uv_store_key)
+                if not uv_data:
+                    logger.info(f"Recalculating UV coverage for '{obj.get_observation_code()}' as no cache found")
+                    uv_data = self._calculate_uv_coverage(obj, {
+                        "time_step": attrs.get("time_step"),
+                        "freq_idx": freq_idx,
+                        "store_key": uv_store_key,
+                        "recalculate": False
+                    })
+                if not uv_data:
+                    logger.error(f"No UV data available for synthesized beam calculation")
+                    return {}
+                u = []
+                v = []
+                for scan_idx, scan_data in uv_data.get('data', {}).items():
+                    uv_points = scan_data.get("uv_points", {}).get(frequency, [])
+                    if not uv_points:
+                        continue
+                    u.extend([point[1] for point in uv_points])
+                    v.extend([point[2] for point in uv_points])
+                if not u or not v:
+                    logger.warning(f"No valid UV points for frequency {frequency/1e6} MHz")
+                    return {}
+                u_max = max(abs(min(u)), abs(max(u)))
+                v_max = max(abs(min(v)), abs(max(v)))
+                grid_size = 512
+                u_grid = np.linspace(-u_max, u_max, grid_size)
+                v_grid = np.linspace(-v_max, v_max, grid_size)
+                uv_plane = np.zeros((grid_size, grid_size), dtype=complex)
+                for uu, vv in zip(u, v):
+                    u_idx = int((uu + u_max) / (2 * u_max) * (grid_size - 1))
+                    v_idx = int((vv + v_max) / (2 * v_max) * (grid_size - 1))
+                    if 0 <= u_idx < grid_size and 0 <= v_idx < grid_size:
+                        uv_plane[v_idx, u_idx] = 1.0
+                for uu, vv in zip(u, v):
+                    u_idx = int((-uu + u_max) / (2 * u_max) * (grid_size - 1))
+                    v_idx = int((-vv + v_max) / (2 * v_max) * (grid_size - 1))
+                    if 0 <= u_idx < grid_size and 0 <= v_idx < grid_size:
+                        uv_plane[v_idx, u_idx] = 1.0
+                beam_2d = fftshift(fft2(uv_plane))
+                beam_2d = np.abs(beam_2d)
+                beam_2d /= beam_2d.max()
+                wavelength = 299792458 / frequency
+                theta_u_max = wavelength / (2 * u_max)
+                theta_v_max = wavelength / (2 * v_max)
+                theta_u = np.linspace(-theta_u_max, theta_u_max, grid_size)
+                theta_v = np.linspace(-theta_v_max, theta_v_max, grid_size)
+                theta_u_deg = np.degrees(theta_u)
+                theta_v_deg = np.degrees(theta_v)
+                return {
+                    0: {
+                        "theta_u": theta_u_deg.tolist(),
+                        "theta_v": theta_v_deg.tolist(),
+                        "beam_2d": beam_2d.tolist()
+                    }
                 }
-            }
-            metadata = {"freq_idx": freq_idx}
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated 2D synthesized beam for '{obj.get_observation_code()}' at {frequency/1e6} MHz via FFT")
-            return results
 
+            metadata = {"freq_idx": freq_idx}
+            return self._get_cached_or_calculate(obj, store_key, calculate_synthesized_beam, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate synthesized beam: {str(e)}")
             return {}
@@ -738,7 +859,6 @@ class Calculator(ABC):
             time_step = attributes.get("time_step")
             freq_idx = attributes.get("freq_idx", 0)
             store_key = attributes.get("store_key", f"baseline_projections_f{freq_idx}")
-            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
@@ -756,59 +876,40 @@ class Calculator(ABC):
                 logger.warning(f"Baseline projections are only for VLBI, got {obj.get_observation_type()}")
                 return {}
 
-            scans = obj.get_scans().get_active_scans(obj)
-            telescopes = obj.get_telescopes()
-            frequencies = obj.get_frequencies()
-
-            active_telescopes = telescopes.get_active_telescopes()
-            if len(active_telescopes) < 2:
-                logger.error(f"VLBI requires at least 2 active telescopes, got {len(active_telescopes)}")
-                return {}
-
-            existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
-                logger.info(f"Using cached baseline projections for '{obj.get_observation_code()}'")
-                return existing_data["data"]
-
-            # Проверяем наличие (u,v) данных
-            uv_store_key = f"uv_coverage_f{freq_idx}"
-            uv_data = obj.get_calculated_data_by_key(uv_store_key)
-            logger.debug(f"Retrieved uv_data for '{uv_store_key}': {uv_data}")  # Добавляем отладочный вывод
-            if not uv_data or recalculate or uv_data["metadata"].get("time_step") != time_step:
-                logger.info(f"Recalculating UV coverage for '{obj.get_observation_code()}'")
-                uv_data = self._calculate_uv_coverage(obj, {
-                    "time_step": time_step,
-                    "freq_idx": freq_idx,
-                    "store_key": uv_store_key,
-                    "recalculate": False
-                })
-                logger.debug(f"Recalculated uv_data: {uv_data}")
+            def calculate_baseline_projections(obj, attrs):
+                scans = obj.get_scans().get_active_scans(obj)
+                telescopes = obj.get_telescopes()
+                frequencies = obj.get_frequencies()
+                active_telescopes = telescopes.get_active_telescopes()
+                if len(active_telescopes) < 2:
+                    logger.error(f"VLBI requires at least 2 active telescopes, got {len(active_telescopes)}")
+                    return {}
+                uv_store_key = f"uv_coverage_f{freq_idx}"
+                uv_data = obj.get_calculated_data_by_key(uv_store_key)
+                if not uv_data or attrs.get("recalculate", False) or uv_data["metadata"].get("time_step") != time_step:
+                    logger.info(f"Recalculating UV coverage for '{obj.get_observation_code()}'")
+                    uv_data = self._calculate_uv_coverage(obj, {
+                        "time_step": time_step,
+                        "freq_idx": freq_idx,
+                        "store_key": uv_store_key,
+                        "recalculate": False
+                    })
                 if not uv_data:
                     logger.error(f"Failed to calculate (u,v) coverage for baseline projections")
                     return {}
+                results = {}
+                with ThreadPoolExecutor() as executor:
+                    futures = {
+                        executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_idx, uv_data, obj): i
+                        for i, scan in enumerate(scans)
+                    }
+                    for future in futures:
+                        scan_idx = futures[future]
+                        results[scan_idx] = future.result()
+                return results
 
-            results = {}
-            with ThreadPoolExecutor() as executor:
-                futures = {
-                    executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_idx, uv_data, obj): i
-                    for i, scan in enumerate(scans)
-                }
-                for future in futures:
-                    scan_idx = futures[future]
-                    try:
-                        result = future.result()
-                        logger.debug(f"Scan {scan_idx} result: {result}")
-                        results[scan_idx] = result
-                    except Exception as e:
-                        logger.error(f"Failed to process scan {scan_idx}: {str(e)}")
-                        results[scan_idx] = {}
-
-            logger.debug(f"Final results before caching: {results}")
-            metadata = {"time_step": time_step, "freq_idx": freq_idx, "scan_count": len(scans)}
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated baseline projections for {len(scans)} scans in '{obj.get_observation_code()}'")
-            return results
+            metadata = {"time_step": time_step, "freq_idx": freq_idx, "scan_count": len(obj.get_scans().get_active_scans(obj))}
+            return self._get_cached_or_calculate(obj, store_key, calculate_baseline_projections, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate baseline projections: {str(e)}")
             return {}
@@ -882,11 +983,9 @@ class Calculator(ABC):
         return projections
 
     def _calculate_mollweide_tracks(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate Mollweide projection tracks for telescopes and source positions in J2000"""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "mollweide_tracks")
-            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, Project):
                 observations = obj.get_observations()
@@ -900,33 +999,25 @@ class Calculator(ABC):
                 logger.info(f"Calculated Mollweide tracks for {len(observations)} observations in project '{obj.get_name()}'")
                 return results
 
-            scans = obj.get_scans().get_active_scans(obj)
-            sources = obj.get_sources()
-            telescopes = obj.get_telescopes()
+            def calculate_mollweide_tracks(obj, attrs):
+                scans = obj.get_scans().get_active_scans(obj)
+                sources = obj.get_sources()
+                telescopes = obj.get_telescopes()
+                position_attrs = {"time_step": time_step, "store_key": "telescope_positions"}
+                position_data = self._calculate_telescope_positions(obj, position_attrs)
+                results = {}
+                with ThreadPoolExecutor() as executor:
+                    futures = {
+                        executor.submit(self._process_mollweide_tracks, scan, sources, telescopes, time_step, position_data, obj): i
+                        for i, scan in enumerate(scans)
+                    }
+                    for future in futures:
+                        scan_idx = futures[future]
+                        results[scan_idx] = future.result()
+                return results
 
-            existing_data = obj.get_calculated_data_by_key(store_key)
-            if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
-                logger.info(f"Using cached Mollweide tracks for '{obj.get_observation_code()}'")
-                return existing_data["data"]
-
-            position_attrs = {"time_step": time_step, "store_key": "telescope_positions"}
-            position_data = self._calculate_telescope_positions(obj, position_attrs)
-
-            results = {}
-            with ThreadPoolExecutor() as executor:
-                futures = {
-                    executor.submit(self._process_mollweide_tracks, scan, sources, telescopes, time_step, position_data, obj): i
-                    for i, scan in enumerate(scans)
-                }
-                for future in futures:
-                    scan_idx = futures[future]
-                    results[scan_idx] = future.result()
-
-            metadata = {"time_step": time_step, "scan_count": len(scans)}
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": results})
-            logger.info(f"Calculated Mollweide tracks for {len(scans)} scans in '{obj.get_observation_code()}'")
-            return results
+            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_scans(obj))}
+            return self._get_cached_or_calculate(obj, store_key, calculate_mollweide_tracks, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
             return {}

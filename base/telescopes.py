@@ -680,26 +680,41 @@ class SpaceTelescope(Telescope):
         return pos, vel
 
     def get_state_vector_from_orbit(self, time: Time) -> tuple[np.ndarray, np.ndarray]:
+        """Get position and velocity vectors from orbit data or interpolated orbit at a given time."""
         if self._orbit_data is None:
             raise ValueError(f"No orbit data defined for '{self._code}'")
+        
         j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
         t = (time - j2000_epoch).sec
+
         if self._interpolated_orbit and "time_range" in self._interpolated_orbit:
             t_min, t_max = self._interpolated_orbit["time_range"]
+            interp_times = self._interpolated_orbit["times"]
             if t_min <= t <= t_max:
-                interp_times = self._interpolated_orbit["times"]
+
                 idx = np.searchsorted(interp_times, t)
-                if idx == 0 or idx == len(interp_times):
-                    logger.debug(f"Time {t} outside interpolated range, falling back to last known state")
-                    return np.array([self._x, self._y, self._z]), np.array([self._vx, self._vy, self._vz])
-                pos = np.array([p[idx - 1] + (p[idx] - p[idx - 1]) * (t - interp_times[idx - 1]) / (interp_times[idx] - interp_times[idx - 1]) 
-                                for p in self._interpolated_orbit["positions"]])
-                vel = np.array([v[idx - 1] + (v[idx] - v[idx - 1]) * (t - interp_times[idx - 1]) / (interp_times[idx] - interp_times[idx - 1]) 
-                                for v in self._interpolated_orbit["velocities"]])
+                if idx == 0:
+                    pos = np.array([p[0] for p in self._interpolated_orbit["positions"]])
+                    vel = np.array([v[0] for v in self._interpolated_orbit["velocities"]])
+                elif idx >= len(interp_times):
+                    pos = np.array([p[-1] for p in self._interpolated_orbit["positions"]])
+                    vel = np.array([v[-1] for v in self._interpolated_orbit["velocities"]])
+                else:
+                    pos = np.array([p[idx - 1] for p in self._interpolated_orbit["positions"]])
+                    vel = np.array([v[idx - 1] for v in self._interpolated_orbit["velocities"]])
+                logger.debug(f"Retrieved interpolated state vector for '{self._code}' at {time.isot}: pos={pos}, vel={vel}")
                 return pos, vel
+            else:
+                logger.warning(f"Time {time.isot} outside interpolated range ({Time(t_min, format='sec', scale='utc').isot} to {Time(t_max, format='sec', scale='utc').isot}) for '{self._code}'")
+        
+        if self._interpolated_orbit is None:
+            logger.warning(f"No interpolated orbit data available for '{self._code}' at {time.isot}, falling back to raw orbit data")
+        
         times = self._orbit_data["times"]
         if t < times[0] or t > times[-1]:
+            logger.warning(f"Time {time.isot} outside raw orbit data range ({Time(times[0], format='sec', scale='utc').isot} to {Time(times[-1], format='sec', scale='utc').isot}), using last known state")
             return np.array([self._x, self._y, self._z]), np.array([self._vx, self._vy, self._vz])
+        
         pos_idx = np.searchsorted(times, t)
         t1, t2 = times[pos_idx - 1], times[pos_idx]
         pos1, pos2 = self._orbit_data["positions"][pos_idx - 1], self._orbit_data["positions"][pos_idx]
@@ -707,6 +722,7 @@ class SpaceTelescope(Telescope):
         frac = (t - t1) / (t2 - t1)
         pos = pos1 + (pos2 - pos1) * frac
         vel = vel1 + (vel2 - vel1) * frac
+        logger.debug(f"Calculated state vector from raw data for '{self._code}' at {time.isot}: pos={pos}, vel={vel}")
         return pos, vel
     
     def get_keplerian(self) -> Optional[Dict[str, any]]:

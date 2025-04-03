@@ -140,7 +140,8 @@ class Observation(BaseEntity):
     
     def get_calculated_data_by_key(self, key: str) -> Any:
         check_non_empty_string(key, "Key")
-        logger.info(f"Retrieved calculated data '{key}' for observation '{self._observation_code}'")
+        if self._calculated_data.get(key):
+            logger.info(f"Retrieved calculated data '{key}' for observation '{self._observation_code}'")
         return self._calculated_data.get(key)
 
     def get_start_datetime(self) -> Optional[Time]:
