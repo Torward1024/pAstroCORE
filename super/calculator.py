@@ -509,7 +509,6 @@ class Calculator(ABC):
                 angle = np.degrees(np.arccos(cos_angle))
 
                 angles[tel.get_code()] = angle
-                logger.debug(f"{tel.get_code()} at {time.isot}: Sun angle={angle:.2f} deg (SpaceTelescope, vector-based)")
             else:
                 # Для наземного телескопа: сохраняем текущую логику
                 x, y, z = tel.get_coordinates()
@@ -527,10 +526,8 @@ class Calculator(ABC):
                 # Проверяем видимость (высота > 0 для наземных телескопов)
                 if source_altaz.alt.deg < 0 or sun_altaz.alt.deg < 0:
                     angle = float('nan')  # Указываем, что угол не определён
-                    logger.debug(f"{tel.get_code()} at {time.isot}: Source or Sun below horizon (alt={source_altaz.alt.deg:.2f}, sun_alt={sun_altaz.alt.deg:.2f})")
                 else:
                     angle = source_altaz.separation(sun_altaz).deg
-                    logger.debug(f"{tel.get_code()} at {time.isot}: Sun angle={angle:.2f} deg (alt={source_altaz.alt.deg:.2f}, sun_alt={sun_altaz.alt.deg:.2f})")
                 angles[tel.get_code()] = angle
 
         return angles
@@ -620,7 +617,6 @@ class Calculator(ABC):
                 az_range = tel.get_azimuth_range()
                 if not (el_range[0] <= el <= el_range[1] and az_range[0] <= az <= az_range[1]):
                     az_el[tel.get_code()] = (None, None)
-                    logger.debug(f"{tel.get_code()} at {time.isot}: Az={az:.2f}, El={el:.2f} outside limits (Az: {az_range}, El: {el_range})")
                 else:
                     az_el[tel.get_code()] = (az, el)
             elif mount_type == MountType.EQUATORIAL:
@@ -630,7 +626,6 @@ class Calculator(ABC):
                 dec_range = tel.get_elevation_range()  # Dec uses elevation range
                 if not (ha_range[0] <= ha <= ha_range[1] and dec_range[0] <= dec <= dec_range[1]):
                     az_el[tel.get_code()] = (None, None)
-                    logger.debug(f"{tel.get_code()} at {time.isot}: HA={ha:.2f}, Dec={dec:.2f} outside limits (HA: {ha_range}, Dec: {dec_range})")
                 else:
                     az_el[tel.get_code()] = (ha, dec)
             else:
@@ -720,7 +715,6 @@ class Calculator(ABC):
             tel_code = tel.get_code()
             vis = visibility.get(tel_code, [])
             if not vis:
-                logger.debug(f"No visibility data for telescope '{tel_code}' in scan {scan_idx}")
                 continue
 
             start_block = None
@@ -976,7 +970,6 @@ class Calculator(ABC):
                     if pair in projections:
                         projections[pair].append(bl)
 
-            logger.debug(f"Returning times: {len(times)}, projections: {projections}")
             return {"times": times.isot.tolist(), "projections": projections}
         
     def _compute_projections_from_uv(self, uv_points: Dict[float, List[Tuple[str, float, float, float]]], telescopes: List[Telescope | SpaceTelescope], frequency: float) -> Dict[str, float]:
@@ -1068,7 +1061,6 @@ class Calculator(ABC):
                 if pos:
                     lon, lat = self._compute_mollweide_coords_from_position(pos, mean_time)
                     tracks[tel.get_code()] = {"lon": [lon], "lat": [lat]}
-                    logger.debug(f"{tel.get_code()} at mean time: lon={lon}, lat={lat}")
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
@@ -1108,27 +1100,18 @@ class Calculator(ABC):
         Returns:
         - (lon, lat): RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
         """
-        logger.debug(f"Computing Mollweide coords from position: {position}, time: {time.isot}")
-        
-        # Извлекаем x, y, z из позиции
         x, y, z = position
+        r = np.sqrt(x**2 + y**2 + z**2)
+        ra_rad = np.arctan2(y, x)  # RA
+        dec_rad = np.arcsin(z / r)  # Dec
         
-        # Вычисляем сферические координаты (как в эталонном коде)
-        r = np.sqrt(x**2 + y**2 + z**2)  # Расстояние до точки
-        ra_rad = np.arctan2(y, x)  # RA в радианах
-        dec_rad = np.arcsin(z / r)  # Dec в радианах
-        
-        # Переводим в градусы
         ra = np.degrees(ra_rad)  # 0° to 360°
         dec = np.degrees(dec_rad)  # -90° to 90°
-        logger.debug(f"Telescope ICRS coords: RA={ra} deg, Dec={dec} deg")
 
-        # Приводим RA к диапазону [-180, 180] для Mollweide
         lon = ra
         if lon > 180.0:
             lon -= 360.0
         lat = np.clip(dec, -90.0, 90.0)
-        logger.debug(f"Adjusted for Mollweide: lon={lon} deg, lat={lat} deg")
 
         return lon, lat
 
@@ -1136,14 +1119,11 @@ class Calculator(ABC):
         """Compute coordinates for Mollweide projection in J2000 (returns RA, Dec in degrees)."""
         ra = coord.ra.deg  # 0° to 360°
         dec = coord.dec.deg
-        logger.debug(f"Source coords: RA={ra} deg, Dec={dec} deg")
 
-        # Приводим RA к диапазону [-180, 180] для Mollweide
         lon = ra
         if lon > 180.0:
             lon -= 360.0
         lat = np.clip(dec, -90.0, 90.0)
-        logger.debug(f"Adjusted for Mollweide: lon={lon} deg, lat={lat} deg")
 
         return lon, lat
 

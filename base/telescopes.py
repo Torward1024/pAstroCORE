@@ -633,7 +633,7 @@ class SpaceTelescope(Telescope):
 
         interp_times = np.arange(t_start, t_end + time_step, time_step)
         if self._interpolation_method == "chebyshev":
-            degree = 5
+            degree = 20  # degree of Chebyshev polynomial
             norm_times = 2 * (filtered_times - t_start) / (t_end - t_start) - 1  
             norm_interp_times = 2 * (interp_times - t_start) / (t_end - t_start) - 1
 

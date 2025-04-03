@@ -76,13 +76,13 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "pitch_range": (-90.0, 90.0),
                 "yaw_range": (0.0, 180.0),
                 "orbit_file": "i:\\pAstroCORE\\final_orbit370.txt",
-                "interpolation_method": "cubic_spline"
+                "interpolation_method": "chebyshev"
             }
         }
         space_tel = SpaceTelescope(
             use_kep=False,
             orbit_file="i:\\pAstroCORE\\final_orbit370.txt",
-            interpolation_method="cubic_spline"
+            interpolation_method="chebyshev"
         )
         self.manipulator.process_request("configure", "telescope", space_tel_attributes, space_tel)
         telescopes.add_telescope(space_tel)
