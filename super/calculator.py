@@ -40,8 +40,41 @@ class Calculator(ABC):
         """Initialize the Calculator"""
         self._manipulator = manipulator
         self._lock = threading.Lock()
-        logger.info("Initialized Calculator")
 
+    def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Universal method to perform calculations on an object"""
+        if obj is None:
+            logger.error("Calculation object cannot be None")
+            raise ValueError("Calculation object cannot be None")
+
+        obj_type = type(obj)
+        calc_methods = self._manipulator.get_methods_for_type(type(self))
+
+        calc_type = attributes.get("type")
+        if not calc_type:
+            logger.error("Calculation type must be specified in attributes")
+            raise ValueError("Calculation type must be specified in attributes")
+
+        calc_method_name = f"_calculate_{calc_type}"
+        if calc_method_name not in calc_methods:
+            logger.error(f"No calculation method found for type '{calc_type}'")
+            raise ValueError(f"No calculation method for type '{calc_type}'")
+
+        try:
+            return calc_methods[calc_method_name](obj, attributes)
+        except Exception as e:
+            logger.error(f"Failed to calculate {calc_type} for {obj_type}: {str(e)}")
+            return {}
+
+    def __repr__(self) -> str:
+        return "Calculator()"
+
+class DefaultCalculator(Calculator):
+    """Default implementation of Calculator"""
+    def __init__(self, manipulator: 'Manipulator'):
+        super().__init__(manipulator)
+        logger.info("Initialized DefaultCalculator")
+    
     def _get_cached_or_calculate(self, obj: Observation | Project, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Get cached data or calculate and cache it."""
         recalculate = attributes.get("recalculate", False)
@@ -252,7 +285,6 @@ class Calculator(ABC):
                 continue
 
             if isinstance(tel, SpaceTelescope):
-                # Позиция из get_state_vector (предполагается GCRS)
                 itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
                 altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
                 pitch = altaz.alt.deg
@@ -476,41 +508,35 @@ class Calculator(ABC):
 
     def _compute_sun_angle(self, source_coord: SkyCoord, time: Time, telescopes: List[Telescope | SpaceTelescope]) -> Dict[str, float]:
         """Compute angle between the direction from telescope to source and to Sun for each telescope at a given time."""
-        sun_gcrs = get_sun(time)  # Координаты Солнца в GCRS
+        sun_gcrs = get_sun(time)
         angles = {}
 
         for tel in telescopes:
             if isinstance(tel, SpaceTelescope):
-                # Получаем позицию телескопа в GCRS
-                tel_pos, _ = tel.get_state_vector(time)  # Предполагается, что возвращает (x, y, z) в метрах
-                tel_pos = np.array(tel_pos)  # Позиция телескопа в GCRS
 
-                # Позиция Солнца в GCRS (в метрах)
+                tel_pos, _ = tel.get_state_vector(time)
+                tel_pos = np.array(tel_pos)
+
                 sun_pos = np.array([sun_gcrs.cartesian.x.to(u.m).value,
                                     sun_gcrs.cartesian.y.to(u.m).value,
                                     sun_gcrs.cartesian.z.to(u.m).value])
 
-                # Позиция источника в GCRS (приближение: бесконечно далеко, используем единичный вектор)
-                source_icrs = source_coord.icrs  # Убедимся, что в ICRS
+                source_icrs = source_coord.icrs
                 source_dir = np.array([source_icrs.cartesian.x.value,
                                     source_icrs.cartesian.y.value,
                                     source_icrs.cartesian.z.value])
-                source_dir /= np.linalg.norm(source_dir)  # Нормируем, так как источник бесконечно далеко
+                source_dir /= np.linalg.norm(source_dir)
 
-                # Вектор от телескопа к Солнцу
                 vec_to_sun = sun_pos - tel_pos
-                vec_to_sun /= np.linalg.norm(vec_to_sun)  # Нормируем
+                vec_to_sun /= np.linalg.norm(vec_to_sun)
 
-                # Вектор от телескопа к источнику (для бесконечно удалённого источника это просто направление)
                 vec_to_source = source_dir
 
-                # Угол между векторами через скалярное произведение
                 cos_angle = np.clip(np.dot(vec_to_source, vec_to_sun), -1.0, 1.0)
                 angle = np.degrees(np.arccos(cos_angle))
 
                 angles[tel.get_code()] = angle
             else:
-                # Для наземного телескопа: сохраняем текущую логику
                 x, y, z = tel.get_coordinates()
                 vx, vy, vz = tel.get_velocities()
                 dt = (time - Time("2000-01-01T12:00:00")).sec
@@ -518,14 +544,12 @@ class Calculator(ABC):
                 itrs = ITRS(itrs_coords, obstime=time)
                 location = itrs.earth_location
                 
-                # Преобразуем координаты источника и Солнца в AltAz
                 altaz_frame = AltAz(obstime=time, location=location)
                 source_altaz = source_coord.transform_to(altaz_frame)
                 sun_altaz = sun_gcrs.transform_to(altaz_frame)
 
-                # Проверяем видимость (высота > 0 для наземных телескопов)
                 if source_altaz.alt.deg < 0 or sun_altaz.alt.deg < 0:
-                    angle = float('nan')  # Указываем, что угол не определён
+                    angle = float('nan')
                 else:
                     angle = source_altaz.separation(sun_altaz).deg
                 angles[tel.get_code()] = angle
@@ -1126,37 +1150,3 @@ class Calculator(ABC):
         lat = np.clip(dec, -90.0, 90.0)
 
         return lon, lat
-
-    def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Universal method to perform calculations on an object"""
-        if obj is None:
-            logger.error("Calculation object cannot be None")
-            raise ValueError("Calculation object cannot be None")
-
-        obj_type = type(obj)
-        calc_methods = self._manipulator.get_methods_for_type(Calculator)
-
-        calc_type = attributes.get("type")
-        if not calc_type:
-            logger.error("Calculation type must be specified in attributes")
-            raise ValueError("Calculation type must be specified in attributes")
-
-        calc_method_name = f"_calculate_{calc_type}"
-        if calc_method_name not in calc_methods:
-            logger.error(f"No calculation method found for type '{calc_type}'")
-            raise ValueError(f"No calculation method for type '{calc_type}'")
-
-        try:
-            return calc_methods[calc_method_name](obj, attributes)
-        except Exception as e:
-            logger.error(f"Failed to calculate {calc_type} for {obj_type}: {str(e)}")
-            return {}
-
-    def __repr__(self) -> str:
-        return "Calculator()"
-
-class DefaultCalculator(Calculator):
-    """Default implementation of Calculator"""
-    def __init__(self, manipulator: 'Manipulator'):
-        super().__init__(manipulator)
-        logger.info("Initialized DefaultCalculator")

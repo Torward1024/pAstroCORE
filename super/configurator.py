@@ -23,7 +23,6 @@ class Configurator(ABC):
     def __init__(self, manipulator: 'Manipulator'):
         """Initialize the Configurator"""
         self._manipulator = manipulator
-        logger.info("Initialized Configurator")
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any, valid_methods: Dict[str, Callable], 
                                   extra_args: Dict[str, Any] = None) -> bool:
@@ -63,6 +62,66 @@ class Configurator(ABC):
         except Exception as e:
             logger.error(f"Failed to apply {method_name} to {type(obj).__name__}: {str(e)}")
             return False
+
+    def execute(self, obj: Any, attributes: Dict[str, Any]) -> bool:
+        
+        if obj is None:
+            logger.error("Configuration object cannot be None")
+            raise ValueError("Configuration object cannot be None")
+
+        obj_type = type(obj)
+        config_methods = self._manipulator.get_methods_for_type(type(self))
+
+        if isinstance(obj, SpaceTelescope):
+            config_method_name = "_configure_space_telescope"
+        elif isinstance(obj, Telescope):
+            config_method_name = "_configure_telescope"
+        else:
+            config_method_name = f"_configure_{obj_type.__name__.lower()}"
+
+        if config_method_name not in config_methods:
+            logger.error(f"No configuration method found for {obj_type.__name__}")
+            raise ValueError(f"No configuration method for {obj_type.__name__}")
+
+        try:
+            return config_methods[config_method_name](obj, attributes)
+        except Exception as e:
+            logger.error(f"Failed to configure {obj_type}: {str(e)}")
+            return False
+
+    def __repr__(self) -> str:
+        """String representation of Configurator"""
+        return "Configurator()"
+
+class DefaultConfigurator(Configurator):
+    """Default implementation of Configurator for configuring Project and its components
+
+    Inherits all configuration methods from Configurator and provides a ready-to-use instance
+    for managing observations, telescopes, sources, frequencies, and scans
+
+    Universal method to configure an object using method calls in a single attributes dictionary
+
+        Args:
+            obj: The object to configure (e.g., IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Scan, Observation, etc.)
+            attributes: Dictionary where keys are method names and values are their arguments
+                    Example: {"set_frequency": {"freq": 1420.0}}
+                    For nested config: {"if_index": 0, "set_frequency": {"freq": 1420.0}}
+                    For Source: {"set_source": {"name": "3C 286", "ra_h": 13, "ra_m": 31, ...}}
+                    For Sources: {"source_index": 0, "set_name": {"name": "New Name"}}
+                    For Telescope: {"set_coordinates": {"coordinates": (1000.0, 2000.0, 3000.0)}}
+                    For Telescopes: {"telescope_index": 0, "set_name": {"name": "New Name"}}
+                    For Scan: {"set_scan": {"start": Time object or ISO string (e.g., "2023-01-01T00:00:00") or Unix timestamp, "duration": 300.0}}
+                    For Scans: {"scan_index": 0, "set_duration": {"duration": 600.0}}
+
+        Returns:
+            bool: True if configuration succeeds, False otherwise
+
+        Raises:
+            ValueError: If the object type is not supported
+    """
+    def __init__(self, manipulator: 'Manipulator'):
+        super().__init__(manipulator)
+        logger.info("Initialized DefaultConfigurator")
 
     def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> bool:
         """Configure an IF object"""
@@ -264,62 +323,3 @@ class Configurator(ABC):
             return False
         logger.info(f"Successfully configured Project: name='{project_obj.get_name()}', observations_count={len(project_obj.get_observations())}")
         return True
-
-    def execute(self, obj: Any, attributes: Dict[str, Any]) -> bool:
-        """Universal method to configure an object using method calls in a single attributes dictionary
-
-        Args:
-            obj: The object to configure (e.g., IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Scan, Observation, etc.)
-            attributes: Dictionary where keys are method names and values are their arguments
-                    Example: {"set_frequency": {"freq": 1420.0}}
-                    For nested config: {"if_index": 0, "set_frequency": {"freq": 1420.0}}
-                    For Source: {"set_source": {"name": "3C 286", "ra_h": 13, "ra_m": 31, ...}}
-                    For Sources: {"source_index": 0, "set_name": {"name": "New Name"}}
-                    For Telescope: {"set_coordinates": {"coordinates": (1000.0, 2000.0, 3000.0)}}
-                    For Telescopes: {"telescope_index": 0, "set_name": {"name": "New Name"}}
-                    For Scan: {"set_scan": {"start": Time object or ISO string (e.g., "2023-01-01T00:00:00") or Unix timestamp, "duration": 300.0}}
-                    For Scans: {"scan_index": 0, "set_duration": {"duration": 600.0}}
-
-        Returns:
-            bool: True if configuration succeeds, False otherwise
-
-        Raises:
-            ValueError: If the object type is not supported
-        """
-        if obj is None:
-            logger.error("Configuration object cannot be None")
-            raise ValueError("Configuration object cannot be None")
-
-        obj_type = type(obj)
-        config_methods = self._manipulator.get_methods_for_type(Configurator)
-
-        if isinstance(obj, SpaceTelescope):
-            config_method_name = "_configure_space_telescope"
-        elif isinstance(obj, Telescope):
-            config_method_name = "_configure_telescope"
-        else:
-            config_method_name = f"_configure_{obj_type.__name__.lower()}"
-
-        if config_method_name not in config_methods:
-            logger.error(f"No configuration method found for {obj_type.__name__}")
-            raise ValueError(f"No configuration method for {obj_type.__name__}")
-
-        try:
-            return config_methods[config_method_name](obj, attributes)
-        except Exception as e:
-            logger.error(f"Failed to configure {obj_type}: {str(e)}")
-            return False
-
-    def __repr__(self) -> str:
-        """String representation of Configurator"""
-        return "Configurator()"
-
-class DefaultConfigurator(Configurator):
-    """Default implementation of Configurator for configuring Project and its components
-
-    Inherits all configuration methods from Configurator and provides a ready-to-use instance
-    for managing observations, telescopes, sources, frequencies, and scans
-    """
-    def __init__(self, manipulator: 'Manipulator'):
-        super().__init__(manipulator)
-        logger.info("Initialized DefaultConfigurator")

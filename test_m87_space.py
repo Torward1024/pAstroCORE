@@ -28,7 +28,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
     def setUp(self):
         self.manipulator = DefaultManipulator()
         self.project = Project(name="EHT_M87_SPACE_PROJECT")
-        self.manipulator.set_project(self.project)
+        self.manipulator.set_managing_object(self.project)
         logger.setLevel("DEBUG")  # Включаем отладочные логи
         logger.info("Set up test environment with Manipulator and Project")
 
@@ -75,13 +75,13 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "sefd_table": {86e3: 200.0},
                 "pitch_range": (-90.0, 90.0),
                 "yaw_range": (0.0, 180.0),
-                "orbit_file": "i:\\pAstroCORE\\final_orbit370.txt",
+                "orbit_file": "e:\\Python\\pAstroCORE\\final_orbit370.txt",
                 "interpolation_method": "linear"
             }
         }
         space_tel = SpaceTelescope(
             use_kep=False,
-            orbit_file="i:\\pAstroCORE\\final_orbit370.txt",
+            orbit_file="e:\\Python\\pAstroCORE\\final_orbit370.txt",
             interpolation_method="linear"
         )
         self.manipulator.process_request("configure", "telescope", space_tel_attributes, space_tel)

@@ -24,7 +24,6 @@ class Inspector(ABC):
     def __init__(self, manipulator: 'Manipulator'):
         """Initialize the Inspector"""
         self._manipulator = manipulator
-        logger.info("Initialized Inspector")
 
     def _validate_and_apply_getter(self, obj: Any, getter_name: str, getter_args: Any, valid_getters: Dict[str, Callable]) -> Optional[Any]:
         """Validate and apply a getter to an object
@@ -86,6 +85,50 @@ class Inspector(ABC):
             return nested_inspector(nested_obj, nested_attrs)
         return {}
 
+    def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Universal method to inspect an object using getter calls in a single attributes dictionary
+        """
+        if obj is None:
+            logger.error("Inspection object cannot be None")
+            raise ValueError("Inspection object cannot be None")
+
+        obj_type = type(obj)
+        inspect_methods = self._manipulator.get_methods_for_type(type(self))
+        inspect_method_name = f"_inspect_{obj_type.__name__.lower()}"
+
+        if inspect_method_name not in inspect_methods:
+            logger.error(f"No inspection method found for {obj_type.__name__}")
+            raise ValueError(f"No inspection method for {obj_type.__name__}")
+
+        try:
+            return inspect_methods[inspect_method_name](obj, attributes)
+        except Exception as e:
+            logger.error(f"Failed to inspect {obj_type}: {str(e)}")
+            return {}
+
+    def __repr__(self) -> str:
+        """String representation of Inspector"""
+        return "Inspector()"
+
+class DefaultInspector(Inspector):
+    """Default implementation of Inspector for inspecting Project and its components
+        Args:
+            obj: The object to inspect (e.g., IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Telescopes, Scan, Scans, Observation, Project)
+            attributes: Dictionary where keys are getter names and values are their arguments (or None if no args).
+                       Example: {"get_name": None}
+                       For nested inspection: {"observation_index": 0, "get_observation_code": None}
+                       For Project: {"get_observation": {"index": 0}}
+
+        Returns:
+            Dict[str, Any]: Dictionary with getter names as keys and their results as values
+
+        Raises:
+            ValueError: If the object type is not supported
+    """
+    def __init__(self, manipulator: 'Manipulator'):
+        super().__init__(manipulator)
+        logger.info("Initialized DefaultInspector")
+    
     def _inspect_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect an IF object"""
         valid_getters = self._manipulator.get_methods_for_type(IF)
@@ -277,47 +320,3 @@ class Inspector(ABC):
             return {}
         logger.info(f"Successfully inspected Project: name='{project_obj.get_name()}'")
         return result
-
-    def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Universal method to inspect an object using getter calls in a single attributes dictionary
-
-        Args:
-            obj: The object to inspect (e.g., IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Telescopes, Scan, Scans, Observation, Project)
-            attributes: Dictionary where keys are getter names and values are their arguments (or None if no args).
-                       Example: {"get_name": None}
-                       For nested inspection: {"observation_index": 0, "get_observation_code": None}
-                       For Project: {"get_observation": {"index": 0}}
-
-        Returns:
-            Dict[str, Any]: Dictionary with getter names as keys and their results as values
-
-        Raises:
-            ValueError: If the object type is not supported
-        """
-        if obj is None:
-            logger.error("Inspection object cannot be None")
-            raise ValueError("Inspection object cannot be None")
-
-        obj_type = type(obj)
-        inspect_methods = self._manipulator.get_methods_for_type(Inspector)
-        inspect_method_name = f"_inspect_{obj_type.__name__.lower()}"
-
-        if inspect_method_name not in inspect_methods:
-            logger.error(f"No inspection method found for {obj_type.__name__}")
-            raise ValueError(f"No inspection method for {obj_type.__name__}")
-
-        try:
-            return inspect_methods[inspect_method_name](obj, attributes)
-        except Exception as e:
-            logger.error(f"Failed to inspect {obj_type}: {str(e)}")
-            return {}
-
-    def __repr__(self) -> str:
-        """String representation of Inspector"""
-        return "Inspector()"
-
-class DefaultInspector(Inspector):
-    """Default implementation of Inspector for inspecting Project and its components"""
-    def __init__(self, manipulator: 'Manipulator'):
-        super().__init__(manipulator)
-        logger.info("Initialized DefaultInspector")
