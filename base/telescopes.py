@@ -488,7 +488,7 @@ class SpaceTelescope(Telescope):
                  yaw_range: Tuple[float, float] = (-180.0, 180.0),
                  isactive: bool = True, use_kep: bool = True,
                  kepler_elements: Optional[dict] = None,
-                 interpolation_method: str = "chebyshev"):
+                 interpolation_method: str = "linear"):
         super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0, 
                          diameter=diameter, sefd_table=sefd_table, isactive=isactive,
                          mount_type="NONE")
@@ -622,15 +622,29 @@ class SpaceTelescope(Telescope):
         filtered_times = times[mask]
         filtered_positions = positions[mask]
         filtered_velocities = velocities[mask]
+
+        unique_indices = np.unique(filtered_times, return_index=True)[1]
+        filtered_times = filtered_times[unique_indices]
+        filtered_positions = filtered_positions[unique_indices]
+        filtered_velocities = filtered_velocities[unique_indices]
+
+        if len(filtered_times) < 2:
+            raise ValueError(f"After removing duplicates, too few points ({len(filtered_times)}) for interpolation")
+
         interp_times = np.arange(t_start, t_end + time_step, time_step)
         if self._interpolation_method == "chebyshev":
             degree = 5
-            norm_times = 2 * (filtered_times - t_start) / (t_end - t_start) - 1
+            norm_times = 2 * (filtered_times - t_start) / (t_end - t_start) - 1  
+            norm_interp_times = 2 * (interp_times - t_start) / (t_end - t_start) - 1
+
+            pos_polynomials = [chebyshev.Chebyshev.fit(norm_times, pos, degree) for pos in filtered_positions.T]
+            vel_polynomials = [chebyshev.Chebyshev.fit(norm_times, vel, degree) for vel in filtered_velocities.T]
+
             self._interpolated_orbit = {
                 "time_range": (t_start, t_end),
                 "times": interp_times,
-                "positions": [chebyshev.Chebyshev.fit(norm_times, pos, degree)(norm_times) for pos in filtered_positions.T],
-                "velocities": [chebyshev.Chebyshev.fit(norm_times, vel, degree)(norm_times) for vel in filtered_velocities.T]
+                "positions": [poly(norm_interp_times) for poly in pos_polynomials],
+                "velocities": [poly(norm_interp_times) for poly in vel_polynomials]
             }
         elif self._interpolation_method == "cubic_spline":
             self._interpolated_orbit = {

@@ -17,6 +17,22 @@ import threading
 import math
 import numpy as np
 from scipy.fft import fft2, fftshift
+import time
+from functools import wraps
+
+def time_execution(func):
+    """Decorator to time the execution of a function and log the duration"""
+    @wraps(func)
+    def wrapper(self, obj, attributes):
+        start_time = time.perf_counter()
+        result = func(self, obj, attributes)
+        end_time = time.perf_counter()
+        duration = (end_time - start_time) # seconds
+        calc_type = func.__name__.replace('_calculate_', '')
+        obj_name = obj.get_name() if isinstance(obj, Project) else obj.get_observation_code()
+        logger.info(f"Calculation '{calc_type}' for '{obj_name}' completed in {duration:.3f} s")
+        return result
+    return wrapper
 
 class Calculator(ABC):
     """Super-class for performing calculations on Project or Observation objects"""
@@ -41,7 +57,8 @@ class Calculator(ABC):
             obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": result})
 
         return result
-
+    
+    @time_execution
     def _calculate_telescope_positions(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate telescope positions in J2000 for all scans in the observation or project"""
         try:
@@ -142,6 +159,7 @@ class Calculator(ABC):
             return tuple(float(p) for p in pos)
         raise ValueError(f"Unsupported telescope type: {type(telescope)}")
 
+    @time_execution
     def _calculate_source_visibility(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate source visibility for all scans in the observation or project using cached telescope positions"""
         try:
@@ -269,6 +287,7 @@ class Calculator(ABC):
             visibility[tel.get_code()] = is_visible
         return visibility
     
+    @time_execution
     def _calculate_uv_coverage(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate (u,v) coverage for all scans in the observation or project"""
         try:
@@ -394,6 +413,7 @@ class Calculator(ABC):
 
         return uv_points
 
+    @time_execution
     def _calculate_sun_angles(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         try:
             time_step = attributes.get("time_step")
@@ -515,6 +535,7 @@ class Calculator(ABC):
 
         return angles
 
+    @time_execution
     def _calculate_az_el(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         try:
             time_step = attributes.get("time_step")
@@ -617,6 +638,7 @@ class Calculator(ABC):
                 az_el[tel.get_code()] = (0.0, 0.0)
         return az_el
 
+    @time_execution
     def _calculate_time_on_source(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         try:
             time_step = attributes.get("time_step")
@@ -727,6 +749,7 @@ class Calculator(ABC):
 
         return {"source": source.get_name(), "visibility_blocks": blocks}
 
+    @time_execution
     def _calculate_beam_pattern(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         try:
             freq_idx = attributes.get("freq_idx", 0)
@@ -771,6 +794,7 @@ class Calculator(ABC):
             logger.error(f"Failed to calculate beam pattern: {str(e)}")
             return {}
 
+    @time_execution
     def _calculate_synthesized_beam(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         try:
             freq_idx = attributes.get("freq_idx", 0)
@@ -853,7 +877,8 @@ class Calculator(ABC):
         except Exception as e:
             logger.error(f"Failed to calculate synthesized beam: {str(e)}")
             return {}
-        
+    
+    @time_execution
     def _calculate_baseline_projections(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         try:
             time_step = attributes.get("time_step")
@@ -982,6 +1007,7 @@ class Calculator(ABC):
         
         return projections
 
+    @time_execution
     def _calculate_mollweide_tracks(self, obj: Observation | Project, attributes: Dict[str, Any]) -> Dict[str, Any]:
         try:
             time_step = attributes.get("time_step")
