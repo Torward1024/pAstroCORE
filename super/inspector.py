@@ -197,7 +197,7 @@ class DefaultInspector(Inspector):
         valid_getters = self._manipulator.get_methods_for_type(Sources)
         result = {}
         for getter_name, getter_args in attributes.items():
-            value = self._validate_and_apply_getter(sources_obj, getter_name, getter_args, valid_getters)
+            value = self._validate_and_apply_method(sources_obj, getter_name, getter_args, valid_getters)
             if value is not None:
                 result[getter_name] = value
         if not result:

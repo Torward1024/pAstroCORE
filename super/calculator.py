@@ -16,7 +16,7 @@ from functools import wraps
 
 import astropy.units as u
 from astropy.time import Time
-from astropy.coordinates import ITRS, GCRS, ICRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, HADec
+from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, SkyCoord, AltAz, get_sun, HADec
 
 import numpy as np
 
@@ -63,6 +63,13 @@ class Calculator(ABC):
         if calc_method_name not in calc_methods:
             raise ValueError(f"No calculation method for type '{calc_type}'")
         return calc_methods[calc_method_name](obj, attributes)
+    
+    def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
+        if self._methods is None:
+            self._methods = {}
+        if obj_type not in self._methods:
+            self._methods[obj_type] = {}
+        self._methods[obj_type][method_name] = method
 
     def __repr__(self) -> str:
         return "Calculator()"
@@ -884,7 +891,7 @@ class DefaultCalculator(Calculator):
                     0: {
                         "theta_u": theta_u_deg.tolist(),
                         "theta_v": theta_v_deg.tolist(),
-                        "beam_2d": beam_2d.tolist()
+                        "beam_2d": beam_2d
                     }
                 }
 
@@ -1064,6 +1071,10 @@ class DefaultCalculator(Calculator):
             return {}
 
     def _process_mollweide_tracks(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
+        if not position_data or scan_idx not in position_data:
+            logger.error(f"No position data for scan {scan_idx}")
+            return {"source": {"name": source.get_name(), "lon": source_lon, "lat": source_lat}, "telescope_tracks": {}}
+        
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = sources.get_by_index(scan.get_source_index())
@@ -1072,8 +1083,8 @@ class DefaultCalculator(Calculator):
         scan_idx = list(observation.get_scans().get_active_scans(observation)).index(scan)
 
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
-        source_lon, source_lat = self._compute_mollweide_coords(source_coord)
-
+        source_lon, source_lat = self._compute_mollweide_coords(source_coord)      
+        
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
             tel_positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
@@ -1087,14 +1098,7 @@ class DefaultCalculator(Calculator):
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
             tel_positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
-            for t_idx, t in enumerate(times[:5]):  # Первые 5 точек для отладки
-                positions_at_t = {}
-                for tel in active_telescopes:
-                    pos_data = tel_positions.get(tel.get_code(), {})
-                    pos = pos_data.get("positions", [])[t_idx] if "positions" in pos_data else None
-                    if pos:
-                        positions_at_t[tel.get_code()] = pos
-
+            
             tracks = {tel.get_code(): {"lon": [], "lat": []} for tel in active_telescopes}
             for t_idx, t in enumerate(times):
                 for tel in active_telescopes:

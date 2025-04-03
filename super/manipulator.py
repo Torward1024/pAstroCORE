@@ -77,7 +77,7 @@ class Manipulator(ABC):
     def register_operation(self, operation: str, super_instance: Any) -> None:
         self._operations[operation] = super_instance
 
-    @lru_cache(maxsize=1)
+    @lru_cache(maxsize=128)
     def _get_method_registry(self) -> Dict[Type, Dict[str, Callable]]:
         """Build a registry of methods for supported types."""
         registry = {}
