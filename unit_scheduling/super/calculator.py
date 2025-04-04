@@ -871,11 +871,11 @@ class ScheduleCalculator(Super):
             return {}
     
     @time_execution
-    def _calculate_baseline_ScheduleProjections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
         try:
             time_step = attributes.get("time_step")
             freq_idx = attributes.get("freq_idx", 0)
-            store_key = attributes.get("store_key", f"baseline_ScheduleProjections_f{freq_idx}")
+            store_key = attributes.get("store_key", f"calculate_baseline_projections_f{freq_idx}")
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_observations()
@@ -884,16 +884,16 @@ class ScheduleCalculator(Super):
                     return {}
                 results = {}
                 for obs in observations:
-                    obs_result = self._calculate_baseline_ScheduleProjections(obs, attributes)
+                    obs_result = self._calculate_baseline_projections(obs, attributes)
                     results[obs.get_observation_code()] = obs_result
-                logger.info(f"Calculated baseline ScheduleProjections for {len(observations)} observations in ScheduleProject '{obj.get_name()}'")
+                logger.info(f"Calculated baseline projections for {len(observations)} observations in ScheduleProject '{obj.get_name()}'")
                 return results
 
             if obj.get_observation_type() != "VLBI":
-                logger.warning(f"Baseline ScheduleProjections are only for VLBI, got {obj.get_observation_type()}")
+                logger.warning(f"Baseline projections are only for VLBI, got {obj.get_observation_type()}")
                 return {}
 
-            def calculate_baseline_ScheduleProjections(obj, attrs):
+            def calculate_baseline_projections(obj, attrs):
                 scans = obj.get_scans().get_active_scans(obj)
                 telescopes = obj.get_telescopes()
                 frequencies = obj.get_frequencies()
@@ -912,12 +912,12 @@ class ScheduleCalculator(Super):
                         "recalculate": False
                     })
                 if not uv_data:
-                    logger.error(f"Failed to calculate (u,v) coverage for baseline ScheduleProjections")
+                    logger.error(f"Failed to calculate (u,v) coverage for baseline projections")
                     return {}
                 results = {}
                 with ThreadPoolExecutor() as executor:
                     futures = {
-                        executor.submit(self._process_baseline_ScheduleProjections, scan, telescopes, frequencies, time_step, freq_idx, uv_data, obj): i
+                        executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_idx, uv_data, obj): i
                         for i, scan in enumerate(scans)
                     }
                     for future in futures:
@@ -926,12 +926,12 @@ class ScheduleCalculator(Super):
                 return results
 
             metadata = {"time_step": time_step, "freq_idx": freq_idx, "scan_count": len(obj.get_scans().get_active_scans(obj))}
-            return self._get_cached_or_calculate(obj, store_key, calculate_baseline_ScheduleProjections, attributes, metadata)
+            return self._get_cached_or_calculate(obj, store_key, calculate_baseline_projections, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate baseline ScheduleProjections: {str(e)}")
+            logger.error(f"Failed to calculate baseline projections: {str(e)}")
             return {}
 
-    def _process_baseline_ScheduleProjections(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: int, uv_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
+    def _process_baseline_projections(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: int, uv_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
         start_time = scan.get_start()
         duration = scan.get_duration()
         telescope_indices = scan.get_telescope_indices()
@@ -943,16 +943,16 @@ class ScheduleCalculator(Super):
         scan_uv_data = uv_data.get('data', {}).get(scan_idx, {})
         if not scan_uv_data or "uv_points" not in scan_uv_data:
             logger.error(f"No UV data available for scan {scan_idx} at {start_time.isot}")
-            return {"ScheduleProjections": {} if time_step is None else {"times": [], "ScheduleProjections": {}}}
+            return {"projections": {} if time_step is None else {"times": [], "projections": {}}}
 
         if time_step is None:
-            ScheduleProjections = self._compute_ScheduleProjections_from_uv(scan_uv_data["uv_points"], active_telescopes, frequency)
-            logger.info(f"Static ScheduleProjections: {ScheduleProjections}")
-            return {"ScheduleProjections": ScheduleProjections}
+            projections = self._compute_projections_from_uv(scan_uv_data["uv_points"], active_telescopes, frequency)
+            logger.info(f"Static projections: {projections}")
+            return {"projections": projections}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
-            ScheduleProjections = {
+            projections = {
                 f"{t1.get_code()}-{t2.get_code()}": [] 
                 for i, t1 in enumerate(active_telescopes) 
                 for t2 in active_telescopes[i+1:]
@@ -960,32 +960,32 @@ class ScheduleCalculator(Super):
             uv_points = scan_uv_data.get("uv_points", {}).get(frequency, [])
             if not uv_points:
                 logger.warning(f"No UV points found for frequency {frequency} in scan {scan_idx}")
-                return {"times": times.isot.tolist(), "ScheduleProjections": ScheduleProjections}
+                return {"times": times.isot.tolist(), "projections": projections}
 
             for uv_list in uv_points:
-                proj = self._compute_ScheduleProjections_from_uv({frequency: [uv_list]}, active_telescopes, frequency)
+                proj = self._compute_projections_from_uv({frequency: [uv_list]}, active_telescopes, frequency)
                 for pair, bl in proj.items():
-                    if pair in ScheduleProjections:
-                        ScheduleProjections[pair].append(bl)
+                    if pair in projections:
+                        projections[pair].append(bl)
 
-            return {"times": times.isot.tolist(), "ScheduleProjections": ScheduleProjections}
+            return {"times": times.isot.tolist(), "projections": projections}
         
-    def _compute_ScheduleProjections_from_uv(self, uv_points: Dict[float, List[Tuple[str, float, float, float]]], telescopes: List[Telescope | SpaceTelescope], frequency: float) -> Dict[str, float]:
+    def _compute_projections_from_uv(self, uv_points: Dict[float, List[Tuple[str, float, float, float]]], telescopes: List[Telescope | SpaceTelescope], frequency: float) -> Dict[str, float]:
         """Compute baseline ScheduleProjection BL = sqrt(u² + v²) from pre-calculated (u,v) data"""
-        ScheduleProjections = {}
+        projections = {}
         uv_list = uv_points.get(frequency, [])
         for pair, uuu, vvv, _ in uv_list:
             bl = math.sqrt(uuu * uuu + vvv * vvv)  # BL = sqrt(u² + v²)
-            ScheduleProjections[pair] = bl
-        return ScheduleProjections
+            projections[pair] = bl
+        return projections
 
-    def _compute_baseline_ScheduleProjections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, float]:
+    def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, float]:
         """Fallback method to compute BL = sqrt(u² + v²) at a given time if UV data is unavailable"""
-        logger.warning(f"Fallback to direct computation of baseline ScheduleProjections at {time.isot}")
+        logger.warning(f"Fallback to direct computation of baseline projections at {time.isot}")
         positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
         c = 299792458  # m/s
         wavelength = c / frequency
-        ScheduleProjections = {}
+        projections = {}
         
         for i, pos1 in enumerate(positions):
             for j, pos2 in enumerate(positions[i + 1:], i + 1):
@@ -994,9 +994,9 @@ class ScheduleCalculator(Super):
                 vv = baseline[1] / wavelength
                 bl = math.sqrt(uu * uu + vv * vv)  # BL = sqrt(u² + v²)
                 pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                ScheduleProjections[pair] = bl
+                projections[pair] = bl
         
-        return ScheduleProjections
+        return projections
 
     @time_execution
     def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:

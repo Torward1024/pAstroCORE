@@ -158,7 +158,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "obj": observation
         })
         self.assertTrue(result, "Failed to configure VLBI observation")
-        self.project.add_observation(observation)
+        self.project.add_item(observation)
 
         # 6. Создание SINGLE_DISH наблюдения для beam_pattern
         single_dish_obs = Observation(observation_code="M87_SINGLE_DISH", observation_type="SINGLE_DISH")
@@ -180,7 +180,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "obj": single_dish_obs
         })
         self.assertTrue(result, "Failed to configure SINGLE_DISH observation")
-        self.project.add_observation(single_dish_obs)
+        self.project.add_item(single_dish_obs)
 
         # 7. Вычисление (u,v)-покрытия с шагом 10 минут
         calc_attributes = {

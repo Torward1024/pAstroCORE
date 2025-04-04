@@ -121,7 +121,7 @@ class Scan(BaseEntity):
 
     def get_source(self, observation: 'Observation') -> Optional[Source]:
         """Get the source associated with this scan from the Observation"""
-        from base.observation import Observation
+        from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
         if self._source_index is None or self.is_off_source:
             return None
@@ -130,7 +130,7 @@ class Scan(BaseEntity):
 
     def get_telescopes(self, observation: 'Observation') -> Telescopes:
         """Get the telescopes associated with this scan from the Observation"""
-        from base.observation import Observation
+        from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
         all_tels = observation.get_telescopes().get_all_telescopes()
         selected = [all_tels[idx] for idx in self._telescope_indices if 0 <= idx < len(all_tels)]
@@ -138,7 +138,7 @@ class Scan(BaseEntity):
 
     def get_frequencies(self, observation: 'Observation') -> Frequencies:
         """Get the frequencies associated with this scan from the Observation"""
-        from base.observation import Observation
+        from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
         all_freqs = observation.get_frequencies().get_all_IF()
         selected = [all_freqs[idx] for idx in self._frequency_indices if 0 <= idx < len(all_freqs)]
@@ -206,7 +206,7 @@ class Scan(BaseEntity):
 
     def validate_with_observation(self, observation: 'Observation') -> bool:
         """Validate scan against an Observation's data"""
-        from base.observation import Observation
+        from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
         
         if self._source_index is not None and (self._source_index < 0 or self._source_index >= len(observation.get_sources().get_all_sources())):
@@ -230,7 +230,7 @@ class Scan(BaseEntity):
 
     def check_telescope_availability(self, observation: 'Observation', time: Time = None) -> dict[str, bool]:
         """Check telescope availability for this scan at a given time (defaults to scan start)"""
-        from base.observation import Observation
+        from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
         if time is not None:
             check_type(time, Time, "Time")
@@ -351,7 +351,7 @@ class Scans(BaseEntity):
             isactive=isactive
         )
         if observation:
-            from base.observation import Observation
+            from unit_scheduling.base.observation import Observation
             check_type(observation, Observation, "Observation")
             if not new_scan.validate_with_observation(observation):
                 logger.error(f"Scan with start={start.isot} failed validation against observation '{observation.get_observation_code()}'")
@@ -423,7 +423,7 @@ class Scans(BaseEntity):
 
     def get_active_scans(self, observation: 'Observation' = None) -> List[Scan]:
         """Get active scans, ensuring referenced entities are active"""
-        from base.observation import Observation
+        from unit_scheduling.base.observation import Observation
         active = []
         for scan in self._data:
             if not scan.isactive:
@@ -531,7 +531,7 @@ class Scans(BaseEntity):
 
     def _check_overlap(self, scan: 'Scan', exclude_index: int = -1, observation: 'Observation' = None) -> tuple[bool, str]:
         """Check if the scan overlaps with existing scans by time"""
-        from base.observation import Observation
+        from unit_scheduling.base.observation import Observation
         for i, existing in enumerate(self._data):
             if i == exclude_index or not existing.isactive or not scan.isactive:
                 continue
