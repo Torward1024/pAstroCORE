@@ -25,6 +25,10 @@ import threading
 import math
 import time
 
+from erfa import ErfaWarning
+import warnings
+warnings.filterwarnings("ignore", category=ErfaWarning)
+warnings.filterwarnings("ignore", category=Warning, module="astropy")
 
 def time_execution(func):
     """Decorator to time the execution of a function and log the duration"""
