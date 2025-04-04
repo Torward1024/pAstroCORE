@@ -1,5 +1,6 @@
 # /super/inspector.py
 from abc import ABC
+from .super import Super
 from base.frequencies import IF, Frequencies
 from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
@@ -7,125 +8,9 @@ from base.scans import Scan, Scans
 from base.observation import Observation
 from base.project import Project
 from utils.logging_setup import logger
-from typing import Dict, Any, Callable, Union, Optional, Type
-from functools import lru_cache
-import inspect
+from typing import Dict, Any, Union
 
-class Inspector(ABC):
-    """Super-class for inspecting data from Project and its components
-
-    Attributes:
-        _inspection_methods (dict): Cached dictionary mapping object types to inspection functions and getters
-
-    Methods:
-        inspect: Universal method to retrieve data from objects using getter calls in attributes dictionary
-        _get_inspection_methods: Cached method to retrieve inspection method mappings
-    """
-    def __init__(self, manipulator: 'Manipulator' = None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None):
-        """Initialize the Inspector"""
-        self._manipulator = manipulator
-        self._methods = methods
-
-    def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
-        if self._methods and obj_type in self._methods:
-            return self._methods[obj_type]
-        if self._manipulator:
-            return self._manipulator.get_methods_for_type(obj_type)
-        raise ValueError(f"No methods provided for {obj_type.__name__}")
-
-    def _validate_and_apply_method(self, obj: Any, getter_name: str, getter_args: Any, valid_getters: Dict[str, Callable]) -> Optional[Any]:
-        """Validate and apply a getter to an object
-
-        Args:
-            obj: The object to inspect
-            getter_name: Name of the getter to call
-            getter_args: Arguments for the getter (if any)
-            valid_getters: Dictionary of valid getters for the object's type
-
-        Returns:
-            Any: Result of the getter call, or None if failed
-        """
-        if getter_name not in valid_getters:
-            logger.error(f"Invalid getter {getter_name} for {type(obj).__name__} object")
-            return None
-        if getter_args is not None and not isinstance(getter_args, dict):
-            logger.error(f"Arguments for {getter_name} must be a dictionary or None, got {type(getter_args)}")
-            return None
-
-        getter = valid_getters[getter_name]
-        sig = inspect.signature(getter)
-        expected_params = set(sig.parameters.keys()) - {"self"}
-
-        if getter_args:
-            provided_params = set(getter_args.keys())
-            if not provided_params.issubset(expected_params):
-                logger.error(f"Invalid arguments for {getter_name}: expected {expected_params}, got {provided_params}")
-                return None
-
-        try:
-            result = getter(obj, **getter_args) if getter_args else getter(obj)
-            logger.debug(f"Applied {getter_name} to {type(obj).__name__}, result={result}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to apply {getter_name} to {type(obj).__name__}: {str(e)}")
-            return None
-        
-    def _inspect_nested(self, obj: Any, attributes: Dict[str, Any], index_key: str, getter_method: Callable, nested_inspector: Callable) -> Dict[str, Any]:
-        """Inspect a nested object by index using a getter and a nested inspector function
-
-        Args:
-            obj: The parent object containing the nested object (e.g., Sources, Telescopes)
-            attributes: Dictionary with inspection attributes
-            index_key: Key for the index (e.g., 'source_index')
-            getter_method: Method to retrieve the nested object (e.g., Sources.get_source)
-            nested_inspector: Inspector function for the nested object (e.g., self._inspect_source)
-
-        Returns:
-            Dict[str, Any]: Inspection results for the nested object
-        """
-        index = attributes.get(index_key)
-        if index is not None:
-            if not isinstance(index, int) or not 0 <= index < len(obj):
-                logger.error(f"Invalid {index_key} {index} for {type(obj).__name__}")
-                return {}
-            nested_obj = getter_method(index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != index_key}
-            return nested_inspector(nested_obj, nested_attrs)
-        return {}
-    
-    def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
-        if self._methods is None:
-            self._methods = {}
-        if obj_type not in self._methods:
-            self._methods[obj_type] = {}
-        self._methods[obj_type][method_name] = method
-
-    def execute(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Universal method to inspect an object using getter calls in a single attributes dictionary
-        """
-        if obj is None:
-            logger.error("Inspection object cannot be None")
-            raise ValueError("Inspection object cannot be None")
-
-        obj_type = type(obj)
-        inspect_methods = self._manipulator.get_methods_for_type(type(self))
-        inspect_method_name = f"_inspect_{obj_type.__name__.lower()}"
-
-        if inspect_method_name not in inspect_methods:
-            logger.error(f"No inspection method found for {obj_type.__name__}")
-            raise ValueError(f"No inspection method for {obj_type.__name__}")
-
-        try:
-            return inspect_methods[inspect_method_name](obj, attributes)
-        except Exception as e:
-            logger.error(f"Failed to inspect {obj_type}: {str(e)}")
-            return {}
-
-    def __repr__(self) -> str:
-        """String representation of Inspector"""
-        return "Inspector()"
-
-class DefaultInspector(Inspector):
+class ScheduleInspector(Super):
     """Default implementation of Inspector for inspecting Project and its components
         Args:
             obj: The object to inspect (e.g., IF, Frequencies, Source, Sources, Telescope, SpaceTelescope, Telescopes, Scan, Scans, Observation, Project)
@@ -142,7 +27,10 @@ class DefaultInspector(Inspector):
     """
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator)
-        logger.info("Initialized DefaultInspector")
+        logger.info("Initialized Scheduling Inspector")
+
+    def _default_result(self) -> Dict[str, Any]:
+        return {}
     
     def _inspect_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect an IF object"""

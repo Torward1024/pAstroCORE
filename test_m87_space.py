@@ -1,10 +1,6 @@
-import warnings
-warnings.filterwarnings("ignore", category=Warning)
-warnings.filterwarnings("ignore", module="erfa.*", category=Warning)
-
 # Отключаем IERS-проверки
 from astropy.utils import iers
-iers.conf.auto_download = False  # Отключаем загрузку свежих данных
+iers.conf.auto_download = False
 iers.conf.iers_auto_url = None
 from astropy.utils.iers import conf
 conf.auto_max_age = None
@@ -31,6 +27,10 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.manipulator.set_managing_object(self.project)
         logger.setLevel("DEBUG")  # Включаем отладочные логи
         logger.info("Set up test environment with Manipulator and Project")
+        # Проверяем, что операции зарегистрированы корректно
+        supported_ops = self.manipulator.get_supported_operations()
+        logger.info(f"Supported operations: {supported_ops}")
+        self.assertIn("configure", supported_ops, "Operation 'configure' not registered")
 
     def test_eht_observation_with_space_telescope(self):
         """Тест полного цикла с космическим телескопом: настройка, вычисление (u,v), проекций базы, визуализация + beam_pattern и synthesized_beam"""
@@ -44,12 +44,13 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "set_flux": {"frequency": 86e3, "flux": 1.2}  # 86 GHz в МГц
         }
         m87_source = Source()
-        self.manipulator.process_request({
+        result = self.manipulator.process_request({
             "operation": "configure",
             "target": "source",
             "attributes": m87_attributes,
             "obj": m87_source
         })
+        self.assertTrue(result, "Failed to configure M87 source")
         sources = Sources([m87_source])
 
         # 2. Настройка телескопов (ALMA + APEX + SMT + космический телескоп)
@@ -67,12 +68,13 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         telescopes = Telescopes()
         for tel_data in telescope_data:
             tel = Telescope()
-            self.manipulator.process_request({
+            result = self.manipulator.process_request({
                 "operation": "configure",
                 "target": "telescope",
                 "attributes": {"set_telescope": tel_data},
                 "obj": tel
             })
+            self.assertTrue(result, f"Failed to configure telescope {tel_data['code']}")
             telescopes.add_telescope(tel)
 
         space_tel_attributes = {
@@ -84,32 +86,34 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "sefd_table": {86e3: 200.0},
                 "pitch_range": (-90.0, 90.0),
                 "yaw_range": (0.0, 180.0),
-                "orbit_file": "e:\\Python\\pAstroCORE\\final_orbit370.txt",
+                "orbit_file": "i:\\pAstroCORE\\final_orbit370.txt",
                 "interpolation_method": "linear"
             }
         }
         space_tel = SpaceTelescope(
             use_kep=False,
-            orbit_file="e:\\Python\\pAstroCORE\\final_orbit370.txt",
+            orbit_file="i:\\pAstroCORE\\final_orbit370.txt",
             interpolation_method="linear"
         )
-        self.manipulator.process_request({
+        result = self.manipulator.process_request({
             "operation": "configure",
             "target": "telescope",
             "attributes": space_tel_attributes,
             "obj": space_tel
         })
+        self.assertTrue(result, "Failed to configure Space Telescope")
         telescopes.add_telescope(space_tel)
 
         # 3. Настройка частоты (86 GHz)
         frequency_attributes = {"set_frequency": {"freq": 86e3}, "set_bandwidth": {"bandwidth": 4e3}}
         frequency = IF()
-        self.manipulator.process_request({
+        result = self.manipulator.process_request({
             "operation": "configure",
             "target": "if",
             "attributes": frequency_attributes,
             "obj": frequency
         })
+        self.assertTrue(result, "Failed to configure frequency")
         frequencies = Frequencies([frequency])
 
         # 4. Настройка сканирования (10.03.2031 - 20.03.2031, шаг 10 минут)
@@ -125,12 +129,13 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             }
         }
         scan = Scan()
-        self.manipulator.process_request({
+        result = self.manipulator.process_request({
             "operation": "configure",
             "target": "scan",
             "attributes": scan_attributes,
             "obj": scan
         })
+        self.assertTrue(result, "Failed to configure scan")
         scans = Scans([scan])
 
         # 5. Создание VLBI наблюдения
@@ -146,12 +151,13 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "isactive": True
             }
         }
-        self.manipulator.process_request({
+        result = self.manipulator.process_request({
             "operation": "configure",
             "target": "observation",
             "attributes": obs_attributes,
             "obj": observation
         })
+        self.assertTrue(result, "Failed to configure VLBI observation")
         self.project.add_observation(observation)
 
         # 6. Создание SINGLE_DISH наблюдения для beam_pattern
@@ -167,17 +173,18 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "isactive": True
             }
         }
-        self.manipulator.process_request({
+        result = self.manipulator.process_request({
             "operation": "configure",
             "target": "observation",
             "attributes": single_dish_attributes,
             "obj": single_dish_obs
         })
+        self.assertTrue(result, "Failed to configure SINGLE_DISH observation")
         self.project.add_observation(single_dish_obs)
 
         # 7. Вычисление (u,v)-покрытия с шагом 10 минут
         calc_attributes = {
-            "type": "uv_coverage",
+            "method": "uv_coverage",
             "time_step": 18000,
             "freq_idx": 0,
             "store_key": "uv_coverage_f0",
@@ -186,7 +193,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         start = time.time()
         uv_results = self.manipulator.process_request({
             "operation": "calculate",
-            "target": "observation",
             "attributes": calc_attributes,
             "obj": self.project.get_by_index(0)
         })
@@ -195,7 +201,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
 
         # 8. Вычисление Mollweide tracks с шагом 10 минут
         calc_attributes_moll = {
-            "type": "mollweide_tracks",
+            "method": "mollweide_tracks",
             "time_step": 18000,
             "store_key": "mollweide_tracks",
             "recalculate": False
@@ -203,7 +209,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         start = time.time()
         moll_results = self.manipulator.process_request({
             "operation": "calculate",
-            "target": "observation",
             "attributes": calc_attributes_moll,
             "obj": self.project.get_by_index(0)
         })
@@ -212,7 +217,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
 
         # 9. Вычисление проекций базы с шагом 10 минут
         calc_attributes_bl = {
-            "type": "baseline_projections",
+            "method": "baseline_projections",
             "time_step": 18000,
             "freq_idx": 0,
             "store_key": "baseline_projections_f0",
@@ -221,7 +226,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         start = time.time()
         bl_results = self.manipulator.process_request({
             "operation": "calculate",
-            "target": "observation",
             "attributes": calc_attributes_bl,
             "obj": self.project.get_by_index(0)
         })
@@ -230,7 +234,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
 
         # 10. Вычисление beam_pattern для SINGLE_DISH
         beam_attributes = {
-            "type": "beam_pattern",
+            "method": "beam_pattern",
             "freq_idx": 0,
             "store_key": "beam_pattern_f0",
             "recalculate": False
@@ -238,7 +242,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         start = time.time()
         beam_results = self.manipulator.process_request({
             "operation": "calculate",
-            "target": "observation",
             "attributes": beam_attributes,
             "obj": self.project.get_by_index(1)
         })
@@ -247,23 +250,22 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
 
         # 11. Вычисление synthesized_beam для VLBI
         synth_attributes = {
-            "type": "synthesized_beam",
+            "method": "synthesized_beam",
             "freq_idx": 0,
             "store_key": "synthesized_beam_f0",
             "recalculate": False,
-            "time_step": 18000  # Добавляем для совместимости с uv_coverage
+            "time_step": 18000
         }
         start = time.time()
         synth_results = self.manipulator.process_request({
             "operation": "calculate",
-            "target": "observation",
             "attributes": synth_attributes,
             "obj": self.project.get_by_index(0)
         })
         self.assertTrue(synth_results, "Synthesized beam calculation failed")
         print(f"Synthesized beam calculation took {time.time() - start:.2f} seconds")
 
-        # Извлечение данных UV
+        # Извлечение данных UV и визуализация (без изменений)
         uv_data = observation.get_calculated_data_by_key("uv_coverage_f0")["data"]
         freq = 86e9  # 86 GHz в Гц
         colors = {
@@ -297,7 +299,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.assertGreater(len(u_points_dict['APEX-SPACE370']), 0, "No points for APEX-SPACE370 baseline")
         self.assertGreater(len(u_points_dict['SMT-SPACE370']), 0, "No points for SMT-SPACE370 baseline")
 
-        # Визуализация UV
         plt.figure(figsize=(12, 12))
         for pair in u_points_dict:
             if u_points_dict[pair]:
@@ -440,9 +441,9 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         plt.savefig("synthesized_beam_2d_m87_vlbi.png")
         plt.show()
 
-        # 12. Вычисление time_on_source с шагом 10 минут
+        # 12. Вычисление time_on_source
         calc_attributes_time = {
-            "type": "time_on_source",
+            "method": "time_on_source",
             "time_step": 18000,
             "store_key": "time_on_source",
             "recalculate": False
@@ -450,7 +451,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         start = time.time()
         time_results = self.manipulator.process_request({
             "operation": "calculate",
-            "target": "observation",
             "attributes": calc_attributes_time,
             "obj": self.project.get_by_index(0)
         })
@@ -486,9 +486,9 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         plt.savefig("time_on_source_m87_space.png")
         plt.show()
 
-        # 13. Вычисление sun_angles с шагом 10 минут
+        # 13. Вычисление sun_angles
         calc_attributes_sun = {
-            "type": "sun_angles",
+            "method": "sun_angles",
             "time_step": 18000,
             "store_key": "sun_angles",
             "recalculate": False
@@ -496,7 +496,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         start = time.time()
         sun_results = self.manipulator.process_request({
             "operation": "calculate",
-            "target": "observation",
             "attributes": calc_attributes_sun,
             "obj": self.project.get_by_index(0)
         })
@@ -526,9 +525,9 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         plt.savefig("sun_angles_m87_space.png")
         plt.show()
 
-        # 14. Вычисление az_el с шагом 10 минут
+        # 14. Вычисление az_el
         calc_attributes_azel = {
-            "type": "az_el",
+            "method": "az_el",
             "time_step": 18000,
             "store_key": "az_el",
             "recalculate": False
@@ -536,7 +535,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         start = time.time()
         azel_results = self.manipulator.process_request({
             "operation": "calculate",
-            "target": "observation",
             "attributes": calc_attributes_azel,
             "obj": self.project.get_by_index(0)
         })

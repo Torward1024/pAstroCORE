@@ -1,5 +1,6 @@
 # /super/configurator.py
 from abc import ABC
+from .super import Super
 from base.frequencies import IF, Frequencies
 from base.sources import Source, Sources
 from base.telescopes import Telescope, SpaceTelescope, Telescopes
@@ -7,113 +8,10 @@ from base.scans import Scan, Scans
 from base.observation import Observation
 from base.project import Project 
 from utils.logging_setup import logger
-from typing import Dict, Any, Callable, Type, Optional
+from typing import Dict, Any
 import inspect
 
-class Configurator(ABC):
-    """Super-class for configuring Project and its components.
-
-    Attributes:
-        _config_methods (dict): Cached dictionary mapping object types to configuration functions and methods.
-
-    Methods:
-        configure: Universal method to configure objects using method calls in attributes dictionary.
-        _get_config_methods: Cached method to retrieve configuration method mappings.
-    """
-    def __init__(self, manipulator: 'Manipulator'= None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None):
-        """Initialize the Configurator"""
-        self._manipulator = manipulator
-        self._methods = methods
-
-    def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
-        if self._methods and obj_type in self._methods:
-            return self._methods[obj_type]
-        if self._manipulator:
-            return self._manipulator.get_methods_for_type(obj_type)
-        raise ValueError(f"No methods provided for {obj_type.__name__}")
-
-    def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any, valid_methods: Dict[str, Callable], 
-                                  extra_args: Dict[str, Any] = None) -> bool:
-        """Validate and apply a method to an object
-
-        Args:
-            obj: The object to apply the method to
-            method_name: Name of the method to call
-            method_args: Arguments for the method
-            valid_methods: Dictionary of valid methods for the object's type
-            extra_args: Optional additional arguments to pass to the method (e.g., observation for Scan)
-
-        Returns:
-            bool: True if the method was applied successfully, False otherwise
-        """
-        if method_name not in valid_methods:
-            logger.error(f"Invalid method {method_name} for {type(obj).__name__} object")
-            return False
-        if not isinstance(method_args, dict):
-            logger.error(f"Arguments for {method_name} must be a dictionary, got {type(method_args)}")
-            return False
-
-        method = valid_methods[method_name]
-        sig = inspect.signature(method)
-        expected_params = set(sig.parameters.keys()) - {"self"}
-        provided_params = set(method_args.keys())
-
-        if not provided_params.issubset(expected_params):
-            logger.error(f"Invalid arguments for {method_name}: expected {expected_params}, got {provided_params}")
-            return False
-
-        try:
-            if extra_args:
-                method_args = {**method_args, **extra_args}
-            method(obj, **method_args)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to apply {method_name} to {type(obj).__name__}: {str(e)}")
-            return False
-    
-    def _configure_nested(self, obj: Any, attributes: Dict[str, Any], index_key: str, getter_method: Callable,
-                         nested_configurator: Callable) -> bool:
-        index = attributes.get(index_key)
-        if index is not None:
-            if not isinstance(index, int) or not 0 <= index < len(obj):
-                logger.error(f"Invalid {index_key} {index} for {type(obj).__name__}")
-                return False
-            nested_obj = getter_method(index)
-            nested_attrs = {k: v for k, v in attributes.items() if k != index_key}
-            return nested_configurator(nested_obj, nested_attrs)
-        return False
-    
-    def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
-        if self._methods is None:
-            self._methods = {}
-        if obj_type not in self._methods:
-            self._methods[obj_type] = {}
-        self._methods[obj_type][method_name] = method
-
-    def execute(self, obj: Any, attributes: Dict[str, Any]) -> bool:    
-        if obj is None:
-            logger.error("Configuration object cannot be None")
-            raise ValueError("Configuration object cannot be None")
-
-        obj_type = type(obj)
-        config_methods = self._manipulator.get_methods_for_type(type(self))
-        config_method_name = f"_configure_{obj_type.__name__.lower()}"
-
-        if config_method_name not in config_methods:
-            logger.error(f"No configuration method found for {obj_type.__name__}")
-            raise ValueError(f"No configuration method for {obj_type.__name__}")
-
-        try:
-            return config_methods[config_method_name](obj, attributes)
-        except Exception as e:
-            logger.error(f"Failed to configure {obj_type}: {str(e)}")
-            return False
-
-    def __repr__(self) -> str:
-        """String representation of Configurator"""
-        return "Configurator()"
-
-class DefaultConfigurator(Configurator):
+class ScheduleConfigurator(Super):
     """Default implementation of Configurator for configuring Project and its components
 
     Inherits all configuration methods from Configurator and provides a ready-to-use instance
@@ -141,7 +39,10 @@ class DefaultConfigurator(Configurator):
     """
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator)
-        logger.info("Initialized DefaultConfigurator")
+        logger.info("Initialized Scheduling Configurator")
+    
+    def _default_result(self) -> bool:
+        return False
 
     def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> bool:
         """Configure an IF object"""

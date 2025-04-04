@@ -1,5 +1,5 @@
 from abc import ABC
-
+from .super import Super
 from base.frequencies import Frequencies
 from base.sources import Sources, Source
 from base.telescopes import Telescope, SpaceTelescope, Telescopes, MountType
@@ -8,7 +8,7 @@ from base.observation import Observation
 from base.project import Project
 
 from utils.logging_setup import logger
-from typing import Dict, Any, Optional, Tuple, List, Callable, Type
+from typing import Dict, Any, Optional, Tuple, List
 from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
 from scipy.fft import fft2, fftshift
@@ -39,46 +39,14 @@ def time_execution(func):
         return result
     return wrapper
 
-class Calculator(ABC):
-    """Super-class for performing calculations on Project or Observation objects"""
-    def __init__(self, manipulator: 'Manipulator'):
-        """Initialize the Calculator"""
-        self._manipulator = manipulator
-        self._lock = threading.Lock()
-    
-    def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
-        methods = self._manipulator.get_methods_for_type(obj_type) if self._manipulator else {}
-        if hasattr(self, '_custom_methods'):
-            methods.update(self._custom_methods)
-        return methods
-
-    def execute(self, obj: Any, attributes: Dict[str, Any], method_name: Optional[str] = None) -> Dict[str, Any]:
-        if obj is None:
-            raise ValueError("Calculation object cannot be None")
-        calc_type = method_name or attributes.get("type")
-        if not calc_type:
-            raise ValueError("Calculation type or method name must be specified")
-        calc_methods = self._get_methods(type(self))
-        calc_method_name = f"_calculate_{calc_type}"
-        if calc_method_name not in calc_methods:
-            raise ValueError(f"No calculation method for type '{calc_type}'")
-        return calc_methods[calc_method_name](obj, attributes)
-    
-    def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
-        if self._methods is None:
-            self._methods = {}
-        if obj_type not in self._methods:
-            self._methods[obj_type] = {}
-        self._methods[obj_type][method_name] = method
-
-    def __repr__(self) -> str:
-        return "Calculator()"
-
-class DefaultCalculator(Calculator):
-    """Default implementation of Calculator"""
+class ScheduleCalculator(Super):
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator)
-        logger.info("Initialized DefaultCalculator")
+        self._lock = threading.Lock()
+        logger.info("Initialized Scheduling Calculator")
+
+    def _default_result(self) -> Dict[str, Any]:
+        return {}
     
     def _get_cached_or_calculate(self, obj: Observation | Project, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Get cached data or calculate and cache it."""
