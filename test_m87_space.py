@@ -1,29 +1,29 @@
-# Отключаем IERS-проверки
 from astropy.utils import iers
 iers.conf.auto_download = False
 iers.conf.iers_auto_url = None
 from astropy.utils.iers import conf
 conf.auto_max_age = None
 
-import unittest
-import matplotlib.pyplot as plt
-from base.sources import Source, Sources
-from base.telescopes import Telescope, SpaceTelescope, Telescopes
-from base.frequencies import IF, Frequencies
-from base.scans import Scan, Scans
-from base.observation import Observation
-from base.project import Project
-from super.manipulator import DefaultManipulator
-from utils.logging_setup import logger
-import time
+from unit_scheduling.base.sources import Source, Sources
+from unit_scheduling.base.telescopes import Telescope, SpaceTelescope, Telescopes
+from unit_scheduling.base.frequencies import IF, Frequencies
+from unit_scheduling.base.scans import Scan, Scans
+from unit_scheduling.base.observation import Observation
+from unit_scheduling.super.schedule_project import ScheduleProject
+from unit_scheduling.super.schedule_manipulator import ScheduleManipulator
+
+from common.utils.logging_setup import logger
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
+import time
+import unittest
+import matplotlib.pyplot as plt
 
 class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
     def setUp(self):
-        self.manipulator = DefaultManipulator()
-        self.project = Project(name="EHT_M87_SPACE_PROJECT")
+        self.manipulator = ScheduleManipulator()
+        self.project = ScheduleProject(name="EHT_M87_SPACE_PROJECT")
         self.manipulator.set_managing_object(self.project)
         logger.setLevel("DEBUG")  # Включаем отладочные логи
         logger.info("Set up test environment with Manipulator and Project")
