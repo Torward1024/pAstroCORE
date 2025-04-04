@@ -488,6 +488,7 @@ class SpaceTelescope(Telescope):
                  yaw_range: Tuple[float, float] = (-180.0, 180.0),
                  isactive: bool = True, use_kep: bool = True,
                  kepler_elements: Optional[dict] = None,
+                 orbit_data: Optional[Dict[str, np.ndarray]] = None,  # Новый параметр
                  interpolation_method: str = "linear"):
         super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0, 
                          diameter=diameter, sefd_table=sefd_table, isactive=isactive,
@@ -512,7 +513,11 @@ class SpaceTelescope(Telescope):
         self._interpolation_method = interpolation_method
         self._interpolated_orbit = None
 
-        if self._use_kep:
+        if orbit_data is not None:  
+            self.set_orbit(orbit_data)
+            self._use_kep = False  
+            logger.info(f"Initialized SpaceTelescope '{code}' with direct orbit data, diameter={diameter} m")
+        elif self._use_kep:
             if kepler_elements is not None:
                 required_keys = {"a", "e", "i", "raan", "argp", "nu", "epoch", "mu"}
                 if not isinstance(kepler_elements, dict) or not required_keys.issubset(kepler_elements.keys()):
@@ -594,6 +599,54 @@ class SpaceTelescope(Telescope):
         except Exception as e:
             logger.error(f"Unexpected error parsing orbit file: {str(e)}")
             raise
+
+    def get_orbit(self) -> Optional[Dict[str, np.ndarray]]:
+        """Return the current orbit data if available."""
+        if self._orbit_data is not None:
+            logger.debug(f"Retrieved orbit data for SpaceTelescope '{self._code}': {len(self._orbit_data['times'])} points")
+            return {
+                "times": self._orbit_data["times"].copy(),
+                "positions": self._orbit_data["positions"].copy(),
+                "velocities": self._orbit_data["velocities"].copy()
+            }
+        logger.debug(f"No orbit data available for SpaceTelescope '{self._code}'")
+        return None
+
+    def set_orbit(self, orbit_data: Dict[str, np.ndarray]) -> None:
+        """Set orbit data directly with times, positions, and velocities."""
+        check_type(orbit_data, dict, "Orbit data")
+        required_keys = {"times", "positions", "velocities"}
+        if not required_keys.issubset(orbit_data.keys()):
+            raise ValueError(f"Orbit data must contain keys: {required_keys}")
+        
+        times = np.asarray(orbit_data["times"])
+        positions = np.asarray(orbit_data["positions"])
+        velocities = np.asarray(orbit_data["velocities"])
+
+        # Проверка типов и размерностей
+        if times.ndim != 1:
+            raise ValueError("Times must be a 1D array")
+        if positions.ndim != 2 or positions.shape[1] != 3:
+            raise ValueError("Positions must be a 2D array with shape (N, 3)")
+        if velocities.ndim != 2 or velocities.shape[1] != 3:
+            raise ValueError("Velocities must be a 2D array with shape (N, 3)")
+        if not (len(times) == positions.shape[0] == velocities.shape[0]):
+            raise ValueError("Times, positions, and velocities must have the same length")
+
+        # Проверка, что времена отсортированы
+        if not np.all(np.diff(times) > 0):
+            raise ValueError("Times must be in strictly increasing order")
+
+        self._orbit_data = {
+            "times": times.copy(),
+            "positions": positions.copy(),
+            "velocities": velocities.copy()
+        }
+        self._use_kep = False  # Отключаем кеплеровский режим
+        self._kepler_elements = None  # Сбрасываем кеплеровские элементы
+        self._interpolated_orbit = None  # Сбрасываем интерполяцию
+        self._orbit_file = None  # Сбрасываем ссылку на файл
+        logger.info(f"Set orbit data for SpaceTelescope '{self._code}' with {len(times)} points")
 
     def set_interpolation_method(self, method: str) -> None:
         valid_methods = {"linear", "chebyshev", "cubic_spline"}
@@ -763,6 +816,7 @@ class SpaceTelescope(Telescope):
                       isactive: bool = True,
                       use_kep: bool = True,
                       kepler_elements: Optional[dict] = None,
+                      orbit_data: Optional[Dict[str, np.ndarray]] = None,  # Новый параметр
                       interpolation_method: str = "chebyshev") -> None:
         check_non_empty_string(code, "Code")
         check_non_empty_string(name, "Name")
@@ -791,7 +845,10 @@ class SpaceTelescope(Telescope):
         self._use_kep = use_kep
         self.isactive = isactive
 
-        if self._use_kep:
+        if orbit_data is not None:  # Если переданы орбитальные данные напрямую
+            self.set_orbit(orbit_data)
+            self._use_kep = False
+        elif self._use_kep:
             if kepler_elements is not None:
                 required_keys = {"a", "e", "i", "raan", "argp", "nu", "epoch", "mu"}
                 if not isinstance(kepler_elements, dict) or not required_keys.issubset(kepler_elements.keys()):
@@ -862,11 +919,13 @@ class SpaceTelescope(Telescope):
 
     def to_dict(self) -> dict:
         base_dict = super().to_dict()
+        orbit_dict = self.get_orbit()
         base_dict.update({
             "type": "SpaceTelescope",
             "orbit_file": self._orbit_file,
             "pitch_range": self._pitch_range,
             "yaw_range": self._yaw_range,
+            "use_kep": self._use_kep,
             "kepler_elements": None if self._kepler_elements is None else {
                 "a": self._kepler_elements["a"],
                 "e": self._kepler_elements["e"],
@@ -874,11 +933,12 @@ class SpaceTelescope(Telescope):
                 "raan": np.degrees(self._kepler_elements["raan"]),
                 "argp": np.degrees(self._kepler_elements["argp"]),
                 "nu": np.degrees(self._kepler_elements["nu"]),
-                "epoch": self._kepler_elements["epoch"].isot,  # Используем isot для сериализации
+                "epoch": self._kepler_elements["epoch"].isot,
                 "mu": self._kepler_elements["mu"]
-            }
+            },
+            "orbit_data": orbit_dict  # Добавляем орбитальные данные
         })
-        logger.info(f"Converted SpaceTelescope '{self._code}' to dictionary (orbit data not serialized)")
+        logger.info(f"Converted SpaceTelescope '{self._code}' to dictionary")
         return base_dict
 
     @classmethod
@@ -891,9 +951,12 @@ class SpaceTelescope(Telescope):
             sefd_table=data.get("sefd_table", {}),
             pitch_range=tuple(data.get("pitch_range", (-90.0, 90.0))),
             yaw_range=tuple(data.get("yaw_range", (-180.0, 180.0))),
-            isactive=data.get("isactive", True)
+            isactive=data.get("isactive", True),
+            use_kep=data.get("use_kep", True),
+            kepler_elements=data.get("kepler_elements"),
+            orbit_data=data.get("orbit_data")  # Передаём orbit_data
         )
-        if data.get("kepler_elements"):
+        if data.get("kepler_elements") and not data.get("orbit_data"):
             obj._kepler_elements = {
                 "a": data["kepler_elements"]["a"],
                 "e": data["kepler_elements"]["e"],
@@ -901,10 +964,10 @@ class SpaceTelescope(Telescope):
                 "raan": np.radians(data["kepler_elements"]["raan"]),
                 "argp": np.radians(data["kepler_elements"]["argp"]),
                 "nu": np.radians(data["kepler_elements"]["nu"]),
-                "epoch": Time(data["kepler_elements"]["epoch"], scale='utc'),  # Десериализация в Time
+                "epoch": Time(data["kepler_elements"]["epoch"], scale='utc'),
                 "mu": data["kepler_elements"]["mu"]
             }
-        if obj._orbit_file:
+        if obj._orbit_file and not data.get("orbit_data"):
             try:
                 obj.load_orbit(obj._orbit_file)
             except (FileNotFoundError, ValueError) as e:
