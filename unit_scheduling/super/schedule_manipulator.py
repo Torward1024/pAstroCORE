@@ -14,6 +14,7 @@ class ScheduleManipulator(Manipulator):
         from unit_scheduling.super.configurator import ScheduleConfigurator
         from unit_scheduling.super.inspector import ScheduleInspector
         from unit_scheduling.super.calculator import ScheduleCalculator
+        from unit_scheduling.super.visualizer import ScheduleVisualizer
 
         base_classes = [
             ScheduleProject, Observation, IF, Frequencies, Source, Sources,
@@ -25,5 +26,6 @@ class ScheduleManipulator(Manipulator):
         self.register_operation("configure", ScheduleConfigurator(self))
         self.register_operation("inspect", ScheduleInspector(self))
         self.register_operation("calculate", ScheduleCalculator(self))
+        self.register_operation("visualize", ScheduleVisualizer(self))
         
         logger.info("Initialized DefaultManipulator with default operations")
