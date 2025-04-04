@@ -13,6 +13,8 @@ import numpy as np
 from astropy.time import Time
 import threading
 import os
+import seaborn as sns
+import astropy.units as u
 
 class ScheduleVisualizer(Super):
     """Default implementation of Visualizer for visualizing Project and its components"""
@@ -20,7 +22,7 @@ class ScheduleVisualizer(Super):
         super().__init__(manipulator)
         self._lock = threading.Lock()
         logger.info("Initialized Scheduling Visualizer")
-        plt.style.use('seaborn')
+        plt.style.use('seaborn-v0_8')
 
         # Словарь для методов визуализации по типу объекта
         self._object_visualizers: Dict[type, Callable] = {
@@ -48,8 +50,7 @@ class ScheduleVisualizer(Super):
         return {"status": "no visualization performed"}
 
     def _visualize(self, obj: Union[ScheduleProject, Observation, Telescope, SpaceTelescope, Telescopes, Source, Sources, Scan, Scans, IF, Frequencies], 
-                   attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Universal method to visualize an object based on attributes"""
+               attributes: Dict[str, Any]) -> Dict[str, Any]:
         plot_type = attributes.get("plot_type")
         output_file = attributes.get("output_file")
         show = attributes.get("show", True)
@@ -62,7 +63,6 @@ class ScheduleVisualizer(Super):
         result = {}
 
         try:
-            # Поиск подходящего визуализатора по типу объекта
             visualizer = None
             for types, func in self._object_visualizers.items():
                 if isinstance(obj, types):
@@ -74,9 +74,14 @@ class ScheduleVisualizer(Super):
             result = visualizer(obj, attributes)
 
             if output_file:
-                os.makedirs(os.path.dirname(output_file), exist_ok=True)
-                plt.savefig(output_file, dpi=attributes.get("dpi", 300), bbox_inches='tight')
-                logger.info(f"Visualization saved to '{output_file}'")
+                if not output_file.strip():  # Проверка на пустую строку
+                    logger.warning("Empty output_file provided, skipping save")
+                else:
+                    output_dir = os.path.dirname(output_file)
+                    if output_dir:  # Если есть директория в пути
+                        os.makedirs(output_dir, exist_ok=True)
+                    plt.savefig(output_file, dpi=attributes.get("dpi", 300), bbox_inches='tight')
+                    logger.info(f"Visualization saved to '{output_file}'")
             if show:
                 plt.show()
             else:
@@ -111,9 +116,14 @@ class ScheduleVisualizer(Super):
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
         freq_idx = attributes.get("freq_idx", 0)
-        time_step = attributes.get("time_step")
-        data = self._manipulator.calculate(obj, {"time_step": time_step, "freq_idx": freq_idx, "store_key": f"uv_coverage_f{freq_idx}"})
+        store_key = attributes.get("store_key", f"uv_coverage_f{freq_idx}")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No UV coverage data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
         frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6
+        data = data.get("data", {})
 
         u, v = [], []
         for scan_data in data.values():
@@ -131,15 +141,19 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "u_points": len(u)}
 
     def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        time_step = attributes.get("time_step")
-        data = self._manipulator.calculate(obj, {"time_step": time_step, "store_key": "source_visibility"})
-        
+        store_key = attributes.get("store_key", "source_visibility")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No source visibility data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
+        data = data.get("data", {})
         for scan_idx, scan_data in data.items():
             times = [Time(t) for t in scan_data.get("times", [])]
             visibility = scan_data.get("visibility", {})
             source = scan_data.get("source")
             for tel_code, vis in visibility.items():
-                plt.plot(times, vis, label=f"{tel_code}", marker='o' if not time_step else None)
+                plt.plot(times, vis, label=f"{tel_code}", marker='o' if not attributes.get("time_step") else None)
         
         plt.xlabel("Time (UTC)")
         plt.ylabel("Visible (1 = Yes, 0 = No)")
@@ -150,9 +164,13 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        time_step = attributes.get("time_step")
-        data = self._manipulator.calculate(obj, {"time_step": time_step, "store_key": "sun_angles"})
-        
+        store_key = attributes.get("store_key", "sun_angles")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No sun angles data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
+        data = data.get("data", {})
         for scan_idx, scan_data in data.items():
             times = [Time(t) for t in scan_data.get("times", [])]
             angles = scan_data.get("sun_angles", {})
@@ -169,9 +187,13 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        time_step = attributes.get("time_step")
-        data = self._manipulator.calculate(obj, {"time_step": time_step, "store_key": "az_el"})
-        
+        store_key = attributes.get("store_key", "az_el")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No Az/El data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
+        data = data.get("data", {})
         for scan_idx, scan_data in data.items():
             times = [Time(t) for t in scan_data.get("times", [])]
             az_el = scan_data.get("az_el", {})
@@ -190,9 +212,13 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        time_step = attributes.get("time_step")
-        data = self._manipulator.calculate(obj, {"time_step": time_step, "store_key": "time_on_source"})
-        
+        store_key = attributes.get("store_key", "time_on_source")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No time on source data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
+        data = data.get("data", {})
         sources = list(data.keys())
         telescopes = set()
         for source_data in data.values():
@@ -221,8 +247,13 @@ class ScheduleVisualizer(Super):
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
         freq_idx = attributes.get("freq_idx", 0)
-        data = self._manipulator.calculate(obj, {"freq_idx": freq_idx, "store_key": f"beam_pattern_f{freq_idx}"})
-        
+        store_key = attributes.get("store_key", f"beam_pattern_f{freq_idx}")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No beam pattern data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
+        data = data.get("data", {})
         for tel_code, beam_data in data.items():
             theta = beam_data["theta"]
             pattern = beam_data["pattern"]
@@ -237,8 +268,13 @@ class ScheduleVisualizer(Super):
 
     def _plot_synthesized_beam(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
         freq_idx = attributes.get("freq_idx", 0)
-        data = self._manipulator.calculate(obj, {"freq_idx": freq_idx, "store_key": f"synthesized_beam_f{freq_idx}"})
-        
+        store_key = attributes.get("store_key", f"synthesized_beam_f{freq_idx}")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No synthesized beam data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
+        data = data.get("data", {})
         scan_data = data.get(0, {})
         theta_u = scan_data.get("theta_u", [])
         theta_v = scan_data.get("theta_v", [])
@@ -253,9 +289,13 @@ class ScheduleVisualizer(Super):
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
         freq_idx = attributes.get("freq_idx", 0)
-        time_step = attributes.get("time_step")
-        data = self._manipulator.calculate(obj, {"time_step": time_step, "freq_idx": freq_idx, "store_key": f"calculate_baseline_projections_f{freq_idx}"})
-        
+        store_key = attributes.get("store_key", f"baseline_projections_f{freq_idx}")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
+        data = data.get("data", {})
         for scan_idx, scan_data in data.items():
             times = [Time(t) for t in scan_data.get("times", [])]
             projections = scan_data.get("projections", {})
@@ -271,9 +311,13 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        time_step = attributes.get("time_step")
-        data = self._manipulator.calculate(obj, {"time_step": time_step, "store_key": "mollweide_tracks"})
-        
+        store_key = attributes.get("store_key", "mollweide_tracks")
+        data = obj.get_calculated_data_by_key(store_key)
+        if not data:
+            logger.error(f"No Mollweide tracks data found for '{store_key}' in {obj.get_observation_code()}")
+            return {"status": "error", "message": f"No data for {store_key}"}
+
+        data = data.get("data", {})
         ax = plt.subplot(111, projection="mollweide")
         for scan_idx, scan_data in data.items():
             source = scan_data["source"]

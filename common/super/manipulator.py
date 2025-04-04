@@ -45,11 +45,12 @@ class Manipulator(ABC):
         if not isinstance(operation, str) or not operation:
             logger.error("Operation name must be a non-empty string")
             raise ValueError("Operation name must be a non-empty string")
-        if not (hasattr(super_instance, "execute") or callable(super_instance)):
-            logger.error(f"Super-instance for '{operation}' must have 'execute' method or be callable")
-            raise ValueError(f"Super-instance for '{operation}' must be executable")
+        if not hasattr(super_instance, "execute"):
+            logger.error(f"Super-instance for '{operation}' must have 'execute' method")
+            raise ValueError(f"Super-instance for '{operation}' must have 'execute' method")
+        # Задаем _operation для super_instance
+        super_instance._operation = operation
         self._operations[operation] = super_instance
-        logger.debug(f"Registered operation '{operation}' with instance of type {type(super_instance).__name__}")
 
         super_type = type(super_instance)
         if super_type not in self._registry:
@@ -79,57 +80,46 @@ class Manipulator(ABC):
                 if (inspect.isfunction(getattr(cls, name, None)) or inspect.ismethod(getattr(cls, name, None)))
                 and not name.startswith('_') and callable(getattr(cls, name))
             }
-
             for name, method in methods.items():
                 if not callable(method):
                     logger.error(f"Method {name} for {cls.__name__} is not callable: {method} (type: {type(method).__name__})")
-                else:
-                    logger.info(f"Method {name} for {cls.__name__} is callable: {method}")
             registry[cls] = methods
-            logger.info(f"Registered {len(methods)} methods for {cls.__name__}: {list(methods.keys())}")
         return registry
 
     def process_request(self, request: Dict[str, Any]) -> Any:
+        if all(isinstance(k, str) and isinstance(v, dict) for k, v in request.items()) and "operation" not in request:
+            results = {}
+            logger.info(f"Processing sequence of {len(request)} requests")
+            for req_id, sub_request in request.items():
+                result = self._process_single_request(sub_request)
+                results[req_id] = result
+            return results
+        return self._process_single_request(request)
+
+    def _process_single_request(self, request: Dict[str, Any]) -> Any:
         operation = request.get("operation")
-        if not operation or operation not in self._operations:
-            logger.error(f"Unsupported operation: {operation}. Available: {list(self._operations.keys())}")
-            raise ValueError(f"Unsupported operation: {operation}")
-        
-        logger.info(f"Operations dictionary: {self._operations}")
-        super_instance = self._operations[operation]
-        if isinstance(super_instance, str):
-            logger.error(f"Operation '{operation}' mapped to a string '{super_instance}' instead of an executable instance")
-            raise TypeError(f"Operation '{operation}' is not executable; found string instead")
-        logger.info(f"Super instance for '{operation}': {type(super_instance).__name__} - {super_instance}")
-        
-        target_obj = request.get("obj", self._managing_object)
-        target = request.get("target")
-        attributes = request.get("attributes", {}).copy()
-        execute_args = {
-            "obj": target_obj,
-            "attributes": attributes,
-            "operation_prefix": operation
-        }
+        obj = request.get("obj")
+        attributes = request.get("attributes", {})
 
-        if target and not attributes.get("target_type"):
-            execute_args["target_type"] = target
+        if not operation:
+            logger.error("No operation specified in request")
+            return False
 
-        if target and target_obj:
-            self._validate_object(target_obj, target)
+        super_instance = self._operations.get(operation)
+        if super_instance is None:
+            logger.error(f"No super instance registered for operation '{operation}'")
+            return False
 
+        execute_args = {"obj": obj}
+        if attributes:
+            execute_args["attributes"] = attributes
         try:
-            if hasattr(super_instance, "execute"):
-                result = super_instance.execute(**execute_args)
-            elif callable(super_instance):
-                result = super_instance(**execute_args)
-            else:
-                logger.error(f"Operation '{operation}' has no executable implementation")
-                raise ValueError(f"No executable implementation for '{operation}'")
-            logger.info(f"Processed request '{operation}' with args: {execute_args}")
+            result = super_instance.execute(**execute_args)
+            logger.info(f"Processed '{operation}' via {super_instance.__class__.__name__}.execute")
             return result
         except Exception as e:
-            logger.error(f"Failed to process request '{operation}': {str(e)}")
-            raise
+            logger.error(f"Failed to process request '{operation}' via execute: {str(e)}")
+            return False
 
     def get_supported_operations(self) -> List[str]:
         return list(self._operations.keys())

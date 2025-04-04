@@ -65,14 +65,12 @@ class Super(ABC):
         self._methods[obj_type][method_name] = method
         logger.debug(f"Registered method '{method_name}' for {obj_type.__name__}")
 
-    def execute(self, obj: Any, attributes: Dict[str, Any], operation_prefix: str = None, target_type: str = None) -> Union[Dict[str, Any], bool]:
+    def execute(self, obj: Any, attributes: Dict[str, Any] = None) -> Dict[str, Any]:
         """Execute an operation on the object using attributes.
 
         Args:
             obj: The object to process.
             attributes: Dictionary with operation attributes (user-defined).
-            operation_prefix: Prefix for the method name (e.g., "configure"), defaults to class name if None.
-            type: Specific operation type (e.g., "source"), defaults to object type if None.
 
         Returns:
             Union[Dict[str, Any], bool]: Result of the operation, depending on the subclass.
@@ -80,36 +78,43 @@ class Super(ABC):
         Raises:
             ValueError: If object is None or no method is found.
         """
-        if obj is None:
-            logger.error(f"{self.__class__.__name__} object cannot be None")
-            raise ValueError(f"{self.__class__.__name__} object cannot be None")
+        if attributes is None:
+            attributes = {}
+        
+        logger.debug(f"Executing for operation '{self._operation}', obj_type='{type(obj).__name__}'")
+        method_name = attributes.get("method")
+        
+        # 1. Проверяем явный метод из attributes["method"]
+        if method_name:
+            method = getattr(self, method_name, None)
+            logger.debug(f"Checking explicit method '{method_name}': {method}")
+            if callable(method):
+                return method(obj, attributes)
+        
+        # 2. Новый шаг: _operation + _prefix из attributes["method"]
+        if method_name:
+            prefixed_method_name = f"_{self._operation}_{method_name}"
+            method = getattr(self, prefixed_method_name, None)
+            logger.debug(f"Checking prefixed method '{prefixed_method_name}': {method}")
+            if callable(method):
+                return method(obj, attributes)
 
-        obj_type = type(obj)
-        operation_methods = self._manipulator.get_methods_for_type(type(self))
+        # 3. Автоматический метод: _operation + _object_name (в нижнем регистре)
+        obj_type = type(obj).__name__.lower()
+        auto_method_name = f"_{self._operation}_{obj_type}"
+        method = getattr(self, auto_method_name, None)
+        logger.debug(f"Checking auto method '{auto_method_name}': {method}")
+        if callable(method):
+            return method(obj, attributes)
 
-        if operation_prefix:
-            prefix = f"_{operation_prefix}"
-        else:
-            prefix = f"_{self.__class__.__name__.lower().replace('default', '')}"
+        # 4. Универсальный метод: _operation
+        default_method_name = f"_{self._operation}"
+        method = getattr(self, default_method_name, None)
+        logger.debug(f"Checking default method '{default_method_name}': {method}")
+        if callable(method):
+            return method(obj, attributes)
 
-        method_key = attributes.get("method")
-        if method_key:
-            method_name = f"{prefix}_{method_key}"
-        else:
-            operation_type = target_type if target_type is not None else attributes.get("type", obj_type.__name__.lower())
-            method_name = f"{prefix}_{operation_type}"
-
-        if method_name not in operation_methods:
-            logger.error(f"No {method_name} method found for {obj_type.__name__}")
-            raise ValueError(f"No {method_name} method for {obj_type.__name__}")
-
-        try:
-            result = operation_methods[method_name](obj, attributes)
-            logger.debug(f"Executed {method_name} on {obj_type.__name__}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to execute {method_name} on {obj_type}: {str(e)}")
-            return self._default_result()
+        raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type}' in {self.__class__.__name__}")
 
     def _default_result(self) -> Union[Dict[str, Any], bool]:
         """Return a default result when execution fails."""

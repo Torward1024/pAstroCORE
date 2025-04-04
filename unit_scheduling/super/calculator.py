@@ -875,7 +875,7 @@ class ScheduleCalculator(Super):
         try:
             time_step = attributes.get("time_step")
             freq_idx = attributes.get("freq_idx", 0)
-            store_key = attributes.get("store_key", f"calculate_baseline_projections_f{freq_idx}")
+            store_key = attributes.get("store_key", f"baseline_projections_f{freq_idx}")
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_observations()
