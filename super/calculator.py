@@ -1071,10 +1071,7 @@ class DefaultCalculator(Calculator):
             return {}
 
     def _process_mollweide_tracks(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
-        if not position_data or scan_idx not in position_data:
-            logger.error(f"No position data for scan {scan_idx}")
-            return {"source": {"name": source.get_name(), "lon": source_lon, "lat": source_lat}, "telescope_tracks": {}}
-        
+
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = sources.get_by_index(scan.get_source_index())
@@ -1082,6 +1079,13 @@ class DefaultCalculator(Calculator):
         active_telescopes = [telescopes.get_by_index(i) for i in telescope_indices if telescopes.get_by_index(i).isactive]
         scan_idx = list(observation.get_scans().get_active_scans(observation)).index(scan)
 
+        if not position_data or scan_idx not in position_data:
+            source = sources.get_by_index(scan.get_source_index())
+            source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
+            source_lon, source_lat = self._compute_mollweide_coords(source_coord)
+            logger.error(f"No position data for scan {scan_idx}")
+            return {"source": {"name": source.get_name(), "lon": source_lon, "lat": source_lat}, "telescope_tracks": {}}
+        
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
         source_lon, source_lat = self._compute_mollweide_coords(source_coord)      
         
