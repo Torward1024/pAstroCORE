@@ -1,3 +1,4 @@
+# /unit_scheduling/super/schedule_project.py
 from typing import List, Dict, Any
 from unit_scheduling.base.observation import Observation
 
@@ -9,14 +10,17 @@ class ScheduleProject(Project):
     """Container for managing multiple observations, inheriting from Project.
 
     Represents a project that organizes a collection of Observation objects, providing methods
-    to add, create, insert, set, and retrieve observations. Supports serialization to and from
-    dictionaries for data persistence.
+    to add, create, insert, set, and retrieve observations, as well as manage the project itself.
+    Supports serialization to and from dictionaries for data persistence.
 
     Examples:
         >>> project = ScheduleProject(name="MyProject")
         >>> project.create_item(item_code="OBS001")
         >>> project.get_by_index(0).get_observation_code()
         'OBS001'
+        >>> project.set_project(name="NewProject", observations=[])
+        >>> project.get_project()["name"]
+        'NewProject'
     """
     def __init__(self, name: str = "OBS_DEFAULT_PROJECT", observations: List[Observation] = None):
         """Initialize a ScheduleProject with a name and optional list of observations.
@@ -27,15 +31,10 @@ class ScheduleProject(Project):
 
         Raises:
             TypeError: If any item in the observations list is not an Observation object.
-
-        Notes:
-            - Validates that all provided observations are of type Observation.
-            - Logs initialization with the project name and observation count.
         """
         super().__init__(name, observations if observations else [])
         for obs in self._items:
             check_type(obs, Observation, "Observation in observations list")
-        logger.info(f"Initialized project '{name}' with {len(self._items)} observations")
 
     def add_item(self, item: Observation) -> None:
         """Add an observation to the project.
@@ -45,10 +44,6 @@ class ScheduleProject(Project):
 
         Raises:
             TypeError: If the item is not an Observation object.
-
-        Notes:
-            - Appends the observation to the project's internal list.
-            - Logs the addition with the observation code and project name.
         """
         check_type(item, Observation, "Observation")
         super().add_item(item)
@@ -63,10 +58,6 @@ class ScheduleProject(Project):
 
         Raises:
             ValueError: If item_code is not a non-empty string.
-
-        Notes:
-            - Creates a new Observation instance and appends it to the project.
-            - Logs the creation with the observation code and project name.
         """
         check_non_empty_string(item_code, "Observation code")
         new_observation = Observation(observation_code=item_code, isactive=isactive)
@@ -83,10 +74,6 @@ class ScheduleProject(Project):
         Raises:
             TypeError: If the item is not an Observation object.
             IndexError: If the index is out of range.
-
-        Notes:
-            - Inserts the observation at the specified position in the project's list.
-            - Logs the insertion with the observation code, index, and project name.
         """
         check_type(item, Observation, "Observation")
         super().insert_item(item, index)
@@ -102,10 +89,6 @@ class ScheduleProject(Project):
         Raises:
             TypeError: If the item is not an Observation object.
             IndexError: If the index is out of range.
-
-        Notes:
-            - Replaces the observation at the specified index.
-            - Logs the setting with the observation code, index, and project name.
         """
         check_type(item, Observation, "Observation")
         super().set_item(item, index)
@@ -123,8 +106,7 @@ class ScheduleProject(Project):
         Raises:
             IndexError: If the index is out of range.
         """
-        obs = super().get_by_index(index)
-        return obs
+        return super().get_by_index(index)
 
     def get_items(self) -> List[Observation]:
         """Get all observations in the project.
@@ -134,14 +116,37 @@ class ScheduleProject(Project):
         """
         return super().get_items()
 
+    def set_project(self, name: str, observations: List[Observation]) -> None:
+        """Set the entire project configuration, replacing name and observations.
+
+        Args:
+            name (str): The new name for the project. Must be a non-empty string.
+            observations (List[Observation]): The new list of observations to set.
+
+        Raises:
+            TypeError: If any item in observations is not an Observation object.
+            ValueError: If name is not a non-empty string.
+        """
+        for obs in observations:
+            check_type(obs, Observation, "Observation in observations list")
+        super().set_project(name, observations)
+        logger.info(f"Set project: '{name}' with {len(observations)} observations")
+
+    def get_project(self) -> Dict[str, Any]:
+        """Get the entire project configuration as a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the project name and a list of observation dictionaries.
+        """
+        result = super().get_project()
+        result["observations"] = [obs.to_dict() for obs in self._items]  # Переопределяем для сериализации Observation
+        return result
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert ScheduleProject to a dictionary for serialization.
 
         Returns:
             Dict[str, Any]: A dictionary with the project name and a list of observation dictionaries.
-
-        Notes:
-            - Each observation is converted to a dictionary using its own to_dict method.
         """
         return {"name": self._name, "observations": [obs.to_dict() for obs in self._items]}
 
@@ -151,14 +156,9 @@ class ScheduleProject(Project):
 
         Args:
             data (Dict[str, Any]): A dictionary containing "name" and "observations" keys.
-                - "name": The project name (str).
-                - "observations": List of observation dictionaries.
 
         Returns:
             ScheduleProject: A new ScheduleProject instance populated with the dictionary data.
-
-        Notes:
-            - Reconstructs observations using Observation.from_dict.
         """
         return cls(name=data["name"], observations=[Observation.from_dict(obs) for obs in data["observations"]])
 

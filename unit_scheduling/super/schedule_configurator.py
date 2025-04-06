@@ -108,7 +108,7 @@ class ScheduleConfigurator(Super):
             - Supports nested IF configuration via "if_index".
             - Logs the number of IFs configured.
         """
-        result = self._configure_nested(freq_obj, attributes, "if_index", freq_obj.get_by_index, self._configure_if)
+        result = self._do_nested(freq_obj, attributes, "if_index", freq_obj.get_by_index, self._configure_if)
         if result:
             return result
         valid_methods = self._manipulator.get_methods_for_type(Frequencies)
@@ -160,7 +160,7 @@ class ScheduleConfigurator(Super):
             - Supports nested Source configuration via "source_index".
             - Logs the total number of sources.
         """
-        result = self._configure_nested(sources_obj, attributes, "source_index", sources_obj.get_by_index, self._configure_source)
+        result = self._do_nested(sources_obj, attributes, "source_index", sources_obj.get_by_index, self._configure_source)
         if result:
             return result
         valid_methods = self._manipulator.get_methods_for_type(Sources)
@@ -238,7 +238,7 @@ class ScheduleConfigurator(Super):
             - Supports nested Telescope configuration via "telescope_index".
             - Logs the total number of telescopes.
         """
-        result = self._configure_nested(tel_obj, attributes, "telescope_index", tel_obj.get_by_index, self._configure_telescope)
+        result = self._do_nested(tel_obj, attributes, "telescope_index", tel_obj.get_by_index, self._configure_telescope)
         if result:
             return result
         valid_methods = self._manipulator.get_methods_for_type(Telescopes)
@@ -299,7 +299,7 @@ class ScheduleConfigurator(Super):
             - Checks for scan overlaps when modifying nested scans.
             - Logs the total number of scans.
         """
-        nested_result = self._configure_nested(scans_obj, attributes, "scan_index", scans_obj.get_by_index, self._configure_scan)
+        nested_result = self._do_nested(scans_obj, attributes, "scan_index", scans_obj.get_by_index, self._configure_scan)
         if nested_result:
             overlap, reason = scans_obj._check_overlap(scans_obj.get_by_index(attributes["scan_index"]), exclude_index=attributes["scan_index"])
             if overlap:
@@ -359,16 +359,26 @@ class ScheduleConfigurator(Super):
             - Supports nested Observation configuration via "observation_index".
             - Logs project name and observation count.
         """
-        result = self._configure_nested(project_obj, attributes, "observation_index", project_obj.get_by_index, self._configure_observation)
+        result = self._do_nested(project_obj, attributes, "observation_index", project_obj.get_by_index, self._configure_observation)
         if result:
             return result
+        
         valid_methods = self._manipulator.get_methods_for_type(ScheduleProject)
+        logger.debug(f"Valid methods for ScheduleProject: {list(valid_methods.keys())}")
+        
         applied = False
-        for method_name, method_args in attributes.items():
-            if self._validate_and_apply_method(project_obj, method_name, method_args, valid_methods):
-                applied = True
+        method_name = attributes.get("method")
+        method_args = attributes.get("attributes", {})
+        
+        if method_name:
+            if method_name in valid_methods:
+                if self._validate_and_apply_method(project_obj, method_name, method_args, valid_methods):
+                    applied = True
+            else:
+                logger.warning(f"Method {method_name} not found in valid methods for ScheduleProject")
+        
         if not applied:
             logger.warning("No valid methods provided for Project configuration")
             return False
-        logger.info(f"Successfully configured Project: name='{project_obj.get_name()}', observations_count={len(project_obj.get_observations())}")
+        logger.info(f"Successfully configured Project: name='{project_obj.get_name()}', observations_count={len(project_obj.get_items())}")
         return True

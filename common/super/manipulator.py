@@ -196,30 +196,26 @@ class Manipulator(ABC):
         return self._process_single_request(request)
 
     def _process_single_request(self, request: Dict[str, Any]) -> Any:
-        """Process a single request by executing the specified operation.
-
-        Args:
-            request (Dict[str, Any]): Dictionary with 'operation', 'obj', and optional 'attributes' keys.
-
-        Returns:
-            Any: The result of the operation execution, or False if the operation fails or is not found.
-        """
+        """Process a single request by executing the specified operation."""
         operation = request.get("operation")
         obj = request.get("obj")
+        method = request.get("method")
         attributes = request.get("attributes", {})
-
+        
         if not operation:
             logger.error("No operation specified in request")
             return False
-
+        
         super_instance = self._operations.get(operation)
         if super_instance is None:
             logger.error(f"No super instance registered for operation '{operation}'")
             return False
-
+        
         execute_args = {"obj": obj}
-        if attributes:
-            execute_args["attributes"] = attributes
+        if attributes or method:
+            execute_args["attributes"] = attributes.copy()
+            if method:
+                execute_args["method"] = method
         try:
             result = super_instance.execute(**execute_args)
             return result

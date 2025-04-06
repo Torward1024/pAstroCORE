@@ -632,7 +632,7 @@ class ScheduleCalculator(Super):
                 results = {}
                 with ThreadPoolExecutor() as executor:
                     futures = {
-                        executor.submit(self._process_sun_angles, scan, sources, telescopes, time_step, obj): i
+                        executor.submit(self._process_sun_angles, scan, sources, telescopes, time_step): i
                         for i, scan in enumerate(scans)
                     }
                     for future in futures:

@@ -135,48 +135,56 @@ class Super(ABC):
             self._methods[obj_type] = {}
         self._methods[obj_type][method_name] = method
 
-    def execute(self, obj: Any, attributes: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Execute an operation on an object based on attributes.
-
-        Resolves the appropriate method using a priority order: explicit method, prefixed method,
-        type-specific method, or default method.
+    def execute(self, obj: Any, attributes: Dict[str, Any] = None, method: str = None) -> Union[Dict[str, Any], bool]:
+        """Execute an operation on an object based on attributes and an optional method.
 
         Args:
             obj (Any): The object to process.
-            attributes (Dict[str, Any], optional): Dictionary of operation attributes. Defaults to None (empty dict).
+            attributes (Dict[str, Any], optional): Dictionary of operation attributes. Defaults to None.
+            method (str, optional): Explicit method to call, if provided in the request.
 
         Returns:
-            Union[Dict[str, Any], bool]: The result of the operation, depending on the subclass implementation.
+            Union[Dict[str, Any], bool]: The result of the operation.
 
         Raises:
-            ValueError: If no suitable method is found for the operation and object type.
+            ValueError: If no suitable method is found.
         """
         if attributes is None:
             attributes = {}
         
+        if method:
+            method_func = getattr(self, method, None)
+            if callable(method_func):
+                return method_func(obj, attributes)
+        
         method_name = attributes.get("method")
+        if not method_name and "attributes" in attributes and isinstance(attributes["attributes"], dict):
+            nested_attrs = attributes["attributes"]
+            method_name = nested_attrs.get("method")
+            object_attributes = nested_attrs.get("attributes", {})
+        else:
+            object_attributes = {k: v for k, v in attributes.items() if k != 'method'}
         
         if method_name:
             method = getattr(self, method_name, None)
             if callable(method):
-                return method(obj, attributes)
-        
-        if method_name:
+                return method(obj, object_attributes)
+            
             prefixed_method_name = f"_{self._operation}_{method_name}"
             method = getattr(self, prefixed_method_name, None)
             if callable(method):
-                return method(obj, attributes)
+                return method(obj, object_attributes)
 
         obj_type = type(obj).__name__.lower()
         auto_method_name = f"_{self._operation}_{obj_type}"
         method = getattr(self, auto_method_name, None)
         if callable(method):
-            return method(obj, attributes)
+            return method(obj, object_attributes)
 
         default_method_name = f"_{self._operation}"
         method = getattr(self, default_method_name, None)
         if callable(method):
-            return method(obj, attributes)
+            return method(obj, object_attributes)
 
         raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type}' in {self.__class__.__name__}")
 

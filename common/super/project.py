@@ -1,3 +1,4 @@
+# /common/super/project.py
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 from common.utils.validation import check_non_empty_string
@@ -7,8 +8,9 @@ class Project(ABC):
     """Abstract class for managing collections of items within a project.
 
     Serves as a foundation for specific project types managed by a Manipulator. Provides basic functionality
-    for adding, inserting, removing, and retrieving items, with serialization support. Subclasses must implement
-    `create_item` and `from_dict` methods to define item creation and deserialization logic.
+    for adding, inserting, removing, retrieving, and configuring projects and their items, with serialization
+    support. Subclasses must implement `create_item` and `from_dict` methods to define item creation and
+    deserialization logic.
 
     Attributes:
         _name (str): The name of the project, must be a non-empty string.
@@ -27,8 +29,9 @@ class Project(ABC):
         ...         return cls(name=data["name"], items=data["items"])
         >>> proj = MyProject(name="TestProject")
         >>> proj.add_item({"code": "ITEM1"})
-        >>> print(proj)
-        Project(name='TestProject', items_count=1)
+        >>> proj.set_project(name="NewProject", items=[])
+        >>> proj.get_project()
+        {'name': 'NewProject', 'items': []}
     """
     def __init__(self, name: str = "DEFAULT_PROJECT", items: List[Any] = None):
         """Initialize a Project with a name and an optional list of items.
@@ -144,11 +147,84 @@ class Project(ABC):
         """
         return self._items
 
+    def get_name(self) -> str:
+        """Retrieve the project's name.
+
+        Returns:
+            str: The name of the project.
+
+        Notes:
+            - Provides access to the project's name attribute for external use or inspection.
+        """
+        logger.info(f"Retrieved name '{self._name}' for project")
+        return self._name
+
+    def set_name(self, name: str) -> None:
+        """Set the project's name.
+
+        Args:
+            name (str): The new name for the project. Must be a non-empty string.
+
+        Raises:
+            TypeError: If name is not a string.
+            ValueError: If name is empty.
+
+        Notes:
+            - Updates the project name and logs the change.
+        """
+        check_non_empty_string(name, "Project name")
+        old_name = self._name
+        self._name = name
+        logger.info(f"Project name changed from '{old_name}' to '{name}'")
+
+    def set_project(self, name: str, items: List[Any]) -> None:
+        """Set the entire project configuration, replacing name and items.
+
+        Args:
+            name (str): The new name for the project. Must be a non-empty string.
+            items (List[Any]): The new list of items to set.
+
+        Raises:
+            TypeError: If name is not a string.
+            ValueError: If name is empty.
+
+        Notes:
+            - Replaces the current project name and items list with the provided values.
+            - No type checking is performed on items; subclasses should enforce type constraints if needed.
+            - Logs the update with the new name and item count.
+        """
+        check_non_empty_string(name, "Project name")
+        old_name = self._name
+        old_count = len(self._items)
+        self._name = name
+        self._items = items.copy()  # Используем копию для безопасности
+        logger.info(f"Project updated: name changed from '{old_name}' to '{name}', "
+                    f"items count changed from {old_count} to {len(self._items)}")
+
+    def get_project(self) -> Dict[str, Any]:
+        """Get the entire project configuration as a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the project name and a list of items.
+                - "name": The project name (str).
+                - "items": List of items.
+
+        Notes:
+            - Provides a complete snapshot of the project state.
+            - Items are included as-is; subclasses may override to_dict() for custom serialization.
+        """
+        result = {"name": self._name, "items": [item for item in self._items]}
+        logger.info(f"Retrieved project configuration for '{self._name}' with {len(self._items)} items")
+        return result
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert the project to a dictionary for serialization.
 
         Returns:
             Dict[str, Any]: A dictionary with 'name' and 'items' keys.
+
+        Notes:
+            - Items are included as-is; subclasses should override for custom item serialization if needed.
         """
         return {"name": self._name, "items": [item for item in self._items]}
 
@@ -166,28 +242,6 @@ class Project(ABC):
             Project: A new instance of the subclass initialized with the dictionary data.
         """
         pass
-
-    def get_name(self) -> str:
-        """Retrieve the project's name.
-
-        Returns:
-            str: The name of the project.
-        """
-        return self._name
-
-    def set_name(self, name: str) -> None:
-        """Set the project's name.
-
-        Args:
-            name (str): The new name for the project. Must be a non-empty string.
-
-        Raises:
-            TypeError: If name is not a string.
-            ValueError: If name is empty.
-        """
-        check_non_empty_string(name, "Project name")
-        self._name = name
-        logger.info(f"Set Project name to '{name}'")
 
     def __repr__(self) -> str:
         """Return a string representation of the Project.
