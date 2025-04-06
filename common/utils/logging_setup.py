@@ -3,7 +3,7 @@ import logging
 import os
 
 def setup_logging(log_file: str = "pvcore.log"):
-    """Setup logging configuration for pvCORE."""
+    """Setup logging configuration"""
     logger = logging.getLogger("pvCORE")
     logger.setLevel(logging.INFO)
 

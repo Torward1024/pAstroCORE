@@ -288,11 +288,11 @@ class ScheduleVisualizer(Super):
             ax.plot(data["times"], data["el"], label=f"{coord_type[2:]}", linestyle='--', color=color)
             ax.set_xlabel("Time, (MJD)")
             ax.set_ylabel("Angle, (deg)")
-            ax.set_title(f"Az/El or HA/Dec for {tel_code}")
-            ax.legend(loc='upper right')  # Явно задаём позицию легенды
+            ax.set_title(f"Telescope: {tel_code}")
+            ax.legend(loc='upper right')
             ax.grid(True)
 
-        fig.suptitle(f"Az/El or HA/Dec for {source}", y=1.02)  # Убрал tel_code из suptitle, так как он относится к последнему телескопу
+        fig.suptitle(f"Az/El or HA/Dec for {source}", y=1.02)
         plt.tight_layout()
         return {"status": "success", "scans": len(data)}
 
@@ -308,7 +308,7 @@ class ScheduleVisualizer(Super):
         all_blocks = {}
         source_name = None
         for source, source_data in data.items():
-            source_name = source  # Берем имя источника
+            source_name = source
             for tel, blocks in source_data["telescopes"].items():
                 telescopes.add(tel)
                 if tel not in all_blocks:

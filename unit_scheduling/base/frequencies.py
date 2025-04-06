@@ -48,13 +48,17 @@ VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(PAIRED_LINEAR_POLARIZATIONS).
 class IF(BaseEntity):
     def __init__(self, freq: float = 1000.0, bandwidth: float = 16.0, 
                  polarization: Optional[str] = None, isactive: bool = True):
-        """Initialize an IF object with frequency, bandwidth, and polarization
+        """Initialize an IF object representing an intermediate frequency with its properties.
 
         Args:
-            freq (float): Frequency in MHz.
-            bandwidth (float): Bandwidth in MHz.
-            polarization (str, optional): Polarization type (RCP, LCP, LL, RL, RR, LR, H, V).
-            isactive (bool): Whether the frequency is active (default: True).
+            freq (float): Frequency in MHz. Must be positive. Defaults to 1000.0.
+            bandwidth (float): Bandwidth in MHz. Must be positive. Defaults to 16.0.
+            polarization (str, optional): Polarization type (e.g., 'RCP', 'LCP', 'RR', 'LL', 'RL', 'LR', 'H', 'V').
+                Must be a valid value from VALID_POLARIZATIONS. Defaults to None.
+            isactive (bool): Whether the IF is active. Defaults to True.
+
+        Raises:
+            ValueError: If freq or bandwidth is not positive, or if polarization is invalid.
         """
         super().__init__(isactive)
         check_positive(freq, "Frequency")
@@ -65,30 +69,49 @@ class IF(BaseEntity):
         logger.info(f"Initialized IF with frequency={freq} MHz, bandwidth={bandwidth} MHz, polarizations={self._polarizations}")
 
     def activate(self) -> None:
-        """Activate IF frequency"""
+        """Activate the IF object, marking it as active."""
         super().activate()
 
     def deactivate(self) -> None:
-        """Deactivate IF frequency"""
+        """Deactivate the IF object, marking it as inactive."""
         super().deactivate()
 
     def get_frequency(self) -> float:
-        """Return the IF frequency value in MHz"""
+        """Retrieve the IF frequency.
+
+        Returns:
+            float: The frequency in MHz.
+        """
         logger.debug(f"Retrieved IF frequency={self._frequency} MHz for IF")
         return self._frequency
 
     def get_bandwidth(self) -> float:
-        """Return the IF bandwidth value in MHz"""
+        """Retrieve the IF bandwidth.
+
+        Returns:
+            float: The bandwidth in MHz.
+        """
         logger.debug(f"Retrieved IF bandwidth={self._bandwidth} MHz for IF")
         return self._bandwidth
 
     def get_polarization(self) -> List[str]:
-        """Return the IF polarization values as a list"""
+        """Retrieve the polarization values associated with the IF.
+
+        Returns:
+            List[str]: A list of polarization codes (e.g., ['RCP', 'LCP']). Empty if none set.
+        """
         logger.debug(f"Retrieved IF polarizations={self._polarizations} for IF")
         return self._polarizations
 
     def get_frequency_wavelength(self) -> float:
-        """Get wavelength in cm for the IF frequency"""
+        """Calculate the wavelength corresponding to the IF frequency.
+
+        Returns:
+            float: The wavelength in centimeters.
+
+        Raises:
+            ValueError: If the frequency is zero.
+        """
         if self._frequency == 0:
             logger.error("IF frequency cannot be zero for wavelength calculation")
             raise ValueError("IF frequency cannot be zero for wavelength calculation!")
@@ -98,7 +121,18 @@ class IF(BaseEntity):
     
     def set_if(self, freq: float, bandwidth: float, 
                polarization: Optional[str] = None, isactive: bool = True) -> None:
-        """Set IF values"""
+        """Set all properties of the IF object.
+
+        Args:
+            freq (float): Frequency in MHz. Must be positive.
+            bandwidth (float): Bandwidth in MHz. Must be positive.
+            polarization (str, optional): Polarization type. Must be valid if provided. Defaults to None.
+            isactive (bool): Whether the IF is active. Defaults to True.
+
+        Raises:
+            ValueError: If freq or bandwidth is not positive, or if polarization is invalid.
+            TypeError: If polarization is provided but not a string.
+        """
         check_positive(freq, "Frequency")
         check_positive(bandwidth, "Bandwidth")
 
@@ -113,30 +147,64 @@ class IF(BaseEntity):
         logger.info(f"Set IF to frequency={freq} MHz, bandwidth={bandwidth} MHz, polarizations={self._polarization}")
 
     def set_frequency(self, freq: float) -> None:
-        """Set IF frequency value in MHz"""
+        """Set the IF frequency.
+
+        Args:
+            freq (float): Frequency in MHz. Must be positive.
+
+        Raises:
+            ValueError: If freq is not positive.
+        """
         check_positive(freq, "Frequency")
         self._frequency = freq
         logger.info(f"Set IF frequency to {freq} MHz for IF")
 
     def set_bandwidth(self, bandwidth: float) -> None:
-        """Set IF bandwidth value in MHz"""
+        """Set the IF bandwidth.
+
+        Args:
+            bandwidth (float): Bandwidth in MHz. Must be positive.
+
+        Raises:
+            ValueError: If bandwidth is not positive.
+        """
         check_positive(bandwidth, "Bandwidth")
         self._bandwidth = bandwidth
         logger.info(f"Set IF bandwidth to {bandwidth} MHz for IF")
     
     def set_polarization(self, polarization: Union[str, List[str]]) -> None:
-        """Set IF polarization value(s)"""
+        """Set the IF polarization values.
+
+        Args:
+            polarization (Union[str, List[str]]): Single polarization code or list of codes.
+                Must be valid values from VALID_POLARIZATIONS.
+
+        Raises:
+            ValueError: If polarization values are invalid or mix groups.
+            TypeError: If polarization is neither a string nor a list of strings.
+        """
         self._polarizations = self._validate_polarizations(polarization)
         logger.info(f"Set IF polarizations to {self._polarizations} for IF")
 
     def set_frequency_wavelength(self, wavelength_cm: float) -> None:
-        """Set IF frequency value in MHz through wavelength value in cm"""
+        """Set the IF frequency based on a wavelength.
+
+        Args:
+            wavelength_cm (float): Wavelength in centimeters. Must be positive.
+
+        Raises:
+            ValueError: If wavelength_cm is not positive.
+        """
         check_positive(wavelength_cm, "Wavelength")
         self._frequency = C_MHZ_CM / wavelength_cm
         logger.info(f"Set IF frequency to {self._frequency} MHz from wavelength={wavelength_cm} cm for IF")
 
     def to_dict(self) -> dict:
-        """Convert IF object to a dictionary for serialization"""
+        """Convert the IF object to a dictionary for serialization.
+
+        Returns:
+            dict: A dictionary containing frequency, bandwidth, polarizations, and isactive status.
+        """
         logger.info(f"Converted IF (frequency={self._frequency} MHz) to dictionary")
         return {
             "frequency": self._frequency,
@@ -147,17 +215,35 @@ class IF(BaseEntity):
 
     @classmethod
     def from_dict(cls, data: dict) -> 'IF':
-        """Create an IF object from a dictionary"""
+        """Create an IF object from a dictionary.
+
+        Args:
+            data (dict): Dictionary with keys 'frequency', 'bandwidth', 'polarizations', and 'isactive'.
+
+        Returns:
+            IF: A new IF instance initialized with the dictionary data.
+        """
         logger.info(f"Created IF from dictionary with frequency={data['frequency']} MHz")
         return cls(
             freq=data["frequency"],
             bandwidth=data["bandwidth"],
-            polarization=data.get("polarizations", data.get("polarization")),  # Поддержка старого формата
+            polarization=data.get("polarizations", data.get("polarization")),
             isactive=data["isactive"]
         )
     
     def _validate_polarizations(self, polarization: Optional[Union[str, List[str]]]) -> List[str]:
-        """Validate polarizations values ensuring they belong to only one group"""
+        """Validate and normalize polarization values.
+
+        Args:
+            polarization (Union[str, List[str]], optional): Polarization code(s) to validate.
+
+        Returns:
+            List[str]: A list of validated and uppercased polarization codes. Empty if None.
+
+        Raises:
+            ValueError: If polarization values are invalid or mix different groups.
+            TypeError: If polarization is a list containing non-string elements.
+        """
         if polarization is None:
             return []
         if isinstance(polarization, str):
@@ -191,7 +277,11 @@ class IF(BaseEntity):
         return polarizations  
 
     def __repr__(self) -> str:
-        """Return a string representation of IF"""
+        """Return a string representation of the IF object.
+
+        Returns:
+            str: A formatted string with frequency, bandwidth, polarizations, and isactive status.
+        """
         logger.debug(f"Generated string representation for IF with frequency={self._frequency} MHz")
         return (f"IF(frequency={self._frequency} MHz, bandwidth={self._bandwidth} MHz, "
                 f"polarizations={self._polarizations}, isactive={self.isactive})")
@@ -239,7 +329,14 @@ class IF(BaseEntity):
 
 class Frequencies(BaseEntity):
     def __init__(self, ifs: list[IF] = None):
-        """Initialize Frequencies with a list of IF objects"""
+        """Initialize a Frequencies object with a list of IF objects.
+
+        Args:
+            ifs (List[IF], optional): List of IF objects. Defaults to None, creating an empty list.
+
+        Raises:
+            TypeError: If ifs is provided but not a list of IF objects.
+        """
         super().__init__()
         if ifs is not None:
             check_list_type(ifs, IF, "IFs")
@@ -247,13 +344,14 @@ class Frequencies(BaseEntity):
         logger.info(f"Initialized Frequencies with {len(self._data)} IFs")
 
     def add_IF(self, if_obj: IF) -> None:
-        """Add a new IF object
+        """Add an existing IF object to the collection.
 
         Args:
-            if_obj (IF): IF object to add
+            if_obj (IF): The IF object to add.
 
         Raises:
-            ValueError: If an IF with overlapping frequency range already exists
+            TypeError: If if_obj is not an IF instance.
+            ValueError: If the IF's frequency range overlaps with an existing IF.
         """
         check_type(if_obj, IF, "IF")
         self._check_overlap(if_obj)
@@ -262,16 +360,16 @@ class Frequencies(BaseEntity):
     
     def create_IF(self, freq: float = 1000.0, bandwidth: float = 16.0, 
               polarization: Optional[str] = None, isactive: bool = True) -> None:
-        """Create and add a new IF object to the Frequencies collection.
+        """Create and add a new IF object to the collection.
 
         Args:
-            freq (float): Frequency in MHz (default: 1000.0)
-            bandwidth (float): Bandwidth in MHz (default: 16.0)
-            polarization (str, optional): Polarization type (RCP, LCP, LL, RL, RR, LR, H, V)
-            isactive (bool): Whether the IF is active (default: True)
+            freq (float): Frequency in MHz. Must be positive. Defaults to 1000.0.
+            bandwidth (float): Bandwidth in MHz. Must be positive. Defaults to 16.0.
+            polarization (str, optional): Polarization type. Defaults to None.
+            isactive (bool): Whether the IF is active. Defaults to True.
 
         Raises:
-            ValueError: If the frequency range overlaps with an existing range
+            ValueError: If freq or bandwidth is not positive, polarization is invalid, or frequency range overlaps.
         """
         # create a new IF object
         new_if = IF(
@@ -290,15 +388,16 @@ class Frequencies(BaseEntity):
                     f"polarizations={new_if.get_polarization()} to Frequencies")
     
     def insert_IF(self, index: int, if_obj: 'IF') -> None:
-        """Insert a new IF object at the specified index
+        """Insert an IF object at a specific index.
 
         Args:
-            index (int): The index at which to insert the IF (0 to len(frequencies))
-            if_obj (IF): The IF object to insert
+            index (int): The position to insert the IF (0 to len(frequencies)).
+            if_obj (IF): The IF object to insert.
 
         Raises:
-            IndexError: If the index is out of range
-            ValueError: If the IF frequency range overlaps with an existing range
+            TypeError: If index is not an integer or if_obj is not an IF instance.
+            IndexError: If index is out of range.
+            ValueError: If the IF's frequency range overlaps with an existing IF.
         """
         check_type(index, int, "Index")
         check_type(if_obj, IF, "IF")
@@ -312,7 +411,14 @@ class Frequencies(BaseEntity):
         logger.info(f"Inserted IF with frequency={if_obj.get_frequency()} MHz, bandwidth={if_obj.get_bandwidth()} MHz at index {index} in Frequencies")
 
     def remove_IF(self, index: int) -> None:
-        """Remove IF by index"""
+        """Remove an IF object by index.
+
+        Args:
+            index (int): The index of the IF to remove.
+
+        Raises:
+            IndexError: If index is invalid.
+        """
         try:
             self._data.pop(index)
             logger.info(f"Removed IF at index {index} from Frequencies")
@@ -321,7 +427,17 @@ class Frequencies(BaseEntity):
             raise IndexError("Invalid IF index!")
         
     def set_IF(self, if_obj: IF, index: int) -> None:
-        """ Replace IF data with index with new IF"""
+        """Replace an IF object at a specific index.
+
+        Args:
+            if_obj (IF): The new IF object to set.
+            index (int): The index to replace.
+
+        Raises:
+            TypeError: If if_obj is not an IF instance.
+            IndexError: If index is invalid.
+            ValueError: If the new IF's frequency range overlaps with another existing IF.
+        """
         check_type(if_obj, IF, "IF")
         self._check_overlap(if_obj)
         try:
@@ -331,7 +447,17 @@ class Frequencies(BaseEntity):
             raise IndexError("Invalid IF index!")
 
     def get_by_index(self, index: int) -> IF:
-        """Get IF by index"""
+        """Retrieve an IF object by index.
+
+        Args:
+            index (int): The index of the IF to retrieve.
+
+        Returns:
+            IF: The IF object at the specified index.
+
+        Raises:
+            IndexError: If index is invalid.
+        """
         try:
             return self._data[index]
         except IndexError:
@@ -339,43 +465,78 @@ class Frequencies(BaseEntity):
             raise IndexError("Invalid IF index!")
         
     def get_all_IF(self) -> list[IF]:
-        """Get list of IF objects"""
+        """Retrieve all IF objects in the collection.
+
+        Returns:
+            List[IF]: A list of all IF objects.
+        """
         return self._data
         
     def get_frequencies(self) -> list[float]:
-        """Get list of IF frequencies in MHz"""
+        """Retrieve a list of all IF frequencies.
+
+        Returns:
+            List[float]: A list of frequencies in MHz.
+        """
         logger.debug(f"Retrieved IF frequencies with {len(self._data)} items")
         return [if_obj.get_frequency() for if_obj in self._data]
 
     def get_bandwidths(self) -> list[float]:
-        """Get list of IF bandwidths in MHz"""
+        """Retrieve a list of all IF bandwidths.
+
+        Returns:
+            List[float]: A list of bandwidths in MHz.
+        """
         logger.debug(f"Retrieved IF bandwidths with {len(self._data)} items")
         return [if_obj.get_bandwidth() for if_obj in self._data]
 
     def get_polarizations(self) -> list[Optional[str]]:
-        """Get list of IF polarizations"""
+        """Retrieve a list of all IF polarizations.
+
+        Returns:
+            List[Optional[str]]: A list of polarization lists (or empty lists if none set).
+        """
         logger.debug(f"Retrieved polarizations with {len(self._data)} items")
         return [if_obj.get_polarization() for if_obj in self._data]
     
     def get_wavelengths(self) -> list[float]:
-        """Get list of IF wavelengths in cm"""
+        """Retrieve a list of wavelengths for all IF frequencies.
+
+        Returns:
+            List[float]: A list of wavelengths in centimeters.
+        """
         logger.debug(f"Retrieved IF wavelengths with {len(self._data)} items")
         return [if_obj.get_frequency_wavelength() for if_obj in self._data]
 
     def get_active_frequencies(self) -> list[IF]:
-        """Get active IF frequencies"""
+        """Retrieve all active IF objects.
+
+        Returns:
+            List[IF]: A list of IF objects that are currently active.
+        """
         active = [if_obj for if_obj in self._data if if_obj.isactive]
         logger.debug(f"Retrieved {len(active)} active frequencies")
         return active
 
     def get_inactive_frequencies(self) -> list[IF]:
-        """Get inactive IF frequencies"""
+        """Retrieve all inactive IF objects.
+
+        Returns:
+            List[IF]: A list of IF objects that are currently inactive.
+        """
         inactive = [if_obj for if_obj in self._data if not if_obj.isactive]
         logger.debug(f"Retrieved {len(inactive)} inactive frequencies")
         return inactive
 
     def activate_IF(self, index: int) -> None:
-        """Activate IF by index"""
+        """Activate an IF object by index.
+
+        Args:
+            index (int): The index of the IF to activate.
+
+        Raises:
+            IndexError: If index is invalid.
+        """
         check_type(index, int, "Index")
         try:
             self._data[index].activate()
@@ -387,7 +548,14 @@ class Frequencies(BaseEntity):
             raise IndexError("Invalid IF index!")
 
     def deactivate_IF(self, index: int) -> None:
-        """Deactivate IF by index"""
+        """Deactivate an IF object by index.
+
+        Args:
+            index (int): The index of the IF to deactivate.
+
+        Raises:
+            IndexError: If index is invalid.
+        """
         check_type(index, int, "Index")
         try:
             self._data[index].deactivate()
@@ -399,7 +567,11 @@ class Frequencies(BaseEntity):
             raise IndexError("Invalid IF index!")
 
     def activate_all(self) -> None:
-        """Activate all IF"""
+        """Activate all IF objects in the collection.
+
+        Raises:
+            ValueError: If the collection is empty.
+        """
         if not self._data:
             logger.error("No IFs to activate")
             raise ValueError("No IFs to activate!")
@@ -408,7 +580,11 @@ class Frequencies(BaseEntity):
         logger.info("Activated all IFs")
 
     def deactivate_all(self) -> None:
-        """Deactivate all IF"""
+        """Deactivate all IF objects in the collection.
+
+        Raises:
+            ValueError: If the collection is empty.
+        """
         if not self._data:
             logger.error("No IFs to deactivate")
             raise ValueError("No IFs to deactivate!")
@@ -417,10 +593,10 @@ class Frequencies(BaseEntity):
         logger.info("Deactivated all IFs")
     
     def drop_active(self) -> None:
-        """Remove all active IFs from the Frequencies list
+        """Remove all active IF objects from the collection.
 
         Raises:
-            ValueError: If there are no active IFs to remove
+            ValueError: If there are no active IFs to remove.
         """
         active_ifs = self.get_active_frequencies()
         if not active_ifs:
@@ -431,10 +607,10 @@ class Frequencies(BaseEntity):
         logger.info(f"Dropped {len(active_ifs)} active IFs from Frequencies")
 
     def drop_inactive(self) -> None:
-        """Remove all inactive IFs from the Frequencies list
+        """Remove all inactive IF objects from the collection.
 
         Raises:
-            ValueError: If there are no inactive IFs to remove
+            ValueError: If there are no inactive IFs to remove.
         """
         inactive_ifs = self.get_inactive_frequencies()
         if not inactive_ifs:
@@ -445,24 +621,42 @@ class Frequencies(BaseEntity):
         logger.info(f"Dropped {len(inactive_ifs)} inactive IFs from Frequencies")
 
     def clear(self) -> None:
-        """Clear IF data"""
+        """Remove all IF objects from the collection."""
         logger.info(f"Cleared {len(self._data)} IFs from Frequencies")
         self._data.clear()
 
     def to_dict(self) -> dict:
-        """Convert Frequencies object to a dictionary for serialization"""
+        """Convert the Frequencies object to a dictionary for serialization.
+
+        Returns:
+            dict: A dictionary containing a list of IF dictionaries under the 'data' key.
+        """
         logger.info(f"Converted Frequencies with {len(self._data)} IFs to dictionary")
         return {"data": [if_obj.to_dict() for if_obj in self._data]}
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Frequencies':
-        """Create a Frequencies object from a dictionary"""
+        """Create a Frequencies object from a dictionary.
+
+        Args:
+            data (dict): Dictionary with a 'data' key containing a list of IF dictionaries.
+
+        Returns:
+            Frequencies: A new Frequencies instance initialized with the dictionary data.
+        """
         ifs = [IF.from_dict(if_data) for if_data in data["data"]]
         logger.info(f"Created Frequencies with {len(ifs)} IFs from dictionary")
         return cls(ifs=ifs)
 
     def _check_overlap(self, if_obj:IF):
-        """Check IF frequency overlapping with existis IF frequencies"""
+        """Check if the frequency range of an IF overlaps with existing IFs.
+
+        Args:
+            if_obj (IF): The IF object to check for overlap.
+
+        Raises:
+            ValueError: If the frequency range overlaps with an existing IF.
+        """
         new_freq = if_obj.get_frequency()
         new_bw = if_obj.get_bandwidth()
         new_end = new_freq + new_bw
@@ -476,11 +670,19 @@ class Frequencies(BaseEntity):
                 raise ValueError(f"Frequency range [{new_freq}, {new_end}] overlaps with existing range [{ex_freq}, {ex_end}]")
 
     def __len__(self) -> int:
-        """Return the number of IFs in Frequencies"""
+        """Return the number of IF objects in the collection.
+
+        Returns:
+            int: The total count of IF objects.
+        """
         return len(self._data)
 
     def __repr__(self) -> str:
-        """String representation of Frequencies"""
+        """Return a string representation of the Frequencies object.
+
+        Returns:
+            str: A formatted string with the count of total, active, and inactive IFs.
+        """
         active_count = len(self.get_active_frequencies())
         logger.debug(f"Generated string representation for Frequencies")
         return f"Frequencies(count={len(self._data)}, active={active_count}, inactive={len(self._data) - active_count})"

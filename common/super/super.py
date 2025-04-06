@@ -84,14 +84,12 @@ class Super(ABC):
         logger.debug(f"Executing for operation '{self._operation}', obj_type='{type(obj).__name__}'")
         method_name = attributes.get("method")
         
-        # 1. Проверяем явный метод из attributes["method"]
         if method_name:
             method = getattr(self, method_name, None)
             logger.debug(f"Checking explicit method '{method_name}': {method}")
             if callable(method):
                 return method(obj, attributes)
         
-        # 2. Новый шаг: _operation + _prefix из attributes["method"]
         if method_name:
             prefixed_method_name = f"_{self._operation}_{method_name}"
             method = getattr(self, prefixed_method_name, None)
@@ -99,7 +97,6 @@ class Super(ABC):
             if callable(method):
                 return method(obj, attributes)
 
-        # 3. Автоматический метод: _operation + _object_name (в нижнем регистре)
         obj_type = type(obj).__name__.lower()
         auto_method_name = f"_{self._operation}_{obj_type}"
         method = getattr(self, auto_method_name, None)
@@ -107,7 +104,6 @@ class Super(ABC):
         if callable(method):
             return method(obj, attributes)
 
-        # 4. Универсальный метод: _operation
         default_method_name = f"_{self._operation}"
         method = getattr(self, default_method_name, None)
         logger.debug(f"Checking default method '{default_method_name}': {method}")
