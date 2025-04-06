@@ -19,18 +19,49 @@ from matplotlib.colors import LinearSegmentedColormap
 import warnings
 from erfa import ErfaWarning
 
-# Подавляем ErfaWarning, чтобы не видеть сообщения о "dubious year"
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 class ScheduleVisualizer(Super):
-    """Default implementation of Visualizer for visualizing Project and its components"""
+    """Scheduler implementation of Visualizer for visualizing ScheduleProject and its components.
+
+    Provides a suite of visualization methods for astronomical scheduling objects, generating plots such as UV coverage,
+    source visibility, and beam patterns. Supports multi-threading for project-level visualization and customizable
+    output options (e.g., saving to file, displaying plots).
+
+    Attributes:
+        manipulator: The Manipulator instance used to manage object interactions.
+        _lock (threading.Lock): Thread lock for thread-safe plotting.
+        moderate2_colors (List[tuple]): Custom color palette for plotting.
+        redpurple_cmap: Custom colormap for synthesized beam plots.
+        _object_visualizers (Dict[type, Callable]): Mapping of object types to visualization methods.
+        _plot_types (Dict[str, Callable]): Mapping of plot types to plotting functions.
+
+    Examples:
+        >>> from unit_scheduling.super.manipulator import ScheduleManipulator
+        >>> manipulator = ScheduleManipulator()
+        >>> visualizer = ScheduleVisualizer(manipulator)
+        >>> obs = Observation()
+        >>> result = visualizer.visualize(obs, {"plot_type": "uv_coverage", "freq_idx": 0})
+        {'status': 'success', 'baselines': 3}
+    """
     def __init__(self, manipulator: 'Manipulator'):
+        """Initialize the ScheduleVisualizer with plotting settings and operation mappings.
+
+        Args:
+            manipulator: The Manipulator instance for managing object interactions.
+
+        Notes:
+            - Sets up Matplotlib with a custom style (seaborn-v0_8-whitegrid) and font (Trebuchet MS).
+            - Defines a custom color palette (moderate2_colors) and a red-purple colormap (redpurple_cmap).
+            - Registers visualization methods for object types and plot types.
+            - Initializes a thread lock for safe plotting.
+            - Logs initialization upon completion.
+        """
         super().__init__(manipulator)
         self._lock = threading.Lock()
         logger.info("Initialized Scheduling Visualizer")
 
-        # Настройка стиля: светлый фон, шрифт Trebuchet MS
-        plt.style.use('seaborn-v0_8-whitegrid')  # Светлый стиль с сеткой
+        plt.style.use('seaborn-v0_8-whitegrid')
         plt.rc('axes', facecolor='white', edgecolor='black', labelcolor='black')
         plt.rc('xtick', color='black')
         plt.rc('ytick', color='black')
@@ -39,35 +70,32 @@ class ScheduleVisualizer(Super):
         plt.rc('text', color='black')
         plt.rc('figure', facecolor='white')
 
-        # Кастомная палитра Moderate2
         self.moderate2_colors = [
-            (163/255, 193/255, 218/255),  # Светло-голубой
-            (74/255, 144/255, 226/255),   # Синий
-            (80/255, 200/255, 120/255),   # Зеленый
-            (46/255, 139/255, 87/255),    # Темно-зеленый
-            (255/255, 99/255, 71/255),    # Красный
-            (255/255, 165/255, 0/255),    # Оранжевый
-            (255/255, 140/255, 0/255),    # Темно-оранжевый
-            (218/255, 112/255, 214/255),  # Фиолетовый
-            (255/255, 215/255, 0/255),    # Желтый
-            (139/255, 69/255, 19/255),    # Коричневый
+            (163/255, 193/255, 218/255),
+            (74/255, 144/255, 226/255),
+            (80/255, 200/255, 120/255),
+            (46/255, 139/255, 87/255),
+            (255/255, 99/255, 71/255),
+            (255/255, 165/255, 0/255),
+            (255/255, 140/255, 0/255),
+            (218/255, 112/255, 214/255),
+            (255/255, 215/255, 0/255),
+            (139/255, 69/255, 19/255),
         ]
-        self.intersection_color = (255/255, 165/255, 0/255)  # Оранжевый для пересечений
+        self.intersection_color = (255/255, 165/255, 0/255)
 
-        # Кастомная градиентная палитра RedPurple (инвертированная)
         redpurple_colors = [
-            (139/255, 0/255, 0/255),      # Темно-красный
-            (255/255, 69/255, 0/255),     # Оранжевый
-            (255/255, 255/255, 0/255),    # Желтый
-            (0/255, 255/255, 0/255),      # Зеленый
-            (0/255, 206/255, 209/255),    # Голубой
-            (0/255, 0/255, 139/255),      # Темно-синий
+            (139/255, 0/255, 0/255),
+            (255/255, 69/255, 0/255),
+            (255/255, 255/255, 0/255),
+            (0/255, 255/255, 0/255),
+            (0/255, 206/255, 209/255),
+            (0/255, 0/255, 139/255),
         ]
-        # Инвертируем палитру (синие оттенки для минимума)
+
         redpurple_colors = redpurple_colors[::-1]
         self.redpurple_cmap = LinearSegmentedColormap.from_list("RedPurple", redpurple_colors)
 
-        # Словарь для методов визуализации по типу объекта
         self._object_visualizers: Dict[type, Callable] = {
             (ScheduleProject, Observation): self._visualize_project_or_observation,
             (Telescope, SpaceTelescope, Telescopes): self._visualize_telescopes,
@@ -76,7 +104,6 @@ class ScheduleVisualizer(Super):
             (IF, Frequencies): self._visualize_frequencies,
         }
 
-        # Словарь для методов визуализации по plot_type для Project/Observation
         self._plot_types: Dict[str, Callable] = {
             "uv_coverage": self._plot_uv_coverage,
             "source_visibility": self._plot_source_visibility,
@@ -90,10 +117,32 @@ class ScheduleVisualizer(Super):
         }
 
     def _default_result(self) -> Dict[str, Any]:
+        """Return the default result when no visualization is performed.
+
+        Returns:
+            Dict[str, Any]: A dictionary with a status message indicating no visualization occurred.
+        """
         return {"status": "no visualization performed"}
 
     def _visualize(self, obj: Union[ScheduleProject, Observation, Telescope, SpaceTelescope, Telescopes, Source, Sources, Scan, Scans, IF, Frequencies], 
                attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Visualize the specified object based on provided attributes.
+
+        Args:
+            obj: The object to visualize (e.g., ScheduleProject, Observation, Telescope, etc.).
+            attributes (Dict[str, Any]): Dictionary specifying visualization parameters (e.g., "plot_type", "output_file", "show").
+
+        Returns:
+            Dict[str, Any]: Result of the visualization, including status and additional data (e.g., {"status": "success", "baselines": 3}).
+
+        Raises:
+            ValueError: If the object type is not supported.
+
+        Notes:
+            - Requires a "plot_type" in attributes to proceed.
+            - Supports saving to file and showing plots based on attributes.
+            - Handles exceptions and ensures figures are closed on failure.
+        """
         plot_type = attributes.get("plot_type")
         output_file = attributes.get("output_file")
         show = attributes.get("show", True)
@@ -102,7 +151,6 @@ class ScheduleVisualizer(Super):
             logger.error("No 'plot_type' specified in attributes")
             return {"status": "error", "message": "plot_type required"}
 
-        # Не создаем фигуру здесь, если метод сам управляет фигурами
         fig = None if plot_type in ["time_on_source", "beam_pattern", "synthesized_beam", "az_el"] else plt.figure(figsize=attributes.get("figsize", (10, 6)))
         result = {}
 
@@ -138,6 +186,19 @@ class ScheduleVisualizer(Super):
         return result
 
     def _visualize_project_or_observation(self, obj: Union[ScheduleProject, Observation], attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Visualize a ScheduleProject or Observation object.
+
+        Args:
+            obj (ScheduleProject | Observation): The object to visualize.
+            attributes (Dict[str, Any]): Visualization parameters, including "plot_type".
+
+        Returns:
+            Dict[str, Any]: Visualization result, including status and data specific to the plot type.
+
+        Notes:
+            - For ScheduleProject, processes all observations in parallel using ThreadPoolExecutor.
+            - For Observation, delegates to the appropriate plot function based on "plot_type".
+        """
         plot_type = attributes.get("plot_type")
 
         if isinstance(obj, ScheduleProject):
@@ -158,6 +219,19 @@ class ScheduleVisualizer(Super):
         return plot_func(obj, attributes)
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot UV coverage for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "freq_idx" (default 0) and "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of baselines plotted.
+
+        Notes:
+            - Plots UV points in wavelength units, including mirrored points for symmetry.
+            - Uses pre-calculated data from the observation's store_key.
+        """
         freq_idx = attributes.get("freq_idx", 0)
         store_key = attributes.get("store_key", f"uv_coverage_f{freq_idx}")
         data = obj.get_calculated_data_by_key(store_key)
@@ -195,6 +269,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "baselines": len(baselines)}
 
     def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot source visibility over time for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of scans plotted.
+
+        Notes:
+            - Plots visibility (1 = visible, 0 = not visible) against MJD time for each telescope.
+        """
         store_key = attributes.get("store_key", "source_visibility")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
@@ -221,6 +307,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot angles to the Sun for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of scans plotted.
+
+        Notes:
+            - Plots Sun angles in degrees against MJD time for each telescope.
+        """
         store_key = attributes.get("store_key", "sun_angles")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
@@ -246,6 +344,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot Azimuth/Elevation or Hour Angle/Declination for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of scans plotted.
+
+        Notes:
+            - Creates subplots for each telescope, showing Az/El or HA/Dec over MJD time.
+        """
         store_key = attributes.get("store_key", "az_el")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
@@ -297,6 +407,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot time on source for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of telescopes plotted.
+
+        Notes:
+            - Visualizes time blocks per telescope and highlights intersection periods.
+        """
         store_key = attributes.get("store_key", "time_on_source")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
@@ -350,6 +472,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "telescopes": len(telescopes)}
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot beam patterns for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "freq_idx" (default 0) and "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of telescopes plotted.
+
+        Notes:
+            - Plots normalized beam patterns against theta (radians) for each telescope.
+        """
         freq_idx = attributes.get("freq_idx", 0)
         store_key = attributes.get("store_key", f"beam_pattern_f{freq_idx}")
         data = obj.get_calculated_data_by_key(store_key)
@@ -383,6 +517,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "telescopes": len(data)}
 
     def _plot_synthesized_beam(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot the synthesized beam for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "freq_idx" (default 0) and "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status.
+
+        Notes:
+            - Displays a 2D beam pattern in microarcseconds using a custom red-purple colormap.
+        """
         freq_idx = attributes.get("freq_idx", 0)
         store_key = attributes.get("store_key", f"synthesized_beam_f{freq_idx}")
         data = obj.get_calculated_data_by_key(store_key)
@@ -403,18 +549,15 @@ class ScheduleVisualizer(Super):
         theta_u_muas = theta_u * 3.6e9
         theta_v_muas = theta_v * 3.6e9
 
-        # Динамический размер фигуры из attributes или по умолчанию квадратный для симметрии
-        figsize = attributes.get("figsize", (10, 10))  # Квадратная фигура для центрирования
+        figsize = attributes.get("figsize", (10, 10))
         fig, ax = plt.subplots(figsize=figsize)
 
-        # Отрисовка изображения
         im = ax.imshow(beam_2d, extent=[min(theta_u_muas), max(theta_u_muas), min(theta_v_muas), max(theta_v_muas)], 
                     cmap=self.redpurple_cmap, aspect='equal')
 
-        # Центрирование: задаём пределы осей с равными отступами
         u_range = max(theta_u_muas) - min(theta_u_muas)
         v_range = max(theta_v_muas) - min(theta_v_muas)
-        max_range = max(u_range, v_range) * 1.1  # Добавляем небольшой запас (10%)
+        max_range = max(u_range, v_range) * 1.1
         
         u_center = (max(theta_u_muas) + min(theta_u_muas)) / 2
         v_center = (max(theta_v_muas) + min(theta_v_muas)) / 2
@@ -422,7 +565,6 @@ class ScheduleVisualizer(Super):
         ax.set_xlim(u_center - max_range / 2, u_center + max_range / 2)
         ax.set_ylim(v_center - max_range / 2, v_center + max_range / 2)
 
-        # Настройка осей и цветовой шкалы
         plt.colorbar(im, label='Normalized Peak Flux, (Jy)', ax=ax)
         ax.set_xlabel("Relative Right Ascension, (μas)")
         ax.set_ylabel("Relative Declination, (μas)")
@@ -432,6 +574,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success"}
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot baseline projections for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "freq_idx" (default 0) and "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of scans plotted.
+
+        Notes:
+            - Plots baseline lengths in wavelengths against MJD time for each telescope pair.
+        """
         freq_idx = attributes.get("freq_idx", 0)
         store_key = attributes.get("store_key", f"baseline_projections_f{freq_idx}")
         data = obj.get_calculated_data_by_key(store_key)
@@ -461,6 +615,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Plot Mollweide tracks for an Observation.
+
+        Args:
+            obj (Observation): The Observation object to visualize.
+            attributes (Dict[str, Any]): Parameters including "store_key".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of scans plotted.
+
+        Notes:
+            - Displays telescope tracks and source position in a Mollweide projection.
+        """
         store_key = attributes.get("store_key", "mollweide_tracks")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
@@ -485,6 +651,18 @@ class ScheduleVisualizer(Super):
         return {"status": "success", "scans": len(data)}
 
     def _visualize_telescopes(self, obj: Union[Telescope, SpaceTelescope, Telescopes], attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Visualize Telescope-related objects.
+
+        Args:
+            obj (Telescope | SpaceTelescope | Telescopes): The telescope object(s) to visualize.
+            attributes (Dict[str, Any]): Parameters including "plot_type".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of telescopes plotted.
+
+        Notes:
+            - Supports "positions" plot type, showing 3D coordinates of telescopes.
+        """
         plot_type = attributes.get("plot_type")
         if plot_type == "positions":
             if isinstance(obj, Telescopes):
@@ -505,6 +683,18 @@ class ScheduleVisualizer(Super):
         return {"status": "error", "message": f"Unsupported plot_type: {plot_type}"}
 
     def _visualize_sources(self, obj: Union[Source, Sources], attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Visualize Source-related objects.
+
+        Args:
+            obj (Source | Sources): The source object(s) to visualize.
+            attributes (Dict[str, Any]): Parameters including "plot_type".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of sources plotted.
+
+        Notes:
+            - Supports "sky_position" plot type, showing RA/Dec coordinates.
+        """
         plot_type = attributes.get("plot_type")
         if plot_type == "sky_position":
             if isinstance(obj, Sources):
@@ -525,6 +715,18 @@ class ScheduleVisualizer(Super):
         return {"status": "error", "message": f"Unsupported plot_type: {plot_type}"}
 
     def _visualize_scans(self, obj: Union[Scan, Scans], attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Visualize Scan-related objects.
+
+        Args:
+            obj (Scan | Scans): The scan object(s) to visualize.
+            attributes (Dict[str, Any]): Parameters including "plot_type".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of scans plotted.
+
+        Notes:
+            - Supports "timeline" plot type, showing scan durations over MJD time.
+        """
         plot_type = attributes.get("plot_type")
         if plot_type == "timeline":
             if isinstance(obj, Scans):
@@ -546,6 +748,18 @@ class ScheduleVisualizer(Super):
         return {"status": "error", "message": f"Unsupported plot_type: {plot_type}"}
 
     def _visualize_frequencies(self, obj: Union[IF, Frequencies], attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Visualize Frequency-related objects.
+
+        Args:
+            obj (IF | Frequencies): The frequency object(s) to visualize.
+            attributes (Dict[str, Any]): Parameters including "plot_type".
+
+        Returns:
+            Dict[str, Any]: Result with status and number of frequencies plotted.
+
+        Notes:
+            - Supports "spectrum" plot type, showing frequency and bandwidth as bars.
+        """
         plot_type = attributes.get("plot_type")
         if plot_type == "spectrum":
             if isinstance(obj, Frequencies):

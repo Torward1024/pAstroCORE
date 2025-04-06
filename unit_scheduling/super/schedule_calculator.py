@@ -31,7 +31,14 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 warnings.filterwarnings("ignore", category=Warning, module="astropy")
 
 def time_execution(func):
-    """Decorator to time the execution of a function and log the duration"""
+    """Decorator to measure and log the execution time of calculation methods.
+
+    Args:
+        func: The function to decorate.
+
+    Returns:
+        Callable: Wrapped function that logs execution duration.
+    """
     @wraps(func)
     def wrapper(self, obj, attributes):
         start_time = time.perf_counter()
@@ -45,16 +52,59 @@ def time_execution(func):
     return wrapper
 
 class ScheduleCalculator(Super):
+    """Scheduler implementation of Calculator for performing astronomical scheduling calculations.
+
+    Provides methods to calculate telescope positions, source visibility, UV coverage, sun angles, and more for Observations and Projects.
+    Supports caching of results and multi-threaded execution for efficiency.
+
+    Attributes:
+        manipulator: The Manipulator instance used to manage object interactions.
+        _lock (threading.Lock): Thread lock for safe data caching.
+
+    Examples:
+        >>> from unit_scheduling.super.manipulator import ScheduleManipulator
+        >>> manipulator = ScheduleManipulator()
+        >>> calculator = ScheduleCalculator(manipulator)
+        >>> obs = Observation()
+        >>> result = calculator.calculate(obs, {"store_key": "uv_coverage_f0", "freq_idx": 0})
+        >>> print(result)
+        {'0': {'uv_points': {...}}}
+    """
     def __init__(self, manipulator: 'Manipulator'):
+        """Initialize the ScheduleCalculator.
+
+        Args:
+            manipulator: The Manipulator instance providing method validation and execution capabilities.
+        """
         super().__init__(manipulator)
         self._lock = threading.Lock()
         logger.info("Initialized Scheduling Calculator")
 
     def _default_result(self) -> Dict[str, Any]:
+        """Return the default result when calculation is not applied.
+
+        Returns:
+            Dict[str, Any]: An empty dictionary.
+        """
         return {}
     
     def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Get cached data or calculate and cache it, ensuring data validity."""
+        """Retrieve cached data or perform calculation and cache the result.
+
+        Args:
+            obj (Observation | ScheduleProject): The object (Observation or Project) to calculate for.
+            store_key (str): Unique key for storing/retrieving calculated data.
+            calc_func: The calculation function to execute if no valid cache exists.
+            attributes (Dict[str, Any]): Calculation parameters (e.g., "recalculate", "time_step").
+            metadata (Dict[str, Any]): Metadata to store with the result (e.g., time step, scan count).
+
+        Returns:
+            Dict[str, Any]: Calculated or cached data.
+
+        Notes:
+            - If "recalculate" is False and valid cached data exists, returns cached result.
+            - Uses thread-safe caching with a lock.
+        """
         recalculate = attributes.get("recalculate", False)
         time_step = attributes.get("time_step")
 
@@ -76,7 +126,20 @@ class ScheduleCalculator(Super):
     
     @time_execution
     def _calculate_telescope_positions(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate telescope positions in J2000 for all scans in the observation or project"""
+        """Calculate telescope positions in GCRS (J2000) for all scans.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate positions for.
+            attributes (Dict[str, Any]): Parameters including "time_step" (sampling interval in seconds) and "store_key".
+
+        Returns:
+            Dict[str, Any]: Telescope positions per scan, keyed by observation code (for Project) or scan index (for Observation).
+
+        Notes:
+            - For Projects, processes all observations in parallel.
+            - For SpaceTelescopes, interpolates orbits if needed.
+            - Returns empty dict on failure with error logging.
+        """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "telescope_positions")
@@ -144,6 +207,19 @@ class ScheduleCalculator(Super):
             return {}
 
     def _process_scan_positions(self, scan: Scan, telescopes: Telescopes, time_step: Optional[float]) -> Dict[str, Any]:
+        """Process telescope positions for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            telescopes (Telescopes): Collection of telescopes involved in the scan.
+            time_step (Optional[float]): Time interval for position sampling (seconds). If None, uses mean time.
+
+        Returns:
+            Dict[str, Any]: Positions for active telescopes, with times if time_step is provided.
+
+        Notes:
+            - Returns positions at mean time if time_step is None, otherwise samples over duration.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         telescope_indices = scan.get_telescope_indices()
@@ -167,7 +243,18 @@ class ScheduleCalculator(Super):
             return {"telescope_positions": result}
 
     def _compute_telescope_position(self, telescope: Telescope | SpaceTelescope, time: Time) -> Tuple[float, float, float]:
-        """Compute telescope position at time"""
+        """Compute a telescope's GCRS position at a specific time.
+
+        Args:
+            telescope (Telescope | SpaceTelescope): The telescope to compute position for.
+            time (Time): The time of calculation.
+
+        Returns:
+            Tuple[float, float, float]: GCRS coordinates (x, y, z) in meters.
+
+        Raises:
+            ValueError: If telescope type is unsupported.
+        """
         if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope):
             x, y, z = telescope.get_coordinates()
             vx, vy, vz = telescope.get_velocities()
@@ -183,7 +270,19 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_source_visibility(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate source visibility for all scans in the observation or project using cached telescope positions"""
+        """Calculate source visibility for all scans.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate visibility for.
+            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", and "position_store_key".
+
+        Returns:
+            Dict[str, Any]: Visibility data per scan, keyed by observation code (for Project) or scan index (for Observation).
+
+        Notes:
+            - Depends on precomputed telescope positions.
+            - Uses parallel processing for multiple scans.
+        """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "source_visibility")
@@ -231,6 +330,19 @@ class ScheduleCalculator(Super):
             return {}
 
     def _process_source_visibility(self, scan: Scan, telescopes: Telescopes, sources: Sources, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
+        """Process source visibility for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            telescopes (Telescopes): Collection of telescopes.
+            sources (Sources): Collection of sources.
+            time_step (Optional[float]): Time interval for sampling (seconds).
+            position_data (Dict[str, Any]): Precomputed telescope positions.
+            observation (Observation): The parent observation.
+
+        Returns:
+            Dict[str, Any]: Visibility data including source name and visibility per telescope.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         source_idx = scan.get_source_index()
@@ -265,7 +377,17 @@ class ScheduleCalculator(Super):
             return {"source": source.get_name(), "times": times.isot.tolist(), "visibility": visibility}
     
     def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
-        """Compute visibility of a source for telescopes at a given time using precomputed positions from _calculate_telescope_positions"""
+        """Compute visibility of a source for telescopes at a given time using precomputed positions.
+
+        Args:
+            source (Source): The source to check visibility for.
+            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
+            time (Time): The time of observation.
+            positions (Dict[str, Tuple[float, float, float]]): Precomputed GCRS positions.
+
+        Returns:
+            Dict[str, bool]: Visibility status per telescope code.
+        """
         source_coord = SkyCoord(ra=source.get_ra_degrees() * u.deg, dec=source.get_dec_degrees() * u.deg, frame='icrs')
         visibility = {}
         for tel in telescopes:
@@ -311,7 +433,19 @@ class ScheduleCalculator(Super):
     
     @time_execution
     def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate (u,v) coverage for all scans in the observation or project"""
+        """Calculate (u,v) coverage for all scans in the observation or project.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate UV coverage for.
+            attributes (Dict[str, Any]): Parameters including "time_step", "freq_idx", and "store_key".
+
+        Returns:
+            Dict[str, Any]: UV coverage data per scan, including u, v, w coordinates.
+
+        Notes:
+            - Requires visibility and position data.
+            - Computes UV points for all baselines at specified frequency.
+        """
         try:
             time_step = attributes.get("time_step")
             freq_idx = attributes.get("freq_idx", 0)
@@ -361,6 +495,21 @@ class ScheduleCalculator(Super):
             return {}
 
     def _process_uv_coverage(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: Optional[int], observation: Observation, visibility_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process UV coverage for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            telescopes (Telescopes): Collection of telescopes.
+            frequencies (Frequencies): Collection of frequencies.
+            time_step (Optional[float]): Sampling interval (seconds).
+            freq_idx (Optional[int]): Frequency index to use.
+            observation (Observation): Parent observation.
+            visibility_data (Dict[str, Any]): Precomputed visibility data.
+            position_data (Dict[str, Any]): Precomputed position data.
+
+        Returns:
+            Dict[str, Any]: UV points per frequency, with times if sampled.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         active_telescopes = [telescopes.get_by_index(i) for i in scan.get_telescope_indices() if telescopes.get_by_index(i).isactive]
@@ -391,6 +540,19 @@ class ScheduleCalculator(Super):
             return {"times": times.isot.tolist(), "uv_points": uv_points}
 
     def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequencies: List[float], source: Optional[Source] = None, visibility: Optional[Dict[str, bool]] = None, gcrs_positions: Optional[List[Tuple[float, float, float]]] = None) -> Dict[float, List[Tuple[str, float, float, float]]]:
+        """Compute UV coordinates at a specific time.
+
+        Args:
+            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
+            time (Time): Time of calculation.
+            frequencies (List[float]): Frequencies in Hz.
+            source (Optional[Source]): Source for UV calculation.
+            visibility (Optional[Dict[str, bool]]): Visibility status per telescope.
+            gcrs_positions (Optional[List[Tuple[float, float, float]]]): Precomputed GCRS positions.
+
+        Returns:
+            Dict[float, List[Tuple[str, float, float, float]]]: UVW coordinates per frequency and baseline.
+        """
         uv_points = {f: [] for f in frequencies}
         c = 299792458  # m/s
 
@@ -438,6 +600,15 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_sun_angles(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate angular separation between source and Sun for all scans.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate sun angles for.
+            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
+
+        Returns:
+            Dict[str, Any]: Sun angles per scan, keyed by scan index or observation code.
+        """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "sun_angles")
@@ -475,7 +646,17 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to calculate Sun angles: {str(e)}")
             return {}
 
-    def _process_sun_angles(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: Optional[float], observation: Observation) -> Dict[str, Any]:
+    def _process_sun_angles(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: Optional[float]) -> Dict[str, Any]:
+        """Compute angle between the direction from telescope to source and to Sun for each telescope at a given time.
+
+        Args:
+            source_coord (SkyCoord): Source coordinates.
+            time (Time): Time of calculation.
+            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
+
+        Returns:
+            Dict[str, float]: Angular separation (degrees) per telescope code.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = sources.get_by_index(scan.get_source_index())
@@ -498,7 +679,16 @@ class ScheduleCalculator(Super):
             return {"source": source.get_name(), "times": times.isot.tolist(), "sun_angles": angles}
 
     def _compute_sun_angle(self, source_coord: SkyCoord, time: Time, telescopes: List[Telescope | SpaceTelescope]) -> Dict[str, float]:
-        """Compute angle between the direction from telescope to source and to Sun for each telescope at a given time."""
+        """Compute angle between the direction from telescope to source and to Sun for each telescope at a given time.
+
+        Args:
+            source_coord (SkyCoord): Source coordinates.
+            time (Time): Time of calculation.
+            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
+
+        Returns:
+            Dict[str, float]: Angular separation (degrees) per telescope code.
+        """
         sun_gcrs = get_sun(time)
         angles = {}
 
@@ -549,6 +739,15 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate Az/El or HA/Dec for ground telescopes across all scans.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate coordinates for.
+            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
+
+        Returns:
+            Dict[str, Any]: Az/El or HA/Dec data per scan.
+        """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "az_el")
@@ -587,6 +786,17 @@ class ScheduleCalculator(Super):
             return {}
 
     def _process_az_el(self, scan: Scan, telescopes: Telescopes, sources: Sources, time_step: Optional[float]) -> Dict[str, Any]:
+        """Process Az/El or HA/Dec for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            telescopes (Telescopes): Collection of telescopes.
+            sources (Sources): Collection of sources.
+            time_step (Optional[float]): Sampling interval (seconds).
+
+        Returns:
+            Dict[str, Any]: Coordinate data per telescope, with times if sampled.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = sources.get_by_index(scan.get_source_index())
@@ -614,7 +824,16 @@ class ScheduleCalculator(Super):
             return {"source": source.get_name(), "times": times.isot.tolist(), "az_el": az_el}
 
     def _compute_az_el_at_time(self, source_coord: SkyCoord, telescopes: List[Telescope], time: Time) -> Dict[str, Tuple[float, float]]:
-        """Compute Az/El or HA/Dec for ground telescopes at a given time, depending on mount type, respecting telescope limits"""
+        """Compute Az/El or HA/Dec for ground telescopes at a given time, depending on mount type.
+
+        Args:
+            source_coord (SkyCoord): Source coordinates.
+            telescopes (List[Telescope]): List of ground telescopes.
+            time (Time): Time of calculation.
+
+        Returns:
+            Dict[str, Tuple[float, float]]: Coordinates per telescope code (Az/El or HA/Dec).
+        """
         az_el = {}
         for tel in telescopes:
             x, y, z = tel.get_coordinates()
@@ -650,6 +869,15 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_time_on_source(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate total time on source for all scans.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate time for.
+            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
+
+        Returns:
+            Dict[str, Any]: Time on source per source and telescope.
+        """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "time_on_source")
@@ -706,6 +934,19 @@ class ScheduleCalculator(Super):
             return {}
         
     def _process_time_on_source(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: float, visibility_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
+        """Process time on source for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            sources (Sources): Collection of sources.
+            telescopes (Telescopes): Collection of telescopes.
+            time_step (float): Sampling interval (seconds).
+            visibility_data (Dict[str, Any]): Precomputed visibility data.
+            observation (Observation): Parent observation.
+
+        Returns:
+            Dict[str, Any]: Visibility blocks per telescope.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = sources.get_by_index(scan.get_source_index())
@@ -757,6 +998,15 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate beam pattern for single-dish observations.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate beam pattern for.
+            attributes (Dict[str, Any]): Parameters including "freq_idx" and "store_key".
+
+        Returns:
+            Dict[str, Any]: Beam pattern data per telescope.
+        """
         try:
             freq_idx = attributes.get("freq_idx", 0)
             store_key = attributes.get("store_key", f"beam_pattern_f{freq_idx}")
@@ -802,6 +1052,15 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_synthesized_beam(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate synthesized beam for VLBI observations.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate synthesized beam for.
+            attributes (Dict[str, Any]): Parameters including "freq_idx", "time_step", and "store_key".
+
+        Returns:
+            Dict[str, Any]: Synthesized beam data.
+        """
         try:
             freq_idx = attributes.get("freq_idx", 0)
             store_key = attributes.get("store_key", f"synthesized_beam_f{freq_idx}")
@@ -884,6 +1143,15 @@ class ScheduleCalculator(Super):
     
     @time_execution
     def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate baseline projections for VLBI observations.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate projections for.
+            attributes (Dict[str, Any]): Parameters including "time_step", "freq_idx", and "store_key".
+
+        Returns:
+            Dict[str, Any]: Baseline projection data per scan.
+        """
         try:
             time_step = attributes.get("time_step")
             freq_idx = attributes.get("freq_idx", 0)
@@ -941,6 +1209,20 @@ class ScheduleCalculator(Super):
             return {}
 
     def _process_baseline_projections(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_idx: int, uv_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
+        """Process baseline projections for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            telescopes (Telescopes): Collection of telescopes.
+            frequencies (Frequencies): Collection of frequencies.
+            time_step (Optional[float]): Sampling interval (seconds).
+            freq_idx (int): Frequency index.
+            uv_data (Dict[str, Any]): Precomputed UV data.
+            observation (Observation): Parent observation.
+
+        Returns:
+            Dict[str, Any]: Baseline projections per telescope pair.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         telescope_indices = scan.get_telescope_indices()
@@ -980,7 +1262,16 @@ class ScheduleCalculator(Super):
             return {"times": times.isot.tolist(), "projections": projections}
         
     def _compute_projections_from_uv(self, uv_points: Dict[float, List[Tuple[str, float, float, float]]], telescopes: List[Telescope | SpaceTelescope], frequency: float) -> Dict[str, float]:
-        """Compute baseline projection BL = sqrt(u² + v²) from pre-calculated (u,v) data"""
+        """Compute baseline projection BL = sqrt(u² + v²) from pre-calculated (u,v) data.
+
+        Args:
+            uv_points (Dict[float, List[Tuple[str, float, float, float]]]): UV data.
+            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
+            frequency (float): Frequency in Hz.
+
+        Returns:
+            Dict[str, float]: Baseline length per telescope pair.
+        """
         projections = {}
         uv_list = uv_points.get(frequency, [])
         for pair, uuu, vvv, _ in uv_list:
@@ -989,7 +1280,17 @@ class ScheduleCalculator(Super):
         return projections
 
     def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, float]:
-        """Fallback method to compute BL = sqrt(u² + v²) at a given time if UV data is unavailable"""
+        """Fallback method to compute BL = sqrt(u² + v²) at a given time if UV data is unavailable.
+
+        Args:
+            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
+            time (Time): Time of calculation.
+            frequency (float): Frequency in Hz.
+            source_coord (Optional[SkyCoord]): Source coordinates (unused in this fallback).
+
+        Returns:
+            Dict[str, float]: Baseline projections per telescope pair.
+        """
         logger.warning(f"Fallback to direct computation of baseline projections at {time.isot}")
         positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
         c = 299792458  # m/s
@@ -1009,6 +1310,15 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate Mollweide projection tracks for telescopes and source.
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate tracks for.
+            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
+
+        Returns:
+            Dict[str, Any]: Mollweide coordinates per scan.
+        """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "mollweide_tracks")
@@ -1049,7 +1359,19 @@ class ScheduleCalculator(Super):
             return {}
 
     def _process_mollweide_tracks(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
+        """Process Mollweide tracks for a single scan.
 
+        Args:
+            scan (Scan): The scan to process.
+            sources (Sources): Collection of sources.
+            telescopes (Telescopes): Collection of telescopes.
+            time_step (Optional[float]): Sampling interval (seconds).
+            position_data (Dict[str, Any]): Precomputed position data.
+            observation (Observation): Parent observation.
+
+        Returns:
+            Dict[str, Any]: Mollweide coordinates for source and telescopes.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = sources.get_by_index(scan.get_source_index())
@@ -1098,15 +1420,14 @@ class ScheduleCalculator(Super):
         }
     
     def _compute_mollweide_coords_from_position(self, position: Tuple[float, float, float], time: Time) -> Tuple[float, float]:
-        """
-        Compute Mollweide coordinates from GCRS position in J2000 (returns RA, Dec in degrees).
-        
-        Parameters:
-        - position: GCRS position of the telescope (x, y, z in meters).
-        - time: Observation time (astropy.time.Time).
-        
+        """Compute Mollweide coordinates from GCRS position in J2000.
+
+        Args:
+            position (Tuple[float, float, float]): GCRS position (x, y, z) in meters.
+            time (Time): Observation time.
+
         Returns:
-        - (lon, lat): RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
+            Tuple[float, float]: RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
         """
         x, y, z = position
         r = np.sqrt(x**2 + y**2 + z**2)
@@ -1124,7 +1445,14 @@ class ScheduleCalculator(Super):
         return lon, lat
 
     def _compute_mollweide_coords(self, coord: SkyCoord) -> Tuple[float, float]:
-        """Compute coordinates for Mollweide projection in J2000 (returns RA, Dec in degrees)."""
+        """Compute coordinates for Mollweide projection in J2000.
+
+        Args:
+            coord (SkyCoord): Source coordinates.
+
+        Returns:
+            Tuple[float, float]: RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
+        """
         ra = coord.ra.deg  # 0° to 360°
         dec = coord.dec.deg
 

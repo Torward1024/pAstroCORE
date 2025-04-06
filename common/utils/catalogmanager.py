@@ -7,14 +7,37 @@ from typing import Optional, List
 import re
 
 class CatalogManager:
-    """Class to control catalogs"""
-    
+    """Manages catalogs of astronomical sources and telescopes.
+
+    Loads and stores source and telescope data from text files, providing methods to query and filter the catalogs.
+    Supports B1950/J2000 source names, RA/DEC ranges, and telescope codes/types.
+
+    Attributes:
+        source_catalog (Sources): Collection of Source objects.
+        telescope_catalog (Telescopes): Collection of Telescope objects.
+
+    Notes:
+        - Logging is integrated via `common.utils.logging_setup.logger`.
+        - Source file format: `name j2000_name alt_name ra_hh:mm:ss.ssss dec_dd:mm:ss.ssss`.
+        - Telescope file format: `number short_name full_name x y z diameter`.
+        - Lines starting with '#' or empty lines are skipped during loading.
+
+    Examples:
+        >>> cm = CatalogManager(source_file="sources.txt", telescope_file="telescopes.txt")
+        >>> source = cm.get_source("3C273")
+        >>> telescopes = cm.get_telescopes_by_type("Telescope")
+        >>> print(cm)
+        CatalogManager(sources=<num>, telescopes=<num>)
+    """
     def __init__(self, source_file: Optional[str] = None, telescope_file: Optional[str] = None):
-        """Initialize catalog manager
-        
+        """Initialize the CatalogManager with optional source and telescope catalog files.
+
         Args:
-            source_file (str, optional): path to sources catalog file
-            telescope_file (str, optional): path to telescopes catalog file
+            source_file (Optional[str]): Path to the sources catalog file. Defaults to None.
+            telescope_file (Optional[str]): Path to the telescopes catalog file. Defaults to None.
+
+        Raises:
+            TypeError: If source_file or telescope_file is neither a string nor None.
         """
         if source_file is not None and not isinstance(source_file, str):
             logger.error("source_file must be a string or None")
@@ -33,16 +56,19 @@ class CatalogManager:
     # sources catalog
 
     def load_source_catalog(self, source_file: str) -> None:
-        """Load sources catalog from text file
-        
-        Format: name j2000_name alt_name ra_hh:mm:ss.ssss dec_dd:mm:ss.ssss
-        
+        """Load a sources catalog from a text file into the source_catalog attribute.
+
+        Expected format: `name j2000_name alt_name ra_hh:mm:ss.ssss dec_dd:mm:ss.ssss`.
+
         Args:
-            source_file (str): path to sources catalog file
-        
+            source_file (str): Path to the sources catalog file.
+
         Raises:
-            FileNotFoundError: file not found
-            ValueError: incorrect data in the catalog
+            FileNotFoundError: If the file does not exist.
+            ValueError: If there is an error parsing the catalog data (e.g., invalid RA/DEC format).
+
+        Notes:
+            - Logs warnings for invalid lines and a summary of loaded/failed sources.
         """
         sources = []
         failed_count = 0
@@ -99,31 +125,58 @@ class CatalogManager:
             raise ValueError(f"Error parsing source catalog: {e}")
 
     def get_source(self, name: str) -> Optional[Source]:
-        """Get source from catalog by name (B1950 или J2000)"""
+        """Retrieve a source from the catalog by its B1950 or J2000 name.
+
+        Args:
+            name (str): The B1950 or J2000 name of the source.
+
+        Returns:
+            Optional[Source]: The matching Source object, or None if not found.
+        """
         return next((s for s in self.source_catalog.get_all_sources() 
                      if s.name == name or (s.name_J2000 and s.name_J2000 == name)), None)
 
     def get_sources_by_ra_range(self, ra_min: float, ra_max: float) -> List[Source]:
-        """Get list of sources in the range of (RA) (degrees)"""
+        """Retrieve sources within a specified right ascension (RA) range in degrees.
+
+        Args:
+            ra_min (float): Minimum RA in degrees.
+            ra_max (float): Maximum RA in degrees.
+
+        Returns:
+            List[Source]: List of Source objects within the RA range.
+        """
         return [s for s in self.source_catalog.get_all_sources() 
                 if ra_min <= s.get_ra_degrees() <= ra_max]
 
     def get_sources_by_dec_range(self, dec_min: float, dec_max: float) -> List[Source]:
-        """Get list of sources in the range of (DEC) (degrees)"""
+        """Retrieve sources within a specified declination (DEC) range in degrees.
+
+        Args:
+            dec_min (float): Minimum DEC in degrees.
+            dec_max (float): Maximum DEC in degrees.
+
+        Returns:
+            List[Source]: List of Source objects within the DEC range.
+        """
         return [s for s in self.source_catalog.get_all_sources() 
                 if dec_min <= s.get_dec_degrees() <= dec_max]
 
     def load_telescope_catalog(self, telescope_file: str) -> None:
-        """Load telescope catalog from text file
-        
-        Format: number short_name full_name x y z diameter
-        
+        """Load a telescopes catalog from a text file into the telescope_catalog attribute.
+
+        Expected format: `number short_name full_name x y z diameter`.
+
         Args:
-            telescope_file (str): path to telescopes catalog file
-        
+            telescope_file (str): Path to the telescopes catalog file.
+
         Raises:
-            FileNotFoundError: file not found
-            ValueError: incorrect data in the catalog
+            FileNotFoundError: If the file does not exist.
+            ValueError: If there is an error parsing the catalog data (e.g., invalid numeric values).
+
+        Notes:
+            - Logs warnings for invalid lines and a summary of loaded/failed telescopes.
+            - Velocities (vx, vy, vz) are set to 0.0 as they are not provided in the catalog format.
         """
         telescopes = []
         failed_count = 0
@@ -169,20 +222,42 @@ class CatalogManager:
             raise ValueError(f"Error parsing telescope catalog: {e}")
 
     def get_telescope(self, code: str) -> Optional[Telescope]:
-        """Get telescope by code"""
+        """Retrieve a telescope from the catalog by its code.
+
+        Args:
+            code (str): The unique code of the telescope.
+
+        Returns:
+            Optional[Telescope]: The matching Telescope object, or None if not found.
+        """
         return next((t for t in self.telescope_catalog.get_all_telescopes() if t.code == code), None)
 
     def get_telescopes_by_type(self, telescope_type: str = "Telescope") -> List[Telescope]:
-        """Get telescopes by type"""
+        """Retrieve telescopes filtered by type.
+
+        Args:
+            telescope_type (str): The type of telescope to filter by (currently only "Telescope" is supported). Defaults to "Telescope".
+
+        Returns:
+            List[Telescope]: List of Telescope objects matching the specified type.
+        """
         return [t for t in self.telescope_catalog.get_all_telescopes() 
                 if (telescope_type == "Telescope" and isinstance(t, Telescope))]
 
     def clear_catalogs(self) -> None:
-        """Clear both catalogs"""
+        """Clear both the source and telescope catalogs.
+
+        Notes:
+            - Resets source_catalog and telescope_catalog to empty collections.
+        """
         self.source_catalog.clear()
         self.telescope_catalog.clear()
 
     def __repr__(self) -> str:
-        """String representation of CatalogManager"""
+        """Return a string representation of the CatalogManager.
+
+        Returns:
+            str: A formatted string with the count of sources and telescopes.
+        """
         return (f"CatalogManager(sources={len(self.source_catalog)}, "
                 f"telescopes={len(self.telescope_catalog)})")

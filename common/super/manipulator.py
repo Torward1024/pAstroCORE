@@ -5,9 +5,39 @@ from functools import lru_cache
 import inspect
 
 class Manipulator(ABC):
+    """Abstract ``mega`` class for managing and processing operations on objects.
+
+    Provides a framework for registering operations and their associated methods, managing a central object,
+    and processing requests. Maintains a registry of supported object types and their methods, with caching
+    for performance. Super-classes can extend this to implement specific manipulation logic.
+
+    Attributes:
+        _managing_object (Optional[Any]): The central object being managed by the manipulator.
+        _base_classes (List[Type]): List of base classes whose methods are registered.
+        _operations (Dict[str, Callable]): Dictionary mapping operation names to their super-instance handlers.
+        _registry (Dict[Type, Dict[str, Callable]]): Registry of object types and their available methods.
+
+    Notes:
+        - Uses `functools.lru_cache` to optimize method registry generation.
+        - Logging is integrated via `common.utils.logging_setup.logger`.
+        - Operations are executed via super-instances (e.g., super-classes `Super`) that must have an `execute` method.
+
+    Examples:
+        >>> manip = Manipulator(base_classes=[list])
+        >>> manip.register_operation("append", Super())  # Assuming super-class with execute method
+        >>> manip.process_request({"operation": "append", "obj": [], "attributes": {"value": 1}})
+        True  # Assuming Super.execute modifies the list and returns True
+    """
     def __init__(self, managing_object: Optional[Any] = None,
                  base_classes: Optional[List[Type]] = None,
                  operations: Optional[Dict[str, Callable]] = None):
+        """Initialize a Manipulator with an optional managing object, base classes, and operations.
+
+        Args:
+            managing_object (Optional[Any]): The central object to manage. Defaults to None.
+            base_classes (Optional[List[Type]]): List of classes whose methods are registered. Defaults to None (empty list).
+            operations (Optional[Dict[str, Callable]]): Initial operations mapped to super-instances. Defaults to None (empty dict).
+        """
         self._managing_object = managing_object
         self._base_classes = base_classes if base_classes is not None else []
         self._operations = operations or {}
@@ -15,13 +45,32 @@ class Manipulator(ABC):
         logger.info(f"Initialized Manipulator with {len(self._operations)} initial operations")
 
     def set_managing_object(self, obj: Any) -> None:
+        """Set the central managing object.
+
+        Args:
+            obj (Any): The object to set as the managing object.
+        """
         self._managing_object = obj
         logger.info(f"Set managing object of type '{type(obj).__name__}' in Manipulator")
 
     def get_managing_object(self) -> Optional[Any]:
+        """Retrieve the central managing object.
+
+        Returns:
+            Optional[Any]: The managing object, or None if not set.
+        """
         return self._managing_object
 
     def _validate_object(self, obj: Any, obj_type: str) -> None:
+        """Validate that an object is provided and supported.
+
+        Args:
+            obj (Any): The object to validate.
+            obj_type (str): Descriptive name of the object type for error messages.
+
+        Raises:
+            ValueError: If neither obj nor _managing_object is provided, or if obj type is not in the registry.
+        """
         if obj is None and self._managing_object is None:
             logger.error(f"No {obj_type} or managing object provided for operation")
             raise ValueError(f"No {obj_type} or managing object provided")
@@ -30,25 +79,51 @@ class Manipulator(ABC):
             raise ValueError(f"Unsupported object type: {type(obj)}")
 
     def get_methods_for_type(self, obj_type: Type) -> Dict[str, Callable]:
+        """Retrieve the registered methods for a given object type.
+
+        Args:
+            obj_type (Type): The type of object to query methods for.
+
+        Returns:
+            Dict[str, Callable]: Dictionary of method names mapped to their callable implementations.
+
+        Raises:
+            ValueError: If no methods are registered for the specified type.
+        """
         if obj_type not in self._registry:
             logger.error(f"No methods registered for type {obj_type.__name__}")
             raise ValueError(f"No methods registered for type {obj_type.__name__}")
         return self._registry[obj_type]
 
     def update_registry(self, additional_classes: Optional[List[Type]] = None) -> None:
+        """Update the method registry with additional base classes.
+
+        Clears the cache and rebuilds the registry if additional classes are provided.
+
+        Args:
+            additional_classes (Optional[List[Type]]): Additional classes to register. Defaults to None.
+        """
         if additional_classes:
             self._base_classes.extend([cls for cls in additional_classes if cls not in self._base_classes])
         self._registry = self._get_method_registry.cache_clear() or self._get_method_registry()
         logger.info(f"Registry updated with {len(self._registry)} types")
 
     def register_operation(self, operation: str, super_instance: Callable) -> None:
+        """Register an operation with its super-instance handler.
+
+        Args:
+            operation (str): The name of the operation. Must be a non-empty string.
+            super_instance (Callable): The super-instance (e.g., super-class `Super`) with an `execute` method.
+
+        Raises:
+            ValueError: If operation is not a non-empty string or super_instance lacks an `execute` method.
+        """
         if not isinstance(operation, str) or not operation:
             logger.error("Operation name must be a non-empty string")
             raise ValueError("Operation name must be a non-empty string")
         if not hasattr(super_instance, "execute"):
             logger.error(f"Super-instance for '{operation}' must have 'execute' method")
             raise ValueError(f"Super-instance for '{operation}' must have 'execute' method")
-        # Задаем _operation для super_instance
         super_instance._operation = operation
         self._operations[operation] = super_instance
 
@@ -62,8 +137,16 @@ class Manipulator(ABC):
             logger.debug(f"Registered {len(methods)} methods for {super_type.__name__}")
         logger.info(f"Registered operation '{operation}' with {type(super_instance).__name__}")
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=2048)
     def _get_method_registry(self) -> Dict[Type, Dict[str, Callable]]:
+        """Generate and cache the method registry for registered operations and base classes.
+
+        Returns:
+            Dict[Type, Dict[str, Callable]]: A registry mapping object types to their methods.
+
+        Notes:
+            - Cached with a max size of 2048 entries to improve performance.
+        """
         registry = {}
         for operation, instance in self._operations.items():
             super_type = type(instance)
@@ -87,6 +170,22 @@ class Manipulator(ABC):
         return registry
 
     def process_request(self, request: Dict[str, Any]) -> Any:
+        """Process a request or sequence of requests.
+
+        Handles both single requests and nested dictionaries of requests, delegating to `_process_single_request`.
+
+        Args:
+            request (Dict[str, Any]): A dictionary specifying the operation, object, and attributes, or a sequence of such dictionaries.
+
+        Returns:
+            Any: The result of the request(s). For a single request, the result of `_process_single_request`; for a sequence, a dict of results.
+
+        Examples:
+            >>> manip.process_request({"operation": "append", "obj": [], "attributes": {"value": 1}})
+            True
+            >>> manip.process_request({"req1": {"operation": "append", "obj": [], "attributes": {"value": 1}}})
+            {'req1': True}
+        """
         if all(isinstance(k, str) and isinstance(v, dict) for k, v in request.items()) and "operation" not in request:
             results = {}
             logger.info(f"Processing sequence of {len(request)} requests")
@@ -97,6 +196,14 @@ class Manipulator(ABC):
         return self._process_single_request(request)
 
     def _process_single_request(self, request: Dict[str, Any]) -> Any:
+        """Process a single request by executing the specified operation.
+
+        Args:
+            request (Dict[str, Any]): Dictionary with 'operation', 'obj', and optional 'attributes' keys.
+
+        Returns:
+            Any: The result of the operation execution, or False if the operation fails or is not found.
+        """
         operation = request.get("operation")
         obj = request.get("obj")
         attributes = request.get("attributes", {})
@@ -121,8 +228,18 @@ class Manipulator(ABC):
             return False
 
     def get_supported_operations(self) -> List[str]:
+        """Retrieve the list of supported operation names.
+
+        Returns:
+            List[str]: A list of registered operation names.
+        """
         return list(self._operations.keys())
 
     def __repr__(self) -> str:
+        """Return a string representation of the Manipulator.
+
+        Returns:
+            str: A formatted string with the managing object type and registered operations.
+        """
         obj_type = type(self._managing_object).__name__ if self._managing_object else "None"
         return f"Manipulator(managing_object='{obj_type}', operations={list(self._operations.keys())})"

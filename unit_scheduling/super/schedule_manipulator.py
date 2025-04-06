@@ -4,17 +4,51 @@ from common.super.manipulator import Manipulator
 from typing import Optional
 
 class ScheduleManipulator(Manipulator):
+    """Scheduler implementation of Manipulator for managing astronomical scheduling operations.
+
+    Extends the base Manipulator class to provide a centralized interface for configuring, inspecting,
+    calculating, and visualizing ScheduleProject and its components. Registers default operations
+    (configure, inspect, calculate, visualize) with corresponding handler classes.
+
+    Args:
+        project (Optional[ScheduleProject]): The ScheduleProject instance to manage. Defaults to None.
+
+    Attributes:
+        managing_object: The object being managed (typically a ScheduleProject).
+        base_classes (List[type]): List of supported base classes for method validation.
+        operations (Dict[str, Any]): Registered operations (e.g., "configure", "inspect").
+
+    Examples:
+        >>> from unit_scheduling.super.schedule_project import ScheduleProject
+        >>> manipulator = ScheduleManipulator(project=ScheduleProject(name="TestProject"))
+        >>> manipulator.operations["configure"]
+        <ScheduleConfigurator object at ...>
+        >>> manipulator.get_methods_for_type(Source)
+        {'get_name': <function ...>, 'set_name': <function ...>, ...}
+    """
     def __init__(self, project: Optional['ScheduleProject'] = None):
+        """Initialize the ScheduleManipulator with default operations and supported classes.
+
+        Args:
+            project (Optional[ScheduleProject]): The ScheduleProject instance to manage. If None, no project is set initially.
+
+        Notes:
+            - Registers base classes: ScheduleProject, Observation, IF, Frequencies, Source, Sources,
+            Telescope, SpaceTelescope, Telescopes, Scan, Scans.
+            - Registers operations: configure (ScheduleConfigurator), inspect (ScheduleInspector),
+            calculate (ScheduleCalculator), visualize (ScheduleVisualizer).
+            - Logs initialization upon completion.
+        """
         from unit_scheduling.super.schedule_project import ScheduleProject
         from unit_scheduling.base.observation import Observation
         from unit_scheduling.base.frequencies import IF, Frequencies
         from unit_scheduling.base.sources import Source, Sources
         from unit_scheduling.base.telescopes import Telescope, SpaceTelescope, Telescopes
         from unit_scheduling.base.scans import Scan, Scans
-        from unit_scheduling.super.configurator import ScheduleConfigurator
-        from unit_scheduling.super.inspector import ScheduleInspector
-        from unit_scheduling.super.calculator import ScheduleCalculator
-        from unit_scheduling.super.visualizer import ScheduleVisualizer
+        from unit_scheduling.super.schedule_configurator import ScheduleConfigurator
+        from unit_scheduling.super.schedule_inspector import ScheduleInspector
+        from unit_scheduling.super.schedule_calculator import ScheduleCalculator
+        from unit_scheduling.super.schedule_visualizer import ScheduleVisualizer
 
         base_classes = [
             ScheduleProject, Observation, IF, Frequencies, Source, Sources,

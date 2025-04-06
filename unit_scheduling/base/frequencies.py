@@ -13,39 +13,53 @@ PAIRED_LINEAR_POLARIZATIONS = {"RR", "LL", "RL", "LR"}
 SINGLE_LINEAR_POLARIZATIONS = {"H", "V"}
 VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(PAIRED_LINEAR_POLARIZATIONS).union(SINGLE_LINEAR_POLARIZATIONS)
 
+class IF(BaseEntity):
+    """Base class representing an Intermediate Frequency (IF) with frequency, bandwidth, and polarization properties.
 
-"""Base-class of an IF object with frequency, bandwidth, and polarization
+    This class encapsulates the properties of an intermediate frequency used in radio astronomy observations,
+    including its frequency, bandwidth, polarization type, and active status. The frequency range is defined as
+    [freq, freq + bandwidth], where `freq` is the lower bound and `bandwidth` extends the range upward. The
+    class supports serialization to/from dictionaries and provides methods to manipulate and retrieve its
+    properties.
 
-    Notes: IF frequency range is supposed as follows: freq is the leftmost (lower) value + bandwidth
-    Contains:
-    Atributes:
-        freq (float): IF frequency in MHz
-        bandwidth (float): Bandwidth in MHz
-        polarization (str, optional): polarization type (RCP, LCP, LL, RL, RR, LR, H, V) from VALID_POLARIZATIONS
-        isactive (bool): whether the frequency is active (default: True)
+    Attributes:
+        _frequency (float): The IF frequency in MHz. Must be positive.
+        _bandwidth (float): The bandwidth in MHz. Must be positive.
+        _polarizations (List[str]): A list of polarization codes (e.g., 'RCP', 'LCP', 'RR', 'LL', etc.) from
+            VALID_POLARIZATIONS. Empty if no polarization is set.
+        isactive (bool): Indicates whether the IF is active. Inherited from BaseEntity.
+
+    Notes:
+        - Polarization values must belong to a single group: circular (RCP, LCP), paired linear (RR, LL, RL, LR),
+          or single linear (H, V). Mixing groups is not allowed.
+        - The frequency wavelength is calculated as C_MHZ_CM / frequency, where C_MHZ_CM = 29979.2458 MHz*cm.
+        - Logging is integrated via the `logger` from `common.utils.logging_setup` to track operations.
+
+    Examples:
+        >>> if_obj = IF(freq=1420.0, bandwidth=32.0, polarization="RCP")
+        >>> print(if_obj)
+        IF(frequency=1420.0 MHz, bandwidth=32.0 MHz, polarizations=['RCP'], isactive=True)
+        >>> if_obj.get_frequency_wavelength()
+        21.12411267605634  # Wavelength in cm for 1420 MHz (approx. H-line)
 
     Methods:
-        activate
-        deactivate
-
-        get_frequency
-        get_bandwidth
-        get_polarization
-        get_frequency_wavelength
-
-        set_if
-        set_frequency
-        set_bandwidth
-        set_frequency_wavelength
-        set_polarization
-
-        to_dict
-        from_dict
-        _validate_polarizations
-        __init__
-        __repr__
+        __init__: Initialize the IF object with frequency, bandwidth, polarization, and active status.
+        activate: Mark the IF as active.
+        deactivate: Mark the IF as inactive.
+        get_frequency: Retrieve the IF frequency in MHz.
+        get_bandwidth: Retrieve the IF bandwidth in MHz.
+        get_polarization: Retrieve the list of polarization codes.
+        get_frequency_wavelength: Calculate the wavelength in centimeters.
+        set_if: Set all properties of the IF object.
+        set_frequency: Set the frequency in MHz.
+        set_bandwidth: Set the bandwidth in MHz.
+        set_polarization: Set the polarization values.
+        set_frequency_wavelength: Set the frequency based on a wavelength in centimeters.
+        to_dict: Convert the IF object to a dictionary.
+        from_dict: Create an IF object from a dictionary.
+        _validate_polarizations: Validate and normalize polarization values.
+        __repr__: Return a string representation of the IF object.
     """
-class IF(BaseEntity):
     def __init__(self, freq: float = 1000.0, bandwidth: float = 16.0, 
                  polarization: Optional[str] = None, isactive: bool = True):
         """Initialize an IF object representing an intermediate frequency with its properties.
@@ -286,48 +300,67 @@ class IF(BaseEntity):
         return (f"IF(frequency={self._frequency} MHz, bandwidth={self._bandwidth} MHz, "
                 f"polarizations={self._polarizations}, isactive={self.isactive})")
 
-"""Base-class of an Frequencies object with the list of IFs
+class Frequencies(BaseEntity):
+    """Base class representing a collection of Intermediate Frequency (IF) objects.
 
-    Contains:
-    Atributes:
-        data (IF): list of objsects of IF type
+    This class manages a list of IF objects, providing functionality to add, remove, modify, and query
+    intermediate frequencies used in an observation. It ensures no frequency ranges overlap (i.e., for any
+    two IFs, their ranges [freq, freq + bandwidth] do not intersect unless they are the same object).
+    The class supports activation/deactivation of individual IFs or the entire collection, as well as
+    serialization to/from dictionaries.
+
+    Attributes:
+        _data (List[IF]): A list of IF objects representing the collection of intermediate frequencies.
+        isactive (bool): Indicates whether the Frequencies object itself is active. Inherited from BaseEntity.
+
+    Notes:
+        - Frequency overlap is checked when adding or inserting IFs, raising a ValueError if detected.
+        - Methods like `activate_IF` and `deactivate_IF` can synchronize with a parent Observation object
+          if the `_parent` attribute is set (not shown in this code snippet but implied by the implementation).
+        - Logging is integrated via the `logger` from `common.utils.logging_setup` to track operations.
+        - The class assumes IF objects are immutable in terms of their frequency range once added, unless
+          explicitly modified via `set_IF`.
+
+    Examples:
+        >>> freqs = Frequencies()
+        >>> freqs.create_IF(freq=1000.0, bandwidth=16.0, polarization="RCP")
+        >>> freqs.create_IF(freq=1020.0, bandwidth=16.0, polarization="LCP")
+        >>> print(freqs)
+        Frequencies(count=2, active=2, inactive=0)
+        >>> freqs.get_frequencies()
+        [1000.0, 1020.0]
+        >>> freqs.deactivate_IF(0)
+        >>> print(freqs.get_active_frequencies()[0].get_frequency())
+        1020.0
 
     Methods:
-        add_IF
-        create_IF
-        insert_IF
-        remove_IF
-        set_IF
-
-        get_by_index
-        get_all_IF
-
-        get_frequencies
-        get_bandwidths
-        get_polarizations
-        get_wavelengths
-        get_active_frequencies
-        get_inactive_frequencies
-        
-        activate_IF
-        deactivate_IF
-
-        activate_all
-        deactivate_all
-
-        drop_active
-        drop_inactive
-        clear
-
-        to_dict
-        from_dict
-        _check_overlap
-        __len__
-        __init__
-        __repr__
+        __init__: Initialize the Frequencies object with an optional list of IFs.
+        add_IF: Add an existing IF object to the collection.
+        create_IF: Create and add a new IF object to the collection.
+        insert_IF: Insert an IF object at a specific index.
+        remove_IF: Remove an IF object by index.
+        set_IF: Replace an IF object at a specific index.
+        get_by_index: Retrieve an IF object by index.
+        get_all_IF: Retrieve all IF objects in the collection.
+        get_frequencies: Retrieve a list of all IF frequencies.
+        get_bandwidths: Retrieve a list of all IF bandwidths.
+        get_polarizations: Retrieve a list of all IF polarizations.
+        get_wavelengths: Retrieve a list of wavelengths for all IF frequencies.
+        get_active_frequencies: Retrieve all active IF objects.
+        get_inactive_frequencies: Retrieve all inactive IF objects.
+        activate_IF: Activate an IF object by index.
+        deactivate_IF: Deactivate an IF object by index.
+        activate_all: Activate all IF objects in the collection.
+        deactivate_all: Deactivate all IF objects in the collection.
+        drop_active: Remove all active IF objects from the collection.
+        drop_inactive: Remove all inactive IF objects from the collection.
+        clear: Remove all IF objects from the collection.
+        to_dict: Convert the Frequencies object to a dictionary.
+        from_dict: Create a Frequencies object from a dictionary.
+        _check_overlap: Check if an IF's frequency range overlaps with existing IFs.
+        __len__: Return the number of IF objects in the collection.
+        __repr__: Return a string representation of the Frequencies object.
     """
-
-class Frequencies(BaseEntity):
     def __init__(self, ifs: list[IF] = None):
         """Initialize a Frequencies object with a list of IF objects.
 
