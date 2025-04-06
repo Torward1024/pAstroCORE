@@ -32,8 +32,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.assertIn("inspect", supported_ops, "Operation 'inspect' not registered")
 
     def test_eht_observation_with_space_telescope(self):
-        """Тест полного цикла с космическим телескопом: настройка, вычисление (u,v), проекций базы, визуализация + beam_pattern и synthesized_beam"""
-        # 1. Настройка источника M87
+
         m87_source = Source()
         result = self.manipulator.process_request({
             "operation": "configure",
@@ -50,7 +49,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.assertTrue(result, "Failed to configure M87 source")
         sources = Sources([m87_source])
 
-        # 2. Настройка телескопов (ALMA + APEX + SMT + SPACE370) через серию запросов
         telescopes = Telescopes()
         tel_configs = {
             "alma": {
@@ -95,7 +93,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             self.assertTrue(result, f"Failed to configure telescope {tel_id}")
             telescopes.add_telescope(tel_configs[tel_id]["obj"])
 
-        # 3. Настройка частоты (86 GHz)
         frequency = IF()
         result = self.manipulator.process_request({
             "operation": "configure",
@@ -105,7 +102,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.assertTrue(result, "Failed to configure frequency")
         frequencies = Frequencies([frequency])
 
-        # 4. Настройка сканирования (10.03.2031 - 20.03.2031)
         start_time = Time("2031-03-10T00:00:00", format="isot", scale="utc")
         duration = 864000 * u.s
         scan = Scan()
@@ -125,7 +121,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         self.assertTrue(result, "Failed to configure scan")
         scans = Scans([scan])
 
-        # 5. Создание VLBI и SINGLE_DISH наблюдений через серию запросов
         observation = Observation(observation_code="M87_SPACE_OBS")
         single_dish_obs = Observation(observation_code="M87_SINGLE_DISH", observation_type="SINGLE_DISH")
         obs_configs = {
@@ -258,7 +253,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             self.assertTrue(result, f"{calc_id} calculation failed")
         print(f"All calculations took {time.time() - start:.2f} seconds")
 
-        # 7. Визуализация через серию запросов
         vis_requests = {
             "uv_coverage": {
                 "operation": "visualize",
