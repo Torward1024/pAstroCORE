@@ -81,18 +81,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             },
             "space370": {
                 "operation": "configure",
-                "attributes": {"set_telescope": {
+                "attributes": { "set_telescope": {
                     "code": "SPACE370", "use_kep": False, "name": "Space Telescope 370", "diameter": 10.0,
                     "sefd_table": {86e3: 200.0}, "pitch_range": (-90.0, 90.0), "yaw_range": (0.0, 180.0),
-<<<<<<< HEAD
-                    "orbit_file": "i:\\pAstroCORE\\final_orbit370.txt", "interpolation_method": "linear"
-                }},
-                "obj": SpaceTelescope(use_kep=False, orbit_file="i:\\pAstroCORE\\final_orbit370.txt", interpolation_method="linear")
-=======
                     "orbit_file": "final_orbit370.txt", "interpolation_method": "linear"
                 }},
                 "obj": SpaceTelescope(use_kep=False, orbit_file="final_orbit370.txt", interpolation_method="linear")
->>>>>>> bd6cbba19a0bda0a95bbb779dfc1ec35554548dd
             }
         }
         tel_results = self.manipulator.process_request(tel_configs)
