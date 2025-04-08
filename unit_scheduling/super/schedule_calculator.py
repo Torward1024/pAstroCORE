@@ -141,6 +141,7 @@ class ScheduleCalculator(Super):
             start_time = attributes.get("start_time")
             end_time = attributes.get("end_time")
             telescope_code = attributes.get("telescope_code")
+            target_type = attributes.get("target_type", "source")
             target_index = attributes.get("target_index", 0)
             store_key = attributes.get("store_key", "visibility")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
@@ -170,11 +171,11 @@ class ScheduleCalculator(Super):
                     return {}
                 active_telescopes = [target_telescope]
 
-            if isinstance(target, Source):
+            if target_type == "source":
                 sources = obj.get_sources()
                 target = sources.get_by_index(target_index)
                 target_name = target.get_name()
-            elif isinstance(target, SpaceTelescope):
+            elif target_type == "spacecraft":
                 all_telescopes = telescopes.get_all_telescopes()
                 target = next((tel for tel in all_telescopes if isinstance(tel, SpaceTelescope)), None)
                 if not target:
@@ -266,7 +267,6 @@ class ScheduleCalculator(Super):
                         "times": times.isot.tolist(),
                         "visibility": visibility
                     }
-                    #logger.info(f"Visibility calculation result: {result}")
                     return {0: result}
 
             metadata = {"time_step": time_step, "start_time": start_time, "end_time": end_time, "telescope_code": telescope_code}

@@ -139,6 +139,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "end_time": "2030-12-30T12:00:00.000",
                 "time_step": 3600,
                 "telescope_code": "APEX",
+                "target_type": "spacecraft",
                 "target_index": 0,
                 "store_key": "spacecraft_visibility_apex"
             },
