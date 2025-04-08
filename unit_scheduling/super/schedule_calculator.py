@@ -1037,7 +1037,7 @@ class ScheduleCalculator(Super):
                     if isinstance(tel, SpaceTelescope):
                         continue
                     D = tel.get_diameter()
-                    theta = np.linspace(-np.pi/2, np.pi/2, 1000)
+                    theta = np.linspace(-np.pi/2, np.pi/2, 3000)
                     x = (np.pi * D / wavelength) * np.sin(theta)
                     pattern = (2 * j1(x) / x) ** 2
                     pattern[np.isnan(pattern)] = 1.0
@@ -1104,7 +1104,7 @@ class ScheduleCalculator(Super):
 
                 u_max = max(abs(min(u)), abs(max(u)))
                 v_max = max(abs(min(v)), abs(max(v)))
-                grid_size = 512
+                grid_size = 1024
                 u_grid = np.linspace(-u_max, u_max, grid_size)
                 v_grid = np.linspace(-v_max, v_max, grid_size)
                 uv_plane = np.zeros((grid_size, grid_size), dtype=complex)
@@ -1131,7 +1131,7 @@ class ScheduleCalculator(Super):
                     0: {
                         "theta_u": theta_u_deg.tolist(),
                         "theta_v": theta_v_deg.tolist(),
-                        "beam_2d": beam_2d.tolist()  # Сериализация для кэша
+                        "beam_2d": beam_2d.tolist()
                     }
                 }
 
