@@ -1,0 +1,1761 @@
+2025-04-06 13:18:50,787 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 13:18:50,787 - root - INFO - Initialized project 'DefaultProject' with 0 observations
+2025-04-06 13:18:50,787 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 13:18:51,574 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 13:18:51,574 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 13:18:51,574 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 13:18:51,574 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 13:18:51,574 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 13:18:51,574 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 13:18:51,574 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 13:18:51,574 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 13:18:51,574 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 13:18:51,574 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 13:23:47,815 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 13:23:47,815 - root - INFO - Initialized project 'DefaultProject' with 0 observations
+2025-04-06 13:23:47,815 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 13:23:48,621 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 13:23:48,621 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 13:23:48,621 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 13:23:48,621 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 13:23:48,621 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 13:23:48,621 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 13:23:48,621 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 13:23:48,621 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 13:23:48,621 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 13:23:48,621 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 13:26:25,675 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 13:26:25,675 - root - INFO - Initialized project 'DefaultProject' with 0 observations
+2025-04-06 13:26:25,675 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 13:26:26,441 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 13:26:26,441 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 13:26:26,441 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 13:26:26,441 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 13:26:26,441 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 13:26:26,441 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 13:26:26,441 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 13:26:26,441 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 13:26:26,441 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 13:26:26,441 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 13:35:16,438 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 13:35:16,438 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:35:16,438 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 13:35:17,200 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 13:35:17,200 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 13:35:17,200 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 13:35:17,200 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 13:35:17,200 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 13:35:17,200 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 13:35:17,200 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 13:35:17,200 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 13:35:17,200 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 13:35:17,200 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 13:35:17,200 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:44:39,570 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 13:44:39,570 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:44:39,570 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 13:44:40,334 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 13:44:40,334 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 13:44:40,334 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 13:44:40,334 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 13:44:40,334 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 13:44:40,334 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 13:44:40,334 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 13:44:40,334 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 13:44:40,334 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 13:44:40,334 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 13:44:40,334 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:47:30,655 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 13:47:30,655 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:47:30,655 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 13:47:31,429 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 13:47:31,429 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 13:47:31,429 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 13:47:31,429 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 13:47:31,429 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 13:47:31,429 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 13:47:31,429 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 13:47:31,429 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 13:47:31,429 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 13:47:31,444 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 13:47:31,444 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:48:07,289 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 13:48:07,289 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:48:07,289 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 13:48:08,058 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 13:48:08,058 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 13:48:08,058 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 13:48:08,058 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 13:48:08,058 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 13:48:08,058 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 13:48:08,059 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 13:48:08,059 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 13:48:08,059 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 13:48:08,059 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 13:48:08,059 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:56:56,468 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 13:56:56,468 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 13:56:56,468 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 13:56:57,268 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 13:56:57,268 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 13:56:57,268 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 13:56:57,268 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 13:56:57,268 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 13:56:57,268 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 13:56:57,268 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 13:56:57,268 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 13:56:57,268 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 13:56:57,268 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 13:56:57,268 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:00:37,976 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 14:00:37,976 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:00:37,976 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 14:00:38,823 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:00:38,823 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:00:38,823 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:00:38,823 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:00:38,823 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:00:38,823 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:00:38,823 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:00:38,823 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:00:38,823 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:00:38,823 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:00:38,823 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:11:07,067 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 14:11:07,067 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:11:07,067 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 14:11:07,823 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:11:07,823 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:11:07,823 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:11:07,823 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:11:07,823 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:11:07,823 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:11:07,823 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:11:07,823 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:11:07,823 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:11:07,823 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:11:07,823 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:11:13,531 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 14:11:13,531 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:11:13,531 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 14:11:14,299 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:11:14,299 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:11:14,299 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:11:14,299 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:11:14,299 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:11:14,299 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:11:14,299 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:11:14,299 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:11:14,299 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:11:14,299 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:11:14,299 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:13:29,680 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 14:13:29,680 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:13:29,680 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 14:13:30,453 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:13:30,453 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:13:30,453 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:13:30,453 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:13:30,453 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:13:30,453 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:13:30,453 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:13:30,453 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:13:30,453 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:13:30,453 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:13:30,453 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:19:27,627 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 14:19:27,627 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:19:27,627 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 14:19:28,401 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:19:28,401 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:19:28,401 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:19:28,401 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:19:28,401 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:19:28,401 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:19:28,401 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:19:28,401 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:19:28,401 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:19:28,401 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:19:28,401 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:23:38,972 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 14:23:38,972 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:23:38,972 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 14:23:39,761 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:23:39,761 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:23:39,761 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:23:39,761 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:23:39,761 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:23:39,761 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:23:39,761 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:23:39,761 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:23:39,761 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:23:39,761 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:23:39,761 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:35:47,757 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 14:35:47,757 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:35:47,757 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 14:35:48,558 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:35:48,558 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:35:48,558 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:35:48,558 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:35:48,559 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:35:48,559 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:35:48,559 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:35:48,559 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:35:48,559 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:35:48,559 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:35:48,560 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 14:37:47,339 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:37:47,339 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:37:47,339 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:37:47,339 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:37:47,339 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:37:47,339 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:37:47,339 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:37:47,339 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:37:47,339 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:37:47,339 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:37:47,339 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-06 14:37:47,339 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-06 14:37:47,339 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-06 14:37:47,339 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-06 14:37:47,339 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-06 14:37:47,339 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-06 14:37:47,339 - root - INFO - Applied set_source to Source, result=None
+2025-04-06 14:37:47,339 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-06 14:37:47,339 - root - INFO - Applied set_flux to Source, result=None
+2025-04-06 14:37:47,339 - root - INFO - Successfully configured Source: name='M87'
+2025-04-06 14:37:47,339 - root - INFO - Initialized Sources with 1 sources
+2025-04-06 14:37:47,339 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:37:47,339 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:37:47,339 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:37:47,339 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:37:47,339 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:37:47,939 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 14:37:47,945 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'e:\Python\pAstroCORE\final_orbit370.txt', diameter=1.0 m
+2025-04-06 14:37:47,945 - root - INFO - Processing sequence of 4 requests
+2025-04-06 14:37:47,945 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-06 14:37:47,945 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:37:47,947 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-06 14:37:47,947 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-06 14:37:47,947 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:37:47,947 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-06 14:37:47,947 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-06 14:37:47,947 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:37:47,947 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-06 14:37:48,526 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 14:37:48,526 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-06 14:37:48,526 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-06 14:37:48,526 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-06 14:37:48,526 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-06 14:37:48,526 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-06 14:37:48,526 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-06 14:37:48,526 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-06 14:37:48,526 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-06 14:37:48,526 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-06 14:37:48,526 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-06 14:37:48,526 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-06 14:37:48,526 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-06 14:37:48,526 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-06 14:37:48,526 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-06 14:37:48,526 - root - INFO - Initialized Scan with start=2025-04-06T11:37:48.526, duration=1.0, OFF SOURCE
+2025-04-06 14:37:48,526 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-06 14:37:48,526 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-06 14:37:48,526 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-06 14:37:48,526 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 14:37:48,526 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 14:37:48,526 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:37:48,526 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 14:37:48,526 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 14:37:48,526 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 14:37:48,526 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 14:37:48,526 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:37:48,526 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 14:37:48,526 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 14:37:48,526 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 14:37:48,526 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:37:48,526 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-06 14:37:48,526 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 14:37:48,526 - root - INFO - Processing sequence of 2 requests
+2025-04-06 14:37:48,526 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 14:37:48,526 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 14:37:48,526 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 14:37:48,843 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-06 14:37:48,843 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 14:37:48,843 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-06 14:37:48,843 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-06 14:37:48,843 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 14:37:48,843 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 14:37:48,843 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:37:48,843 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:37:48,843 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-06 14:37:48,843 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-06 14:37:48,843 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:37:48,843 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:37:48,843 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:37:48,843 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:37:48,843 - root - INFO - Processing sequence of 8 requests
+2025-04-06 14:37:48,843 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:37:48,843 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:37:48,843 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:37:48,843 - root - INFO - Interpolating orbit for SPACE370
+2025-04-06 14:37:48,843 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 14:37:48,843 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 14:37:57,969 - root - INFO - Calculated telescope positions for 1 scans in 'M87_SPACE_OBS'
+2025-04-06 14:37:57,969 - root - INFO - Stored calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:37:57,969 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 9.132 s
+2025-04-06 14:37:57,969 - root - INFO - Processing visibility for scan 0: 4 telescopes
+2025-04-06 14:38:16,087 - root - INFO - Stored calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:16,087 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 27.247 s
+2025-04-06 14:38:16,087 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:16,087 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 14:38:16,087 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:38:17,252 - root - INFO - Stored calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,252 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 28.406 s
+2025-04-06 14:38:17,252 - root - INFO - Recalculating 'mollweide_tracks' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:38:17,252 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,252 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 14:38:17,252 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:38:17,293 - root - INFO - Stored calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,293 - root - INFO - Calculation 'mollweide_tracks' for 'M87_SPACE_OBS' completed in 0.040 s
+2025-04-06 14:38:17,293 - root - INFO - Recalculating 'baseline_projections_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:38:17,293 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,293 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 14:38:17,293 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:38:17,293 - root - INFO - Stored calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,293 - root - INFO - Calculation 'baseline_projections' for 'M87_SPACE_OBS' completed in 0.006 s
+2025-04-06 14:38:17,293 - root - INFO - Recalculating 'beam_pattern_f0' for 'M87_SINGLE_DISH' with recalculate=False
+2025-04-06 14:38:17,293 - root - INFO - Stored calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 14:38:17,293 - root - INFO - Calculation 'beam_pattern' for 'M87_SINGLE_DISH' completed in 0.001 s
+2025-04-06 14:38:17,293 - root - INFO - Recalculating 'synthesized_beam_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:38:17,293 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,293 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 14:38:17,293 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:38:17,308 - root - INFO - Stored calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,308 - root - INFO - Calculation 'synthesized_beam' for 'M87_SPACE_OBS' completed in 0.014 s
+2025-04-06 14:38:17,308 - root - INFO - Recalculating 'time_on_source' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:38:17,308 - root - INFO - Retrieved calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,308 - root - INFO - Using cached data for 'source_visibility' in 'M87_SPACE_OBS'
+2025-04-06 14:38:17,308 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:38:17,362 - root - INFO - Stored calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:17,362 - root - INFO - Calculation 'time_on_source' for 'M87_SPACE_OBS' completed in 0.051 s
+2025-04-06 14:38:17,362 - root - INFO - Recalculating 'sun_angles' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:38:17,362 - root - ERROR - Failed to calculate Sun angles: ScheduleCalculator._process_sun_angles() takes 5 positional arguments but 6 were given
+2025-04-06 14:38:17,362 - root - INFO - Calculation 'sun_angles' for 'M87_SPACE_OBS' completed in 0.001 s
+2025-04-06 14:38:17,362 - root - INFO - Recalculating 'az_el' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:38:30,584 - root - INFO - Stored calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 14:38:30,585 - root - INFO - Calculation 'az_el' for 'M87_SPACE_OBS' completed in 13.216 s
+2025-04-06 14:40:14,767 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:40:14,767 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:40:14,767 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:40:14,767 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:40:14,767 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:40:14,767 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:40:14,780 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:40:14,780 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:40:14,780 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:40:14,780 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:40:14,780 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-06 14:40:14,780 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-06 14:40:14,780 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-06 14:40:14,780 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-06 14:40:14,780 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-06 14:40:14,780 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-06 14:40:14,780 - root - INFO - Applied set_source to Source, result=None
+2025-04-06 14:40:14,780 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-06 14:40:14,780 - root - INFO - Applied set_flux to Source, result=None
+2025-04-06 14:40:14,780 - root - INFO - Successfully configured Source: name='M87'
+2025-04-06 14:40:14,780 - root - INFO - Initialized Sources with 1 sources
+2025-04-06 14:40:14,780 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:40:14,780 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:40:14,780 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:40:14,780 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:40:14,780 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:40:15,361 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 14:40:15,361 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'e:\Python\pAstroCORE\final_orbit370.txt', diameter=1.0 m
+2025-04-06 14:40:15,378 - root - INFO - Processing sequence of 4 requests
+2025-04-06 14:40:15,378 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-06 14:40:15,378 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:40:15,378 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-06 14:40:15,378 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-06 14:40:15,378 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:40:15,378 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-06 14:40:15,378 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-06 14:40:15,378 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:40:15,378 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-06 14:40:15,953 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 14:40:15,953 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-06 14:40:15,968 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-06 14:40:15,968 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-06 14:40:15,968 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-06 14:40:15,968 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-06 14:40:15,968 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-06 14:40:15,968 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-06 14:40:15,968 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-06 14:40:15,968 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-06 14:40:15,968 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-06 14:40:15,968 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-06 14:40:15,968 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-06 14:40:15,968 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-06 14:40:15,968 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-06 14:40:15,968 - root - INFO - Initialized Scan with start=2025-04-06T11:40:15.969, duration=1.0, OFF SOURCE
+2025-04-06 14:40:15,968 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-06 14:40:15,968 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-06 14:40:15,968 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-06 14:40:15,968 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 14:40:15,968 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 14:40:15,968 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:40:15,968 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 14:40:15,968 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 14:40:15,968 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 14:40:15,968 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 14:40:15,968 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:40:15,968 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 14:40:15,968 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 14:40:15,968 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 14:40:15,968 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:40:15,968 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-06 14:40:15,968 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 14:40:15,968 - root - INFO - Processing sequence of 2 requests
+2025-04-06 14:40:15,968 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 14:40:15,968 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 14:40:15,968 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 14:40:16,290 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-06 14:40:16,290 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 14:40:16,290 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-06 14:40:16,290 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-06 14:40:16,290 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 14:40:16,290 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 14:40:16,290 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:40:16,290 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:40:16,290 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-06 14:40:16,290 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-06 14:40:16,290 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:40:16,290 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:40:16,290 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:40:16,290 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:40:16,290 - root - INFO - Processing sequence of 8 requests
+2025-04-06 14:40:16,290 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:40:16,290 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:40:16,290 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:40:16,290 - root - INFO - Interpolating orbit for SPACE370
+2025-04-06 14:40:16,290 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 14:40:16,290 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 14:40:25,134 - root - INFO - Calculated telescope positions for 1 scans in 'M87_SPACE_OBS'
+2025-04-06 14:40:25,134 - root - INFO - Stored calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:25,134 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 8.844 s
+2025-04-06 14:40:25,134 - root - INFO - Processing visibility for scan 0: 4 telescopes
+2025-04-06 14:40:45,613 - root - INFO - Stored calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:45,614 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 29.319 s
+2025-04-06 14:40:45,614 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:45,614 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 14:40:45,614 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:40:47,763 - root - INFO - Stored calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:47,763 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 31.483 s
+2025-04-06 14:40:47,778 - root - INFO - Recalculating 'mollweide_tracks' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:40:47,778 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:47,778 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 14:40:47,778 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:40:47,866 - root - INFO - Stored calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:47,867 - root - INFO - Calculation 'mollweide_tracks' for 'M87_SPACE_OBS' completed in 0.089 s
+2025-04-06 14:40:47,867 - root - INFO - Recalculating 'baseline_projections_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:40:47,868 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:47,868 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 14:40:47,868 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:40:47,874 - root - INFO - Stored calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:47,874 - root - INFO - Calculation 'baseline_projections' for 'M87_SPACE_OBS' completed in 0.011 s
+2025-04-06 14:40:47,874 - root - INFO - Recalculating 'beam_pattern_f0' for 'M87_SINGLE_DISH' with recalculate=False
+2025-04-06 14:40:47,874 - root - INFO - Stored calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 14:40:47,874 - root - INFO - Calculation 'beam_pattern' for 'M87_SINGLE_DISH' completed in 0.003 s
+2025-04-06 14:40:47,874 - root - INFO - Recalculating 'synthesized_beam_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:40:47,874 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:47,874 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 14:40:47,874 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:40:47,897 - root - INFO - Stored calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:47,897 - root - INFO - Calculation 'synthesized_beam' for 'M87_SPACE_OBS' completed in 0.022 s
+2025-04-06 14:40:47,897 - root - INFO - Recalculating 'time_on_source' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:40:47,897 - root - INFO - Retrieved calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:47,897 - root - INFO - Using cached data for 'source_visibility' in 'M87_SPACE_OBS'
+2025-04-06 14:40:47,897 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:40:48,015 - root - INFO - Stored calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 14:40:48,015 - root - INFO - Calculation 'time_on_source' for 'M87_SPACE_OBS' completed in 0.113 s
+2025-04-06 14:40:48,015 - root - INFO - Recalculating 'sun_angles' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:41:17,818 - root - INFO - Stored calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:17,819 - root - INFO - Calculation 'sun_angles' for 'M87_SPACE_OBS' completed in 29.802 s
+2025-04-06 14:41:17,819 - root - INFO - Recalculating 'az_el' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:41:27,046 - root - INFO - Stored calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:27,046 - root - INFO - Calculation 'az_el' for 'M87_SPACE_OBS' completed in 9.228 s
+2025-04-06 14:41:27,046 - root - INFO - Processing sequence of 8 requests
+2025-04-06 14:41:27,209 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:27,500 - root - INFO - Visualization saved to 'uv_coverage_m87_space_with_conjugates.png'
+2025-04-06 14:41:29,652 - root - INFO - Retrieved calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:29,808 - root - INFO - Visualization saved to 'mollweide_track_m87_space_matplotlib_mollweide_j2000_fixed.png'
+2025-04-06 14:41:30,822 - root - INFO - Retrieved calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:31,368 - root - INFO - Visualization saved to 'baseline_projections_m87_space.png'
+2025-04-06 14:41:32,452 - root - INFO - Retrieved calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 14:41:32,622 - root - INFO - Visualization saved to 'beam_pattern_m87_single_dish.png'
+2025-04-06 14:41:33,682 - root - INFO - Retrieved calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:34,210 - root - INFO - Visualization saved to 'synthesized_beam_2d_m87_vlbi.png'
+2025-04-06 14:41:35,163 - root - INFO - Retrieved calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:35,342 - root - INFO - Visualization saved to 'time_on_source_m87_space.png'
+2025-04-06 14:41:36,180 - root - INFO - Retrieved calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:36,449 - root - INFO - Visualization saved to 'sun_angles_m87_space.png'
+2025-04-06 14:41:39,134 - root - INFO - Retrieved calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 14:41:39,561 - root - INFO - Visualization saved to 'az_el_m87_space.png'
+2025-04-06 14:56:01,874 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:56:01,874 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:56:01,874 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:56:01,874 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:56:01,874 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:56:01,874 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:56:01,874 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:56:01,874 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:56:01,874 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:56:01,874 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:56:01,874 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-06 14:56:01,874 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-06 14:56:01,874 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-06 14:56:01,874 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-06 14:56:01,874 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-06 14:56:01,874 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-06 14:56:01,874 - root - INFO - Applied set_source to Source, result=None
+2025-04-06 14:56:01,874 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-06 14:56:01,874 - root - INFO - Applied set_flux to Source, result=None
+2025-04-06 14:56:01,874 - root - INFO - Successfully configured Source: name='M87'
+2025-04-06 14:56:01,874 - root - INFO - Initialized Sources with 1 sources
+2025-04-06 14:56:01,874 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:56:01,874 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:56:01,874 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:56:01,874 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:56:01,874 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:56:02,479 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 14:56:02,479 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'e:\Python\pAstroCORE\final_orbit370.txt', diameter=1.0 m
+2025-04-06 14:56:02,479 - root - INFO - Processing sequence of 4 requests
+2025-04-06 14:56:02,479 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-06 14:56:02,479 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:56:02,479 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-06 14:56:02,479 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-06 14:56:02,479 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:56:02,479 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-06 14:56:02,479 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-06 14:56:02,491 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:56:02,491 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-06 14:56:03,067 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 14:56:03,067 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-06 14:56:03,067 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-06 14:56:03,067 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-06 14:56:03,067 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-06 14:56:03,067 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-06 14:56:03,067 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-06 14:56:03,067 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-06 14:56:03,067 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-06 14:56:03,067 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-06 14:56:03,067 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-06 14:56:03,067 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-06 14:56:03,067 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-06 14:56:03,067 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-06 14:56:03,067 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-06 14:56:03,067 - root - INFO - Initialized Scan with start=2025-04-06T11:56:03.067, duration=1.0, OFF SOURCE
+2025-04-06 14:56:03,067 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-06 14:56:03,067 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-06 14:56:03,067 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-06 14:56:03,067 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 14:56:03,067 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 14:56:03,067 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:56:03,067 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 14:56:03,067 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 14:56:03,067 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 14:56:03,067 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 14:56:03,067 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:56:03,067 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 14:56:03,067 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 14:56:03,067 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 14:56:03,067 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:56:03,067 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-06 14:56:03,067 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 14:56:03,067 - root - INFO - Processing sequence of 2 requests
+2025-04-06 14:56:03,067 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 14:56:03,067 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 14:56:03,067 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 14:56:03,393 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-06 14:56:03,393 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 14:56:03,393 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-06 14:56:03,393 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-06 14:56:03,393 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 14:56:03,393 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 14:56:03,398 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:56:03,398 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 14:56:03,398 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-06 14:56:03,398 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-06 14:56:03,399 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:56:03,399 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:56:03,399 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:56:03,399 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 14:56:03,399 - root - INFO - Processing sequence of 8 requests
+2025-04-06 14:56:03,399 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:56:03,399 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:56:03,399 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:56:03,399 - root - INFO - Interpolating orbit for SPACE370
+2025-04-06 14:56:03,400 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 14:56:03,401 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 14:56:12,520 - root - INFO - Calculated telescope positions for 1 scans in 'M87_SPACE_OBS'
+2025-04-06 14:56:12,520 - root - INFO - Stored calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:12,520 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 9.125 s
+2025-04-06 14:56:12,520 - root - INFO - Processing visibility for scan 0: 4 telescopes
+2025-04-06 14:56:31,155 - root - INFO - Stored calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:31,155 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 27.760 s
+2025-04-06 14:56:31,155 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:31,155 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 14:56:31,155 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.001 s
+2025-04-06 14:56:33,310 - root - INFO - Stored calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,310 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 29.919 s
+2025-04-06 14:56:33,310 - root - INFO - Recalculating 'mollweide_tracks' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:56:33,310 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,310 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 14:56:33,310 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:56:33,422 - root - INFO - Stored calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,423 - root - INFO - Calculation 'mollweide_tracks' for 'M87_SPACE_OBS' completed in 0.105 s
+2025-04-06 14:56:33,423 - root - INFO - Recalculating 'baseline_projections_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:56:33,424 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,424 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 14:56:33,424 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:56:33,434 - root - INFO - Stored calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,435 - root - INFO - Calculation 'baseline_projections' for 'M87_SPACE_OBS' completed in 0.012 s
+2025-04-06 14:56:33,435 - root - INFO - Recalculating 'beam_pattern_f0' for 'M87_SINGLE_DISH' with recalculate=False
+2025-04-06 14:56:33,436 - root - INFO - Stored calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 14:56:33,436 - root - INFO - Calculation 'beam_pattern' for 'M87_SINGLE_DISH' completed in 0.001 s
+2025-04-06 14:56:33,436 - root - INFO - Recalculating 'synthesized_beam_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:56:33,437 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,437 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 14:56:33,437 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:56:33,459 - root - INFO - Stored calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,461 - root - INFO - Calculation 'synthesized_beam' for 'M87_SPACE_OBS' completed in 0.024 s
+2025-04-06 14:56:33,462 - root - INFO - Recalculating 'time_on_source' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:56:33,462 - root - INFO - Retrieved calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,462 - root - INFO - Using cached data for 'source_visibility' in 'M87_SPACE_OBS'
+2025-04-06 14:56:33,462 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 14:56:33,580 - root - INFO - Stored calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 14:56:33,581 - root - INFO - Calculation 'time_on_source' for 'M87_SPACE_OBS' completed in 0.120 s
+2025-04-06 14:56:33,581 - root - INFO - Recalculating 'sun_angles' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:57:02,602 - root - INFO - Stored calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:02,602 - root - INFO - Calculation 'sun_angles' for 'M87_SPACE_OBS' completed in 29.024 s
+2025-04-06 14:57:02,602 - root - INFO - Recalculating 'az_el' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 14:57:15,506 - root - INFO - Stored calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:15,506 - root - INFO - Calculation 'az_el' for 'M87_SPACE_OBS' completed in 12.903 s
+2025-04-06 14:57:15,506 - root - INFO - Processing sequence of 8 requests
+2025-04-06 14:57:15,739 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:16,227 - root - INFO - Visualization saved to 'uv_coverage_m87_space_with_conjugates.png'
+2025-04-06 14:57:28,053 - root - INFO - Retrieved calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:28,387 - root - INFO - Visualization saved to 'mollweide_track_m87_space_matplotlib_mollweide_j2000_fixed.png'
+2025-04-06 14:57:29,535 - root - INFO - Retrieved calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:30,795 - root - INFO - Visualization saved to 'baseline_projections_m87_space.png'
+2025-04-06 14:57:31,783 - root - INFO - Retrieved calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 14:57:32,014 - root - INFO - Visualization saved to 'beam_pattern_m87_single_dish.png'
+2025-04-06 14:57:33,018 - root - INFO - Retrieved calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:33,534 - root - INFO - Visualization saved to 'synthesized_beam_2d_m87_vlbi.png'
+2025-04-06 14:57:34,548 - root - INFO - Retrieved calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:34,730 - root - INFO - Visualization saved to 'time_on_source_m87_space.png'
+2025-04-06 14:57:35,698 - root - INFO - Retrieved calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:35,975 - root - INFO - Visualization saved to 'sun_angles_m87_space.png'
+2025-04-06 14:57:36,950 - root - INFO - Retrieved calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 14:57:37,363 - root - INFO - Visualization saved to 'az_el_m87_space.png'
+2025-04-06 14:59:21,796 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 14:59:21,796 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 14:59:21,796 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 14:59:21,796 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 14:59:21,796 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 14:59:21,796 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 14:59:21,796 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 14:59:21,796 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 14:59:21,798 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 14:59:21,798 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 14:59:21,798 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-06 14:59:21,798 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-06 14:59:21,798 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-06 14:59:21,798 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-06 14:59:21,798 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-06 14:59:21,799 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-06 14:59:21,799 - root - INFO - Applied set_source to Source, result=None
+2025-04-06 14:59:21,799 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-06 14:59:21,799 - root - INFO - Applied set_flux to Source, result=None
+2025-04-06 14:59:21,799 - root - INFO - Successfully configured Source: name='M87'
+2025-04-06 14:59:21,799 - root - INFO - Initialized Sources with 1 sources
+2025-04-06 14:59:21,799 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 14:59:21,799 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:59:21,799 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:59:21,799 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:59:21,799 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 14:59:22,395 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 14:59:22,395 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'e:\Python\pAstroCORE\final_orbit370.txt', diameter=1.0 m
+2025-04-06 14:59:22,395 - root - INFO - Processing sequence of 4 requests
+2025-04-06 14:59:22,395 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-06 14:59:22,395 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:59:22,395 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-06 14:59:22,395 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-06 14:59:22,395 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:59:22,406 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-06 14:59:22,406 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-06 14:59:22,406 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 14:59:22,406 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-06 14:59:22,982 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 14:59:22,982 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-06 14:59:22,982 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-06 14:59:22,982 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-06 14:59:22,982 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-06 14:59:22,982 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-06 14:59:22,982 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-06 14:59:22,982 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-06 14:59:22,982 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-06 14:59:22,982 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-06 14:59:22,982 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-06 14:59:22,982 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-06 14:59:22,982 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-06 14:59:22,982 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-06 14:59:22,982 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-06 14:59:22,982 - root - INFO - Initialized Scan with start=2025-04-06T11:59:22.982, duration=1.0, OFF SOURCE
+2025-04-06 14:59:22,982 - root - ERROR - Invalid method attributes for Scan object
+2025-04-06 14:59:22,982 - root - WARNING - No valid methods provided for Scan configuration
+2025-04-06 15:08:53,762 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:08:53,762 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:08:53,762 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:08:53,762 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:08:53,762 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:08:53,762 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:08:53,762 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:08:53,762 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:08:53,762 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:08:53,762 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:08:53,762 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-06 15:08:53,762 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-06 15:08:53,762 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-06 15:08:53,762 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-06 15:08:53,762 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-06 15:08:53,762 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-06 15:08:53,762 - root - INFO - Applied set_source to Source, result=None
+2025-04-06 15:08:53,762 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-06 15:08:53,762 - root - INFO - Applied set_flux to Source, result=None
+2025-04-06 15:08:53,762 - root - INFO - Successfully configured Source: name='M87'
+2025-04-06 15:08:53,762 - root - INFO - Initialized Sources with 1 sources
+2025-04-06 15:08:53,762 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:08:53,762 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:08:53,762 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:08:53,762 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:08:53,762 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:08:54,357 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 15:08:54,357 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'e:\Python\pAstroCORE\final_orbit370.txt', diameter=1.0 m
+2025-04-06 15:08:54,357 - root - INFO - Processing sequence of 4 requests
+2025-04-06 15:08:54,357 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-06 15:08:54,357 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:08:54,357 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-06 15:08:54,368 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-06 15:08:54,368 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:08:54,368 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-06 15:08:54,368 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-06 15:08:54,368 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:08:54,368 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-06 15:08:54,953 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 15:08:54,953 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-06 15:08:54,953 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-06 15:08:54,953 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-06 15:08:54,953 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-06 15:08:54,953 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-06 15:08:54,953 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-06 15:08:54,953 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-06 15:08:54,953 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-06 15:08:54,953 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-06 15:08:54,953 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-06 15:08:54,953 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-06 15:08:54,953 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-06 15:08:54,953 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-06 15:08:54,953 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-06 15:08:54,953 - root - INFO - Initialized Scan with start=2025-04-06T12:08:54.953, duration=1.0, OFF SOURCE
+2025-04-06 15:08:54,953 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-06 15:08:54,953 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-06 15:08:54,953 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-06 15:08:54,953 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 15:08:54,953 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 15:08:54,953 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:08:54,953 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 15:08:54,953 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 15:08:54,953 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 15:08:54,953 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 15:08:54,953 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:08:54,953 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 15:08:54,953 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 15:08:54,953 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 15:08:54,953 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:08:54,953 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-06 15:08:54,953 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 15:08:54,953 - root - INFO - Processing sequence of 2 requests
+2025-04-06 15:08:54,953 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 15:08:54,953 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 15:08:54,953 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 15:08:55,272 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-06 15:08:55,272 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 15:08:55,272 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-06 15:08:55,272 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-06 15:08:55,272 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 15:08:55,272 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 15:08:55,272 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:08:55,272 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:08:55,272 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-06 15:08:55,272 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-06 15:08:55,272 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:08:55,272 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:08:55,272 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:08:55,272 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:08:55,272 - root - INFO - Processing sequence of 8 requests
+2025-04-06 15:08:55,272 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:08:55,272 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:08:55,272 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:08:55,272 - root - INFO - Interpolating orbit for SPACE370
+2025-04-06 15:08:55,272 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 15:08:55,272 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 15:09:04,318 - root - INFO - Calculated telescope positions for 1 scans in 'M87_SPACE_OBS'
+2025-04-06 15:09:04,318 - root - INFO - Stored calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:04,318 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 9.043 s
+2025-04-06 15:09:04,318 - root - INFO - Processing visibility for scan 0: 4 telescopes
+2025-04-06 15:09:22,239 - root - INFO - Stored calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:22,239 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 26.968 s
+2025-04-06 15:09:22,239 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:22,239 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 15:09:22,239 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:09:23,323 - root - INFO - Stored calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,323 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 28.062 s
+2025-04-06 15:09:23,323 - root - INFO - Recalculating 'mollweide_tracks' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:09:23,323 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,323 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 15:09:23,323 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:09:23,377 - root - INFO - Stored calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,377 - root - INFO - Calculation 'mollweide_tracks' for 'M87_SPACE_OBS' completed in 0.040 s
+2025-04-06 15:09:23,377 - root - INFO - Recalculating 'baseline_projections_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:09:23,377 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,377 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 15:09:23,377 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:09:23,380 - root - INFO - Stored calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,380 - root - INFO - Calculation 'baseline_projections' for 'M87_SPACE_OBS' completed in 0.006 s
+2025-04-06 15:09:23,380 - root - INFO - Recalculating 'beam_pattern_f0' for 'M87_SINGLE_DISH' with recalculate=False
+2025-04-06 15:09:23,380 - root - INFO - Stored calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 15:09:23,380 - root - INFO - Calculation 'beam_pattern' for 'M87_SINGLE_DISH' completed in 0.001 s
+2025-04-06 15:09:23,384 - root - INFO - Recalculating 'synthesized_beam_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:09:23,384 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,384 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 15:09:23,384 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:09:23,395 - root - INFO - Stored calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,395 - root - INFO - Calculation 'synthesized_beam' for 'M87_SPACE_OBS' completed in 0.013 s
+2025-04-06 15:09:23,395 - root - INFO - Recalculating 'time_on_source' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:09:23,395 - root - INFO - Retrieved calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,395 - root - INFO - Using cached data for 'source_visibility' in 'M87_SPACE_OBS'
+2025-04-06 15:09:23,395 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:09:23,441 - root - INFO - Stored calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:23,441 - root - INFO - Calculation 'time_on_source' for 'M87_SPACE_OBS' completed in 0.051 s
+2025-04-06 15:09:23,441 - root - INFO - Recalculating 'sun_angles' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:09:39,186 - root - INFO - Stored calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:39,186 - root - INFO - Calculation 'sun_angles' for 'M87_SPACE_OBS' completed in 15.741 s
+2025-04-06 15:09:39,186 - root - INFO - Recalculating 'az_el' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:09:46,272 - root - INFO - Stored calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:46,272 - root - INFO - Calculation 'az_el' for 'M87_SPACE_OBS' completed in 7.087 s
+2025-04-06 15:09:46,272 - root - INFO - Processing sequence of 8 requests
+2025-04-06 15:09:46,433 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:46,770 - root - INFO - Visualization saved to 'uv_coverage_m87_space_with_conjugates.png'
+2025-04-06 15:09:50,816 - root - INFO - Retrieved calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:50,980 - root - INFO - Visualization saved to 'mollweide_track_m87_space_matplotlib_mollweide_j2000_fixed.png'
+2025-04-06 15:09:52,106 - root - INFO - Retrieved calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:53,153 - root - INFO - Visualization saved to 'baseline_projections_m87_space.png'
+2025-04-06 15:09:54,426 - root - INFO - Retrieved calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 15:09:54,603 - root - INFO - Visualization saved to 'beam_pattern_m87_single_dish.png'
+2025-04-06 15:09:56,141 - root - INFO - Retrieved calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:56,665 - root - INFO - Visualization saved to 'synthesized_beam_2d_m87_vlbi.png'
+2025-04-06 15:09:57,940 - root - INFO - Retrieved calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 15:09:58,500 - root - INFO - Visualization saved to 'time_on_source_m87_space.png'
+2025-04-06 15:10:00,569 - root - INFO - Retrieved calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 15:10:00,850 - root - INFO - Visualization saved to 'sun_angles_m87_space.png'
+2025-04-06 15:10:01,862 - root - INFO - Retrieved calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 15:10:02,283 - root - INFO - Visualization saved to 'az_el_m87_space.png'
+2025-04-06 15:10:16,397 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 15:10:16,397 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:10:16,397 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 15:10:17,198 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:10:17,198 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:10:17,198 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:10:17,198 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:10:17,198 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:10:17,198 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:10:17,198 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:10:17,198 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:10:17,198 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:10:17,198 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:10:17,198 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:13:23,024 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 15:13:23,024 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:13:23,024 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 15:13:23,807 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:13:23,807 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:13:23,807 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:13:23,807 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:13:23,807 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:13:23,807 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:13:23,807 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:13:23,807 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:13:23,807 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:13:23,807 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:13:23,807 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:21:36,151 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 15:21:36,151 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:21:36,151 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 15:21:36,926 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:21:36,926 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:21:36,926 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:21:36,926 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:21:36,926 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:21:36,926 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:21:36,926 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:21:36,926 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:21:36,926 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:21:36,926 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:21:36,926 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:29:14,459 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:29:14,459 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:29:14,459 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:29:14,459 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:29:14,459 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:29:14,459 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:29:14,459 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:29:14,459 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:29:14,459 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:29:14,459 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:29:14,459 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-06 15:29:14,459 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-06 15:29:14,459 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-06 15:29:14,459 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-06 15:29:14,459 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-06 15:29:14,459 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-06 15:29:14,459 - root - INFO - Applied set_source to Source, result=None
+2025-04-06 15:29:14,459 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-06 15:29:14,459 - root - INFO - Applied set_flux to Source, result=None
+2025-04-06 15:29:14,459 - root - INFO - Successfully configured Source: name='M87'
+2025-04-06 15:29:14,459 - root - INFO - Initialized Sources with 1 sources
+2025-04-06 15:29:14,459 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:29:14,459 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:29:14,459 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:29:14,459 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:29:14,459 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:29:15,046 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 15:29:15,062 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'e:\Python\pAstroCORE\final_orbit370.txt', diameter=1.0 m
+2025-04-06 15:29:15,062 - root - INFO - Processing sequence of 4 requests
+2025-04-06 15:29:15,062 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-06 15:29:15,062 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:29:15,062 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-06 15:29:15,064 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-06 15:29:15,064 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:29:15,064 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-06 15:29:15,064 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-06 15:29:15,064 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:29:15,064 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-06 15:29:15,639 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 15:29:15,639 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-06 15:29:15,639 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-06 15:29:15,639 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-06 15:29:15,639 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-06 15:29:15,639 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-06 15:29:15,639 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-06 15:29:15,639 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-06 15:29:15,639 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-06 15:29:15,639 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-06 15:29:15,639 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-06 15:29:15,639 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-06 15:29:15,639 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-06 15:29:15,639 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-06 15:29:15,639 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-06 15:29:15,639 - root - INFO - Initialized Scan with start=2025-04-06T12:29:15.640, duration=1.0, OFF SOURCE
+2025-04-06 15:29:15,639 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-06 15:29:15,639 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-06 15:29:15,639 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-06 15:29:15,639 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 15:29:15,639 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 15:29:15,639 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:29:15,639 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 15:29:15,639 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 15:29:15,639 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 15:29:15,639 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 15:29:15,639 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:29:15,639 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 15:29:15,639 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 15:29:15,639 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 15:29:15,639 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:29:15,639 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-06 15:29:15,639 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 15:29:15,639 - root - INFO - Processing sequence of 2 requests
+2025-04-06 15:29:15,639 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 15:29:15,639 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 15:29:15,639 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 15:29:15,964 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-06 15:29:15,964 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 15:29:15,964 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-06 15:29:15,964 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-06 15:29:15,964 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 15:29:15,964 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 15:29:15,964 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:29:15,964 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:29:15,964 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-06 15:29:15,964 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-06 15:29:15,964 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:29:15,964 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:29:15,964 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:29:15,964 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:29:15,964 - root - INFO - Processing sequence of 8 requests
+2025-04-06 15:29:15,964 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:29:15,964 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:29:15,964 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:29:15,964 - root - INFO - Interpolating orbit for SPACE370
+2025-04-06 15:29:15,964 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 15:29:15,964 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 15:29:36,681 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 15:29:36,681 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:29:36,681 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 15:29:37,468 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:29:37,468 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:29:37,481 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:29:37,481 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:29:37,481 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:29:37,481 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:29:37,481 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:29:37,482 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:29:37,482 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:29:37,482 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:29:37,482 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:38:30,268 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:38:30,269 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:38:30,269 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:38:30,269 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:38:30,269 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:38:30,269 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:38:30,269 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:38:30,269 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:38:30,269 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:38:30,270 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:38:30,270 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-06 15:38:30,270 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-06 15:38:30,270 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-06 15:38:30,270 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-06 15:38:30,270 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-06 15:38:30,270 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-06 15:38:30,270 - root - INFO - Applied set_source to Source, result=None
+2025-04-06 15:38:30,270 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-06 15:38:30,270 - root - INFO - Applied set_flux to Source, result=None
+2025-04-06 15:38:30,270 - root - INFO - Successfully configured Source: name='M87'
+2025-04-06 15:38:30,270 - root - INFO - Initialized Sources with 1 sources
+2025-04-06 15:38:30,270 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:38:30,271 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:38:30,271 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:38:30,271 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:38:30,271 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:38:30,863 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 15:38:30,867 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'e:\Python\pAstroCORE\final_orbit370.txt', diameter=1.0 m
+2025-04-06 15:38:30,867 - root - INFO - Processing sequence of 4 requests
+2025-04-06 15:38:30,867 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-06 15:38:30,867 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:38:30,868 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-06 15:38:30,870 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-06 15:38:30,870 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:38:30,870 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-06 15:38:30,870 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-06 15:38:30,871 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:38:30,871 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-06 15:38:31,445 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 15:38:31,445 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-06 15:38:31,445 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-06 15:38:31,445 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-06 15:38:31,445 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-06 15:38:31,445 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-06 15:38:31,445 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-06 15:38:31,445 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-06 15:38:31,445 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-06 15:38:31,445 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-06 15:38:31,445 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-06 15:38:31,445 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-06 15:38:31,445 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-06 15:38:31,445 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-06 15:38:31,445 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-06 15:38:31,445 - root - INFO - Initialized Scan with start=2025-04-06T12:38:31.446, duration=1.0, OFF SOURCE
+2025-04-06 15:38:31,445 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-06 15:38:31,445 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-06 15:38:31,445 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-06 15:38:31,445 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 15:38:31,445 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 15:38:31,445 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:38:31,445 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 15:38:31,445 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 15:38:31,445 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 15:38:31,445 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 15:38:31,445 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:38:31,445 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 15:38:31,445 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 15:38:31,445 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 15:38:31,445 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:38:31,445 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-06 15:38:31,445 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 15:38:31,445 - root - INFO - Processing sequence of 2 requests
+2025-04-06 15:38:31,445 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 15:38:31,445 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 15:38:31,445 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 15:38:31,769 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-06 15:38:31,769 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 15:38:31,769 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-06 15:38:31,769 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-06 15:38:31,769 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 15:38:31,769 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 15:38:31,769 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:38:31,769 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:38:31,769 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-06 15:38:31,769 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-06 15:38:31,769 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:38:31,769 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:38:31,769 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:38:31,769 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:38:31,769 - root - INFO - Processing sequence of 8 requests
+2025-04-06 15:38:31,769 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:38:31,769 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:38:31,769 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:38:31,769 - root - INFO - Interpolating orbit for SPACE370
+2025-04-06 15:38:31,769 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 15:38:31,769 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 15:38:41,179 - root - INFO - Calculated telescope positions for 1 scans in 'M87_SPACE_OBS'
+2025-04-06 15:38:41,179 - root - INFO - Stored calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:41,179 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 9.409 s
+2025-04-06 15:38:41,179 - root - INFO - Processing visibility for scan 0: 4 telescopes
+2025-04-06 15:38:58,785 - root - INFO - Stored calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:58,785 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 27.018 s
+2025-04-06 15:38:58,785 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:58,785 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 15:38:58,785 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:38:59,893 - root - INFO - Stored calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:59,893 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 28.122 s
+2025-04-06 15:38:59,893 - root - INFO - Recalculating 'mollweide_tracks' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:38:59,893 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:59,893 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 15:38:59,893 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:38:59,939 - root - INFO - Stored calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:59,939 - root - INFO - Calculation 'mollweide_tracks' for 'M87_SPACE_OBS' completed in 0.039 s
+2025-04-06 15:38:59,939 - root - INFO - Recalculating 'baseline_projections_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:38:59,939 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:59,939 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 15:38:59,939 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:38:59,939 - root - INFO - Stored calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:59,939 - root - INFO - Calculation 'baseline_projections' for 'M87_SPACE_OBS' completed in 0.006 s
+2025-04-06 15:38:59,939 - root - INFO - Recalculating 'beam_pattern_f0' for 'M87_SINGLE_DISH' with recalculate=False
+2025-04-06 15:38:59,939 - root - INFO - Stored calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 15:38:59,946 - root - INFO - Calculation 'beam_pattern' for 'M87_SINGLE_DISH' completed in 0.000 s
+2025-04-06 15:38:59,946 - root - INFO - Recalculating 'synthesized_beam_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:38:59,946 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:59,946 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 15:38:59,946 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:38:59,951 - root - INFO - Stored calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:59,951 - root - INFO - Calculation 'synthesized_beam' for 'M87_SPACE_OBS' completed in 0.013 s
+2025-04-06 15:38:59,951 - root - INFO - Recalculating 'time_on_source' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:38:59,951 - root - INFO - Retrieved calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 15:38:59,951 - root - INFO - Using cached data for 'source_visibility' in 'M87_SPACE_OBS'
+2025-04-06 15:38:59,959 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:39:00,001 - root - INFO - Stored calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:00,001 - root - INFO - Calculation 'time_on_source' for 'M87_SPACE_OBS' completed in 0.050 s
+2025-04-06 15:39:00,001 - root - INFO - Recalculating 'sun_angles' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:39:19,011 - root - INFO - Stored calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:19,011 - root - INFO - Calculation 'sun_angles' for 'M87_SPACE_OBS' completed in 19.002 s
+2025-04-06 15:39:19,011 - root - INFO - Recalculating 'az_el' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:39:31,595 - root - INFO - Stored calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:31,595 - root - INFO - Calculation 'az_el' for 'M87_SPACE_OBS' completed in 12.584 s
+2025-04-06 15:39:31,595 - root - INFO - Processing sequence of 8 requests
+2025-04-06 15:39:31,860 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:32,585 - root - INFO - Visualization saved to 'uv_coverage_m87_space_with_conjugates.png'
+2025-04-06 15:39:35,509 - root - INFO - Retrieved calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:35,812 - root - INFO - Visualization saved to 'mollweide_track_m87_space_matplotlib_mollweide_j2000_fixed.png'
+2025-04-06 15:39:37,448 - root - INFO - Retrieved calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:38,114 - root - INFO - Visualization saved to 'baseline_projections_m87_space.png'
+2025-04-06 15:39:39,454 - root - INFO - Retrieved calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 15:39:39,643 - root - INFO - Visualization saved to 'beam_pattern_m87_single_dish.png'
+2025-04-06 15:39:40,895 - root - INFO - Retrieved calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:41,405 - root - INFO - Visualization saved to 'synthesized_beam_2d_m87_vlbi.png'
+2025-04-06 15:39:42,425 - root - INFO - Retrieved calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:42,603 - root - INFO - Visualization saved to 'time_on_source_m87_space.png'
+2025-04-06 15:39:43,683 - root - INFO - Retrieved calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:43,963 - root - INFO - Visualization saved to 'sun_angles_m87_space.png'
+2025-04-06 15:39:44,786 - root - INFO - Retrieved calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 15:39:45,202 - root - INFO - Visualization saved to 'az_el_m87_space.png'
+2025-04-06 15:39:59,944 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 15:39:59,944 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:39:59,944 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 15:40:00,745 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:40:00,745 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:40:00,745 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:40:00,745 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:40:00,745 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:40:00,745 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:40:00,745 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:40:00,745 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:40:00,745 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:40:00,745 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:40:00,745 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:46:11,548 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-06 15:46:11,548 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:46:11,548 - root - INFO - Created new project 'DefaultProject'
+2025-04-06 15:46:12,329 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:46:12,329 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:46:12,329 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:46:12,329 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:46:12,329 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:46:12,329 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:46:12,329 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:46:12,329 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:46:12,329 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:46:12,329 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:46:12,329 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-06 15:46:49,089 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-06 15:46:49,089 - root - INFO - Initialized Scheduling Configurator
+2025-04-06 15:46:49,089 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-06 15:46:49,089 - root - INFO - Initialized Scheduling Inspector
+2025-04-06 15:46:49,089 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-06 15:46:49,089 - root - INFO - Initialized Scheduling Calculator
+2025-04-06 15:46:49,089 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-06 15:46:49,089 - root - INFO - Initialized Scheduling Visualizer
+2025-04-06 15:46:49,089 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-06 15:46:49,089 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-06 15:46:49,089 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-06 15:46:49,089 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-06 15:46:49,089 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-06 15:46:49,089 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-06 15:46:49,089 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-06 15:46:49,089 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-06 15:46:49,089 - root - INFO - Applied set_source to Source, result=None
+2025-04-06 15:46:49,089 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-06 15:46:49,089 - root - INFO - Applied set_flux to Source, result=None
+2025-04-06 15:46:49,089 - root - INFO - Successfully configured Source: name='M87'
+2025-04-06 15:46:49,089 - root - INFO - Initialized Sources with 1 sources
+2025-04-06 15:46:49,089 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:46:49,089 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:46:49,089 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:46:49,089 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:46:49,089 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-06 15:46:49,685 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 15:46:49,685 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'e:\Python\pAstroCORE\final_orbit370.txt', diameter=1.0 m
+2025-04-06 15:46:49,685 - root - INFO - Processing sequence of 4 requests
+2025-04-06 15:46:49,685 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-06 15:46:49,685 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:46:49,692 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-06 15:46:49,692 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-06 15:46:49,692 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:46:49,692 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-06 15:46:49,692 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-06 15:46:49,692 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-06 15:46:49,693 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-06 15:46:50,263 - root - INFO - Loaded orbit data from 'e:\Python\pAstroCORE\final_orbit370.txt' with 99181 points
+2025-04-06 15:46:50,263 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-06 15:46:50,263 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-06 15:46:50,263 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-06 15:46:50,263 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-06 15:46:50,263 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-06 15:46:50,263 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-06 15:46:50,263 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-06 15:46:50,263 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-06 15:46:50,263 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-06 15:46:50,263 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-06 15:46:50,263 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-06 15:46:50,263 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-06 15:46:50,263 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-06 15:46:50,263 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-06 15:46:50,263 - root - INFO - Initialized Scan with start=2025-04-06T12:46:50.263, duration=1.0, OFF SOURCE
+2025-04-06 15:46:50,263 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-06 15:46:50,263 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-06 15:46:50,263 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-06 15:46:50,263 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 15:46:50,263 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 15:46:50,263 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:46:50,263 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 15:46:50,263 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 15:46:50,263 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 15:46:50,263 - root - INFO - Initialized Sources with 0 sources
+2025-04-06 15:46:50,263 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-06 15:46:50,263 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-06 15:46:50,263 - root - INFO - Initialized Scans with 0 scans
+2025-04-06 15:46:50,263 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 15:46:50,263 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:46:50,263 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-06 15:46:50,263 - root - INFO - Initialized Scans with 1 scans
+2025-04-06 15:46:50,263 - root - INFO - Processing sequence of 2 requests
+2025-04-06 15:46:50,263 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-06 15:46:50,263 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 15:46:50,263 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 15:46:50,581 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-06 15:46:50,581 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-06 15:46:50,581 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-06 15:46:50,581 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-06 15:46:50,581 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-06 15:46:50,581 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-06 15:46:50,581 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:46:50,581 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-06 15:46:50,581 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-06 15:46:50,581 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-06 15:46:50,581 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:46:50,581 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:46:50,581 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:46:50,581 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-06 15:46:50,581 - root - INFO - Processing sequence of 8 requests
+2025-04-06 15:46:50,581 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:46:50,581 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:46:50,581 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:46:50,581 - root - INFO - Interpolating orbit for SPACE370
+2025-04-06 15:46:50,581 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 15:46:50,581 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-06 15:46:59,643 - root - INFO - Calculated telescope positions for 1 scans in 'M87_SPACE_OBS'
+2025-04-06 15:46:59,644 - root - INFO - Stored calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:46:59,644 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 9.054 s
+2025-04-06 15:46:59,644 - root - INFO - Processing visibility for scan 0: 4 telescopes
+2025-04-06 15:47:17,444 - root - INFO - Stored calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:17,445 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 26.855 s
+2025-04-06 15:47:17,445 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:17,445 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 15:47:17,445 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:47:18,524 - root - INFO - Stored calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,524 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 27.935 s
+2025-04-06 15:47:18,524 - root - INFO - Recalculating 'mollweide_tracks' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:47:18,525 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,525 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-06 15:47:18,525 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:47:18,561 - root - INFO - Stored calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,561 - root - INFO - Calculation 'mollweide_tracks' for 'M87_SPACE_OBS' completed in 0.039 s
+2025-04-06 15:47:18,561 - root - INFO - Recalculating 'baseline_projections_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:47:18,561 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,561 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 15:47:18,561 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:47:18,561 - root - INFO - Stored calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,561 - root - INFO - Calculation 'baseline_projections' for 'M87_SPACE_OBS' completed in 0.006 s
+2025-04-06 15:47:18,561 - root - INFO - Recalculating 'beam_pattern_f0' for 'M87_SINGLE_DISH' with recalculate=False
+2025-04-06 15:47:18,570 - root - INFO - Stored calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 15:47:18,571 - root - INFO - Calculation 'beam_pattern' for 'M87_SINGLE_DISH' completed in 0.001 s
+2025-04-06 15:47:18,571 - root - INFO - Recalculating 'synthesized_beam_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:47:18,571 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,571 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-06 15:47:18,571 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:47:18,583 - root - INFO - Stored calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,584 - root - INFO - Calculation 'synthesized_beam' for 'M87_SPACE_OBS' completed in 0.013 s
+2025-04-06 15:47:18,584 - root - INFO - Recalculating 'time_on_source' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:47:18,584 - root - INFO - Retrieved calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,584 - root - INFO - Using cached data for 'source_visibility' in 'M87_SPACE_OBS'
+2025-04-06 15:47:18,584 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-06 15:47:18,632 - root - INFO - Stored calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:18,632 - root - INFO - Calculation 'time_on_source' for 'M87_SPACE_OBS' completed in 0.049 s
+2025-04-06 15:47:18,632 - root - INFO - Recalculating 'sun_angles' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:47:33,976 - root - INFO - Stored calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:33,976 - root - INFO - Calculation 'sun_angles' for 'M87_SPACE_OBS' completed in 15.355 s
+2025-04-06 15:47:33,976 - root - INFO - Recalculating 'az_el' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-06 15:47:41,064 - root - INFO - Stored calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:41,065 - root - INFO - Calculation 'az_el' for 'M87_SPACE_OBS' completed in 7.077 s
+2025-04-06 15:47:41,065 - root - INFO - Processing sequence of 8 requests
+2025-04-06 15:47:41,225 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:41,575 - root - INFO - Visualization saved to 'uv_coverage_m87_space_with_conjugates.png'
+2025-04-06 15:47:44,071 - root - INFO - Retrieved calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:44,236 - root - INFO - Visualization saved to 'mollweide_track_m87_space_matplotlib_mollweide_j2000_fixed.png'
+2025-04-06 15:47:45,191 - root - INFO - Retrieved calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:45,750 - root - INFO - Visualization saved to 'baseline_projections_m87_space.png'
+2025-04-06 15:47:46,702 - root - INFO - Retrieved calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-06 15:47:46,888 - root - INFO - Visualization saved to 'beam_pattern_m87_single_dish.png'
+2025-04-06 15:47:47,776 - root - INFO - Retrieved calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:48,295 - root - INFO - Visualization saved to 'synthesized_beam_2d_m87_vlbi.png'
+2025-04-06 15:47:49,285 - root - INFO - Retrieved calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:49,478 - root - INFO - Visualization saved to 'time_on_source_m87_space.png'
+2025-04-06 15:47:50,402 - root - INFO - Retrieved calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:50,694 - root - INFO - Visualization saved to 'sun_angles_m87_space.png'
+2025-04-06 15:47:52,119 - root - INFO - Retrieved calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-06 15:47:52,540 - root - INFO - Visualization saved to 'az_el_m87_space.png'
+2025-04-07 11:49:10,399 - numexpr.utils - INFO - NumExpr defaulting to 12 threads.
+2025-04-07 11:49:10,746 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-07 11:49:10,746 - root - INFO - Initialized Scheduling Configurator
+2025-04-07 11:49:10,746 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-07 11:49:10,746 - root - INFO - Initialized Scheduling Inspector
+2025-04-07 11:49:10,747 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-07 11:49:10,747 - root - INFO - Initialized Scheduling Calculator
+2025-04-07 11:49:10,747 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-07 11:49:10,747 - root - INFO - Initialized Scheduling Visualizer
+2025-04-07 11:49:10,747 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-07 11:49:10,747 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-07 11:49:10,747 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-07 11:49:10,747 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-07 11:49:10,747 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-07 11:49:10,747 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-07 11:49:10,748 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-07 11:49:10,748 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-07 11:49:10,748 - root - INFO - Applied set_source to Source, result=None
+2025-04-07 11:49:10,748 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-07 11:49:10,748 - root - INFO - Applied set_flux to Source, result=None
+2025-04-07 11:49:10,748 - root - INFO - Successfully configured Source: name='M87'
+2025-04-07 11:49:10,748 - root - INFO - Initialized Sources with 1 sources
+2025-04-07 11:49:10,748 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-07 11:49:10,748 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-07 11:49:10,748 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-07 11:49:10,748 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-07 11:49:10,748 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-07 11:49:10,749 - root - ERROR - Orbit file 'e:\Python\pAstroCORE\final_orbit370.txt' not found
+2025-04-07 11:49:56,269 - root - INFO - Initialized project 'DefaultProject' with 0 items
+2025-04-07 11:49:56,269 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-07 11:49:56,269 - root - INFO - Created new project 'DefaultProject'
+2025-04-07 11:49:56,754 - numexpr.utils - INFO - NumExpr defaulting to 12 threads.
+2025-04-07 11:49:57,038 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-07 11:49:57,038 - root - INFO - Initialized Scheduling Configurator
+2025-04-07 11:49:57,038 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-07 11:49:57,038 - root - INFO - Initialized Scheduling Inspector
+2025-04-07 11:49:57,039 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-07 11:49:57,039 - root - INFO - Initialized Scheduling Calculator
+2025-04-07 11:49:57,039 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-07 11:49:57,039 - root - INFO - Initialized Scheduling Visualizer
+2025-04-07 11:49:57,039 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-07 11:49:57,039 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-07 11:49:57,039 - root - INFO - Retrieved name 'DefaultProject' for project
+2025-04-08 11:00:57,194 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-08 11:00:57,195 - root - INFO - Initialized Scheduling Configurator
+2025-04-08 11:00:57,195 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-08 11:00:57,195 - root - INFO - Initialized Scheduling Inspector
+2025-04-08 11:00:57,195 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-08 11:00:57,195 - root - INFO - Initialized Scheduling Calculator
+2025-04-08 11:00:57,195 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-08 11:00:57,195 - root - INFO - Initialized Scheduling Visualizer
+2025-04-08 11:00:57,195 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-08 11:00:57,196 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-08 11:00:57,196 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-08 11:00:57,196 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-08 11:00:57,196 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-08 11:00:57,196 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-08 11:00:57,196 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-08 11:00:57,196 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-08 11:00:57,196 - root - INFO - Applied set_source to Source, result=None
+2025-04-08 11:00:57,196 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-08 11:00:57,196 - root - INFO - Applied set_flux to Source, result=None
+2025-04-08 11:00:57,196 - root - INFO - Successfully configured Source: name='M87'
+2025-04-08 11:00:57,197 - root - INFO - Initialized Sources with 1 sources
+2025-04-08 11:00:57,197 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:00:57,197 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:00:57,197 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:00:57,197 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:00:57,197 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:00:57,197 - root - ERROR - Orbit file 'e:\Python\pAstroCORE\final_orbit370.txt' not found
+2025-04-08 11:01:52,619 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-08 11:01:52,620 - root - INFO - Initialized Scheduling Configurator
+2025-04-08 11:01:52,620 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-08 11:01:52,620 - root - INFO - Initialized Scheduling Inspector
+2025-04-08 11:01:52,620 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-08 11:01:52,620 - root - INFO - Initialized Scheduling Calculator
+2025-04-08 11:01:52,620 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-08 11:01:52,620 - root - INFO - Initialized Scheduling Visualizer
+2025-04-08 11:01:52,621 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-08 11:01:52,621 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-08 11:01:52,621 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-08 11:01:52,621 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-08 11:01:52,621 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-08 11:01:52,621 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-08 11:01:52,621 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-08 11:01:52,621 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-08 11:01:52,621 - root - INFO - Applied set_source to Source, result=None
+2025-04-08 11:01:52,621 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-08 11:01:52,621 - root - INFO - Applied set_flux to Source, result=None
+2025-04-08 11:01:52,621 - root - INFO - Successfully configured Source: name='M87'
+2025-04-08 11:01:52,621 - root - INFO - Initialized Sources with 1 sources
+2025-04-08 11:01:52,621 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:01:52,621 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:01:52,621 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:01:52,621 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:01:52,621 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:01:53,221 - root - INFO - Loaded orbit data from 'final_orbit370.txt' with 99181 points
+2025-04-08 11:01:53,221 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'final_orbit370.txt', diameter=1.0 m
+2025-04-08 11:01:53,221 - root - INFO - Processing sequence of 4 requests
+2025-04-08 11:01:53,221 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-08 11:01:53,221 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-08 11:01:53,222 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-08 11:01:53,222 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-08 11:01:53,223 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-08 11:01:53,223 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-08 11:01:53,223 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-08 11:01:53,223 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-08 11:01:53,224 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-08 11:01:53,835 - root - INFO - Loaded orbit data from 'final_orbit370.txt' with 99181 points
+2025-04-08 11:01:53,836 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-08 11:01:53,836 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-08 11:01:53,837 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-08 11:01:53,837 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-08 11:01:53,837 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-08 11:01:53,837 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-08 11:01:53,838 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-08 11:01:53,838 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-08 11:01:53,838 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-08 11:01:53,839 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-08 11:01:53,839 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-08 11:01:53,839 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-08 11:01:53,839 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-08 11:01:53,840 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-08 11:01:53,840 - root - INFO - Initialized Scan with start=2025-04-08T08:01:53.840, duration=1.0, OFF SOURCE
+2025-04-08 11:01:53,841 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-08 11:01:53,841 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-08 11:01:53,841 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-08 11:01:53,841 - root - INFO - Initialized Scans with 1 scans
+2025-04-08 11:01:53,842 - root - INFO - Initialized Sources with 0 sources
+2025-04-08 11:01:53,842 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:01:53,842 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-08 11:01:53,842 - root - INFO - Initialized Scans with 0 scans
+2025-04-08 11:01:53,843 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-08 11:01:53,843 - root - INFO - Initialized Sources with 0 sources
+2025-04-08 11:01:53,843 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:01:53,843 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-08 11:01:53,844 - root - INFO - Initialized Scans with 0 scans
+2025-04-08 11:01:53,844 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-08 11:01:53,844 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-08 11:01:53,845 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-08 11:01:53,845 - root - INFO - Initialized Scans with 1 scans
+2025-04-08 11:01:53,845 - root - INFO - Processing sequence of 2 requests
+2025-04-08 11:01:53,845 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-08 11:01:53,846 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-08 11:01:53,846 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-08 11:01:54,190 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-08 11:01:54,191 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-08 11:01:54,191 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-08 11:01:54,192 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-08 11:01:54,192 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-08 11:01:54,192 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-08 11:01:54,193 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-08 11:01:54,193 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-08 11:01:54,193 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-08 11:01:54,194 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-08 11:01:54,194 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-08 11:01:54,194 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-08 11:01:54,194 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-08 11:01:54,195 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-08 11:01:54,195 - root - INFO - Processing sequence of 8 requests
+2025-04-08 11:01:54,195 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:01:54,195 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:01:54,196 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:01:54,196 - root - INFO - Interpolating orbit for SPACE370
+2025-04-08 11:01:54,197 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-08 11:01:54,198 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-08 11:23:20,507 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-08 11:23:20,507 - root - INFO - Initialized Scheduling Configurator
+2025-04-08 11:23:20,508 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-08 11:23:20,508 - root - INFO - Initialized Scheduling Inspector
+2025-04-08 11:23:20,508 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-08 11:23:20,508 - root - INFO - Initialized Scheduling Calculator
+2025-04-08 11:23:20,508 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-08 11:23:20,508 - root - INFO - Initialized Scheduling Visualizer
+2025-04-08 11:23:20,508 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-08 11:23:20,508 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-08 11:23:20,508 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-08 11:23:20,508 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-08 11:23:20,508 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-08 11:23:20,508 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-08 11:23:20,509 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-08 11:23:20,509 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-08 11:23:20,509 - root - INFO - Applied set_source to Source, result=None
+2025-04-08 11:23:20,509 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-08 11:23:20,509 - root - INFO - Applied set_flux to Source, result=None
+2025-04-08 11:23:20,509 - root - INFO - Successfully configured Source: name='M87'
+2025-04-08 11:23:20,509 - root - INFO - Initialized Sources with 1 sources
+2025-04-08 11:23:20,509 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:23:20,509 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:23:20,509 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:23:20,509 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:23:20,509 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:23:21,122 - root - INFO - Loaded orbit data from 'final_orbit370.txt' with 99181 points
+2025-04-08 11:23:21,122 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'final_orbit370.txt', diameter=1.0 m
+2025-04-08 11:23:21,122 - root - INFO - Processing sequence of 4 requests
+2025-04-08 11:23:21,122 - root - INFO - Set telescope 'ALMA' with new parameters
+2025-04-08 11:23:21,123 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-08 11:23:21,123 - root - INFO - Successfully configured Telescope: code='ALMA'
+2025-04-08 11:23:21,123 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-08 11:23:21,123 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-08 11:23:21,124 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-08 11:23:21,124 - root - INFO - Set telescope 'SMT' with new parameters
+2025-04-08 11:23:21,124 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-08 11:23:21,124 - root - INFO - Successfully configured Telescope: code='SMT'
+2025-04-08 11:23:21,725 - root - INFO - Loaded orbit data from 'final_orbit370.txt' with 99181 points
+2025-04-08 11:23:21,725 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-08 11:23:21,726 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-08 11:23:21,726 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-08 11:23:21,726 - root - INFO - Added telescope 'ALMA' to Telescopes
+2025-04-08 11:23:21,727 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-08 11:23:21,727 - root - INFO - Added telescope 'SMT' to Telescopes
+2025-04-08 11:23:21,727 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-08 11:23:21,727 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-08 11:23:21,728 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-08 11:23:21,728 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-08 11:23:21,728 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-08 11:23:21,729 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-08 11:23:21,729 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-08 11:23:21,729 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-08 11:23:21,730 - root - INFO - Initialized Scan with start=2025-04-08T08:23:21.731, duration=1.0, OFF SOURCE
+2025-04-08 11:23:21,730 - root - INFO - Set Scan with start=2031-03-10T00:00:00.000, duration=864000.0, source_index=0
+2025-04-08 11:23:21,730 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-08 11:23:21,731 - root - INFO - Successfully configured Scan: start=2031-03-10T00:00:00.000, source_index=0
+2025-04-08 11:23:21,731 - root - INFO - Initialized Scans with 1 scans
+2025-04-08 11:23:21,731 - root - INFO - Initialized Sources with 0 sources
+2025-04-08 11:23:21,732 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:23:21,732 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-08 11:23:21,732 - root - INFO - Initialized Scans with 0 scans
+2025-04-08 11:23:21,732 - root - INFO - Initialized Observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-08 11:23:21,733 - root - INFO - Initialized Sources with 0 sources
+2025-04-08 11:23:21,733 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:23:21,733 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-08 11:23:21,734 - root - INFO - Initialized Scans with 0 scans
+2025-04-08 11:23:21,734 - root - INFO - Initialized Observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-08 11:23:21,734 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-08 11:23:21,735 - root - INFO - Initialized Scan with start=2031-03-10T00:00:00.000, duration=3600, source_index=0
+2025-04-08 11:23:21,735 - root - INFO - Initialized Scans with 1 scans
+2025-04-08 11:23:21,735 - root - INFO - Processing sequence of 2 requests
+2025-04-08 11:23:21,735 - root - INFO - Set observation 'M87_SPACE_OBS' with type 'VLBI'
+2025-04-08 11:23:21,736 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-08 11:23:21,736 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-08 11:23:22,096 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2031-03-10T00:00:00.000, falling back to raw orbit data
+2025-04-08 11:23:22,097 - root - INFO - Initialized Telescopes with 4 telescopes
+2025-04-08 11:23:22,097 - root - INFO - Observation 'M87_SPACE_OBS' validated successfully
+2025-04-08 11:23:22,098 - root - INFO - Successfully configured Observation: code='M87_SPACE_OBS'
+2025-04-08 11:23:22,098 - root - INFO - Set observation 'M87_SINGLE_DISH' with type 'SINGLE_DISH'
+2025-04-08 11:23:22,099 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-08 11:23:22,099 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-08 11:23:22,100 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-08 11:23:22,100 - root - INFO - Observation 'M87_SINGLE_DISH' validated successfully
+2025-04-08 11:23:22,100 - root - INFO - Successfully configured Observation: code='M87_SINGLE_DISH'
+2025-04-08 11:23:22,100 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-08 11:23:22,101 - root - INFO - Added observation 'M87_SPACE_OBS' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-08 11:23:22,101 - root - INFO - Added item to project 'EHT_M87_SPACE_PROJECT'
+2025-04-08 11:23:22,101 - root - INFO - Added observation 'M87_SINGLE_DISH' to project 'EHT_M87_SPACE_PROJECT'
+2025-04-08 11:23:22,101 - root - INFO - Processing sequence of 8 requests
+2025-04-08 11:23:22,102 - root - INFO - Recalculating 'uv_coverage_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:23:22,102 - root - INFO - Recalculating 'source_visibility' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:23:22,103 - root - INFO - Calculating visibility for 1440 time points from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-08 11:23:22,103 - root - INFO - Recalculating 'telescope_positions' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:23:22,104 - root - INFO - Calculating telescope positions for 1440 time points from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-08 11:23:22,104 - root - INFO - Interpolating orbit for SPACE370
+2025-04-08 11:23:22,105 - root - INFO - Interpolating orbit for 'SPACE370' from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-08 11:23:22,105 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2031-03-10T00:00:00.000 to 2031-03-20T00:00:00.000
+2025-04-08 11:23:31,004 - root - INFO - Calculated telescope positions for 1 entries in 'M87_SPACE_OBS'
+2025-04-08 11:23:31,004 - root - INFO - Stored calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:31,005 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 8.901 s
+2025-04-08 11:23:43,267 - root - INFO - Stored calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:43,267 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 21.165 s
+2025-04-08 11:23:43,268 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:43,268 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-08 11:23:43,269 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.001 s
+2025-04-08 11:23:44,806 - root - INFO - Stored calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,807 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 22.704 s
+2025-04-08 11:23:44,807 - root - INFO - Recalculating 'mollweide_tracks' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:23:44,808 - root - INFO - Retrieved calculated data 'telescope_positions' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,808 - root - INFO - Using cached data for 'telescope_positions' in 'M87_SPACE_OBS'
+2025-04-08 11:23:44,808 - root - INFO - Calculation 'telescope_positions' for 'M87_SPACE_OBS' completed in 0.000 s
+2025-04-08 11:23:44,848 - root - INFO - Stored calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,848 - root - INFO - Calculation 'mollweide_tracks' for 'M87_SPACE_OBS' completed in 0.041 s
+2025-04-08 11:23:44,849 - root - INFO - Recalculating 'baseline_projections_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:23:44,849 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,850 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-08 11:23:44,850 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.001 s
+2025-04-08 11:23:44,855 - root - INFO - Stored calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,856 - root - INFO - Calculation 'baseline_projections' for 'M87_SPACE_OBS' completed in 0.007 s
+2025-04-08 11:23:44,856 - root - INFO - Recalculating 'beam_pattern_f0' for 'M87_SINGLE_DISH' with recalculate=False
+2025-04-08 11:23:44,856 - root - INFO - Stored calculated data 'beam_pattern_f0' for observation 'M87_SINGLE_DISH'
+2025-04-08 11:23:44,856 - root - INFO - Calculation 'beam_pattern' for 'M87_SINGLE_DISH' completed in 0.001 s
+2025-04-08 11:23:44,857 - root - INFO - Recalculating 'synthesized_beam_f0' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:23:44,857 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,857 - root - INFO - Using cached data for 'uv_coverage_f0' in 'M87_SPACE_OBS'
+2025-04-08 11:23:44,857 - root - INFO - Calculation 'uv_coverage' for 'M87_SPACE_OBS' completed in 0.001 s
+2025-04-08 11:23:44,871 - root - INFO - Stored calculated data 'synthesized_beam_f0' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,871 - root - INFO - Calculation 'synthesized_beam' for 'M87_SPACE_OBS' completed in 0.015 s
+2025-04-08 11:23:44,872 - root - INFO - Recalculating 'time_on_source' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:23:44,872 - root - INFO - Retrieved calculated data 'source_visibility' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,872 - root - INFO - Using cached data for 'source_visibility' in 'M87_SPACE_OBS'
+2025-04-08 11:23:44,873 - root - INFO - Calculation 'source_visibility' for 'M87_SPACE_OBS' completed in 0.001 s
+2025-04-08 11:23:44,929 - root - INFO - Stored calculated data 'time_on_source' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:44,929 - root - INFO - Calculation 'time_on_source' for 'M87_SPACE_OBS' completed in 0.057 s
+2025-04-08 11:23:44,929 - root - INFO - Recalculating 'sun_angles' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:23:59,857 - root - INFO - Stored calculated data 'sun_angles' for observation 'M87_SPACE_OBS'
+2025-04-08 11:23:59,857 - root - INFO - Calculation 'sun_angles' for 'M87_SPACE_OBS' completed in 14.928 s
+2025-04-08 11:23:59,858 - root - INFO - Recalculating 'az_el' for 'M87_SPACE_OBS' with recalculate=False
+2025-04-08 11:24:06,590 - root - INFO - Stored calculated data 'az_el' for observation 'M87_SPACE_OBS'
+2025-04-08 11:24:06,590 - root - INFO - Calculation 'az_el' for 'M87_SPACE_OBS' completed in 6.732 s
+2025-04-08 11:24:06,591 - root - INFO - Processing sequence of 8 requests
+2025-04-08 11:24:06,771 - root - INFO - Retrieved calculated data 'uv_coverage_f0' for observation 'M87_SPACE_OBS'
+2025-04-08 11:24:07,076 - root - INFO - Visualization saved to 'uv_coverage_m87_space_with_conjugates.png'
+2025-04-08 11:24:08,842 - root - INFO - Retrieved calculated data 'mollweide_tracks' for observation 'M87_SPACE_OBS'
+2025-04-08 11:24:09,014 - root - INFO - Visualization saved to 'mollweide_track_m87_space_matplotlib_mollweide_j2000_fixed.png'
+2025-04-08 11:48:54,352 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-08 11:48:54,353 - root - INFO - Initialized Scheduling Configurator
+2025-04-08 11:48:54,353 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-08 11:48:54,353 - root - INFO - Initialized Scheduling Inspector
+2025-04-08 11:48:54,353 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-08 11:48:54,353 - root - INFO - Initialized Scheduling Calculator
+2025-04-08 11:48:54,353 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-08 11:48:54,353 - root - INFO - Initialized Scheduling Visualizer
+2025-04-08 11:48:54,354 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-08 11:48:54,354 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-08 11:48:54,354 - root - INFO - Initialized project 'VISIBILITY_TEST_PROJECT' with 0 items
+2025-04-08 11:48:54,354 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-08 11:48:54,354 - root - INFO - Initialized Scheduling Calculator
+2025-04-08 11:48:54,354 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-08 11:48:54,354 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-08 11:48:54,354 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-08 11:48:54,354 - root - INFO - Applied set_source to Source, result=None
+2025-04-08 11:48:54,354 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-08 11:48:54,354 - root - INFO - Applied set_flux to Source, result=None
+2025-04-08 11:48:54,355 - root - INFO - Successfully configured Source: name='M87'
+2025-04-08 11:48:54,355 - root - INFO - Initialized Sources with 1 sources
+2025-04-08 11:48:54,355 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:48:54,355 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:48:54,355 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 11:48:55,005 - root - INFO - Loaded orbit data from 'final_orbit370.txt' with 99181 points
+2025-04-08 11:48:55,005 - root - INFO - Initialized SpaceTelescope 'TEMP_SPACE' with orbit file 'final_orbit370.txt', diameter=1.0 m
+2025-04-08 11:48:55,005 - root - INFO - Processing sequence of 2 requests
+2025-04-08 11:48:55,005 - root - INFO - Set telescope 'APEX' with new parameters
+2025-04-08 11:48:55,005 - root - INFO - Applied set_telescope to Telescope, result=None
+2025-04-08 11:48:55,006 - root - INFO - Successfully configured Telescope: code='APEX'
+2025-04-08 11:48:55,603 - root - INFO - Loaded orbit data from 'final_orbit370.txt' with 99181 points
+2025-04-08 11:48:55,603 - root - INFO - Set SpaceTelescope 'SPACE370' with use_kep=False, diameter=10.0 m
+2025-04-08 11:48:55,604 - root - INFO - Applied set_telescope to SpaceTelescope, result=None
+2025-04-08 11:48:55,604 - root - INFO - Successfully configured SpaceTelescope: code='SPACE370'
+2025-04-08 11:48:55,605 - root - INFO - Added telescope 'APEX' to Telescopes
+2025-04-08 11:48:55,605 - root - INFO - Added telescope 'SPACE370' to Telescopes
+2025-04-08 11:48:55,605 - root - INFO - Initialized IF with frequency=1000.0 MHz, bandwidth=16.0 MHz, polarizations=[]
+2025-04-08 11:48:55,605 - root - INFO - Set IF frequency to 86000.0 MHz for IF
+2025-04-08 11:48:55,606 - root - INFO - Applied set_frequency to IF, result=None
+2025-04-08 11:48:55,606 - root - INFO - Set IF bandwidth to 4000.0 MHz for IF
+2025-04-08 11:48:55,606 - root - INFO - Applied set_bandwidth to IF, result=None
+2025-04-08 11:48:55,606 - root - INFO - Successfully configured IF: freq=86000.0, bw=4000.0
+2025-04-08 11:48:55,607 - root - INFO - Initialized Frequencies with 1 IFs
+2025-04-08 11:48:55,607 - root - INFO - Initialized Scan with start=2025-04-08T08:48:55.608, duration=1.0, OFF SOURCE
+2025-04-08 11:48:55,608 - root - INFO - Set Scan with start=2030-11-30T12:00:00.000, duration=3600.0, source_index=0
+2025-04-08 11:48:55,608 - root - INFO - Applied set_scan to Scan, result=None
+2025-04-08 11:48:55,608 - root - INFO - Successfully configured Scan: start=2030-11-30T12:00:00.000, source_index=0
+2025-04-08 11:48:55,608 - root - INFO - Initialized Scans with 1 scans
+2025-04-08 11:48:55,609 - root - INFO - Initialized Sources with 0 sources
+2025-04-08 11:48:55,609 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 11:48:55,609 - root - INFO - Initialized Frequencies with 0 IFs
+2025-04-08 11:48:55,609 - root - INFO - Initialized Scans with 0 scans
+2025-04-08 11:48:55,610 - root - INFO - Initialized Observation 'VIS_TEST_OBS' with type 'VLBI'
+2025-04-08 11:48:55,610 - root - INFO - Set observation 'VIS_TEST_OBS' with type 'VLBI'
+2025-04-08 11:48:55,610 - root - INFO - Applied set_observation to Observation, result=None
+2025-04-08 11:48:55,613 - astropy - WARNING - TimeDeltaMissingUnitWarning: Numerical value without unit or explicit format passed to TimeDelta, assuming days
+2025-04-08 11:48:55,614 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-08 11:48:55,996 - root - WARNING - No interpolated orbit data available for 'SPACE370' at 2030-11-30T12:00:00.000, falling back to raw orbit data
+2025-04-08 11:48:55,997 - root - INFO - Initialized Telescopes with 2 telescopes
+2025-04-08 11:48:55,997 - root - INFO - Observation 'VIS_TEST_OBS' validated successfully
+2025-04-08 11:48:55,998 - root - INFO - Successfully configured Observation: code='VIS_TEST_OBS'
+2025-04-08 11:48:55,998 - root - INFO - Added item to project 'VISIBILITY_TEST_PROJECT'
+2025-04-08 11:48:55,998 - root - INFO - Added observation 'VIS_TEST_OBS' to project 'VISIBILITY_TEST_PROJECT'
+2025-04-08 11:48:55,999 - root - INFO - Set up test environment completed
+2025-04-08 11:48:55,999 - root - INFO - Active telescopes: ['APEX', 'SPACE370']
+2025-04-08 11:48:55,999 - root - INFO - Recalculating 'spacecraft_visibility_apex' for 'VIS_TEST_OBS' with recalculate=False
+2025-04-08 11:48:56,000 - root - INFO - Calculating visibility for 720 time points from 2030-11-30T12:00:00.000 to 2030-12-30T12:00:00.000
+2025-04-08 11:48:56,000 - root - INFO - Interpolating orbit for SPACE370
+2025-04-08 11:48:56,001 - root - INFO - Interpolating orbit for 'SPACE370' from 2030-11-30T12:00:00.000 to 2030-12-30T12:00:00.000
+2025-04-08 11:48:56,002 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2030-11-30T12:00:00.000 to 2030-12-30T12:00:00.000
+2025-04-08 11:48:56,002 - root - INFO - Recalculating 'telescope_positions' for 'VIS_TEST_OBS' with recalculate=False
+2025-04-08 11:48:56,003 - root - INFO - Calculating telescope positions for 720 time points from 2030-11-30T12:00:00.000 to 2030-12-30T12:00:00.000
+2025-04-08 11:48:56,003 - root - INFO - Interpolating orbit for SPACE370
+2025-04-08 11:48:56,003 - root - INFO - Interpolating orbit for 'SPACE370' from 2030-11-30T12:00:00.000 to 2030-12-30T12:00:00.000
+2025-04-08 11:48:56,004 - root - INFO - Interpolated orbit for 'SPACE370' using linear from 2030-11-30T12:00:00.000 to 2030-12-30T12:00:00.000
+2025-04-08 11:48:56,010 - astropy - WARNING - Tried to get polar motions for times after IERS data is valid. Defaulting to polar motion from the 50-yr mean for those. This may affect precision at the arcsec level. Please check your astropy.utils.iers.conf.iers_auto_url and point it to a newer version if necessary.
+2025-04-08 11:48:57,773 - root - INFO - Calculated telescope positions for 1 entries in 'VIS_TEST_OBS'
+2025-04-08 11:48:57,773 - root - INFO - Stored calculated data 'telescope_positions' for observation 'VIS_TEST_OBS'
+2025-04-08 11:48:57,774 - root - INFO - Calculation 'telescope_positions' for 'VIS_TEST_OBS' completed in 1.772 s
+2025-04-08 11:49:00,775 - root - INFO - Stored calculated data 'spacecraft_visibility_apex' for observation 'VIS_TEST_OBS'
+2025-04-08 11:49:00,776 - root - INFO - Calculation 'source_visibility' for 'VIS_TEST_OBS' completed in 4.776 s
