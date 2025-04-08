@@ -9,6 +9,10 @@ from typing import Optional, Dict, Tuple
 from enum import Enum
 from astropy.time import Time
 
+# constants
+SPEED_OF_LIGHT = 3e8  # m/s
+BOLTZMANN_CONSTANT = 1.380649e-23  # J/K
+
 class MountType(Enum):
     EQUATORIAL = "EQUA"
     AZIMUTHAL = "AZIM"
@@ -60,7 +64,11 @@ class Telescope(BaseEntity):
                  diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,
                  elevation_range: Tuple[float, float] = (15.0, 90.0),
                  azimuth_range: Tuple[float, float] = (0.0, 360.0),
-                 mount_type: str = "AZIM", isactive: bool = True):
+                 mount_type: str = "AZIM", isactive: bool = True,
+                 surface_accuracy: Optional[float] = None,
+                 surface_efficiency_table: Optional[Dict[float, float]] = None,
+                 effective_area_table: Optional[Dict[float, float]] = None,
+                 system_temperature_table: Optional[Dict[float, float]] = None):
         """Initialize a Telescope object with ITRF coordinates, velocities, and optional SEFD properties.
 
         Args:
@@ -106,6 +114,24 @@ class Telescope(BaseEntity):
         check_range(azimuth_range[1], azimuth_range[0], 360, "Max azimuth")
         if mount_type.upper() not in {mt.value for mt in MountType}:
             raise ValueError(f"Mount type must be one of {[mt.value for mt in MountType]}, got {mount_type}")
+        
+        if surface_accuracy is not None:
+            check_positive(surface_accuracy, "Surface accuracy")
+        if surface_efficiency_table is not None:
+            check_type(surface_efficiency_table, dict, "Surface efficiency table")
+            for freq, eff in surface_efficiency_table.items():
+                check_type(freq, (int, float), "Surface efficiency frequency")
+                check_range(eff, 0, 1, "Surface efficiency value")
+        if effective_area_table is not None:
+            check_type(effective_area_table, dict, "Effective area table")
+            for freq, area in effective_area_table.items():
+                check_type(freq, (int, float), "Effective area frequency")
+                check_positive(area, "Effective area value")
+        if system_temperature_table is not None:
+            check_type(system_temperature_table, dict, "System temperature table")
+            for freq, tsys in system_temperature_table.items():
+                check_type(freq, (int, float), "System temperature frequency")
+                check_positive(tsys, "System temperature value")
 
         self._code = code
         self._name = name
@@ -120,6 +146,12 @@ class Telescope(BaseEntity):
         self._elevation_range = elevation_range
         self._azimuth_range = azimuth_range
         self._mount_type = MountType(mount_type.upper())
+
+        self._surface_accuracy = surface_accuracy # surface accuracy RMS in microns
+        self._surface_efficiency_table = surface_efficiency_table if surface_efficiency_table is not None else {}
+        self._effective_area_table = effective_area_table if effective_area_table is not None else {}
+        self._system_temperature_table = system_temperature_table if system_temperature_table is not None else {}
+
         logger.info(f"Initialized Telescope '{code}' at ({x}, {y}, {z}) m, diameter={diameter} m")
 
     def add_sefd(self, frequency: float, sefd: float) -> None:
@@ -341,15 +373,136 @@ class Telescope(BaseEntity):
             Dict[float, float]: A dictionary mapping frequencies (MHz) to SEFD values (Jy).
         """
         logger.debug(f"Retrieved SEFD table {self._sefd_table} for telescope '{self._code}'")
-        return self._sefd_table
+        return self._sefd_table.copy()
     
+    def get_surface_accuracy(self) -> Optional[float]:
+        """Retrieve the surface accuracy (RMS) in microns."""
+        return self._surface_accuracy
+    
+    def get_surface_efficiency(self, frequency: float) -> Optional[float]:
+        """Retrieve the surface efficiency for a given frequency, with linear interpolation if needed.
+
+        Returns the exact efficiency if the frequency is in the table, interpolates linearly between
+        points if within the table range, or returns None if outside the range or no data exists.
+
+        Args:
+            frequency (float): Frequency in MHz.
+
+        Returns:
+            Optional[float]: Surface efficiency (0 to 1), or None if unavailable.
+
+        Raises:
+            TypeError: If frequency is not a number.
+        """
+        check_type(frequency, (int, float), "Frequency")
+        if not self._surface_efficiency_table:
+            logger.debug(f"No surface efficiency data available for telescope '{self._code}'")
+            return None
+        freqs = sorted(self._surface_efficiency_table.keys())
+        if frequency in self._surface_efficiency_table:
+            return self._surface_efficiency_table[frequency]
+        if frequency < freqs[0] or frequency > freqs[-1]:
+            logger.debug(f"Frequency {frequency} MHz out of surface efficiency table range for '{self._code}'")
+            return None
+        for i in range(len(freqs) - 1):
+            if freqs[i] <= frequency <= freqs[i + 1]:
+                f1, f2 = freqs[i], freqs[i + 1]
+                e1, e2 = self._surface_efficiency_table[f1], self._surface_efficiency_table[f2]
+                interpolated_eff = e1 + (e2 - e1) * (frequency - f1) / (f2 - f1)
+                logger.debug(f"Interpolated surface efficiency={interpolated_eff:.4f} for frequency {frequency} MHz on '{self._code}'")
+                return interpolated_eff
+        return None
+
+    def get_surface_efficiency_table(self) -> Dict[float, float]:
+        """Retrieve the surface efficiency table."""
+        return self._surface_efficiency_table.copy()
+    
+    def get_effective_area(self, frequency: float) -> Optional[float]:
+        """Retrieve the effective area for a given frequency, with linear interpolation if needed.
+
+        Returns the exact area if the frequency is in the table, interpolates linearly between
+        points if within the table range, or returns None if outside the range or no data exists.
+
+        Args:
+            frequency (float): Frequency in MHz.
+
+        Returns:
+            Optional[float]: Effective area in m², or None if unavailable.
+
+        Raises:
+            TypeError: If frequency is not a number.
+        """
+        check_type(frequency, (int, float), "Frequency")
+        if not self._effective_area_table:
+            logger.debug(f"No effective area data available for telescope '{self._code}'")
+            return None
+        freqs = sorted(self._effective_area_table.keys())
+        if frequency in self._effective_area_table:
+            return self._effective_area_table[frequency]
+        if frequency < freqs[0] or frequency > freqs[-1]:
+            logger.debug(f"Frequency {frequency} MHz out of effective area table range for '{self._code}'")
+            return None
+        for i in range(len(freqs) - 1):
+            if freqs[i] <= frequency <= freqs[i + 1]:
+                f1, f2 = freqs[i], freqs[i + 1]
+                a1, a2 = self._effective_area_table[f1], self._effective_area_table[f2]
+                interpolated_area = a1 + (a2 - a1) * (frequency - f1) / (f2 - f1)
+                logger.debug(f"Interpolated effective area={interpolated_area:.2f} m² for frequency {frequency} MHz on '{self._code}'")
+                return interpolated_area
+        return None
+
+    def get_effective_area_table(self) -> Dict[float, float]:
+        """Retrieve the effective area table."""
+        return self._effective_area_table.copy()
+    
+    def get_system_temperature(self, frequency: float) -> Optional[float]:
+        """Retrieve the system temperature for a given frequency, with linear interpolation if needed.
+
+        Returns the exact Tsys if the frequency is in the table, interpolates linearly between
+        points if within the table range, or returns None if outside the range or no data exists.
+
+        Args:
+            frequency (float): Frequency in MHz.
+
+        Returns:
+            Optional[float]: System temperature in Kelvin, or None if unavailable.
+
+        Raises:
+            TypeError: If frequency is not a number.
+        """
+        check_type(frequency, (int, float), "Frequency")
+        if not self._system_temperature_table:
+            logger.debug(f"No system temperature data available for telescope '{self._code}'")
+            return None
+        freqs = sorted(self._system_temperature_table.keys())
+        if frequency in self._system_temperature_table:
+            return self._system_temperature_table[frequency]
+        if frequency < freqs[0] or frequency > freqs[-1]:
+            logger.debug(f"Frequency {frequency} MHz out of system temperature table range for '{self._code}'")
+            return None
+        for i in range(len(freqs) - 1):
+            if freqs[i] <= frequency <= freqs[i + 1]:
+                f1, f2 = freqs[i], freqs[i + 1]
+                t1, t2 = self._system_temperature_table[f1], self._system_temperature_table[f2]
+                interpolated_tsys = t1 + (t2 - t1) * (frequency - f1) / (f2 - f1)
+                logger.debug(f"Interpolated system temperature={interpolated_tsys:.2f} K for frequency {frequency} MHz on '{self._code}'")
+                return interpolated_tsys
+        return None
+
+    def get_system_temperature_table(self) -> Dict[float, float]:
+        """Retrieve the system temperature table."""
+        return self._system_temperature_table.copy()
+        
     def set_telescope(self, code: str, name: str, x: float, y: float, z: float, 
                       vx: float, vy: float, vz: float, diameter: float,
                       sefd_table: Optional[Dict[float, float]] = None,
                       elevation_range: Tuple[float, float] = (15.0, 90.0),
                       azimuth_range: Tuple[float, float] = (0.0, 360.0),
-                      mount_type: str = "AZIM",
-                      isactive: bool = True) -> None:
+                      mount_type: str = "AZIM", isactive: bool = True,
+                      surface_accuracy: Optional[float] = None,
+                      surface_efficiency_table: Optional[Dict[float, float]] = None,
+                      effective_area_table: Optional[Dict[float, float]] = None,
+                      system_temperature_table: Optional[Dict[float, float]] = None) -> None:
         """Set all properties of the telescope.
 
         Args:
@@ -394,6 +547,23 @@ class Telescope(BaseEntity):
         check_range(azimuth_range[1], azimuth_range[0], 360, "Max azimuth")
         if mount_type.upper() not in {mt.value for mt in MountType}:
             raise ValueError(f"Mount type must be one of {[mt.value for mt in MountType]}, got {mount_type}")
+        if surface_accuracy is not None:
+            check_positive(surface_accuracy, "Surface accuracy")
+        if surface_efficiency_table is not None:
+            check_type(surface_efficiency_table, dict, "Surface efficiency table")
+            for freq, eff in surface_efficiency_table.items():
+                check_type(freq, (int, float), "Surface efficiency frequency")
+                check_range(eff, 0, 1, "Surface efficiency value")
+        if effective_area_table is not None:
+            check_type(effective_area_table, dict, "Effective area table")
+            for freq, area in effective_area_table.items():
+                check_type(freq, (int, float), "Effective area frequency")
+                check_positive(area, "Effective area value")
+        if system_temperature_table is not None:
+            check_type(system_temperature_table, dict, "System temperature table")
+            for freq, tsys in system_temperature_table.items():
+                check_type(freq, (int, float), "System temperature frequency")
+                check_positive(tsys, "System temperature value")
 
         self._code = code
         self._name = name
@@ -409,6 +579,10 @@ class Telescope(BaseEntity):
         self._azimuth_range = azimuth_range
         self._mount_type = MountType(mount_type.upper())
         self.isactive = isactive
+        self._surface_accuracy = surface_accuracy
+        self._surface_efficiency_table = surface_efficiency_table if surface_efficiency_table is not None else {}
+        self._effective_area_table = effective_area_table if effective_area_table is not None else {}
+        self._system_temperature_table = system_temperature_table if system_temperature_table is not None else {}
         logger.info(f"Set telescope '{code}' with new parameters")
     
     def set_name(self, name: str) -> None:
@@ -689,11 +863,106 @@ class Telescope(BaseEntity):
         self._sefd_table = sefd_table.copy()
         logger.info(f"Set SEFD table with {len(sefd_table)} entries for telescope '{self._code}'")
     
+    def set_surface_accuracy(self, surface_accuracy: Optional[float]) -> None:
+        """Set the surface accuracy (RMS) in microns."""
+        if surface_accuracy is not None:
+            check_positive(surface_accuracy, "Surface accuracy")
+        self._surface_accuracy = surface_accuracy
+        logger.info(f"Set surface accuracy={surface_accuracy} microns for telescope '{self._code}'")
+
+    def set_surface_efficiency(self, frequency: float, efficiency: float) -> None:
+        """Set the surface efficiency for a specific frequency."""
+        check_type(frequency, (int, float), "Frequency")
+        check_range(efficiency, 0, 1, "Surface efficiency")
+        self._check_surface_efficiency(frequency, efficiency)
+        self._surface_efficiency_table[frequency] = efficiency
+        logger.info(f"Set surface efficiency={efficiency} for frequency {frequency} MHz on telescope '{self._code}'")
+
+    def set_effective_area(self, frequency: float, area: float) -> None:
+        """Set the effective area for a specific frequency."""
+        check_type(frequency, (int, float), "Frequency")
+        check_positive(area, "Effective area")
+        self._check_effective_area(frequency, area)
+        self._effective_area_table[frequency] = area
+        logger.info(f"Set effective area={area} m² for frequency {frequency} MHz on telescope '{self._code}'")
+
+    def set_system_temperature(self, frequency: float, tsys: float) -> None:
+        """Set the system temperature for a specific frequency."""
+        check_type(frequency, (int, float), "Frequency")
+        check_positive(tsys, "System temperature")
+        self._check_system_temperature(frequency, tsys)
+        self._system_temperature_table[frequency] = tsys
+        logger.info(f"Set system temperature={tsys} K for frequency {frequency} MHz on telescope '{self._code}'")
+    
     def clear_sefd_table(self) -> None:
         """Clear all entries from the SEFD table."""
         self._sefd_table.clear()
         logger.info(f"Cleared SEFD table for telescope '{self._code}'")
 
+    def clear_sefd_table(self) -> None:
+        """Clear all entries from the SEFD table."""
+        self._sefd_table.clear()
+        logger.info(f"Cleared SEFD table for telescope '{self._code}'")
+
+    def calculate_surface_efficiency(self, frequency: float) -> Optional[float]:
+        """Calculate surface efficiency using Ruze formula and add to table."""
+        check_type(frequency, (int, float), "Frequency")
+        check_positive(frequency, "Frequency")
+        
+        if self._surface_accuracy is None:
+            logger.warning(f"Cannot calculate surface efficiency for '{self._code}': surface accuracy not set")
+            return None
+        
+        rms_m = self._surface_accuracy * 1e-6
+        freq_hz = frequency * 1e6
+        wavelength = SPEED_OF_LIGHT / freq_hz
+        efficiency = np.exp(-(4 * np.pi * rms_m / wavelength) ** 2)
+        
+        self._surface_efficiency_table[frequency] = efficiency
+        logger.info(f"Calculated surface efficiency={efficiency:.4f} for frequency {frequency} MHz on '{self._code}'	iconv")
+        return efficiency
+
+    def calculate_effective_area(self, frequency: float) -> Optional[float]:
+        """Calculate effective area and add to table."""
+        check_type(frequency, (int, float), "Frequency")
+        check_positive(frequency, "Frequency")
+        
+        geom_area = np.pi * (self._diameter / 2) ** 2
+        
+        efficiency = self._surface_efficiency_table.get(frequency)
+        if efficiency is None:
+            efficiency = self.calculate_surface_efficiency(frequency)
+            if efficiency is None:
+                logger.warning(f"Cannot calculate effective area for '{self._code}': no surface efficiency or accuracy")
+                return None
+        
+        area = geom_area * efficiency
+        self._effective_area_table[frequency] = area
+        logger.info(f"Calculated effective area={area:.2f} m² for frequency {frequency} MHz on '{self._code}'")
+        return area
+
+    def calculate_sefd(self, frequency: float) -> Optional[float]:
+        """Calculate SEFD from effective area and system temperature, add to table."""
+        check_type(frequency, (int, float), "Frequency")
+        check_positive(frequency, "Frequency")
+        
+        tsys = self._system_temperature_table.get(frequency)
+        if tsys is None:
+            logger.warning(f"Cannot calculate SEFD for '{self._code}': system temperature not set for {frequency} MHz")
+            return None
+        
+        area = self._effective_area_table.get(frequency)
+        if area is None:
+            area = self.calculate_effective_area(frequency)
+            if area is None:
+                logger.warning(f"Cannot calculate SEFD for '{self._code}': effective area unavailable for {frequency} MHz")
+                return None
+        
+        sefd = 2 * BOLTZMANN_CONSTANT * tsys / area
+        self._sefd_table[frequency] = sefd
+        logger.info(f"Calculated SEFD={sefd:.2f} Jy for frequency {frequency} MHz on '{self._code}'")
+        return sefd
+    
     def to_dict(self) -> dict:
         """Convert the Telescope object to a dictionary for serialization.
 
@@ -716,7 +985,11 @@ class Telescope(BaseEntity):
             "elevation_range": self._elevation_range,
             "azimuth_range": self._azimuth_range,
             "mount_type": self._mount_type.value,
-            "isactive": self.isactive
+            "isactive": self.isactive,
+            "surface_accuracy": self._surface_accuracy,
+            "surface_efficiency_table": self._surface_efficiency_table,
+            "effective_area_table": self._effective_area_table,
+            "system_temperature_table": self._system_temperature_table
         }
 
     @classmethod
@@ -747,7 +1020,11 @@ class Telescope(BaseEntity):
             elevation_range=tuple(data.get("elevation_range", (15.0, 90.0))),
             azimuth_range=tuple(data.get("azimuth_range", (0.0, 360.0))),
             mount_type=data.get("mount_type", "AZIM"),
-            isactive=data.get("isactive", True)
+            isactive=data.get("isactive", True),
+            surface_accuracy=data.get("surface_accuracy"),
+            surface_efficiency_table=data.get("surface_efficiency_table"),
+            effective_area_table=data.get("effective_area_table"),
+            system_temperature_table=data.get("system_temperature_table")
         )
     
     def _check_sefd(self, frequency: float, sefd: float) -> bool:
@@ -765,6 +1042,60 @@ class Telescope(BaseEntity):
             if current_sefd != sefd:
                 logger.warning(f"Overwriting SEFD for frequency {frequency} MHz on telescope '{self._code}': "
                                f"old value={current_sefd} Jy, new value={sefd} Jy")
+                return True
+        return False
+    
+    def _check_surface_efficiency(self, frequency: float, efficiency: float) -> bool:
+        """Check if a surface efficiency value for a given frequency is a duplicate with a different value.
+
+        Args:
+            frequency (float): Frequency in MHz to check.
+            efficiency (float): Surface efficiency value (0 to 1) to compare.
+
+        Returns:
+            bool: True if the frequency already exists with a different efficiency value, False otherwise.
+        """
+        if frequency in self._surface_efficiency_table:
+            current_eff = self._surface_efficiency_table[frequency]
+            if current_eff != efficiency:
+                logger.warning(f"Overwriting surface efficiency for frequency {frequency} MHz on telescope '{self._code}': "
+                               f"old value={current_eff}, new value={efficiency}")
+                return True
+        return False
+    
+    def _check_effective_area(self, frequency: float, area: float) -> bool:
+        """Check if an effective area value for a given frequency is a duplicate with a different value.
+
+        Args:
+            frequency (float): Frequency in MHz to check.
+            area (float): Effective area value in square meters to compare.
+
+        Returns:
+            bool: True if the frequency already exists with a different area value, False otherwise.
+        """
+        if frequency in self._effective_area_table:
+            current_area = self._effective_area_table[frequency]
+            if current_area != area:
+                logger.warning(f"Overwriting effective area for frequency {frequency} MHz on telescope '{self._code}': "
+                               f"old value={current_area} m², new value={area} m²")
+                return True
+        return False
+    
+    def _check_system_temperature(self, frequency: float, tsys: float) -> bool:
+        """Check if a system temperature value for a given frequency is a duplicate with a different value.
+
+        Args:
+            frequency (float): Frequency in MHz to check.
+            tsys (float): System temperature value in Kelvin to compare.
+
+        Returns:
+            bool: True if the frequency already exists with a different Tsys value, False otherwise.
+        """
+        if frequency in self._system_temperature_table:
+            current_tsys = self._system_temperature_table[frequency]
+            if current_tsys != tsys:
+                logger.warning(f"Overwriting system temperature for frequency {frequency} MHz on telescope '{self._code}': "
+                               f"old value={current_tsys} K, new value={tsys} K")
                 return True
         return False
 
@@ -821,7 +1152,11 @@ class SpaceTelescope(Telescope):
                  isactive: bool = True, use_kep: bool = True,
                  kepler_elements: Optional[dict] = None,
                  orbit_data: Optional[Dict[str, np.ndarray]] = None,
-                 interpolation_method: str = "linear"):
+                 interpolation_method: str = "linear",
+                 surface_accuracy: Optional[float] = None,
+                 surface_efficiency_table: Optional[Dict[float, float]] = None,
+                 effective_area_table: Optional[Dict[float, float]] = None,
+                 system_temperature_table: Optional[Dict[float, float]] = None):
         """Initialize a SpaceTelescope with orbital parameters and optional SEFD properties.
 
         Args:
@@ -844,7 +1179,10 @@ class SpaceTelescope(Telescope):
         """
         super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0, 
                          diameter=diameter, sefd_table=sefd_table, isactive=isactive,
-                         mount_type="NONE")
+                         mount_type="NONE", surface_accuracy=surface_accuracy,
+                         surface_efficiency_table=surface_efficiency_table,
+                         effective_area_table=effective_area_table,
+                         system_temperature_table=system_temperature_table)
         check_non_empty_string(orbit_file, "Orbit file")
         check_positive(diameter, "Diameter")
         check_type(pitch_range, tuple, "Pitch range")
@@ -1259,11 +1597,14 @@ class SpaceTelescope(Telescope):
                       sefd_table: Optional[Dict[float, float]] = None,
                       pitch_range: Tuple[float, float] = (-90.0, 90.0),
                       yaw_range: Tuple[float, float] = (-180.0, 180.0),
-                      isactive: bool = True,
-                      use_kep: bool = True,
+                      isactive: bool = True, use_kep: bool = True,
                       kepler_elements: Optional[dict] = None,
                       orbit_data: Optional[Dict[str, np.ndarray]] = None,
-                      interpolation_method: str = "chebyshev") -> None:
+                      interpolation_method: str = "chebyshev",
+                      surface_accuracy: Optional[float] = None,
+                      surface_efficiency_table: Optional[Dict[float, float]] = None,
+                      effective_area_table: Optional[Dict[float, float]] = None,
+                      system_temperature_table: Optional[Dict[float, float]] = None) -> None:
         """Set all properties of the space telescope.
 
         Args:
@@ -1284,6 +1625,12 @@ class SpaceTelescope(Telescope):
             TypeError: If inputs are of incorrect type.
             ValueError: If diameter is not positive, ranges are invalid, or Keplerian elements are incomplete/invalid.
         """
+        super().set_telescope(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0,
+                              diameter=diameter, sefd_table=sefd_table, mount_type="NONE", isactive=isactive,
+                              surface_accuracy=surface_accuracy,
+                              surface_efficiency_table=surface_efficiency_table,
+                              effective_area_table=effective_area_table,
+                              system_temperature_table=system_temperature_table)
         check_non_empty_string(code, "Code")
         check_non_empty_string(name, "Name")
         check_non_empty_string(orbit_file, "Orbit file")
@@ -1475,7 +1822,11 @@ class SpaceTelescope(Telescope):
             isactive=data.get("isactive", True),
             use_kep=data.get("use_kep", True),
             kepler_elements=data.get("kepler_elements"),
-            orbit_data=data.get("orbit_data")
+            orbit_data=data.get("orbit_data"),
+            surface_accuracy=data.get("surface_accuracy"),
+            surface_efficiency_table=data.get("surface_efficiency_table"),
+            effective_area_table=data.get("effective_area_table"),
+            system_temperature_table=data.get("system_temperature_table")
         )
         if data.get("kepler_elements") and not data.get("orbit_data"):
             obj._kepler_elements = {

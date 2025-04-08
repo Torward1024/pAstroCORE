@@ -197,7 +197,7 @@ class Project(ABC):
         old_name = self._name
         old_count = len(self._items)
         self._name = name
-        self._items = items.copy()  # Используем копию для безопасности
+        self._items = items.copy()
         logger.info(f"Project updated: name changed from '{old_name}' to '{name}', "
                     f"items count changed from {old_count} to {len(self._items)}")
 
