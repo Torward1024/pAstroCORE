@@ -1,0 +1,232 @@
+import astropy
+from astropy.utils import iers
+iers.conf.auto_download = False
+iers.conf.iers_auto_url = None
+from astropy.utils.iers import conf
+conf.auto_max_age = None
+
+from unit_scheduling.base.sources import Source, Sources
+from unit_scheduling.base.telescopes import Telescope, SpaceTelescope, Telescopes
+from unit_scheduling.base.frequencies import IF, Frequencies
+from unit_scheduling.base.scans import Scan, Scans
+from unit_scheduling.base.observation import Observation
+from unit_scheduling.super.schedule_project import ScheduleProject
+from unit_scheduling.super.schedule_manipulator import ScheduleManipulator
+
+from common.utils.logging_setup import logger
+from astropy.time import Time
+import astropy.units as u
+import time
+import unittest
+
+class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
+    def setUp(self):
+        self.manipulator = ScheduleManipulator()
+        self.project = ScheduleProject(name="EHT_M87_SPACE_PROJECT")
+        self.manipulator.set_managing_object(self.project)
+        logger.setLevel("DEBUG")
+        logger.info("Set up test environment with Manipulator and Project")
+        supported_ops = self.manipulator.get_supported_operations()
+        logger.info(f"Supported operations: {supported_ops}")
+        self.assertIn("configure", supported_ops, "Operation 'configure' not registered")
+        self.assertIn("visualize", supported_ops, "Operation 'visualize' not registered")
+        self.assertIn("inspect", supported_ops, "Operation 'inspect' not registered")
+
+    def test_eht_observation_with_space_telescope(self):
+
+        m87_source = Source()
+        result = self.manipulator.process_request({
+            "operation": "configure",
+            "attributes": {
+                "set_source": {
+                    "name": "M87",
+                    "ra_h": 12, "ra_m": 30, "ra_s": 49.42,
+                    "de_d": 12, "de_m": 23, "de_s": 28.0
+                },
+                "set_flux": {"frequency": 86e3, "flux": 1.2}
+            },
+            "obj": m87_source
+        })
+        self.assertTrue(result, "Failed to configure M87 source")
+        sources = Sources([m87_source])
+
+        telescopes = Telescopes()
+        tel_configs = {
+            "alma": {
+                "operation": "configure",
+                "attributes": {"set_telescope": {
+                    "code": "ALMA", "name": "ALMA", "x": 2225061.164, "y": -5440057.37, "z": -2481681.15,
+                    "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 100.0},
+                    "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
+                }},
+                "obj": Telescope()
+            },
+            "apex": {
+                "operation": "configure",
+                "attributes": {"set_telescope": {
+                    "code": "APEX", "name": "APEX", "x": 2225039.53, "y": -5441197.63, "z": -2479303.36,
+                    "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 120.0},
+                    "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
+                }},
+                "obj": Telescope()
+            },
+            "smt": {
+                "operation": "configure",
+                "attributes": {"set_telescope": {
+                    "code": "SMT", "name": "SMT", "x": -1828796.2, "y": -5054406.8, "z": 3427865.2,
+                    "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 10.0, "sefd_table": {86e3: 150.0},
+                    "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
+                }},
+                "obj": Telescope()
+            },
+            "space370": {
+                "operation": "configure",
+                "attributes": { "set_telescope": {
+                    "code": "SPACE370", "use_kep": False, "name": "Space Telescope 370", "diameter": 10.0,
+                    "sefd_table": {86e3: 200.0}, "pitch_range": (-90.0, 90.0), "yaw_range": (0.0, 180.0),
+                    "orbit_file": "final_orbit370.txt", "interpolation_method": "linear"
+                }},
+                "obj": SpaceTelescope(use_kep=False, orbit_file="final_orbit370.txt", interpolation_method="linear")
+            }
+        }
+        tel_results = self.manipulator.process_request(tel_configs)
+        for tel_id, result in tel_results.items():
+            self.assertTrue(result, f"Failed to configure telescope {tel_id}")
+            telescopes.add_telescope(tel_configs[tel_id]["obj"])
+
+        frequency = IF()
+        result = self.manipulator.process_request({
+            "operation": "configure",
+            "attributes": {"set_frequency": {"freq": 86e3}, "set_bandwidth": {"bandwidth": 4e3}},
+            "obj": frequency
+        })
+        self.assertTrue(result, "Failed to configure frequency")
+        frequencies = Frequencies([frequency])
+
+        start_time = Time("2031-03-10T00:00:00", format="isot", scale="utc")
+        duration = 864000 * u.s
+        scan = Scan()
+        result = self.manipulator.process_request({
+            "operation": "configure",
+            "attributes": {
+                "set_scan": {
+                    "start": start_time,
+                    "duration": duration.value,
+                    "source_index": 0,
+                    "telescope_indices": [0, 1, 2, 3],
+                    "frequency_indices": [0]
+                }
+            },
+            "obj": scan
+        })
+        self.assertTrue(result, "Failed to configure scan")
+        scans = Scans([scan])
+
+        observation = Observation(observation_code="M87_SPACE_OBS")
+        single_dish_obs = Observation(observation_code="M87_SINGLE_DISH", observation_type="SINGLE_DISH")
+        obs_configs = {
+            "vlbi": {
+                "operation": "configure",
+                "attributes": {
+                    "set_observation": {
+                        "observation_code": "M87_SPACE_OBS",
+                        "sources": sources,
+                        "telescopes": telescopes,
+                        "frequencies": frequencies,
+                        "scans": scans,
+                        "observation_type": "VLBI",
+                        "isactive": True
+                    }
+                },
+                "obj": observation
+            },
+            "single_dish": {
+                "operation": "configure",
+                "attributes": {
+                    "set_observation": {
+                        "observation_code": "M87_SINGLE_DISH",
+                        "sources": sources,
+                        "telescopes": Telescopes([telescopes.get_by_index(0), telescopes.get_by_index(1)]),
+                        "frequencies": frequencies,
+                        "scans": Scans([Scan(start=start_time, duration=3600, source_index=0, telescope_indices=[0, 1], frequency_indices=[0])]),
+                        "observation_type": "SINGLE_DISH",
+                        "isactive": True
+                    }
+                },
+                "obj": single_dish_obs
+            }
+        }
+        obs_results = self.manipulator.process_request(obs_configs)
+        self.assertTrue(obs_results["vlbi"], "Failed to configure VLBI observation")
+        self.assertTrue(obs_results["single_dish"], "Failed to configure SINGLE_DISH observation")
+        self.project.add_item(observation)
+        self.project.add_item(single_dish_obs)
+
+        # 6. Вычисления через серию запросов
+        calc_requests = {
+            "uv_coverage": {
+                "operation": "calculate",
+                "attributes": {
+                    "method": "uv_coverage",
+                    "time_step": 600,
+                    "freq_idx": 0,
+                    "store_key": "uv_coverage_f0",
+                    "recalculate": False
+                },
+                "obj": observation
+            },
+            "baseline_projections": {
+                "operation": "calculate",
+                "attributes": {
+                    "method": "baseline_projections",
+                    "time_step": 600,
+                    "freq_idx": 0,
+                    "store_key": "baseline_projections_f0",
+                    "recalculate": False
+                },
+                "obj": observation
+            }
+        }
+        start = time.time()
+        calc_results = self.manipulator.process_request(calc_requests)
+        for calc_id, result in calc_results.items():
+            self.assertTrue(result, f"{calc_id} calculation failed")
+        print(f"All calculations took {time.time() - start:.2f} seconds")
+
+        vis_requests = {
+            "uv_coverage": {
+                "operation": "visualize",
+                "attributes": {
+                    "method": "_visualize",
+                    "plot_type": "uv_coverage",
+                    "time_step": 600,
+                    "freq_idx": 0,
+                    "output_file": "uv_coverage_m87_space_with_conjugates.png",
+                    "show": True,
+                    "figsize": (12, 12)
+                },
+                "obj": observation
+            },
+            "baseline_projections": {
+                "operation": "visualize",
+                "attributes": {
+                    "method": "_visualize",
+                    "plot_type": "baseline_projections",
+                    "time_step": 600,
+                    "freq_idx": 0,
+                    "output_file": "baseline_projections_m87_space.png",
+                    "show": True,
+                    "figsize": (12, 6)
+                },
+                "obj": observation
+            }
+        }
+        start = time.time()
+        vis_results = self.manipulator.process_request(vis_requests)
+        for vis_id, result in vis_results.items():
+            self.assertEqual(result["status"], "success", f"{vis_id} visualization failed")
+        print(f"All visualizations took {time.time() - start:.2f} seconds")
+        print(observation.get_calculated_data_by_key("visibility"))
+
+if __name__ == "__main__":
+    unittest.main()
