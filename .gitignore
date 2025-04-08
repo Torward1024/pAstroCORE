@@ -17,6 +17,8 @@ bin/
 obj/
 *.exe
 *.dll
+*.log
+
 
 # Игнорировать кэш и индексы
 FileContentIndex/
