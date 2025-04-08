@@ -2174,3 +2174,30 @@
 2025-04-08 14:46:37,021 - root - INFO - Visualization saved to 'uv_coverage_m87_space_with_conjugates.png'
 2025-04-08 14:48:14,635 - root - INFO - Retrieved calculated data 'baseline_projections_f0' for observation 'M87_SPACE_OBS'
 2025-04-08 14:48:16,312 - root - INFO - Visualization saved to 'baseline_projections_m87_space.png'
+2025-04-08 16:15:43,344 - root - INFO - Initialized Manipulator with 0 initial operations
+2025-04-08 16:15:43,344 - root - INFO - Initialized Scheduling Configurator
+2025-04-08 16:15:43,344 - root - INFO - Registered operation 'configure' with ScheduleConfigurator
+2025-04-08 16:15:43,345 - root - INFO - Initialized Scheduling Inspector
+2025-04-08 16:15:43,345 - root - INFO - Registered operation 'inspect' with ScheduleInspector
+2025-04-08 16:15:43,345 - root - INFO - Initialized Scheduling Calculator
+2025-04-08 16:15:43,345 - root - INFO - Registered operation 'calculate' with ScheduleCalculator
+2025-04-08 16:15:43,345 - root - INFO - Initialized Scheduling Visualizer
+2025-04-08 16:15:43,345 - root - INFO - Registered operation 'visualize' with ScheduleVisualizer
+2025-04-08 16:15:43,345 - root - INFO - Initialized DefaultManipulator with default operations
+2025-04-08 16:15:43,345 - root - INFO - Initialized project 'EHT_M87_SPACE_PROJECT' with 0 items
+2025-04-08 16:15:43,345 - root - INFO - Set managing object of type 'ScheduleProject' in Manipulator
+2025-04-08 16:15:43,345 - root - INFO - Set up test environment with Manipulator and Project
+2025-04-08 16:15:43,346 - root - INFO - Supported operations: ['configure', 'inspect', 'calculate', 'visualize']
+2025-04-08 16:15:43,346 - root - INFO - Initialized Source 'SOURCE_DEFAULT' at RA=0.0h0.0m0.0s, DEC=0.0d0.0m0.0s
+2025-04-08 16:15:43,346 - root - INFO - Set source 'M87' with new coordinates RA=12h30m49.42s, DEC=12d23m28.0s
+2025-04-08 16:15:43,346 - root - INFO - Applied set_source to Source, result=None
+2025-04-08 16:15:43,346 - root - INFO - Set flux=1.2 Jy for frequency 86000.0 MHz on source 'M87'
+2025-04-08 16:15:43,346 - root - INFO - Applied set_flux to Source, result=None
+2025-04-08 16:15:43,346 - root - INFO - Successfully configured Source: name='M87'
+2025-04-08 16:15:43,346 - root - INFO - Initialized Sources with 1 sources
+2025-04-08 16:15:43,346 - root - INFO - Initialized Telescopes with 0 telescopes
+2025-04-08 16:15:43,346 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 16:15:43,346 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 16:15:43,347 - root - INFO - Initialized Telescope 'TEMP' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 16:15:43,347 - root - INFO - Initialized Telescope 'TEMP_SPACE' at (0.0, 0.0, 0.0) m, diameter=1.0 m
+2025-04-08 16:15:43,347 - root - ERROR - Orbit file 'final_orbit370.txt' not found
