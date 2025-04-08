@@ -1,4 +1,5 @@
-pvcore.log
+output.log
 final_orbit370.txt
 
 .vs/
+./__pycache__
