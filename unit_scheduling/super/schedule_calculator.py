@@ -1155,7 +1155,7 @@ class ScheduleCalculator(Super):
                     if isinstance(tel, SpaceTelescope):
                         continue
                     D = tel.get_diameter()
-                    theta = np.linspace(-np.pi/2, np.pi/2, 1000)
+                    theta = np.linspace(-np.pi/2, np.pi/2, 5000)
                     x = (np.pi * D / wavelength) * np.sin(theta)
                     pattern = (2 * j1(x) / x) ** 2
                     pattern[np.isnan(pattern)] = 1.0
