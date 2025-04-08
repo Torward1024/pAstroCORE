@@ -139,7 +139,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "end_time": "2030-12-30T12:00:00.000",
                 "time_step": 3600,
                 "telescope_code": "APEX",
-                "target_type": "spacecraft",
                 "target_index": 0,
                 "store_key": "spacecraft_visibility_apex"
             },
@@ -152,8 +151,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         result = spacecraft_result[0]
 
         self.assertTrue(bool(result), "Failed to calculate spacecraft visibility (empty result)")
-        self.assertIn("target_type", result, "Key 'target_type' missing in spacecraft_result")
-        self.assertEqual(result["target_type"], "spacecraft")
         self.assertIn("visibility", result, "Key 'visibility' missing in spacecraft_result")
         self.assertIn("APEX", result["visibility"], "APEX visibility data missing")
         self.assertEqual(result["visibility"]["APEX"][0] is not None, True)

@@ -131,7 +131,7 @@ class ScheduleCalculator(Super):
 
         Args:
             obj (Observation | ScheduleProject): The object to calculate visibility for.
-            attributes (Dict[str, Any]): Parameters including "time_step", "target_type", "start_time", "end_time".
+            attributes (Dict[str, Any]): Parameters including "time_step", "start_time", "end_time".
 
         Returns:
             Dict[str, Any]: Visibility data per scan or time range.
@@ -141,7 +141,6 @@ class ScheduleCalculator(Super):
             start_time = attributes.get("start_time")
             end_time = attributes.get("end_time")
             telescope_code = attributes.get("telescope_code")
-            target_type = attributes.get("target_type", "source")
             target_index = attributes.get("target_index", 0)
             store_key = attributes.get("store_key", "visibility")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
@@ -171,11 +170,11 @@ class ScheduleCalculator(Super):
                     return {}
                 active_telescopes = [target_telescope]
 
-            if target_type == "source":
+            if isinstance(Source):
                 sources = obj.get_sources()
                 target = sources.get_by_index(target_index)
                 target_name = target.get_name()
-            elif target_type == "spacecraft":
+            elif isinstance(SpaceTelescope):
                 all_telescopes = telescopes.get_all_telescopes()
                 target = next((tel for tel in all_telescopes if isinstance(tel, SpaceTelescope)), None)
                 if not target:
@@ -183,11 +182,10 @@ class ScheduleCalculator(Super):
                     return {}
                 target_name = target.get_code()
             else:
-                logger.error(f"Unsupported target_type: {target_type}. Use 'source' or 'spacecraft'")
+                logger.error(f"Unsupported target object: {isinstance(target)}. Use 'source' or 'spacecraft'")
                 return {}
 
             def calculate_visibility(obj, attrs):
-                # Определяем временной диапазон
                 if start_time and end_time:
                     start = Time(start_time)
                     end = Time(end_time)
@@ -207,7 +205,7 @@ class ScheduleCalculator(Super):
                 times = Time(start.mjd + time_values.to(u.d).value, format='mjd')
                 logger.info(f"Calculating visibility for {len(times)} time points from {start.isot} to {end.isot}")
 
-                if target_type == "spacecraft":
+                if isinstance(SpaceTelescope):
                     logger.info(f"Interpolating orbit for {target_name}")
                     target.interpolate_orbit(start, end, time_step)
 
@@ -239,12 +237,11 @@ class ScheduleCalculator(Super):
                                 pos_data = tel_positions_data.get(tel.get_code(), {})
                                 t_idx = pos_data["times"].index(t.isot) if "times" in pos_data else 0
                                 tel_positions[tel.get_code()] = pos_data["positions"][t_idx]
-                            vis = self._compute_visibility_at_time(target, active_telescopes, t, tel_positions, target_type)
+                            vis = self._compute_visibility_at_time(target, active_telescopes, t, tel_positions)
                             for tel_code, is_visible in vis.items():
                                 visibility[tel_code].append(is_visible)
                         results[i] = {
                             "target": target_name,
-                            "target_type": target_type,
                             "times": [t.isot for t in scan_times],
                             "visibility": visibility
                         }
@@ -261,12 +258,11 @@ class ScheduleCalculator(Super):
                                 tel_positions[tel.get_code()] = (0.0, 0.0, 0.0)
                             else:
                                 tel_positions[tel.get_code()] = pos_data["positions"][t_idx]
-                        vis = self._compute_visibility_at_time(target, active_telescopes, t, tel_positions, target_type)
+                        vis = self._compute_visibility_at_time(target, active_telescopes, t, tel_positions)
                         for tel_code, is_visible in vis.items():
                             visibility[tel_code].append(is_visible)
                     result = {
                         "target": target_name,
-                        "target_type": target_type,
                         "times": times.isot.tolist(),
                         "visibility": visibility
                     }
@@ -280,7 +276,7 @@ class ScheduleCalculator(Super):
             return {}
     
 
-    def _compute_visibility_at_time(self, target: Source | SpaceTelescope, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]], target_type: str) -> Dict[str, bool]:
+    def _compute_visibility_at_time(self, target: Source | SpaceTelescope, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
         """Compute visibility of a target (source or spacecraft) for telescopes at a given time.
 
         Args:
@@ -288,21 +284,19 @@ class ScheduleCalculator(Super):
             telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
             time (Time): The time of observation.
             positions (Dict[str, Tuple[float, float, float]]): Precomputed GCRS positions.
-            target_type (str): "source" or "spacecraft".
 
         Returns:
             Dict[str, bool]: Visibility status per telescope code.
         """
         visibility = {}
 
-        # Координаты цели
-        if target_type == "source":
+        if isinstance(Source):
             target_coord = SkyCoord(ra=target.get_ra_degrees() * u.deg, dec=target.get_dec_degrees() * u.deg, frame='icrs')
-        elif target_type == "spacecraft":
+        elif isinstance(SpaceTelescope):
             spacecraft_pos, _ = target.get_state_vector(time)
             target_coord = GCRS(CartesianRepresentation(*spacecraft_pos, unit=u.m), obstime=time)
         else:
-            logger.error(f"Invalid target_type: {target_type}")
+            logger.error(f"Invalid target object: {isinstance(target)}")
             return {}
 
         for tel in telescopes:
