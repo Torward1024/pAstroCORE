@@ -1,2 +1,24 @@
 pvcore.log
 final_orbit370.txt
+
+# Игнорировать папку vs/, создаваемую Visual Studio
+.vs/
+
+# Игнорировать файлы с расширением .vsidx
+*.vsidx
+
+# Игнорировать другие временные файлы Visual Studio
+*.suo
+*.user
+*.sln.docstates
+
+# Игнорировать скомпилированные файлы
+bin/
+obj/
+*.exe
+*.dll
+*.log
+
+
+# Игнорировать кэш и индексы
+FileContentIndex/
