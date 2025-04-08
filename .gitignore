@@ -1,5 +1,5 @@
 output.log
 final_orbit370.txt
-
+*.png
 .vs/
 .__pycache__/
