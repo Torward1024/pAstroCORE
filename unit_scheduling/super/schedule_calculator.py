@@ -248,7 +248,6 @@ class ScheduleCalculator(Super):
                             "times": [t.isot for t in scan_times],
                             "visibility": visibility
                         }
-                    #logger.info(f"Visibility calculated for {len(results)} scans")
                     return results
                 else:
                     visibility = {tel.get_code(): [] for tel in active_telescopes}
