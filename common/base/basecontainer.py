@@ -1,13 +1,15 @@
 # base/base_container.py
 from abc import ABC
-from typing import List, Generic
+from typing import List, TypeVar, Generic, Any
 from common.base.base_entity import BaseEntity
 from common.utils.logging_setup import logger
+
+T = TypeVar('T', bound=BaseEntity)
 
 class BaseContainer(BaseEntity, ABC, Generic[T]):
     """Abstract base class for managing collections of BaseEntity objects."""
     
-    _items: List[BaseEntity]
+    _items: List[T]
 
     def __init__(self, items: List[T] = None, name: str = None, isactive: bool = True):
         super().__init__(name=name, isactive=isactive, _items=items or [])
