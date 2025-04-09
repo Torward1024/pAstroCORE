@@ -266,6 +266,7 @@ class ScheduleVisualizer(Super):
         plt.title(f"UV Coverage at {frequency/1e6:.1f} MHz")
         plt.grid(True)
         plt.legend()
+        plt.gca().invert_xaxis()
         return {"status": "success", "baselines": len(baselines)}
 
     def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
