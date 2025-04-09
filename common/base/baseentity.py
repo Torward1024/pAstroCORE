@@ -1,6 +1,6 @@
 # base/base_entity.py
 from abc import ABC
-from typing import Dict, Any, Type, Union
+from typing import Dict, Any
 from common.utils.logging_setup import logger
 
 class EntityMeta(type):
@@ -14,7 +14,7 @@ class EntityMeta(type):
     """
     def __new__(cls, name, bases, attrs):
         new_class = super().__new__(cls, name, bases, attrs)
-        # Collect type annotations from the class
+        # collect type annotations from the class
         new_class._fields = getattr(new_class, '__annotations__', {})
         return new_class
 
@@ -135,7 +135,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         for key in self._fields:
             if hasattr(self, key):
                 value = getattr(self, key)
-                # If the value is a BaseEntity, recursively serialize it
+                # if the value is a BaseEntity, recursively serialize it
                 if isinstance(value, BaseEntity):
                     data[key] = value.to_dict()
                 else:
@@ -166,7 +166,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             if key not in cls._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {cls.__name__}")
             expected_type = cls._fields[key]
-            # If the expected type is a subclass of BaseEntity and value is a dict, deserialize it
+            # if the expected type is a subclass of BaseEntity and value is a dict, deserialize it
             if isinstance(expected_type, type) and issubclass(expected_type, BaseEntity) and isinstance(value, dict):
                 kwargs[key] = expected_type.from_dict(value)
             else:
