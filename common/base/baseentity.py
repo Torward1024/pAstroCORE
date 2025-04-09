@@ -1,5 +1,5 @@
 # base/base_entity.py
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Dict, Any
 from common.utils.logging_setup import logger
 
@@ -14,17 +14,16 @@ class EntityMeta(type):
     """
     def __new__(cls, name, bases, attrs):
         new_class = super().__new__(cls, name, bases, attrs)
-        # сollect type annotations from the class
+        # Collect type annotations from the class
         new_class._fields = getattr(new_class, '__annotations__', {})
         return new_class
 
 class BaseEntity(ABC, metaclass=EntityMeta):
-    """Abstract base class for entities with attribute management, type validation, and serialization support.
+    """Abstract base class for entities with attribute management, type validation, and universal serialization.
 
     Provides a foundation for various entity classes in the system, such as Observation, Source, Sources,
     IF, Frequencies, Scan, Scans, Telescope, SpaceTelescope, and Telescopes. Defines common functionality
-    for managing attributes with type checking, an active/inactive state, and requires subclasses to
-    implement serialization methods.
+    for managing attributes with type checking, an active/inactive state, and universal serialization methods.
 
     Attributes:
         name (str, optional): An optional identifier for the entity.
@@ -35,25 +34,23 @@ class BaseEntity(ABC, metaclass=EntityMeta):
     Notes:
         - Logging is integrated via `common.utils.logging_setup.logger` to track initialization and state changes.
         - This is an abstract base class and cannot be instantiated directly; it must be subclassed.
-        - Subclasses must implement `to_dict` and `from_dict` methods for serialization/deserialization.
-        - Type validation is enforced using `__annotations__` via the metaclass `EntityMeta`.
+        - Attributes are validated against type annotations defined in `__annotations__`.
+        - Serialization methods `to_dict` and `from_dict` are implemented universally to work with annotated attributes.
 
     Examples:
         >>> class MyEntity(BaseEntity):
         ...     name: str
         ...     value: int
-        ...     def to_dict(self):
-        ...         return {"name": self.name, "value": self.value, "isactive": self.isactive}
-        ...     @classmethod
-        ...     def from_dict(cls, data):
-        ...         return cls(name=data["name"], isactive=data["isactive"], value=data["value"])
         >>> entity = MyEntity(name="test", isactive=True, value=42)
         >>> entity.set({"value": 100})
         >>> print(entity)
-        MyEntity(name=test, isactive=True, value=100)
-        >>> entity.deactivate()
-        >>> print(entity)
-        MyEntity(name=test, isactive=False, value=100)
+        MyEntity(name='test', isactive=True, value=100)
+        >>> data = entity.to_dict()
+        >>> print(data)
+        {'name': 'test', 'isactive': True, 'value': 100}
+        >>> new_entity = MyEntity.from_dict(data)
+        >>> print(new_entity)
+        MyEntity(name='test', isactive=True, value=100)
     """
     def __init__(self, name: str = None, isactive: bool = True, **kwargs):
         """Initialize the BaseEntity with a name, activation status, and optional typed attributes.
@@ -123,31 +120,40 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         self.isactive = False
         logger.info(f"Deactivated {self.__class__.__name__} instance")
 
-    @abstractmethod
     def to_dict(self) -> dict:
         """Convert the entity to a dictionary for serialization.
 
-        Abstract method to be implemented by subclasses to define how the entity's state is represented as a dictionary.
+        Universally serializes the entity's state, including its name, activation status, and all annotated attributes.
 
         Returns:
             dict: A dictionary containing the entity's serialized data.
         """
-        pass
+        data = {"name": self.name, "isactive": self.isactive}
+        data.update(self._attributes)
+        return data
 
     @classmethod
-    @abstractmethod
     def from_dict(cls, data: dict) -> 'BaseEntity':
         """Create an entity instance from a dictionary.
 
-        Abstract method to be implemented by subclasses to define how an entity is reconstructed from serialized data.
+        Universally reconstructs an entity instance from serialized data, setting its name, activation status,
+        and annotated attributes.
 
         Args:
             data (dict): Dictionary containing the entity's serialized data, typically from `to_dict`.
 
         Returns:
             BaseEntity: A new instance of the subclass initialized with the dictionary data.
+
+        Raises:
+            TypeError: If a value in the dictionary does not match the annotated type.
+            ValueError: If an unknown attribute is provided in the dictionary.
         """
-        pass
+        name = data.pop("name", None)
+        isactive = data.pop("isactive", True)
+        instance = cls(name=name, isactive=isactive)
+        instance.set(data)
+        return instance
 
     def __repr__(self) -> str:
         """Return a string representation of the BaseEntity.
