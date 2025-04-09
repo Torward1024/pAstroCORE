@@ -1,5 +1,24 @@
-output.log
+pvcore.log
 final_orbit370.txt
-*.png
+
+# Игнорировать папку vs/, создаваемую Visual Studio
 .vs/
-__pycache__/
+
+# Игнорировать файлы с расширением .vsidx
+*.vsidx
+
+# Игнорировать другие временные файлы Visual Studio
+*.suo
+*.user
+*.sln.docstates
+
+# Игнорировать скомпилированные файлы
+bin/
+obj/
+*.exe
+*.dll
+*.log
+
+
+# Игнорировать кэш и индексы
+FileContentIndex/
