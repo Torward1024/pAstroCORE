@@ -14,7 +14,7 @@ class EntityMeta(type):
     """
     def __new__(cls, name, bases, attrs):
         new_class = super().__new__(cls, name, bases, attrs)
-        # Collect type annotations from the class
+        # сollect type annotations from the class
         new_class._fields = getattr(new_class, '__annotations__', {})
         return new_class
 
@@ -35,7 +35,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         - Logging is integrated via `common.utils.logging_setup.logger` to track initialization and state changes.
         - This is an abstract base class and cannot be instantiated directly; it must be subclassed.
         - Attributes are validated against type annotations defined in `__annotations__`.
-        - Serialization methods `to_dict` and `from_dict` are implemented universally to work with annotated attributes.
+        - Serialization methods `to_dict` and `from_dict` automatically handle all annotated attributes.
 
     Examples:
         >>> class MyEntity(BaseEntity):
@@ -123,7 +123,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
     def to_dict(self) -> dict:
         """Convert the entity to a dictionary for serialization.
 
-        Universally serializes the entity's state, including its name, activation status, and all annotated attributes.
+        Automatically serializes the entity's state, including its name, activation status, and all annotated attributes.
 
         Returns:
             dict: A dictionary containing the entity's serialized data.
@@ -136,7 +136,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
     def from_dict(cls, data: dict) -> 'BaseEntity':
         """Create an entity instance from a dictionary.
 
-        Universally reconstructs an entity instance from serialized data, setting its name, activation status,
+        Automatically reconstructs an entity instance from serialized data, setting its name, activation status,
         and annotated attributes.
 
         Args:
@@ -152,7 +152,8 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         name = data.pop("name", None)
         isactive = data.pop("isactive", True)
         instance = cls(name=name, isactive=isactive)
-        instance.set(data)
+        if data:
+            instance.set(data)
         return instance
 
     def __repr__(self) -> str:
