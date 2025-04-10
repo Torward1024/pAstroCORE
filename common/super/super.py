@@ -137,6 +137,7 @@ class Super(ABC):
         self._methods[obj_type][method_name] = method
         self._method_cache.clear()
         logger.info(f"Registered method '{method_name}' for {obj_type.__name__}")
+    
 
     def execute(self, obj: Any, attributes: Dict[str, Any] = None, method: str = None) -> Union[Dict[str, Any], bool]:
         """Execute an operation on an object based on attributes and an optional method.
