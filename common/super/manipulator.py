@@ -159,9 +159,8 @@ class Manipulator(ABC):
             registry[super_type] = methods
         for cls in self._base_classes:
             methods = {
-                name: getattr(cls, name) for name, _ in inspect.getmembers(cls)
-                if (inspect.isfunction(getattr(cls, name, None)) or inspect.ismethod(getattr(cls, name, None)))
-                and not name.startswith('_') and callable(getattr(cls, name))
+                name: getattr(cls, name) for name in dir(cls)
+                if callable(getattr(cls, name)) and not name.startswith('_')
             }
             registry[cls] = methods
         logger.info(f"Built method registry with {len(registry)} types")
@@ -184,6 +183,9 @@ class Manipulator(ABC):
             >>> manip.process_request({"req1": {"operation": "append", "obj": [], "attributes": {"value": 1}}})
             {'req1': True}
         """
+        if not isinstance(request, dict):
+            logger.error(f"Request must be a dict, got {type(request)}")
+            raise TypeError("Request must be a dict")
         if all(isinstance(k, str) and isinstance(v, dict) for k, v in request.items()) and "operation" not in request:
             results = {}
             logger.info(f"Processing sequence of {len(request)} requests")
@@ -193,14 +195,11 @@ class Manipulator(ABC):
                     raise TypeError(f"Sub-request '{req_id}' must be a dict")
                 try:
                     result = self._process_single_request(sub_request)
-                    results[req_id] = {"success": True, "result": result}
+                    results[req_id] = {"success": result is not False, "result": result}
                 except Exception as e:
                     results[req_id] = {"success": False, "error": str(e)}
                     logger.error(f"Request '{req_id}' failed: {str(e)}")
             return results
-        if not isinstance(request, dict):
-            logger.error(f"Request must be a dict, got {type(request)}")
-            raise TypeError("Request must be a dict")
         return self._process_single_request(request)
 
     def _process_single_request(self, request: Dict[str, Any]) -> Any:
@@ -222,8 +221,11 @@ class Manipulator(ABC):
         if not isinstance(attributes, dict):
             logger.error(f"Attributes must be a dictionary, got {type(attributes)}")
             return False
+        
+        target_obj = obj if obj is not None else self._managing_object
+        self._validate_object(target_obj, "request object")
             
-        execute_args = {"obj": obj}
+        execute_args = {"obj": target_obj}
         if attributes or method:
             execute_args["attributes"] = attributes.copy()
             if method:

@@ -1,64 +1,224 @@
-# tests/test_manipulator.py
 import unittest
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from common.super.manipulator import Manipulator
 from common.super.super import Super
 from common.base.baseentity import BaseEntity
 from common.utils.logging_setup import logger
 
-class TestEntity(BaseEntity):
+# Тестовые классы для проверки
+class Observation(BaseEntity):
     value: int
 
-class TestSuper(Super):
-    def _test_operation(self, obj: TestEntity, attributes: Dict[str, Any]) -> bool:
-        obj.value = attributes.get("value", 0)
+class TestConfigurator(Super):
+    def _configure_observation(self, obj: Observation, attrs: Dict[str, Any]) -> bool:
+        obj.set(attrs)
         return True
+
+    def _configure_list(self, obj: List, attrs: Dict[str, Any]) -> bool:
+        if "append" in attrs:
+            obj.append(attrs["append"])
+            return True
+        return False
 
 class TestManipulator(unittest.TestCase):
     def setUp(self) -> None:
-        self.manipulator = Manipulator()
-        self.super_instance = TestSuper(self.manipulator)
-        self.manipulator.register_operation("test", self.super_instance)
+        """Подготовка перед каждым тестом."""
+        self.manipulator = Manipulator(base_classes=[list, Observation])
+        self.configurator = TestConfigurator(self.manipulator)
+        self.manipulator.register_operation("configure", self.configurator)
+        self.obs = Observation(name="TEST_OBS", value=42)
+        logger.info("Set up TestManipulator")
 
-    def test_init(self) -> None:
-        manip = Manipulator(managing_object=TestEntity(name="obj"))
-        self.assertEqual(manip.get_managing_object().name, "obj")
-        self.assertEqual(len(manip.get_supported_operations()), 0)
-        logger.info("Manipulator initialized successfully")
+    def test_initialization(self) -> None:
+        """Тест инициализации Manipulator."""
+        manip = Manipulator(managing_object=self.obs, base_classes=[list])
+        self.assertEqual(manip.get_managing_object(), self.obs)
+        self.assertEqual(len(manip._base_classes), 1)
+        self.assertEqual(manip._base_classes[0], list)
+        self.assertEqual(len(manip._operations), 0)
+        logger.info("Manipulator initialization tested successfully")
 
-    def test_register_operation(self) -> None:
-        self.assertIn("test", self.manipulator.get_supported_operations())
+    def test_set_managing_object(self) -> None:
+        """Тест установки управляющего объекта."""
+        manip = Manipulator()
+        manip.set_managing_object(self.obs)
+        self.assertEqual(manip.get_managing_object(), self.obs)
+        logger.info("Set managing object tested successfully")
+
+    def test_register_operation_valid(self) -> None:
+        """Тест регистрации валидной операции."""
+        manip = Manipulator()
+        config = TestConfigurator(manip)
+        manip.register_operation("configure", config)
+        self.assertIn("configure", manip._operations)
+        self.assertEqual(manip._operations["configure"], config)
+        self.assertEqual(config._operation, "configure")
+        self.assertIn(TestConfigurator, manip._registry)
+        logger.info("Valid operation registration tested successfully")
+
+    def test_register_operation_invalid(self) -> None:
+        """Тест регистрации операции с невалидными аргументами."""
+        manip = Manipulator()
         with self.assertRaises(ValueError):
-            self.manipulator.register_operation("", self.super_instance)  # Empty operation name
-        logger.info("Operation registration tested")
+            manip.register_operation("", TestConfigurator(manip))  # Пустое имя операции
+        with self.assertRaises(ValueError):
+            manip.register_operation("invalid", object())  # Нет метода execute
+        logger.info("Invalid operation registration tested successfully")
 
-    def test_process_request(self) -> None:
-        entity = TestEntity(name="test_obj")
-        request = {"operation": "test", "obj": entity, "attributes": {"value": 42}}
+    def test_get_methods_for_type(self) -> None:
+        """Тест получения методов для типа."""
+        methods = self.manipulator.get_methods_for_type(list)
+        self.assertIn("append", methods)
+        methods = self.manipulator.get_methods_for_type(Observation)
+        self.assertIn("set", methods)
+        with self.assertRaises(ValueError):
+            self.manipulator.get_methods_for_type(str)  # Не зарегистрированный тип
+        logger.info("Get methods for type tested successfully")
+
+    def test_update_registry(self) -> None:
+        """Тест обновления реестра методов."""
+        manip = Manipulator(base_classes=[list])
+        manip.update_registry(additional_classes=[Observation])
+        self.assertIn(list, manip._registry)
+        self.assertIn(Observation, manip._registry)
+        manip.update_registry(clear_operations=True)
+        self.assertEqual(len(manip._operations), 0)
+        logger.info("Registry update tested successfully")
+
+    def test_process_single_request_success(self) -> None:
+        """Тест успешной обработки одиночного запроса."""
+        # Тест с объектом Observation
+        request = {
+            "operation": "configure",
+            "obj": self.obs,
+            "attributes": {"value": 100}
+        }
         result = self.manipulator.process_request(request)
         self.assertTrue(result)
-        self.assertEqual(entity.value, 42)
-        logger.info("Single request processed successfully")
+        self.assertEqual(self.obs.value, 100)
 
-    def test_process_nested_requests(self) -> None:
-        entity1 = TestEntity(name="obj1")
-        entity2 = TestEntity(name="obj2")
-        requests = {
-            "req1": {"operation": "test", "obj": entity1, "attributes": {"value": 10}},
-            "req2": {"operation": "test", "obj": entity2, "attributes": {"value": 20}}
+        # Тест с объектом list
+        test_list = []
+        request = {
+            "operation": "configure",
+            "obj": test_list,
+            "attributes": {"append": 42}
         }
-        results = self.manipulator.process_request(requests)
-        self.assertEqual(results["req1"], True)
-        self.assertEqual(results["req2"], True)
-        self.assertEqual(entity1.value, 10)
-        self.assertEqual(entity2.value, 20)
-        logger.info("Nested requests processed successfully")
+        result = self.manipulator.process_request(request)
+        self.assertTrue(result)
+        self.assertEqual(test_list, [42])
+        logger.info("Single request success tested successfully")
 
-    def test_invalid_request(self) -> None:
-        request = {"operation": "unknown", "obj": TestEntity(name="obj")}
+    def test_process_single_request_with_managing_object(self) -> None:
+        """Тест обработки запроса с использованием managing_object."""
+        manip = Manipulator(managing_object=self.obs)
+        manip.register_operation("configure", TestConfigurator(manip))
+        request = {
+            "operation": "configure",
+            "attributes": {"value": 200}
+        }
+        result = manip.process_request(request)
+        self.assertTrue(result)
+        self.assertEqual(self.obs.value, 200)
+        logger.info("Single request with managing object tested successfully")
+
+    def test_process_single_request_missing_operation(self) -> None:
+        """Тест обработки запроса без указания операции."""
+        request = {"obj": self.obs, "attributes": {"value": 300}}
         result = self.manipulator.process_request(request)
         self.assertFalse(result)
-        logger.info("Invalid request handled correctly")
+        self.assertEqual(self.obs.value, 42)  # Значение не изменилось
+        logger.info("Missing operation in request tested successfully")
+
+    def test_process_single_request_invalid_operation(self) -> None:
+        """Тест обработки запроса с несуществующей операцией."""
+        request = {"operation": "invalid", "obj": self.obs, "attributes": {"value": 300}}
+        result = self.manipulator.process_request(request)
+        self.assertFalse(result)
+        self.assertEqual(self.obs.value, 42)
+        logger.info("Invalid operation in request tested successfully")
+
+    def test_process_single_request_invalid_attributes(self) -> None:
+        """Тест обработки запроса с невалидными атрибутами."""
+        request = {"operation": "configure", "obj": self.obs, "attributes": "not_a_dict"}
+        result = self.manipulator.process_request(request)
+        self.assertFalse(result)
+        self.assertEqual(self.obs.value, 42)
+        logger.info("Invalid attributes in request tested successfully")
+
+    def test_process_sequence_request(self) -> None:
+        """Тест обработки последовательности запросов."""
+        test_list = []
+        request = {
+            "req1": {"operation": "configure", "obj": self.obs, "attributes": {"value": 500}},
+            "req2": {"operation": "configure", "obj": test_list, "attributes": {"append": 1}},
+            "req3": {"operation": "configure", "obj": test_list, "attributes": {"append": 2}}
+        }
+        results = self.manipulator.process_request(request)
+        self.assertEqual(len(results), 3)
+        self.assertTrue(results["req1"]["success"])
+        self.assertTrue(results["req2"]["success"])
+        self.assertTrue(results["req3"]["success"])
+        self.assertEqual(self.obs.value, 500)
+        self.assertEqual(test_list, [1, 2])
+        logger.info("Sequence request tested successfully")
+
+    def test_process_sequence_request_with_errors(self) -> None:
+        """Тест обработки последовательности запросов с ошибками."""
+        request = {
+            "req1": {"operation": "configure", "obj": self.obs, "attributes": {"value": 600}},
+            "req2": {"operation": "invalid", "obj": self.obs, "attributes": {"value": 700}},
+            "req3": {"operation": "configure", "attributes": "not_a_dict"}
+        }
+        results = self.manipulator.process_request(request)
+        self.assertEqual(len(results), 3)
+        self.assertTrue(results["req1"]["success"])
+        self.assertFalse(results["req2"]["success"])
+        self.assertFalse(results["req3"]["success"])
+        self.assertEqual(self.obs.value, 600)
+        logger.info("Sequence request with errors tested successfully")
+
+    def test_process_request_invalid_type(self) -> None:
+        """Тест обработки запроса с невалидным типом запроса."""
+        with self.assertRaises(TypeError):
+            self.manipulator.process_request("not_a_dict")
+        logger.info("Invalid request type tested successfully")
+
+    def test_process_request_unsupported_object(self) -> None:
+        """Тест обработки запроса с неподдерживаемым типом объекта."""
+        request = {"operation": "configure", "obj": "string", "attributes": {"value": 42}}
+        with self.assertRaises(ValueError):
+            self.manipulator.process_request(request)
+        logger.info("Unsupported object type tested successfully")
+
+    def test_process_request_no_object(self) -> None:
+        """Тест обработки запроса без объекта и managing_object."""
+        manip = Manipulator()
+        manip.register_operation("configure", TestConfigurator(manip))
+        request = {"operation": "configure", "attributes": {"value": 42}}
+        with self.assertRaises(ValueError):
+            manip.process_request(request)
+        logger.info("No object in request tested successfully")
+
+    def test_get_supported_operations(self) -> None:
+        """Тест получения списка поддерживаемых операций."""
+        ops = self.manipulator.get_supported_operations()
+        self.assertEqual(ops, ["configure"])
+        manip = Manipulator()
+        self.assertEqual(manip.get_supported_operations(), [])
+        logger.info("Get supported operations tested successfully")
+
+    def test_method_registry_caching(self) -> None:
+        """Тест кэширования реестра методов."""
+        manip = Manipulator(base_classes=[list])
+        registry1 = manip._get_method_registry()
+        registry2 = manip._get_method_registry()
+        self.assertIs(registry1, registry2)  # Должны быть идентичны из-за кэширования
+        manip.update_registry(additional_classes=[Observation])
+        registry3 = manip._get_method_registry()
+        self.assertIsNot(registry1, registry3)  # После обновления кэш сброшен
+        self.assertIn(Observation, registry3)
+        logger.info("Method registry caching tested successfully")
 
 if __name__ == "__main__":
     unittest.main()
