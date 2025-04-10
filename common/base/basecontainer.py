@@ -45,6 +45,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
     _use_cache: bool
     _cached_to_dict: Dict[str, Any]
     _type_cache: Dict[Any, Any] = {}
+    _item_type: type
 
     def __init__(self, items: Dict[str, T] = None, name: str = None, isactive: bool = True, use_cache: bool = False):
         """Initialize the BaseContainer with a name, activation status, and optional items.
@@ -78,8 +79,10 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         
         # pass the resolved type to BaseEntity
         resolved_items_type = Dict[str, item_type]
-        self._fields["_items"] = resolved_items_type  # Update _fields with resolved type
+        self._fields["_items"] = resolved_items_type  # update _fields with resolved type
         
+        generic_base = self.__orig_bases__[0]
+        self._item_type = self._resolve_type(generic_base.__args__[0])  # Кэшируем тип
         super().__init__(name=name, isactive=isactive, _items=initial_items, _use_cache=use_cache, _cached_to_dict=None)
         self._validate_items(self._items)
         logger.info(f"Initialized {self.__class__.__name__} with name={name}, isactive={isactive}, item_count={len(self._items)}")
@@ -122,9 +125,14 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
 
         Raises:
             ValueError: If the item's name is None or already exists in the container.
+            TypeError: If the item's type does not match the expected type T.
         """
         if item.name is None:
             raise ValueError(f"Cannot add item with no name to {self.__class__.__name__}")
+        generic_base = self.__orig_bases__[0]
+        item_type = self._resolve_type(generic_base.__args__[0])
+        if not isinstance(item, item_type):
+            raise TypeError(f"Item must be of type {item_type.__name__}, got {type(item).__name__}")
         self._validate_item(item)
         if item.name in self._items:
             raise ValueError(f"Item with name '{item.name}' already exists in {self.__class__.__name__}")
