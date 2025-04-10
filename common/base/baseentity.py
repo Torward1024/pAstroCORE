@@ -272,6 +272,28 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             bool: True if the attribute exists and is set, False otherwise.
         """
         return key in self._fields and hasattr(self, key)
+    
+    def __setattr__(self, key: str, value: Any) -> None:
+        """Set an attribute with type validation.
+
+        Args:
+            key (str): The name of the attribute to set.
+            value (Any): The value to assign.
+
+        Raises:
+            ValueError: If the key is not in the entity's fields (except for 'name' and 'isactive').
+            TypeError: If the value does not match the annotated type.
+        """
+        if key in ("name", "isactive"):
+            super().__setattr__(key, value)
+        elif key in self._fields:
+            expected_type = self._fields[key]
+            if not isinstance(value, expected_type) and value is not None:
+                raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
+            super().__setattr__(key, value)
+            logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
+        else:
+            raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
 
     def __repr__(self) -> str:
         """Return a string representation of the BaseEntity.
