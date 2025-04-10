@@ -128,7 +128,6 @@ class Manipulator(ABC):
             raise ValueError(f"Super-instance for '{operation}' must have 'execute' method")
         super_instance._operation = operation
         self._operations[operation] = super_instance
-
         super_type = type(super_instance)
         if super_type not in self._registry:
             methods = {
@@ -137,6 +136,7 @@ class Manipulator(ABC):
             }
             self._registry[super_type] = methods
             logger.debug(f"Registered {len(methods)} methods for {super_type.__name__}")
+        self._get_method_registry.cache_clear()
         logger.info(f"Registered operation '{operation}' with {type(super_instance).__name__}")
 
     @lru_cache(maxsize=2048)
