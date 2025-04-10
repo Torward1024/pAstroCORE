@@ -71,22 +71,24 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             TypeError: If an attribute value does not match its annotated type.
             ValueError: If an unknown attribute is provided.
         """
-        self.name = name
-        self.isactive = isactive
-        self._use_cache = use_cache
-        self._cached_to_dict = None
         
-        # Check for unknown attributes in kwargs
-        for key in kwargs:
-            if key not in self._fields:
-                raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
-        
-        # Single pass to initialize fields with type validation
+        super().__setattr__('_use_cache', use_cache)
+        super().__setattr__('_cached_to_dict', None)
+        super().__setattr__('name', name)
+        super().__setattr__('isactive', isactive)
+
         for field in self._fields:
+            if field in ('_use_cache', '_cached_to_dict', 'name', 'isactive') and field not in kwargs:
+                continue
             value = kwargs.get(field, None)
             expected_type = self._resolve_type(self._fields[field])
             self._validate_type(field, value, expected_type)
-            object.__setattr__(self, field, value)
+            super().__setattr__(field, value)
+        print(f"After init: _use_cache={self._use_cache}")
+
+        unknown_attrs = set(kwargs.keys()) - set(self._fields.keys())
+        if unknown_attrs:
+            raise ValueError(f"Unknown attributes provided for {self.__class__.__name__}: {unknown_attrs}")
         
         logger.info(f"Initialized {self.__class__.__name__} instance with name={name}, isactive={isactive}")
 
@@ -215,19 +217,32 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         Returns:
             dict: A dictionary containing the entity's serialized data.
         """
+        print(f"to_dict called for {self}, use_cache={self._use_cache}, cached_to_dict={self._cached_to_dict}")
         if self._use_cache and self._cached_to_dict is not None:
+            print("Returning cached dict")
             return self._cached_to_dict
+        
+        seen = set()
         data = {"name": self.name, "isactive": self.isactive}
+        seen.add(id(self))
         for key in self._fields:
+            if key.startswith('_'):
+                continue
             if hasattr(self, key):
                 value = getattr(self, key)
                 if isinstance(value, BaseEntity):
-                    data[key] = value.to_dict()
+                    if id(value) in seen:
+                        data[key] = "<cyclic reference>"
+                    else:
+                        data[key] = value.to_dict()
+                        seen.add(id(value))
                 else:
                     data[key] = value
+        
         if self._use_cache:
             self._cached_to_dict = data
-        return data
+            return self._cached_to_dict  # Явно возвращаем кэшированный объект
+        return data  # Возвращаем новый объект, если кэш не используется
 
     @classmethod
     def from_dict(cls, data: dict) -> 'BaseEntity':
@@ -282,7 +297,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         Raises:
             TypeError: If the type hint cannot be resolved.
         """
-        """Resolve forward references and TypeVar to actual types with fallback."""
         from typing import ForwardRef, TypeVar, get_args
 
         if type_hint in cls._type_cache:
@@ -297,10 +311,13 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                     resolved = getattr(module, type_name, None) if module else None
                     if resolved is None:
                         raise TypeError(f"Cannot resolve forward reference '{type_name}' in {cls.__name__}")
+                # Рекурсивно проверяем вложенные типы
+                if hasattr(resolved, '_fields'):
+                    for field, field_type in resolved._fields.items():
+                        cls._resolve_type(field_type)
                 cls._type_cache[type_hint] = resolved
                 return resolved
 
-            # resolve string annotations
             if isinstance(type_hint, str):
                 resolved = globals().get(type_hint)
                 if resolved is None:
@@ -312,7 +329,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                 cls._type_cache[type_hint] = resolved
                 return resolved
 
-            # resulve TypeVar
             elif isinstance(type_hint, TypeVar):
                 if hasattr(cls, '__orig_bases__'):
                     for base in cls.__orig_bases__:
@@ -334,12 +350,10 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                                 return resolved
                 raise TypeError(f"Cannot resolve TypeVar '{type_hint}' in {cls.__name__}")
 
-            # support for generic types (e.g., Dict[str, int])
             elif hasattr(type_hint, "__origin__"):
                 cls._type_cache[type_hint] = type_hint
                 return type_hint
 
-            # regular type (e.g., int, str)
             cls._type_cache[type_hint] = type_hint
             return type_hint
         except Exception as e:
@@ -393,7 +407,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             return False
         return (self.name == other.name and
                 self.isactive == other.isactive and
-                self.get() == other.get())
+                all(self.get(k) == other.get(k) for k in self._fields if k not in ("name", "isactive")))
 
     def __contains__(self, key: str) -> bool:
         """Check if an attribute exists in the entity.
@@ -417,21 +431,15 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             ValueError: If the key is not in the entity's fields (except for 'name' and 'isactive').
             TypeError: If the value does not match the annotated type.
         """
-        if key in ("name", "isactive"):
+        internal_attrs = {"name", "isactive", "_use_cache", "_cached_to_dict"}
+        if key in internal_attrs:
             super().__setattr__(key, value)
         elif key in self._fields:
             expected_type = self._resolve_type(self._fields[key])
-            if isinstance(expected_type, str):
-                resolved_type = globals().get(expected_type)
-                if resolved_type is None:
-                    from inspect import getmodule
-                    module = getmodule(self.__class__)
-                    resolved_type = getattr(module, expected_type, None) if module else None
-                    if resolved_type is None:
-                        raise TypeError(f"Cannot resolve forward reference '{expected_type}' for attribute '{key}'")
-                expected_type = resolved_type
             self._validate_type(key, value, expected_type)
             super().__setattr__(key, value)
+            if hasattr(self, '_cached_to_dict') and self._use_cache:
+                self._cached_to_dict = None
             logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
         else:
             raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
@@ -444,5 +452,11 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """
         attrs = [f"name={self.name!r}" if self.name else ""]
         attrs.append(f"isactive={self.isactive}")
-        attrs.extend(f"{k}={getattr(self, k)!r}" for k in self._fields if hasattr(self, k))
+        for k in self._fields:
+            if hasattr(self, k):
+                value = getattr(self, k)
+                if isinstance(value, BaseEntity):
+                    attrs.append(f"{k}=<{value.__class__.__name__} at {id(value)}>")
+                else:
+                    attrs.append(f"{k}={value!r}")
         return f"{self.__class__.__name__}({', '.join(attr for attr in attrs if attr)})"

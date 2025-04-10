@@ -157,18 +157,14 @@ class Manipulator(ABC):
                 if not name.startswith('__') and callable(method)
             }
             registry[super_type] = methods
-            logger.info(f"Registered {len(methods)} methods for {super_type.__name__}: {list(methods.keys())}")
-
         for cls in self._base_classes:
             methods = {
                 name: getattr(cls, name) for name, _ in inspect.getmembers(cls)
                 if (inspect.isfunction(getattr(cls, name, None)) or inspect.ismethod(getattr(cls, name, None)))
                 and not name.startswith('_') and callable(getattr(cls, name))
             }
-            for name, method in methods.items():
-                if not callable(method):
-                    logger.error(f"Method {name} for {cls.__name__} is not callable: {method} (type: {type(method).__name__})")
             registry[cls] = methods
+        logger.info(f"Built method registry with {len(registry)} types")
         return registry
 
     def process_request(self, request: Dict[str, Any]) -> Any:
@@ -195,8 +191,12 @@ class Manipulator(ABC):
                 if not isinstance(sub_request, dict):
                     logger.error(f"Sub-request '{req_id}' must be a dict, got {type(sub_request)}")
                     raise TypeError(f"Sub-request '{req_id}' must be a dict")
-                result = self._process_single_request(sub_request)
-                results[req_id] = result
+                try:
+                    result = self._process_single_request(sub_request)
+                    results[req_id] = {"success": True, "result": result}
+                except Exception as e:
+                    results[req_id] = {"success": False, "error": str(e)}
+                    logger.error(f"Request '{req_id}' failed: {str(e)}")
             return results
         if not isinstance(request, dict):
             logger.error(f"Request must be a dict, got {type(request)}")

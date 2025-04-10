@@ -9,6 +9,9 @@ class TestEntity(BaseEntity):
     value: int
     nested: 'TestEntity'
 
+class BrokenEntity(BaseEntity):
+    field: "NonExistentType"
+
 class TestContainer(BaseContainer[TestEntity]):
     def _validate_item(self, item: TestEntity) -> None:
         if item.value < 0:
@@ -132,6 +135,28 @@ class TestBaseEntity(unittest.TestCase):
         self.assertEqual(entity.data, 42)
         with self.assertRaises(TypeError):
             entity.data = "invalid"
+    
+    def test_caching(self):
+        entity = TestEntity(name="test", value=512, use_cache=True)
+        dict1 = entity.to_dict()
+        dict2 = entity.to_dict()
+        self.assertIs(dict1, dict2)
+        entity.value = 43
+        dict3 = entity.to_dict()
+        self.assertIsNot(dict1, dict3)
+    
+    def test_cyclic_reference(self):
+        entity = TestEntity(name="test", value=42)
+        entity.nested = entity  # Создаём цикл
+        data = entity.to_dict()
+        self.assertEqual(data["nested"], "<cyclic reference>")
+
+    def test_unresolved_forward_reference(self):
+        class BrokenEntity(BaseEntity):
+            invalid: "NonExistentType"
+        with self.assertRaises(TypeError) as cm:
+            BrokenEntity(name="test")
+        self.assertIn("NonExistentType", str(cm.exception))
 
 class TestBaseContainer(unittest.TestCase):
     def test_init_without_items(self):
@@ -331,10 +356,42 @@ class TestBaseContainer(unittest.TestCase):
         item = TestEntity(name="item1", value=42)
         container.add(item)
         dict1 = container.to_dict()
-        container.add(TestEntity(name="item2", value=100))  # Используем add вместо прямой мутации
+        container.add(TestEntity(name="item2", value=140))  # Используем add вместо прямой мутации
         dict2 = container.to_dict()
         self.assertNotEqual(dict1, dict2)  # Кэш инвалидируется через add
-        self.assertEqual(container["item2"].value, 100)  # Мутация работает
+        self.assertEqual(container["item2"].value, 140)  # Мутация работает
+    
+    def test_direct_items_mutation_warning(self):
+        container = TestContainer(name="test", use_cache=True)
+        item = TestEntity(name="item1", value=42)
+        container.add(item)
+        dict1 = container.to_dict()
+        container._items["item2"] = TestEntity(name="item2", value=100)  # Прямое изменение
+        dict2 = container.to_dict()
+        self.assertEqual(dict1, dict2)  # Кэш не инвалидируется
+        self.assertEqual(container["item2"].value, 100)  # Изменение применилось
+    
+    def test_caching_extended(self):
+        container = TestContainer(name="test", use_cache=True)
+        item = TestEntity(name="item1", value=342)
+        container.add(item)
+        dict1 = container.to_dict()
+        container.remove("item1")
+        dict2 = container.to_dict()
+        self.assertIsNot(dict1, dict2)  # Кэш инвалидируется при удалении
+        container.add(item)
+        dict3 = container.to_dict()
+        container.clear()
+        dict4 = container.to_dict()
+        self.assertIsNot(dict3, dict4)
+    
+    def test_nested_unresolved_type(self):
+        class BrokenContainer(BaseContainer["BrokenEntity"]):
+            pass
+        data = {"name": "test", "items": {"item1": {"name": "item1", "field": 42}}}
+        with self.assertRaises(TypeError) as cm:
+            BrokenContainer.from_dict(data)
+        self.assertIn("NonExistentType", str(cm.exception))
 
 if __name__ == "__main__":
     unittest.main()

@@ -136,6 +136,7 @@ class Super(ABC):
             self._methods[obj_type] = {}
         self._methods[obj_type][method_name] = method
         self._method_cache.clear()
+        logger.info(f"Registered method '{method_name}' for {obj_type.__name__}")
 
     def execute(self, obj: Any, attributes: Dict[str, Any] = None, method: str = None) -> Union[Dict[str, Any], bool]:
         """Execute an operation on an object based on attributes and an optional method.
@@ -216,7 +217,7 @@ class Super(ABC):
         Returns:
             Union[Dict[str, Any], bool]: An empty dictionary as the default result.
         """
-        return {}
+        return {"success": False, "error": "Operation not executed"}
 
     def _default_nested_result(self) -> Union[Dict[str, Any], bool]:
         """Provide a default result for nested operations.
@@ -224,7 +225,7 @@ class Super(ABC):
         Returns:
             Union[Dict[str, Any], bool]: An empty dictionary as the default result.
         """
-        return {}
+        return {"success": False, "error": "Operation not executed"}
 
     def __repr__(self) -> str:
         """Return a string representation of the Super instance.

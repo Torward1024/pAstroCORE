@@ -93,8 +93,24 @@ class Project(ABC):
     @classmethod
     @abstractmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Project':
-        """Create a project instance from a dictionary."""
-        pass
+        """Create a project instance from a dictionary.
+
+        Args:
+            data (Dict[str, Any]): Dictionary with project configuration.
+
+        Returns:
+            Project: A new instance of the subclass initialized with the dictionary data.
+
+        Raises:
+            ValueError: If the data is invalid or cannot be deserialized.
+        """
+        try:
+            check_non_empty_string(data["name"], "Project name")
+            items = {k: cls._item_type.from_dict(v) for k, v in data.get("items", {}).items()}
+            return cls(name=data["name"], items=items)
+        except (KeyError, TypeError, ValueError) as e:
+            logger.error(f"Failed to deserialize Project from dict: {str(e)}")
+            raise ValueError(f"Invalid project data: {str(e)}")
 
     def __repr__(self) -> str:
         """Return a string representation of the Project."""
