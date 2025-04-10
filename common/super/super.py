@@ -153,56 +153,62 @@ class Super(ABC):
         """
         if attributes is None:
             attributes = {}
-        
         cache_key = (self._operation, type(obj), method, tuple(sorted(attributes.items())) if attributes else None)
         if cache_key in self._method_cache:
             return self._method_cache[cache_key]
+        try:
 
-        if method:
-            method_func = getattr(self, method, None)
-            if callable(method_func):
-                result = method_func(obj, attributes)
-                self._method_cache[cache_key] = result
-                return result
-        
-        method_name = attributes.get("method")
-        if not method_name and "attributes" in attributes and isinstance(attributes["attributes"], dict):
-            nested_attrs = attributes["attributes"]
-            method_name = nested_attrs.get("method")
-            object_attributes = nested_attrs.get("attributes", {})
-        else:
-            object_attributes = {k: v for k, v in attributes.items() if k != 'method'}
-        
-        if method_name:
-            method = getattr(self, method_name, None)
-            if callable(method):
-                result = method(obj, object_attributes)
-                self._method_cache[cache_key] = result
-                return result
+            if method:
+                method_func = getattr(self, method, None)
+                if callable(method_func):
+                    result = method_func(obj, attributes)
+                    self._method_cache[cache_key] = result
+                    return result
             
-            prefixed_method_name = f"_{self._operation}_{method_name}"
-            method = getattr(self, prefixed_method_name, None)
+            method_name = attributes.get("method")
+            if not method_name and "attributes" in attributes and isinstance(attributes["attributes"], dict):
+                nested_attrs = attributes["attributes"]
+                method_name = nested_attrs.get("method")
+                object_attributes = nested_attrs.get("attributes", {})
+            else:
+                object_attributes = {k: v for k, v in attributes.items() if k != 'method'}
+            
+            if method_name:
+                method = getattr(self, method_name, None)
+                if callable(method):
+                    result = method(obj, object_attributes)
+                    self._method_cache[cache_key] = result
+                    return result
+                
+                prefixed_method_name = f"_{self._operation}_{method_name}"
+                method = getattr(self, prefixed_method_name, None)
+                if callable(method):
+                    result = method(obj, object_attributes)
+                    self._method_cache[cache_key] = result
+                    return result
+
+            obj_type = type(obj).__name__.lower()
+            auto_method_name = f"_{self._operation}_{obj_type}"
+            method = getattr(self, auto_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
                 self._method_cache[cache_key] = result
                 return result
 
-        obj_type = type(obj).__name__.lower()
-        auto_method_name = f"_{self._operation}_{obj_type}"
-        method = getattr(self, auto_method_name, None)
-        if callable(method):
-            result = method(obj, object_attributes)
-            self._method_cache[cache_key] = result
-            return result
+            default_method_name = f"_{self._operation}"
+            method = getattr(self, default_method_name, None)
+            if callable(method):
+                result = method(obj, object_attributes)
+                self._method_cache[cache_key] = result
+                return result
 
-        default_method_name = f"_{self._operation}"
-        method = getattr(self, default_method_name, None)
-        if callable(method):
-            result = method(obj, object_attributes)
-            self._method_cache[cache_key] = result
-            return result
-
-        raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type}' in {self.__class__.__name__}")
+            raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type}' in {self.__class__.__name__}")
+        except ValueError as e:
+            logger.error(f"Execution failed for operation '{self._operation}': {str(e)}")
+            return self._default_result()
+        except Exception as e:
+            logger.error(f"Unexpected error in execute for '{self._operation}': {str(e)}")
+            return self._default_result()
 
     def _default_result(self) -> Union[Dict[str, Any], bool]:
         """Provide a default result when an operation cannot be executed.

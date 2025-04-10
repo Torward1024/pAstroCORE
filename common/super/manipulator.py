@@ -192,9 +192,15 @@ class Manipulator(ABC):
             results = {}
             logger.info(f"Processing sequence of {len(request)} requests")
             for req_id, sub_request in request.items():
+                if not isinstance(sub_request, dict):
+                    logger.error(f"Sub-request '{req_id}' must be a dict, got {type(sub_request)}")
+                    raise TypeError(f"Sub-request '{req_id}' must be a dict")
                 result = self._process_single_request(sub_request)
                 results[req_id] = result
             return results
+        if not isinstance(request, dict):
+            logger.error(f"Request must be a dict, got {type(request)}")
+            raise TypeError("Request must be a dict")
         return self._process_single_request(request)
 
     def _process_single_request(self, request: Dict[str, Any]) -> Any:

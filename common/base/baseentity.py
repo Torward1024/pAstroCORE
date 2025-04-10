@@ -285,65 +285,66 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """Resolve forward references and TypeVar to actual types with fallback."""
         from typing import ForwardRef, TypeVar, get_args
 
-        # check cache
         if type_hint in cls._type_cache:
             return cls._type_cache[type_hint]
-
-        # resolve ForwardRef
-        if isinstance(type_hint, ForwardRef):
-            type_name = type_hint.__forward_arg__
-            resolved = globals().get(type_name)
-            if resolved is None:
-                from inspect import getmodule
-                module = getmodule(cls)
-                resolved = getattr(module, type_name, None) if module else None
+        try:
+            if isinstance(type_hint, ForwardRef):
+                type_name = type_hint.__forward_arg__
+                resolved = globals().get(type_name)
                 if resolved is None:
-                    raise TypeError(f"Cannot resolve forward reference '{type_name}' in {cls.__name__}")
-            cls._type_cache[type_hint] = resolved
-            return resolved
+                    from inspect import getmodule
+                    module = getmodule(cls)
+                    resolved = getattr(module, type_name, None) if module else None
+                    if resolved is None:
+                        raise TypeError(f"Cannot resolve forward reference '{type_name}' in {cls.__name__}")
+                cls._type_cache[type_hint] = resolved
+                return resolved
 
-        # resolve string annotations
-        if isinstance(type_hint, str):
-            resolved = globals().get(type_hint)
-            if resolved is None:
-                from inspect import getmodule
-                module = getmodule(cls)
-                resolved = getattr(module, type_hint, None) if module else None
+            # resolve string annotations
+            if isinstance(type_hint, str):
+                resolved = globals().get(type_hint)
                 if resolved is None:
-                    raise TypeError(f"Cannot resolve type hint '{type_hint}' in {cls.__name__}")
-            cls._type_cache[type_hint] = resolved
-            return resolved
+                    from inspect import getmodule
+                    module = getmodule(cls)
+                    resolved = getattr(module, type_hint, None) if module else None
+                    if resolved is None:
+                        raise TypeError(f"Cannot resolve type hint '{type_hint}' in {cls.__name__}")
+                cls._type_cache[type_hint] = resolved
+                return resolved
 
-        # resulve TypeVar
-        elif isinstance(type_hint, TypeVar):
-            if hasattr(cls, '__orig_bases__'):
-                for base in cls.__orig_bases__:
-                    args = get_args(base)
-                    if args and isinstance(type_hint, TypeVar):
-                        if len(args) > 0:
-                            resolved = cls._resolve_type(args[0])
-                            cls._type_cache[type_hint] = resolved
-                            return resolved
-                        bound = type_hint.__bound__
-                        if bound:
-                            resolved = cls._resolve_type(bound)
-                            cls._type_cache[type_hint] = resolved
-                            return resolved
-                        constraints = type_hint.__constraints__
-                        if constraints:
-                            resolved = cls._resolve_type(constraints[0])
-                            cls._type_cache[type_hint] = resolved
-                            return resolved
-            raise TypeError(f"Cannot resolve TypeVar '{type_hint}' in {cls.__name__}")
+            # resulve TypeVar
+            elif isinstance(type_hint, TypeVar):
+                if hasattr(cls, '__orig_bases__'):
+                    for base in cls.__orig_bases__:
+                        args = get_args(base)
+                        if args and isinstance(type_hint, TypeVar):
+                            if len(args) > 0:
+                                resolved = cls._resolve_type(args[0])
+                                cls._type_cache[type_hint] = resolved
+                                return resolved
+                            bound = type_hint.__bound__
+                            if bound:
+                                resolved = cls._resolve_type(bound)
+                                cls._type_cache[type_hint] = resolved
+                                return resolved
+                            constraints = type_hint.__constraints__
+                            if constraints:
+                                resolved = cls._resolve_type(constraints[0])
+                                cls._type_cache[type_hint] = resolved
+                                return resolved
+                raise TypeError(f"Cannot resolve TypeVar '{type_hint}' in {cls.__name__}")
 
-        # support for generic types (e.g., Dict[str, int])
-        elif hasattr(type_hint, "__origin__"):
+            # support for generic types (e.g., Dict[str, int])
+            elif hasattr(type_hint, "__origin__"):
+                cls._type_cache[type_hint] = type_hint
+                return type_hint
+
+            # regular type (e.g., int, str)
             cls._type_cache[type_hint] = type_hint
             return type_hint
-
-        # regular type (e.g., int, str)
-        cls._type_cache[type_hint] = type_hint
-        return type_hint
+        except Exception as e:
+            logger.error(f"Failed to resolve type hint {type_hint}: {str(e)}")
+            raise TypeError(f"Type resolution failed for {type_hint} in {cls.__name__}: {str(e)}")
 
     def __getitem__(self, key: str) -> Any:
         """Access an attribute using dictionary-like syntax.
