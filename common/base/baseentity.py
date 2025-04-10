@@ -84,7 +84,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             expected_type = self._resolve_type(self._fields[field])
             self._validate_type(field, value, expected_type)
             super().__setattr__(field, value)
-        print(f"After init: _use_cache={self._use_cache}")
 
         unknown_attrs = set(kwargs.keys()) - set(self._fields.keys())
         if unknown_attrs:
@@ -217,9 +216,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         Returns:
             dict: A dictionary containing the entity's serialized data.
         """
-        print(f"to_dict called for {self}, use_cache={self._use_cache}, cached_to_dict={self._cached_to_dict}")
         if self._use_cache and self._cached_to_dict is not None:
-            print("Returning cached dict")
             return self._cached_to_dict
         
         seen = set()
