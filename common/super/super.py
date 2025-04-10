@@ -135,6 +135,7 @@ class Super(ABC):
         if obj_type not in self._methods:
             self._methods[obj_type] = {}
         self._methods[obj_type][method_name] = method
+        self._method_cache.clear()
 
     def execute(self, obj: Any, attributes: Dict[str, Any] = None, method: str = None) -> Union[Dict[str, Any], bool]:
         """Execute an operation on an object based on attributes and an optional method.
