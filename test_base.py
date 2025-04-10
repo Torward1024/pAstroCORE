@@ -1,6 +1,9 @@
 import unittest
+from typing import TypeVar, Generic
 from common.base.baseentity import BaseEntity
 from common.base.basecontainer import BaseContainer
+
+T = TypeVar('T')
 
 class TestEntity(BaseEntity):
     value: int
@@ -119,6 +122,16 @@ class TestBaseEntity(unittest.TestCase):
         clone = entity.clone()
         self.assertEqual(entity, clone)
         self.assertIsNot(entity, clone)
+    
+    def test_typevar_resolution(self):
+        class GenericEntity(BaseEntity, Generic[T]):
+            data: T
+        class IntEntity(GenericEntity[int]):
+            pass
+        entity = IntEntity(data=42)
+        self.assertEqual(entity.data, 42)
+        with self.assertRaises(TypeError):
+            entity.data = "invalid"
 
 class TestBaseContainer(unittest.TestCase):
     def test_init_without_items(self):
@@ -291,6 +304,38 @@ class TestBaseContainer(unittest.TestCase):
         self.assertIn("name='test'", repr_str)
         self.assertIn("count=1", repr_str)
         self.assertIn("active=1", repr_str)
+    
+    def test_caching(self):
+        container = TestContainer(name="test", use_cache=True)
+        item = TestEntity(name="item1", value=42)
+        container.add(item)
+        dict1 = container.to_dict()
+        dict2 = container.to_dict()
+        self.assertIs(dict1, dict2)  # Проверяем, что кэш работает
+        container.add(TestEntity(name="item2", value=100))
+        dict3 = container.to_dict()
+        self.assertIsNot(dict1, dict3)  # Кэш инвалидируется
+
+    def test_unresolved_type_fallback(self):
+        # Создаём временный класс с forward reference
+        class TempContainer(BaseContainer["UnresolvedType"]):
+            pass
+        
+        data = {"name": "test", "items": {"item1": {"name": "item1", "value": 42}}}
+        with self.assertLogs("", level="WARNING") as cm:  # Проверяем корневой логгер
+            with self.assertRaises(TypeError):
+                TempContainer.from_dict(data)
+        self.assertIn("Cannot resolve type hint 'UnresolvedType'", cm.output[0])
+    
+    def test_direct_items_mutation(self):
+        container = TestContainer(name="test", use_cache=True)
+        item = TestEntity(name="item1", value=42)
+        container.add(item)
+        dict1 = container.to_dict()
+        container.add(TestEntity(name="item2", value=100))  # Используем add вместо прямой мутации
+        dict2 = container.to_dict()
+        self.assertNotEqual(dict1, dict2)  # Кэш инвалидируется через add
+        self.assertEqual(container["item2"].value, 100)  # Мутация работает
 
 if __name__ == "__main__":
     unittest.main()

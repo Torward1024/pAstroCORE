@@ -97,8 +97,11 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """
         if value is None:
             return
-        
+    
         resolved_type = self._resolve_type(expected_type)
+        if resolved_type is Any:
+            return
+        
         base_type = get_origin(resolved_type) or resolved_type
         type_args = get_args(resolved_type)
         
@@ -108,6 +111,8 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             if type_args:  # e.g., Dict[str, T]
                 key_type, value_type = type_args
                 resolved_value_type = self._resolve_type(value_type)
+                if resolved_value_type is Any:  # Пропускаем валидацию для Any
+                    return
                 if not isinstance(resolved_value_type, (type, tuple)):
                     raise TypeError(f"Resolved value type '{resolved_value_type}' for '{key}' is not a valid type")
                 for k, v in value.items():
@@ -267,7 +272,19 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         Raises:
             TypeError: If the type hint cannot be resolved.
         """
-        from typing import Any, TypeVar
+        """Resolve forward references and TypeVar to actual types with fallback."""
+        from typing import Any, ForwardRef, TypeVar, get_args
+        if isinstance(type_hint, ForwardRef):
+            type_name = type_hint.__forward_arg__
+            resolved = globals().get(type_name)
+            if resolved is None:
+                from inspect import getmodule
+                module = getmodule(cls)
+                resolved = getattr(module, type_name, None) if module else None
+                if resolved is None:
+                    logger.warning(f"Cannot resolve type hint '{type_name}', falling back to Any")
+                    return Any
+            return resolved
         if isinstance(type_hint, str):
             resolved = globals().get(type_hint)
             if resolved is None:
@@ -275,17 +292,24 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                 module = getmodule(cls)
                 resolved = getattr(module, type_hint, None) if module else None
                 if resolved is None:
-                    raise TypeError(f"Cannot resolve type hint '{type_hint}'")
+                    logger.warning(f"Cannot resolve type hint '{type_hint}', falling back to Any")
+                    return Any
             return resolved
         elif isinstance(type_hint, TypeVar):
-            # If it's a TypeVar, try to resolve from subclass context
             if hasattr(cls, '__orig_bases__'):
                 for base in cls.__orig_bases__:
                     args = get_args(base)
-                    if args and type_hint in args:
-                        # this is a simplification; ideally, we need the actual bound type
-                        return args[args.index(type_hint)]  # this won't work directly; see below
-            raise TypeError(f"Cannot resolve TypeVar '{type_hint}' without subclass context")
+                    if args and isinstance(type_hint, TypeVar):
+                        if len(args) > 0:
+                            return cls._resolve_type(args[0])
+                        bound = type_hint.__bound__
+                        if bound:
+                            return cls._resolve_type(bound)
+                        constraints = type_hint.__constraints__
+                        if constraints:
+                            return cls._resolve_type(constraints[0])
+            logger.warning(f"Cannot resolve TypeVar '{type_hint}', falling back to Any")
+            return Any
         elif hasattr(type_hint, "__origin__"):
             return type_hint
         elif type_hint is Any:
