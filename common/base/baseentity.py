@@ -64,13 +64,21 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """
         self.name = name
         self.isactive = isactive
+        
+        # initialize annotated attributes with None values
+        for field in self._fields:
+            if field not in kwargs:
+                setattr(self, field, None)
+
+        # set translated data with type checks
         for key, value in kwargs.items():
             if key not in self._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
             expected_type = self._fields[key]
-            if not isinstance(value, expected_type):
+            if not isinstance(value, expected_type) and value is not None:  # None is allowed for optional fields
                 raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
             setattr(self, key, value)
+        
         logger.info(f"Initialized {self.__class__.__name__} instance with name={name}, isactive={isactive}")
 
     def set(self, params: Dict[str, Any]) -> None:
@@ -203,6 +211,67 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                     raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
                 kwargs[key] = value
         return cls(name=data.get("name"), isactive=data.get("isactive", True), **kwargs)
+
+    def __getitem__(self, key: str) -> Any:
+        """Access an attribute using dictionary-like syntax.
+
+        Args:
+            key (str): The name of the attribute to retrieve.
+
+        Returns:
+            Any: The value of the specified attribute.
+
+        Raises:
+            KeyError: If the key is not found in the entity's fields.
+        """
+        if key not in self._fields:
+            raise KeyError(f"Attribute '{key}' not found in {self.__class__.__name__}")
+        return getattr(self, key) if hasattr(self, key) else None
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Set an attribute using dictionary-like syntax.
+
+        Args:
+            key (str): The name of the attribute to set.
+            value (Any): The value to assign.
+
+        Raises:
+            KeyError: If the key is not found in the entity's fields.
+            TypeError: If the value does not match the annotated type.
+        """
+        if key not in self._fields:
+            raise KeyError(f"Attribute '{key}' not found in {self.__class__.__name__}")
+        expected_type = self._fields[key]
+        if not isinstance(value, expected_type):
+            raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
+        setattr(self, key, value)
+        logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
+
+    def __eq__(self, other: Any) -> bool:
+        """Compare two entities for equality based on their attributes and state.
+
+        Args:
+            other (Any): The object to compare with.
+
+        Returns:
+            bool: True if the entities are equal, False otherwise.
+        """
+        if not isinstance(other, self.__class__):
+            return False
+        return (self.name == other.name and
+                self.isactive == other.isactive and
+                self.get() == other.get())
+
+    def __contains__(self, key: str) -> bool:
+        """Check if an attribute exists in the entity.
+
+        Args:
+            key (str): The name of the attribute to check.
+
+        Returns:
+            bool: True if the attribute exists and is set, False otherwise.
+        """
+        return key in self._fields and hasattr(self, key)
 
     def __repr__(self) -> str:
         """Return a string representation of the BaseEntity.
