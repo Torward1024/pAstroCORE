@@ -33,6 +33,26 @@ class TestProject(unittest.TestCase):
         with self.assertRaises(ValueError):
             TestObservationProject(name="")
         logger.info("Empty name validation tested successfully")
+    
+    def test_from_dict_invalid_item(self):
+        data = {"name": "TestProj", "items": {"OBS1": {"name": "OBS1", "frequency": "invalid"}}}
+        with self.assertRaises(TypeError):
+            TestObservationProject.from_dict(data)
+        logger.info("Invalid item deserialization tested successfully")
+    
+    def test_large_number_of_items_serialization(self):
+        for i in range(1000):
+            self.project.create_item(f"OBS_LARGE_{i}")
+        data = self.project.to_dict()
+        self.assertEqual(len(data["items"]), 1000)
+        restored = TestObservationProject.from_dict(data)
+        self.assertEqual(len(restored.get_items()), 1000)
+        logger.info("Large number of items serialization tested successfully")
+    
+    def test_container_name_update(self):
+        self.project.set_name("NewProj")
+        self.assertEqual(self.project._items.name, "NewProj_items")
+        logger.info("Container name update tested successfully")
 
     def test_add_item(self) -> None:
         item = TestObservation(name="OBS1", frequency=2.0)

@@ -245,13 +245,16 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         self._cached_to_dict = None  # Invalidate cache
         logger.info(f"Cleared all items from {self.__class__.__name__}")
 
-    def clone(self) -> 'BaseContainer[T]':
+    def clone(self, deep: bool = True) -> 'BaseContainer[T]':
         """Create a deep copy of the container.
 
         Returns:
             BaseContainer[T]: A new instance of the same class with identical items.
         """
-        new_items = {name: item.clone() for name, item in self._items.items()}
+        if deep:
+            new_items = {name: item.clone() for name, item in self._items.items()}
+        else:
+            new_items = self._items.copy()
         return self.__class__(items=new_items, name=self.name, isactive=self.isactive, use_cache=self._use_cache)
 
     def activate_item(self, name: str) -> None:
@@ -289,12 +292,12 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Returns:
             dict: A dictionary containing the container's serialized data.
         """
+        print(f"Container to_dict: use_cache={self._use_cache}, cached_to_dict={self._cached_to_dict}")
         if self._use_cache and self._cached_to_dict is not None:
+            print("Returning cached dict")
             return self._cached_to_dict
-        
         data = super().to_dict()
         data["items"] = {name: item.to_dict() for name, item in self._items.items()}
-        
         if self._use_cache:
             self._cached_to_dict = data
         return data
@@ -315,18 +318,28 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Raises:
             TypeError: If the item type cannot be resolved or if data is invalid.
         """
-        from inspect import getmodule
-        if not hasattr(cls, '_fields'):
-            cls._fields = get_type_hints(cls)
         generic_base = cls.__orig_bases__[0]
-        item_type = cls._resolve_type(generic_base.__args__[0])
+        item_type_hint = generic_base.__args__[0]
+        try:
+            item_type = cls._resolve_type(item_type_hint, field_path=f"{cls.__name__}.items")
+        except TypeError as e:
+            raise
+
         if item_type is Any:
             raise TypeError("Cannot instantiate items with unresolved type 'Any'")
-        items = {key: item_type.from_dict(item_data) for key, item_data in data["items"].items()}
+
+        items = {}
+        for key, item_data in data["items"].items():
+            if isinstance(item_type, str):
+                raise TypeError(f"Cannot resolve forward reference '{item_type}' in {cls.__name__}")
+            try:
+                items[key] = item_type.from_dict(item_data)
+            except TypeError as e:
+                raise TypeError(f"Failed to deserialize item '{key}' in {cls.__name__}: {str(e)}") from e
         return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
     
     @classmethod
-    def _resolve_type(cls, type_hint):
+    def _resolve_type(cls, type_hint, field_path=""):
         """Resolve forward references to actual types.
 
         Args:
@@ -338,45 +351,73 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Raises:
             TypeError: If the type hint cannot be resolved.
         """
-        from typing import ForwardRef
+        from typing import ForwardRef, TypeVar, get_args
 
-        # check cache
         if type_hint in cls._type_cache:
             return cls._type_cache[type_hint]
-
-        # resolve ForwardRef
-        if isinstance(type_hint, ForwardRef):
-            type_name = type_hint.__forward_arg__
-            resolved = globals().get(type_name)
-            if resolved is None:
-                from inspect import getmodule
-                module = getmodule(cls)
-                resolved = getattr(module, type_name, None) if module else None
+        try:
+            if isinstance(type_hint, ForwardRef):
+                type_name = type_hint.__forward_arg__
+                resolved = globals().get(type_name)
                 if resolved is None:
-                    raise TypeError(f"Cannot resolve forward reference '{type_name}' in {cls.__name__}")
-            cls._type_cache[type_hint] = resolved
-            return resolved
+                    from inspect import getmodule
+                    module = getmodule(cls)
+                    resolved = getattr(module, type_name, None) if module else None
+                    if resolved is None:
+                        raise TypeError(f"Cannot resolve forward reference '{type_name}' for {field_path or cls.__name__}")
+                if hasattr(resolved, '_fields'):
+                    for field, field_type in resolved._fields.items():
+                        try:
+                            cls._resolve_type(field_type, field_path=f"{field_path}.{field}" if field_path else field)
+                        except TypeError as e:
+                            raise TypeError(f"Failed to resolve nested type '{field}' in {resolved.__name__}: {str(e)}") from e
+                cls._type_cache[type_hint] = resolved
+                return resolved
 
-        # resolve annotations
-        if isinstance(type_hint, str):
-            resolved = globals().get(type_hint)
-            if resolved is None:
-                from inspect import getmodule
-                module = getmodule(cls)
-                resolved = getattr(module, type_hint, None) if module else None
+            if isinstance(type_hint, str):
+                resolved = globals().get(type_hint)
                 if resolved is None:
-                    raise TypeError(f"Cannot resolve type hint '{type_hint}' in {cls.__name__}")
-            cls._type_cache[type_hint] = resolved
-            return resolved
+                    from inspect import getmodule
+                    module = getmodule(cls)
+                    resolved = getattr(module, type_hint, None) if module else None
+                    if resolved is None:
+                        raise TypeError(f"Cannot resolve type hint '{type_hint}' for {field_path or cls.__name__}")
+                cls._type_cache[type_hint] = resolved
+                return resolved
 
-        # support for generic types (e.g., Dict[str, T])
-        elif hasattr(type_hint, "__origin__"):
+            elif isinstance(type_hint, TypeVar):
+                if hasattr(cls, '__orig_bases__'):
+                    for base in cls.__orig_bases__:
+                        args = get_args(base)
+                        if args and isinstance(type_hint, TypeVar):
+                            if len(args) > 0:
+                                resolved = cls._resolve_type(args[0])
+                                cls._type_cache[type_hint] = resolved
+                                return resolved
+                            bound = type_hint.__bound__
+                            if bound:
+                                resolved = cls._resolve_type(bound)
+                                cls._type_cache[type_hint] = resolved
+                                return resolved
+                            constraints = type_hint.__constraints__
+                            if constraints:
+                                resolved = cls._resolve_type(constraints[0])
+                                cls._type_cache[type_hint] = resolved
+                                return resolved
+                raise TypeError(f"Cannot resolve TypeVar '{type_hint}' in {cls.__name__}")
+
+            elif hasattr(type_hint, "__origin__"):
+                cls._type_cache[type_hint] = type_hint
+                return type_hint
+
             cls._type_cache[type_hint] = type_hint
             return type_hint
-
-        # regular types
-        cls._type_cache[type_hint] = type_hint
-        return type_hint
+        except TypeError as e:
+            logger.error(f"Failed to resolve type hint {type_hint}: {str(e)}")
+            raise TypeError(f"Type resolution failed for {type_hint} in {field_path or cls.__name__}: {str(e)}") from e
+        except Exception as e:
+            logger.error(f"Failed to resolve type hint {type_hint}: {str(e)}")
+            raise TypeError(f"Type resolution failed for {type_hint} in {field_path or cls.__name__}: {str(e)}") from e
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over the items in the container.
@@ -458,6 +499,12 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             int: The number of items currently stored in the container.
         """
         return len(self._items)
+    
+    def __setattr__(self, key: str, value: Any) -> None:
+        super().__setattr__(key, value)
+        if key != '_cached_to_dict':
+            self._cached_to_dict = None
+        logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
     
     @property
     def items(self) -> Dict[str, T]:
