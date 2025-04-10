@@ -322,10 +322,9 @@ class TestBaseContainer(unittest.TestCase):
             pass
         
         data = {"name": "test", "items": {"item1": {"name": "item1", "value": 42}}}
-        with self.assertLogs("", level="WARNING") as cm:  # Проверяем корневой логгер
-            with self.assertRaises(TypeError):
-                TempContainer.from_dict(data)
-        self.assertIn("Cannot resolve type hint 'UnresolvedType'", cm.output[0])
+        with self.assertRaises(TypeError) as cm:
+            TempContainer.from_dict(data)
+        self.assertIn("Cannot resolve forward reference 'UnresolvedType'", str(cm.exception))
     
     def test_direct_items_mutation(self):
         container = TestContainer(name="test", use_cache=True)
