@@ -40,6 +40,7 @@ class Super(ABC):
         """
         self._manipulator = manipulator
         self._methods = methods or {}
+        self._method_cache = {}
 
     def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
         """Retrieve methods available for a given object type.
@@ -152,10 +153,16 @@ class Super(ABC):
         if attributes is None:
             attributes = {}
         
+        cache_key = (self._operation, type(obj), method, tuple(sorted(attributes.items())) if attributes else None)
+        if cache_key in self._method_cache:
+            return self._method_cache[cache_key]
+
         if method:
             method_func = getattr(self, method, None)
             if callable(method_func):
-                return method_func(obj, attributes)
+                result = method_func(obj, attributes)
+                self._method_cache[cache_key] = result
+                return result
         
         method_name = attributes.get("method")
         if not method_name and "attributes" in attributes and isinstance(attributes["attributes"], dict):
@@ -168,23 +175,31 @@ class Super(ABC):
         if method_name:
             method = getattr(self, method_name, None)
             if callable(method):
-                return method(obj, object_attributes)
+                result = method(obj, object_attributes)
+                self._method_cache[cache_key] = result
+                return result
             
             prefixed_method_name = f"_{self._operation}_{method_name}"
             method = getattr(self, prefixed_method_name, None)
             if callable(method):
-                return method(obj, object_attributes)
+                result = method(obj, object_attributes)
+                self._method_cache[cache_key] = result
+                return result
 
         obj_type = type(obj).__name__.lower()
         auto_method_name = f"_{self._operation}_{obj_type}"
         method = getattr(self, auto_method_name, None)
         if callable(method):
-            return method(obj, object_attributes)
+            result = method(obj, object_attributes)
+            self._method_cache[cache_key] = result
+            return result
 
         default_method_name = f"_{self._operation}"
         method = getattr(self, default_method_name, None)
         if callable(method):
-            return method(obj, object_attributes)
+            result = method(obj, object_attributes)
+            self._method_cache[cache_key] = result
+            return result
 
         raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type}' in {self.__class__.__name__}")
 

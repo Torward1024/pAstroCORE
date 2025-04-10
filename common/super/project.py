@@ -1,160 +1,123 @@
 # /common/super/project.py
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Dict, Any, Optional
 from common.utils.validation import check_non_empty_string
 from common.utils.logging_setup import logger
+from common.base.basecontainer import BaseContainer
+from common.base.baseentity import BaseEntity
 
 class Project(ABC):
-    """Abstract class for managing collections of items within a project.
+    """Abstract super-class for managing collections of BaseEntity items within a project using BaseContainer.
 
-    Serves as a foundation for specific project types managed by a Manipulator. Provides basic functionality
-    for adding, inserting, removing, retrieving, and configuring projects and their items, with serialization
-    support. Subclasses must implement `create_item` and `from_dict` methods to define item creation and
-    deserialization logic.
+    Serves as a foundation for specific project types managed by a Manipulator in the MSB architecture. 
+    Provides functionality for adding, removing, retrieving, and configuring projects and their items,
+    leveraging BaseContainer for efficient storage and serialization.
 
     Attributes:
         _name (str): The name of the project, must be a non-empty string.
-        _items (List[Any]): List of items contained within the project.
+        _items (BaseContainer[BaseEntity]): Container of BaseEntity items indexed by their names.
 
     Notes:
         - Logging is integrated via `common.utils.logging_setup.logger` to track operations and errors.
         - The class is abstract and cannot be instantiated directly; it requires subclassing.
+        - Items must be instances of BaseEntity or its subclasses, with unique names as keys.
 
     Examples:
-        >>> class MyProject(Project):
-        ...     def create_item(self, item_code="ITEM_DEFAULT", isactive=True):
-        ...         self._items.append({"code": item_code, "active": isactive})
+        >>> class Observation(BaseEntity):
+        ...     frequency: float
+        >>> class ObservationProject(Project):
+        ...     def create_item(self, item_code="OBS_DEFAULT", isactive=True):
+        ...         self._items.add(Observation(name=item_code, isactive=isactive, frequency=1.4))
         ...     @classmethod
         ...     def from_dict(cls, data):
-        ...         return cls(name=data["name"], items=data["items"])
-        >>> proj = MyProject(name="TestProject")
-        >>> proj.add_item({"code": "ITEM1"})
-        >>> proj.set_project(name="NewProject", items=[])
-        >>> proj.get_project()
-        {'name': 'NewProject', 'items': []}
+        ...         items = {k: Observation.from_dict(v) for k, v in data["items"].items()}
+        ...         return cls(name=data["name"], items=items)
+        >>> proj = ObservationProject(name="RadioObs")
+        >>> proj.create_item("OBS1")
+        >>> proj.to_dict()
+        {'name': 'RadioObs', 'items': {'OBS1': {'name': 'OBS1', 'isactive': True, 'frequency': 1.4}}}
     """
-    def __init__(self, name: str = "DEFAULT_PROJECT", items: List[Any] = None):
-        """Initialize a Project with a name and an optional list of items.
+    def __init__(self, name: str = "DEFAULT_PROJECT", items: Optional[Dict[str, BaseEntity]] = None):
+        """Initialize a Project with a name and an optional dictionary of BaseEntity items.
 
         Args:
             name (str): The name of the project. Must be a non-empty string. Defaults to "DEFAULT_PROJECT".
-            items (List[Any], optional): Initial list of items. Defaults to None (empty list).
+            items (Optional[Dict[str, BaseEntity]]): Initial dictionary of items, where keys are item names. Defaults to None (empty container).
 
         Raises:
             TypeError: If name is not a string.
-            ValueError: If name is empty.
+            ValueError: If name is empty or items contain non-BaseEntity values.
         """
         check_non_empty_string(name, "Project name")
         self._name = name
-        self._items = items if items else []
+        self._items = BaseContainer[BaseEntity](items=items, name=f"{name}_items")
         logger.info(f"Initialized project '{name}' with {len(self._items)} items")
 
-    def add_item(self, item: Any) -> None:
-        """Add an item to the project's collection.
+    def add_item(self, item: BaseEntity) -> None:
+        """Add a BaseEntity item to the project's container.
 
         Args:
-            item (Any): The item to add to the project.
+            item (BaseEntity): The item to add, must have a unique name.
 
-        Notes:
-            - No type checking is performed on the item; it is the responsibility of subclasses to enforce type constraints if needed.
+        Raises:
+            ValueError: If item.name is None or already exists in the container.
         """
-        self._items.append(item)
-        logger.info(f"Added item to project '{self._name}'")
+        self._items.add(item)
+        logger.info(f"Added item '{item.name}' to project '{self._name}'")
 
     @abstractmethod
     def create_item(self, item_code: str = "ITEM_DEFAULT", isactive: bool = True) -> None:
-        """Create and add a new item to the project.
+        """Create and add a new BaseEntity item to the project.
 
         Abstract method to be implemented by subclasses to define how new items are created and added.
 
         Args:
-            item_code (str): Identifier for the new item. Defaults to "ITEM_DEFAULT".
+            item_code (str): Identifier for the new item, used as its name. Defaults to "ITEM_DEFAULT".
             isactive (bool): Activation status of the new item. Defaults to True.
         """
         pass
 
-    def insert_item(self, item: Any, index: int) -> None:
-        """Insert an item at a specified index in the project's collection.
+    def remove_item(self, name: str) -> None:
+        """Remove an item from the project by its name.
 
         Args:
-            item (Any): The item to insert.
-            index (int): The position to insert the item (0 to len(items)).
+            name (str): The name of the item to remove.
 
         Raises:
-            IndexError: If index is out of range (less than 0 or greater than the current number of items).
+            KeyError: If the name is not found in the container.
         """
-        if not (0 <= index <= len(self._items)):
-            logger.error(f"Invalid index {index} for insertion in project '{self._name}' with {len(self._items)} items")
-            raise IndexError(f"Index {index} out of range for Project with {len(self._items)} items")
-        self._items.insert(index, item)
-        logger.info(f"Inserted item at index {index} in project '{self._name}'")
+        self._items.remove(name)
+        logger.info(f"Removed item '{name}' from project '{self._name}'")
 
-    def remove_item(self, index: int) -> None:
-        """Remove an item from the project at the specified index.
+    def get_item(self, name: str) -> BaseEntity:
+        """Retrieve an item from the project by its name.
 
         Args:
-            index (int): The index of the item to remove.
-
-        Raises:
-            IndexError: If index is out of range (less than 0 or greater than or equal to the number of items).
-        """
-        if not (0 <= index < len(self._items)):
-            logger.error(f"Invalid index {index} for removal in project '{self._name}' with {len(self._items)} items")
-            raise IndexError(f"Index {index} out of range for Project with {len(self._items)} items")
-        self._items.pop(index)
-        logger.info(f"Removed item from project '{self._name}' at index {index}")
-
-    def set_item(self, item: Any, index: int) -> None:
-        """Replace an item at the specified index with a new item.
-
-        Args:
-            item (Any): The new item to set.
-            index (int): The index of the item to replace.
-
-        Raises:
-            IndexError: If index is out of range (less than 0 or greater than or equal to the number of items).
-        """
-        if not (0 <= index < len(self._items)):
-            logger.error(f"Invalid index {index} for setting item in project '{self._name}' with {len(self._items)} items")
-            raise IndexError(f"Index {index} out of range for Project with {len(self._items)} items")
-        self._items[index] = item
-        logger.info(f"Set item at index {index} in project '{self._name}'")
-
-    def get_by_index(self, index: int) -> Any:
-        """Retrieve an item from the project by its index.
-
-        Args:
-            index (int): The index of the item to retrieve.
+            name (str): The name of the item to retrieve.
 
         Returns:
-            Any: The item at the specified index.
+            BaseEntity: The item associated with the specified name.
 
         Raises:
-            IndexError: If index is out of range (less than 0 or greater than or equal to the number of items).
+            KeyError: If the name is not found in the container.
         """
-        if not (0 <= index < len(self._items)):
-            logger.error(f"Invalid index {index} for retrieval in project '{self._name}' with {len(self._items)} items")
-            raise IndexError(f"Index {index} out of range for Project with {len(self._items)} items")
-        item = self._items[index]
-        logger.info(f"Retrieved item from project '{self._name}' at index {index}")
+        item = self._items.get(name)
+        logger.info(f"Retrieved item '{name}' from project '{self._name}'")
         return item
 
-    def get_items(self) -> List[Any]:
-        """Retrieve all items in the project.
+    def get_items(self) -> Dict[str, BaseEntity]:
+        """Retrieve all items in the project as a dictionary.
 
         Returns:
-            List[Any]: A list of all items in the project.
+            Dict[str, BaseEntity]: A dictionary mapping item names to their BaseEntity instances.
         """
-        return self._items
+        return self._items.get_all()
 
     def get_name(self) -> str:
         """Retrieve the project's name.
 
         Returns:
             str: The name of the project.
-
-        Notes:
-            - Provides access to the project's name attribute for external use or inspection.
         """
         logger.info(f"Retrieved name '{self._name}' for project")
         return self._name
@@ -168,36 +131,30 @@ class Project(ABC):
         Raises:
             TypeError: If name is not a string.
             ValueError: If name is empty.
-
-        Notes:
-            - Updates the project name and logs the change.
         """
         check_non_empty_string(name, "Project name")
         old_name = self._name
         self._name = name
+        self._items.name = f"{name}_items"  # Обновляем имя контейнера
         logger.info(f"Project name changed from '{old_name}' to '{name}'")
 
-    def set_project(self, name: str, items: List[Any]) -> None:
+    def set_project(self, name: str, items: Dict[str, BaseEntity]) -> None:
         """Set the entire project configuration, replacing name and items.
 
         Args:
             name (str): The new name for the project. Must be a non-empty string.
-            items (List[Any]): The new list of items to set.
+            items (Dict[str, BaseEntity]): The new dictionary of items to set.
 
         Raises:
             TypeError: If name is not a string.
-            ValueError: If name is empty.
-
-        Notes:
-            - Replaces the current project name and items list with the provided values.
-            - No type checking is performed on items; subclasses should enforce type constraints if needed.
-            - Logs the update with the new name and item count.
+            ValueError: If name is empty or items contain non-BaseEntity values.
         """
         check_non_empty_string(name, "Project name")
         old_name = self._name
         old_count = len(self._items)
         self._name = name
-        self._items = items.copy()
+        self._items.set_items(items)
+        self._items.name = f"{name}_items"
         logger.info(f"Project updated: name changed from '{old_name}' to '{name}', "
                     f"items count changed from {old_count} to {len(self._items)}")
 
@@ -205,15 +162,11 @@ class Project(ABC):
         """Get the entire project configuration as a dictionary.
 
         Returns:
-            Dict[str, Any]: A dictionary containing the project name and a list of items.
+            Dict[str, Any]: A dictionary containing the project name and serialized items.
                 - "name": The project name (str).
-                - "items": List of items.
-
-        Notes:
-            - Provides a complete snapshot of the project state.
-            - Items are included as-is; subclasses may override to_dict() for custom serialization.
+                - "items": Dictionary of serialized items.
         """
-        result = {"name": self._name, "items": [item for item in self._items]}
+        result = {"name": self._name, "items": self._items.to_dict()["items"]}
         logger.info(f"Retrieved project configuration for '{self._name}' with {len(self._items)} items")
         return result
 
@@ -221,12 +174,9 @@ class Project(ABC):
         """Convert the project to a dictionary for serialization.
 
         Returns:
-            Dict[str, Any]: A dictionary with 'name' and 'items' keys.
-
-        Notes:
-            - Items are included as-is; subclasses should override for custom item serialization if needed.
+            Dict[str, Any]: A dictionary with 'name' and serialized 'items'.
         """
-        return {"name": self._name, "items": [item for item in self._items]}
+        return {"name": self._name, "items": self._items.to_dict()["items"]}
 
     @classmethod
     @abstractmethod
