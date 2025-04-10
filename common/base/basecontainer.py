@@ -44,6 +44,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
     _items: Dict[str, T]
     _use_cache: bool
     _cached_to_dict: Dict[str, Any]
+    _type_cache: Dict[Any, Any] = {}
 
     def __init__(self, items: Dict[str, T] = None, name: str = None, isactive: bool = True, use_cache: bool = False):
         """Initialize the BaseContainer with a name, activation status, and optional items.
@@ -243,7 +244,8 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Returns:
             BaseContainer[T]: A new instance of the same class with identical items.
         """
-        return self.__class__.from_dict(self.to_dict())
+        new_items = {name: item.clone() for name, item in self._items.items()}
+        return self.__class__(items=new_items, name=self.name, isactive=self.isactive, use_cache=self._use_cache)
 
     def activate_item(self, name: str) -> None:
         """Activate an item in the container by its name.
@@ -329,7 +331,13 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Raises:
             TypeError: If the type hint cannot be resolved.
         """
-        from typing import Any, ForwardRef
+        from typing import ForwardRef
+
+        # check cache
+        if type_hint in cls._type_cache:
+            return cls._type_cache[type_hint]
+
+        # resolve ForwardRef
         if isinstance(type_hint, ForwardRef):
             type_name = type_hint.__forward_arg__
             resolved = globals().get(type_name)
@@ -338,9 +346,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 module = getmodule(cls)
                 resolved = getattr(module, type_name, None) if module else None
                 if resolved is None:
-                    logger.warning(f"Cannot resolve type hint '{type_name}', falling back to Any")
-                    return Any
+                    raise TypeError(f"Cannot resolve forward reference '{type_name}' in {cls.__name__}")
+            cls._type_cache[type_hint] = resolved
             return resolved
+
+        # resolve annotations
         if isinstance(type_hint, str):
             resolved = globals().get(type_hint)
             if resolved is None:
@@ -348,13 +358,17 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 module = getmodule(cls)
                 resolved = getattr(module, type_hint, None) if module else None
                 if resolved is None:
-                    logger.warning(f"Cannot resolve type hint '{type_hint}', falling back to Any")
-                    return Any
+                    raise TypeError(f"Cannot resolve type hint '{type_hint}' in {cls.__name__}")
+            cls._type_cache[type_hint] = resolved
             return resolved
+
+        # support for generic types (e.g., Dict[str, T])
         elif hasattr(type_hint, "__origin__"):
+            cls._type_cache[type_hint] = type_hint
             return type_hint
-        elif type_hint is Any:
-            return type_hint
+
+        # regular types
+        cls._type_cache[type_hint] = type_hint
         return type_hint
 
     def __iter__(self) -> Iterator[T]:
