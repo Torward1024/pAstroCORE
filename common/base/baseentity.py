@@ -1,9 +1,9 @@
 # base/base_entity.py
-from abc import ABC
+from abc import ABC, ABCMeta
 from typing import Dict, Any
 from common.utils.logging_setup import logger
 
-class EntityMeta(type):
+class EntityMeta(ABCMeta):
     """Metaclass for BaseEntity to handle type annotations and enforce attribute validation.
 
     Automatically collects type annotations from the subclass and configures the entity to validate
@@ -74,8 +74,8 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         for key, value in kwargs.items():
             if key not in self._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
-            expected_type = self._fields[key]
-            if not isinstance(value, expected_type) and value is not None:  # None is allowed for optional fields
+            expected_type = self._resolve_type(self._fields[key])
+            if not isinstance(value, expected_type) and value is not None:
                 raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
             setattr(self, key, value)
         
@@ -98,7 +98,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         for key, value in params.items():
             if key not in self._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
-            expected_type = self._fields[key]
+            expected_type = self._resolve_type(self._fields[key])
             if not isinstance(value, expected_type):
                 raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
             setattr(self, key, value)
@@ -202,8 +202,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                 continue
             if key not in cls._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {cls.__name__}")
-            expected_type = cls._fields[key]
-            # if the expected type is a subclass of BaseEntity and value is a dict, deserialize it
+            expected_type = cls._resolve_type(cls._fields[key])
             if isinstance(expected_type, type) and issubclass(expected_type, BaseEntity) and isinstance(value, dict):
                 kwargs[key] = expected_type.from_dict(value)
             else:
@@ -211,6 +210,12 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                     raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
                 kwargs[key] = value
         return cls(name=data.get("name"), isactive=data.get("isactive", True), **kwargs)
+    
+    def _resolve_type(self, type_hint):
+        """Resolve forward references to actual types."""
+        if isinstance(type_hint, str):
+            return globals().get(type_hint, type_hint)
+        return type_hint
 
     def __getitem__(self, key: str) -> Any:
         """Access an attribute using dictionary-like syntax.
@@ -241,7 +246,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """
         if key not in self._fields:
             raise KeyError(f"Attribute '{key}' not found in {self.__class__.__name__}")
-        expected_type = self._fields[key]
+        expected_type = self._resolve_type(self._fields[key])
         if not isinstance(value, expected_type):
             raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
         setattr(self, key, value)
@@ -287,7 +292,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         if key in ("name", "isactive"):
             super().__setattr__(key, value)
         elif key in self._fields:
-            expected_type = self._fields[key]
+            expected_type = self._resolve_type(self._fields[key])
             if not isinstance(value, expected_type) and value is not None:
                 raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
             super().__setattr__(key, value)

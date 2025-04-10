@@ -147,6 +147,20 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             List[T]: A list of all items in the container.
         """
         return list(self._items.values())
+    
+    def set(self, params: Dict[str, Any]) -> None:
+        """Set container attributes from a dictionary with type validation."""
+        for key, value in params.items():
+            if key == "_items":
+                self.set_items(value)
+            elif key not in self._fields:
+                raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
+            else:
+                expected_type = self._resolve_type(self._fields[key])
+                if not isinstance(value, expected_type):
+                    raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
+                setattr(self, key, value)
+        logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
 
     def set_items(self, items: Dict[str, T]) -> None:
         """Set or replace all items in the container.
