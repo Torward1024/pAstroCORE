@@ -77,7 +77,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             self._validate_type(f"_items[{key}]", item, item_type)
         
         # pass the resolved type to BaseEntity
-        from typing import Dict
         resolved_items_type = Dict[str, item_type]
         self._fields["_items"] = resolved_items_type  # Update _fields with resolved type
         

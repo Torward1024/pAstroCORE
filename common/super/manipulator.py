@@ -95,7 +95,7 @@ class Manipulator(ABC):
             raise ValueError(f"No methods registered for type {obj_type.__name__}")
         return self._registry[obj_type]
 
-    def update_registry(self, additional_classes: Optional[List[Type]] = None) -> None:
+    def update_registry(self, additional_classes: Optional[List[Type]] = None, clear_operations: bool = False) -> None:
         """Update the method registry with additional base classes.
 
         Clears the cache and rebuilds the registry if additional classes are provided.
@@ -105,6 +105,8 @@ class Manipulator(ABC):
         """
         if additional_classes:
             self._base_classes.extend([cls for cls in additional_classes if cls not in self._base_classes])
+        if clear_operations:
+            self._operations.clear()
         self._registry = self._get_method_registry.cache_clear() or self._get_method_registry()
         logger.info(f"Registry updated with {len(self._registry)} types")
 
