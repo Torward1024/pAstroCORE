@@ -1,84 +1,339 @@
 # base/base_container.py
 from abc import ABC
-from typing import List, TypeVar, Generic, Any
+from typing import Dict, TypeVar, Generic, Any, List, Iterator
 from common.base.base_entity import BaseEntity
 from common.utils.logging_setup import logger
 
 T = TypeVar('T', bound=BaseEntity)
 
 class BaseContainer(BaseEntity, ABC, Generic[T]):
-    """Abstract base class for managing collections of BaseEntity objects."""
-    
-    _items: List[T]
+    """Abstract base class for managing collections of BaseEntity objects using a dictionary.
 
-    def __init__(self, items: List[T] = None, name: str = None, isactive: bool = True):
-        super().__init__(name=name, isactive=isactive, _items=items or [])
+    Provides a foundation for container classes in the MBS system. Manages a collection of entities
+    indexed by their `name` attribute, with support for validation, activation state management,
+    and universal serialization. Subclasses can extend validation logic or add specialized behavior.
+
+    Attributes:
+        _items (Dict[str, T]): Dictionary mapping entity names to their instances.
+        _fields (Dict[str, type]): Inherited from BaseEntity, contains type annotations including `_items`.
+
+    Notes:
+        - Logging is integrated via `common.utils.logging_setup.logger` to track operations.
+        - This is an abstract base class and cannot be instantiated directly; it must be subclassed.
+        - The `name` attribute of contained entities is used as the key, ensuring uniqueness within the container.
+        - Serialization methods `to_dict` and `from_dict` handle the entire collection, including nested entities.
+
+    Examples:
+        >>> class MyItem(BaseEntity):
+        ...     value: int
+        >>> class MyContainer(BaseContainer[MyItem]):
+        ...     pass
+        >>> container = MyContainer(name="test_container")
+        >>> item = MyItem(name="item1", value=42)
+        >>> container.add(item)
+        >>> print(container.to_dict())
+        {'name': 'test_container', 'isactive': True, 'items': {'item1': {'name': 'item1', 'isactive': True, 'value': 42}}}
+        >>> new_container = MyContainer.from_dict({'name': 'test_container', 'isactive': True, 'items': {'item1': {'name': 'item1', 'isactive': True, 'value': 42}}})
+        >>> print(new_container.get_items())
+        [MyItem(name='item1', isactive=True, value=42)]
+    """
+
+    _items: Dict[str, T]
+
+    def __init__(self, items: Dict[str, T] = None, name: str = None, isactive: bool = True):
+        """Initialize the BaseContainer with a name, activation status, and optional items.
+
+        Args:
+            items (Dict[str, T], optional): Initial dictionary of items where keys are entity names.
+            name (str, optional): An optional identifier for the container. Defaults to None.
+            isactive (bool): Initial activation status of the container. Defaults to True.
+
+        Raises:
+            ValueError: If an item's name does not match its dictionary key.
+        """
+        super().__init__(name=name, isactive=isactive, _items=items or {})
         self._validate_items(self._items)
+        logger.info(f"Initialized {self.__class__.__name__} with name={name}, isactive={isactive}, item_count={len(self._items)}")
 
-    def _validate_items(self, items: List[T]) -> None:
-        """Validate the initial list of items."""
-        for item in items:
+    def _validate_items(self, items: Dict[str, T]) -> None:
+        """Validate the initial dictionary of items.
+
+        Ensures that each item's `name` attribute matches its key in the dictionary and calls
+        subclass-specific validation.
+
+        Args:
+            items (Dict[str, T]): The dictionary of items to validate.
+
+        Raises:
+            ValueError: If an item's name does not match its key.
+        """
+        for key, item in items.items():
+            if item.name != key:
+                raise ValueError(f"Item name '{item.name}' does not match key '{key}' in {self.__class__.__name__}")
             self._validate_item(item)
 
     def _validate_item(self, item: T) -> None:
-        """Hook for subclass-specific item validation."""
+        """Hook for subclass-specific item validation.
+
+        Subclasses can override this method to implement custom validation logic for items.
+
+        Args:
+            item (T): The item to validate.
+
+        Raises:
+            ValueError: If the item fails subclass-specific validation criteria.
+        """
         pass
 
     def add(self, item: T) -> None:
-        """Add an item to the collection."""
+        """Add an item to the collection using its name as the key.
+
+        Args:
+            item (T): The item to add to the container.
+
+        Raises:
+            ValueError: If the item's name is None or already exists in the container.
+        """
+        if item.name is None:
+            raise ValueError(f"Cannot add item with no name to {self.__class__.__name__}")
         self._validate_item(item)
-        self._items.append(item)
-        logger.info(f"Added item to {self.__class__.__name__}")
+        if item.name in self._items:
+            raise ValueError(f"Item with name '{item.name}' already exists in {self.__class__.__name__}")
+        self._items[item.name] = item
+        logger.info(f"Added item with name '{item.name}' to {self.__class__.__name__}")
 
-    def insert(self, index: int, item: T) -> None:
-        """Insert an item at a specific index."""
-        if not (0 <= index <= len(self._items)):
-            raise IndexError(f"Index {index} out of range")
-        self._validate_item(item)
-        self._items.insert(index, item)
-        logger.info(f"Inserted item at index {index} in {self.__class__.__name__}")
+    def remove(self, name: str) -> None:
+        """Remove an item from the container by its name.
 
-    def remove(self, index: int) -> None:
-        """Remove an item by index."""
-        if not (0 <= index < len(self._items)):
-            raise IndexError(f"Index {index} out of range")
-        self._items.pop(index)
-        logger.info(f"Removed item at index {index} from {self.__class__.__name__}")
+        Args:
+            name (str): The name of the item to remove.
 
-    def get_by_index(self, index: int) -> T:
-        """Retrieve an item by index."""
-        if not (0 <= index < len(self._items)):
-            raise IndexError(f"Index {index} out of range")
-        return self._items[index]
+        Raises:
+            KeyError: If the name is not found in the container.
+        """
+        if name not in self._items:
+            raise KeyError(f"Name '{name}' not found in {self.__class__.__name__}")
+        del self._items[name]
+        logger.info(f"Removed item with name '{name}' from {self.__class__.__name__}")
 
-    def get_all(self) -> List[T]:
-        """Retrieve all items."""
+    def get(self, name: str) -> T:
+        """Retrieve an item from the container by its name.
+
+        Args:
+            name (str): The name of the item to retrieve.
+
+        Returns:
+            T: The item associated with the specified name.
+
+        Raises:
+            KeyError: If the name is not found in the container.
+        """
+        if name not in self._items:
+            raise KeyError(f"Name '{name}' not found in {self.__class__.__name__}")
+        return self._items[name]
+
+    def get_all(self) -> Dict[str, T]:
+        """Retrieve all items in the container with their names as keys.
+
+        Returns:
+            Dict[str, T]: A copy of the items dictionary, mapping names to entities.
+        """
         return self._items.copy()
 
-    def activate_item(self, index: int) -> None:
-        """Activate an item by index."""
-        self.get_by_index(index).activate()
+    def get_items(self) -> List[T]:
+        """Retrieve all items in the container as a list, without their names.
 
-    def deactivate_item(self, index: int) -> None:
-        """Deactivate an item by index."""
-        self.get_by_index(index).deactivate()
+        Returns:
+            List[T]: A list of all items in the container.
+        """
+        return list(self._items.values())
+
+    def set_items(self, items: Dict[str, T]) -> None:
+        """Set or replace all items in the container.
+
+        Args:
+            items (Dict[str, T]): Dictionary of items to set.
+
+        Raises:
+            ValueError: If any item fails validation or has a mismatched name.
+        """
+        self._items.clear()
+        self._validate_items(items)
+        self._items.update(items)
+        logger.info(f"Set {len(items)} items in {self.__class__.__name__}")
+
+    def has_item(self, name: str) -> bool:
+        """Check if an item with the specified name exists in the container.
+
+        Args:
+            name (str): The name of the item to check.
+
+        Returns:
+            bool: True if the item exists, False otherwise.
+        """
+        return name in self._items
+
+    def clear(self) -> None:
+        """Remove all items from the container.
+
+        Notes:
+            - Logs an info message indicating the container has been cleared.
+        """
+        self._items.clear()
+        logger.info(f"Cleared all items from {self.__class__.__name__}")
+
+    def clone(self) -> 'BaseContainer[T]':
+        """Create a deep copy of the container.
+
+        Returns:
+            BaseContainer[T]: A new instance of the same class with identical items.
+        """
+        return self.__class__.from_dict(self.to_dict())
+
+    def activate_item(self, name: str) -> None:
+        """Activate an item in the container by its name.
+
+        Args:
+            name (str): The name of the item to activate.
+
+        Raises:
+            KeyError: If the name is not found in the container.
+        """
+        self.get(name).activate()
+        logger.info(f"Activated item with name '{name}' in {self.__class__.__name__}")
+
+    def deactivate_item(self, name: str) -> None:
+        """Deactivate an item in the container by its name.
+
+        Args:
+            name (str): The name of the item to deactivate.
+
+        Raises:
+            KeyError: If the name is not found in the container.
+        """
+        self.get(name).deactivate()
+        logger.info(f"Deactivated item with name '{name}' in {self.__class__.__name__}")
 
     def to_dict(self) -> dict:
-        """Serialize the container to a dictionary."""
+        """Convert the container to a dictionary for serialization.
+
+        Serializes the container's state, including its name, activation status, and all items,
+        with nested entities recursively serialized.
+
+        Returns:
+            dict: A dictionary containing the container's serialized data.
+        """
         data = super().to_dict()
-        data["items"] = [item.to_dict() for item in self._items]
+        data["items"] = {name: item.to_dict() for name, item in self._items.items()}
         return data
 
     @classmethod
     def from_dict(cls, data: dict) -> 'BaseContainer':
-        """Deserialize the container from a dictionary."""
-        item_type = cls._fields["_items"].__args__[0]  # Извлекаем тип T из List[T]
-        items = [item_type.from_dict(item_data) for item_data in data["items"]]
+        """Create a container instance from a dictionary.
+
+        Reconstructs a container instance from serialized data, including its name, activation status,
+        and all items, with nested entities recursively deserialized.
+
+        Args:
+            data (dict): Dictionary containing the container's serialized data, typically from `to_dict`.
+
+        Returns:
+            BaseContainer: A new instance of the subclass initialized with the dictionary data.
+        """
+        item_type = cls._fields["_items"].__args__[1]  # Extract T from Dict[str, T]
+        items = {key: item_type.from_dict(item_data) for key, item_data in data["items"].items()}
         return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
 
+    def __iter__(self) -> Iterator[T]:
+        """Iterate over the items in the container.
+
+        Returns:
+            Iterator[T]: An iterator over the container's items.
+        """
+        return iter(self._items.values())
+    
+    def __getitem__(self, name: str) -> T:
+        """Retrieve an item from the container by its name using square brackets.
+
+        Args:
+            name (str): The name of the item to retrieve.
+
+        Returns:
+            T: The item associated with the specified name.
+
+        Raises:
+            KeyError: If the name is not found in the container.
+        """
+        return self.get(name)
+
+    def __setitem__(self, name: str, item: T) -> None:
+        """Set an item in the container by its name using square brackets.
+
+        Args:
+            name (str): The name of the item to set.
+            item (T): The item to add.
+
+        Raises:
+            ValueError: If the item's name does not match the provided key or if it fails validation.
+        """
+        if item.name != name:
+            raise ValueError(f"Item name '{item.name}' does not match key '{name}'")
+        self.add(item)
+
+    def __delitem__(self, name: str) -> None:
+        """Remove an item from the container by its name using del operator.
+
+        Args:
+            name (str): The name of the item to remove.
+
+        Raises:
+            KeyError: If the name is not found in the container.
+        """
+        self.remove(name)
+
+    def __contains__(self, name: str) -> bool:
+        """Check if an item with the specified name exists in the container using 'in' operator.
+
+        Args:
+            name (str): The name of the item to check.
+
+        Returns:
+            bool: True if the item exists, False otherwise.
+        """
+        return self.has_item(name)
+
+    def __eq__(self, other: Any) -> bool:
+        """Compare two containers for equality based on their items and state.
+
+        Args:
+            other (Any): The object to compare with.
+
+        Returns:
+            bool: True if the containers are equal, False otherwise.
+        """
+        if not isinstance(other, self.__class__):
+            return False
+        return (self.name == other.name and
+                self.isactive == other.isactive and
+                self._items == other._items)
+
     def __len__(self) -> int:
+        """Return the number of items in the container.
+
+        Returns:
+            int: The number of items currently stored in the container.
+        """
         return len(self._items)
 
     def __repr__(self) -> str:
-        active_count = sum(1 for item in self._items if item.isactive)
-        return f"{self.__class__.__name__}(count={len(self._items)}, active={active_count}, inactive={len(self._items) - active_count})"
+        """Return a string representation of the BaseContainer.
+
+        Returns:
+            str: A formatted string with the class name, name (if set), item count, and active/inactive counts.
+        """
+        active_count = sum(1 for item in self._items.values() if item.isactive)
+        attrs = [f"name={self.name!r}" if self.name else ""]
+        attrs.append(f"count={len(self._items)}")
+        attrs.append(f"active={active_count}")
+        attrs.append(f"inactive={len(self._items) - active_count}")
+        return f"{self.__class__.__name__}({', '.join(attr for attr in attrs if attr)})"
