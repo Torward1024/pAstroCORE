@@ -211,6 +211,10 @@ class Manipulator(ABC):
             logger.error(f"No super instance registered for operation '{operation}'")
             return False
         
+        if not isinstance(attributes, dict):
+            logger.error(f"Attributes must be a dictionary, got {type(attributes)}")
+            return False
+            
         execute_args = {"obj": obj}
         if attributes or method:
             execute_args["attributes"] = attributes.copy()
