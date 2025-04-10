@@ -25,6 +25,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         - The `name` attribute of contained entities is used as the key, ensuring uniqueness within the container.
         - Serialization methods `to_dict` and `from_dict` handle the entire collection, including nested entities.
         - Optional caching in `to_dict` can be enabled by setting `_use_cache=True`.
+        - Direct modification of `_items` bypasses validation and cache invalidation. Use `add`, `remove`, or `set_items` instead.
 
     Examples:
         >>> class MyItem(BaseEntity):
@@ -306,17 +307,12 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             TypeError: If the item type cannot be resolved or if data is invalid.
         """
         from inspect import getmodule
-        # Workaround for Generic[T] breaking EntityMeta's _fields setup
         if not hasattr(cls, '_fields'):
             cls._fields = get_type_hints(cls)
-        # Get the actual type for T from __orig_bases__
-        generic_base = cls.__orig_bases__[0]  # BaseContainer[TestEntity]
-        item_type = generic_base.__args__[0]  # TestEntity
-        if isinstance(item_type, str):
-            module = getmodule(cls)
-            item_type = getattr(module, item_type, None) if module else globals().get(item_type)
-            if item_type is None:
-                raise TypeError(f"Cannot resolve forward reference '{item_type}' for '_items'")
+        generic_base = cls.__orig_bases__[0]
+        item_type = cls._resolve_type(generic_base.__args__[0])
+        if item_type is Any:
+            raise TypeError("Cannot instantiate items with unresolved type 'Any'")
         items = {key: item_type.from_dict(item_data) for key, item_data in data["items"].items()}
         return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
     
@@ -333,7 +329,18 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Raises:
             TypeError: If the type hint cannot be resolved.
         """
-        from typing import Any
+        from typing import Any, ForwardRef
+        if isinstance(type_hint, ForwardRef):
+            type_name = type_hint.__forward_arg__
+            resolved = globals().get(type_name)
+            if resolved is None:
+                from inspect import getmodule
+                module = getmodule(cls)
+                resolved = getattr(module, type_name, None) if module else None
+                if resolved is None:
+                    logger.warning(f"Cannot resolve type hint '{type_name}', falling back to Any")
+                    return Any
+            return resolved
         if isinstance(type_hint, str):
             resolved = globals().get(type_hint)
             if resolved is None:
@@ -341,12 +348,13 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 module = getmodule(cls)
                 resolved = getattr(module, type_hint, None) if module else None
                 if resolved is None:
-                    raise TypeError(f"Cannot resolve type hint '{type_hint}'")
+                    logger.warning(f"Cannot resolve type hint '{type_hint}', falling back to Any")
+                    return Any
             return resolved
         elif hasattr(type_hint, "__origin__"):
-            return type_hint  # return as-is for generic types like Dict[str, T]
+            return type_hint
         elif type_hint is Any:
-            return type_hint  # explicitly handle Any
+            return type_hint
         return type_hint
 
     def __iter__(self) -> Iterator[T]:
@@ -420,7 +428,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             return False
         return (self.name == other.name and
                 self.isactive == other.isactive and
-                self._items == other._items)
+                self.get_all() == other.get_all())
 
     def __len__(self) -> int:
         """Return the number of items in the container.
@@ -429,6 +437,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             int: The number of items currently stored in the container.
         """
         return len(self._items)
+    
+    @property
+    def items(self) -> Dict[str, T]:
+        """Read-only access to the items dictionary."""
+        return self._items.copy()
 
     def __repr__(self) -> str:
         """Return a string representation of the BaseContainer.
