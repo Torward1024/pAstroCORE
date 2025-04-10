@@ -177,7 +177,7 @@ class Super(ABC):
             if not method_name and "attributes" in attributes and isinstance(attributes["attributes"], dict):
                 nested_attrs = attributes["attributes"]
                 method_name = nested_attrs.get("method")
-                object_attributes = nested_attrs  # Используем весь вложенный словарь как атрибуты
+                object_attributes = nested_attrs
             else:
                 object_attributes = {k: v for k, v in attributes.items() if k != 'method'}
             
@@ -195,13 +195,22 @@ class Super(ABC):
                     self._method_cache[cache_key] = result
                     return result
 
-            obj_type = type(obj).__name__.lower()
-            auto_method_name = f"_{self._operation}_{obj_type}"
+            obj_type_name = type(obj).__name__.lower()
+            auto_method_name = f"_{self._operation}_{obj_type_name}"
             method = getattr(self, auto_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
                 self._method_cache[cache_key] = result
                 return result
+
+            from common.base.basecontainer import BaseContainer
+            if isinstance(obj, BaseContainer):
+                base_method_name = f"_{self._operation}_basecontainer"
+                method = getattr(self, base_method_name, None)
+                if callable(method):
+                    result = method(obj, object_attributes)
+                    self._method_cache[cache_key] = result
+                    return result
 
             default_method_name = f"_{self._operation}"
             method = getattr(self, default_method_name, None)
@@ -210,7 +219,7 @@ class Super(ABC):
                 self._method_cache[cache_key] = result
                 return result
 
-            raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type}' in {self.__class__.__name__}")
+            raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type_name}' in {self.__class__.__name__}")
         except ValueError as e:
             logger.error(f"Execution failed for operation '{self._operation}': {str(e)}")
             return self._default_result()

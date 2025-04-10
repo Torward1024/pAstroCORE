@@ -76,7 +76,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         super().__setattr__('_cached_to_dict', None)
         super().__setattr__('name', name)
         super().__setattr__('isactive', isactive)
-
+        
         for field in self._fields:
             if field in ('_use_cache', '_cached_to_dict', 'name', 'isactive') and field not in kwargs:
                 continue
@@ -144,12 +144,15 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             - Only attributes defined in `__annotations__` can be set.
             - Logs an info message with updated attributes.
         """
+
         for key, value in params.items():
-            if key not in self._fields:
+            if key in self._fields:
+                self._validate_type(key, value, self._fields.get(key))
+                setattr(self, key, value)
+            else:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
-            expected_type = self._resolve_type(self._fields[key])
-            self._validate_type(key, value, expected_type)
-            setattr(self, key, value)
+        if self._use_cache and hasattr(self, '_cached_to_dict'):
+            self._cached_to_dict = None
         logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
 
     def get(self, key: str = None) -> Any:
@@ -428,14 +431,14 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             ValueError: If the key is not in the entity's fields (except for 'name' and 'isactive').
             TypeError: If the value does not match the annotated type.
         """
-        internal_attrs = {"name", "isactive", "_use_cache", "_cached_to_dict"}
-        if key in internal_attrs:
+        internal_attrs = {"name", "isactive", "_use_cache", "_cached_to_dict", "_container"}
+        if key in internal_attrs or key.startswith('_'):
             super().__setattr__(key, value)
         elif key in self._fields:
             expected_type = self._resolve_type(self._fields[key])
             self._validate_type(key, value, expected_type)
             super().__setattr__(key, value)
-            if hasattr(self, '_cached_to_dict') and self._use_cache:
+            if self._use_cache and hasattr(self, '_cached_to_dict'):
                 self._cached_to_dict = None
             logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
         else:

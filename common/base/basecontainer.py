@@ -137,7 +137,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         if item.name in self._items:
             raise ValueError(f"Item with name '{item.name}' already exists in {self.__class__.__name__}")
         self._items[item.name] = item
-        self._cached_to_dict = None  # Invalidate cache
+        self._invalidate_cache()
         logger.info(f"Added item with name '{item.name}' to {self.__class__.__name__}")
 
     def remove(self, name: str) -> None:
@@ -152,7 +152,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         if name not in self._items:
             raise KeyError(f"Name '{name}' not found in {self.__class__.__name__}")
         del self._items[name]
-        self._cached_to_dict = None  # Invalidate cache
+        self._invalidate_cache()
         logger.info(f"Removed item with name '{name}' from {self.__class__.__name__}")
 
     def get(self, name: str) -> T:
@@ -206,7 +206,8 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 expected_type = self._resolve_type(self._fields[key])
                 self._validate_type(key, value, expected_type)
                 setattr(self, key, value)
-        self._cached_to_dict = None  # Invalidate cache
+        if self._use_cache and hasattr(self, '_cached_to_dict'):
+            self._cached_to_dict = None
         logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
 
     def set_items(self, items: Dict[str, T]) -> None:
@@ -221,7 +222,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         self._items.clear()
         self._validate_items(items)
         self._items.update(items)
-        self._cached_to_dict = None  # Invalidate cache
+        self._invalidate_cache()
         logger.info(f"Set {len(items)} items in {self.__class__.__name__}")
 
     def has_item(self, name: str) -> bool:
@@ -242,7 +243,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             - Logs an info message indicating the container has been cleared.
         """
         self._items.clear()
-        self._cached_to_dict = None  # Invalidate cache
+        self._invalidate_cache()
         logger.info(f"Cleared all items from {self.__class__.__name__}")
 
     def clone(self, deep: bool = True) -> 'BaseContainer[T]':
@@ -267,7 +268,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             KeyError: If the name is not found in the container.
         """
         self.get(name).activate()
-        self._cached_to_dict = None  # Invalidate cache
+        self._invalidate_cache()
         logger.info(f"Activated item with name '{name}' in {self.__class__.__name__}")
 
     def deactivate_item(self, name: str) -> None:
@@ -280,7 +281,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             KeyError: If the name is not found in the container.
         """
         self.get(name).deactivate()
-        self._cached_to_dict = None  # Invalidate cache
+        self._invalidate_cache()
         logger.info(f"Deactivated item with name '{name}' in {self.__class__.__name__}")
 
     def to_dict(self) -> dict:
@@ -336,6 +337,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 raise TypeError(f"Failed to deserialize item '{key}' in {cls.__name__}: {str(e)}") from e
         return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
     
+    def _invalidate_cache(self) -> None:
+        """Invalidate the cache of the container."""
+        if self._use_cache and hasattr(self, '_cached_to_dict'):
+            self._cached_to_dict = None
+
     @classmethod
     def _resolve_type(cls, type_hint, field_path=""):
         """Resolve forward references to actual types.
@@ -425,7 +431,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """
         return iter(self._items.values())
     
-    def __getitem__(self, name: str) -> T:
+    def __getitem__(self, key: str) -> T:
         """Retrieve an item from the container by its name using square brackets.
 
         Args:
@@ -437,7 +443,9 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Raises:
             KeyError: If the name is not found in the container.
         """
-        return self.get(name)
+        if key not in self._items:
+            raise KeyError(f"Item '{key}' not found in {self.__class__.__name__}")
+        return self._items[key]
 
     def __setitem__(self, key: str, item: T) -> None:
         """Set an item in the container by its name using square brackets.
@@ -452,6 +460,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         if item.name != key:
             raise ValueError(f"Item name '{item.name}' does not match key '{key}'")
         self.add(item)
+        self._invalidate_cache()
+    
+    def __getattribute__(self, name: str) -> Any:
+        attr = super().__getattribute__(name)
+        return attr
 
     def __delitem__(self, name: str) -> None:
         """Remove an item from the container by its name using del operator.
