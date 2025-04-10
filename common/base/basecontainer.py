@@ -292,9 +292,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Returns:
             dict: A dictionary containing the container's serialized data.
         """
-        print(f"Container to_dict: use_cache={self._use_cache}, cached_to_dict={self._cached_to_dict}")
         if self._use_cache and self._cached_to_dict is not None:
-            print("Returning cached dict")
             return self._cached_to_dict
         data = super().to_dict()
         data["items"] = {name: item.to_dict() for name, item in self._items.items()}
