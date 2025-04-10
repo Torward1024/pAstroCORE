@@ -96,12 +96,22 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             setattr(self, key, value)
         logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
 
-    def get(self) -> Dict[str, Any]:
-        """Retrieve all attributes of the entity as a dictionary.
+    def get(self, key: str = None) -> Any:
+        """Retrieve an attribute or all attributes of the entity.
+
+        Args:
+            key (str, optional): The name of the attribute to retrieve. If None, returns all attributes as a dictionary.
 
         Returns:
-            dict: A dictionary of the entity's current attributes based on annotations.
+            Any: The value of the specified attribute if `key` is provided, otherwise a dictionary of all attributes.
+
+        Raises:
+            KeyError: If the specified `key` is not found in the entity's annotated fields.
         """
+        if key is not None:
+            if key not in self._fields:
+                raise KeyError(f"Attribute '{key}' not found in {self.__class__.__name__}")
+            return getattr(self, key) if hasattr(self, key) else None
         return {key: getattr(self, key) for key in self._fields if hasattr(self, key)}
 
     def activate(self) -> None:
@@ -121,6 +131,25 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """
         self.isactive = False
         logger.info(f"Deactivated {self.__class__.__name__} instance")
+    
+    def has_attribute(self, key: str) -> bool:
+        """Check if the entity has a specific attribute.
+
+        Args:
+            key (str): The name of the attribute to check.
+
+        Returns:
+            bool: True if the attribute exists in the entity's fields and is set, False otherwise.
+        """
+        return key in self._fields and hasattr(self, key)
+    
+    def clone(self) -> 'BaseEntity':
+        """Create a deep copy of the entity.
+
+        Returns:
+            BaseEntity: A new instance of the same class with identical attributes.
+        """
+        return self.__class__.from_dict(self.to_dict())
 
     def to_dict(self) -> dict:
         """Convert the entity to a dictionary for serialization.
