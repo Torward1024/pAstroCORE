@@ -1,6 +1,6 @@
-# base/base_entity.py
+# base/baseentity.py
 from abc import ABC, ABCMeta
-from typing import Dict, Any
+from typing import Dict, Any, get_origin, get_args
 from common.utils.logging_setup import logger
 
 class EntityMeta(ABCMeta):
@@ -14,8 +14,13 @@ class EntityMeta(ABCMeta):
     """
     def __new__(cls, name, bases, attrs):
         new_class = super().__new__(cls, name, bases, attrs)
-        # collect type annotations from the class
-        new_class._fields = getattr(new_class, '__annotations__', {})
+        annotations = {}
+        for base in reversed(bases):
+            if hasattr(base, '_fields'):
+                annotations.update(base._fields)
+            annotations.update(getattr(base, '__annotations__', {}))
+        annotations.update(attrs.get('__annotations__', {}))
+        new_class._fields = annotations
         return new_class
 
 class BaseEntity(ABC, metaclass=EntityMeta):
@@ -50,7 +55,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         >>> print(new_entity)
         MyEntity(name='test', isactive=True, nested=NestedEntity(isactive=True, value=42))
     """
-    def __init__(self, name: str = None, isactive: bool = True, **kwargs):
+    def __init__(self, *, name: str = None, isactive: bool = True, **kwargs):
         """Initialize the BaseEntity with a name, activation status, and optional typed attributes.
 
         Args:
@@ -65,21 +70,53 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         self.name = name
         self.isactive = isactive
         
-        # initialize annotated attributes with None values
-        for field in self._fields:
-            if field not in kwargs:
-                setattr(self, field, None)
-
-        # set translated data with type checks
-        for key, value in kwargs.items():
+        # Check for unknown attributes in kwargs
+        for key in kwargs:
             if key not in self._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
-            expected_type = self._resolve_type(self._fields[key])
-            if not isinstance(value, expected_type) and value is not None:
-                raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
-            setattr(self, key, value)
+        
+        # Single pass to initialize fields with type validation
+        for field in self._fields:
+            value = kwargs.get(field, None)
+            expected_type = self._resolve_type(self._fields[field])
+            self._validate_type(field, value, expected_type)
+            object.__setattr__(self, field, value)
         
         logger.info(f"Initialized {self.__class__.__name__} instance with name={name}, isactive={isactive}")
+
+    def _validate_type(self, key: str, value: Any, expected_type: Any) -> None:
+        """Validate that a value matches the expected type.
+
+        Args:
+            key (str): The attribute name being validated.
+            value (Any): The value to check.
+            expected_type (Any): The expected type from type annotations.
+
+        Raises:
+            TypeError: If the value does not match the expected type and is not None.
+        """
+        if value is None:
+            return
+        
+        resolved_type = self._resolve_type(expected_type)
+        base_type = get_origin(resolved_type) or resolved_type
+        type_args = get_args(resolved_type)
+        
+        if base_type in (dict, Dict):
+            if not isinstance(value, dict):
+                raise TypeError(f"Attribute '{key}' must be a dict, got {type(value)}")
+            if type_args:  # e.g., Dict[str, T]
+                key_type, value_type = type_args
+                resolved_value_type = self._resolve_type(value_type)
+                if not isinstance(resolved_value_type, (type, tuple)):
+                    raise TypeError(f"Resolved value type '{resolved_value_type}' for '{key}' is not a valid type")
+                for k, v in value.items():
+                    if not isinstance(k, key_type):
+                        raise TypeError(f"Key in '{key}' must be {key_type}, got {type(k)}")
+                    if v is not None and not isinstance(v, resolved_value_type):
+                        raise TypeError(f"Value in '{key}' must be {resolved_value_type}, got {type(v)}")
+        elif not isinstance(value, base_type):
+            raise TypeError(f"Attribute '{key}' must be of type {resolved_type}, got {type(value)}")
 
     def set(self, params: Dict[str, Any]) -> None:
         """Set entity attributes from a dictionary with type validation.
@@ -99,8 +136,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             if key not in self._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
             expected_type = self._resolve_type(self._fields[key])
-            if not isinstance(value, expected_type):
-                raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
+            self._validate_type(key, value, expected_type)
             setattr(self, key, value)
         logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
 
@@ -172,7 +208,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         for key in self._fields:
             if hasattr(self, key):
                 value = getattr(self, key)
-                # if the value is a BaseEntity, recursively serialize it
                 if isinstance(value, BaseEntity):
                     data[key] = value.to_dict()
                 else:
@@ -203,18 +238,58 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             if key not in cls._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {cls.__name__}")
             expected_type = cls._resolve_type(cls._fields[key])
+            if isinstance(expected_type, str):
+                from inspect import getmodule
+                module = getmodule(cls)
+                expected_type = getattr(module, expected_type, None) if module else globals().get(expected_type)
+                if expected_type is None:
+                    raise TypeError(f"Cannot resolve forward reference '{cls._fields[key]}' for attribute '{key}'")
             if isinstance(expected_type, type) and issubclass(expected_type, BaseEntity) and isinstance(value, dict):
                 kwargs[key] = expected_type.from_dict(value)
-            else:
+            elif value is not None:
                 if not isinstance(value, expected_type):
                     raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
                 kwargs[key] = value
+            else:
+                kwargs[key] = None
         return cls(name=data.get("name"), isactive=data.get("isactive", True), **kwargs)
     
-    def _resolve_type(self, type_hint):
-        """Resolve forward references to actual types."""
+    @classmethod
+    def _resolve_type(cls, type_hint):
+        """Resolve forward references to actual types.
+
+        Args:
+            type_hint: The type hint to resolve, potentially a string (forward reference) or a type.
+
+        Returns:
+            The resolved type, or raises an error if unresolvable.
+
+        Raises:
+            TypeError: If the type hint cannot be resolved.
+        """
+        from typing import Any, TypeVar
         if isinstance(type_hint, str):
-            return globals().get(type_hint, type_hint)
+            resolved = globals().get(type_hint)
+            if resolved is None:
+                from inspect import getmodule
+                module = getmodule(cls)
+                resolved = getattr(module, type_hint, None) if module else None
+                if resolved is None:
+                    raise TypeError(f"Cannot resolve type hint '{type_hint}'")
+            return resolved
+        elif isinstance(type_hint, TypeVar):
+            # If it's a TypeVar, try to resolve from subclass context
+            if hasattr(cls, '__orig_bases__'):
+                for base in cls.__orig_bases__:
+                    args = get_args(base)
+                    if args and type_hint in args:
+                        # this is a simplification; ideally, we need the actual bound type
+                        return args[args.index(type_hint)]  # this won't work directly; see below
+            raise TypeError(f"Cannot resolve TypeVar '{type_hint}' without subclass context")
+        elif hasattr(type_hint, "__origin__"):
+            return type_hint
+        elif type_hint is Any:
+            return type_hint
         return type_hint
 
     def __getitem__(self, key: str) -> Any:
@@ -247,8 +322,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         if key not in self._fields:
             raise KeyError(f"Attribute '{key}' not found in {self.__class__.__name__}")
         expected_type = self._resolve_type(self._fields[key])
-        if not isinstance(value, expected_type):
-            raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
+        self._validate_type(key, value, expected_type)
         setattr(self, key, value)
         logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
 
@@ -293,8 +367,16 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             super().__setattr__(key, value)
         elif key in self._fields:
             expected_type = self._resolve_type(self._fields[key])
-            if not isinstance(value, expected_type) and value is not None:
-                raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
+            if isinstance(expected_type, str):
+                resolved_type = globals().get(expected_type)
+                if resolved_type is None:
+                    from inspect import getmodule
+                    module = getmodule(self.__class__)
+                    resolved_type = getattr(module, expected_type, None) if module else None
+                    if resolved_type is None:
+                        raise TypeError(f"Cannot resolve forward reference '{expected_type}' for attribute '{key}'")
+                expected_type = resolved_type
+            self._validate_type(key, value, expected_type)
             super().__setattr__(key, value)
             logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
         else:

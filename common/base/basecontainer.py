@@ -1,7 +1,7 @@
-# base/base_container.py
+# base/basecontainer.py
 from abc import ABC
-from typing import Dict, TypeVar, Generic, Any, List, Iterator
-from common.base.base_entity import BaseEntity
+from typing import Dict, TypeVar, Generic, Any, List, Iterator, get_type_hints
+from common.base.baseentity import BaseEntity
 from common.utils.logging_setup import logger
 
 T = TypeVar('T', bound=BaseEntity)
@@ -16,12 +16,15 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
     Attributes:
         _items (Dict[str, T]): Dictionary mapping entity names to their instances.
         _fields (Dict[str, type]): Inherited from BaseEntity, contains type annotations including `_items`.
+        _use_cache (bool): Flag to enable caching for `to_dict` results.
+        _cached_to_dict (dict, optional): Cached result of `to_dict` to improve performance.
 
     Notes:
         - Logging is integrated via `common.utils.logging_setup.logger` to track operations.
         - This is an abstract base class and cannot be instantiated directly; it must be subclassed.
         - The `name` attribute of contained entities is used as the key, ensuring uniqueness within the container.
         - Serialization methods `to_dict` and `from_dict` handle the entire collection, including nested entities.
+        - Optional caching in `to_dict` can be enabled by setting `_use_cache=True`.
 
     Examples:
         >>> class MyItem(BaseEntity):
@@ -37,21 +40,46 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         >>> print(new_container.get_items())
         [MyItem(name='item1', isactive=True, value=42)]
     """
-
     _items: Dict[str, T]
+    _use_cache: bool
+    _cached_to_dict: Dict[str, Any]
 
-    def __init__(self, items: Dict[str, T] = None, name: str = None, isactive: bool = True):
+    def __init__(self, items: Dict[str, T] = None, name: str = None, isactive: bool = True, use_cache: bool = False):
         """Initialize the BaseContainer with a name, activation status, and optional items.
 
         Args:
             items (Dict[str, T], optional): Initial dictionary of items where keys are entity names.
             name (str, optional): An optional identifier for the container. Defaults to None.
             isactive (bool): Initial activation status of the container. Defaults to True.
+            use_cache (bool): Enable caching for `to_dict` results. Defaults to False.
 
         Raises:
+            TypeError: If items or its values do not match expected types.
             ValueError: If an item's name does not match its dictionary key.
         """
-        super().__init__(name=name, isactive=isactive, _items=items or {})
+        # workaround for Generic[T] breaking EntityMeta's _fields setup
+        if not hasattr(self.__class__, '_fields'):
+            self.__class__._fields = get_type_hints(self.__class__)
+        
+        # prepare items with type validation
+        initial_items = items or {}
+        if not isinstance(initial_items, dict):
+            raise TypeError(f"'items' must be a dict, got {type(initial_items)}")
+        
+        # extract T from Generic[T] and validate each item
+        generic_base = self.__orig_bases__[0]
+        item_type = self._resolve_type(generic_base.__args__[0])  # Resolve T to actual type (e.g., TestEntity)
+        for key, item in initial_items.items():
+            if not isinstance(key, str):
+                raise TypeError(f"Keys in '_items' must be str, got {type(key)}")
+            self._validate_type(f"_items[{key}]", item, item_type)
+        
+        # pass the resolved type to BaseEntity
+        from typing import Dict
+        resolved_items_type = Dict[str, item_type]
+        self._fields["_items"] = resolved_items_type  # Update _fields with resolved type
+        
+        super().__init__(name=name, isactive=isactive, _items=initial_items, _use_cache=use_cache, _cached_to_dict=None)
         self._validate_items(self._items)
         logger.info(f"Initialized {self.__class__.__name__} with name={name}, isactive={isactive}, item_count={len(self._items)}")
 
@@ -100,6 +128,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         if item.name in self._items:
             raise ValueError(f"Item with name '{item.name}' already exists in {self.__class__.__name__}")
         self._items[item.name] = item
+        self._cached_to_dict = None  # Invalidate cache
         logger.info(f"Added item with name '{item.name}' to {self.__class__.__name__}")
 
     def remove(self, name: str) -> None:
@@ -114,6 +143,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         if name not in self._items:
             raise KeyError(f"Name '{name}' not found in {self.__class__.__name__}")
         del self._items[name]
+        self._cached_to_dict = None  # Invalidate cache
         logger.info(f"Removed item with name '{name}' from {self.__class__.__name__}")
 
     def get(self, name: str) -> T:
@@ -149,7 +179,15 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         return list(self._items.values())
     
     def set(self, params: Dict[str, Any]) -> None:
-        """Set container attributes from a dictionary with type validation."""
+        """Set container attributes from a dictionary with type validation.
+
+        Args:
+            params (Dict[str, Any]): Dictionary with attribute names and values to update.
+
+        Raises:
+            ValueError: If an attribute is not defined in the class annotations.
+            TypeError: If an attribute value does not match its annotated type.
+        """
         for key, value in params.items():
             if key == "_items":
                 self.set_items(value)
@@ -157,9 +195,9 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
             else:
                 expected_type = self._resolve_type(self._fields[key])
-                if not isinstance(value, expected_type):
-                    raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
+                self._validate_type(key, value, expected_type)
                 setattr(self, key, value)
+        self._cached_to_dict = None  # Invalidate cache
         logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
 
     def set_items(self, items: Dict[str, T]) -> None:
@@ -174,6 +212,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         self._items.clear()
         self._validate_items(items)
         self._items.update(items)
+        self._cached_to_dict = None  # Invalidate cache
         logger.info(f"Set {len(items)} items in {self.__class__.__name__}")
 
     def has_item(self, name: str) -> bool:
@@ -194,6 +233,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             - Logs an info message indicating the container has been cleared.
         """
         self._items.clear()
+        self._cached_to_dict = None  # Invalidate cache
         logger.info(f"Cleared all items from {self.__class__.__name__}")
 
     def clone(self) -> 'BaseContainer[T]':
@@ -214,6 +254,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             KeyError: If the name is not found in the container.
         """
         self.get(name).activate()
+        self._cached_to_dict = None  # Invalidate cache
         logger.info(f"Activated item with name '{name}' in {self.__class__.__name__}")
 
     def deactivate_item(self, name: str) -> None:
@@ -226,19 +267,26 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             KeyError: If the name is not found in the container.
         """
         self.get(name).deactivate()
+        self._cached_to_dict = None  # Invalidate cache
         logger.info(f"Deactivated item with name '{name}' in {self.__class__.__name__}")
 
     def to_dict(self) -> dict:
         """Convert the container to a dictionary for serialization.
 
         Serializes the container's state, including its name, activation status, and all items,
-        with nested entities recursively serialized.
+        with nested entities recursively serialized. Uses caching if enabled.
 
         Returns:
             dict: A dictionary containing the container's serialized data.
         """
+        if self._use_cache and self._cached_to_dict is not None:
+            return self._cached_to_dict
+        
         data = super().to_dict()
         data["items"] = {name: item.to_dict() for name, item in self._items.items()}
+        
+        if self._use_cache:
+            self._cached_to_dict = data
         return data
 
     @classmethod
@@ -253,10 +301,53 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
 
         Returns:
             BaseContainer: A new instance of the subclass initialized with the dictionary data.
+
+        Raises:
+            TypeError: If the item type cannot be resolved or if data is invalid.
         """
-        item_type = cls._fields["_items"].__args__[1]  # Extract T from Dict[str, T]
+        from inspect import getmodule
+        # Workaround for Generic[T] breaking EntityMeta's _fields setup
+        if not hasattr(cls, '_fields'):
+            cls._fields = get_type_hints(cls)
+        # Get the actual type for T from __orig_bases__
+        generic_base = cls.__orig_bases__[0]  # BaseContainer[TestEntity]
+        item_type = generic_base.__args__[0]  # TestEntity
+        if isinstance(item_type, str):
+            module = getmodule(cls)
+            item_type = getattr(module, item_type, None) if module else globals().get(item_type)
+            if item_type is None:
+                raise TypeError(f"Cannot resolve forward reference '{item_type}' for '_items'")
         items = {key: item_type.from_dict(item_data) for key, item_data in data["items"].items()}
         return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
+    
+    @classmethod
+    def _resolve_type(cls, type_hint):
+        """Resolve forward references to actual types.
+
+        Args:
+            type_hint: The type hint to resolve, potentially a string (forward reference) or a type.
+
+        Returns:
+            The resolved type, or raises an error if unresolvable.
+
+        Raises:
+            TypeError: If the type hint cannot be resolved.
+        """
+        from typing import Any
+        if isinstance(type_hint, str):
+            resolved = globals().get(type_hint)
+            if resolved is None:
+                from inspect import getmodule
+                module = getmodule(cls)
+                resolved = getattr(module, type_hint, None) if module else None
+                if resolved is None:
+                    raise TypeError(f"Cannot resolve type hint '{type_hint}'")
+            return resolved
+        elif hasattr(type_hint, "__origin__"):
+            return type_hint  # return as-is for generic types like Dict[str, T]
+        elif type_hint is Any:
+            return type_hint  # explicitly handle Any
+        return type_hint
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over the items in the container.
@@ -280,18 +371,18 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """
         return self.get(name)
 
-    def __setitem__(self, name: str, item: T) -> None:
+    def __setitem__(self, key: str, item: T) -> None:
         """Set an item in the container by its name using square brackets.
 
         Args:
-            name (str): The name of the item to set.
+            key (str): The name of the item to set.
             item (T): The item to add.
 
         Raises:
             ValueError: If the item's name does not match the provided key or if it fails validation.
         """
-        if item.name != name:
-            raise ValueError(f"Item name '{item.name}' does not match key '{name}'")
+        if item.name != key:
+            raise ValueError(f"Item name '{item.name}' does not match key '{key}'")
         self.add(item)
 
     def __delitem__(self, name: str) -> None:
