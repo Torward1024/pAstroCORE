@@ -137,6 +137,13 @@ class Super(ABC):
         self._methods[obj_type][method_name] = method
         self._method_cache.clear()
         logger.info(f"Registered method '{method_name}' for {obj_type.__name__}")
+
+    def _make_hashable(self, obj: Any) -> Any:
+        if isinstance(obj, dict):
+            return tuple(sorted((k, self._make_hashable(v)) for k, v in obj.items()))
+        elif isinstance(obj, (list, tuple)):
+            return tuple(self._make_hashable(item) for item in obj)
+        return obj
     
 
     def execute(self, obj: Any, attributes: Dict[str, Any] = None, method: str = None) -> Union[Dict[str, Any], bool]:
@@ -155,11 +162,10 @@ class Super(ABC):
         """
         if attributes is None:
             attributes = {}
-        cache_key = (self._operation, type(obj), method, tuple(sorted(attributes.items())) if attributes else None)
+        cache_key = (self._operation, type(obj), method, self._make_hashable(attributes))
         if cache_key in self._method_cache:
             return self._method_cache[cache_key]
         try:
-
             if method:
                 method_func = getattr(self, method, None)
                 if callable(method_func):
@@ -171,7 +177,7 @@ class Super(ABC):
             if not method_name and "attributes" in attributes and isinstance(attributes["attributes"], dict):
                 nested_attrs = attributes["attributes"]
                 method_name = nested_attrs.get("method")
-                object_attributes = nested_attrs.get("attributes", {})
+                object_attributes = nested_attrs  # Используем весь вложенный словарь как атрибуты
             else:
                 object_attributes = {k: v for k, v in attributes.items() if k != 'method'}
             
@@ -181,7 +187,7 @@ class Super(ABC):
                     result = method(obj, object_attributes)
                     self._method_cache[cache_key] = result
                     return result
-                
+                    
                 prefixed_method_name = f"_{self._operation}_{method_name}"
                 method = getattr(self, prefixed_method_name, None)
                 if callable(method):
