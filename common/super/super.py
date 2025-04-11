@@ -2,6 +2,7 @@ from abc import ABC
 from typing import Dict, Any, Callable, Type, Optional, Union
 from common.utils.logging_setup import logger
 from common.super.manipulator import Manipulator
+from collections import OrderedDict
 import inspect
 
 class Super(ABC):
@@ -31,7 +32,8 @@ class Super(ABC):
         >>> manip.process_request({"operation": "configure", "obj": [], "attributes": {"value": 1}})
         True
     """
-    def __init__(self, manipulator: 'Manipulator' = None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None):
+    def __init__(self, manipulator: 'Manipulator' = None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None,
+                 cache_size: int = 2048):
         """Initialize a Super instance with an optional Manipulator and method registry.
 
         Args:
@@ -40,7 +42,8 @@ class Super(ABC):
         """
         self._manipulator = manipulator
         self._methods = methods or {}
-        self._method_cache = {}
+        self._method_cache = OrderedDict()
+        self._cache_size = cache_size
 
     def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
         """Retrieve methods available for a given object type.
@@ -59,6 +62,22 @@ class Super(ABC):
         if self._manipulator:
             return self._manipulator.get_methods_for_type(obj_type)
         raise ValueError(f"No methods available for {obj_type.__name__}")
+    
+    def _get_nested_object(self, obj: Any, index: Any, getter_method: Callable) -> Any:
+        """Retrieve a nested object from a container."""
+        from common.base.basecontainer import BaseContainer
+        if isinstance(obj, BaseContainer):
+            if not isinstance(index, str):
+                logger.error(f"Invalid index {index} for BaseContainer; expected string")
+                return None
+            nested_obj = obj.get(index)
+            if nested_obj is None:
+                logger.error(f"Item '{index}' not found in BaseContainer")
+            return nested_obj
+        if not isinstance(index, int) or not 0 <= index < len(obj):
+            logger.error(f"Invalid index {index} for {type(obj).__name__}")
+            return None
+        return getter_method(index)
 
     def _do_nested(self, obj: Any, attributes: Dict[str, Any], index_key: str, getter_method: Callable,
                    nested_handler: Callable) -> Any:
@@ -75,14 +94,22 @@ class Super(ABC):
             Any: The result of the nested operation, or a default result if index is invalid or missing.
         """
         index = attributes.get(index_key)
-        if index is not None:
-            if not isinstance(index, int) or not 0 <= index < len(obj):
-                logger.error(f"Invalid {index_key} {index} for {type(obj).__name__}")
+        if index is None:
+            logger.debug(f"No {index_key} provided for nested operation")
+            return self._default_nested_result()
+        
+        try:
+            nested_obj = self._get_nested_object(obj, index, getter_method)
+            if nested_obj is None:
                 return self._default_nested_result()
-            nested_obj = getter_method(index)
+            
             nested_attrs = {k: v for k, v in attributes.items() if k != index_key}
-            return nested_handler(nested_obj, nested_attrs)
-        return self._default_nested_result()
+            result = nested_handler(nested_obj, nested_attrs)
+            logger.info(f"Processed nested operation on {type(obj).__name__} with {index_key}={index}")
+            return result
+        except Exception as e:
+            logger.error(f"Nested operation failed: {str(e)}")
+            return self._default_nested_result()
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any,
                                valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Optional[Any]:
@@ -139,12 +166,19 @@ class Super(ABC):
         logger.info(f"Registered method '{method_name}' for {obj_type.__name__}")
 
     def _make_hashable(self, obj: Any) -> Any:
+        """Convert an object into a hashable form for caching."""
         if isinstance(obj, dict):
             return tuple(sorted((k, self._make_hashable(v)) for k, v in obj.items()))
         elif isinstance(obj, (list, tuple)):
             return tuple(self._make_hashable(item) for item in obj)
         return obj
     
+    def _update_cache(self, key: tuple, value: Any) -> None:
+        """Update the cache with a new key-value pair, respecting the size limit."""
+        if len(self._method_cache) >= self._cache_size:
+            self._method_cache.popitem(last=False)
+        self._method_cache[key] = value
+        logger.debug(f"Cache updated with key {key}")    
 
     def execute(self, obj: Any, attributes: Dict[str, Any] = None, method: str = None) -> Union[Dict[str, Any], bool]:
         """Execute an operation on an object based on attributes and an optional method.
@@ -162,15 +196,18 @@ class Super(ABC):
         """
         if attributes is None:
             attributes = {}
-        cache_key = (self._operation, type(obj), method, self._make_hashable(attributes))
+        cache_key = (self._operation, type(obj).__name__, method, self._make_hashable(attributes))
+        
         if cache_key in self._method_cache:
+            logger.debug(f"Cache hit for {cache_key}")
             return self._method_cache[cache_key]
+
         try:
             if method:
                 method_func = getattr(self, method, None)
                 if callable(method_func):
                     result = method_func(obj, attributes)
-                    self._method_cache[cache_key] = result
+                    self._update_cache(cache_key, result)
                     return result
             
             method_name = attributes.get("method")
@@ -185,14 +222,14 @@ class Super(ABC):
                 method = getattr(self, method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    self._method_cache[cache_key] = result
+                    self._update_cache(cache_key, result)
                     return result
                     
                 prefixed_method_name = f"_{self._operation}_{method_name}"
                 method = getattr(self, prefixed_method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    self._method_cache[cache_key] = result
+                    self._update_cache(cache_key, result)
                     return result
 
             obj_type_name = type(obj).__name__.lower()
@@ -200,7 +237,7 @@ class Super(ABC):
             method = getattr(self, auto_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
-                self._method_cache[cache_key] = result
+                self._update_cache(cache_key, result)
                 return result
 
             from common.base.basecontainer import BaseContainer
@@ -209,14 +246,14 @@ class Super(ABC):
                 method = getattr(self, base_method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    self._method_cache[cache_key] = result
+                    self._update_cache(cache_key, result)
                     return result
 
             default_method_name = f"_{self._operation}"
             method = getattr(self, default_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
-                self._method_cache[cache_key] = result
+                self._update_cache(cache_key, result)
                 return result
 
             raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type_name}' in {self.__class__.__name__}")

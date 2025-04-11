@@ -90,6 +90,11 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             raise ValueError(f"Unknown attributes provided for {self.__class__.__name__}: {unknown_attrs}")
         
         logger.info(f"Initialized {self.__class__.__name__} instance with name={name}, isactive={isactive}")
+    
+    def _invalidate_cache(self) -> None:
+        """Invalidate the cache of the entity."""
+        if self._use_cache and hasattr(self, '_cached_to_dict'):
+            self._cached_to_dict = None
 
     def _validate_type(self, key: str, value: Any, expected_type: Any) -> None:
         """Validate that a value matches the expected type.
@@ -168,8 +173,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                 setattr(self, key, value)
             else:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
-        if self._use_cache and hasattr(self, '_cached_to_dict'):
-            self._cached_to_dict = None
+        self._invalidate_cache()
         logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
 
     def get(self, key: str = None) -> Any:
@@ -197,6 +201,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             - Logs an info message indicating the entity has been activated.
         """
         self.isactive = True
+        self._invalidate_cache()
         logger.info(f"Activated {self.__class__.__name__} instance")
 
     def deactivate(self) -> None:
@@ -206,6 +211,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             - Logs an info message indicating the entity has been deactivated.
         """
         self.isactive = False
+        self._invalidate_cache()
         logger.info(f"Deactivated {self.__class__.__name__} instance")
     
     def has_attribute(self, key: str) -> bool:
@@ -328,7 +334,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                     resolved = getattr(module, type_name, None) if module else None
                     if resolved is None:
                         raise TypeError(f"Cannot resolve forward reference '{type_name}' in {cls.__name__}")
-                # Рекурсивно проверяем вложенные типы
                 if hasattr(resolved, '_fields'):
                     for field, field_type in resolved._fields.items():
                         cls._resolve_type(field_type)
@@ -409,6 +414,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         expected_type = self._resolve_type(self._fields[key])
         self._validate_type(key, value, expected_type)
         setattr(self, key, value)
+        self._invalidate_cache()
         logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
 
     def __eq__(self, other: Any) -> bool:
@@ -455,8 +461,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             expected_type = self._resolve_type(self._fields[key])
             self._validate_type(key, value, expected_type)
             super().__setattr__(key, value)
-            if self._use_cache and hasattr(self, '_cached_to_dict'):
-                self._cached_to_dict = None
+            self._invalidate_cache()
             logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
         else:
             raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
