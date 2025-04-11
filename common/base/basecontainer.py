@@ -339,8 +339,10 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
     
     def _invalidate_cache(self) -> None:
         """Invalidate the cache of the container."""
-        if self._use_cache and hasattr(self, '_cached_to_dict'):
-            self._cached_to_dict = None
+        super()._invalidate_cache()
+        for item in self._items.values():
+            if hasattr(item, '_invalidate_cache'):
+                item._invalidate_cache()
 
     @classmethod
     def _resolve_type(cls, type_hint, field_path=""):
