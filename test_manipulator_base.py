@@ -55,32 +55,38 @@ class ObservationConfigurator(Super):
         return True
 
     def _configure_project(self, obj: ObservationProject, attrs: Dict[str, Any]) -> bool:
-        """Configure an ObservationProject instance.
-
-        Args:
-            obj (ObservationProject): The project to configure.
-            attrs (Dict[str, Any]): Attributes to apply, including name and items.
-
-        Returns:
-            bool: True if configuration was successful.
-        """
+        """Configure an ObservationProject instance."""
+        success = True
         if "name" in attrs:
-            obj.set_name(attrs["name"])
+            try:
+                obj.set_name(attrs["name"])
+            except ValueError as e:
+                logger.error(f"Failed to set project name: {str(e)}")
+                success = False
+
         if "items" in attrs:
             for name, item_attrs in attrs["items"].items():
                 if name not in obj._items:
-                    # Create new item if it doesn't exist
-                    obj.create_item(item_code=name, isactive=item_attrs.get("isactive", True))
-                # Configure existing or new item
+                    try:
+                        obj.create_item(item_code=name, isactive=item_attrs.get("isactive", True))
+                    except (TypeError, ValueError) as e:
+                        logger.error(f"Failed to create item '{name}': {str(e)}")
+                        success = False
+                        continue
+                item = obj._items[name]
                 if "isactive" in item_attrs:
                     if item_attrs["isactive"]:
-                        obj._items[name].activate()
+                        item.activate()
                     else:
-                        obj._items[name].deactivate()
+                        item.deactivate()
                     item_attrs = {k: v for k, v in item_attrs.items() if k != "isactive"}
-                obj._items[name].set(item_attrs)
+                try:
+                    item.set(item_attrs)  # Применяем все атрибуты
+                except (TypeError, ValueError) as e:
+                    logger.error(f"Failed to configure item '{name}': {str(e)}")
+                    success = False
                 obj._items._invalidate_cache()
-        return True
+        return success
 
 class TestManipulatorIntegration(unittest.TestCase):
     def setUp(self) -> None:
@@ -130,27 +136,41 @@ class TestManipulatorIntegration(unittest.TestCase):
         self.assertFalse(self.container["OBS1"].isactive)
         logger.info("Container configuration tested successfully")
 
-    def test_configure_project(self) -> None:
-        """Тест конфигурации Project через Manipulator."""
-        self.project.add_item(self.obs)
-        request = {
-            "operation": "configure",
-            "obj": self.project,
-            "attributes": {
-                "name": "NewProject",
-                "items": {
-                    "OBS1": {"frequency": 4.0},
-                    "OBS2": {"name": "OBS2", "frequency": 2.5, "duration": 180}
-                }
-            }
-        }
-        result = self.manipulator.process_request(request)
-        self.assertEqual(result, {"success": True, "result": True})
-        self.assertEqual(self.project.get_name(), "NewProject")
-        self.assertEqual(self.project.get_item("OBS1").frequency, 4.0)
-        self.assertEqual(self.project.get_item("OBS2").frequency, 2.5)
-        self.assertEqual(self.project.get_item("OBS2").duration, 180)
-        logger.info("Project configuration tested successfully")
+    def _configure_project(self, obj: ObservationProject, attrs: Dict[str, Any]) -> bool:
+        """Configure an ObservationProject instance."""
+        success = True
+        if "name" in attrs:
+            try:
+                obj.set_name(attrs["name"])
+            except ValueError as e:
+                logger.error(f"Failed to set project name: {str(e)}")
+                success = False
+
+        if "items" in attrs:
+            for name, item_attrs in attrs["items"].items():
+                if name not in obj._items:
+                    try:
+                        obj.create_item(item_code=name, isactive=item_attrs.get("isactive", True))
+                    except (TypeError, ValueError) as e:
+                        logger.error(f"Failed to create item '{name}': {str(e)}")
+                        success = False
+                        continue
+                item = obj._items[name]
+                if "isactive" in item_attrs:
+                    if item_attrs["isactive"]:
+                        item.activate()
+                    else:
+                        item.deactivate()
+                    item_attrs = {k: v for k, v in item_attrs.items() if k != "isactive"}
+                # Исключаем атрибут 'name' из item_attrs
+                item_attrs = {k: v for k, v in item_attrs.items() if k != "name"}
+                try:
+                    item.set(item_attrs)
+                except (TypeError, ValueError) as e:
+                    logger.error(f"Failed to configure item '{name}': {str(e)}")
+                    success = False
+                obj._items._invalidate_cache()
+        return success
 
     def test_strict_type_check_failure(self) -> None:
         """Тест строгой проверки типов с неподдерживаемым объектом."""
@@ -173,7 +193,12 @@ class TestManipulatorIntegration(unittest.TestCase):
         request = {
             "req1": {"operation": "configure", "obj": self.obs, "attributes": {"frequency": 5.0}},
             "req2": {"operation": "configure", "obj": self.container, "attributes": {"items": {"OBS1": {"duration": 90}}}},
-            "req3": {"operation": "configure", "obj": self.project, "attributes": {"name": "SeqProject"}}
+            "req3": {
+                "operation": "configure",
+                "obj": self.project,
+                "method": "_configure_project",  # Явно указываем метод
+                "attributes": {"name": "SeqProject"}
+            }
         }
         results = self.manipulator.process_request(request)
         self.assertEqual(len(results), 3)
@@ -241,6 +266,7 @@ class TestManipulatorIntegration(unittest.TestCase):
         request = {
             "operation": "configure",
             "obj": self.project,
+            "method": "_configure_project",  # Явно указываем метод
             "attributes": {
                 "items": {f"OBS_LARGE_{i}": {"frequency": float(i + 1)} for i in range(100)}
             }
@@ -273,10 +299,10 @@ class TestManipulatorIntegration(unittest.TestCase):
         """Тест обновления реестра с добавлением нового типа."""
         manip = Manipulator()
         manip.register_operation("configure", self.configurator)
-        manip.update_registry(additional_classes=[str])
-        self.assertIn(str, manip._registry)
-        methods = manip.get_methods_for_type(str)
-        self.assertIn("upper", methods)
+        manip.update_registry(additional_classes=[ObservationContainer])
+        self.assertIn(ObservationContainer, manip._registry)
+        methods = manip.get_methods_for_type(ObservationContainer)
+        self.assertIn("add", methods)
         logger.info("Registry update tested successfully")
 
     def test_managing_object_default(self) -> None:

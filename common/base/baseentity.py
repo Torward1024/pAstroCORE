@@ -104,21 +104,38 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """
         if value is None:
             return
-    
+
+        from typing import Union, get_origin, get_args
         resolved_type = self._resolve_type(expected_type)
         if resolved_type is Any:
             return
-        
+
         base_type = get_origin(resolved_type) or resolved_type
         type_args = get_args(resolved_type)
-        
+
+        if base_type is Union:
+            valid = False
+            errors = []
+            for union_type in type_args:
+                try:
+                    # Avoid recursion by directly checking isinstance
+                    resolved_union_type = self._resolve_type(union_type)
+                    if resolved_union_type is Any or value is None or isinstance(value, resolved_union_type):
+                        return
+                    valid = True  # At least one type was checked without exception
+                except TypeError as e:
+                    errors.append(str(e))
+            if valid:
+                raise TypeError(f"Attribute '{key}' does not match any type in {resolved_type}, got {type(value)}")
+            raise TypeError(f"Type validation failed for '{key}': {'; '.join(errors)}")
+
         if base_type in (dict, Dict):
             if not isinstance(value, dict):
                 raise TypeError(f"Attribute '{key}' must be a dict, got {type(value)}")
-            if type_args:  # e.g., Dict[str, T]
+            if type_args:
                 key_type, value_type = type_args
                 resolved_value_type = self._resolve_type(value_type)
-                if resolved_value_type is Any:  # Пропускаем валидацию для Any
+                if resolved_value_type is Any:
                     return
                 if not isinstance(resolved_value_type, (type, tuple)):
                     raise TypeError(f"Resolved value type '{resolved_value_type}' for '{key}' is not a valid type")
