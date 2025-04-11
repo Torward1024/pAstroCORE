@@ -280,12 +280,12 @@ class TestSuper(unittest.TestCase):
             def _test(self, obj, attrs):
                 return obj + attrs.get("value", 0)
 
-        manip = Manipulator()
+        manip = Manipulator()  # strict_type_check=False по умолчанию
         super_instance = TestSuper(manipulator=manip)
         manip.register_operation("test", super_instance)
         request = {"operation": "test", "obj": 5, "attributes": {"value": 10}}
         result = manip.process_request(request)
-        self.assertEqual(result, 15)
+        self.assertEqual(result, {"success": True, "result": 15})
 
     def test_default_result(self):
         """Тест метода _default_result."""
