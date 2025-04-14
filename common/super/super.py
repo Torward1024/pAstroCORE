@@ -240,7 +240,6 @@ class Super(ABC):
                 self._update_cache(cache_key, result)
                 return result
 
-            from common.base.basecontainer import BaseContainer
             if isinstance(obj, BaseContainer):
                 base_method_name = f"_{self._operation}_basecontainer"
                 method = getattr(self, base_method_name, None)
