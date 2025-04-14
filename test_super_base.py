@@ -1,7 +1,7 @@
 # tests/test_msb_integration.py
 import unittest
 from typing import Dict, Any, Optional
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from common.base.baseentity import BaseEntity
 from common.base.basecontainer import BaseContainer
 from common.super.super import Super
@@ -9,10 +9,12 @@ from common.super.project import Project
 from common.super.manipulator import Manipulator
 from common.utils.logging_setup import logger
 
+
 # Определяем тестовые сущности
 class Observation(BaseEntity):
     frequency: float
     duration: int
+
 
 class ObservationContainer(BaseContainer[Observation]):
     def _validate_item(self, item: Observation) -> None:
@@ -20,6 +22,7 @@ class ObservationContainer(BaseContainer[Observation]):
             raise ValueError("Frequency must be positive")
         if item.duration < 0:
             raise ValueError("Duration must be non-negative")
+
 
 class ObservationProject(Project):
     _item_type = Observation
@@ -31,6 +34,7 @@ class ObservationProject(Project):
     def from_dict(cls, data: Dict[str, Any]) -> 'ObservationProject':
         items = {k: Observation.from_dict(v) for k, v in data["items"].items()}
         return cls(name=data["name"], items=items)
+
 
 class ObservationConfigurator(Super):
     def _configure_observation(self, obj: Observation, attrs: Dict[str, Any]) -> bool:
@@ -56,6 +60,7 @@ class ObservationConfigurator(Super):
                 obj._invalidate_cache()
         return True
 
+
 class TestMSBIntegration(unittest.TestCase):
     def setUp(self) -> None:
         """Подготовка перед каждым тестом."""
@@ -79,7 +84,7 @@ class TestMSBIntegration(unittest.TestCase):
         """Тест валидации типов в BaseEntity."""
         with self.assertRaises(TypeError):
             Observation(name="OBS_INVALID", frequency="invalid", duration=60)
-        obs = Observation(name="OBS_VALID")
+        obs = Observation(name="OBS_VALID", frequency=1.4, duration=60)
         with self.assertRaises(TypeError):
             obs["frequency"] = "invalid"
         logger.info("BaseEntity type validation tested successfully")
@@ -95,7 +100,7 @@ class TestMSBIntegration(unittest.TestCase):
     def test_base_container_validation(self) -> None:
         """Тест валидации в BaseContainer."""
         container = ObservationContainer(name="TestContainer")
-        invalid_obs = Observation(name="OBS_INVALID", frequency=-1.0, duration=60)  # Изменено на float
+        invalid_obs = Observation(name="OBS_INVALID", frequency=-1.0, duration=60)
         with self.assertRaises(ValueError):
             container.add(invalid_obs)
         with self.assertRaises(ValueError):
@@ -183,7 +188,7 @@ class TestMSBIntegration(unittest.TestCase):
         dict1 = container.to_dict()
         dict2 = container.to_dict()
         self.assertIs(dict1, dict2)
-        # Изменяем через Super или set, а не прямой доступ
+        # Изменяем через Super
         request = {
             "operation": "configure",
             "obj": container,
@@ -223,7 +228,7 @@ class TestMSBIntegration(unittest.TestCase):
             "attributes": {"isactive": True}
         }
         result = self.manipulator.process_request(request)
-        self.assertTrue(result)  # Добавляем проверку результата
+        self.assertTrue(result)
         self.assertTrue(self.project.get_item("OBS1").isactive)
         logger.info("Activation integration tested successfully")
 
@@ -248,6 +253,87 @@ class TestMSBIntegration(unittest.TestCase):
         self.project._items.add(self.obs2)
         self.assertEqual(self.project.get_item("OBS2"), self.obs2)
         logger.info("Project and container sync tested successfully")
+
+    def test_super_baseentity_valid(self) -> None:
+        """Тест выполнения операции с BaseEntity и корректными атрибутами."""
+        obs = Observation(name="OBS_TEST", frequency=1.4, duration=60)
+        request = {
+            "operation": "configure",
+            "obj": obs,
+            "attributes": {"frequency": 2.5, "duration": 90, "isactive": False}
+        }
+        result = self.manipulator.process_request(request)
+        self.assertTrue(result)
+        self.assertEqual(obs.frequency, 2.5)
+        self.assertEqual(obs.duration, 90)
+        self.assertFalse(obs.isactive)
+        logger.info("BaseEntity valid configuration through Super tested successfully")
+
+    def test_super_baseentity_invalid_type(self) -> None:
+        """Тест выполнения операции с BaseEntity и некорректным типом атрибута."""
+        obs = Observation(name="OBS_TEST", frequency=1.4, duration=60)
+        original_frequency = obs.frequency
+        request = {
+            "operation": "configure",
+            "obj": obs,
+            "attributes": {"frequency": "invalid"}
+        }
+        result = self.manipulator.process_request(request)
+        self.assertTrue(result)  # Super возвращает True, но BaseEntity отклоняет изменение
+        self.assertEqual(obs.frequency, original_frequency)  # Значение не изменилось
+        logger.info("BaseEntity invalid type handling through Super tested successfully")
+
+    def test_super_baseentity_caching(self) -> None:
+        """Тест кэширования операции с BaseEntity через Super."""
+        obs = Observation(name="OBS_TEST", frequency=1.4, duration=60)
+        request = {
+            "operation": "configure",
+            "obj": obs,
+            "attributes": {"frequency": 2.5}
+        }
+        result1 = self.manipulator.process_request(request)
+        self.assertTrue(result1)
+        self.assertEqual(obs.frequency, 2.5)
+        with patch.object(ObservationConfigurator, "_configure_observation") as mock_method:
+            result2 = self.manipulator.process_request(request)
+            self.assertTrue(result2)
+            mock_method.assert_not_called()
+        logger.info("BaseEntity caching through Super tested successfully")
+
+    def test_super_container_caching(self) -> None:
+        """Тест кэширования в BaseContainer при массовой конфигурации через Super."""
+        container = ObservationContainer(name="CacheContainer", use_cache=True)
+        obs1 = Observation(name="OBS1", frequency=1.4, duration=60, use_cache=True)
+        obs2 = Observation(name="OBS2", frequency=2.0, duration=120, use_cache=True)
+        container.add(obs1)
+        container.add(obs2)
+        dict1 = container.to_dict()
+        obs1_dict1 = obs1.to_dict()
+        request = {
+            "operation": "configure",
+            "obj": container,
+            "attributes": {
+                "items": {
+                    "OBS1": {"frequency": 3.0},
+                    "OBS2": {"frequency": 4.0}
+                }
+            }
+        }
+        result = self.manipulator.process_request(request)
+        self.assertTrue(result)
+        dict2 = container.to_dict()
+        obs1_dict2 = obs1.to_dict()
+        self.assertIsNot(dict1, dict2)
+        self.assertIsNot(obs1_dict1, obs1_dict2)
+        self.assertEqual(container["OBS1"].frequency, 3.0)
+        self.assertEqual(container["OBS2"].frequency, 4.0)
+        # Повторный вызов без изменений
+        dict3 = container.to_dict()
+        obs1_dict3 = obs1.to_dict()
+        self.assertIs(dict2, dict3)
+        self.assertIs(obs1_dict2, obs1_dict3)
+        logger.info("BaseContainer and nested entity caching through Super tested successfully")
+
 
 if __name__ == "__main__":
     unittest.main()
