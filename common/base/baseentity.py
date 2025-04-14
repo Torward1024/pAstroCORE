@@ -299,12 +299,8 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                     raise TypeError(f"Cannot resolve forward reference '{cls._fields[key]}' for attribute '{key}'")
             if isinstance(expected_type, type) and issubclass(expected_type, BaseEntity) and isinstance(value, dict):
                 kwargs[key] = expected_type.from_dict(value)
-            elif value is not None:
-                if not isinstance(value, expected_type):
-                    raise TypeError(f"Attribute '{key}' must be of type {expected_type}, got {type(value)}")
-                kwargs[key] = value
             else:
-                kwargs[key] = None
+                kwargs[key] = value
         return cls(name=data.get("name"), isactive=data.get("isactive", True), **kwargs)
     
     @classmethod
