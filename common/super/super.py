@@ -2,6 +2,7 @@ from abc import ABC
 from typing import Dict, Any, Callable, Type, Optional, Union
 from common.utils.logging_setup import logger
 from common.super.manipulator import Manipulator
+from common.base.basecontainer import BaseContainer
 from collections import OrderedDict
 import inspect
 
@@ -65,7 +66,6 @@ class Super(ABC):
     
     def _get_nested_object(self, obj: Any, index: Any, getter_method: Callable) -> Any:
         """Retrieve a nested object from a container."""
-        from common.base.basecontainer import BaseContainer
         if isinstance(obj, BaseContainer):
             if not isinstance(index, str):
                 logger.error(f"Invalid index {index} for BaseContainer; expected string")
