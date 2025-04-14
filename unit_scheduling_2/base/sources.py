@@ -136,7 +136,7 @@ class Source(BaseEntity, ABC):
         if not (0 <= ra_deg <= 360):
             raise ValueError(f"RA degrees must be in range [0, 360], got {ra_deg}")
         ra_hours = ra_deg / 15
-        self.set({"ra_h": int(ra_hours), "ra_m": int((ra_hours % 1) * 60), "ra_s": ((ra_hours % 1) * 60 % 1) * 60})
+        self.set({"ra_h": ra_hours, "ra_m": ((ra_hours % 1) * 60), "ra_s": ((ra_hours % 1) * 60 % 1) * 60})
         logger.info(f"Set RA={ra_deg} deg for source '{self.name}'")
 
     def set_dec_degrees(self, dec_deg: float) -> None:
@@ -147,8 +147,8 @@ class Source(BaseEntity, ABC):
         dec_abs = abs(dec_deg)
         self.set(
             {
-                "de_d": sign * int(dec_abs),
-                "de_m": int((dec_abs % 1) * 60),
+                "de_d": sign * (dec_abs),
+                "de_m": ((dec_abs % 1) * 60),
                 "de_s": ((dec_abs % 1) * 60 % 1) * 60,
             }
         )
