@@ -138,5 +138,35 @@ class TestProject(unittest.TestCase):
         self.assertEqual(len(self.project.get_items()), 999)
         logger.info("Large number of items tested successfully")
 
+    def test_add_item_wrong_type(self) -> None:
+        """Test adding an item of incorrect type raises TypeError."""
+        invalid_item = BaseEntity(name="OBS_WRONG")
+        with self.assertRaises(TypeError):
+            self.project.add_item(invalid_item)
+        logger.info("Adding item of wrong type validation tested successfully")
+
+    def test_serialization_missing_item_field(self) -> None:
+        """Test deserialization with missing required item field raises ValueError."""
+        data = {"name": "TestProj", "items": {"OBS1": {"isactive": True}}}  # Missing 'frequency'
+        with self.assertRaises(ValueError):
+            TestObservationProject.from_dict(data)
+        logger.info("Deserialization with missing item field tested successfully")
+
+    def test_serialization_empty_items(self) -> None:
+        """Test deserialization with empty items dictionary."""
+        data = {"name": "TestProj", "items": {}}
+        proj = TestObservationProject.from_dict(data)
+        self.assertEqual(len(proj.get_items()), 0)
+        self.assertEqual(proj.get_name(), "TestProj")
+        logger.info("Deserialization with empty items tested successfully")
+
+    def test_multiple_name_updates(self) -> None:
+        """Test multiple name updates correctly update container name."""
+        self.project.set_name("Proj1")
+        self.assertEqual(self.project._items.name, "Proj1_items")
+        self.project.set_name("Proj2")
+        self.assertEqual(self.project._items.name, "Proj2_items")
+        logger.info("Multiple name updates tested successfully")
+
 if __name__ == "__main__":
     unittest.main()

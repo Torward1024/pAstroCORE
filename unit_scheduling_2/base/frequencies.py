@@ -27,10 +27,10 @@ class IF(BaseEntity):
         - Polarizations must belong to a single group: circular, paired linear, or single linear.
         - Wavelength is calculated as C_MHZ_CM / frequency.
     """
+    name: Optional[str]
     frequency: float
     bandwidth: float
     polarizations: List[str]
-    name: Optional[str]
     isactive: bool
 
     def __init__(self, *, name: Optional[str] = None, frequency: float = 1000.0, bandwidth: float = 16.0,
@@ -198,76 +198,6 @@ class Frequencies(BaseContainer[IF]):
         """
         return [if_obj.get_frequency_wavelength() for if_obj in self.get_items()]
 
-    def get_active_frequencies(self) -> List[IF]:
-        """Retrieve all active IF objects.
-
-        Returns:
-            List[IF]: List of active IF objects.
-        """
-        return [if_obj for if_obj in self.get_items() if if_obj.isactive]
-
-    def get_inactive_frequencies(self) -> List[IF]:
-        """Retrieve all inactive IF objects.
-
-        Returns:
-            List[IF]: List of inactive IF objects.
-        """
-        return [if_obj for if_obj in self.get_items() if not if_obj.isactive]
-
-    def activate_all(self) -> None:
-        """Activate all IF objects in the collection.
-
-        Raises:
-            ValueError: If the collection is empty.
-        """
-        if not self._items:
-            logger.error("No IFs to activate")
-            raise ValueError("No IFs to activate")
-        for if_obj in self.get_items():
-            if_obj.activate()
-        logger.info("Activated all IFs")
-
-    def deactivate_all(self) -> None:
-        """Deactivate all IF objects in the collection.
-
-        Raises:
-            ValueError: If the collection is empty.
-        """
-        if not self._items:
-            logger.error("No IFs to deactivate")
-            raise ValueError("No IFs to deactivate")
-        for if_obj in self.get_items():
-            if_obj.deactivate()
-        logger.info("Deactivated all IFs")
-
-    def drop_active(self) -> None:
-        """Remove all active IF objects from the collection.
-
-        Raises:
-            ValueError: If there are no active IFs.
-        """
-        active_names = [name for name, if_obj in self.get_all().items() if if_obj.isactive]
-        if not active_names:
-            logger.warning("No active IFs to drop")
-            raise ValueError("No active IFs to remove")
-        for name in active_names:
-            self.remove(name)
-        logger.info(f"Dropped {len(active_names)} active IFs")
-
-    def drop_inactive(self) -> None:
-        """Remove all inactive IF objects from the collection.
-
-        Raises:
-            ValueError: If there are no inactive IFs.
-        """
-        inactive_names = [name for name, if_obj in self.get_all().items() if not if_obj.isactive]
-        if not inactive_names:
-            logger.warning("No inactive IFs to drop")
-            raise ValueError("No inactive IFs to remove")
-        for name in inactive_names:
-            self.remove(name)
-        logger.info(f"Dropped {len(inactive_names)} inactive IFs")
-
     def _check_overlap(self, if_obj: IF, exclude_name: Optional[str]) -> None:
         """Check if an IF's frequency range overlaps with existing IFs.
 
@@ -276,10 +206,13 @@ class Frequencies(BaseContainer[IF]):
             exclude_name: Name of IF to exclude from overlap check (for updates).
 
         Raises:
-            ValueError: If frequency range overlaps with an existing IF.
+            ValueError: If frequency range overlaps with an existing IF or bandwidth is zero.
         """
         new_freq = if_obj.frequency
         new_bw = if_obj.bandwidth
+        if new_bw <= 0:
+            logger.error("Bandwidth must be positive for overlap check")
+            raise ValueError("Bandwidth must be positive")
         new_end = new_freq + new_bw
 
         for name, existing_if in self.get_all().items():
@@ -287,6 +220,9 @@ class Frequencies(BaseContainer[IF]):
                 continue
             ex_freq = existing_if.frequency
             ex_bw = existing_if.bandwidth
+            if ex_bw <= 0:
+                logger.error(f"Existing IF {name} has non-positive bandwidth")
+                raise ValueError(f"Existing IF {name} has non-positive bandwidth")
             ex_end = ex_freq + ex_bw
             if new_freq < ex_end and new_end > ex_freq:
                 logger.error(f"Frequency range [{new_freq}, {new_end}] overlaps with [{ex_freq}, {ex_end}]")
