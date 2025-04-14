@@ -77,7 +77,7 @@ class TestSource(unittest.TestCase):
         data = self.source.to_dict()
         self.assertEqual(data["name"], "3C 273")
         self.assertEqual(data["ra_h"], 12.0)
-        self.assertEqual(data["flux_table"], {1420.0: 45.0})
+        self.assertEqual(data["flux_table"], {1420.0: 45.0, 5000.0: 20.0})  # Исправлено
         new_source = Source.from_dict(data)
         self.assertEqual(new_source, self.source)
 
@@ -89,8 +89,18 @@ class TestSource(unittest.TestCase):
         self.assertNotEqual(clone.name, self.source.name)
 
     def test_equality(self) -> None:
-        other = Source(name="3C 273", ra_h=12.0, ra_m=29.0, ra_s=6.7, de_d=2.0, de_m=2.0, de_s=0.2)
-        self.assertNotEqual(other, self.source)  # Different flux_table
+        other = Source(
+            name="3C 273",
+            ra_h=12.0,
+            ra_m=29.0,
+            ra_s=6.7,
+            de_d=2.0,
+            de_m=2.0,
+            de_s=0.2,
+            name_J2000="J1229+0203",  # Добавлено
+            alt_name="Quasar",        # Добавлено
+        )
+        self.assertNotEqual(other, self.source)  # Разные flux_table и spectral_index
         other.set({"flux_table": {1420.0: 45.0, 5000.0: 20.0}, "spectral_index": -0.7})
         self.assertEqual(other, self.source)
 
