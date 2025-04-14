@@ -157,8 +157,71 @@ class TestBaseEntity(unittest.TestCase):
         with self.assertRaises(TypeError) as cm:
             BrokenEntity(name="test")
         self.assertIn("NonExistentType", str(cm.exception))
+    
+    def test_nested_caching(self):
+        nested = TestEntity(name="nested", value=42, use_cache=True)
+        entity = TestEntity(name="test", nested=nested, use_cache=True)
+        dict1 = entity.to_dict()
+        nested.value = 43
+        dict2 = entity.to_dict()
+        self.assertNotEqual(dict1, dict2)
+        self.assertEqual(dict2["nested"]["value"], 43)
+        # Проверяем случай без кэширования вложенного объекта
+        nested_no_cache = TestEntity(name="nested2", value=42, use_cache=False)
+        entity.nested = nested_no_cache
+        dict3 = entity.to_dict()
+        nested_no_cache.value = 43
+        dict4 = entity.to_dict()
+        self.assertNotEqual(dict3, dict4)
+        self.assertEqual(dict4["nested"]["value"], 43)
+    
+    def test_deep_nested_caching(self):
+        nested2 = TestEntity(name="nested2", value=42, use_cache=True)
+        nested1 = TestEntity(name="nested1", nested=nested2, use_cache=True)
+        entity = TestEntity(name="test", nested=nested1, use_cache=True)
+        dict1 = entity.to_dict()
+        nested2.value = 43
+        dict2 = entity.to_dict()
+        self.assertNotEqual(dict1, dict2)
+        self.assertEqual(dict2["nested"]["nested"]["value"], 43)
 
 class TestBaseContainer(unittest.TestCase):
+    def setUp(self):
+        self.container = TestContainer(name="TestContainer")
+        self.item1 = TestEntity(name="item1", value=1)
+        self.item2 = TestEntity(name="item2", value=2)
+
+    def test_activate_all(self):
+        self.container.add(self.item1)
+        self.container.add(self.item2)
+        self.container.deactivate_item("item1")
+        self.container.activate_all()
+        self.assertTrue(self.container.get("item1").isactive)
+        self.assertTrue(self.container.get("item2").isactive)
+
+    def test_deactivate_all(self):
+        self.container.add(self.item1)
+        self.container.add(self.item2)
+        self.container.deactivate_all()
+        self.assertFalse(self.container.get("item1").isactive)
+        self.assertFalse(self.container.get("item2").isactive)
+
+    def test_drop_active(self):
+        self.container.add(self.item1)
+        self.container.add(self.item2)
+        self.container.deactivate_item("item1")
+        self.container.drop_active()
+        self.assertEqual(len(self.container), 1)
+        self.assertTrue(self.container.has_item("item1"))
+
+    def test_drop_inactive(self):
+        self.container.add(self.item1)
+        self.container.add(self.item2)
+        self.container.deactivate_item("item1")
+        self.container.drop_inactive()
+        self.assertEqual(len(self.container), 1)
+        self.assertTrue(self.container.has_item("item2"))
+
     def test_init_without_items(self):
         container = TestContainer(name="test")
         self.assertEqual(len(container), 0)

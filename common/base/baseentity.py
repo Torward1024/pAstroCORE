@@ -1,6 +1,6 @@
 # base/baseentity.py
 from abc import ABC, ABCMeta
-from typing import Dict, Any, get_origin, get_args
+from typing import Dict, Union, List, Any
 from common.utils.logging_setup import logger
 
 class EntityMeta(ABCMeta):
@@ -176,23 +176,55 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         self._invalidate_cache()
         logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
 
-    def get(self, key: str = None) -> Any:
-        """Retrieve an attribute or all attributes of the entity.
+    def get(self, key: Union[str, List[str], None] = None) -> Union[Any, Dict[str, Any]]:
+        """Retrieve one or more attributes of the entity.
 
         Args:
-            key (str, optional): The name of the attribute to retrieve. If None, returns all attributes as a dictionary.
+            key (Union[str, List[str], None], optional): The name of a single attribute, a list of attribute
+                names, or None. If a string, returns the attribute's value. If a list of strings, returns a
+                dictionary with the specified attributes. If None, returns a dictionary of all public attributes.
+                Defaults to None.
 
         Returns:
-            Any: The value of the specified attribute if `key` is provided, otherwise a dictionary of all attributes.
+            Union[Any, Dict[str, Any]]: The value of the specified attribute if `key` is a string,
+                a dictionary of requested attributes if `key` is a list, or a dictionary of all public attributes
+                if `key` is None.
 
         Raises:
-            KeyError: If the specified `key` is not found in the entity's annotated fields.
+            KeyError: If any specified key is not found in the entity's annotated fields.
+
+        Examples:
+            >>> if_obj = IF(name="IF1", frequency=1000.0, bandwidth=16.0)
+            >>> if_obj.get("frequency")
+            1000.0
+            >>> if_obj.get(["frequency", "bandwidth"])
+            {'frequency': 1000.0, 'bandwidth': 16.0}
+            >>> if_obj.get()
+            {'name': 'IF1', 'isactive': True, 'frequency': 1000.0, 'bandwidth': 16.0, 'polarizations': []}
         """
-        if key is not None:
+        if key is None:
+            result = {k: getattr(self, k) for k in self._fields if not k.startswith('_') and hasattr(self, k)}
+            logger.debug(f"Retrieved all public attributes from {self.__class__.__name__}: {result}")
+            return result
+        
+        if isinstance(key, str):
             if key not in self._fields:
+                logger.error(f"Attribute '{key}' not found in {self.__class__.__name__}")
                 raise KeyError(f"Attribute '{key}' not found in {self.__class__.__name__}")
-            return getattr(self, key) if hasattr(self, key) else None
-        return {key: getattr(self, key) for key in self._fields if hasattr(self, key)}
+            value = getattr(self, key) if hasattr(self, key) else None
+            logger.debug(f"Retrieved attribute '{key}' from {self.__class__.__name__}: {value}")
+            return value
+        
+        if isinstance(key, list):
+            invalid_keys = [k for k in key if k not in self._fields]
+            if invalid_keys:
+                logger.error(f"Attributes {invalid_keys} not found in {self.__class__.__name__}")
+                raise KeyError(f"Attributes {invalid_keys} not found in {self.__class__.__name__}")
+            result = {k: getattr(self, k) if hasattr(self, k) else None for k in key}
+            logger.debug(f"Retrieved attributes {key} from {self.__class__.__name__}: {result}")
+            return result
+        
+        raise TypeError(f"Argument 'key' must be str, list of str, or None, got {type(key)}")
 
     def activate(self) -> None:
         """Activate the entity, setting its status to active.
@@ -243,7 +275,20 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             dict: A dictionary containing the entity's serialized data.
         """
         if self._use_cache and self._cached_to_dict is not None:
-            return self._cached_to_dict
+            valid_cache = True
+            for key in self._fields:
+                if key.startswith('_'):
+                    continue
+                if hasattr(self, key):
+                    value = getattr(self, key)
+                    if isinstance(value, BaseEntity):
+                        cached_nested = self._cached_to_dict.get(key)
+                        current_nested = value.to_dict()
+                        if cached_nested != current_nested:
+                            valid_cache = False
+                            break
+            if valid_cache:
+                return self._cached_to_dict
         
         seen = set()
         data = {"name": self.name, "isactive": self.isactive}
@@ -264,8 +309,8 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         
         if self._use_cache:
             self._cached_to_dict = data
-            return self._cached_to_dict  # Явно возвращаем кэшированный объект
-        return data  # Возвращаем новый объект, если кэш не используется
+            return self._cached_to_dict
+        return data
 
     @classmethod
     def from_dict(cls, data: dict) -> 'BaseEntity':

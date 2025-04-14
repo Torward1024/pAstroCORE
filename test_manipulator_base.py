@@ -246,7 +246,7 @@ class TestManipulatorIntegration(unittest.TestCase):
         request = {"obj": self.obs, "attributes": {"frequency": 7.0}}
         result = self.manipulator.process_request(request)
         self.assertFalse(result["success"])
-        self.assertEqual(result["error"], "No operation specified")
+        self.assertEqual(result["error"], "No operation specified in request")
         self.assertEqual(self.obs.frequency, 1.4)
         logger.info("Missing operation tested successfully")
 

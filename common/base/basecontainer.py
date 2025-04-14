@@ -187,6 +187,54 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """
         return list(self._items.values())
     
+    def get_by_value(self, conditions: Dict[str, Any]) -> List[T]:
+        """Retrieve items from the container where all specified attributes match the given values.
+
+        Args:
+            conditions (Dict[str, Any]): A dictionary where keys are attribute names and values are
+                the desired values (e.g., {"frequency": 1000.0, "isactive": False}). If empty,
+                returns all items.
+
+        Returns:
+            List[T]: A list of items where all specified attributes equal the given values.
+
+        Raises:
+            AttributeError: If any specified attribute does not exist in the items.
+        """
+        if not conditions:
+            logger.debug(f"No conditions provided; returning all items from {self.__class__.__name__}")
+            return self.get_items()
+
+        try:
+            result = []
+            for item in self.get_items():
+                matches = all(getattr(item, attr_name) == attr_value 
+                             for attr_name, attr_value in conditions.items())
+                if matches:
+                    result.append(item)
+            logger.debug(f"Retrieved {len(result)} items from {self.__class__.__name__} matching conditions {conditions}")
+            return result
+        except AttributeError as e:
+            missing_attr = next((attr for attr in conditions if not hasattr(self._item_type, attr)), None)
+            logger.error(f"Attribute '{missing_attr}' does not exist in items of {self.__class__.__name__}")
+            raise AttributeError(f"Attribute '{missing_attr}' does not exist in items") from e
+
+    def get_active_items(self) -> List[T]:
+        """Retrieve all active items in the container.
+
+        Returns:
+            List[T]: A list of items where isactive is True.
+        """
+        return self.get_by_value({"isactive": True})
+
+    def get_inactive_items(self) -> List[T]:
+        """Retrieve all inactive items in the container.
+
+        Returns:
+            List[T]: A list of items where isactive is False.
+        """
+        return self.get_by_value({"isactive": False})
+    
     def set(self, params: Dict[str, Any]) -> None:
         """Set container attributes from a dictionary with type validation.
 
@@ -270,6 +318,58 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         self.get(name).activate()
         self._invalidate_cache()
         logger.info(f"Activated item with name '{name}' in {self.__class__.__name__}")
+
+    def activate_all(self) -> None:
+        """Activate all items in the container.
+
+        Raises:
+            ValueError: If the container is empty.
+        """
+        if not self._items:
+            logger.error("No items to activate")
+        for item in self.get_items():
+            item.activate()
+        self._invalidate_cache()
+        logger.info(f"Activated all items in {self.__class__.__name__}")
+
+    def deactivate_all(self) -> None:
+        """Deactivate all items in the container.
+
+        Raises:
+            ValueError: If the container is empty.
+        """
+        if not self._items:
+            logger.error("No items to deactivate")
+        for item in self.get_items():
+            item.deactivate()
+        self._invalidate_cache()
+        logger.info(f"Deactivated all items in {self.__class__.__name__}")
+
+    def drop_active(self) -> None:
+        """Remove all active items from the container.
+
+        Raises:
+            ValueError: If there are no active items.
+        """
+        active_names = [name for name, item in self.get_all().items() if item.isactive]
+        if not active_names:
+            logger.warning("No active items to drop")
+        for name in active_names:
+            self.remove(name)
+        logger.info(f"Dropped {len(active_names)} active items from {self.__class__.__name__}")
+
+    def drop_inactive(self) -> None:
+        """Remove all inactive items from the container.
+
+        Raises:
+            ValueError: If there are no inactive items.
+        """
+        inactive_names = [name for name, item in self.get_all().items() if not item.isactive]
+        if not inactive_names:
+            logger.warning("No inactive items to drop")
+        for name in inactive_names:
+            self.remove(name)
+        logger.info(f"Dropped {len(inactive_names)} inactive items from {self.__class__.__name__}")
 
     def deactivate_item(self, name: str) -> None:
         """Deactivate an item in the container by its name.

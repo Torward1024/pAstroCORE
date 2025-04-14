@@ -33,6 +33,8 @@ class Project(ABC):
 
     def add_item(self, item: BaseEntity) -> None:
         """Add a BaseEntity item to the project's container."""
+        if not isinstance(item, self._item_type):
+            raise TypeError(f"Item must be of type {self._item_type.__name__} for project '{self._name}', got {type(item).__name__}")
         self._items.add(item)
         logger.info(f"Added item '{item.name}' to project '{self._name}'")
 
@@ -106,11 +108,17 @@ class Project(ABC):
         """
         try:
             check_non_empty_string(data["name"], "Project name")
-            items = {k: cls._item_type.from_dict(v) for k, v in data.get("items", {}).items()}
+            items = {}
+            for k, v in data.get("items", {}).items():
+                try:
+                    items[k] = cls._item_type.from_dict(v)
+                except (TypeError, ValueError) as e:
+                    logger.error(f"Failed to deserialize item '{k}' for project: {str(e)}")
+                    raise ValueError(f"Invalid data for item '{k}': {str(e)}") from e
             return cls(name=data["name"], items=items)
         except (KeyError, TypeError, ValueError) as e:
-            logger.error(f"Failed to deserialize Project from dict: {str(e)}")
-            raise ValueError(f"Invalid project data: {str(e)}")
+            logger.error(f"Failed to deserialize Project from dict with name '{data.get('name', 'unknown')}': {str(e)}")
+            raise ValueError(f"Invalid project data: {str(e)}") from e
 
     def __repr__(self) -> str:
         """Return a string representation of the Project."""
