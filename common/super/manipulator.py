@@ -238,13 +238,15 @@ class Manipulator(ABC):
         attributes = request.get("attributes", {})
         
         if not operation:
-            logger.error("No operation specified in request")
-            return {"success": False, "error": "No operation specified"}
-        
+            error_msg = "No operation specified in request"
+            logger.error(error_msg)
+            return {"success": False, "error": error_msg}
+
         super_instance = self._operations.get(operation)
         if super_instance is None:
-            logger.error(f"No super instance registered for operation '{operation}'")
-            return {"success": False, "error": f"Operation '{operation}' not registered"}
+            error_msg = f"Operation '{operation}' not registered"
+            logger.error(error_msg)
+            return {"success": False, "error": error_msg}
         
         effective_obj = self._validate_object(obj, "request object")
         
