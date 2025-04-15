@@ -9,7 +9,7 @@ from unit_scheduling_2.base.scans import Scan, Scans
 from unit_scheduling_2.base.observation import Observation
 from unit_scheduling_2.base.sources import Source
 from unit_scheduling_2.base.telescope import Telescope
-from unit_scheduling_2.base.telescope import SpaceTelescope
+from unit_scheduling_2.base.spacetelescope import SpaceTelescope
 from unit_scheduling_2.base.telescopes import Telescopes
 from unit_scheduling_2.base.frequencies import IF, Frequencies
 

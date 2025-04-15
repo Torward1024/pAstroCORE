@@ -451,7 +451,7 @@ class TestBaseContainer(unittest.TestCase):
     def test_nested_unresolved_type(self):
         class BrokenContainer(BaseContainer["BrokenEntity"]):
             pass
-        data = {"name": "test", "items": {"item1": {"name": "item1", "field": 42}}}
+        data = {"name": "test", "items": {"item1": {"name": "item1", "field": 42, 'type': "BrokenEntity"}}}
         with self.assertRaises(TypeError) as cm:
             BrokenContainer.from_dict(data)
         self.assertIn("NonExistentType", str(cm.exception))

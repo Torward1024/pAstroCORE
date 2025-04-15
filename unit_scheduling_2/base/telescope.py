@@ -263,7 +263,7 @@ class Telescope(BaseEntity):
     @classmethod
     def from_dict(cls, data: dict) -> 'Telescope':
         """Create a Telescope object from a dictionary."""
-        return cls(**data)
+        return super().from_dict(data)
 
     def _check_sefd(self, frequency: float, sefd: float) -> bool:
         """Check if an SEFD value is a duplicate with a different value."""
