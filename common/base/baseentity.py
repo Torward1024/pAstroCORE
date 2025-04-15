@@ -1,6 +1,6 @@
 # base/baseentity.py
 from abc import ABC, ABCMeta
-from typing import Dict, Union, List, Any, get_origin, Union
+from typing import Dict, Union, List, Any, Union, get_origin, get_args
 from common.utils.logging_setup import logger
 import numpy as np
 
@@ -111,7 +111,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         if value is None:
             return
 
-        from typing import Union, Dict, get_origin, get_args
+        from typing import Union, Dict, List
         import numpy as np
 
         resolved_type = self._resolve_type(expected_type)
@@ -122,40 +122,16 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         type_args = get_args(resolved_type)
 
         if base_type is Union:
-            valid = False
-            errors = []
             for union_type in type_args:
+                resolved_union_type = self._resolve_type(union_type)
+                if resolved_union_type is type(None):
+                    continue
                 try:
-                    resolved_union_type = self._resolve_type(union_type)
-                    if resolved_union_type is Any or value is None:
-                        return
-                    # Handle Optional[Dict[...]] explicitly
-                    if get_origin(resolved_union_type) in (dict, Dict):
-                        if isinstance(value, dict):
-                            dict_type_args = get_args(resolved_union_type)
-                            if dict_type_args:
-                                key_type, value_type = dict_type_args
-                                resolved_key_type = self._resolve_type(key_type)
-                                resolved_value_type = self._resolve_type(value_type)
-                                for k, v in value.items():
-                                    if not isinstance(k, resolved_key_type):
-                                        raise TypeError(f"Key in '{key}' must be {resolved_key_type}, got {type(k)}")
-                                    if v is None:
-                                        continue
-                                    if resolved_value_type == np.ndarray:
-                                        if not isinstance(v, np.ndarray):
-                                            raise TypeError(f"Value in '{key}' must be {resolved_value_type}, got {type(v)}")
-                                    elif not isinstance(v, resolved_value_type):
-                                        raise TypeError(f"Value in '{key}' must be {resolved_value_type}, got {type(v)}")
-                                return
-                    elif isinstance(value, resolved_union_type):
-                        return
-                    valid = True
-                except TypeError as e:
-                    errors.append(str(e))
-            if valid:
-                raise TypeError(f"Attribute '{key}' does not match any type in {resolved_type}, got {type(value)}")
-            raise TypeError(f"Type validation failed for '{key}': {'; '.join(errors)}")
+                    self._validate_type(key, value, resolved_union_type)
+                    return
+                except TypeError:
+                    continue
+            raise TypeError(f"Attribute '{key}' does not match any type in {resolved_type}, got {type(value)}")
 
         if base_type in (dict, Dict):
             if not isinstance(value, dict):
@@ -185,8 +161,28 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                     elif resolved_value_type == np.ndarray:
                         if not isinstance(v, np.ndarray):
                             raise TypeError(f"Value in '{key}' must be {resolved_value_type}, got {type(v)}")
+                    elif value_type_origin is List:
+                        if not isinstance(v, list):
+                            raise TypeError(f"Value in '{key}' must be a list, got {type(v)}")
+                        list_item_type = self._resolve_type(value_type_args[0]) if value_type_args else Any
+                        for item in v:
+                            if item is None:
+                                continue
+                            if list_item_type is not Any and not isinstance(item, list_item_type):
+                                raise TypeError(f"Item in list '{key}' must be {list_item_type}, got {type(item)}")
                     elif not isinstance(v, resolved_value_type):
                         raise TypeError(f"Value in '{key}' must be {resolved_value_type}, got {type(v)}")
+        elif base_type is List:
+            if not isinstance(value, list):
+                raise TypeError(f"Attribute '{key}' must be a list, got {type(value)}")
+            if type_args:
+                item_type = self._resolve_type(type_args[0])
+                if item_type is not Any:
+                    for item in value:
+                        if item is None:
+                            continue
+                        if not isinstance(item, item_type):
+                            raise TypeError(f"Item in list '{key}' must be {item_type}, got {type(item)}")
         elif not isinstance(value, base_type):
             raise TypeError(f"Attribute '{key}' must be of type {resolved_type}, got {type(value)}")
 
@@ -367,9 +363,8 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             TypeError: If a value in the dictionary does not match the annotated type.
             ValueError: If an unknown attribute is provided in the dictionary.
         """
-        # Create a copy of data to avoid modifying the input
         data = data.copy()
-        data.pop("type", None)  # Ignore the 'type' field
+        data.pop("type", None)
         kwargs = {}
         for key, value in data.items():
             if key in ("name", "isactive"):

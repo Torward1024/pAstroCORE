@@ -89,7 +89,7 @@ class Scan(BaseEntity):
 
     def get_source(self, observation: 'Observation') -> Optional[Source]:
         """Retrieve the source associated with this scan from an Observation."""
-        from unit_scheduling.base.observation import Observation
+        from unit_scheduling_2.base.observation import Observation
         check_type(observation, Observation, "Observation")
         if self.source_name is None or self.is_off_source:
             return None
@@ -98,19 +98,18 @@ class Scan(BaseEntity):
 
     def get_telescopes(self, observation: 'Observation') -> Telescopes:
         """Retrieve the telescopes associated with this scan from an Observation."""
-        from unit_scheduling.base.observation import Observation
+        from unit_scheduling_2.base.observation import Observation
         check_type(observation, Observation, "Observation")
         all_tels = observation.get_telescopes()
-        selected = [all_tels.get(name) for name in self.telescope_names if all_tels.get(name)]
-        return Telescopes(selected)
+        selected = {name: t for name in self.telescope_names if (t := all_tels.get(name))}
+        return Telescopes(items=selected)
 
     def get_frequencies(self, observation: 'Observation') -> Frequencies:
-        """Retrieve the frequencies associated with this scan from an Observation."""
-        from unit_scheduling.base.observation import Observation
+        from unit_scheduling_2.base.observation import Observation
         check_type(observation, Observation, "Observation")
         all_freqs = observation.get_frequencies()
-        selected = [all_freqs.get(name) for name in self.frequency_names if all_freqs.get(name)]
-        return Frequencies(selected)
+        selected = {name: f for name in self.frequency_names if (f := all_freqs.get(name))}
+        return Frequencies(items=selected)
 
     def set_start(self, start: Time) -> None:
         """Set the start time of the scan."""
@@ -152,7 +151,7 @@ class Scan(BaseEntity):
 
     def validate_with_observation(self, observation: 'Observation') -> bool:
         """Validate the scan's names against an Observation's data."""
-        from unit_scheduling.base.observation import Observation
+        from unit_scheduling_2.base.observation import Observation
         check_type(observation, Observation, "Observation")
         
         if self.source_name is not None and not observation.get_sources().get(self.source_name):
@@ -176,7 +175,7 @@ class Scan(BaseEntity):
 
     def check_telescope_availability(self, observation: 'Observation', time: Time = None) -> dict[str, bool]:
         """Check telescope availability for this scan at a given time."""
-        from unit_scheduling.base.observation import Observation
+        from unit_scheduling_2.base.observation import Observation
         check_type(observation, Observation, "Observation")
         if time is not None:
             check_type(time, Time, "Time")
@@ -184,13 +183,13 @@ class Scan(BaseEntity):
         availability = {}
         source = self.get_source(observation) if not self.is_off_source else None
         
-        for telescope in self.get_telescopes(observation).get_active_telescopes():
+        for telescope in self.get_telescopes(observation).get_active_items():
             code = telescope.get_code()
             if self.is_off_source:
                 availability[code] = True
                 continue
-            ra_rad = np.radians(source.get_ra_degrees())
-            dec_rad = np.radians(source.get_dec_degrees())
+            ra_rad = np.radians(source.ra_degrees)
+            dec_rad = np.radians(source.dec_degrees)
             lst = (time.sidereal_time('apparent', 'greenwich').degree + 280.46061837) % 360
             if isinstance(telescope, SpaceTelescope):
                 pos, _ = telescope.get_state_vector(time)
@@ -204,7 +203,7 @@ class Scan(BaseEntity):
             else:
                 x, y, z = telescope.get_coordinates()
                 lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
-                ha = np.radians(lst - source.get_ra_degrees())
+                ha = np.radians(lst - source.ra_degrees)
                 alt = np.arcsin(np.sin(lat) * np.sin(dec_rad) + 
                                 np.cos(lat) * np.cos(dec_rad) * np.cos(ha))
                 az = np.arctan2(
@@ -232,14 +231,29 @@ class Scan(BaseEntity):
     def from_dict(cls, data: dict) -> 'Scan':
         """Create a Scan object from a dictionary, parsing ISO string to Time."""
         data = data.copy()
-        data["start"] = Time(data["start"])
-        logger.info(f"Created scan '{data['name']}' with start={data['start'].isot} from dictionary")
-        return cls(**data)
+        start_time = Time(data.pop("start"))
+        original_telescope_names = data.pop("original_telescope_names", None)
+        original_frequency_names = data.pop("original_frequency_names", None)
+        data.pop("type", None)  # Remove 'type' field if present
+        scan = cls(
+            name=data.get("name"),
+            start=start_time,
+            duration=data.get("duration"),
+            source_name=data.get("source_name"),
+            telescope_names=data.get("telescope_names"),
+            frequency_names=data.get("frequency_names"),
+            is_off_source=data.get("is_off_source"),
+            isactive=data.get("isactive", True)
+        )
+        scan.original_telescope_names = original_telescope_names
+        scan.original_frequency_names = original_frequency_names
+        logger.info(f"Created scan '{scan.name}' with start={scan.start.isot} from dictionary")
+        return scan
 
 
 class Scans(BaseContainer[Scan]):
     """Base class representing a collection of Scan objects."""
-    def __init__(self, items: Dict[str, Scan] = None, name: str = None, isactive: bool = True):
+    def __init__(self, items: Dict[str, Scan] = None, name: str = None, isactive: bool = True, use_cache: bool = False):
         """Initialize a Scans object with an optional dictionary of Scan objects."""
         super().__init__(items=items, name=name, isactive=isactive)
         self._key_cache = list(self._items.keys()) if items else []
@@ -247,7 +261,7 @@ class Scans(BaseContainer[Scan]):
 
     def add(self, scan: Scan, observation: 'Observation' = None) -> None:
         """Add a Scan object to the collection with overlap checking."""
-        from unit_scheduling.base.observation import Observation
+        from unit_scheduling_2.base.observation import Observation
         check_type(scan, Scan, "Scan")
         if observation:
             check_type(observation, Observation, "Observation")
@@ -284,18 +298,9 @@ class Scans(BaseContainer[Scan]):
         )
         self.add(scan, observation)
 
-    def get_by_index(self, index: int) -> Scan:
-        """Retrieve a scan by its index in the items list."""
-        check_type(index, int, "Index")
-        try:
-            return self._items[self._key_cache[index]]
-        except IndexError:
-            logger.error(f"Invalid scan index: {index}")
-            raise IndexError("Invalid scan index!")
-
     def get_active_scans(self, observation: 'Observation' = None) -> List[Scan]:
         """Retrieve all active scans, optionally filtering by entity activity in an Observation."""
-        from unit_scheduling.base.observation import Observation
+        from unit_scheduling_2.base.observation import Observation
         active = []
         for scan in self.get_items():
             if not scan.isactive:

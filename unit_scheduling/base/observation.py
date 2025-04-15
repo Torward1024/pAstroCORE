@@ -1,4 +1,4 @@
-from common.base.base_entity import BaseEntity
+from common.base.baseentity import BaseEntity
 from common.utils.validation import check_type, check_non_empty_string
 from common.utils.logging_setup import logger
 

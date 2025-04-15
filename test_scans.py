@@ -1,6 +1,6 @@
 # tests/test_scans.py
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 from astropy.time import Time
 import numpy as np
 import astropy.units as u
@@ -21,63 +21,85 @@ class TestScan(unittest.TestCase):
             name="scan1",
             start=self.start,
             duration=600.0,
-            source_index=0,
-            telescope_indices=[0, 1],
-            frequency_indices=[0],
+            source_name="source1",
+            telescope_names=["TEL1", "TEL2"],
+            frequency_names=["FREQ1"],
             is_off_source=False,
             isactive=True
         )
         self.observation = MagicMock(spec=Observation)
         self.observation.get_observation_code.return_value = "OBS001"
         source = MagicMock(spec=Source)
+        source.name = "source1"
         source.isactive = True
-        source.get_ra_degrees.return_value = 180.0
-        source.get_dec_degrees.return_value = 30.0
-        self.observation.get_sources.return_value.get_all_sources.return_value = [source]
+        
+        type(source).ra_degrees = PropertyMock(return_value=180.0)
+        type(source).dec_degrees = PropertyMock(return_value=30.0)
+        type(source).ra_degrees = PropertyMock(return_value=180.0)
+        type(source).dec_degrees = PropertyMock(return_value=30.0)
+        
+        sources_container = MagicMock()
+        sources_container.get.side_effect = lambda x: {"source1": source}.get(x)  # Returns None for invalid_source
+        sources_container._items = {"source1": source}
+        self.observation.get_sources.return_value = sources_container
+        self.observation.get_sources.return_value = sources_container
         telescope1 = MagicMock(spec=Telescope)
+        telescope1.name = "TEL1"
         telescope1.isactive = True
         telescope1.get_code.return_value = "TEL1"
         telescope1.get_coordinates.return_value = (0, 0, 6371e3)
         telescope1.get_elevation_range.return_value = (5, 85)
         telescope1.get_azimuth_range.return_value = (0, 360)
         telescope2 = MagicMock(spec=SpaceTelescope)
+        telescope2.name = "TEL2"
         telescope2.isactive = True
         telescope2.get_code.return_value = "TEL2"
         telescope2.get_state_vector.return_value = (np.array([1e6, 0, 0]), np.array([0, 0, 0]))
         telescope2.get_pitch_range.return_value = (-90, 90)
         telescope2.get_yaw_range.return_value = (-180, 180)
-        self.observation.get_telescopes.return_value.get_all_telescopes.return_value = [telescope1, telescope2]
-        self.observation.get_telescopes.return_value.get_active_telescopes.return_value = [telescope1, telescope2]
+        telescopes_container = MagicMock()
+        telescopes_container.get.side_effect = lambda x: {"TEL1": telescope1, "TEL2": telescope2}.get(x)
+        telescopes_container._items = {"TEL1": telescope1, "TEL2": telescope2}
+        telescopes_container.get_all_telescopes.return_value = [telescope1, telescope2]
+        telescopes_container.get_active_telescopes.return_value = [telescope1, telescope2]
+        self.observation.get_telescopes.return_value = telescopes_container
         freq = MagicMock(spec=IF)
+        freq.name = "FREQ1"
         freq.isactive = True
-        self.observation.get_frequencies.return_value.get_all_IF.return_value = [freq]
+        freq.frequency = 1000.0  # Add frequency attribute
+        freq.bandwidth = 16.0    # Add bandwidth attribute
+        frequencies_container = MagicMock()
+        frequencies_container.get.return_value = freq
+        frequencies_container._items = {"FREQ1": freq}
+        frequencies_container.get_all_IF.return_value = [freq]
+        self.observation.get_frequencies.return_value = frequencies_container
 
     def test_init(self):
         """Test Scan initialization."""
         self.assertEqual(self.scan.name, "scan1")
         self.assertEqual(self.scan.start, self.start)
         self.assertEqual(self.scan.duration, 600.0)
-        self.assertEqual(self.scan.source_index, 0)
-        self.assertEqual(self.scan.telescope_indices, [0, 1])
-        self.assertEqual(self.scan.frequency_indices, [0])
+        self.assertEqual(self.scan.source_name, "source1")
+        self.assertEqual(self.scan.telescope_names, ["TEL1", "TEL2"])
+        self.assertEqual(self.scan.frequency_names, ["FREQ1"])
         self.assertFalse(self.scan.is_off_source)
         self.assertTrue(self.scan.isactive)
-        self.assertEqual(self.scan.original_telescope_indices, [0, 1])
-        self.assertEqual(self.scan.original_frequency_indices, [0])
+        self.assertEqual(self.scan.original_telescope_names, ["TEL1", "TEL2"])
+        self.assertEqual(self.scan.original_frequency_names, ["FREQ1"])
 
     def test_auto_name(self):
         """Test automatic name generation."""
         scan = Scan(start=self.start, duration=600.0)
         self.assertTrue(scan.name.startswith("scan_"))
-        self.assertEqual(len(scan.name), 12)  # scan_ + 8 chars
+        self.assertEqual(len(scan.name), 13)  # scan_ + 8 chars
 
     def test_get_methods(self):
         """Test getter methods."""
         self.assertEqual(self.scan.get_start(), self.start)
         self.assertEqual(self.scan.get_duration(), 600.0)
-        self.assertEqual(self.scan.get_source_index(), 0)
-        self.assertEqual(self.scan.get_telescope_indices(), [0, 1])
-        self.assertEqual(self.scan.get_frequency_indices(), [0])
+        self.assertEqual(self.scan.get_source_name(), "source1")
+        self.assertEqual(self.scan.get_telescope_names(), ["TEL1", "TEL2"])
+        self.assertEqual(self.scan.get_frequency_names(), ["FREQ1"])
         self.assertEqual(self.scan.get_end(), self.start + 600.0 * u.s)
         self.assertAlmostEqual(self.scan.get_MJD_starttime(), self.start.mjd)
         self.assertAlmostEqual(self.scan.get_MJD_endtime(), (self.start + 600.0 * u.s).mjd)
@@ -91,14 +113,14 @@ class TestScan(unittest.TestCase):
         self.scan.set_duration(1200.0)
         self.assertEqual(self.scan.duration, 1200.0)
         
-        self.scan.set_source_index(1)
-        self.assertEqual(self.scan.source_index, 1)
+        self.scan.set_source_name("source2")
+        self.assertEqual(self.scan.source_name, "source2")
         
-        self.scan.set_telescope_indices([2])
-        self.assertEqual(self.scan.telescope_indices, [2])
+        self.scan.set_telescope_names(["TEL3"])
+        self.assertEqual(self.scan.telescope_names, ["TEL3"])
         
-        self.scan.set_frequency_indices([1])
-        self.assertEqual(self.scan.frequency_indices, [1])
+        self.scan.set_frequency_names(["FREQ2"])
+        self.assertEqual(self.scan.frequency_names, ["FREQ2"])
 
     def test_invalid_duration(self):
         """Test invalid duration raises ValueError."""
@@ -109,25 +131,25 @@ class TestScan(unittest.TestCase):
         """Test retrieving source from observation."""
         source = self.scan.get_source(self.observation)
         self.assertIsNotNone(source)
-        self.assertEqual(source.get_ra_degrees(), 180.0)
+        self.assertEqual(source.ra_degrees, 180.0)
 
     def test_get_telescopes(self):
         """Test retrieving telescopes from observation."""
         telescopes = self.scan.get_telescopes(self.observation)
         self.assertIsInstance(telescopes, Telescopes)
-        self.assertEqual(len(telescopes.get_all_telescopes()), 2)
+        self.assertEqual(len(telescopes.get_items()), 2)
 
     def test_get_frequencies(self):
         """Test retrieving frequencies from observation."""
         frequencies = self.scan.get_frequencies(self.observation)
         self.assertIsInstance(frequencies, Frequencies)
-        self.assertEqual(len(frequencies.get_all_IF()), 1)
+        self.assertEqual(len(frequencies.get_items()), 1)
 
     def test_validate_with_observation(self):
         """Test validation against observation."""
         self.assertTrue(self.scan.validate_with_observation(self.observation))
         
-        invalid_scan = Scan(name="scan3", source_index=999)
+        invalid_scan = Scan(name="scan3", source_name="invalid_source")
         self.assertFalse(invalid_scan.validate_with_observation(self.observation))
 
     def test_check_telescope_availability(self):
@@ -170,9 +192,9 @@ class TestScan(unittest.TestCase):
             name="scan1",
             start=self.start,
             duration=600.0,
-            source_index=0,
-            telescope_indices=[0, 1],
-            frequency_indices=[0]
+            source_name="source1",
+            telescope_names=["TEL1", "TEL2"],
+            frequency_names=["FREQ1"]
         )
         self.assertEqual(self.scan, scan2)
         scan2.set_duration(1200.0)
@@ -187,38 +209,53 @@ class TestScans(unittest.TestCase):
             name="scan1",
             start=self.start,
             duration=600.0,
-            source_index=0,
-            telescope_indices=[0],
-            frequency_indices=[0],
+            source_name="source1",
+            telescope_names=["TEL1"],
+            frequency_names=["FREQ1"],
             isactive=True
         )
         self.scan2 = Scan(
             name="scan2",
             start=self.start + 600.0 * u.s,
             duration=600.0,
-            source_index=1,
-            telescope_indices=[1],
-            frequency_indices=[1],
+            source_name="source2",
+            telescope_names=["TEL2"],
+            frequency_names=["FREQ2"],
             isactive=False
         )
         self.scans = Scans(name="test_scans")
         self.observation = MagicMock(spec=Observation)
         self.observation.get_observation_code.return_value = "OBS001"
         source1 = MagicMock(spec=Source)
+        source1.name = "source1"
         source1.isactive = True
         source2 = MagicMock(spec=Source)
+        source2.name = "source2"
         source2.isactive = False
-        self.observation.get_sources.return_value.get_all_sources.return_value = [source1, source2]
+        sources_container = MagicMock()
+        sources_container.get.side_effect = lambda x: {"source1": source1, "source2": source2}.get(x)
+        sources_container._items = {"source1": source1, "source2": source2}
+        self.observation.get_sources.return_value = sources_container
         telescope1 = MagicMock(spec=Telescope)
+        telescope1.name = "TEL1"
         telescope1.isactive = True
         telescope2 = MagicMock(spec=Telescope)
+        telescope2.name = "TEL2"
         telescope2.isactive = False
-        self.observation.get_telescopes.return_value.get_all_telescopes.return_value = [telescope1, telescope2]
+        telescopes_container = MagicMock()
+        telescopes_container.get.side_effect = lambda x: {"TEL1": telescope1, "TEL2": telescope2}.get(x)
+        telescopes_container._items = {"TEL1": telescope1, "TEL2": telescope2}
+        self.observation.get_telescopes.return_value = telescopes_container
         freq1 = MagicMock(spec=IF)
+        freq1.name = "FREQ1"
         freq1.isactive = True
         freq2 = MagicMock(spec=IF)
+        freq2.name = "FREQ2"
         freq2.isactive = False
-        self.observation.get_frequencies.return_value.get_all_IF.return_value = [freq1, freq2]
+        frequencies_container = MagicMock()
+        frequencies_container.get.side_effect = lambda x: {"FREQ1": freq1, "FREQ2": freq2}.get(x)
+        frequencies_container._items = {"FREQ1": freq1, "FREQ2": freq2}
+        self.observation.get_frequencies.return_value = frequencies_container
 
     def test_init(self):
         """Test Scans initialization."""
@@ -238,9 +275,9 @@ class TestScans(unittest.TestCase):
             name="scan3",
             start=self.start + 1200.0 * u.s,
             duration=600.0,
-            source_index=0,
-            telescope_indices=[0],
-            frequency_indices=[0],
+            source_name="source1",
+            telescope_names=["TEL1"],
+            frequency_names=["FREQ1"],
             observation=self.observation
         )
         self.assertEqual(len(self.scans), 1)
@@ -253,7 +290,9 @@ class TestScans(unittest.TestCase):
             name="scan4",
             start=self.start + 300.0 * u.s,
             duration=600.0,
-            telescope_indices=[0]
+            source_name="source1",
+            telescope_names=["TEL1"],
+            frequency_names=["FREQ1"]
         )
         with self.assertRaises(ValueError):
             self.scans.add(overlap_scan)
@@ -264,15 +303,6 @@ class TestScans(unittest.TestCase):
         self.scans.remove("scan1")
         self.assertEqual(len(self.scans), 0)
         self.assertFalse(self.scans.has_item("scan1"))
-
-    def test_get_by_index(self):
-        """Test retrieving a scan by index."""
-        self.scans.add(self.scan1)
-        self.scans.add(self.scan2)
-        self.assertEqual(self.scans.get_by_index(0), self.scan1)
-        self.assertEqual(self.scans.get_by_index(1), self.scan2)
-        with self.assertRaises(IndexError):
-            self.scans.get_by_index(2)
 
     def test_get_active_scans(self):
         """Test retrieving active scans."""

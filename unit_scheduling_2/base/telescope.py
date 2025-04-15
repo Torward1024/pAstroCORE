@@ -117,7 +117,31 @@ class Telescope(BaseEntity):
             str: The unique code of the telescope.
         """
         return self.code
+    
+    def get_coordinates(self) -> Tuple[float, float, float]:
+        """Return the telescope's ITRF coordinates.
 
+        Returns:
+            Tuple[float, float, float]: The (x, y, z) coordinates in meters.
+        """
+        return (self.x, self.y, self.z)
+    
+    def get_elevation_range(self) -> Tuple[float,float]:
+        """Return the telescope's elevation range.
+
+        Returns:
+            Tuple[float, float]: The minimum and maximum elevation angles in degrees.
+        """
+        return self.elevation_range
+    
+    def get_azimuth_range(self) -> Tuple[float,float]:
+        """Return the telescope's azimuth range.
+        
+        Returns:
+            Tuple[float, float]: The minimum and maximum azimuth angles in degrees.
+        """
+        return self.azimuth_range
+        
     def get_sefd(self, frequency: float) -> Optional[float]:
         """Retrieve the SEFD for a given frequency, with linear interpolation if needed."""
         check_type(frequency, (int, float), "Frequency")
