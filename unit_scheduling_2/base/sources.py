@@ -248,6 +248,7 @@ class Sources(BaseContainer[Source]):
             items = {item_data["name"]: Source.from_dict(item_data) for item_data in data["data"]}
             return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
         # New format: {"items": {...}}
+        data.pop("type", None)
         return super().from_dict(data)
 
     def __repr__(self) -> str:

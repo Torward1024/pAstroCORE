@@ -388,7 +388,8 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """Convert the container to a dictionary for serialization.
 
         Serializes the container's state, including its name, activation status, and all items,
-        with nested entities recursively serialized. Uses caching if enabled.
+        with nested entities recursively serialized. Includes a 'type' field if the container
+        holds items with Union types. Uses caching if enabled.
 
         Returns:
             dict: A dictionary containing the container's serialized data.
@@ -397,6 +398,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             return self._cached_to_dict
         data = super().to_dict()
         data["items"] = {name: item.to_dict() for name, item in self._items.items()}
+        generic_base = self.__orig_bases__[0]
+        item_type_hint = generic_base.__args__[0]
+        is_union = get_origin(item_type_hint) is Union
+        if is_union:
+            data["type"] = self.__class__.__name__
         if self._use_cache:
             self._cached_to_dict = data
         return data
@@ -406,7 +412,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """Create a container instance from a dictionary.
 
         Reconstructs a container instance from serialized data, including its name, activation status,
-        and all items, with nested entities recursively deserialized.
+        and all items, with nested entities recursively deserialized. Handles Union types for items.
 
         Args:
             data (dict): Dictionary containing the container's serialized data, typically from `to_dict`.
@@ -416,49 +422,45 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
 
         Raises:
             TypeError: If the item type cannot be resolved or if data is invalid.
+            ValueError: If item data cannot be mapped to a valid type in a Union.
         """
         generic_base = cls.__orig_bases__[0]
         item_type_hint = generic_base.__args__[0]
-        item_type = cls._resolve_type(item_type_hint, field_path=f"{cls.__name__}.items")
+        item_types = cls._resolve_type(item_type_hint, field_path=f"{cls.__name__}.items")
 
-        if item_type is Any:
+        if item_types is Any:
             raise TypeError("Cannot instantiate items with unresolved type 'Any'")
+
+        # Handle Union types by resolving to a list of possible types
+        is_union = get_origin(item_type_hint) is Union
+        if is_union:
+            item_types = get_args(item_type_hint)
+        else:
+            item_types = [item_types]
 
         items = {}
         for key, item_data in data["items"].items():
-            if isinstance(item_type, str):
-                raise TypeError(f"Cannot resolve forward reference '{item_type}' in {cls.__name__}")
+            type_name = item_data.get("type")
+            selected_type = None
 
-            # Handle Union types
-            if get_origin(item_type) is Union:
-                # Determine item type based on data (e.g., presence of 'orbit_file' for SpaceTelescope)
-                selected_type = None
-                if 'orbit_file' in item_data:
-                    # Try to find SpaceTelescope in Union args
-                    for candidate_type in get_args(item_type):
-                        if candidate_type.__name__ == "SpaceTelescope":
-                            selected_type = candidate_type
-                            break
-                else:
-                    # Default to Telescope if no orbit_file
-                    for candidate_type in get_args(item_type):
-                        if candidate_type.__name__ == "Telescope":
-                            selected_type = candidate_type
-                            break
-                
-                if selected_type is None:
-                    raise TypeError(f"Cannot determine type for item '{key}' in {cls.__name__}")
-                
-                try:
-                    items[key] = selected_type.from_dict(item_data)
-                except TypeError as e:
-                    raise TypeError(f"Failed to deserialize item '{key}' as {selected_type.__name__} in {cls.__name__}: {str(e)}") from e
+            if type_name:
+                for candidate_type in item_types:
+                    if isinstance(candidate_type, str):
+                        raise TypeError(f"Cannot resolve forward reference '{candidate_type}' in {cls.__name__}")
+                    if candidate_type.__name__ == type_name:
+                        selected_type = candidate_type
+                        break
+                if not selected_type:
+                    raise ValueError(f"Invalid type '{type_name}' for item '{key}' in {cls.__name__}")
+            elif is_union:
+                raise ValueError(f"Item '{key}' missing 'type' field required for Union type in {cls.__name__}")
             else:
-                try:
-                    items[key] = item_type.from_dict(item_data)
-                except TypeError as e:
-                    raise TypeError(f"Failed to deserialize item '{key}' in {cls.__name__}: {str(e)}") from e
+                selected_type = item_types[0]  # Use the single type for non-Union
 
+            try:
+                items[key] = selected_type.from_dict(item_data)
+            except TypeError as e:
+                raise TypeError(f"Failed to deserialize item '{key}' in {cls.__name__}: {str(e)}") from e
         return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
     
     def _invalidate_cache(self) -> None:

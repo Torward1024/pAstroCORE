@@ -1,6 +1,6 @@
 # base/baseentity.py
 from abc import ABC, ABCMeta
-from typing import Dict, Union, List, Any
+from typing import Dict, Union, List, Any, get_origin, Union
 from common.utils.logging_setup import logger
 import numpy as np
 
@@ -306,8 +306,9 @@ class BaseEntity(ABC, metaclass=EntityMeta):
     def to_dict(self) -> dict:
         """Convert the entity to a dictionary for serialization.
 
-        Automatically serializes the entity's state by reflecting on all annotated attributes,
-        including nested entities which are recursively serialized.
+        Automatically serializes the entity's state, including all annotated attributes,
+        with nested entities recursively serialized. Includes a 'type' field for entities
+        that are part of a Union type container.
 
         Returns:
             dict: A dictionary containing the entity's serialized data.
@@ -345,6 +346,12 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                 else:
                     data[key] = value
         
+        if hasattr(self, '_container') and self._container:
+            generic_base = self._container.__orig_bases__[0]
+            item_type_hint = generic_base.__args__[0]
+            if get_origin(item_type_hint) is Union:
+                data["type"] = self.__class__.__name__
+
         if self._use_cache:
             self._cached_to_dict = data
             return self._cached_to_dict
@@ -354,8 +361,8 @@ class BaseEntity(ABC, metaclass=EntityMeta):
     def from_dict(cls, data: dict) -> 'BaseEntity':
         """Create an entity instance from a dictionary.
 
-        Automatically reconstructs an entity instance from serialized data, setting its name, activation status,
-        and annotated attributes, including nested entities.
+        Automatically reconstructs an entity instance from serialized data, ignoring the 'type' field,
+        and setting its name, activation status, and annotated attributes, including nested entities.
 
         Args:
             data (dict): Dictionary containing the entity's serialized data, typically from `to_dict`.
@@ -367,6 +374,9 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             TypeError: If a value in the dictionary does not match the annotated type.
             ValueError: If an unknown attribute is provided in the dictionary.
         """
+        # Create a copy of data to avoid modifying the input
+        data = data.copy()
+        data.pop("type", None)  # Ignore the 'type' field
         kwargs = {}
         for key, value in data.items():
             if key in ("name", "isactive"):
