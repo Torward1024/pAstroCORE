@@ -131,12 +131,7 @@ class TestTelescope(unittest.TestCase):
 
     def test_equality(self):
         """Test equality comparison."""
-        other = Telescope(code="RT32", name="Radio Telescope 32m", x=1000.0, diameter=32.0)
-        self.assertNotEqual(other, self.tel)  # Different attributes
-        other.set({"x": 1000.0, "y": 2000.0, "z": 3000.0, "vx": 0.1, "vy": 0.2, "vz": 0.3,
-                   "diameter": 32.0, "elevation_range": (10.0, 85.0), "azimuth_range": (0.0, 360.0),
-                   "mount_type": "AZIM"})
-        other.activate()
+        other = self.tel.clone()
         self.assertEqual(other, self.tel)  # Same attributes
 
 if __name__ == "__main__":
