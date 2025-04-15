@@ -1,6 +1,6 @@
 # base/basecontainer.py
 from abc import ABC
-from typing import Dict, TypeVar, Generic, Any, List, Iterator, get_type_hints
+from typing import Dict, TypeVar, Generic, Any, List, Iterator, Union, get_type_hints, get_args, get_origin
 from common.base.baseentity import BaseEntity
 from common.utils.logging_setup import logger
 
@@ -419,10 +419,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """
         generic_base = cls.__orig_bases__[0]
         item_type_hint = generic_base.__args__[0]
-        try:
-            item_type = cls._resolve_type(item_type_hint, field_path=f"{cls.__name__}.items")
-        except TypeError as e:
-            raise
+        item_type = cls._resolve_type(item_type_hint, field_path=f"{cls.__name__}.items")
 
         if item_type is Any:
             raise TypeError("Cannot instantiate items with unresolved type 'Any'")
@@ -431,10 +428,37 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         for key, item_data in data["items"].items():
             if isinstance(item_type, str):
                 raise TypeError(f"Cannot resolve forward reference '{item_type}' in {cls.__name__}")
-            try:
-                items[key] = item_type.from_dict(item_data)
-            except TypeError as e:
-                raise TypeError(f"Failed to deserialize item '{key}' in {cls.__name__}: {str(e)}") from e
+
+            # Handle Union types
+            if get_origin(item_type) is Union:
+                # Determine item type based on data (e.g., presence of 'orbit_file' for SpaceTelescope)
+                selected_type = None
+                if 'orbit_file' in item_data:
+                    # Try to find SpaceTelescope in Union args
+                    for candidate_type in get_args(item_type):
+                        if candidate_type.__name__ == "SpaceTelescope":
+                            selected_type = candidate_type
+                            break
+                else:
+                    # Default to Telescope if no orbit_file
+                    for candidate_type in get_args(item_type):
+                        if candidate_type.__name__ == "Telescope":
+                            selected_type = candidate_type
+                            break
+                
+                if selected_type is None:
+                    raise TypeError(f"Cannot determine type for item '{key}' in {cls.__name__}")
+                
+                try:
+                    items[key] = selected_type.from_dict(item_data)
+                except TypeError as e:
+                    raise TypeError(f"Failed to deserialize item '{key}' as {selected_type.__name__} in {cls.__name__}: {str(e)}") from e
+            else:
+                try:
+                    items[key] = item_type.from_dict(item_data)
+                except TypeError as e:
+                    raise TypeError(f"Failed to deserialize item '{key}' in {cls.__name__}: {str(e)}") from e
+
         return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
     
     def _invalidate_cache(self) -> None:
