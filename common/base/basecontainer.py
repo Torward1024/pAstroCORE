@@ -388,8 +388,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """Convert the container to a dictionary for serialization.
 
         Serializes the container's state, including its name, activation status, and all items,
-        with nested entities recursively serialized. Includes a 'type' field if the container
-        holds items with Union types. Uses caching if enabled.
+        with nested entities recursively serialized. Uses caching if enabled.
 
         Returns:
             dict: A dictionary containing the container's serialized data.
@@ -398,11 +397,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             return self._cached_to_dict
         data = super().to_dict()
         data["items"] = {name: item.to_dict() for name, item in self._items.items()}
-        generic_base = self.__orig_bases__[0]
-        item_type_hint = generic_base.__args__[0]
-        is_union = get_origin(item_type_hint) is Union
-        if is_union:
-            data["type"] = self.__class__.__name__
         if self._use_cache:
             self._cached_to_dict = data
         return data
