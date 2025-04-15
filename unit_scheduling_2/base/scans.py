@@ -17,42 +17,42 @@ class Scan(BaseEntity):
     name: str
     start: Time
     duration: float
-    source_index: Optional[int]
-    telescope_indices: List[int]
-    frequency_indices: List[int]
+    source_name: Optional[str]
+    telescope_names: List[str]
+    frequency_names: List[str]
     is_off_source: bool
-    original_telescope_indices: Optional[List[int]]
-    original_frequency_indices: Optional[List[int]]
+    original_telescope_names: Optional[List[str]]
+    original_frequency_names: Optional[List[str]]
 
-    def __init__(self, name: str = None, start: Time = None, duration: float = 1.0, source_index: Optional[int] = None,
-                 telescope_indices: List[int] = None, frequency_indices: List[int] = None,
+    def __init__(self, name: str = None, start: Time = None, duration: float = 1.0, source_name: Optional[str] = None,
+                 telescope_names: List[str] = None, frequency_names: List[str] = None,
                  is_off_source: bool = False, isactive: bool = True):
-        """Initialize a Scan with name, start time, duration, and indices referencing Observation data."""
+        """Initialize a Scan with name, start time, duration, and names referencing Observation data."""
         if start is None:
             start = Time.now()
         if name is None:
             name = f"scan_{uuid.uuid4().hex[:8]}"
         check_type(start, Time, "Start time")
         check_positive(duration, "Duration")
-        if source_index is not None:
-            check_type(source_index, int, "Source index")
-        if telescope_indices is None:
-            telescope_indices = []
-        if frequency_indices is None:
-            frequency_indices = []
+        if source_name is not None:
+            check_type(source_name, str, "Source name")
+        if telescope_names is None:
+            telescope_names = []
+        if frequency_names is None:
+            frequency_names = []
         super().__init__(
             name=name,
             start=start,
             duration=duration,
-            source_index=source_index,
-            telescope_indices=telescope_indices,
-            frequency_indices=frequency_indices,
-            is_off_source=source_index is None or is_off_source,
-            original_telescope_indices=telescope_indices.copy() if telescope_indices else None,
-            original_frequency_indices=frequency_indices.copy() if frequency_indices else None,
+            source_name=source_name,
+            telescope_names=telescope_names,
+            frequency_names=frequency_names,
+            is_off_source=source_name is None or is_off_source,
+            original_telescope_names=telescope_names.copy() if telescope_names else None,
+            original_frequency_names=frequency_names.copy() if frequency_names else None,
             isactive=isactive
         )
-        source_str = "OFF SOURCE" if self.is_off_source else f"source_index={source_index}" if source_index is not None else "no source"
+        source_str = "OFF SOURCE" if self.is_off_source else f"source_name={source_name}" if source_name else "no source"
         logger.info(f"Initialized Scan with name={name}, start={self.start.isot}, duration={duration}, {source_str}")
 
     def get_start(self) -> Time:
@@ -75,41 +75,41 @@ class Scan(BaseEntity):
         """Retrieve the duration of the scan."""
         return self.get("duration")
 
-    def get_source_index(self) -> Optional[int]:
-        """Retrieve the source index."""
-        return self.get("source_index")
+    def get_source_name(self) -> Optional[str]:
+        """Retrieve the source name."""
+        return self.get("source_name")
 
-    def get_telescope_indices(self) -> List[int]:
-        """Retrieve the list of telescope indices."""
-        return self.get("telescope_indices")
+    def get_telescope_names(self) -> List[str]:
+        """Retrieve the list of telescope names."""
+        return self.get("telescope_names")
 
-    def get_frequency_indices(self) -> List[int]:
-        """Retrieve the list of frequency indices."""
-        return self.get("frequency_indices")
+    def get_frequency_names(self) -> List[str]:
+        """Retrieve the list of frequency names."""
+        return self.get("frequency_names")
 
     def get_source(self, observation: 'Observation') -> Optional[Source]:
         """Retrieve the source associated with this scan from an Observation."""
         from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
-        if self.source_index is None or self.is_off_source:
+        if self.source_name is None or self.is_off_source:
             return None
-        sources = observation.get_sources().get_all_sources()
-        return sources[self.source_index] if 0 <= self.source_index < len(sources) else None
+        sources = observation.get_sources()
+        return sources.get(self.source_name)
 
     def get_telescopes(self, observation: 'Observation') -> Telescopes:
         """Retrieve the telescopes associated with this scan from an Observation."""
         from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
-        all_tels = observation.get_telescopes().get_all_telescopes()
-        selected = [all_tels[idx] for idx in self.telescope_indices if 0 <= idx < len(all_tels)]
+        all_tels = observation.get_telescopes()
+        selected = [all_tels.get(name) for name in self.telescope_names if all_tels.get(name)]
         return Telescopes(selected)
 
     def get_frequencies(self, observation: 'Observation') -> Frequencies:
         """Retrieve the frequencies associated with this scan from an Observation."""
         from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
-        all_freqs = observation.get_frequencies().get_all_IF()
-        selected = [all_freqs[idx] for idx in self.frequency_indices if 0 <= idx < len(all_freqs)]
+        all_freqs = observation.get_frequencies()
+        selected = [all_freqs.get(name) for name in self.frequency_names if all_freqs.get(name)]
         return Frequencies(selected)
 
     def set_start(self, start: Time) -> None:
@@ -124,51 +124,51 @@ class Scan(BaseEntity):
         self.set({"duration": duration})
         logger.info(f"Set scan duration to {duration}")
 
-    def set_source_index(self, source_index: Optional[int], observation: 'Observation' = None) -> None:
-        """Set the source index for the scan."""
-        if source_index is not None:
-            check_type(source_index, int, "Source index")
-        params = {"source_index": source_index, "is_off_source": source_index is None}
+    def set_source_name(self, source_name: Optional[str], observation: 'Observation' = None) -> None:
+        """Set the source name for the scan."""
+        if source_name is not None:
+            check_type(source_name, str, "Source name")
+        params = {"source_name": source_name, "is_off_source": source_name is None}
         self.set(params)
         if observation:
             self.validate_with_observation(observation)
-        logger.info(f"Set scan source_index to {'OFF SOURCE' if source_index is None else source_index}")
+        logger.info(f"Set scan source_name to {'OFF SOURCE' if source_name is None else source_name}")
 
-    def set_telescope_indices(self, telescope_indices: List[int], observation: 'Observation' = None) -> None:
-        """Set the telescope indices for the scan."""
-        check_type(telescope_indices, list, "Telescope indices")
-        self.set({"telescope_indices": telescope_indices})
+    def set_telescope_names(self, telescope_names: List[str], observation: 'Observation' = None) -> None:
+        """Set the telescope names for the scan."""
+        check_type(telescope_names, list, "Telescope names")
+        self.set({"telescope_names": telescope_names})
         if observation:
             self.validate_with_observation(observation)
-        logger.info(f"Set scan telescope_indices to {telescope_indices}")
+        logger.info(f"Set scan telescope_names to {telescope_names}")
 
-    def set_frequency_indices(self, frequency_indices: List[int], observation: 'Observation' = None) -> None:
-        """Set the frequency indices for the scan."""
-        check_type(frequency_indices, list, "Frequency indices")
-        self.set({"frequency_indices": frequency_indices})
+    def set_frequency_names(self, frequency_names: List[str], observation: 'Observation' = None) -> None:
+        """Set the frequency names for the scan."""
+        check_type(frequency_names, list, "Frequency names")
+        self.set({"frequency_names": frequency_names})
         if observation:
             self.validate_with_observation(observation)
-        logger.info(f"Set scan frequency_indices to {frequency_indices}")
+        logger.info(f"Set scan frequency_names to {frequency_names}")
 
     def validate_with_observation(self, observation: 'Observation') -> bool:
-        """Validate the scan's indices against an Observation's data."""
+        """Validate the scan's names against an Observation's data."""
         from unit_scheduling.base.observation import Observation
         check_type(observation, Observation, "Observation")
         
-        if self.source_index is not None and (self.source_index < 0 or self.source_index >= len(observation.get_sources().get_all_sources())):
-            logger.error(f"Invalid source_index {self.source_index} for observation with {len(observation.get_sources().get_all_sources())} sources")
+        if self.source_name is not None and not observation.get_sources().get(self.source_name):
+            logger.error(f"Invalid source_name {self.source_name} for observation")
             return False
         
-        all_tels = observation.get_telescopes().get_all_telescopes()
-        for idx in self.telescope_indices:
-            if idx < 0 or idx >= len(all_tels):
-                logger.error(f"Invalid telescope_index {idx} for observation with {len(all_tels)} telescopes")
+        all_tels = observation.get_telescopes()
+        for name in self.telescope_names:
+            if not all_tels.get(name):
+                logger.error(f"Invalid telescope_name {name} for observation")
                 return False
         
-        all_freqs = observation.get_frequencies().get_all_IF()
-        for idx in self.frequency_indices:
-            if idx < 0 or idx >= len(all_freqs):
-                logger.error(f"Invalid frequency_index {idx} for observation with {len(all_freqs)} frequencies")
+        all_freqs = observation.get_frequencies()
+        for name in self.frequency_names:
+            if not all_freqs.get(name):
+                logger.error(f"Invalid frequency_name {name} for observation")
                 return False
                 
         logger.debug(f"Validated scan '{self.name}' with start={self.start.isot} against observation '{observation.get_observation_code()}'")
@@ -268,17 +268,17 @@ class Scans(BaseContainer[Scan]):
         self._key_cache = list(self._items.keys())
         logger.info(f"Removed scan '{name}' from Scans")
 
-    def create_scan(self, name: str = None, start: Time = None, duration: float = 1.0, source_index: Optional[int] = None,
-                    telescope_indices: List[int] = None, frequency_indices: List[int] = None,
+    def create_scan(self, name: str = None, start: Time = None, duration: float = 1.0, source_name: Optional[str] = None,
+                    telescope_names: List[str] = None, frequency_names: List[str] = None,
                     is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None) -> None:
         """Create and add a new Scan object to the collection."""
         scan = Scan(
             name=name,
             start=start,
             duration=duration,
-            source_index=source_index,
-            telescope_indices=telescope_indices,
-            frequency_indices=frequency_indices,
+            source_name=source_name,
+            telescope_names=telescope_names,
+            frequency_names=frequency_names,
             is_off_source=is_off_source,
             isactive=isactive
         )
@@ -304,17 +304,15 @@ class Scans(BaseContainer[Scan]):
                 active.append(scan)
                 continue
             check_type(observation, Observation, "Observation")
-            if scan.source_index is not None and scan.source_index >= 0:
-                if scan.source_index < len(observation.get_sources().get_all_sources()):
-                    if not observation.get_sources().get_all_sources()[scan.source_index].isactive:
-                        continue
-            if any(idx >= 0 and idx < len(observation.get_telescopes().get_all_telescopes()) and 
-                   not observation.get_telescopes().get_all_telescopes()[idx].isactive 
-                   for idx in scan.telescope_indices):
+            if scan.source_name is not None:
+                source = observation.get_sources().get(scan.source_name)
+                if source and not source.isactive:
+                    continue
+            all_tels = observation.get_telescopes()
+            if any(name in all_tels._items and not all_tels.get(name).isactive for name in scan.telescope_names):
                 continue
-            if any(idx >= 0 and idx < len(observation.get_frequencies().get_all_IF()) and 
-                   not observation.get_frequencies().get_all_IF()[idx].isactive 
-                   for idx in scan.frequency_indices):
+            all_freqs = observation.get_frequencies()
+            if any(name in all_freqs._items and not all_freqs.get(name).isactive for name in scan.frequency_names):
                 continue
             active.append(scan)
         logger.debug(f"Retrieved {len(active)} active scans" + 
@@ -329,7 +327,6 @@ class Scans(BaseContainer[Scan]):
 
     def _check_overlap(self, scan: Scan, exclude_name: str = None) -> tuple[bool, str]:
         """Check if a scan overlaps with existing active scans by time."""
-        from unit_scheduling.base.observation import Observation
         for name, existing in self._items.items():
             if name == exclude_name or not existing.isactive or not scan.isactive:
                 continue
