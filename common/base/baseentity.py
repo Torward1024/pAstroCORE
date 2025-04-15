@@ -307,8 +307,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """Convert the entity to a dictionary for serialization.
 
         Automatically serializes the entity's state, including all annotated attributes,
-        with nested entities recursively serialized. Includes a 'type' field for entities
-        that are part of a Union type container.
+        with nested entities recursively serialized. Always includes a 'type' field with the class name.
 
         Returns:
             dict: A dictionary containing the entity's serialized data.
@@ -330,7 +329,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                 return self._cached_to_dict
         
         seen = set()
-        data = {"name": self.name, "isactive": self.isactive}
+        data = {"name": self.name, "isactive": self.isactive, "type": self.__class__.__name__}
         seen.add(id(self))
         for key in self._fields:
             if key.startswith('_'):
@@ -346,12 +345,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                 else:
                     data[key] = value
         
-        if hasattr(self, '_container') and self._container:
-            generic_base = self._container.__orig_bases__[0]
-            item_type_hint = generic_base.__args__[0]
-            if get_origin(item_type_hint) is Union:
-                data["type"] = self.__class__.__name__
-
         if self._use_cache:
             self._cached_to_dict = data
             return self._cached_to_dict

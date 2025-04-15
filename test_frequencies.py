@@ -118,6 +118,7 @@ class TestFrequencies(unittest.TestCase):
         serialized = if_obj.to_dict()
         expected = {
             "name": "Serializable",
+            "type": "IF",
             "frequency": 1500.0,
             "bandwidth": 20.0,
             "polarizations": ["RR", "LL"],
@@ -132,6 +133,7 @@ class TestFrequencies(unittest.TestCase):
         serialized_empty = if_obj_empty.to_dict()
         expected_empty = {
             "name": "EmptyPol",
+            "type": "IF",
             "frequency": 1500.0,
             "bandwidth": 20.0,
             "polarizations": [],
@@ -300,6 +302,7 @@ class TestFrequencies(unittest.TestCase):
         expected = {
             "name": "TestFreqs",
             "isactive": True,
+            "type": "Frequencies", 
             "items": {
                 "IF1": self.if1.to_dict(),
                 "IF2": self.if2.to_dict(),
@@ -315,7 +318,7 @@ class TestFrequencies(unittest.TestCase):
         # Test empty frequencies
         empty_freqs = Frequencies()
         serialized_empty = empty_freqs.to_dict()
-        expected_empty = {"name": None, "isactive": True, "items": {}}
+        expected_empty = {"name": None, "isactive": True, "items": {}, "type": "Frequencies"}
         self.assertEqual(serialized_empty, expected_empty)
         deserialized_empty = Frequencies.from_dict(serialized_empty)
         self.assertEqual(len(deserialized_empty), 0)
