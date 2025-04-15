@@ -1,3 +1,13 @@
+from unit_scheduling_2.base.telescope import Telescope
+from common.utils.validation import check_type, check_non_empty_string, check_positive, check_range
+from common.utils.logging_setup import logger
+import numpy as np
+from scipy.interpolate import CubicSpline
+from numpy.polynomial import chebyshev
+import re
+from typing import Optional, Dict, Tuple
+from astropy.time import Time
+
 class SpaceTelescope(Telescope):
     """Class representing a space-based telescope with orbital parameters and SEFD properties.
 

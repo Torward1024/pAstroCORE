@@ -1,4 +1,4 @@
-# telescope.py
+# base/telescope.py
 from common.base.baseentity import BaseEntity
 from common.utils.validation import check_type, check_positive
 from common.utils.logging_setup import logger
@@ -47,9 +47,12 @@ class Telescope(BaseEntity):
                  effective_area_table: Optional[Dict[float, float]] = None,
                  system_temperature_table: Optional[Dict[float, float]] = None):
         """Initialize a Telescope with ITRF coordinates, velocities, and optional SEFD properties."""
-        # Проверка elevation_range
+
         if elevation_range[0] > elevation_range[1]:
-            raise ValueError("elevation_range min must be less than or equal to max")
+            raise ValueError("elevation_range min must be less than max")
+        
+        if azimuth_range[0] > azimuth_range[1]:
+            raise ValueError("azimuth_range min must be less than max")
         
         # Проверка diameter
         if diameter <= 0:
@@ -122,7 +125,6 @@ class Telescope(BaseEntity):
             if freqs[i] <= frequency <= freqs[i + 1]:
                 f1, f2 = freqs[i], freqs[i + 1]
                 s1, s2 = self.sefd_table[f1], self.sefd_table[f2]
-                # Исправленная формула интерполяции
                 interpolated_sefd = s1 + (s2 - s1) * (frequency - f1) / (f2 - f1)
                 return interpolated_sefd
         return None
