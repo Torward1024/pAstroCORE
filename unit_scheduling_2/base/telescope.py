@@ -109,6 +109,14 @@ class Telescope(BaseEntity):
         if frequency in self.sefd_table:
             self.sefd_table.pop(frequency)
             logger.debug(f"Removed SEFD for frequency {frequency} MHz from '{self.code}'")
+    
+    def get_code(self) -> str:
+        """Return the telescope's code.
+
+        Returns:
+            str: The unique code of the telescope.
+        """
+        return self.code
 
     def get_sefd(self, frequency: float) -> Optional[float]:
         """Retrieve the SEFD for a given frequency, with linear interpolation if needed."""
