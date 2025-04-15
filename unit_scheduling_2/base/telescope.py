@@ -54,9 +54,8 @@ class Telescope(BaseEntity):
         if azimuth_range[0] > azimuth_range[1]:
             raise ValueError("azimuth_range min must be less than max")
         
-        # Проверка diameter
         if diameter <= 0:
-            raise ValueError("diameter must be positive")
+            raise ValueError("Diameter must be positive")
         
         # Обработка mount_type
         if isinstance(mount_type, str):
@@ -119,6 +118,9 @@ class Telescope(BaseEntity):
         freqs = sorted(self.sefd_table.keys())
         if frequency in self.sefd_table:
             return self.sefd_table[frequency]
+        if len(freqs) == 1:
+            logger.debug(f"Only one SEFD point at {freqs[0]} MHz, using it for {frequency} MHz")
+            return self.sefd_table[freqs[0]]
         if frequency < freqs[0] or frequency > freqs[-1]:
             return None
         for i in range(len(freqs) - 1):

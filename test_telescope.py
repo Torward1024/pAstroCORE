@@ -25,7 +25,7 @@ class TestTelescope(unittest.TestCase):
             system_temperature_table={1420.0: 25.0}
         )
         # Disable logging for tests
-        logger.setLevel(logging.CRITICAL)
+        logger.setLevel(logging.INFO)
 
     def test_initialization(self):
         """Test Telescope initialization with valid parameters."""
