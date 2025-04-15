@@ -4,17 +4,9 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from numpy.polynomial import chebyshev
 import re
-from typing import Optional, Dict, Tuple, Any
+from typing import Optional, Dict, Tuple, Any, Union
 from astropy.time import Time
-
-from unit_scheduling_2.base.telescope import Telescope
-from common.utils.logging_setup import logger
-import numpy as np
-from scipy.interpolate import CubicSpline
-from numpy.polynomial import chebyshev
-import re
-from typing import Optional, Dict, Tuple, Union
-from astropy.time import Time
+import os
 
 class SpaceTelescope(Telescope):
     """Class representing a space-based telescope with orbital parameters and SEFD properties.
@@ -33,26 +25,27 @@ class SpaceTelescope(Telescope):
     _interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]]
 
     def __init__(self, *, code: str = "TEMP_SPACE", name: str = "Temporary Space Telescope",
-                 orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
-                 sefd_table: Optional[Dict[float, float]] = None,
-                 pitch_range: Tuple[float, float] = (-90.0, 90.0),
-                 yaw_range: Tuple[float, float] = (-180.0, 180.0),
-                 isactive: bool = True, use_kep: bool = True,
-                 kepler_elements: Optional[Dict[str, Union[float, Time]]] = None,
-                 orbit_data: Optional[Dict[str, np.ndarray]] = None,
-                 interpolation_method: str = "linear",
-                 surface_accuracy: Optional[float] = None,
-                 surface_efficiency_table: Optional[Dict[float, float]] = None,
-                 effective_area_table: Optional[Dict[float, float]] = None,
-                 system_temperature_table: Optional[Dict[float, float]] = None):
+             orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
+             sefd_table: Optional[Dict[float, float]] = None,
+             pitch_range: Tuple[float, float] = (-90.0, 90.0),
+             yaw_range: Tuple[float, float] = (-180.0, 180.0),
+             isactive: bool = True, use_kep: bool = True,
+             kepler_elements: Optional[Dict[str, Union[float, Time]]] = None,
+             orbit_data: Optional[Dict[str, np.ndarray]] = None,
+             interpolation_method: str = "linear",
+             surface_accuracy: Optional[float] = None,
+             surface_efficiency_table: Optional[Dict[float, float]] = None,
+             effective_area_table: Optional[Dict[float, float]] = None,
+             system_temperature_table: Optional[Dict[float, float]] = None,
+             _interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]] = None):
         """Initialize a SpaceTelescope with orbital parameters and optional SEFD properties."""
         super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0,
-                         diameter=diameter, sefd_table=sefd_table or {}, mount_type="NONE",
-                         elevation_range=(0.0, 0.0), azimuth_range=(0.0, 0.0), isactive=isactive,
-                         surface_accuracy=surface_accuracy,
-                         surface_efficiency_table=surface_efficiency_table or {},
-                         effective_area_table=effective_area_table or {},
-                         system_temperature_table=system_temperature_table or {})
+                        diameter=diameter, sefd_table=sefd_table or {}, mount_type="NONE",
+                        elevation_range=(0.0, 0.0), azimuth_range=(0.0, 0.0), isactive=isactive,
+                        surface_accuracy=surface_accuracy,
+                        surface_efficiency_table=surface_efficiency_table or {},
+                        effective_area_table=effective_area_table or {},
+                        system_temperature_table=system_temperature_table or {})
         
         self.set({
             "_orbit_file": orbit_file,
@@ -62,7 +55,7 @@ class SpaceTelescope(Telescope):
             "_kepler_elements": kepler_elements,
             "_orbit_data": orbit_data,
             "_interpolation_method": interpolation_method,
-            "_interpolated_orbit": None
+            "_interpolated_orbit": _interpolated_orbit
         })
 
         if orbit_data is not None:
@@ -72,11 +65,20 @@ class SpaceTelescope(Telescope):
         elif use_kep and kepler_elements is not None:
             self._validate_kepler_elements(kepler_elements)
             logger.info(f"Initialized SpaceTelescope '{code}' with Keplerian elements, diameter={diameter} m")
-        elif not use_kep and orbit_file:
-            self.load_orbit(orbit_file)
-            logger.info(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
+        elif not use_kep and orbit_file and os.path.isfile(orbit_file):
+            try:
+                self.load_orbit(orbit_file)
+                logger.info(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
+            except FileNotFoundError:
+                logger.warning(f"Orbit file '{orbit_file}' not found; initializing without orbit data")
+                self._orbit_data = None
+                self._use_kep = False
+                self._kepler_elements = None
         else:
             logger.warning(f"Initialized SpaceTelescope '{code}' without orbit data or Keplerian elements")
+            self._orbit_data = None
+            self._use_kep = use_kep
+            self._kepler_elements = None
 
     def _validate_type(self, key: str, value: Any, expected_type: Any) -> None:
         """Validate attribute types, with custom checks for SpaceTelescope attributes."""

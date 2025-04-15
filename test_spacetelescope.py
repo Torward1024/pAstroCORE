@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+
 from unittest.mock import mock_open, patch
 from astropy.time import Time
 from unit_scheduling_2.base.telescope import MountType
@@ -91,9 +92,9 @@ class TestSpaceTelescope(unittest.TestCase):
 
     def test_invalid_diameter(self):
         """Test initialization with invalid diameter."""
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             SpaceTelescope(diameter=0.0)
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             SpaceTelescope(diameter=-1.0)
 
     def test_invalid_pitch_range(self):
@@ -247,7 +248,7 @@ class TestSpaceTelescope(unittest.TestCase):
         pos, vel = st.get_state_vector(time)
         self.assertEqual(pos.shape, (3,))
         self.assertEqual(vel.shape, (3,))
-        expected_pos_norm = np.sqrt(7000000.0**2 * (1 - 0.1**2))
+        expected_pos_norm = 7000000.0 * (1 - 0.1)  # Радиус в перигее
         self.assertAlmostEqual(np.linalg.norm(pos), expected_pos_norm, delta=1000)
 
     def test_get_state_vector_orbit(self):
@@ -330,7 +331,8 @@ class TestSpaceTelescope(unittest.TestCase):
         """Test serialization with orbit data."""
         st = SpaceTelescope(code="HST", orbit_data=self.valid_orbit_data, use_kep=False)
         data = st.to_dict()
-        self.assertEqual(data["orbit_data"]["times"], self.valid_orbit_data["times"].tolist())
+        self.assertEqual(data["code"], "HST")
+        self.assertTrue(np.allclose(data["orbit_data"]["times"], self.valid_orbit_data["times"]))
         self.assertFalse(data["use_kep"])
         self.assertIsNone(data["kepler_elements"])
 
