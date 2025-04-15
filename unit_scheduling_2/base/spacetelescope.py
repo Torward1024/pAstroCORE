@@ -285,6 +285,14 @@ class SpaceTelescope(Telescope):
             }
         logger.info(f"Interpolated orbit using {self._interpolation_method}")
 
+    def get_pitch_range(self) -> Tuple[float, float]:
+        """Retrieve the pitch range."""
+        return self._pitch_range
+    
+    def get_yaw_range(self) -> Tuple[float, float]:
+        """Retrieve the yaw range."""
+        return self._yaw_range
+
     def get_state_vector(self, time: Time) -> Tuple[np.ndarray, np.ndarray]:
         """Retrieve position and velocity vectors at a specific time."""
         if self._use_kep:
