@@ -131,7 +131,7 @@ class TestBaseEntity(unittest.TestCase):
             data: T
         class IntEntity(GenericEntity[int]):
             pass
-        entity = IntEntity(data=42)
+        entity = IntEntity(name="ent", data=42)
         self.assertEqual(entity.data, 42)
         with self.assertRaises(TypeError):
             entity.data = "invalid"

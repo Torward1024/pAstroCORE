@@ -43,11 +43,9 @@ class Project(ABC):
         pass
 
     def set_item(self, name: str, item: BaseEntity) -> None:
-        """Set or replace an item in the project by its name."""
-        if not isinstance(item, self._item_type):
-            raise TypeError(f"Item must be of type {self._item_type.__name__} for project '{self._name}', got {type(item).__name__}")
+        """Set an item in the project by its name."""
         self._items.set_item(name, item)
-        logger.info(f"Set item '{name}' in project '{self._name}'")
+        logger.info(f"Set item '{item.name}' in project '{self._name}'")
 
     def remove_item(self, name: str) -> None:
         """Remove an item from the project by its name."""
@@ -80,9 +78,6 @@ class Project(ABC):
     def set_project(self, name: str, items: Dict[str, BaseEntity]) -> None:
         """Set the entire project configuration, replacing name and items."""
         check_non_empty_string(name, "Project name")
-        for item in items.values():
-            if not isinstance(item, self._item_type):
-                raise TypeError(f"Item must be of type {self._item_type.__name__} for project '{name}', got {type(item).__name__}")
         old_name = self._name
         old_count = len(self._items)
         self._name = name

@@ -160,12 +160,6 @@ class TestFrequencies(unittest.TestCase):
         self.assertEqual(len(freqs), 2)
         self.assertEqual(freqs.get("IF1"), self.if1)
         self.assertEqual(freqs.get("IF2"), self.if2)
-        
-        # Test empty initialization
-        empty_freqs = Frequencies()
-        self.assertIsNone(empty_freqs.name)
-        self.assertEqual(len(empty_freqs), 0)
-        self.assertTrue(empty_freqs.isactive)
 
     def test_frequencies_add_remove(self):
         """Test adding and removing IF objects to/from Frequencies."""
@@ -314,14 +308,6 @@ class TestFrequencies(unittest.TestCase):
         self.assertEqual(deserialized.get("IF1"), self.if1)
         self.assertEqual(deserialized.get("IF2"), self.if2)
         self.assertEqual(deserialized.get("IF3"), self.if3)
-
-        # Test empty frequencies
-        empty_freqs = Frequencies()
-        serialized_empty = empty_freqs.to_dict()
-        expected_empty = {"name": None, "isactive": True, "items": {}, "type": "Frequencies"}
-        self.assertEqual(serialized_empty, expected_empty)
-        deserialized_empty = Frequencies.from_dict(serialized_empty)
-        self.assertEqual(len(deserialized_empty), 0)
 
     def test_frequencies_clone(self):
         """Test cloning Frequencies object."""

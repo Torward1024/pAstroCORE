@@ -3,6 +3,7 @@ from typing import List, Optional, Union, Dict
 from common.base.baseentity import BaseEntity
 from common.base.basecontainer import BaseContainer
 from common.utils.logging_setup import logger
+import uuid
 
 # Speed of light constant in MHz * cm
 C_MHZ_CM = 29979.2458
@@ -39,6 +40,8 @@ class IF(BaseEntity):
         polarizations = self._validate_polarizations(polarizations)
         super().__init__(name=name, frequency=frequency, bandwidth=bandwidth,
                          polarizations=polarizations, isactive=isactive)
+        if name is None:
+            name = f"if_{uuid.uuid4().hex[:8]}"
         if frequency <= 0:
             raise ValueError("Frequency must be positive")
         if bandwidth <= 0:
@@ -137,6 +140,8 @@ class Frequencies(BaseContainer[IF]):
     """
     def __init__(self, *, name: Optional[str] = None, items: Dict[str, IF] = None, isactive: bool = True, use_cache: bool = False):
         """Initialize a Frequencies object with optional IFs."""
+        if name is None:
+            name = f"fqs_{uuid.uuid4().hex[:8]}"
         super().__init__(name=name, items=items or {}, isactive=isactive, use_cache=use_cache)
         for if_name, if_obj in (items or {}).items():
             self._check_overlap(if_obj, exclude_name=if_name)

@@ -64,38 +64,38 @@ class Super(ABC):
             return self._manipulator.get_methods_for_type(obj_type)
         raise ValueError(f"No methods available for {obj_type.__name__}")
     
-    def _get_nested_object(self, obj: Any, index: Any, getter_method: Callable) -> Any:
+    def _get_nested_object(self, obj: Any, key: Any, getter_method: Callable) -> Any:
         """Retrieve a nested object from a container."""
         if isinstance(obj, BaseContainer):
-            if not isinstance(index, str):
-                logger.error(f"Invalid index {index} for BaseContainer; expected string")
+            if not isinstance(key, str):
+                logger.error(f"Invalid index {key} for BaseContainer; expected string")
                 return None
-            nested_obj = obj.get(index)
+            nested_obj = obj.get(key)
             if nested_obj is None:
-                logger.error(f"Item '{index}' not found in BaseContainer")
+                logger.error(f"Item '{key}' not found in BaseContainer")
             return nested_obj
-        if not isinstance(index, int) or not 0 <= index < len(obj):
-            logger.error(f"Invalid index {index} for {type(obj).__name__}")
+        if not isinstance(key, int) or not 0 <= key < len(obj):
+            logger.error(f"Invalid key {key} for {type(obj).__name__}")
             return None
-        return getter_method(index)
+        return getter_method(key)
 
-    def _do_nested(self, obj: Any, attributes: Dict[str, Any], index_key: str, getter_method: Callable,
+    def _do_nested(self, obj: Any, attributes: Dict[str, Any], key: str, getter_method: Callable,
                    nested_handler: Callable) -> Any:
         """Handle nested operations on an object using an index and a handler.
 
         Args:
             obj (Any): The object containing nested elements.
-            attributes (Dict[str, Any]): Attributes dictionary with an optional index_key.
-            index_key (str): The key in attributes specifying the index.
-            getter_method (Callable): Method to retrieve the nested object by index.
+            attributes (Dict[str, Any]): Attributes dictionary with an optional key.
+            key (str): The key in attributes specifying the key.
+            getter_method (Callable): Method to retrieve the nested object by key.
             nested_handler (Callable): Method to process the nested object.
 
         Returns:
-            Any: The result of the nested operation, or a default result if index is invalid or missing.
+            Any: The result of the nested operation, or a default result if key is invalid or missing.
         """
-        index = attributes.get(index_key)
+        index = attributes.get(key)
         if index is None:
-            logger.debug(f"No {index_key} provided for nested operation")
+            logger.debug(f"No {key} provided for nested operation")
             return self._default_nested_result()
         
         try:
@@ -103,9 +103,9 @@ class Super(ABC):
             if nested_obj is None:
                 return self._default_nested_result()
             
-            nested_attrs = {k: v for k, v in attributes.items() if k != index_key}
+            nested_attrs = {k: v for k, v in attributes.items() if k != key}
             result = nested_handler(nested_obj, nested_attrs)
-            logger.info(f"Processed nested operation on {type(obj).__name__} with {index_key}={index}")
+            logger.info(f"Processed nested operation on {type(obj).__name__} with {key}={index}")
             return result
         except Exception as e:
             logger.error(f"Nested operation failed: {str(e)}")
@@ -126,7 +126,7 @@ class Super(ABC):
             Optional[Any]: The result of the method application (True on success), or None if validation or execution fails.
         """
         if method_name not in valid_methods:
-            logger.error(f"Invalid method {method_name} for {type(obj).__name__} object")
+            logger.error(f"Invalid attribute/method '{method_name}' for '{type(obj).__name__} object'")
             return None
         if method_args is not None and not isinstance(method_args, dict):
             logger.error(f"Arguments for {method_name} must be a dictionary or None, got {type(method_args)}")

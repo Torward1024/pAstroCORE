@@ -125,7 +125,7 @@ class Scan(BaseEntity):
         self.set({"duration": duration})
         logger.info(f"Set scan duration to {duration}")
 
-    def set_source_name(self, source_name: Optional[str], observation: 'Observation' = None) -> None:
+    def set_source_name(self, source_name: str, observation: 'Observation' = None) -> None:
         """Set the source name for the scan."""
         if source_name is not None:
             check_type(source_name, str, "Source name")
@@ -257,6 +257,8 @@ class Scans(BaseContainer[Scan]):
     """Base class representing a collection of Scan objects."""
     def __init__(self, items: Dict[str, Scan] = None, name: str = None, isactive: bool = True, use_cache: bool = False):
         """Initialize a Scans object with an optional dictionary of Scan objects."""
+        if name is None:
+            name = f"scans_{uuid.uuid4().hex[:8]}"
         super().__init__(items=items, name=name, isactive=isactive)
         self._key_cache = list(self._items.keys()) if items else []
         logger.info(f"Initialized Scans with name={name}, {len(self._items)} scans")

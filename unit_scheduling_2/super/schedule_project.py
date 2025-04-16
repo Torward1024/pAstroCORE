@@ -16,7 +16,7 @@ class ScheduleProject(Project):
         >>> project.create_item(item_code="OBS001")
         >>> project.get_observation("OBS001").get_observation_code()
         'OBS001'
-        >>> project.set_item("OBS001", Observation(observation_code="OBS001", isactive=False))
+        >>> project.set_item("OBS001", Observation(name="OBS001", isactive=False))
         >>> project.get_observation("OBS001").isactive
         False
         >>> project.set_project(name="NewProject", items={})
@@ -66,29 +66,29 @@ class ScheduleProject(Project):
             ValueError: If item_code is not a non-empty string.
         """
         check_non_empty_string(item_code, "Observation code")
-        new_observation = Observation(observation_code=item_code, isactive=isactive)
+        new_observation = Observation(name=item_code, isactive=isactive)
         self.add_item(new_observation)
         logger.info(f"Created and added observation '{item_code}' to project '{self._name}'")
 
-    def set_item(self, observation_code: str, item: Observation) -> None:
+    def set_item(self, name: str, item: Observation) -> None:
         """Set or replace an observation in the project by its code.
 
         Args:
-            observation_code (str): The code of the observation to set.
+            name (str): The code of the observation to set.
             item (Observation): The Observation object to set.
 
         Raises:
             TypeError: If the item is not an Observation object.
         """
         check_type(item, Observation, "Observation")
-        super().set_item(observation_code, item)
-        logger.info(f"Set observation '{observation_code}' in project '{self._name}'")
+        super().set_item(name, item)
+        logger.info(f"Set observation '{name}' in project '{self._name}'")
 
-    def get_observation(self, observation_code: str) -> Observation:
+    def get_observation(self, name: str) -> Observation:
         """Retrieve an observation by its code.
 
         Args:
-            observation_code (str): The code of the observation to retrieve.
+            name (str): The code of the observation to retrieve.
 
         Returns:
             Observation: The Observation object with the specified code.
@@ -96,8 +96,8 @@ class ScheduleProject(Project):
         Raises:
             KeyError: If the observation code is not found.
         """
-        observation = self.get_item(observation_code)
-        logger.info(f"Retrieved observation '{observation_code}' from project '{self._name}'")
+        observation = self.get_item(name)
+        logger.info(f"Retrieved observation '{name}' from project '{self._name}'")
         return observation
 
     def set_project(self, name: str, items: Dict[str, Observation]) -> None:
@@ -157,9 +157,8 @@ class ScheduleProject(Project):
             check_non_empty_string(name, "Project name")
             items = {}
             
-            # Handle new format ('items')
             if "items" in data:
-                if not data["items"]:  # Check if items is empty
+                if not data["items"]:
                     raise ValueError("Items dictionary cannot be empty")
                 for code, item_data in data["items"].items():
                     items[code] = Observation.from_dict(item_data)

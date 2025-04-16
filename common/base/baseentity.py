@@ -56,11 +56,13 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         >>> print(new_entity)
         MyEntity(name='test', isactive=True, nested=NestedEntity(isactive=True, value=42))
     """
+    name: str
+    isactive: bool
     _type_cache: Dict[Any, Any] = {}
     _cached_to_dict: Dict[str, Any]
     _use_cache: bool
 
-    def __init__(self, *, name: str = None, isactive: bool = True, use_cache: bool = False, **kwargs):
+    def __init__(self, *, name: str, isactive: bool = True, use_cache: bool = False, **kwargs):
         """Initialize the BaseEntity with a name, activation status, and optional typed attributes.
 
         Args:
