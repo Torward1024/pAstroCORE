@@ -56,7 +56,7 @@ class Observation(BaseEntity):
             check_type(scans, Scans, "Scans")
         if calculated_data is not None:
             check_type(calculated_data, dict, "Calculated data")
-        super().__init__(
+        super().__init__(name=observation_code,
             observation_code=observation_code,
             observation_type=observation_type,
             sources=sources if sources is not None else Sources(),
@@ -66,11 +66,6 @@ class Observation(BaseEntity):
             calculated_data=calculated_data if calculated_data is not None else {},
             isactive=isactive,
         )
-        # Restore parent links for synchronization
-        self.sources._parent = self
-        self.telescopes._parent = self
-        self.frequencies._parent = self
-        self.scans._parent = self
         logger.info(f"Initialized Observation '{observation_code}' with type '{observation_type}'")
 
     def get_observation_code(self) -> str:
