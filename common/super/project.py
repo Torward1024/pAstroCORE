@@ -14,13 +14,12 @@ class Project(ABC):
         _items (BaseContainer[BaseEntity]): Container of BaseEntity items indexed by their names.
         _item_type (Type[BaseEntity]): The type of items stored in the container, defaults to BaseEntity.
     """
-    _item_type: Type[BaseEntity] = BaseEntity  # Default item type
+    _item_type: Type[BaseEntity] = BaseEntity
 
     def __init__(self, name: str = "DEFAULT_PROJECT", items: Optional[Dict[str, BaseEntity]] = None):
         """Initialize a Project with a name and an optional dictionary of BaseEntity items."""
         check_non_empty_string(name, "Project name")
         self._name = name
-        # Используем метод класса для создания контейнера с правильной типизацией
         self._items = self._create_container(items=items, name=f"{name}_items")
         logger.info(f"Initialized project '{name}' with {len(self._items)} items")
 
@@ -42,6 +41,13 @@ class Project(ABC):
     def create_item(self, item_code: str = "ITEM_DEFAULT", isactive: bool = True) -> None:
         """Create and add a new BaseEntity item to the project."""
         pass
+
+    def set_item(self, name: str, item: BaseEntity) -> None:
+        """Set or replace an item in the project by its name."""
+        if not isinstance(item, self._item_type):
+            raise TypeError(f"Item must be of type {self._item_type.__name__} for project '{self._name}', got {type(item).__name__}")
+        self._items.set_item(name, item)
+        logger.info(f"Set item '{name}' in project '{self._name}'")
 
     def remove_item(self, name: str) -> None:
         """Remove an item from the project by its name."""
@@ -74,6 +80,9 @@ class Project(ABC):
     def set_project(self, name: str, items: Dict[str, BaseEntity]) -> None:
         """Set the entire project configuration, replacing name and items."""
         check_non_empty_string(name, "Project name")
+        for item in items.values():
+            if not isinstance(item, self._item_type):
+                raise TypeError(f"Item must be of type {self._item_type.__name__} for project '{name}', got {type(item).__name__}")
         old_name = self._name
         old_count = len(self._items)
         self._name = name
