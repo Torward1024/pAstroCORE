@@ -21,6 +21,7 @@ class Scan(BaseEntity):
     telescope_names: List[str]
     frequency_names: List[str]
     is_off_source: bool
+    original_source_name: Optional[str]
     original_telescope_names: Optional[List[str]]
     original_frequency_names: Optional[List[str]]
 
@@ -48,6 +49,7 @@ class Scan(BaseEntity):
             telescope_names=telescope_names,
             frequency_names=frequency_names,
             is_off_source=source_name is None or is_off_source,
+            original_source_name=source_name,  # Set original_source_name
             original_telescope_names=telescope_names.copy() if telescope_names else None,
             original_frequency_names=frequency_names.copy() if frequency_names else None,
             isactive=isactive

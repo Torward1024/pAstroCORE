@@ -230,5 +230,5 @@ class Frequencies(BaseContainer[IF]):
 
     def __repr__(self) -> str:
         """Return a string representation of the Frequencies object."""
-        active_count = len(self.get_active_frequencies())
+        active_count = len(self.get_active_items())
         return f"Frequencies(name={self.name!r}, count={len(self._items)}, active={active_count}, inactive={len(self._items) - active_count})"
