@@ -1,11 +1,11 @@
 # /super/inspector.py
 from common.super.super import Super
-from unit_scheduling.super.schedule_project import ScheduleProject
-from unit_scheduling.base.frequencies import IF, Frequencies
-from unit_scheduling.base.sources import Source, Sources
-from unit_scheduling.base.telescopes import Telescope, SpaceTelescope, Telescopes
-from unit_scheduling.base.scans import Scan, Scans
-from unit_scheduling.base.observation import Observation
+from unit_scheduling_2.super.schedule_project import ScheduleProject
+from unit_scheduling_2.base.frequencies import IF, Frequencies
+from unit_scheduling_2.base.sources import Source, Sources
+from unit_scheduling_2.base.telescopes import Telescope, SpaceTelescope, Telescopes
+from unit_scheduling_2.base.scans import Scan, Scans
+from unit_scheduling_2.base.observation import Observation
 from common.utils.logging_setup import logger
 from typing import Dict, Any, Union
 

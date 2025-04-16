@@ -39,21 +39,22 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             "attributes": {
                 "set_source": {
                     "name": "M87",
-                    "ra_h": 12, "ra_m": 30, "ra_s": 49.42,
-                    "de_d": 12, "de_m": 23, "de_s": 28.0
+                    "ra_h": 12.0, "ra_m": 30, "ra_s": 49.42,
+                    "de_d": 12.0, "de_m": 23, "de_s": 28.0
                 },
                 "set_flux": {"frequency": 86e3, "flux": 1.2}
             },
             "obj": m87_source
         })
         self.assertTrue(result, "Failed to configure M87 source")
-        sources = Sources([m87_source])
+        sources = Sources()
+        sources.add(m87_source)
 
         telescopes = Telescopes()
         tel_configs = {
             "alma": {
                 "operation": "configure",
-                "attributes": {"set_telescope": {
+                "attributes": {"set": {
                     "code": "ALMA", "name": "ALMA", "x": 2225061.164, "y": -5440057.37, "z": -2481681.15,
                     "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 100.0},
                     "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
@@ -91,12 +92,12 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         tel_results = self.manipulator.process_request(tel_configs)
         for tel_id, result in tel_results.items():
             self.assertTrue(result, f"Failed to configure telescope {tel_id}")
-            telescopes.add_telescope(tel_configs[tel_id]["obj"])
+            telescopes.add(tel_configs[tel_id]["obj"])
 
         frequency = IF()
         result = self.manipulator.process_request({
             "operation": "configure",
-            "attributes": {"set_frequency": {"freq": 86e3}, "set_bandwidth": {"bandwidth": 4e3}},
+            "attributes": {"set_frequency": {"frequency": 86e3}, "set_bandwidth": {"bandwidth": 4e3}},
             "obj": frequency
         })
         self.assertTrue(result, "Failed to configure frequency")

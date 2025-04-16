@@ -60,7 +60,7 @@ class TestObservation(unittest.TestCase):
         self.scans = Scans(items={"scan1": self.scan})
 
         self.obs = Observation(
-            observation_code="TEST_OBS",
+            name="TEST_OBS",
             observation_type="VLBI",
             sources=self.sources,
             telescopes=self.telescopes,
@@ -88,7 +88,7 @@ class TestObservation(unittest.TestCase):
         """Test Observation initialization with explicit calculated_data."""
         calc_data = {"test_key": [1, 2, 3]}
         obs = Observation(
-            observation_code="TEST_CALC",
+            name="TEST_CALC",
             observation_type="VLBI",
             sources=self.sources,
             telescopes=self.telescopes,
@@ -106,19 +106,19 @@ class TestObservation(unittest.TestCase):
     def test_invalid_observation_type(self):
         """Test initialization with invalid observation type."""
         with self.assertRaises(ValueError):
-            Observation(observation_code="INVALID", observation_type="INVALID")
+            Observation(name="INVALID", observation_type="INVALID")
 
     def test_invalid_types(self):
         """Test initialization with incorrect types."""
         with self.assertRaises(TypeError):
-            Observation(observation_code=123)
+            Observation(name=123)
         with self.assertRaises(TypeError):
-            Observation(observation_code="TEST", sources="not_sources")
+            Observation(name="TEST", sources="not_sources")
 
     def test_set_attributes(self):
         """Test setting attributes using set method."""
         self.obs.set({
-            "observation_code": "NEW_OBS",
+            "name": "NEW_OBS",
             "observation_type": "SINGLE_DISH",
             "sources": Sources(),
             "telescopes": Telescopes(),
@@ -233,7 +233,7 @@ class TestObservation(unittest.TestCase):
     def test_serialization(self):
         """Test to_dict and from_dict methods."""
         obs_dict = self.obs.to_dict()
-        self.assertEqual(obs_dict["observation_code"], "TEST_OBS")
+        self.assertEqual(obs_dict["name"], "TEST_OBS")
         self.assertEqual(obs_dict["observation_type"], "VLBI")
         self.assertTrue(obs_dict["isactive"])
         self.assertEqual(len(obs_dict["sources"]["items"]), 1)
@@ -266,7 +266,7 @@ class TestObservation(unittest.TestCase):
     def test_equality(self):
         """Test equality comparison."""
         obs2 = Observation(
-            observation_code="TEST_OBS",
+            name="TEST_OBS",
             observation_type="VLBI",
             sources=self.sources.clone(),
             telescopes=self.telescopes.clone(),
@@ -275,13 +275,13 @@ class TestObservation(unittest.TestCase):
             isactive=True
         )
         self.assertEqual(self.obs, obs2)
-        obs2.set({"observation_code": "DIFFERENT"})
+        obs2.set({"name": "DIFFERENT"})
         self.assertNotEqual(self.obs, obs2)
 
     def test_contains_and_getitem(self):
         """Test __contains__ and __getitem__."""
-        self.assertIn("observation_code", self.obs)
-        self.assertEqual(self.obs["observation_code"], "TEST_OBS")
+        self.assertIn("name", self.obs)
+        self.assertEqual(self.obs["name"], "TEST_OBS")
         with self.assertRaises(KeyError):
             _ = self.obs["invalid_key"]
 

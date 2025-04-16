@@ -29,7 +29,7 @@ class Observation(BaseEntity):
         calculated_data (Dict[str, Any]): Dictionary storing calculated results.
         isactive (bool): Indicates whether the observation is active.
     """
-    observation_code: str
+    code: str
     observation_type: str
     sources: Sources
     telescopes: Telescopes
@@ -37,15 +37,16 @@ class Observation(BaseEntity):
     scans: Scans
     calculated_data: Dict[str, Any]
 
-    def __init__(self, observation_code: str = "OBS_DEFAULT", sources: Sources = None,
+    def __init__(self, name: str = "OBS_DEFAULT", code: str = None, sources: Sources = None,
                  telescopes: Telescopes = None, frequencies: Frequencies = None,
                  scans: Scans = None, observation_type: str = "VLBI", 
                  calculated_data: Dict[str, Any] = None, isactive: bool = True):
         """Initialize an Observation with code, entities, type, calculated data, and active status."""
+        if code is None:
+            code = name
         if observation_type not in ("VLBI", "SINGLE_DISH"):
             logger.error(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
             raise ValueError(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
-        check_type(observation_code, str, "Observation code")
         if sources is not None:
             check_type(sources, Sources, "Sources")
         if telescopes is not None:
@@ -56,8 +57,7 @@ class Observation(BaseEntity):
             check_type(scans, Scans, "Scans")
         if calculated_data is not None:
             check_type(calculated_data, dict, "Calculated data")
-        super().__init__(name=observation_code,
-            observation_code=observation_code,
+        super().__init__(name=name, code=code,
             observation_type=observation_type,
             sources=sources if sources is not None else Sources(),
             telescopes=telescopes if telescopes is not None else Telescopes(),
@@ -66,11 +66,11 @@ class Observation(BaseEntity):
             calculated_data=calculated_data if calculated_data is not None else {},
             isactive=isactive,
         )
-        logger.info(f"Initialized Observation '{observation_code}' with type '{observation_type}'")
+        logger.info(f"Initialized Observation '{name}' with type '{observation_type}'")
 
     def get_observation_code(self) -> str:
         """Retrieve the observation code."""
-        return self.get("observation_code")
+        return self.code
 
     def get_observation_type(self) -> str:
         """Retrieve the observation type."""
@@ -101,9 +101,9 @@ class Observation(BaseEntity):
         check_non_empty_string(key, "Key")
         data = self.calculated_data.get(key)
         if data is not None:
-            logger.debug(f"Retrieved calculated data '{key}' for observation '{self.observation_code}'")
+            logger.debug(f"Retrieved calculated data '{key}' for observation '{self.name}'")
         else:
-            logger.debug(f"No calculated data found for key '{key}' in observation '{self.observation_code}'")
+            logger.debug(f"No calculated data found for key '{key}' in observation '{self.name}'")
         return data
 
     def set_calculated_data_by_key(self, key: str, data: Any) -> None:
@@ -112,22 +112,21 @@ class Observation(BaseEntity):
         new_data = self.calculated_data.copy()
         new_data[key] = data
         self.set({"calculated_data": new_data})
-        logger.info(f"Stored calculated data '{key}' for observation '{self.observation_code}'")
+        logger.info(f"Stored calculated data '{key}' for observation '{self.name}'")
 
     def get_start_datetime(self) -> Optional[Time]:
         """Retrieve the earliest start time of active scans."""
         active_scans = self.scans.get_active_scans(self)
         if not active_scans:
-            logger.debug(f"No active scans found for observation '{self.observation_code}'")
+            logger.debug(f"No active scans found for observation '{self.name}'")
             return None
         start_time = min(scan.get_start() for scan in active_scans)
-        logger.debug(f"Retrieved start datetime {start_time.isot} for observation '{self.observation_code}'")
+        logger.debug(f"Retrieved start datetime {start_time.isot} for observation '{self.name}'")
         return start_time
 
     def validate(self) -> bool:
         """Validate the observation's data for consistency and completeness."""
-        observation_code = self.get("observation_code")
-        if not observation_code:
+        if not self.name:
             logger.error("Observation code must be a non-empty string")
             return False
 
@@ -173,7 +172,7 @@ class Observation(BaseEntity):
                         return False
                 telescope_scans[tel_code].append((scan_start, scan_end))
 
-        logger.info(f"Observation '{observation_code}' validated successfully")
+        logger.info(f"Observation '{self.name}' validated successfully")
         return True
 
     def _update_scan_names(self, entity_type: str, name: str, operation: str) -> None:
@@ -199,16 +198,16 @@ class Observation(BaseEntity):
                 current_name = getattr(scan, attr)
                 if operation == "remove" and current_name == name:
                     scan.set({"source_name": None, "is_off_source": True, "original_source_name": current_name})
-                    logger.debug(f"Reset source name to None for scan '{scan.name}' in observation '{self.observation_code}'")
+                    logger.debug(f"Reset source name to None for scan '{scan.name}' in observation '{self.name}'")
                 elif operation == "add" and getattr(scan, "original_source_name", None) == name:
                     scan.set({"source_name": name, "is_off_source": False})
-                    logger.debug(f"Restored source name '{name}' for scan '{scan.name}' in '{self.observation_code}'")
+                    logger.debug(f"Restored source name '{name}' for scan '{scan.name}' in '{self.name}'")
             else:
                 current_names = getattr(scan, attr)
                 if operation == "remove" and name in current_names:
                     updated_names = [n for n in current_names if n != name]
                     scan.set({attr: updated_names})
-                    logger.debug(f"Removed {entity_type} name '{name}' from scan '{scan.name}' in '{self.observation_code}'")
+                    logger.debug(f"Removed {entity_type} name '{name}' from scan '{scan.name}' in '{self.name}'")
                 elif operation == "add":
                     # Note: Adding names typically happens via Manipulator, so we may not need to handle it here
                     pass
@@ -275,14 +274,14 @@ class Observation(BaseEntity):
 
         data = super().to_dict()
         data["calculated_data"] = convert_quantity(self.calculated_data)
-        logger.info(f"Converted observation '{self.observation_code}' to dictionary")
+        logger.info(f"Converted observation '{self.name}' to dictionary")
         return data
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
         """Create an Observation object from a dictionary."""
         kwargs = {
-            "observation_code": data["observation_code"],
+            "name": data["name"],
             "observation_type": data["observation_type"],
             "sources": Sources.from_dict(data["sources"]),
             "telescopes": Telescopes.from_dict(data["telescopes"]),
@@ -292,12 +291,12 @@ class Observation(BaseEntity):
             "isactive": data.get("isactive", True),
         }
         obs = cls(**kwargs)
-        logger.info(f"Created observation '{data['observation_code']}' from dictionary")
+        logger.info(f"Created observation '{data['name']}' from dictionary")
         return obs
 
     def __repr__(self) -> str:
         """Return a string representation of the Observation object."""
-        return (f"Observation(code='{self.observation_code}', sources={self.sources}, "
+        return (f"Observation(code='{self.name}', sources={self.sources}, "
                 f"telescopes={self.telescopes}, frequencies={self.frequencies}, "
                 f"scans={self.scans}, isactive={self.isactive}, "
                 f"observation_type={self.observation_type}, "

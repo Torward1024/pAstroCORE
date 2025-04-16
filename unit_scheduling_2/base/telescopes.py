@@ -6,6 +6,7 @@ from typing import Optional, Dict, Tuple, Union
 from .telescope import Telescope
 from .spacetelescope import SpaceTelescope
 import re
+import uuid
 
 class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
     """Class representing a collection of Telescope and SpaceTelescope objects.
@@ -48,6 +49,8 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             TypeError: If items contains non-Telescope/SpaceTelescope objects or keys are not strings.
             ValueError: If a telescope's code does not match its dictionary key or is invalid.
         """
+        if name is None:
+            name = f"tlscs_{uuid.uuid4().hex[:8]}"
         super().__init__(items=items, name=name, isactive=isactive, use_cache=use_cache)
         logger.info(f"Initialized Telescopes with {len(self._items)} telescopes")
 

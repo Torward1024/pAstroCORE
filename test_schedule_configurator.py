@@ -13,19 +13,39 @@ class TestScheduleConfigurator(unittest.TestCase):
     def setUp(self):
         """Set up the test environment with a mocked Manipulator and logger."""
         self.manipulator = MagicMock()
-        self.manipulator.get_methods.side_effect = lambda cls: {
-            IF: ["set"],
-            Frequencies: ["add", "set_items"],
-            Source: ["set", "set_ra_degrees", "set_dec_degrees", "add_flux"],
-            Sources: ["add", "create_source"],
-            Telescope: ["set", "add_sefd"],
-            SpaceTelescope: ["set", "set_keplerian", "set_orbit"],
-            Telescopes: ["add", "create_telescope"],
-            Scan: ["set", "set_start", "set_duration", "set_source_name", "set_telescope_names", "set_frequency_names"],
-            Scans: ["add", "create_scan"],
-            Observation: ["set", "set_calculated_data_by_key"],
-            ScheduleProject: ["add_item", "create_item", "set_project"]
-        }.get(cls, [])
+        self.manipulator.get_methods_for_type.side_effect = lambda cls: {
+            IF: {"set": getattr(IF, "set")},
+            Frequencies: {"add": getattr(Frequencies, "add"), "set_items": getattr(Frequencies, "set_items")},
+            Source: {
+                "set": getattr(Source, "set"),
+                "set_ra_degrees": getattr(Source, "set_ra_degrees"),
+                "set_dec_degrees": getattr(Source, "set_dec_degrees"),
+                "add_flux": getattr(Source, "add_flux")
+            },
+            Sources: {"add": getattr(Sources, "add"), "create_source": getattr(Sources, "create_source")},
+            Telescope: {"set": getattr(Telescope, "set"), "add_sefd": getattr(Telescope, "add_sefd")},
+            SpaceTelescope: {
+                "set": getattr(SpaceTelescope, "set"),
+                "set_keplerian": getattr(SpaceTelescope, "set_keplerian"),
+                "set_orbit": getattr(SpaceTelescope, "set_orbit")
+            },
+            Telescopes: {"add": getattr(Telescopes, "add"), "create_telescope": getattr(Telescopes, "create_telescope")},
+            Scan: {
+                "set": getattr(Scan, "set"),
+                "set_start": getattr(Scan, "set_start"),
+                "set_duration": getattr(Scan, "set_duration"),
+                "set_source_name": getattr(Scan, "set_source_name"),
+                "set_telescope_names": getattr(Scan, "set_telescope_names"),
+                "set_frequency_names": getattr(Scan, "set_frequency_names")
+            },
+            Scans: {"add": getattr(Scans, "add"), "create_scan": getattr(Scans, "create_scan")},
+            Observation: {"set": getattr(Observation, "set"), "set_calculated_data_by_key": getattr(Observation, "set_calculated_data_by_key")},
+            ScheduleProject: {
+                "add_item": getattr(ScheduleProject, "add_item"),
+                "create_item": getattr(ScheduleProject, "create_item"),
+                "set_project": getattr(ScheduleProject, "set_project")
+            }
+        }.get(cls, {})
         self.configurator = ScheduleConfigurator(self.manipulator)
         self.patcher = patch('unit_scheduling_2.super.schedule_configurator.logger')
         self.mock_logger = self.patcher.start()
@@ -35,9 +55,8 @@ class TestScheduleConfigurator(unittest.TestCase):
         self.patcher.stop()
 
     def test_configure_if(self):
-        """Test configuring an IF object."""
-        if_obj = IF()
-        attributes = {"set": {"frequency": 1420.0, "bandwidth": 20.0}}
+        if_obj = IF(name="IF1")
+        attributes = {"set": {"params": {"frequency": 1420.0, "bandwidth": 20.0}}}
         result = self.configurator.execute(if_obj, attributes)
         self.assertTrue(result)
         self.assertEqual(if_obj.frequency, 1420.0)
@@ -46,7 +65,7 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_if_invalid_method(self):
         """Test configuring an IF with an invalid method."""
-        if_obj = IF()
+        if_obj = IF(name="IF1")
         attributes = {"invalid_method": {"value": 1}}
         result = self.configurator.execute(if_obj, attributes)
         self.assertFalse(result)
@@ -54,10 +73,10 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_frequencies_nested(self):
         """Test configuring a nested IF within Frequencies."""
-        freq_obj = Frequencies()
+        freq_obj = Frequencies(name="FRSSSQS")
         if_obj = IF(name="IF1")
         freq_obj.add(if_obj)
-        attributes = {"if_name": "IF1", "set": {"frequency": 1420.0, "bandwidth": 20.0}}
+        attributes = {"name": "IF1", "set": {"params": {"frequency": 1420.0, "bandwidth": 20.0}}}
         result = self.configurator.execute(freq_obj, attributes)
         self.assertTrue(result)
         self.assertEqual(freq_obj.get("IF1").frequency, 1420.0)
@@ -66,24 +85,26 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_frequencies_nested_not_found(self):
         """Test configuring a nested IF that does not exist."""
-        freq_obj = Frequencies()
-        attributes = {"if_name": "IF1", "set": {"frequency": 1420.0}}
+        freq_obj = Frequencies(name="FQS")
+        attributes = {"name": "IF1", "set": {"params": {"frequency": 1420.0}}}
         result = self.configurator.execute(freq_obj, attributes)
         self.assertFalse(result)
-        self.mock_logger.warning.assert_called_with("IF 'IF1' not found in Frequencies")
+        self.mock_logger.error.assert_called_with("Name 'IF1' not found in Frequencies")
 
     def test_configure_source(self):
         """Test configuring a Source object."""
-        source_obj = Source()
+        source_obj = Source(name="SOURCE1")
         attributes = {
             "set": {
+                "params": {
                 "name": "3C 286",
-                "ra_h": 13,
-                "ra_m": 31,
+                "ra_h": 13.0,
+                "ra_m": 31.0,
                 "ra_s": 8.287,
-                "de_d": 30,
-                "de_m": 41,
+                "de_d": 30.0,
+                "de_m": 41.0,
                 "de_s": 31.0
+                }
             }
         }
         result = self.configurator.execute(source_obj, attributes)
@@ -93,27 +114,27 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_sources_nested(self):
         """Test configuring a nested Source within Sources."""
-        sources_obj = Sources()
+        sources_obj = Sources(name="SRCS")
         source_obj = Source(name="SOURCE1")
         sources_obj.add(source_obj)
-        attributes = {"source_name": "SOURCE1", "set": {"name": "3C 286"}}
+        attributes = {"name": "SOURCE1", "set": {"params": {"name": "3C 286"}}}
         result = self.configurator.execute(sources_obj, attributes)
         self.assertTrue(result)
-        self.assertEqual(sources_obj.get("3C 286").name, "3C 286")
+        self.assertEqual(sources_obj.get("SOURCE1").name, "3C 286")
         self.mock_logger.info.assert_called_with("Configured Source: name='3C 286'")
 
     def test_configure_sources_nested_not_found(self):
         """Test configuring a nested Source that does not exist."""
-        sources_obj = Sources()
-        attributes = {"source_name": "SOURCE1", "set": {"name": "3C 286"}}
+        sources_obj = Sources(name="SRCSS")
+        attributes = {"name": "SOURCE1", "set": {"params":{"name": "3C 286"}}}
         result = self.configurator.execute(sources_obj, attributes)
         self.assertFalse(result)
         self.mock_logger.warning.assert_called_with("Source 'SOURCE1' not found in Sources")
 
     def test_configure_telescope(self):
         """Test configuring a Telescope object."""
-        tel_obj = Telescope()
-        attributes = {"set": {"code": "GBT", "x": 0.0, "y": 0.0, "z": 0.0}}
+        tel_obj = Telescope(name="TLSCSPS")
+        attributes = {"set": {"params": {"code": "GBT", "x": 0.0, "y": 0.0, "z": 0.0}}}
         result = self.configurator.execute(tel_obj, attributes)
         self.assertTrue(result)
         self.assertEqual(tel_obj.get_code(), "GBT")
@@ -121,9 +142,14 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_space_telescope(self):
         """Test configuring a SpaceTelescope object."""
-        tel_obj = SpaceTelescope()
+        tel_obj = SpaceTelescope(name="SCPSD")
         attributes = {
-            "set": {"code": "HST"},
+            "method": "_configure_telescope",
+            "set": {
+                "params": {
+                    "code": "HST"
+                }
+                },
             "set_keplerian": {
                 "a": 7000e3,
                 "e": 0.01,
@@ -142,10 +168,10 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_telescopes_nested(self):
         """Test configuring a nested Telescope within Telescopes."""
-        tels_obj = Telescopes()
-        tel_obj = Telescope(code="TEMP")
+        tels_obj = Telescopes(name="TELESCOPEEES")
+        tel_obj = Telescope(name="TEMP")
         tels_obj.add(tel_obj)
-        attributes = {"telescope_code": "TEMP", "set": {"code": "VLA"}}
+        attributes = {"name": "TEMP", "set": {"params": {"code": "VLA"}}}
         result = self.configurator.execute(tels_obj, attributes)
         self.assertTrue(result)
         self.assertEqual(tels_obj.get("VLA").get_code(), "VLA")
@@ -153,15 +179,15 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_telescopes_nested_not_found(self):
         """Test configuring a nested Telescope that does not exist."""
-        tels_obj = Telescopes()
-        attributes = {"telescope_code": "VLA", "set": {"code": "VLA"}}
+        tels_obj = Telescopes(name="TELESCOPEEE33S")
+        attributes = {"name": "VLA", "set": {"code": "VLA"}}
         result = self.configurator.execute(tels_obj, attributes)
         self.assertFalse(result)
         self.mock_logger.warning.assert_called_with("Telescope 'VLA' not found in Telescopes")
 
     def test_configure_scan(self):
         """Test configuring a Scan object."""
-        scan_obj = Scan()
+        scan_obj = Scan(name="SCAN1")
         attributes = {
             "set_start": {"start": Time("2025-04-16T12:00:00")},
             "set_duration": {"duration": 300.0},
@@ -177,10 +203,10 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_scans_nested(self):
         """Test configuring a nested Scan within Scans."""
-        scans_obj = Scans()
+        scans_obj = Scans(name="SCANEEES")
         scan_obj = Scan(name="SCAN1")
         scans_obj.add(scan_obj)
-        attributes = {"scan_name": "SCAN1", "set_source_name": {"source_name": "3C 286"}}
+        attributes = {"name": "SCAN1", "set_source_name": {"source_name": "3C 286"}}
         result = self.configurator.execute(scans_obj, attributes)
         self.assertTrue(result)
         self.assertEqual(scans_obj.get("SCAN1").get_source_name(), "3C 286")
@@ -190,23 +216,23 @@ class TestScheduleConfigurator(unittest.TestCase):
 
     def test_configure_scans_nested_not_found(self):
         """Test configuring a nested Scan that does not exist."""
-        scans_obj = Scans()
-        attributes = {"scan_name": "SCAN1", "set_source_name": {"source_name": "3C 286"}}
+        scans_obj = Scans(name="SCANEIS")
+        attributes = {"name": "SCAN1", "set_source_name": {"source_name": "3C 286"}}
         result = self.configurator.execute(scans_obj, attributes)
         self.assertFalse(result)
         self.mock_logger.warning.assert_called_with("Scan 'SCAN1' not found in Scans")
 
     def test_configure_scans_overlap(self):
         """Test configuring a Scan with overlap detection."""
-        scans_obj = Scans()
+        scans_obj = Scans(name="SCANDORO")
         scan1 = Scan(name="SCAN1")
         scan2 = Scan(name="SCAN2")
         scan1.set_start(Time("2025-04-16T12:00:00"))
-        scan1.set_duration(600.0)
-        scan2.set_start(Time("2025-04-16T12:05:00"))
+        scan1.set_duration(300.0)
+        scan2.set_start(Time("2025-04-16T12:10:00"))
         scans_obj.add(scan1)
         scans_obj.add(scan2)
-        attributes = {"scan_name": "SCAN2", "set_duration": {"duration": 600.0}}
+        attributes = {"name": "SCAN2", "set_duration": {"duration": 600.0}}
         with patch.object(scans_obj, '_check_overlap', return_value=(True, "overlaps with SCAN1")):
             result = self.configurator.execute(scans_obj, attributes)
         self.assertFalse(result)
@@ -215,7 +241,7 @@ class TestScheduleConfigurator(unittest.TestCase):
     def test_configure_observation(self):
         """Test configuring an Observation object."""
         obs_obj = Observation()
-        attributes = {"set": {"observation_code": "OBS001"}}
+        attributes = {"set": {"params":{"name": "OBS001", "code": "OBS001"}}}
         with patch.object(Observation, 'validate', return_value=True):
             result = self.configurator.execute(obs_obj, attributes)
         self.assertTrue(result)
@@ -225,28 +251,40 @@ class TestScheduleConfigurator(unittest.TestCase):
     def test_configure_observation_invalid(self):
         """Test configuring an Observation that fails validation."""
         obs_obj = Observation()
-        attributes = {"set": {"observation_code": "OBS001"}}
+        attributes = {"set": {"params": {"name": "OBS001", "code": "OBS001"}}}
         with patch.object(Observation, 'validate', return_value=False):
             result = self.configurator.execute(obs_obj, attributes)
         self.assertFalse(result)
         self.mock_logger.error.assert_called_with("Observation 'OBS001' invalid after configuration")
 
+    def test_configure_project_explicit_method(self):
+        """Test configuring a ScheduleProject with an explicit method."""
+        project_obj = ScheduleProject()
+        attributes = {
+            "method": "_configure_project",
+            "set_project": {"name": "TEST_PROJECT", "items": {}}
+        }
+        result = self.configurator.execute(project_obj, attributes)
+        self.assertTrue(result)
+        self.assertEqual(project_obj.get_name(), "TEST_PROJECT")
+        self.mock_logger.info.assert_called_with("Configured ScheduleProject: name='TEST_PROJECT', observations=0")
+
     def test_configure_project_nested(self):
         """Test configuring a nested Observation within ScheduleProject."""
         project_obj = ScheduleProject()
-        obs_obj = Observation(observation_code="OBS_DEFAULT")
+        obs_obj = Observation(name="OBS_DEFAULT", code="DEF")
         project_obj.add_item(obs_obj)
-        attributes = {"observation_code": "OBS_DEFAULT", "set": {"observation_code": "OBS001"}}
+        attributes = {"method": "_configure_project", "name": "OBS_DEFAULT", "set": {"params": {"code": "OBS001"}}}
         with patch.object(Observation, 'validate', return_value=True):
             result = self.configurator.execute(project_obj, attributes)
         self.assertTrue(result)
-        self.assertEqual(project_obj.get_observation("OBS001").get_observation_code(), "OBS001")
+        self.assertEqual(project_obj.get_observation("OBS_DEFAULT").get_observation_code(), "OBS001")
         self.mock_logger.info.assert_called_with("Configured Observation: code='OBS001'")
 
     def test_configure_project_nested_not_found(self):
         """Test configuring a nested Observation that does not exist."""
         project_obj = ScheduleProject()
-        attributes = {"observation_code": "OBS001", "set": {"observation_code": "OBS001"}}
+        attributes = {"method": "_configure_project", "name": "OBS001", "set": {"params": {"name": "OBS001"}}}
         with patch.object(Observation, 'validate', return_value=True):
             result = self.configurator.execute(project_obj, attributes)
         self.assertFalse(result)
@@ -255,7 +293,7 @@ class TestScheduleConfigurator(unittest.TestCase):
     def test_configure_invalid_object(self):
         """Test configuring an invalid object type."""
         invalid_obj = object()  # Generic object not supported by configurator
-        attributes = {"set": {"some_param": "value"}}
+        attributes = {"set": {"params": {"value": "TEST"}}}
         result = self.configurator.execute(invalid_obj, attributes)
         self.assertFalse(result)
         self.mock_logger.warning.assert_any_call("No configuration method found for object")

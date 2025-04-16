@@ -7,8 +7,8 @@ class TestScheduleProject(unittest.TestCase):
     def setUp(self):
         """Set up a ScheduleProject instance and sample observations for testing."""
         self.project = ScheduleProject(name="TestProject")
-        self.obs1 = Observation(observation_code="OBS001", observation_type="VLBI")
-        self.obs2 = Observation(observation_code="OBS002", observation_type="SINGLE_DISH", isactive=False)
+        self.obs1 = Observation(name="OBS001", observation_type="VLBI")
+        self.obs2 = Observation(name="OBS002", observation_type="SINGLE_DISH", isactive=False)
         logging.basicConfig(level=logging.DEBUG)
 
     def test_initialization(self):
@@ -51,7 +51,7 @@ class TestScheduleProject(unittest.TestCase):
     def test_set_item(self):
         """Test setting or replacing an observation."""
         self.project.add_item(self.obs1)
-        new_obs = Observation(observation_code="OBS001", observation_type="SINGLE_DISH")
+        new_obs = Observation(name="OBS001", observation_type="SINGLE_DISH")
         self.project.set_item("OBS001", new_obs)
         self.assertEqual(self.project.get_observation("OBS001").get_observation_type(), "SINGLE_DISH")
 
@@ -91,7 +91,7 @@ class TestScheduleProject(unittest.TestCase):
         project_dict = self.project.get_project()
         self.assertEqual(project_dict["name"], "TestProject")
         self.assertEqual(len(project_dict["observations"]), 1)
-        self.assertEqual(project_dict["observations"][0]["observation_code"], "OBS001")
+        self.assertEqual(project_dict["observations"][0]["name"], "OBS001")
 
     def test_to_dict(self):
         """Test serialization of ScheduleProject to dictionary."""
@@ -100,7 +100,7 @@ class TestScheduleProject(unittest.TestCase):
         project_dict = self.project.to_dict()
         self.assertEqual(project_dict["name"], "TestProject")
         self.assertEqual(len(project_dict["items"]), 2)
-        self.assertEqual(project_dict["items"]["OBS001"]["observation_code"], "OBS001")
+        self.assertEqual(project_dict["items"]["OBS001"]["name"], "OBS001")
         self.assertFalse(project_dict["items"]["OBS002"]["isactive"])
 
     def test_from_dict(self):

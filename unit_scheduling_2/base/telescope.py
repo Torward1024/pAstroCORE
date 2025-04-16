@@ -5,6 +5,7 @@ from common.utils.logging_setup import logger
 import numpy as np
 from typing import Optional, Dict, Tuple, Any
 from enum import Enum
+import uuid
 
 # Constants
 SPEED_OF_LIGHT = 3e8  # m/s
@@ -47,7 +48,8 @@ class Telescope(BaseEntity):
                  effective_area_table: Optional[Dict[float, float]] = None,
                  system_temperature_table: Optional[Dict[float, float]] = None):
         """Initialize a Telescope with ITRF coordinates, velocities, and optional SEFD properties."""
-
+        if name is None:
+            name = f"tlsc_{uuid.uuid4().hex[:8]}"
         if elevation_range[0] > elevation_range[1]:
             raise ValueError("elevation_range min must be less than max")
         

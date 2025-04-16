@@ -4,6 +4,7 @@ from typing import Optional, Dict
 from common.base.baseentity import BaseEntity
 from common.base.basecontainer import BaseContainer
 from common.utils.logging_setup import logger
+import uuid
 
 class Source(BaseEntity, ABC):
     """Base class representing an astronomical source with coordinates, names, and optional flux properties.
@@ -49,6 +50,8 @@ class Source(BaseEntity, ABC):
         spectral_index: Optional[float] = None,
         isactive: bool = True,
     ):
+        if name is None:
+            name = f"scan_{uuid.uuid4().hex[:8]}"
         super().__init__(
             name=name,
             ra_h=ra_h,

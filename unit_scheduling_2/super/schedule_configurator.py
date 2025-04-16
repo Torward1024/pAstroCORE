@@ -64,21 +64,26 @@ class ScheduleConfigurator(Super):
 
         Args:
             freq_obj (Frequencies): The Frequencies object to configure.
-            attributes (Dict[str, Any]): Dictionary with optional "if_name" for nested configuration.
+            attributes (Dict[str, Any]): Dictionary with optional "name" for nested configuration.
 
         Returns:
             bool: True if configuration is successful, False otherwise.
         """
-        if "if_name" in attributes:
-            if_name = attributes["if_name"]
-            if_obj = freq_obj.get(if_name)
+        if "name" in attributes:
+            name = attributes["name"]
+            try:
+                if_obj = freq_obj.get(name)
+            except KeyError:
+                logger.error(f"Name '{name}' not found in Frequencies")
+                return False
             if if_obj:
-                result = self._configure_if(if_obj, attributes)
+                nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
+                result = self._configure_if(if_obj, nested_attrs)
                 if result:
                     return True
-                logger.warning(f"Failed to configure IF '{if_name}'")
+                logger.warning(f"Failed to configure IF '{name}'")
                 return False
-            logger.warning(f"IF '{if_name}' not found in Frequencies")
+            logger.warning(f"IF '{name}' not found in Frequencies")
             return False
         valid_methods = self._get_methods(Frequencies)
         applied = False
@@ -131,21 +136,25 @@ class ScheduleConfigurator(Super):
 
         Args:
             sources_obj (Sources): The Sources object to configure.
-            attributes (Dict[str, Any]): Dictionary with optional "source_name" for nested configuration.
+            attributes (Dict[str, Any]): Dictionary with optional "name" for nested configuration.
 
         Returns:
             bool: True if configuration is successful, False otherwise.
         """
-        if "source_name" in attributes:
-            source_name = attributes["source_name"]
+        if "name" in attributes:
+            source_name = attributes["name"]
             source_obj = sources_obj.get(source_name)
-            if source_obj:
-                result = self._configure_source(source_obj, attributes)
-                if result:
-                    return True
-                logger.warning(f"Failed to configure Source '{source_name}'")
+            if source_obj is None:
+                logger.error(f"Source '{source_name}' not found in Sources")
                 return False
-            logger.warning(f"Source '{source_name}' not found in Sources")
+            if not isinstance(source_obj, Source):
+                logger.error(f"Object with name '{source_name}' is not a Source, got {type(source_obj).__name__}")
+                return False
+            nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
+            result = self._configure_source(source_obj, nested_attrs)
+            if result:
+                return True
+            logger.warning(f"Failed to configure Source '{source_name}'")
             return False
         valid_methods = self._get_methods(Sources)
         applied = False
@@ -193,13 +202,17 @@ class ScheduleConfigurator(Super):
         if "telescope_code" in attributes:
             telescope_code = attributes["telescope_code"]
             telescope_obj = tel_obj.get(telescope_code)
-            if telescope_obj:
-                result = self._configure_telescope(telescope_obj, attributes)
-                if result:
-                    return True
-                logger.warning(f"Failed to configure Telescope '{telescope_code}'")
+            if telescope_obj is None:
+                logger.error(f"Telescope '{telescope_code}' not found in Telescopes")
                 return False
-            logger.warning(f"Telescope '{telescope_code}' not found in Telescopes")
+            if not isinstance(telescope_obj, (Telescope, SpaceTelescope)):
+                logger.error(f"Object with code '{telescope_code}' is not a Telescope or SpaceTelescope, got {type(telescope_obj).__name__}")
+                return False
+            nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_code"}
+            result = self._configure_telescope(telescope_obj, nested_attrs)
+            if result:
+                return True
+            logger.warning(f"Failed to configure Telescope '{telescope_code}'")
             return False
         valid_methods = self._get_methods(Telescopes)
         applied = False
@@ -251,25 +264,29 @@ class ScheduleConfigurator(Super):
 
         Args:
             scans_obj (Scans): The Scans object to configure.
-            attributes (Dict[str, Any]): Dictionary with optional "scan_name" for nested configuration.
+            attributes (Dict[str, Any]): Dictionary with optional "name" for nested configuration.
 
         Returns:
             bool: True if configuration is successful, False otherwise.
         """
-        if "scan_name" in attributes:
-            scan_name = attributes["scan_name"]
-            scan_obj = scans_obj.get(scan_name)
-            if scan_obj:
-                result = self._configure_scan(scan_obj, attributes)
-                if result:
-                    overlap, reason = scans_obj._check_overlap(scan_obj, exclude_name=scan_name)
-                    if overlap:
-                        logger.error(f"Modified scan '{scan_name}' {reason}")
-                        return False
-                    return True
-                logger.warning(f"Failed to configure Scan '{scan_name}'")
+        if "name" in attributes:
+            name = attributes["name"]
+            scan_obj = scans_obj.get(name)
+            if scan_obj is None:
+                logger.error(f"Scan '{name}' not found in Scans")
                 return False
-            logger.warning(f"Scan '{scan_name}' not found in Scans")
+            if not isinstance(scan_obj, Scan):
+                logger.error(f"Object with name '{name}' is not a Scan, got {type(scan_obj).__name__}")
+                return False
+            nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
+            result = self._configure_scan(scan_obj, nested_attrs)
+            if result:
+                overlap, reason = scans_obj._check_overlap(scan_obj, exclude_name=name)
+                if overlap:
+                    logger.error(f"Modified scan '{name}' {reason}")
+                    return False
+                return True
+            logger.warning(f"Failed to configure Scan '{name}'")
             return False
         valid_methods = self._get_methods(Scans)
         applied = False
@@ -316,16 +333,21 @@ class ScheduleConfigurator(Super):
         Returns:
             bool: True if configuration is successful, False otherwise.
         """
-        if "observation_code" in attributes:
-            observation_code = attributes["observation_code"]
-            observation_obj = project_obj.get_observation(observation_code)
+        if "name" in attributes:
+            name = attributes["name"]
+            try:
+                observation_obj = project_obj.get_observation(name)
+            except KeyError:
+                logger.error(f"Observation '{name}' not found in Project")
+                return False
             if observation_obj:
-                result = self._configure_observation(observation_obj, attributes)
+                nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
+                result = self._configure_observation(observation_obj, nested_attrs)
                 if result:
                     return True
-                logger.warning(f"Failed to configure Observation '{observation_code}'")
+                logger.warning(f"Failed to configure Observation '{name}'")
                 return False
-            logger.warning(f"Observation '{observation_code}' not found in ScheduleProject")
+            logger.warning(f"Observation '{name}' not found in ScheduleProject")
             return False
         valid_methods = self._get_methods(ScheduleProject)
         applied = False
