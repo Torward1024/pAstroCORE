@@ -68,7 +68,7 @@ class Super(ABC):
         """Retrieve a nested object from a container."""
         if isinstance(obj, BaseContainer):
             if not isinstance(key, str):
-                logger.error(f"Invalid index {key} for BaseContainer; expected string")
+                logger.error(f"Invalid key {key} for BaseContainer; expected string")
                 return None
             nested_obj = obj.get(key)
             if nested_obj is None:
