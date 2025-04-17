@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Dict, Any, Callable, Type, Optional, Union
+from typing import Dict, Any, Callable, Type, Optional
 from common.utils.logging_setup import logger
 from common.super.manipulator import Manipulator
 from common.base.basecontainer import BaseContainer
@@ -21,6 +21,8 @@ class Super(ABC):
     Notes:
         - Method resolution order: explicit method, prefixed method (`_<operation>_<method>`), type-specific method (`_<operation>_<type>`), default method (`_<operation>`).
         - Logging is integrated via `common.utils.logging_setup.logger`.
+        - Results are returned as dictionaries with keys: status (bool), object (Any), method (str | None),
+          result (Any), error (str | None, included only if status=False).
 
     Examples:
         >>> class Configurator(Super):
@@ -31,7 +33,7 @@ class Super(ABC):
         >>> config = Configurator(manip)
         >>> manip.register_operation("configure", config)
         >>> manip.process_request({"operation": "configure", "obj": [], "attributes": {"value": 1}})
-        True
+        {"status": True, "object": [1], "method": "_configure_list", "result": True}
     """
     def __init__(self, manipulator: 'Manipulator' = None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None,
                  cache_size: int = 2048):
@@ -40,6 +42,7 @@ class Super(ABC):
         Args:
             manipulator (Manipulator, optional): The Manipulator instance to associate with. Defaults to None.
             methods (Optional[Dict[Type, Dict[str, Callable]]]): Custom method registry. Defaults to None (empty dict).
+            cache_size (int): Maximum size of the method cache. Defaults to 2048.
         """
         self._manipulator = manipulator
         self._methods = methods or {}
@@ -63,9 +66,18 @@ class Super(ABC):
         if self._manipulator:
             return self._manipulator.get_methods_for_type(obj_type)
         raise ValueError(f"No methods available for {obj_type.__name__}")
-    
+
     def _get_nested_object(self, obj: Any, key: Any, getter_method: Callable) -> Any:
-        """Retrieve a nested object from a container."""
+        """Retrieve a nested object from a container.
+
+        Args:
+            obj (Any): The object to query.
+            key (Any): The key or index to access the nested object.
+            getter_method (Callable): Method to retrieve the nested object by key.
+
+        Returns:
+            Any: The nested object, or None if the key is invalid.
+        """
         if isinstance(obj, BaseContainer):
             if not isinstance(key, str):
                 logger.error(f"Invalid key {key} for BaseContainer; expected string")
@@ -80,76 +92,105 @@ class Super(ABC):
         return getter_method(key)
 
     def _do_nested(self, obj: Any, attributes: Dict[str, Any], key: str, getter_method: Callable,
-                   nested_handler: Callable) -> Any:
+                   nested_handler: Callable) -> Dict[str, Any]:
         """Handle nested operations on an object using an index and a handler.
 
         Args:
             obj (Any): The object containing nested elements.
             attributes (Dict[str, Any]): Attributes dictionary with an optional key.
-            key (str): The key in attributes specifying the key.
+            key (str): The key in attributes specifying the index or name.
             getter_method (Callable): Method to retrieve the nested object by key.
             nested_handler (Callable): Method to process the nested object.
 
         Returns:
-            Any: The result of the nested operation, or a default result if key is invalid or missing.
+            Dict[str, Any]: Dictionary with status, object, method, result, and error (if status=False).
         """
         index = attributes.get(key)
         if index is None:
             logger.debug(f"No {key} provided for nested operation")
-            return self._default_nested_result()
-        
+            return self._default_nested_result(obj)
+
         try:
             nested_obj = self._get_nested_object(obj, index, getter_method)
             if nested_obj is None:
-                return self._default_nested_result()
-            
+                return self._default_nested_result(obj)
+
             nested_attrs = {k: v for k, v in attributes.items() if k != key}
             result = nested_handler(nested_obj, nested_attrs)
+            method_name = nested_handler.__name__ if hasattr(nested_handler, '__name__') else None
             logger.info(f"Processed nested operation on {type(obj).__name__} with {key}={index}")
-            return result
+            return {"status": True, "object": nested_obj, "method": method_name, "result": result}
         except Exception as e:
             logger.error(f"Nested operation failed: {str(e)}")
-            return self._default_nested_result()
+            return {"status": False, "object": obj, "method": None, "result": None, "error": str(e)}
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any,
-                               valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Optional[Any]:
+                                   valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
         """Validate and apply a method to an object with given arguments.
 
         Args:
             obj (Any): The object to apply the method to.
             method_name (str): The name of the method to apply.
-            method_args (Any): Arguments for the method, expected as a dict or None.
+            method_args (Any): Arguments for the method, expected as a dict, str, list, or None.
             valid_methods (Dict[str, Callable]): Dictionary of valid methods for the object type.
             extra_args (Dict[str, Any], optional): Additional arguments to merge with method_args. Defaults to None.
 
         Returns:
-            Optional[Any]: The result of the method application (True on success), or None if validation or execution fails.
+            Dict[str, Any]: Dictionary with status, object, method, result, and error (if status=False).
         """
         if method_name not in valid_methods:
             logger.error(f"Invalid attribute/method '{method_name}' for '{type(obj).__name__} object'")
-            return None
-        if method_args is not None and not isinstance(method_args, dict):
-            logger.error(f"Arguments for {method_name} must be a dictionary or None, got {type(method_args)}")
-            return None
-        
+            return {"status": False, "object": obj, "method": None, "result": None, "error": f"Method '{method_name}' not found"}
+
         method = valid_methods[method_name]
         sig = inspect.signature(method)
-        expected_params = set(sig.parameters.keys()) - {"self"}
-        provided_params = set(method_args.keys()) if method_args else set()
+        expected_params = set(sig.parameters.keys()) - {"self", "obj"}
 
-        if method_args and not provided_params.issubset(expected_params):
-            logger.error(f"Invalid arguments for {method_name}: expected {expected_params}, got {provided_params}")
-            return None
+        if method_args is not None and not isinstance(method_args, (dict, str, list, type(None))):
+            logger.error(f"Arguments for {method_name} must be a dictionary, string, list, or None, got {type(method_args)}")
+            return {"status": False, "object": obj, "method": method_name, "result": None, "error": f"Invalid argument type: {type(method_args)}"}
+
+        if method_args is not None and not isinstance(method_args, (dict, type(None))):
+            valid_arg = False
+            for param_name, param in sig.parameters.items():
+                if param_name in ("self", "obj"):
+                    continue
+                annotation = param.annotation
+                if annotation is inspect.Parameter.empty:
+                    # Если нет аннотации, считаем строки и списки недопустимыми
+                    if isinstance(method_args, (str, list)):
+                        logger.error(f"Invalid argument type for {method_name}: got {type(method_args)}")
+                        return {"status": False, "object": obj, "method": method_name, "result": None, "error": f"Invalid argument type: {type(method_args)}"}
+                    valid_arg = True
+                    break
+                if isinstance(method_args, annotation):
+                    valid_arg = True
+                    break
+            if not valid_arg:
+                logger.error(f"Invalid argument type for {method_name}: got {type(method_args)}")
+                return {"status": False, "object": obj, "method": method_name, "result": None, "error": f"Invalid argument type: {type(method_args)}"}
+
+        if isinstance(method_args, dict):
+            provided_params = set(method_args.keys())
+            if not provided_params.issubset(expected_params):
+                logger.error(f"Invalid arguments for {method_name}: expected {expected_params}, got {provided_params}")
+                return {"status": False, "object": obj, "method": method_name, "result": None, "error": f"Invalid arguments: expected {expected_params}, got {provided_params}"}
 
         try:
             if extra_args:
-                method_args = {**(method_args or {}), **extra_args}
-            result = method(obj, **method_args) if method_args else method(obj)
+                method_args = {**(method_args or {}), **extra_args} if isinstance(method_args, dict) else method_args
+            if isinstance(method_args, dict):
+                result = method(obj, **method_args)
+            elif method_args is None:
+                result = method(obj)
+            else:
+                result = method(obj, method_args)
+
             logger.info(f"Applied {method_name} to {type(obj).__name__}, result={result}")
-            return True
+            return {"status": True, "object": obj, "method": method_name, "result": result}
         except Exception as e:
             logger.error(f"Failed to apply {method_name} to {type(obj).__name__}: {str(e)}")
-            return None
+            return {"status": False, "object": obj, "method": method_name, "result": None, "error": str(e)}
 
     def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
         """Register a custom method for a specific object type.
@@ -166,21 +207,33 @@ class Super(ABC):
         logger.info(f"Registered method '{method_name}' for {obj_type.__name__}")
 
     def _make_hashable(self, obj: Any) -> Any:
-        """Convert an object into a hashable form for caching."""
+        """Convert an object into a hashable form for caching.
+
+        Args:
+            obj (Any): The object to convert.
+
+        Returns:
+            Any: A hashable representation of the object.
+        """
         if isinstance(obj, dict):
             return tuple(sorted((k, self._make_hashable(v)) for k, v in obj.items()))
         elif isinstance(obj, (list, tuple)):
             return tuple(self._make_hashable(item) for item in obj)
         return obj
-    
-    def _update_cache(self, key: tuple, value: Any) -> None:
-        """Update the cache with a new key-value pair, respecting the size limit."""
+
+    def _update_cache(self, key: tuple, value: Dict[str, Any]) -> None:
+        """Update the cache with a new key-value pair, respecting the size limit.
+
+        Args:
+            key (tuple): The cache key.
+            value (Dict[str, Any]): The result to cache.
+        """
         if len(self._method_cache) >= self._cache_size:
             self._method_cache.popitem(last=False)
         self._method_cache[key] = value
-        logger.debug(f"Cache updated with key {key}")    
+        logger.debug(f"Cache updated with key {key}")
 
-    def execute(self, obj: Any, attributes: Dict[str, Any] = None, method: str = None) -> Union[Dict[str, Any], bool]:
+    def execute(self, obj: Any, attributes: Dict[str, Any] = None, method: str = None) -> Dict[str, Any]:
         """Execute an operation on an object based on attributes and an optional method.
 
         Args:
@@ -189,7 +242,7 @@ class Super(ABC):
             method (str, optional): Explicit method to call, if provided in the request.
 
         Returns:
-            Union[Dict[str, Any], bool]: The result of the operation.
+            Dict[str, Any]: Dictionary with status, object, method, result, and error (if status=False).
 
         Raises:
             ValueError: If no suitable method is found.
@@ -197,7 +250,7 @@ class Super(ABC):
         if attributes is None:
             attributes = {}
         cache_key = (self._operation, type(obj).__name__, method, self._make_hashable(attributes))
-        
+
         if cache_key in self._method_cache:
             logger.debug(f"Cache hit for {cache_key}")
             return self._method_cache[cache_key]
@@ -207,9 +260,10 @@ class Super(ABC):
                 method_func = getattr(self, method, None)
                 if callable(method_func):
                     result = method_func(obj, attributes)
-                    self._update_cache(cache_key, result)
-                    return result
-            
+                    response = {"status": True, "object": obj, "method": method, "result": result}
+                    self._update_cache(cache_key, response)
+                    return response
+
             method_name = attributes.get("method")
             if not method_name and "attributes" in attributes and isinstance(attributes["attributes"], dict):
                 nested_attrs = attributes["attributes"]
@@ -217,67 +271,78 @@ class Super(ABC):
                 object_attributes = nested_attrs
             else:
                 object_attributes = {k: v for k, v in attributes.items() if k != 'method'}
-            
+
             if method_name:
                 method = getattr(self, method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    self._update_cache(cache_key, result)
-                    return result
-                    
+                    response = {"status": True, "object": obj, "method": method_name, "result": result}
+                    self._update_cache(cache_key, response)
+                    return response
+
                 prefixed_method_name = f"_{self._operation}_{method_name}"
                 method = getattr(self, prefixed_method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    self._update_cache(cache_key, result)
-                    return result
+                    response = {"status": True, "object": obj, "method": prefixed_method_name, "result": result}
+                    self._update_cache(cache_key, response)
+                    return response
 
             obj_type_name = type(obj).__name__.lower()
             auto_method_name = f"_{self._operation}_{obj_type_name}"
             method = getattr(self, auto_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
-                self._update_cache(cache_key, result)
-                return result
+                response = {"status": True, "object": obj, "method": auto_method_name, "result": result}
+                self._update_cache(cache_key, response)
+                return response
 
             if isinstance(obj, BaseContainer):
                 base_method_name = f"_{self._operation}_basecontainer"
                 method = getattr(self, base_method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    self._update_cache(cache_key, result)
-                    return result
+                    response = {"status": True, "object": obj, "method": base_method_name, "result": result}
+                    self._update_cache(cache_key, response)
+                    return response
 
             default_method_name = f"_{self._operation}"
             method = getattr(self, default_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
-                self._update_cache(cache_key, result)
-                return result
+                response = {"status": True, "object": obj, "method": default_method_name, "result": result}
+                self._update_cache(cache_key, response)
+                return response
 
             raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type_name}' in {self.__class__.__name__}")
         except ValueError as e:
             logger.error(f"Execution failed for operation '{self._operation}': {str(e)}")
-            return self._default_result()
+            return self._default_result(obj)
         except Exception as e:
             logger.error(f"Unexpected error in execute for '{self._operation}': {str(e)}")
-            return self._default_result()
+            return self._default_result(obj)
 
-    def _default_result(self) -> Union[Dict[str, Any], bool]:
+    def _default_result(self, obj: Any) -> Dict[str, Any]:
         """Provide a default result when an operation cannot be executed.
 
-        Returns:
-            Union[Dict[str, Any], bool]: An empty dictionary as the default result.
-        """
-        return {"success": False, "error": "Operation not executed"}
+        Args:
+            obj (Any): The object associated with the operation.
 
-    def _default_nested_result(self) -> Union[Dict[str, Any], bool]:
+        Returns:
+            Dict[str, Any]: Dictionary with status, object, method, result, and error.
+        """
+        return {"status": False, "object": obj, "method": None, "result": None, "error": "Operation not executed"}
+
+    def _default_nested_result(self, obj: Any) -> Dict[str, Any]:
         """Provide a default result for nested operations.
 
+        Args:
+            obj (Any): The object associated with the operation.
+
         Returns:
-            Union[Dict[str, Any], bool]: An empty dictionary as the default result.
+            Dict[str, Any]: Dictionary with status, object, method, result, and error.
         """
-        return {"success": False, "error": "Operation not executed"}
+        return {"status": False, "object": obj, "method": None, "result": None, "error": "Operation not executed"}
 
     def __repr__(self) -> str:
         """Return a string representation of the Super instance.

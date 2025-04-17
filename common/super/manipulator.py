@@ -5,28 +5,30 @@ from functools import lru_cache
 import inspect
 
 class Manipulator(ABC):
-    """Abstract ``mega`` class for managing and processing operations on objects.
+    """Abstract class for managing and processing operations on objects.
 
     Provides a framework for registering operations and their associated methods, managing a central object,
     and processing requests. Maintains a registry of supported object types and their methods, with caching
-    for performance. Super-classes can extend this to implement specific manipulation logic.
+    for performance. Subclasses can extend this to implement specific manipulation logic.
 
     Attributes:
-        _managing_object (Optional[Any]): The central object being managed by the manipulator.
+        _managing_object (Optional[Any]): The central object being managed.
         _base_classes (List[Type]): List of base classes whose methods are registered.
-        _operations (Dict[str, Callable]): Dictionary mapping operation names to their super-instance handlers.
+        _operations (Dict[str, Callable]): Dictionary mapping operation names to super-instance handlers.
         _registry (Dict[Type, Dict[str, Callable]]): Registry of object types and their available methods.
 
     Notes:
         - Uses `functools.lru_cache` to optimize method registry generation.
         - Logging is integrated via `common.utils.logging_setup.logger`.
-        - Operations are executed via super-instances (e.g., super-classes `Super`) that must have an `execute` method.
+        - Operations are executed via super-instances that must have an `execute` method.
+        - Results are returned as dictionaries with keys: status (bool), object (Any), method (str | None),
+          result (Any), error (str | None, included only if status=False).
 
     Examples:
         >>> manip = Manipulator(base_classes=[list])
         >>> manip.register_operation("append", Super())  # Assuming super-class with execute method
         >>> manip.process_request({"operation": "append", "obj": [], "attributes": {"value": 1}})
-        True  # Assuming Super.execute modifies the list and returns True
+        {"status": True, "object": [1], "method": "append", "result": True}
     """
     def __init__(self, managing_object: Optional[Any] = None,
                  base_classes: Optional[List[Type]] = None,
@@ -36,8 +38,9 @@ class Manipulator(ABC):
 
         Args:
             managing_object (Optional[Any]): The central object to manage. Defaults to None.
-            base_classes (Optional[List[Type]]): List of classes whose methods are registered. Defaults to None (empty list).
-            operations (Optional[Dict[str, Callable]]): Initial operations mapped to super-instances. Defaults to None (empty dict).
+            base_classes (Optional[List[Type]]): List of base classes for method registration. Defaults to None.
+            operations (Optional[Dict[str, Callable]]): Initial operations to register. Defaults to None.
+            strict_type_check (bool): If True, enforce strict type checking for objects. Defaults to False.
         """
         self._managing_object = managing_object
         self._strict_type_check = strict_type_check
@@ -68,15 +71,18 @@ class Manipulator(ABC):
         """
         return self._managing_object
 
-    def _validate_object(self, obj: Any, obj_type: str) -> None:
+    def _validate_object(self, obj: Any, obj_type: str) -> Any:
         """Validate that an object is provided and supported.
 
         Args:
             obj (Any): The object to validate.
             obj_type (str): Descriptive name of the object type for error messages.
 
+        Returns:
+            Any: The validated object.
+
         Raises:
-            ValueError: If neither obj nor _managing_object is provided, or if obj type is not in the registry.
+            ValueError: If no object is provided or the type is unsupported.
         """
         effective_obj = obj if obj is not None else self._managing_object
         if effective_obj is None:
@@ -94,10 +100,10 @@ class Manipulator(ABC):
             obj_type (Type): The type of object to query methods for.
 
         Returns:
-            Dict[str, Callable]: Dictionary of method names mapped to their callable implementations.
+            Dict[str, Callable]: Dictionary of method names and their callable implementations.
 
         Raises:
-            ValueError: If no methods are registered for the specified type.
+            ValueError: If no methods are registered for the type.
         """
         if obj_type not in self._registry:
             logger.error(f"No methods registered for type {obj_type.__name__}")
@@ -109,25 +115,26 @@ class Manipulator(ABC):
 
         Args:
             additional_classes (Optional[List[Type]]): Additional classes to register. Defaults to None.
-            clear_operations (bool): If True, clear all registered operations. Defaults to False.
+            clear_operations (bool): If True, clear all operations. Defaults to False.
         """
         if clear_operations:
             self._operations.clear()
             logger.info("Cleared all operations in registry")
         if additional_classes:
             self._base_classes.extend([cls for cls in additional_classes if cls not in self._base_classes])
-        self._registry = self._get_method_registry.cache_clear() or self._get_method_registry()
+        self._get_method_registry.cache_clear()
+        self._registry = self._get_method_registry()
         logger.info(f"Registry updated with {len(self._registry)} types")
 
     def register_operation(self, operation: str, super_instance: Callable) -> None:
         """Register an operation with its super-instance handler.
 
         Args:
-            operation (str): The name of the operation. Must be a non-empty string.
-            super_instance (Callable): The super-instance (e.g., super-class `Super`) with an `execute` method.
+            operation (str): The name of the operation.
+            super_instance (Callable): The super-instance with an 'execute' method.
 
         Raises:
-            ValueError: If operation is not a non-empty string or super_instance lacks an `execute` method.
+            ValueError: If the operation name is invalid or the super-instance lacks an 'execute' method.
         """
         if not isinstance(operation, str) or not operation:
             logger.error("Operation name must be a non-empty string")
@@ -152,10 +159,11 @@ class Manipulator(ABC):
     def _get_method_registry(self, validate_annotations: bool = False) -> Dict[Type, Dict[str, Callable]]:
         """Generate and cache the method registry for registered operations and base classes.
 
-        Returns:
-            Dict[Type, Dict[str, Callable]]: A registry mapping object types to their methods.
         Args:
-            validate_annotations (bool): If True, validate method annotations. Defaults to False.
+            validate_annotations (bool): If True, validate method return annotations. Defaults to False.
+
+        Returns:
+            Dict[Type, Dict[str, Callable]]: Registry of types and their methods.
         """
         registry = {}
         for operation, instance in self._operations.items():
@@ -174,7 +182,7 @@ class Manipulator(ABC):
 
         for cls in self._base_classes:
             methods = {}
-            if cls in (list, dict, set):  # Поддержка встроенных типов
+            if cls in (list, dict, set):
                 for name in dir(cls):
                     if name.startswith('_'):
                         continue
@@ -200,19 +208,15 @@ class Manipulator(ABC):
     def process_request(self, request: Dict[str, Any]) -> Any:
         """Process a request or sequence of requests.
 
-        Handles both single requests and nested dictionaries of requests, delegating to `_process_single_request`.
-
         Args:
-            request (Dict[str, Any]): A dictionary specifying the operation, object, and attributes, or a sequence of such dictionaries.
+            request (Dict[str, Any]): The request dictionary specifying the operation, object, and attributes.
 
         Returns:
-            Any: The result of the request(s). For a single request, the result of `_process_single_request`; for a sequence, a dict of results.
+            Any: For a single request, a dictionary with status, object, method, result, and error (if status=False).
+                 For a sequence of requests, a dictionary mapping request IDs to results.
 
-        Examples:
-            >>> manip.process_request({"operation": "append", "obj": [], "attributes": {"value": 1}})
-            True
-            >>> manip.process_request({"req1": {"operation": "append", "obj": [], "attributes": {"value": 1}}})
-            {'req1': True}
+        Raises:
+            TypeError: If the request is not a dictionary.
         """
         if not isinstance(request, dict):
             logger.error(f"Invalid request type: expected dict, got {type(request).__name__}")
@@ -226,50 +230,67 @@ class Manipulator(ABC):
             return results
         return self._process_single_request(request)
 
-    def _process_single_request(self, request: Dict[str, Any]) -> Any:
+    def _process_single_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single request by executing the specified operation.
 
+        Args:
+            request (Dict[str, Any]): The request dictionary with operation, object, and attributes.
+
         Returns:
-            Dict[str, Any]: A dictionary with 'success' (bool) and either 'result' or 'error' keys.
+            Dict[str, Any]: Dictionary with status, object, method, result, and error (if status=False).
         """
         operation = request.get("operation")
         obj = request.get("obj")
         method = request.get("method")
         attributes = request.get("attributes", {})
-        
+
         if not operation:
             error_msg = "No operation specified in request"
             logger.error(error_msg)
-            return {"success": False, "error": error_msg}
+            return {"status": False, "object": obj, "method": None, "result": None, "error": error_msg}
 
         super_instance = self._operations.get(operation)
         if super_instance is None:
             error_msg = f"Operation '{operation}' not registered"
             logger.error(error_msg)
-            return {"success": False, "error": error_msg}
-        
-        effective_obj = self._validate_object(obj, "request object")
-        
+            return {"status": False, "object": obj, "method": None, "result": None, "error": error_msg}
+
+        try:
+            effective_obj = self._validate_object(obj, "request object")
+        except ValueError as e:
+            logger.error(f"Object validation failed: {str(e)}")
+            return {"status": False, "object": obj, "method": None, "result": None, "error": str(e)}
+
         execute_args = {"obj": effective_obj}
         if attributes or method:
             if not isinstance(attributes, dict):
                 logger.error(f"Attributes must be a dictionary, got {type(attributes).__name__}")
-                return {"success": False, "error": "Invalid attributes type"}
+                return {"status": False, "object": effective_obj, "method": None, "result": None, "error": "Invalid attributes type"}
             execute_args["attributes"] = attributes.copy()
             if method:
                 execute_args["method"] = method
+
         try:
-            result = super_instance.execute(**execute_args)
-            return {"success": True, "result": result}
+            super_result = super_instance.execute(**execute_args)
+            logger.info(f"Processed operation '{operation}' on {type(effective_obj).__name__}")
+            result_dict = {
+                "status": super_result["status"],
+                "object": super_result["object"],
+                "method": super_result["method"],
+                "result": super_result["result"]
+            }
+            if not super_result["status"]:
+                result_dict["error"] = super_result["error"]
+            return result_dict
         except Exception as e:
             logger.error(f"Failed to process request '{operation}' via execute: {str(e)}")
-            return {"success": False, "error": str(e)}
+            return {"status": False, "object": effective_obj, "method": None, "result": None, "error": str(e)}
 
     def get_supported_operations(self) -> List[str]:
         """Retrieve the list of supported operation names.
 
         Returns:
-            List[str]: A list of registered operation names.
+            List[str]: List of registered operation names.
         """
         return list(self._operations.keys())
 
@@ -277,7 +298,7 @@ class Manipulator(ABC):
         """Return a string representation of the Manipulator.
 
         Returns:
-            str: A formatted string with the managing object type and registered operations.
+            str: A formatted string with the managing object type and operations.
         """
         obj_type = type(self._managing_object).__name__ if self._managing_object else "None"
         return f"Manipulator(managing_object='{obj_type}', operations={list(self._operations.keys())})"

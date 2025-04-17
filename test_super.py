@@ -1,47 +1,48 @@
 import unittest
 from unittest.mock import Mock, patch
-from typing import Dict, Any, Union
+from typing import Dict, Any
 from common.super.super import Super
 from common.super.manipulator import Manipulator
 from common.utils.logging_setup import logger
+from collections import OrderedDict
 
 class TestSuper(unittest.TestCase):
     def setUp(self):
-        """Подготовка перед каждым тестом."""
+        """Set up before each test."""
         self.manipulator = Mock(spec=Manipulator)
         self.manipulator.get_methods_for_type.return_value = {}
 
     def test_init_basic(self):
-        """Тест базовой инициализации Super."""
+        """Test basic initialization of Super."""
         super_instance = Super()
         self.assertIsNone(super_instance._manipulator)
         self.assertEqual(super_instance._methods, {})
-        self.assertEqual(super_instance._method_cache, {})
+        self.assertIsInstance(super_instance._method_cache, OrderedDict)
 
     def test_init_with_manipulator(self):
-        """Тест инициализации с Manipulator."""
+        """Test initialization with Manipulator."""
         super_instance = Super(manipulator=self.manipulator)
         self.assertEqual(super_instance._manipulator, self.manipulator)
         self.assertEqual(super_instance._methods, {})
-        self.assertEqual(super_instance._method_cache, {})
+        self.assertIsInstance(super_instance._method_cache, OrderedDict)
 
     def test_init_with_methods(self):
-        """Тест инициализации с кастомным реестром методов."""
+        """Test initialization with custom method registry."""
         methods = {list: {"append": lambda x: x.append(1)}}
         super_instance = Super(methods=methods)
         self.assertIsNone(super_instance._manipulator)
         self.assertEqual(super_instance._methods, methods)
-        self.assertEqual(super_instance._method_cache, {})
+        self.assertIsInstance(super_instance._method_cache, OrderedDict)
 
     def test_get_methods_from_methods(self):
-        """Тест получения методов из _methods."""
+        """Test retrieving methods from _methods."""
         methods = {list: {"append": lambda x: x.append(1)}}
         super_instance = Super(methods=methods)
         result = super_instance._get_methods(list)
         self.assertEqual(result, methods[list])
 
     def test_get_methods_from_manipulator(self):
-        """Тест получения методов из Manipulator."""
+        """Test retrieving methods from Manipulator."""
         self.manipulator.get_methods_for_type.return_value = {"append": lambda x: x.append(1)}
         super_instance = Super(manipulator=self.manipulator)
         result = super_instance._get_methods(list)
@@ -51,14 +52,14 @@ class TestSuper(unittest.TestCase):
         self.assertEqual(test_list, [1])
 
     def test_get_methods_raises_value_error(self):
-        """Тест выброса исключения при отсутствии методов."""
+        """Test raising ValueError when no methods are available."""
         super_instance = Super()
         with self.assertRaises(ValueError) as cm:
             super_instance._get_methods(list)
         self.assertEqual(str(cm.exception), "No methods available for list")
 
     def test_do_nested_valid_index(self):
-        """Тест вложенной операции с корректным индексом."""
+        """Test nested operation with valid index."""
         class TestSuper(Super):
             def _test_method(self, obj, attrs):
                 return obj + attrs.get("value", 0)
@@ -69,13 +70,16 @@ class TestSuper(unittest.TestCase):
         result = super_instance._do_nested(
             obj, attributes, "index", lambda i: obj[i], super_instance._test_method
         )
-        self.assertEqual(result, 12)  # 2 + 10
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 2)
+        self.assertEqual(result["method"], "_test_method")
+        self.assertEqual(result["result"], 12)
+        self.assertNotIn("error", result)
 
     def test_do_nested_invalid_index(self):
-        """Тест вложенной операции с некорректным индексом."""
+        """Test nested operation with invalid index."""
         class TestSuper(Super):
-            def _default_nested_result(self):
-                return {"success": False, "error": "Invalid index"}
+            pass
 
         super_instance = TestSuper()
         obj = [1, 2, 3]
@@ -83,13 +87,16 @@ class TestSuper(unittest.TestCase):
         result = super_instance._do_nested(
             obj, attributes, "index", lambda i: obj[i], lambda x, y: x
         )
-        self.assertEqual(result, {"success": False, "error": "Invalid index"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], obj)
+        self.assertIsNone(result["method"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Operation not executed")
 
     def test_do_nested_no_index(self):
-        """Тест вложенной операции без индекса."""
+        """Test nested operation without index."""
         class TestSuper(Super):
-            def _default_nested_result(self):
-                return {"success": False, "error": "No index"}
+            pass
 
         super_instance = TestSuper()
         obj = [1, 2, 3]
@@ -97,10 +104,14 @@ class TestSuper(unittest.TestCase):
         result = super_instance._do_nested(
             obj, attributes, "index", lambda i: obj[i], lambda x, y: x
         )
-        self.assertEqual(result, {"success": False, "error": "No index"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], obj)
+        self.assertIsNone(result["method"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Operation not executed")
 
     def test_validate_and_apply_method_valid(self):
-        """Тест валидации и применения метода с корректными аргументами."""
+        """Test validation and application of a valid method."""
         class TestSuper(Super):
             def test_method(self, obj, value):
                 return obj + value
@@ -110,19 +121,27 @@ class TestSuper(unittest.TestCase):
         result = super_instance._validate_and_apply_method(
             obj=5, method_name="test_method", method_args={"value": 10}, valid_methods=valid_methods
         )
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "test_method")
+        self.assertEqual(result["result"], 15)
+        self.assertNotIn("error", result)
 
     def test_validate_and_apply_method_invalid_method(self):
-        """Тест валидации с некорректным методом."""
+        """Test validation with an invalid method."""
         super_instance = Super()
         valid_methods = {}
         result = super_instance._validate_and_apply_method(
             obj=5, method_name="invalid_method", method_args={"value": 10}, valid_methods=valid_methods
         )
-        self.assertIsNone(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertIsNone(result["method"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Method 'invalid_method' not found")
 
     def test_validate_and_apply_method_invalid_args_type(self):
-        """Тест валидации с некорректным типом аргументов."""
+        """Test validation with invalid argument type."""
         class TestSuper(Super):
             def test_method(self, obj, value):
                 return obj + value
@@ -132,10 +151,14 @@ class TestSuper(unittest.TestCase):
         result = super_instance._validate_and_apply_method(
             obj=5, method_name="test_method", method_args="not_a_dict", valid_methods=valid_methods
         )
-        self.assertIsNone(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "test_method")
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Invalid argument type: <class 'str'>")
 
     def test_validate_and_apply_method_invalid_args_keys(self):
-        """Тест валидации с некорректными ключами аргументов."""
+        """Test validation with invalid argument keys."""
         class TestSuper(Super):
             def test_method(self, obj, value):
                 return obj + value
@@ -145,19 +168,23 @@ class TestSuper(unittest.TestCase):
         result = super_instance._validate_and_apply_method(
             obj=5, method_name="test_method", method_args={"wrong_key": 10}, valid_methods=valid_methods
         )
-        self.assertIsNone(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "test_method")
+        self.assertIsNone(result["result"])
+        self.assertIn("Invalid arguments", result["error"])
 
     def test_register_method(self):
-        """Тест регистрации кастомного метода."""
+        """Test registering a custom method."""
         super_instance = Super()
         mock_method = Mock()
         super_instance.register_method(list, "append", mock_method)
         self.assertIn(list, super_instance._methods)
         self.assertEqual(super_instance._methods[list]["append"], mock_method)
-        self.assertEqual(super_instance._method_cache, {})  # Кэш очищен
+        self.assertEqual(super_instance._method_cache, {})
 
     def test_execute_explicit_method(self):
-        """Тест выполнения с явным методом."""
+        """Test execution with an explicit method."""
         class TestSuper(Super):
             def explicit_method(self, obj, attrs):
                 return obj + attrs.get("value", 0)
@@ -165,13 +192,14 @@ class TestSuper(unittest.TestCase):
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10}, method="explicit_method")
-        self.assertEqual(result, 15)
-        # Проверка кэширования
-        cached_result = super_instance.execute(obj=5, attributes={"value": 10}, method="explicit_method")
-        self.assertEqual(cached_result, 15)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "explicit_method")
+        self.assertEqual(result["result"], 15)
+        self.assertNotIn("error", result)
 
     def test_execute_method_from_attributes(self):
-        """Тест выполнения метода из attributes."""
+        """Test execution with method from attributes."""
         class TestSuper(Super):
             def custom_method(self, obj, attrs):
                 return obj + attrs.get("value", 0)
@@ -179,10 +207,14 @@ class TestSuper(unittest.TestCase):
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"method": "custom_method", "value": 10})
-        self.assertEqual(result, 15)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "custom_method")
+        self.assertEqual(result["result"], 15)
+        self.assertNotIn("error", result)
 
     def test_execute_prefixed_method(self):
-        """Тест выполнения метода с префиксом операции."""
+        """Test execution with prefixed method."""
         class TestSuper(Super):
             def _test_add(self, obj, attrs):
                 return obj + attrs.get("value", 0)
@@ -190,10 +222,14 @@ class TestSuper(unittest.TestCase):
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"method": "add", "value": 10})
-        self.assertEqual(result, 15)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "_test_add")
+        self.assertEqual(result["result"], 15)
+        self.assertNotIn("error", result)
 
     def test_execute_type_specific_method(self):
-        """Тест выполнения метода для конкретного типа."""
+        """Test execution with type-specific method."""
         class TestSuper(Super):
             def _test_int(self, obj, attrs):
                 return obj + attrs.get("value", 0)
@@ -201,10 +237,14 @@ class TestSuper(unittest.TestCase):
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
-        self.assertEqual(result, 15)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "_test_int")
+        self.assertEqual(result["result"], 15)
+        self.assertNotIn("error", result)
 
     def test_execute_default_method(self):
-        """Тест выполнения метода по умолчанию."""
+        """Test execution with default method."""
         class TestSuper(Super):
             def _test(self, obj, attrs):
                 return obj + attrs.get("value", 0)
@@ -212,10 +252,14 @@ class TestSuper(unittest.TestCase):
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
-        self.assertEqual(result, 15)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "_test")
+        self.assertEqual(result["result"], 15)
+        self.assertNotIn("error", result)
 
     def test_execute_nested_attributes(self):
-        """Тест выполнения с вложенными атрибутами."""
+        """Test execution with nested attributes."""
         class TestSuper(Super):
             def custom_method(self, obj, attrs):
                 return obj + attrs.get("value", 0)
@@ -223,32 +267,39 @@ class TestSuper(unittest.TestCase):
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"attributes": {"method": "custom_method", "value": 10}})
-        self.assertEqual(result, 15)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "custom_method")
+        self.assertEqual(result["result"], 15)
+        self.assertNotIn("error", result)
 
     def test_execute_no_method_found(self):
-        """Тест выполнения, когда метод не найден."""
-        class TestSuper(Super):
-            def _default_result(self):
-                return {"success": False, "error": "No method"}
-
-        super_instance = TestSuper()
+        """Test execution when no method is found."""
+        super_instance = Super()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
-        self.assertEqual(result, {"success": False, "error": "No method"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertIsNone(result["method"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Operation not executed")
 
     def test_execute_value_error(self):
-        """Тест обработки ValueError в execute."""
+        """Test handling ValueError in execute."""
         class TestSuper(Super):
             def _test(self, obj, attrs):
                 raise ValueError("Test error")
-
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
-        self.assertEqual(result, {"success": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertIsNone(result["method"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Operation not executed")
 
     def test_execute_unexpected_error(self):
-        """Тест обработки неожиданной ошибки в execute."""
+        """Test handling unexpected error in execute."""
         class TestSuper(Super):
             def _test(self, obj, attrs):
                 raise Exception("Unexpected error")
@@ -256,10 +307,14 @@ class TestSuper(unittest.TestCase):
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
-        self.assertEqual(result, {"success": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertIsNone(result["method"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Operation not executed")
 
     def test_execute_caching(self):
-        """Тест работы кэширования в execute."""
+        """Test caching behavior in execute."""
         class TestSuper(Super):
             def _test(self, obj, attrs):
                 return obj + attrs.get("value", 0)
@@ -267,40 +322,73 @@ class TestSuper(unittest.TestCase):
         super_instance = TestSuper()
         super_instance._operation = "test"
         result1 = super_instance.execute(obj=5, attributes={"value": 10})
-        self.assertEqual(result1, 15)
-        # Проверяем, что результат берется из кэша
+        self.assertTrue(result1["status"])
+        self.assertEqual(result1["object"], 5)
+        self.assertEqual(result1["method"], "_test")
+        self.assertEqual(result1["result"], 15)
+        self.assertNotIn("error", result1)
         with patch.object(TestSuper, "_test") as mock_method:
             result2 = super_instance.execute(obj=5, attributes={"value": 10})
-            self.assertEqual(result2, 15)
+            self.assertTrue(result2["status"])
+            self.assertEqual(result2["object"], 5)
+            self.assertEqual(result2["method"], "_test")
+            self.assertEqual(result2["result"], 15)
+            self.assertNotIn("error", result2)
             mock_method.assert_not_called()
 
-    def test_integration_with_manipulator(self):
-        """Тест интеграции с Manipulator."""
+    def test_execute_cache_size_limit(self):
+        """Test cache size limit enforcement."""
         class TestSuper(Super):
             def _test(self, obj, attrs):
                 return obj + attrs.get("value", 0)
 
-        manip = Manipulator()  # strict_type_check=False по умолчанию
+        super_instance = TestSuper(cache_size=1)
+        super_instance._operation = "test"
+        super_instance.execute(obj=5, attributes={"value": 10})
+        super_instance.execute(obj=6, attributes={"value": 20})
+        self.assertEqual(len(super_instance._method_cache), 1)
+
+    def test_integration_with_manipulator(self):
+        """Test integration with Manipulator."""
+        class TestSuper(Super):
+            def _test(self, obj, attrs):
+                return obj + attrs.get("value", 0)
+
+        manip = Manipulator()
         super_instance = TestSuper(manipulator=manip)
         manip.register_operation("test", super_instance)
         request = {"operation": "test", "obj": 5, "attributes": {"value": 10}}
         result = manip.process_request(request)
-        self.assertEqual(result, {"success": True, "result": 15})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["method"], "_test")
+        self.assertEqual(result["result"], 15)
+        self.assertNotIn("error", result)
 
     def test_default_result(self):
-        """Тест метода _default_result."""
+        """Test _default_result method."""
         super_instance = Super()
-        result = super_instance._default_result()
-        self.assertEqual(result, {"success": False, "error": "Operation not executed"})
+        obj = 5
+        result = super_instance._default_result(obj)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], obj)
+        self.assertIsNone(result["method"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Operation not executed")
 
     def test_default_nested_result(self):
-        """Тест метода _default_nested_result."""
+        """Test _default_nested_result method."""
         super_instance = Super()
-        result = super_instance._default_nested_result()
-        self.assertEqual(result, {"success": False, "error": "Operation not executed"})
+        obj = [1, 2, 3]
+        result = super_instance._default_nested_result(obj)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["object"], obj)
+        self.assertIsNone(result["method"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "Operation not executed")
 
     def test_repr(self):
-        """Тест метода __repr__."""
+        """Test __repr__ method."""
         super_instance = Super()
         self.assertEqual(repr(super_instance), "Super()")
 
