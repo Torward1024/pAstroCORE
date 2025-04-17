@@ -6,6 +6,7 @@ from common.super.manipulator import Manipulator
 from common.utils.logging_setup import logger
 from collections import OrderedDict
 
+
 class TestSuper(unittest.TestCase):
     def setUp(self):
         """Set up before each test."""
@@ -57,6 +58,42 @@ class TestSuper(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             super_instance._get_methods(list)
         self.assertEqual(str(cm.exception), "No methods available for list")
+
+    def test_build_response_success(self):
+        """Test _build_response for successful operation."""
+        super_instance = Super()
+        obj = 5
+        result = super_instance._build_response(
+            obj=obj, status=True, method="test_method", result=15
+        )
+        self.assertEqual(
+            result,
+            {
+                "status": True,
+                "object": obj,
+                "method": "test_method",
+                "result": 15,
+            },
+        )
+        self.assertNotIn("error", result)
+
+    def test_build_response_failure(self):
+        """Test _build_response for failed operation with error."""
+        super_instance = Super()
+        obj = 5
+        result = super_instance._build_response(
+            obj=obj, status=False, method=None, result=None, error="Test error"
+        )
+        self.assertEqual(
+            result,
+            {
+                "status": False,
+                "object": obj,
+                "method": None,
+                "result": None,
+                "error": "Test error",
+            },
+        )
 
     def test_do_nested_valid_index(self):
         """Test nested operation with valid index."""
@@ -282,13 +319,14 @@ class TestSuper(unittest.TestCase):
         self.assertEqual(result["object"], 5)
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "No suitable method found for operation 'test' and object 'int' in Super")
 
     def test_execute_value_error(self):
         """Test handling ValueError in execute."""
         class TestSuper(Super):
             def _test(self, obj, attrs):
                 raise ValueError("Test error")
+
         super_instance = TestSuper()
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
@@ -296,7 +334,7 @@ class TestSuper(unittest.TestCase):
         self.assertEqual(result["object"], 5)
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "Test error")
 
     def test_execute_unexpected_error(self):
         """Test handling unexpected error in execute."""
@@ -311,7 +349,7 @@ class TestSuper(unittest.TestCase):
         self.assertEqual(result["object"], 5)
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "Unexpected error")
 
     def test_execute_caching(self):
         """Test caching behavior in execute."""
@@ -391,6 +429,7 @@ class TestSuper(unittest.TestCase):
         """Test __repr__ method."""
         super_instance = Super()
         self.assertEqual(repr(super_instance), "Super()")
+
 
 if __name__ == "__main__":
     unittest.main()
