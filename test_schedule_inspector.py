@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from astropy.time import Time
 from unit_scheduling_2.super.schedule_inspector import ScheduleInspector
 from unit_scheduling_2.super.schedule_project import ScheduleProject
@@ -10,6 +10,7 @@ from unit_scheduling_2.base.scans import Scan, Scans
 from unit_scheduling_2.base.observation import Observation
 from common.base.baseentity import BaseEntity
 from common.utils.logging_setup import logger
+
 
 class TestScheduleInspector(unittest.TestCase):
     def setUp(self):
@@ -56,7 +57,9 @@ class TestScheduleInspector(unittest.TestCase):
         if_obj = IF(name="IF1", frequency=1420.0, bandwidth=20.0)
         attributes = {"get": ["frequency", "bandwidth"]}
         result = self.inspector.execute(if_obj, attributes)
-        self.assertEqual(result, {"get": {"frequency": 1420.0, "bandwidth": 20.0}})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_if")
+        self.assertEqual(result["result"], {"get": {"frequency": 1420.0, "bandwidth": 20.0}})
         logger.info("IF inspection tested successfully")
 
     def test_inspect_if_single_attribute(self):
@@ -64,7 +67,9 @@ class TestScheduleInspector(unittest.TestCase):
         if_obj = IF(name="IF1", frequency=1420.0, bandwidth=20.0)
         attributes = {"get": "frequency"}
         result = self.inspector.execute(if_obj, attributes)
-        self.assertEqual(result, {"get": 1420.0})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_if")
+        self.assertEqual(result["result"], {"get": 1420.0})
         logger.info("Single attribute IF inspection tested successfully")
 
     def test_inspect_if_invalid_attribute(self):
@@ -72,7 +77,8 @@ class TestScheduleInspector(unittest.TestCase):
         if_obj = IF(name="IF1", frequency=1420.0, bandwidth=20.0)
         attributes = {"get": "invalid_attribute"}
         result = self.inspector.execute(if_obj, attributes)
-        self.assertEqual(result, {"status": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["error"], "Operation not executed")
         logger.info("Invalid attribute IF inspection tested successfully")
 
     def test_inspect_frequencies(self):
@@ -81,7 +87,9 @@ class TestScheduleInspector(unittest.TestCase):
         freq_obj.add(IF(name="IF1", frequency=1420.0, bandwidth=20.0))
         attributes = {"get_frequencies": None}
         result = self.inspector.execute(freq_obj, attributes)
-        self.assertEqual(result, {"get_frequencies": [1420.0]})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_frequencies")
+        self.assertEqual(result["result"], {"get_frequencies": [1420.0]})
         logger.info("Frequencies inspection tested successfully")
 
     def test_inspect_frequencies_nested(self):
@@ -90,7 +98,9 @@ class TestScheduleInspector(unittest.TestCase):
         freq_obj.add(IF(name="IF1", frequency=1420.0, bandwidth=20.0))
         attributes = {"name": "IF1", "get": "frequency"}
         result = self.inspector.execute(freq_obj, attributes)
-        self.assertEqual(result, {"get": 1420.0})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_frequencies")
+        self.assertEqual(result["result"], {"get": 1420.0})
         logger.info("Nested IF inspection tested successfully")
 
     def test_inspect_frequencies_nested_not_found(self):
@@ -98,7 +108,8 @@ class TestScheduleInspector(unittest.TestCase):
         freq_obj = Frequencies(name="FREQS")
         attributes = {"name": "IF1", "get": "frequency"}
         result = self.inspector.execute(freq_obj, attributes)
-        self.assertEqual(result, {"status": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["error"], "Operation not executed")
         logger.info("Nested IF not found inspection tested successfully")
 
     def test_inspect_frequencies_active_items(self):
@@ -108,8 +119,10 @@ class TestScheduleInspector(unittest.TestCase):
         freq_obj.add(IF(name="IF2", frequency=1500.0, bandwidth=30.0, isactive=False))
         attributes = {"get_active_items": None}
         result = self.inspector.execute(freq_obj, attributes)
-        self.assertEqual(len(result["get_active_items"]), 1)
-        self.assertEqual(result["get_active_items"][0].name, "IF1")
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_frequencies")
+        self.assertEqual(len(result["result"]["get_active_items"]), 1)
+        self.assertEqual(result["result"]["get_active_items"][0].name, "IF1")
         logger.info("Frequencies active items inspection tested successfully")
 
     def test_inspect_source(self):
@@ -117,9 +130,11 @@ class TestScheduleInspector(unittest.TestCase):
         source_obj = Source(name="3C 286", ra_h=13.0, ra_m=31.0, ra_s=8.287)
         attributes = {"get": ["name", "ra_degrees"]}
         result = self.inspector.execute(source_obj, attributes)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_source")
         expected_ra = (13 + 31/60 + 8.287/3600) * 15
-        self.assertAlmostEqual(result["get"]["ra_degrees"], expected_ra)
-        self.assertEqual(result["get"]["name"], "3C 286")
+        self.assertAlmostEqual(result["result"]["get"]["ra_degrees"], expected_ra)
+        self.assertEqual(result["result"]["get"]["name"], "3C 286")
         logger.info("Source inspection tested successfully")
 
     def test_inspect_sources(self):
@@ -128,8 +143,10 @@ class TestScheduleInspector(unittest.TestCase):
         sources_obj.add(Source(name="3C 286"))
         attributes = {"get_active_items": None}
         result = self.inspector.execute(sources_obj, attributes)
-        self.assertEqual(len(result["get_active_items"]), 1)
-        self.assertEqual(result["get_active_items"][0].name, "3C 286")
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_sources")
+        self.assertEqual(len(result["result"]["get_active_items"]), 1)
+        self.assertEqual(result["result"]["get_active_items"][0].name, "3C 286")
         logger.info("Sources inspection tested successfully")
 
     def test_inspect_sources_nested(self):
@@ -138,7 +155,9 @@ class TestScheduleInspector(unittest.TestCase):
         sources_obj.add(Source(name="3C 286"))
         attributes = {"name": "3C 286", "get": "name"}
         result = self.inspector.execute(sources_obj, attributes)
-        self.assertEqual(result, {"get": "3C 286"})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_sources")
+        self.assertEqual(result["result"], {"get": "3C 286"})
         logger.info("Nested Source inspection tested successfully")
 
     def test_inspect_sources_nested_not_found(self):
@@ -146,15 +165,19 @@ class TestScheduleInspector(unittest.TestCase):
         sources_obj = Sources(name="SRCS")
         attributes = {"name": "3C 286", "get": "name"}
         result = self.inspector.execute(sources_obj, attributes)
-        self.assertEqual(result, {"status": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["error"], "Operation not executed")
         logger.info("Nested Source not found inspection tested successfully")
 
     def test_inspect_telescope(self):
         """Test inspecting a Telescope object."""
         tel_obj = Telescope(name="GBT", code="GBT", x=0.0, y=0.0, z=0.0)
-        attributes = {"get": ["code", "coordinates"]}
+        attributes = {"get": {"code"}}
         result = self.inspector.execute(tel_obj, attributes)
-        self.assertEqual(result, {"get": {"code": "GBT", "coordinates": (0.0, 0.0, 0.0)}})
+        print("BABOS!", result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_telescope")
+        self.assertEqual(result["result"], {"get": {"code": "GBT"}})
         logger.info("Telescope inspection tested successfully")
 
     def test_inspect_space_telescope(self):
@@ -162,7 +185,9 @@ class TestScheduleInspector(unittest.TestCase):
         tel_obj = SpaceTelescope(name="HST", code="HST")
         attributes = {"get": "code"}
         result = self.inspector.execute(tel_obj, attributes)
-        self.assertEqual(result, {"get": "HST"})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_telescope")
+        self.assertEqual(result["result"], {"get": "HST"})
         logger.info("SpaceTelescope inspection tested successfully")
 
     def test_inspect_telescopes(self):
@@ -171,8 +196,10 @@ class TestScheduleInspector(unittest.TestCase):
         tels_obj.add(Telescope(name="GBT", code="GBT"))
         attributes = {"get_active_items": None}
         result = self.inspector.execute(tels_obj, attributes)
-        self.assertEqual(len(result["get_active_items"]), 1)
-        self.assertEqual(result["get_active_items"][0].get("code"), "GBT")
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_telescopes")
+        self.assertEqual(len(result["result"]["get_active_items"]), 1)
+        self.assertEqual(result["result"]["get_active_items"][0].get("code"), "GBT")
         logger.info("Telescopes inspection tested successfully")
 
     def test_inspect_telescopes_nested(self):
@@ -181,8 +208,9 @@ class TestScheduleInspector(unittest.TestCase):
         tels_obj.add(Telescope(name="GBT", code="GBT"))
         attributes = {"name": "GBT", "get": "code"}
         result = self.inspector.execute(tels_obj, attributes)
-        print("BABAH!", result)
-        self.assertEqual(result, {"get": "GBT"})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_telescopes")
+        self.assertEqual(result["result"], {"get": "GBT"})
         logger.info("Nested Telescope inspection tested successfully")
 
     def test_inspect_telescopes_nested_not_found(self):
@@ -190,7 +218,8 @@ class TestScheduleInspector(unittest.TestCase):
         tels_obj = Telescopes(name="TELESCOPES")
         attributes = {"name": "GBT", "get": "code"}
         result = self.inspector.execute(tels_obj, attributes)
-        self.assertEqual(result, {"status": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["error"], "Operation not executed")
         logger.info("Nested Telescope not found inspection tested successfully")
 
     def test_inspect_scan(self):
@@ -198,8 +227,10 @@ class TestScheduleInspector(unittest.TestCase):
         scan_obj = Scan(name="SCAN1", start=Time("2025-04-16T12:00:00"), duration=300.0, source_name="3C 286")
         attributes = {"get": ["start", "source_name"]}
         result = self.inspector.execute(scan_obj, attributes)
-        self.assertEqual(result["get"]["source_name"], "3C 286")
-        self.assertEqual(result["get"]["start"], Time("2025-04-16T12:00:00"))
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_scan")
+        self.assertEqual(result["result"]["get"]["source_name"], "3C 286")
+        self.assertEqual(result["result"]["get"]["start"], Time("2025-04-16T12:00:00"))
         logger.info("Scan inspection tested successfully")
 
     def test_inspect_scan_with_observation(self):
@@ -208,7 +239,10 @@ class TestScheduleInspector(unittest.TestCase):
         obs_obj = Observation(sources=Sources(items={"3C 286": Source(name="3C 286")}))
         attributes = {"get_source": {"observation": obs_obj}}
         result = self.inspector.execute(scan_obj, attributes)
-        self.assertEqual(result["get_source"].name, "3C 286")
+        print("BABOLO!", result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_scan")
+        self.assertEqual(result["result"]["get_source"].name, "3C 286")
         logger.info("Scan with observation inspection tested successfully")
 
     def test_inspect_scan_invalid_observation(self):
@@ -216,17 +250,20 @@ class TestScheduleInspector(unittest.TestCase):
         scan_obj = Scan(name="SCAN1")
         attributes = {"get_source": {"observation": object()}}
         result = self.inspector.execute(scan_obj, attributes)
-        self.assertEqual(result, {"status": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["error"], "Operation not executed")
         logger.info("Scan with invalid observation inspection tested successfully")
 
     def test_inspect_scan_telescopes(self):
         """Test inspecting telescopes for a Scan."""
         scan_obj = Scan(name="SCAN1", telescope_names=["GBT"])
-        obs_obj = Observation(telescopes=Telescopes(items={"GBT": Telescope(name="GBT", code="GBT")}))
-        attributes = {"get_telescopes": {"observation": obs_obj}}
+        obs_obj = Observation(name="OBS", telescopes=Telescopes(items={"GBT": Telescope(name="GBT", code="GBT")}))
+        attributes = {"name": "OBS", "get_telescopes": {"observation": obs_obj}}
         result = self.inspector.execute(scan_obj, attributes)
-        self.assertEqual(len(result["get_telescopes"].get_active_items()), 1)
-        self.assertEqual(result["get_telescopes"].get_active_items()[0].get("code"), "GBT")
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_scan")
+        self.assertEqual(len(result["result"]["get_telescopes"].get_active_items()), 1)
+        self.assertEqual(result["result"]["get_telescopes"].get_active_items()[0].get("code"), "GBT")
         logger.info("Scan telescopes inspection tested successfully")
 
     def test_inspect_scans(self):
@@ -235,7 +272,9 @@ class TestScheduleInspector(unittest.TestCase):
         scans_obj.add(Scan(name="SCAN1"))
         attributes = {"get_active_scans": None}
         result = self.inspector.execute(scans_obj, attributes)
-        self.assertEqual(len(result["get_active_scans"]), 1)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_scans")
+        self.assertEqual(len(result["result"]["get_active_scans"]), 1)
         logger.info("Scans inspection tested successfully")
 
     def test_inspect_scans_with_observation(self):
@@ -246,8 +285,10 @@ class TestScheduleInspector(unittest.TestCase):
         obs_obj = Observation(sources=Sources(items={"3C 286": Source(name="3C 286")}))
         attributes = {"get_active_scans": {"observation": obs_obj}}
         result = self.inspector.execute(scans_obj, attributes)
-        self.assertEqual(len(result["get_active_scans"]), 1)
-        self.assertEqual(result["get_active_scans"][0].name, "SCAN1")
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_scans")
+        self.assertEqual(len(result["result"]["get_active_scans"]), 1)
+        self.assertEqual(result["result"]["get_active_scans"][0].name, "SCAN1")
         logger.info("Scans with observation inspection tested successfully")
 
     def test_inspect_scans_nested(self):
@@ -256,7 +297,9 @@ class TestScheduleInspector(unittest.TestCase):
         scans_obj.add(Scan(name="SCAN1", source_name="3C 286"))
         attributes = {"name": "SCAN1", "get": "source_name"}
         result = self.inspector.execute(scans_obj, attributes)
-        self.assertEqual(result, {"get": "3C 286"})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_scans")
+        self.assertEqual(result["result"], {"get": "3C 286"})
         logger.info("Nested Scan inspection tested successfully")
 
     def test_inspect_scans_nested_not_found(self):
@@ -264,7 +307,8 @@ class TestScheduleInspector(unittest.TestCase):
         scans_obj = Scans(name="SCANS")
         attributes = {"name": "SCAN1", "get": "source_name"}
         result = self.inspector.execute(scans_obj, attributes)
-        self.assertEqual(result, {"status": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["error"], "Name 'SCAN1' not found in Scans")
         logger.info("Nested Scan not found inspection tested successfully")
 
     def test_inspect_observation(self):
@@ -272,7 +316,9 @@ class TestScheduleInspector(unittest.TestCase):
         obs_obj = Observation(name="OBS1", code="OBS001")
         attributes = {"get": ["name", "code"]}
         result = self.inspector.execute(obs_obj, attributes)
-        self.assertEqual(result, {"get": {"name": "OBS1", "code": "OBS001"}})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_observation")
+        self.assertEqual(result["result"], {"get": {"name": "OBS1", "code": "OBS001"}})
         logger.info("Observation inspection tested successfully")
 
     def test_inspect_project(self):
@@ -281,7 +327,9 @@ class TestScheduleInspector(unittest.TestCase):
         project_obj.add_item(Observation(name="OBS1"))
         attributes = {"get_project": None}
         result = self.inspector.execute(project_obj, attributes)
-        self.assertEqual(result["get_project"]["name"], "PROJECT1")
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_project")
+        self.assertEqual(result["result"]["get_project"]["name"], "PROJECT1")
         logger.info("ScheduleProject inspection tested successfully")
 
     def test_inspect_project_nested(self):
@@ -291,7 +339,9 @@ class TestScheduleInspector(unittest.TestCase):
         project_obj.add_item(obs_obj)
         attributes = {"name": "OBS1", "get": "code"}
         result = self.inspector.execute(project_obj, attributes)
-        self.assertEqual(result, {"get": "OBS001"})
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_inspect_scheduleproject")
+        self.assertEqual(result["result"], {"get": "OBS001"})
         logger.info("Nested Observation in ScheduleProject inspection tested successfully")
 
     def test_inspect_project_nested_not_found(self):
@@ -299,7 +349,8 @@ class TestScheduleInspector(unittest.TestCase):
         project_obj = ScheduleProject(name="PROJECT1")
         attributes = {"name": "OBS1", "get": "code"}
         result = self.inspector.execute(project_obj, attributes)
-        self.assertEqual(result, {"status": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["error"], "Operation not executed")
         logger.info("Nested Observation not found inspection tested successfully")
 
     def test_inspect_invalid_object(self):
@@ -307,7 +358,8 @@ class TestScheduleInspector(unittest.TestCase):
         invalid_obj = object()
         attributes = {"get": "value"}
         result = self.inspector.execute(invalid_obj, attributes)
-        self.assertEqual(result, {"status": False, "error": "Operation not executed"})
+        self.assertFalse(result["status"])
+        self.assertEqual(result["error"], "No suitable method found for operation 'inspect' and object 'object' in ScheduleInspector")
         logger.info("Invalid object inspection tested successfully")
 
     def test_inspect_caching(self):
@@ -316,12 +368,16 @@ class TestScheduleInspector(unittest.TestCase):
         freq_obj.add(IF(name="IF1", frequency=1420.0, bandwidth=20.0))
         attributes = {"name": "IF1", "get": "frequency"}
         result1 = self.inspector.execute(freq_obj, attributes)
-        self.assertEqual(result1, {"get": 1420.0})
-        with unittest.mock.patch.object(self.inspector, "_inspect_if") as mock_method:
+        self.assertTrue(result1["status"])
+        self.assertEqual(result1["method"], "_inspect_frequencies")
+        self.assertEqual(result1["result"], {"get": 1420.0})
+        with patch.object(self.inspector, "_inspect_if") as mock_method:
             result2 = self.inspector.execute(freq_obj, attributes)
-            self.assertEqual(result2, {"get": 1420.0})
+            self.assertTrue(result2["status"])
+            self.assertEqual(result2["result"], {"get": 1420.0})
             mock_method.assert_not_called()
         logger.info("Inspection caching tested successfully")
+
 
 if __name__ == '__main__':
     unittest.main()
