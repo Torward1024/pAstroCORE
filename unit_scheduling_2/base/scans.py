@@ -32,7 +32,7 @@ class Scan(BaseEntity):
         if start is None:
             start = Time.now()
         if name is None:
-            name = f"scan_{uuid.uuid4().hex[:8]}"
+            name = f"scan_{uuid.uuid4().hex[:32]}"
         check_type(start, Time, "Start time")
         check_positive(duration, "Duration")
         if source_name is not None:

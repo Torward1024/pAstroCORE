@@ -2,6 +2,7 @@ from abc import ABC
 from typing import Dict, Any, Callable, Type, Optional
 from common.utils.logging_setup import logger
 from common.super.manipulator import Manipulator
+from common.base.baseentity import BaseEntity
 from common.base.basecontainer import BaseContainer
 from collections import OrderedDict
 import inspect
@@ -231,6 +232,12 @@ class Super(ABC):
             return tuple(sorted((k, self._make_hashable(v)) for k, v in obj.items()))
         elif isinstance(obj, (list, tuple)):
             return tuple(self._make_hashable(item) for item in obj)
+        elif isinstance(obj, BaseEntity | BaseContainer):
+            name = getattr(obj, 'name', None)
+            if name is None:
+                logger.debug(f"Object {obj} has no 'name' attribute, using str(obj) for hashing")
+                return str(obj)
+            return name
         return obj
 
     def _update_cache(self, key: tuple, value: Dict[str, Any]) -> None:

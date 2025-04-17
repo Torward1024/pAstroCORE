@@ -50,7 +50,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             ValueError: If a telescope's code does not match its dictionary key or is invalid.
         """
         if name is None:
-            name = f"tlscs_{uuid.uuid4().hex[:8]}"
+            name = f"tlscs_{uuid.uuid4().hex[:32]}"
         super().__init__(items=items, name=name, isactive=isactive, use_cache=use_cache)
         logger.info(f"Initialized Telescopes with {len(self._items)} telescopes")
 

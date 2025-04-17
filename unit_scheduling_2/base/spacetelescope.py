@@ -41,7 +41,7 @@ class SpaceTelescope(Telescope):
              _interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]] = None):
         """Initialize a SpaceTelescope with orbital parameters and optional SEFD properties."""
         if name is None:
-            name = f"stlsc_{uuid.uuid4().hex[:8]}"
+            name = f"stlsc_{uuid.uuid4().hex[:32]}"
         super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0,
                         diameter=diameter, sefd_table=sefd_table or {}, mount_type="NONE",
                         elevation_range=(0.0, 0.0), azimuth_range=(0.0, 0.0), isactive=isactive,
