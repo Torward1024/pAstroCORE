@@ -7,6 +7,7 @@ from unit_scheduling_2.base.telescopes import Telescope, SpaceTelescope, Telesco
 from unit_scheduling_2.base.scans import Scan, Scans
 from unit_scheduling_2.base.observation import Observation
 from common.utils.logging_setup import logger
+from common.utils.validation import check_type
 from typing import Dict, Any, Union
 
 class ScheduleInspector(Super):
@@ -28,12 +29,12 @@ class ScheduleInspector(Super):
         >>> manipulator = ScheduleManipulator()
         >>> inspector = ScheduleInspector(manipulator)
         >>> source = Source(name="3C 286")
-        >>> result = inspector.execute(source, {"get_name": None})
-        {'get_name': '3C 286'}
+        >>> result = inspector.execute(source, {"get": "name"})
+        {'get': '3C 286'}
         >>> project = ScheduleProject()
         >>> project.create_item(item_code="OBS001")
-        >>> result = inspector.execute(project, {"name": "OBS001", "get_observation_code": None})
-        {'get_observation_code': 'OBS001'}
+        >>> result = inspector.execute(project, {"name": "OBS001", "get": "code"})
+        {'get': 'OBS001'}
     """
     def __init__(self, manipulator: 'Manipulator'):
         """Initialize the ScheduleInspector.
@@ -59,16 +60,17 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary mapping getter names to their results.
         """
+        check_type(if_obj, IF, "IF object")
         valid_getters = self._get_methods(IF)
         result = {}
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(if_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for IF inspection")
             return {}
-        logger.info(f"Inspected IF: frequency={if_obj.get_frequency()} MHz")
+        logger.info(f"Inspected IF: frequency={if_obj.get('frequency')} MHz")
         return result
 
     def _inspect_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,6 +83,7 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(freq_obj, Frequencies, "Frequencies object")
         if "name" in attributes:
             name = attributes["name"]
             try:
@@ -101,8 +104,8 @@ class ScheduleInspector(Super):
         result = {}
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(freq_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for Frequencies inspection")
             return {}
@@ -119,16 +122,17 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(source_obj, Source, "Source object")
         valid_getters = self._get_methods(Source)
         result = {}
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(source_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for Source inspection")
             return {}
-        logger.info(f"Inspected Source: name='{source_obj.get_name()}'")
+        logger.info(f"Inspected Source: name='{source_obj.get('name')}'")
         return result
 
     def _inspect_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -141,6 +145,7 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(sources_obj, Sources, "Sources object")
         if "name" in attributes:
             source_name = attributes["name"]
             source_obj = sources_obj.get(source_name)
@@ -160,8 +165,8 @@ class ScheduleInspector(Super):
         result = {}
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(sources_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for Sources inspection")
             return {}
@@ -178,17 +183,18 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(telescope_obj, (Telescope, SpaceTelescope), "Telescope object")
         obj_type = type(telescope_obj)
         valid_getters = self._get_methods(obj_type)
         result = {}
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(telescope_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
             return {}
-        logger.info(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}'")
+        logger.info(f"Inspected {obj_type.__name__}: code='{telescope_obj.get('code')}'")
         return result
 
     def _inspect_telescopes(self, telescopes_obj: Telescopes, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -201,6 +207,7 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(telescopes_obj, Telescopes, "Telescopes object")
         if "name" in attributes:
             name = attributes["name"]
             telescope_obj = telescopes_obj.get(name)
@@ -220,8 +227,8 @@ class ScheduleInspector(Super):
         result = {}
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(telescopes_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for Telescopes inspection")
             return {}
@@ -238,6 +245,7 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(scan_obj, Scan, "Scan object")
         valid_getters = self._get_methods(Scan)
         result = {}
         observation = attributes.get("observation")
@@ -255,12 +263,12 @@ class ScheduleInspector(Super):
                 valid_getters,
                 {"observation": observation} if observation else None
             )
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for Scan inspection")
             return {}
-        logger.info(f"Inspected Scan: start={scan_obj.get_start().isot}")
+        logger.info(f"Inspected Scan: start={scan_obj.get('start').isot}")
         return result
 
     def _inspect_scans(self, scans_obj: Scans, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -273,6 +281,7 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(scans_obj, Scans, "Scans object")
         if "name" in attributes:
             name = attributes["name"]
             scan_obj = scans_obj.get(name)
@@ -296,8 +305,8 @@ class ScheduleInspector(Super):
                     logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
                     continue
             value = self._validate_and_apply_method(scans_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for Scans inspection")
             return {}
@@ -314,16 +323,17 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(obs_obj, Observation, "Observation object")
         valid_getters = self._get_methods(Observation)
         result = {}
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(obs_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for Observation inspection")
             return {}
-        logger.info(f"Inspected Observation: code='{obs_obj.get_observation_code()}'")
+        logger.info(f"Inspected Observation: code='{obs_obj.get('code')}'")
         return result
 
     def _inspect_project(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -336,6 +346,7 @@ class ScheduleInspector(Super):
         Returns:
             Dict[str, Any]: Dictionary with getter results.
         """
+        check_type(project_obj, ScheduleProject, "ScheduleProject object")
         if "name" in attributes:
             name = attributes["name"]
             try:
@@ -356,10 +367,10 @@ class ScheduleInspector(Super):
         result = {}
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(project_obj, getter_name, getter_args, valid_getters)
-            if value is not None:
-                result[getter_name] = value
+            if value["success"]:
+                result[getter_name] = value["result"]
         if not result:
             logger.warning("No valid getters applied for ScheduleProject inspection")
             return {}
-        logger.info(f"Inspected ScheduleProject: name='{project_obj.get_name()}'")
+        logger.info(f"Inspected ScheduleProject: name='{project_obj.get('name')}'")
         return result

@@ -49,10 +49,13 @@ class TestScheduleConfigurator(unittest.TestCase):
         self.configurator = ScheduleConfigurator(self.manipulator)
 
     def test_configure_if(self):
+        """Test configuring an IF object."""
         if_obj = IF(name="IF1")
         attributes = {"set": {"params": {"frequency": 1420.0, "bandwidth": 20.0}}}
         result = self.configurator.execute(if_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_if")
+        self.assertEqual(result["result"], True)
         self.assertEqual(if_obj.frequency, 1420.0)
         self.assertEqual(if_obj.bandwidth, 20.0)
 
@@ -61,7 +64,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         if_obj = IF(name="IF1")
         attributes = {"invalid_method": {"value": 1}}
         result = self.configurator.execute(if_obj, attributes)
-        self.assertFalse(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["result"], False)
+        self.assertEqual(result["error"], "Operation failed")
 
     def test_configure_frequencies_nested(self):
         """Test configuring a nested IF within Frequencies."""
@@ -70,7 +75,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         freq_obj.add(if_obj)
         attributes = {"name": "IF1", "set": {"params": {"frequency": 1420.0, "bandwidth": 20.0}}}
         result = self.configurator.execute(freq_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_frequencies")
+        self.assertEqual(result["result"], True)
         self.assertEqual(freq_obj.get("IF1").frequency, 1420.0)
         self.assertEqual(freq_obj.get("IF1").bandwidth, 20.0)
 
@@ -79,7 +86,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         freq_obj = Frequencies(name="FQS")
         attributes = {"name": "IF1", "set": {"params": {"frequency": 1420.0}}}
         result = self.configurator.execute(freq_obj, attributes)
-        self.assertFalse(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["result"], False)
+        self.assertEqual(result["error"], "Operation failed")
 
     def test_configure_source(self):
         """Test configuring a Source object."""
@@ -98,7 +107,9 @@ class TestScheduleConfigurator(unittest.TestCase):
             }
         }
         result = self.configurator.execute(source_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_source")
+        self.assertEqual(result["result"], True)
         self.assertEqual(source_obj.name, "3C 286")
 
     def test_configure_sources_nested(self):
@@ -108,7 +119,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         sources_obj.add(source_obj)
         attributes = {"name": "SOURCE1", "set": {"params": {"name": "3C 286"}}}
         result = self.configurator.execute(sources_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_sources")
+        self.assertEqual(result["result"], True)
         self.assertEqual(sources_obj.get("SOURCE1").name, "3C 286")
 
     def test_configure_sources_nested_not_found(self):
@@ -116,26 +129,25 @@ class TestScheduleConfigurator(unittest.TestCase):
         sources_obj = Sources(name="SRCSS")
         attributes = {"name": "SOURCE1", "set": {"params": {"name": "3C 286"}}}
         result = self.configurator.execute(sources_obj, attributes)
-        self.assertFalse(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["result"], False)
+        self.assertEqual(result["error"], "Operation failed")
 
     def test_configure_telescope(self):
         """Test configuring a Telescope object."""
         tel_obj = Telescope(name="TLSCSPS")
         attributes = {"set": {"params": {"code": "GBT", "x": 0.0, "y": 0.0, "z": 0.0}}}
         result = self.configurator.execute(tel_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_telescope")
+        self.assertEqual(result["result"], True)
         self.assertEqual(tel_obj.get_code(), "GBT")
 
     def test_configure_space_telescope(self):
         """Test configuring a SpaceTelescope object."""
         tel_obj = SpaceTelescope(name="SCPSD")
         attributes = {
-            "method": "_configure_telescope",
-            "set": {
-                "params": {
-                    "code": "HST"
-                }
-            },
+            "set": {"params": {"code": "HST"}},
             "set_keplerian": {
                 "a": 7000e3,
                 "e": 0.01,
@@ -148,7 +160,9 @@ class TestScheduleConfigurator(unittest.TestCase):
             }
         }
         result = self.configurator.execute(tel_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_telescope")
+        self.assertEqual(result["result"], True)
         self.assertEqual(tel_obj.get_code(), "HST")
 
     def test_configure_telescopes_nested(self):
@@ -158,7 +172,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         tels_obj.add(tel_obj)
         attributes = {"name": "TEMP", "set": {"params": {"code": "VLA"}}}
         result = self.configurator.execute(tels_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_telescopes")
+        self.assertEqual(result["result"], True)
         self.assertEqual(tels_obj.get("TEMP").get_code(), "VLA")
 
     def test_configure_telescopes_nested_not_found(self):
@@ -166,7 +182,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         tels_obj = Telescopes(name="TELESCOPEEE33S")
         attributes = {"name": "VLA", "set": {"params": {"code": "VLA"}}}
         result = self.configurator.execute(tels_obj, attributes)
-        self.assertFalse(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["result"], False)
+        self.assertEqual(result["error"], "Operation failed")
 
     def test_configure_scan(self):
         """Test configuring a Scan object."""
@@ -177,7 +195,9 @@ class TestScheduleConfigurator(unittest.TestCase):
             "set_source_name": {"source_name": "3C 286"}
         }
         result = self.configurator.execute(scan_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_scan")
+        self.assertEqual(result["result"], True)
         self.assertEqual(scan_obj.get_source_name(), "3C 286")
         self.assertEqual(scan_obj.get_duration(), 300.0)
 
@@ -188,7 +208,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         scans_obj.add(scan_obj)
         attributes = {"name": "SCAN1", "set_source_name": {"source_name": "3C 286"}}
         result = self.configurator.execute(scans_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_scans")
+        self.assertEqual(result["result"], True)
         self.assertEqual(scans_obj.get("SCAN1").get_source_name(), "3C 286")
 
     def test_configure_scans_nested_not_found(self):
@@ -196,7 +218,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         scans_obj = Scans(name="SCANEIS")
         attributes = {"name": "SCAN1", "set_source_name": {"source_name": "3C 286"}}
         result = self.configurator.execute(scans_obj, attributes)
-        self.assertFalse(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["result"], False)
+        self.assertEqual(result["error"], "Operation failed")
 
     def test_configure_scans_overlap(self):
         """Test configuring a Scan with overlap detection."""
@@ -211,7 +235,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         attributes = {"name": "SCAN2", "set_duration": {"duration": 600.0}}
         with patch.object(scans_obj, '_check_overlap', return_value=(True, "overlaps with SCAN1")):
             result = self.configurator.execute(scans_obj, attributes)
-        self.assertFalse(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["result"], False)
+        self.assertEqual(result["error"], "Operation failed")
 
     def test_configure_observation(self):
         """Test configuring an Observation object."""
@@ -219,7 +245,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         attributes = {"set": {"params": {"name": "OBS001", "code": "OBS001"}}}
         with patch.object(Observation, 'validate', return_value=True):
             result = self.configurator.execute(obs_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_observation")
+        self.assertEqual(result["result"], True)
         self.assertEqual(obs_obj.get_observation_code(), "OBS001")
 
     def test_configure_observation_invalid(self):
@@ -228,17 +256,18 @@ class TestScheduleConfigurator(unittest.TestCase):
         attributes = {"set": {"params": {"name": "OBS001", "code": "OBS001"}}}
         with patch.object(Observation, 'validate', return_value=False):
             result = self.configurator.execute(obs_obj, attributes)
-        self.assertFalse(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["result"], False)
+        self.assertEqual(result["error"], "Operation failed")
 
-    def test_configure_project_explicit_method(self):
-        """Test configuring a ScheduleProject with an explicit method."""
+    def test_configure_project(self):
+        """Test configuring a ScheduleProject."""
         project_obj = ScheduleProject()
-        attributes = {
-            "method": "_configure_project",
-            "set_project": {"name": "TEST_PROJECT", "items": {}}
-        }
+        attributes = {"set_project": {"name": "TEST_PROJECT", "items": {}}}
         result = self.configurator.execute(project_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_project")
+        self.assertEqual(result["result"], True)
         self.assertEqual(project_obj.get_name(), "TEST_PROJECT")
 
     def test_configure_project_nested(self):
@@ -246,18 +275,39 @@ class TestScheduleConfigurator(unittest.TestCase):
         project_obj = ScheduleProject()
         obs_obj = Observation(name="OBS_DEFAULT", code="DEF")
         project_obj.add_item(obs_obj)
-        attributes = {"method": "_configure_project", "name": "OBS_DEFAULT", "set": {"params": {"code": "OBS001"}}}
+        attributes = {"name": "OBS_DEFAULT", "set": {"params": {"code": "OBS001"}}}
         with patch.object(Observation, 'validate', return_value=True):
             result = self.configurator.execute(project_obj, attributes)
-        self.assertTrue(result)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["method"], "_configure_project")
+        self.assertEqual(result["result"], True)
         self.assertEqual(project_obj.get_observation("OBS_DEFAULT").get_observation_code(), "OBS001")
 
     def test_configure_invalid_object(self):
         """Test configuring an invalid object type."""
-        invalid_obj = object()  # Generic object not supported by configurator
+        invalid_obj = object()
         attributes = {"set": {"params": {"value": "TEST"}}}
         result = self.configurator.execute(invalid_obj, attributes)
-        self.assertFalse(result)
+        self.assertFalse(result["status"])
+        self.assertEqual(result["result"], None)
+        self.assertEqual(result["error"], "Operation not executed")
+
+    def test_configure_nested_caching(self):
+        """Test caching of nested configuration."""
+        freq_obj = Frequencies(name="FREQS")
+        if_obj = IF(name="IF1")
+        freq_obj.add(if_obj)
+        attributes = {"name": "IF1", "set": {"params": {"frequency": 1420.0, "bandwidth": 20.0}}}
+        result1 = self.configurator.execute(freq_obj, attributes)
+        self.assertTrue(result1["status"])
+        self.assertEqual(result1["method"], "_configure_frequencies")
+        self.assertEqual(result1["result"], True)
+        with patch.object(self.configurator, "_configure_frequencies") as mock_method:
+            result2 = self.configurator.execute(freq_obj, attributes)
+            self.assertTrue(result2["status"])
+            self.assertEqual(result2["method"], "_configure_frequencies")
+            self.assertEqual(result2["result"], True)
+            mock_method.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

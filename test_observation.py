@@ -119,6 +119,7 @@ class TestObservation(unittest.TestCase):
         """Test setting attributes using set method."""
         self.obs.set({
             "name": "NEW_OBS",
+            "code": "NEW_OBS",
             "observation_type": "SINGLE_DISH",
             "sources": Sources(),
             "telescopes": Telescopes(),
