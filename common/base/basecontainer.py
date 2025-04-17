@@ -406,19 +406,43 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         self._invalidate_cache()
         logger.info(f"Deactivated item with name '{name}' in {self.__class__.__name__}")
 
-    def to_dict(self) -> dict:
+    def to_dict(self, handle_cyclic_refs: str = "mark") -> dict:
         """Convert the container to a dictionary for serialization.
 
         Serializes the container's state, including its name, activation status, and all items,
         with nested entities recursively serialized. Uses caching if enabled.
 
+        Args:
+            handle_cyclic_refs (str): How to handle cyclic references. Options:
+                - "mark": Replace with "<cyclic reference>" (default).
+                - "ignore": Skip cyclic references.
+                - "raise": Raise an error on cyclic references.
+
         Returns:
             dict: A dictionary containing the container's serialized data.
+
+        Raises:
+            ValueError: If handle_cyclic_refs is invalid or cyclic reference is detected with "raise" option.
         """
         if self._use_cache and self._cached_to_dict is not None:
             return self._cached_to_dict
+        if handle_cyclic_refs not in ("mark", "ignore", "raise"):
+            raise ValueError(f"Invalid handle_cyclic_refs value: {handle_cyclic_refs}")
         data = super().to_dict()
-        data["items"] = {name: item.to_dict() for name, item in self._items.items()}
+        seen = {id(self)}
+        items_dict = {}
+        for name, item in self._items.items():
+            if isinstance(item, BaseEntity) and id(item) in seen:
+                if handle_cyclic_refs == "raise":
+                    raise ValueError(f"Cyclic reference detected for item '{name}'")
+                elif handle_cyclic_refs == "ignore":
+                    continue
+                else:  # mark
+                    items_dict[name] = "<cyclic reference>"
+            else:
+                items_dict[name] = item.to_dict()
+                seen.add(id(item))
+        data["items"] = items_dict
         if self._use_cache:
             self._cached_to_dict = data
         return data
