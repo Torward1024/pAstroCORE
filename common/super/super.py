@@ -23,17 +23,6 @@ class Super(ABC):
         - Logging is integrated via `common.utils.logging_setup.logger`.
         - Results are returned as dictionaries with keys: status (bool), object (Any), method (str | None),
           result (Any), error (str | None, included only if status=False).
-
-    Examples:
-        >>> class Configurator(Super):
-        ...     def _configure_list(self, obj, attrs):
-        ...         obj.append(attrs.get("value"))
-        ...         return True
-        >>> manip = Manipulator()
-        >>> config = Configurator(manip)
-        >>> manip.register_operation("configure", config)
-        >>> manip.process_request({"operation": "configure", "obj": [], "attributes": {"value": 1}})
-        {"status": True, "object": [1], "method": "_configure_list", "result": True}
     """
     def __init__(self, manipulator: 'Manipulator' = None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None,
                  cache_size: int = 2048):
@@ -48,6 +37,30 @@ class Super(ABC):
         self._methods = methods or {}
         self._method_cache = OrderedDict()
         self._cache_size = cache_size
+
+    def _build_response(self, obj: Any, status: bool, method: str = None, result: Any = None,
+                         error: str = None) -> Dict[str, Any]:
+        """Format a standardized response dictionary.
+
+        Args:
+            obj (Any): The object associated with the operation.
+            status (bool): Whether the operation was successful.
+            method (str, optional): Name of the method executed. Defaults to None.
+            result (Any, optional): Result of the operation. Defaults to None.
+            error (str, optional): Error message if status is False. Defaults to None.
+
+        Returns:
+            Dict[str, Any]: Standardized response dictionary.
+        """
+        response = {
+            "status": status,
+            "object": obj,
+            "method": method,
+            "result": result
+        }
+        if not status and error:
+            response["error"] = error
+        return response
 
     def _get_methods(self, obj_type: Type) -> Dict[str, Callable]:
         """Retrieve methods available for a given object type.
@@ -108,21 +121,21 @@ class Super(ABC):
         index = attributes.get(key)
         if index is None:
             logger.debug(f"No {key} provided for nested operation")
-            return self._default_nested_result(obj)
+            return self._build_response(obj, False, None, None, "Operation not executed")
 
         try:
             nested_obj = self._get_nested_object(obj, index, getter_method)
             if nested_obj is None:
-                return self._default_nested_result(obj)
+                return self._build_response(obj, False, None, None, "Operation not executed")
 
             nested_attrs = {k: v for k, v in attributes.items() if k != key}
             result = nested_handler(nested_obj, nested_attrs)
             method_name = nested_handler.__name__ if hasattr(nested_handler, '__name__') else None
             logger.info(f"Processed nested operation on {type(obj).__name__} with {key}={index}")
-            return {"status": True, "object": nested_obj, "method": method_name, "result": result}
+            return self._build_response(nested_obj, True, method_name, result)
         except Exception as e:
             logger.error(f"Nested operation failed: {str(e)}")
-            return {"status": False, "object": obj, "method": None, "result": None, "error": str(e)}
+            return self._build_response(obj, False, None, None, str(e))
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any,
                                    valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -140,7 +153,7 @@ class Super(ABC):
         """
         if method_name not in valid_methods:
             logger.error(f"Invalid attribute/method '{method_name}' for '{type(obj).__name__} object'")
-            return {"status": False, "object": obj, "method": None, "result": None, "error": f"Method '{method_name}' not found"}
+            return self._build_response(obj, False, None, None, f"Method '{method_name}' not found")
 
         method = valid_methods[method_name]
         sig = inspect.signature(method)
@@ -148,7 +161,7 @@ class Super(ABC):
 
         if method_args is not None and not isinstance(method_args, (dict, str, list, type(None))):
             logger.error(f"Arguments for {method_name} must be a dictionary, string, list, or None, got {type(method_args)}")
-            return {"status": False, "object": obj, "method": method_name, "result": None, "error": f"Invalid argument type: {type(method_args)}"}
+            return self._build_response(obj, False, method_name, None, f"Invalid argument type: {type(method_args)}")
 
         if method_args is not None and not isinstance(method_args, (dict, type(None))):
             valid_arg = False
@@ -157,10 +170,9 @@ class Super(ABC):
                     continue
                 annotation = param.annotation
                 if annotation is inspect.Parameter.empty:
-                    # Если нет аннотации, считаем строки и списки недопустимыми
                     if isinstance(method_args, (str, list)):
                         logger.error(f"Invalid argument type for {method_name}: got {type(method_args)}")
-                        return {"status": False, "object": obj, "method": method_name, "result": None, "error": f"Invalid argument type: {type(method_args)}"}
+                        return self._build_response(obj, False, method_name, None, f"Invalid argument type: {type(method_args)}")
                     valid_arg = True
                     break
                 if isinstance(method_args, annotation):
@@ -168,13 +180,13 @@ class Super(ABC):
                     break
             if not valid_arg:
                 logger.error(f"Invalid argument type for {method_name}: got {type(method_args)}")
-                return {"status": False, "object": obj, "method": method_name, "result": None, "error": f"Invalid argument type: {type(method_args)}"}
+                return self._build_response(obj, False, method_name, None, f"Invalid argument type: {type(method_args)}")
 
         if isinstance(method_args, dict):
             provided_params = set(method_args.keys())
             if not provided_params.issubset(expected_params):
                 logger.error(f"Invalid arguments for {method_name}: expected {expected_params}, got {provided_params}")
-                return {"status": False, "object": obj, "method": method_name, "result": None, "error": f"Invalid arguments: expected {expected_params}, got {provided_params}"}
+                return self._build_response(obj, False, method_name, None, f"Invalid arguments: expected {expected_params}, got {provided_params}")
 
         try:
             if extra_args:
@@ -187,10 +199,10 @@ class Super(ABC):
                 result = method(obj, method_args)
 
             logger.info(f"Applied {method_name} to {type(obj).__name__}, result={result}")
-            return {"status": True, "object": obj, "method": method_name, "result": result}
+            return self._build_response(obj, True, method_name, result)
         except Exception as e:
             logger.error(f"Failed to apply {method_name} to {type(obj).__name__}: {str(e)}")
-            return {"status": False, "object": obj, "method": method_name, "result": None, "error": str(e)}
+            return self._build_response(obj, False, method_name, None, str(e))
 
     def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
         """Register a custom method for a specific object type.
@@ -243,9 +255,6 @@ class Super(ABC):
 
         Returns:
             Dict[str, Any]: Dictionary with status, object, method, result, and error (if status=False).
-
-        Raises:
-            ValueError: If no suitable method is found.
         """
         if attributes is None:
             attributes = {}
@@ -260,7 +269,7 @@ class Super(ABC):
                 method_func = getattr(self, method, None)
                 if callable(method_func):
                     result = method_func(obj, attributes)
-                    response = {"status": True, "object": obj, "method": method, "result": result}
+                    response = self._build_response(obj, True, method, result)
                     self._update_cache(cache_key, response)
                     return response
 
@@ -276,7 +285,7 @@ class Super(ABC):
                 method = getattr(self, method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    response = {"status": True, "object": obj, "method": method_name, "result": result}
+                    response = self._build_response(obj, True, method_name, result)
                     self._update_cache(cache_key, response)
                     return response
 
@@ -284,7 +293,7 @@ class Super(ABC):
                 method = getattr(self, prefixed_method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    response = {"status": True, "object": obj, "method": prefixed_method_name, "result": result}
+                    response = self._build_response(obj, True, prefixed_method_name, result)
                     self._update_cache(cache_key, response)
                     return response
 
@@ -293,7 +302,7 @@ class Super(ABC):
             method = getattr(self, auto_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
-                response = {"status": True, "object": obj, "method": auto_method_name, "result": result}
+                response = self._build_response(obj, True, auto_method_name, result)
                 self._update_cache(cache_key, response)
                 return response
 
@@ -302,7 +311,7 @@ class Super(ABC):
                 method = getattr(self, base_method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    response = {"status": True, "object": obj, "method": base_method_name, "result": result}
+                    response = self._build_response(obj, True, base_method_name, result)
                     self._update_cache(cache_key, response)
                     return response
 
@@ -310,17 +319,21 @@ class Super(ABC):
             method = getattr(self, default_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
-                response = {"status": True, "object": obj, "method": default_method_name, "result": result}
+                response = self._build_response(obj, True, default_method_name, result)
                 self._update_cache(cache_key, response)
                 return response
 
             raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type_name}' in {self.__class__.__name__}")
         except ValueError as e:
             logger.error(f"Execution failed for operation '{self._operation}': {str(e)}")
-            return self._default_result(obj)
+            response = self._build_response(obj, False, None, None, str(e))
+            self._update_cache(cache_key, response)
+            return response
         except Exception as e:
             logger.error(f"Unexpected error in execute for '{self._operation}': {str(e)}")
-            return self._default_result(obj)
+            response = self._build_response(obj, False, None, None, str(e))
+            self._update_cache(cache_key, response)
+            return response
 
     def _default_result(self, obj: Any) -> Dict[str, Any]:
         """Provide a default result when an operation cannot be executed.
@@ -331,7 +344,7 @@ class Super(ABC):
         Returns:
             Dict[str, Any]: Dictionary with status, object, method, result, and error.
         """
-        return {"status": False, "object": obj, "method": None, "result": None, "error": "Operation not executed"}
+        return self._build_response(obj, False, None, None, "Operation not executed")
 
     def _default_nested_result(self, obj: Any) -> Dict[str, Any]:
         """Provide a default result for nested operations.
@@ -342,7 +355,7 @@ class Super(ABC):
         Returns:
             Dict[str, Any]: Dictionary with status, object, method, result, and error.
         """
-        return {"status": False, "object": obj, "method": None, "result": None, "error": "Operation not executed"}
+        return self._build_response(obj, False, None, None, "Operation not executed")
 
     def __repr__(self) -> str:
         """Return a string representation of the Super instance.
