@@ -21,21 +21,13 @@ class ScheduleConfigurator(Super):
 
     Returns:
         Dict[str, Any]: A dictionary with results of the configuration operation, managed by Super.execute.
-
-    Examples:
-        >>> from unit_scheduling_2.super.manipulator import ScheduleManipulator
-        >>> manipulator = ScheduleManipulator()
-        >>> configurator = ScheduleConfigurator(manipulator)
-        >>> source = Source()
-        >>> configurator.execute(source, {"set": {"params": {"name": "3C 286", "ra_h": 13, "ra_m": 31, "ra_s": 8.287}}})
-        {"status": True, "object": <Source>, "method": "_configure_source", "result": {"name": "3C 286", ...}}
     """
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator=manipulator)
         self._operation = "configure"
         logger.info("Initialized ScheduleConfigurator")
 
-    def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:
         """Configure an IF object and return its get() result."""
         valid_methods = self._get_methods(IF)
         last_result = None
@@ -45,9 +37,12 @@ class ScheduleConfigurator(Super):
             if result["status"]:
                 applied = True
                 last_result = result["result"]
+            else:
+                logger.warning(f"Invalid method '{method_name}' for IF configuration: {result['error']}")
+                raise ValueError(result["error"])
         if not applied:
             logger.warning("No valid methods applied for IF configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = if_obj.get()
         logger.info(f"Configured IF: frequency={if_obj.frequency}, bandwidth={if_obj.bandwidth}, result={final_result}")
         return final_result
@@ -55,6 +50,11 @@ class ScheduleConfigurator(Super):
     def _configure_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> Any:
         """Configure a Frequencies object, supporting nested IF configuration."""
         if "name" in attributes:
+            name = attributes["name"]
+            if_obj = freq_obj.get(name)
+            if if_obj is None:
+                logger.error(f"IF '{name}' not found in Frequencies")
+                raise ValueError(f"Name '{name}' not found in Frequencies")
             result = self._do_nested(
                 freq_obj, attributes, "name", lambda k: freq_obj.get(k), self._configure_if
             )
@@ -62,7 +62,7 @@ class ScheduleConfigurator(Super):
                 logger.info(f"Configured nested IF in Frequencies: name={attributes['name']}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to configure nested IF in Frequencies: name={attributes.get('name')}")
-            return None
+            raise ValueError(result.get("error", "Operation not executed"))
         valid_methods = self._get_methods(Frequencies)
         last_result = None
         applied = False
@@ -73,12 +73,12 @@ class ScheduleConfigurator(Super):
                 last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Frequencies configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = len(freq_obj)
         logger.info(f"Configured Frequencies: count={final_result}, result={final_result}")
         return final_result
 
-    def _configure_source(self, source_obj: Source, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _configure_source(self, source_obj: Source, attributes: Dict[str, Any]) -> Any:
         """Configure a Source object and return its get() result."""
         valid_methods = self._get_methods(Source)
         last_result = None
@@ -90,7 +90,7 @@ class ScheduleConfigurator(Super):
                 last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Source configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = source_obj.get()
         logger.info(f"Configured Source: name='{source_obj.name}', result={final_result}")
         return final_result
@@ -98,6 +98,11 @@ class ScheduleConfigurator(Super):
     def _configure_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> Any:
         """Configure a Sources object, supporting nested Source configuration."""
         if "name" in attributes:
+            name = attributes["name"]
+            source_obj = sources_obj.get(name)
+            if source_obj is None:
+                logger.error(f"Source '{name}' not found in Sources")
+                raise ValueError(f"Name '{name}' not found in Sources")
             result = self._do_nested(
                 sources_obj, attributes, "name", lambda k: sources_obj.get(k), self._configure_source
             )
@@ -105,7 +110,7 @@ class ScheduleConfigurator(Super):
                 logger.info(f"Configured nested Source in Sources: name={attributes['name']}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to configure nested Source in Sources: name={attributes.get('name')}")
-            return None
+            raise ValueError(result.get("error", "Operation not executed"))
         valid_methods = self._get_methods(Sources)
         last_result = None
         applied = False
@@ -116,7 +121,7 @@ class ScheduleConfigurator(Super):
                 last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Sources configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = len(sources_obj)
         logger.info(f"Configured Sources: count={final_result}, result={final_result}")
         return final_result
@@ -134,7 +139,7 @@ class ScheduleConfigurator(Super):
                 last_result = result["result"]
         if not applied:
             logger.warning(f"No valid methods applied for {obj_type.__name__} configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = tel_obj.get_code()
         logger.info(f"Configured {obj_type.__name__}: code='{final_result}', result={final_result}")
         return final_result
@@ -142,6 +147,11 @@ class ScheduleConfigurator(Super):
     def _configure_telescopes(self, tel_obj: Telescopes, attributes: Dict[str, Any]) -> Any:
         """Configure a Telescopes object, supporting nested Telescope configuration."""
         if "name" in attributes:
+            name = attributes["name"]
+            telescope_obj = tel_obj.get(name)
+            if telescope_obj is None:
+                logger.error(f"Telescope '{name}' not found in Telescopes")
+                raise ValueError(f"Name '{name}' not found in Telescopes")
             result = self._do_nested(
                 tel_obj, attributes, "name", lambda k: tel_obj.get(k), self._configure_telescope
             )
@@ -149,7 +159,7 @@ class ScheduleConfigurator(Super):
                 logger.info(f"Configured nested Telescope in Telescopes: name={attributes['name']}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to configure nested Telescope in Telescopes: name={attributes.get('name')}")
-            return None
+            raise ValueError(result.get("error", "Operation not executed"))
         valid_methods = self._get_methods(Telescopes)
         last_result = None
         applied = False
@@ -160,12 +170,12 @@ class ScheduleConfigurator(Super):
                 last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Telescopes configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = len(tel_obj)
         logger.info(f"Configured Telescopes: count={final_result}, result={final_result}")
         return final_result
 
-    def _configure_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _configure_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> Any:
         """Configure a Scan object, optionally validating with an observation, and return its get() result."""
         valid_methods = self._get_methods(Scan)
         last_result = None
@@ -181,10 +191,10 @@ class ScheduleConfigurator(Super):
                 last_result = result["result"]
                 if observation and not scan_obj.validate_with_observation(observation):
                     logger.error(f"Scan invalid after {method_name}: observation='{observation.get_observation_code()}'")
-                    return None
+                    raise ValueError(f"Scan invalid after {method_name}")
         if not applied:
             logger.warning("No valid methods applied for Scan configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = scan_obj.get()
         source_str = "OFF SOURCE" if scan_obj.is_off_source else f"source_name={scan_obj.get_source_name()}"
         logger.info(f"Configured Scan: start={scan_obj.get_start().isot}, {source_str}, result={final_result}")
@@ -197,17 +207,17 @@ class ScheduleConfigurator(Super):
             scan_obj = scans_obj.get(name)
             if scan_obj is None:
                 logger.error(f"Scan '{name}' not found in Scans")
-                return None
+                raise ValueError(f"Name '{name}' not found in Scans")
             if not isinstance(scan_obj, Scan):
                 logger.error(f"Object with name '{name}' is not a Scan, got {type(scan_obj).__name__}")
-                return None
+                raise ValueError(f"Object with name '{name}' is not a Scan")
             nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
             result = self._configure_scan(scan_obj, nested_attrs)
-            if result:
-                overlap, reason = scans_obj._check_overlap(scan_obj, exclude_name=name)
-                if overlap:
-                    logger.error(f"Modified scan '{name}' {reason}")
-                    return None
+            overlap, reason = scans_obj._check_overlap(scan_obj, exclude_name=name)
+            if overlap:
+                logger.error(f"Modified scan '{name}' {reason}")
+                raise ValueError(f"Modified scan '{name}' {reason}")
+            logger.info(f"Configured nested Scan in Scans: name={name}, result={result}")
             return result
         valid_methods = self._get_methods(Scans)
         last_result = None
@@ -219,7 +229,7 @@ class ScheduleConfigurator(Super):
                 last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Scans configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = len(scans_obj)
         logger.info(f"Configured Scans: count={final_result}, result={final_result}")
         return final_result
@@ -234,19 +244,27 @@ class ScheduleConfigurator(Super):
             if result["status"]:
                 applied = True
                 last_result = result["result"]
+            else:
+                logger.warning(f"Invalid method '{method_name}' for Observation configuration")
+                raise ValueError(result["error"])
         if not applied:
             logger.warning("No valid methods applied for Observation configuration")
-            return None
+            raise ValueError("No valid methods applied")
         if not obs_obj.validate():
             logger.error(f"Observation '{obs_obj.get_observation_code()}' invalid after configuration")
-            return None
+            raise ValueError("Observation invalid after configuration")
         final_result = obs_obj.get_observation_code()
         logger.info(f"Configured Observation: code='{final_result}', result={final_result}")
         return final_result
 
-    def _configure_project(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Any:
+    def _configure_scheduleproject(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Any:
         """Configure a ScheduleProject object, supporting nested Observation configuration."""
         if "name" in attributes:
+            name = attributes["name"]
+            obs_obj = project_obj.get_observation(name)
+            if obs_obj is None:
+                logger.error(f"Observation '{name}' not found in ScheduleProject")
+                raise ValueError(f"Name '{name}' not found in ScheduleProject")
             result = self._do_nested(
                 project_obj, attributes, "name", lambda k: project_obj.get_observation(k), self._configure_observation
             )
@@ -254,7 +272,7 @@ class ScheduleConfigurator(Super):
                 logger.info(f"Configured nested Observation in ScheduleProject: name={attributes['name']}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to configure nested Observation in ScheduleProject: name={attributes.get('name')}")
-            return None
+            raise ValueError(result.get("error", "Operation not executed"))
         valid_methods = self._get_methods(ScheduleProject)
         last_result = None
         applied = False
@@ -265,7 +283,7 @@ class ScheduleConfigurator(Super):
                 last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for ScheduleProject configuration")
-            return None
+            raise ValueError("No valid methods applied")
         final_result = project_obj.get_name()
         logger.info(f"Configured ScheduleProject: name='{final_result}', observations={len(project_obj.get_items())}, result={final_result}")
         return final_result
