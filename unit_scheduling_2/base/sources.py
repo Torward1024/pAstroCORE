@@ -51,7 +51,7 @@ class Source(BaseEntity, ABC):
         isactive: bool = True,
     ):
         if name is None:
-            name = f"scan_{uuid.uuid4().hex[:8]}"
+            name = f"scan_{uuid.uuid4().hex[:32]}"
         super().__init__(
             name=name,
             ra_h=ra_h,

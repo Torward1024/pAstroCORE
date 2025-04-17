@@ -41,7 +41,7 @@ class IF(BaseEntity):
         super().__init__(name=name, frequency=frequency, bandwidth=bandwidth,
                          polarizations=polarizations, isactive=isactive)
         if name is None:
-            name = f"if_{uuid.uuid4().hex[:8]}"
+            name = f"if_{uuid.uuid4().hex[:32]}"
         if frequency <= 0:
             raise ValueError("Frequency must be positive")
         if bandwidth <= 0:
