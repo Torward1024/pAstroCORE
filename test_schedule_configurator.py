@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from astropy.time import Time
 from unit_scheduling_2.super.schedule_configurator import ScheduleConfigurator
+#from unit_scheduling_2.super.schedule_configurator_mshch import ScheduleConfigurator
 from unit_scheduling_2.super.schedule_project import ScheduleProject
 from unit_scheduling_2.base.frequencies import IF, Frequencies
 from unit_scheduling_2.base.sources import Source, Sources
