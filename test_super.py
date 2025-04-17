@@ -173,7 +173,7 @@ class TestSuper(unittest.TestCase):
         )
         self.assertFalse(result["status"])
         self.assertEqual(result["object"], 5)
-        self.assertIsNone(result["method"])
+        self.assertIsNone(result["method"], None)
         self.assertIsNone(result["result"])
         self.assertEqual(result["error"], "Method 'invalid_method' not found")
 

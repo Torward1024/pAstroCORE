@@ -92,18 +92,15 @@ class Super(ABC):
         Returns:
             Any: The nested object, or None if the key is invalid.
         """
-        if isinstance(obj, BaseContainer):
-            if not isinstance(key, str):
-                logger.error(f"Invalid key {key} for BaseContainer; expected string")
-                return None
-            nested_obj = obj.get(key)
+        try:
+            nested_obj = getter_method(key)
             if nested_obj is None:
-                logger.error(f"Item '{key}' not found in BaseContainer")
+                logger.error(f"Item '{key}' not found in {type(obj).__name__}")
+                return None
             return nested_obj
-        if not isinstance(key, int) or not 0 <= key < len(obj):
-            logger.error(f"Invalid key {key} for {type(obj).__name__}")
+        except Exception as e:
+            logger.error(f"Invalid key {key} for {type(obj).__name__}: {str(e)}")
             return None
-        return getter_method(key)
 
     def _do_nested(self, obj: Any, attributes: Dict[str, Any], key: str, getter_method: Callable,
                    nested_handler: Callable) -> Dict[str, Any]:
@@ -139,19 +136,8 @@ class Super(ABC):
             return self._build_response(obj, False, None, None, str(e))
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any,
-                                   valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Validate and apply a method to an object with given arguments.
-
-        Args:
-            obj (Any): The object to apply the method to.
-            method_name (str): The name of the method to apply.
-            method_args (Any): Arguments for the method, expected as a dict, str, list, or None.
-            valid_methods (Dict[str, Callable]): Dictionary of valid methods for the object type.
-            extra_args (Dict[str, Any], optional): Additional arguments to merge with method_args. Defaults to None.
-
-        Returns:
-            Dict[str, Any]: Dictionary with status, object, method, result, and error (if status=False).
-        """
+                               valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Validate and apply a method to an object with given arguments."""
         if method_name not in valid_methods:
             logger.error(f"Invalid attribute/method '{method_name}' for '{type(obj).__name__} object'")
             return self._build_response(obj, False, None, None, f"Method '{method_name}' not found")
@@ -193,17 +179,19 @@ class Super(ABC):
             if extra_args:
                 method_args = {**(method_args or {}), **extra_args} if isinstance(method_args, dict) else method_args
             if isinstance(method_args, dict):
+                logger.debug(f"Applying {method_name} to {type(obj).__name__} with args: {method_args}")
                 result = method(obj, **method_args)
             elif method_args is None:
+                logger.debug(f"Applying {method_name} to {type(obj).__name__} with no args")
                 result = method(obj)
             else:
+                logger.debug(f"Applying {method_name} to {type(obj).__name__} with arg: {method_args}")
                 result = method(obj, method_args)
-
             logger.info(f"Applied {method_name} to {type(obj).__name__}, result={result}")
             return self._build_response(obj, True, method_name, result)
         except Exception as e:
             logger.error(f"Failed to apply {method_name} to {type(obj).__name__}: {str(e)}")
-            return self._build_response(obj, False, method_name, None, str(e))
+            return self._build_response(obj, False, method_name, None, f"Failed to apply {method_name}: {str(e)}")
 
     def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
         """Register a custom method for a specific object type.

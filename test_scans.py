@@ -91,7 +91,7 @@ class TestScan(unittest.TestCase):
         """Test automatic name generation."""
         scan = Scan(start=self.start, duration=600.0)
         self.assertTrue(scan.name.startswith("scan_"))
-        self.assertEqual(len(scan.name), 13)  # scan_ + 8 chars
+        self.assertEqual(len(scan.name), 37)  # scan_ + 32 chars
 
     def test_get_methods(self):
         """Test getter methods."""

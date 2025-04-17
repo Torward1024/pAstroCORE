@@ -93,17 +93,17 @@ class TestScheduleConfigurator(unittest.TestCase):
         result = self.configurator.execute(freq_obj, attributes)
         self.assertFalse(result["status"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "\"Name 'IF1' not found in Frequencies\"")
 
     def test_configure_frequencies_direct(self):
         """Test configuring a Frequencies object directly."""
         freq_obj = Frequencies(name="FQS")
         if_obj = IF(name="IF1")
-        attributes = {"add": {"item": if_obj}}
+        attributes = {"add": {"if_obj": if_obj}}
         result = self.configurator.execute(freq_obj, attributes)
         self.assertTrue(result["status"])
         self.assertEqual(result["method"], "_configure_frequencies")
-        self.assertEqual(result["result"], None)
+        self.assertEqual(result["result"], 1)
         self.assertEqual(len(freq_obj), 1)
 
     def test_configure_source(self):
@@ -149,7 +149,7 @@ class TestScheduleConfigurator(unittest.TestCase):
         result = self.configurator.execute(sources_obj, attributes)
         self.assertFalse(result["status"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "\"Name 'SOURCE1' not found in Sources\"")
 
     def test_configure_telescope(self):
         """Test configuring a Telescope object."""
@@ -166,6 +166,7 @@ class TestScheduleConfigurator(unittest.TestCase):
         tel_obj = SpaceTelescope(name="SCPSD")
         attributes = {
             "set": {"params": {"code": "HST"}},
+            "method": "_configure_telescope",
             "set_keplerian": {
                 "a": 7000e3,
                 "e": 0.01,
@@ -202,7 +203,7 @@ class TestScheduleConfigurator(unittest.TestCase):
         result = self.configurator.execute(tels_obj, attributes)
         self.assertFalse(result["status"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "\"Name 'VLA' not found in Telescopes\"")
 
     def test_configure_scan(self):
         """Test configuring a Scan object."""
@@ -241,7 +242,7 @@ class TestScheduleConfigurator(unittest.TestCase):
         result = self.configurator.execute(scans_obj, attributes)
         self.assertFalse(result["status"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "\"Name 'SCAN1' not found in Scans\"")
 
     def test_configure_scans_overlap(self):
         """Test configuring a Scan with overlap detection."""
@@ -258,7 +259,7 @@ class TestScheduleConfigurator(unittest.TestCase):
             result = self.configurator.execute(scans_obj, attributes)
         self.assertFalse(result["status"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "Modified scan 'SCAN2' overlaps with SCAN1")
 
     def test_configure_observation(self):
         """Test configuring an Observation object."""
@@ -279,7 +280,7 @@ class TestScheduleConfigurator(unittest.TestCase):
             result = self.configurator.execute(obs_obj, attributes)
         self.assertFalse(result["status"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "Observation invalid after configuration")
 
     def test_configure_project(self):
         """Test configuring a ScheduleProject."""
@@ -287,22 +288,31 @@ class TestScheduleConfigurator(unittest.TestCase):
         attributes = {"set_project": {"name": "TEST_PROJECT", "items": {}}}
         result = self.configurator.execute(project_obj, attributes)
         self.assertTrue(result["status"])
-        self.assertEqual(result["method"], "_configure_project")
+        self.assertEqual(result["method"], "_configure_scheduleproject")
         self.assertEqual(result["result"], "TEST_PROJECT")
         self.assertEqual(project_obj.get_name(), "TEST_PROJECT")
 
     def test_configure_project_nested(self):
         """Test configuring a nested Observation within ScheduleProject."""
-        project_obj = ScheduleProject()
+        project_obj = ScheduleProject(name="PORJE")
         obs_obj = Observation(name="OBS_DEFAULT", code="DEF")
         project_obj.add_item(obs_obj)
         attributes = {"name": "OBS_DEFAULT", "set": {"params": {"code": "OBS001"}}}
-        with patch.object(Observation, 'validate', return_value=True):
+        with patch.object(Observation, 'validate', return_value=True) as mock_validate:
             result = self.configurator.execute(project_obj, attributes)
+            mock_validate.assert_called()
         self.assertTrue(result["status"])
-        self.assertEqual(result["method"], "_configure_project")
-        self.assertEqual(result["result"], "OBS001")
+        self.assertEqual(result["method"], "_configure_scheduleproject")
         self.assertEqual(project_obj.get_observation("OBS_DEFAULT").get_observation_code(), "OBS001")
+
+    def test_configure_project_nested_not_found(self):
+        """Test configuring a nested Observation that does not exist in ScheduleProject."""
+        project_obj = ScheduleProject()
+        attributes = {"name": "OBS001", "set": {"params": {"code": "OBS001"}}}
+        result = self.configurator.execute(project_obj, attributes)
+        self.assertFalse(result["status"])
+        self.assertIsNone(result["result"])
+        self.assertEqual(result["error"], "\"Name 'OBS001' not found in TypedContainer\"")
 
     def test_configure_invalid_object(self):
         """Test configuring an invalid object type."""
