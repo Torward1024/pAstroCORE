@@ -30,13 +30,11 @@ class ScheduleConfigurator(Super):
     def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:
         """Configure an IF object and return its get() result."""
         valid_methods = self._get_methods(IF)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(if_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
             else:
                 logger.warning(f"Invalid method '{method_name}' for IF configuration: {result['error']}")
                 raise ValueError(result["error"])
@@ -64,13 +62,11 @@ class ScheduleConfigurator(Super):
             logger.warning(f"Failed to configure nested IF in Frequencies: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
         valid_methods = self._get_methods(Frequencies)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(freq_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Frequencies configuration")
             raise ValueError("No valid methods applied")
@@ -81,13 +77,11 @@ class ScheduleConfigurator(Super):
     def _configure_source(self, source_obj: Source, attributes: Dict[str, Any]) -> Any:
         """Configure a Source object and return its get() result."""
         valid_methods = self._get_methods(Source)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(source_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Source configuration")
             raise ValueError("No valid methods applied")
@@ -112,13 +106,11 @@ class ScheduleConfigurator(Super):
             logger.warning(f"Failed to configure nested Source in Sources: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
         valid_methods = self._get_methods(Sources)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(sources_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Sources configuration")
             raise ValueError("No valid methods applied")
@@ -130,13 +122,11 @@ class ScheduleConfigurator(Super):
         """Configure a Telescope or SpaceTelescope object and return its get_code() result."""
         obj_type = type(tel_obj)
         valid_methods = self._get_methods(obj_type)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(tel_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
         if not applied:
             logger.warning(f"No valid methods applied for {obj_type.__name__} configuration")
             raise ValueError("No valid methods applied")
@@ -161,13 +151,11 @@ class ScheduleConfigurator(Super):
             logger.warning(f"Failed to configure nested Telescope in Telescopes: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
         valid_methods = self._get_methods(Telescopes)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(tel_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Telescopes configuration")
             raise ValueError("No valid methods applied")
@@ -178,7 +166,6 @@ class ScheduleConfigurator(Super):
     def _configure_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> Any:
         """Configure a Scan object, optionally validating with an observation, and return its get() result."""
         valid_methods = self._get_methods(Scan)
-        last_result = None
         applied = False
         observation = attributes.get("observation")
         for method_name, method_args in attributes.items():
@@ -188,7 +175,6 @@ class ScheduleConfigurator(Super):
             result = self._validate_and_apply_method(scan_obj, method_name, method_args, valid_methods, extra_args)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
                 if observation and not scan_obj.validate_with_observation(observation):
                     logger.error(f"Scan invalid after {method_name}: observation='{observation.get_observation_code()}'")
                     raise ValueError(f"Scan invalid after {method_name}")
@@ -220,13 +206,11 @@ class ScheduleConfigurator(Super):
             logger.info(f"Configured nested Scan in Scans: name={name}, result={result}")
             return result
         valid_methods = self._get_methods(Scans)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(scans_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for Scans configuration")
             raise ValueError("No valid methods applied")
@@ -237,13 +221,11 @@ class ScheduleConfigurator(Super):
     def _configure_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> str:
         """Configure an Observation object, validating its state, and return its get_observation_code() result."""
         valid_methods = self._get_methods(Observation)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(obs_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
             else:
                 logger.warning(f"Invalid method '{method_name}' for Observation configuration")
                 raise ValueError(result["error"])
@@ -274,13 +256,11 @@ class ScheduleConfigurator(Super):
             logger.warning(f"Failed to configure nested Observation in ScheduleProject: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
         valid_methods = self._get_methods(ScheduleProject)
-        last_result = None
         applied = False
         for method_name, method_args in attributes.items():
             result = self._validate_and_apply_method(project_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
-                last_result = result["result"]
         if not applied:
             logger.warning("No valid methods applied for ScheduleProject configuration")
             raise ValueError("No valid methods applied")
