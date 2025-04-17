@@ -199,20 +199,20 @@ class ScheduleConfigurator(Super):
         Returns:
             bool: True if configuration is successful, False otherwise.
         """
-        if "telescope_code" in attributes:
-            telescope_code = attributes["telescope_code"]
-            telescope_obj = tel_obj.get(telescope_code)
+        if "name" in attributes:
+            name = attributes["name"]
+            telescope_obj = tel_obj.get(name)
             if telescope_obj is None:
-                logger.error(f"Telescope '{telescope_code}' not found in Telescopes")
+                logger.error(f"Telescope '{name}' not found in Telescopes")
                 return False
             if not isinstance(telescope_obj, (Telescope, SpaceTelescope)):
-                logger.error(f"Object with code '{telescope_code}' is not a Telescope or SpaceTelescope, got {type(telescope_obj).__name__}")
+                logger.error(f"Object with code '{name}' is not a Telescope or SpaceTelescope, got {type(telescope_obj).__name__}")
                 return False
-            nested_attrs = {k: v for k, v in attributes.items() if k != "telescope_code"}
+            nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
             result = self._configure_telescope(telescope_obj, nested_attrs)
             if result:
                 return True
-            logger.warning(f"Failed to configure Telescope '{telescope_code}'")
+            logger.warning(f"Failed to configure Telescope '{name}'")
             return False
         valid_methods = self._get_methods(Telescopes)
         applied = False
