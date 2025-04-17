@@ -127,12 +127,12 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             ValueError: If the item's name is None or already exists in the container.
             TypeError: If the item's type does not match the expected type T.
         """
-        if item.name is None:
-            raise ValueError(f"Cannot add item with no name to {self.__class__.__name__}")
         generic_base = self.__orig_bases__[0]
         item_type = self._resolve_type(generic_base.__args__[0])
         if not isinstance(item, item_type):
             raise TypeError(f"Item must be of type {item_type.__name__}, got {type(item).__name__}")
+        if item.name is None:
+            raise ValueError(f"Cannot add item with no name to {self.__class__.__name__}")
         self._validate_item(item)
         if item.name in self._items:
             raise ValueError(f"Item with name '{item.name}' already exists in {self.__class__.__name__}")

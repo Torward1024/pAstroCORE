@@ -1,4 +1,3 @@
-# /super/schedule_inspector.py
 from common.super.super import Super
 from unit_scheduling_2.super.schedule_project import ScheduleProject
 from unit_scheduling_2.base.frequencies import IF, Frequencies
@@ -10,19 +9,21 @@ from common.utils.logging_setup import logger
 from common.utils.validation import check_type
 from typing import Dict, Any, Union
 
+
 class ScheduleInspector(Super):
     """Implementation of Inspector for inspecting scheduling entities using the Super framework.
 
     Provides methods to inspect astronomical scheduling entities (IF, Frequencies, Source, Sources,
     Telescope, SpaceTelescope, Telescopes, Scan, Scans, Observation, ScheduleProject) by invoking
     their getter methods and returning results in a dictionary. Supports nested inspection via name-based
-    access and validates method applicability through a Manipulator.
+    access using _do_nested and validates method applicability through a Manipulator.
 
     Args:
         manipulator: The Manipulator instance for method lookup and validation.
 
     Returns:
-        Dict[str, Any]: Dictionary containing getter method results.
+        Dict[str, Any]: Dictionary containing getter method results, wrapped by execute in a response dictionary
+        with keys status, object, method, result, and error (if status=False).
 
     Examples:
         >>> from unit_scheduling_2.super.manipulator import ScheduleManipulator
@@ -30,11 +31,11 @@ class ScheduleInspector(Super):
         >>> inspector = ScheduleInspector(manipulator)
         >>> source = Source(name="3C 286")
         >>> result = inspector.execute(source, {"get": "name"})
-        {'get': '3C 286'}
+        {'status': True, 'object': <Source>, 'method': '_inspect_source', 'result': {'get': '3C 286'}}
         >>> project = ScheduleProject()
         >>> project.create_item(item_code="OBS001")
         >>> result = inspector.execute(project, {"name": "OBS001", "get": "code"})
-        {'get': 'OBS001'}
+        {'status': True, 'object': <Observation>, 'method': '_inspect_observation', 'result': {'get': 'OBS001'}}
     """
     def __init__(self, manipulator: 'Manipulator'):
         """Initialize the ScheduleInspector.
@@ -43,7 +44,7 @@ class ScheduleInspector(Super):
             manipulator: The Manipulator instance providing method validation and execution capabilities.
         """
         super().__init__(manipulator=manipulator)
-        self._operation = "inspect"  # Set operation name for Super framework
+        self._operation = "inspect"
         logger.info("Initialized ScheduleInspector")
 
     def _default_result(self) -> Dict[str, Any]:
@@ -63,11 +64,13 @@ class ScheduleInspector(Super):
         check_type(if_obj, IF, "IF object")
         valid_getters = self._get_methods(IF)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(if_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for IF inspection")
             return {}
         logger.info(f"Inspected IF: frequency={if_obj.get('frequency')} MHz")
@@ -81,32 +84,27 @@ class ScheduleInspector(Super):
             attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
 
         Returns:
-            Dict[str, Any]: Dictionary with getter results.
+            Dict[str, Any]: Dictionary with getter results or result of nested IF inspection.
         """
         check_type(freq_obj, Frequencies, "Frequencies object")
         if "name" in attributes:
-            name = attributes["name"]
-            try:
-                if_obj = freq_obj.get(name)
-            except KeyError:
-                logger.error(f"IF '{name}' not found in Frequencies")
-                return {}
-            if if_obj:
-                nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
-                result = self._inspect_if(if_obj, nested_attrs)
-                if result:
-                    return result
-                logger.warning(f"Failed to inspect IF '{name}'")
-                return {}
-            logger.warning(f"IF '{name}' not found in Frequencies")
+            result = self._do_nested(
+                freq_obj, attributes, "name", lambda k: freq_obj.get(k), self._inspect_if
+            )
+            if result["status"]:
+                logger.info(f"Inspected nested IF in Frequencies: name={attributes['name']}, result={result['result']}")
+                return result["result"]
+            logger.warning(f"Failed to inspect nested IF in Frequencies: name={attributes.get('name')}")
             return {}
         valid_getters = self._get_methods(Frequencies)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(freq_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for Frequencies inspection")
             return {}
         logger.info(f"Inspected Frequencies: count={len(freq_obj)}")
@@ -125,11 +123,13 @@ class ScheduleInspector(Super):
         check_type(source_obj, Source, "Source object")
         valid_getters = self._get_methods(Source)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(source_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for Source inspection")
             return {}
         logger.info(f"Inspected Source: name='{source_obj.get('name')}'")
@@ -143,31 +143,27 @@ class ScheduleInspector(Super):
             attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
 
         Returns:
-            Dict[str, Any]: Dictionary with getter results.
+            Dict[str, Any]: Dictionary with getter results or result of nested Source inspection.
         """
         check_type(sources_obj, Sources, "Sources object")
         if "name" in attributes:
-            source_name = attributes["name"]
-            source_obj = sources_obj.get(source_name)
-            if source_obj is None:
-                logger.error(f"Source '{source_name}' not found in Sources")
-                return {}
-            if not isinstance(source_obj, Source):
-                logger.error(f"Object with name '{source_name}' is not a Source, got {type(source_obj).__name__}")
-                return {}
-            nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
-            result = self._inspect_source(source_obj, nested_attrs)
-            if result:
-                return result
-            logger.warning(f"Failed to inspect Source '{source_name}'")
+            result = self._do_nested(
+                sources_obj, attributes, "name", lambda k: sources_obj.get(k), self._inspect_source
+            )
+            if result["status"]:
+                logger.info(f"Inspected nested Source in Sources: name={attributes['name']}, result={result['result']}")
+                return result["result"]
+            logger.warning(f"Failed to inspect nested Source in Sources: name={attributes.get('name')}")
             return {}
         valid_getters = self._get_methods(Sources)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(sources_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for Sources inspection")
             return {}
         logger.info(f"Inspected Sources: count={len(sources_obj)}")
@@ -187,11 +183,13 @@ class ScheduleInspector(Super):
         obj_type = type(telescope_obj)
         valid_getters = self._get_methods(obj_type)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(telescope_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
             return {}
         logger.info(f"Inspected {obj_type.__name__}: code='{telescope_obj.get('code')}'")
@@ -205,31 +203,27 @@ class ScheduleInspector(Super):
             attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
 
         Returns:
-            Dict[str, Any]: Dictionary with getter results.
+            Dict[str, Any]: Dictionary with getter results or result of nested Telescope inspection.
         """
         check_type(telescopes_obj, Telescopes, "Telescopes object")
         if "name" in attributes:
-            name = attributes["name"]
-            telescope_obj = telescopes_obj.get(name)
-            if telescope_obj is None:
-                logger.error(f"Telescope '{name}' not found in Telescopes")
-                return {}
-            if not isinstance(telescope_obj, (Telescope, SpaceTelescope)):
-                logger.error(f"Object with code '{name}' is not a Telescope or SpaceTelescope, got {type(telescope_obj).__name__}")
-                return {}
-            nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
-            result = self._inspect_telescope(telescope_obj, nested_attrs)
-            if result:
-                return result
-            logger.warning(f"Failed to inspect Telescope '{name}'")
+            result = self._do_nested(
+                telescopes_obj, attributes, "name", lambda k: telescopes_obj.get(k), self._inspect_telescope
+            )
+            if result["status"]:
+                logger.info(f"Inspected nested Telescope in Telescopes: name={attributes['name']}, result={result['result']}")
+                return result["result"]
+            logger.warning(f"Failed to inspect nested Telescope in Telescopes: name={attributes.get('name')}")
             return {}
         valid_getters = self._get_methods(Telescopes)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(telescopes_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for Telescopes inspection")
             return {}
         logger.info(f"Inspected Telescopes: count={len(telescopes_obj)}")
@@ -248,6 +242,7 @@ class ScheduleInspector(Super):
         check_type(scan_obj, Scan, "Scan object")
         valid_getters = self._get_methods(Scan)
         result = {}
+        applied = False
         observation = attributes.get("observation")
         for getter_name, getter_args in attributes.items():
             if getter_name == "observation":
@@ -263,9 +258,10 @@ class ScheduleInspector(Super):
                 valid_getters,
                 {"observation": observation} if observation else None
             )
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for Scan inspection")
             return {}
         logger.info(f"Inspected Scan: start={scan_obj.get('start').isot}")
@@ -279,7 +275,7 @@ class ScheduleInspector(Super):
             attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
 
         Returns:
-            Dict[str, Any]: Dictionary with getter results.
+            Dict[str, Any]: Dictionary with getter results or result of nested Scan inspection.
         """
         check_type(scans_obj, Scans, "Scans object")
         if "name" in attributes:
@@ -291,23 +287,27 @@ class ScheduleInspector(Super):
             if not isinstance(scan_obj, Scan):
                 logger.error(f"Object with name '{name}' is not a Scan, got {type(scan_obj).__name__}")
                 return {}
-            nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
-            result = self._inspect_scan(scan_obj, nested_attrs)
-            if result:
-                return result
-            logger.warning(f"Failed to inspect Scan '{name}'")
+            result = self._do_nested(
+                scans_obj, attributes, "name", lambda k: scans_obj.get(k), self._inspect_scan
+            )
+            if result["status"]:
+                logger.info(f"Inspected nested Scan in Scans: name={name}, result={result['result']}")
+                return result["result"]
+            logger.warning(f"Failed to inspect nested Scan in Scans: name={name}")
             return {}
         valid_getters = self._get_methods(Scans)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             if getter_name == "get_active_scans" and getter_args and "observation" in getter_args:
                 if not isinstance(getter_args["observation"], Observation):
                     logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
                     continue
             value = self._validate_and_apply_method(scans_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for Scans inspection")
             return {}
         logger.info(f"Inspected Scans: count={len(scans_obj)}")
@@ -326,17 +326,19 @@ class ScheduleInspector(Super):
         check_type(obs_obj, Observation, "Observation object")
         valid_getters = self._get_methods(Observation)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(obs_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for Observation inspection")
             return {}
         logger.info(f"Inspected Observation: code='{obs_obj.get('code')}'")
         return result
 
-    def _inspect_project(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _inspect_scheduleproject(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Inspect a ScheduleProject object, supporting nested Observation inspection.
 
         Args:
@@ -344,32 +346,27 @@ class ScheduleInspector(Super):
             attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
 
         Returns:
-            Dict[str, Any]: Dictionary with getter results.
+            Dict[str, Any]: Dictionary with getter results or result of nested Observation inspection.
         """
         check_type(project_obj, ScheduleProject, "ScheduleProject object")
         if "name" in attributes:
-            name = attributes["name"]
-            try:
-                observation_obj = project_obj.get_observation(name)
-            except KeyError:
-                logger.error(f"Observation '{name}' not found in Project")
-                return {}
-            if observation_obj:
-                nested_attrs = {k: v for k, v in attributes.items() if k != "name"}
-                result = self._inspect_observation(observation_obj, nested_attrs)
-                if result:
-                    return result
-                logger.warning(f"Failed to inspect Observation '{name}'")
-                return {}
-            logger.warning(f"Observation '{name}' not found in ScheduleProject")
+            result = self._do_nested(
+                project_obj, attributes, "name", lambda k: project_obj.get_observation(k), self._inspect_observation
+            )
+            if result["status"]:
+                logger.info(f"Inspected nested Observation in ScheduleProject: name={attributes['name']}, result={result['result']}")
+                return result["result"]
+            logger.warning(f"Failed to inspect nested Observation in ScheduleProject: name={attributes.get('name')}")
             return {}
         valid_getters = self._get_methods(ScheduleProject)
         result = {}
+        applied = False
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(project_obj, getter_name, getter_args, valid_getters)
-            if value["success"]:
+            if value["status"]:
                 result[getter_name] = value["result"]
-        if not result:
+                applied = True
+        if not applied:
             logger.warning("No valid getters applied for ScheduleProject inspection")
             return {}
         logger.info(f"Inspected ScheduleProject: name='{project_obj.get('name')}'")

@@ -166,7 +166,6 @@ class TestBaseEntity(unittest.TestCase):
         dict2 = entity.to_dict()
         self.assertNotEqual(dict1, dict2)
         self.assertEqual(dict2["nested"]["value"], 43)
-        # Проверяем случай без кэширования вложенного объекта
         nested_no_cache = TestEntity(name="nested2", value=42, use_cache=False)
         entity.nested = nested_no_cache
         dict3 = entity.to_dict()
@@ -253,6 +252,11 @@ class TestBaseContainer(unittest.TestCase):
         container.remove("item1")
         with self.assertRaises(KeyError):
             container["item1"]
+
+    def test_add_wring(self):
+        container = TestContainer(name="test")
+        with self.assertRaises(TypeError):
+            container.add('1111')
 
     def test_add_none_name(self):
         container = TestContainer(name="test")
@@ -405,7 +409,6 @@ class TestBaseContainer(unittest.TestCase):
         self.assertIsNot(dict1, dict3)  # Кэш инвалидируется
 
     def test_unresolved_type_fallback(self):
-        # Создаём временный класс с forward reference
         class TempContainer(BaseContainer["UnresolvedType"]):
             pass
         
@@ -419,20 +422,20 @@ class TestBaseContainer(unittest.TestCase):
         item = TestEntity(name="item1", value=42)
         container.add(item)
         dict1 = container.to_dict()
-        container.add(TestEntity(name="item2", value=140))  # Используем add вместо прямой мутации
+        container.add(TestEntity(name="item2", value=140))
         dict2 = container.to_dict()
-        self.assertNotEqual(dict1, dict2)  # Кэш инвалидируется через add
-        self.assertEqual(container["item2"].value, 140)  # Мутация работает
+        self.assertNotEqual(dict1, dict2)
+        self.assertEqual(container["item2"].value, 140)
     
     def test_direct_items_mutation_warning(self):
         container = TestContainer(name="test", use_cache=True)
         item = TestEntity(name="item1", value=42)
         container.add(item)
         dict1 = container.to_dict()
-        container._items["item2"] = TestEntity(name="item2", value=100)  # Прямое изменение
+        container._items["item2"] = TestEntity(name="item2", value=100)
         dict2 = container.to_dict()
-        self.assertEqual(dict1, dict2)  # Кэш не инвалидируется
-        self.assertEqual(container["item2"].value, 100)  # Изменение применилось
+        self.assertEqual(dict1, dict2)
+        self.assertEqual(container["item2"].value, 100)
     
     def test_caching_extended(self):
         container = TestContainer(name="test", use_cache=True)
@@ -441,7 +444,7 @@ class TestBaseContainer(unittest.TestCase):
         dict1 = container.to_dict()
         container.remove("item1")
         dict2 = container.to_dict()
-        self.assertIsNot(dict1, dict2)  # Кэш инвалидируется при удалении
+        self.assertIsNot(dict1, dict2) 
         container.add(item)
         dict3 = container.to_dict()
         container.clear()
