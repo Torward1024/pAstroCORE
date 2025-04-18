@@ -140,7 +140,7 @@ class Super(ABC):
             return self._build_response(obj, False, None, None, str(e))
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any,
-                               valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
+                                   valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
         """Validate and apply a method to an object with given arguments."""
         if method_name not in valid_methods:
             logger.error(f"Invalid method '{method_name}' for '{type(obj).__name__}'")
@@ -149,6 +149,7 @@ class Super(ABC):
         method = valid_methods[method_name]
         sig = inspect.signature(method)
         params = list(sig.parameters.keys())
+        print(f"DEBUG signature: {sig}, params: {params}")
         expected_params = [p for p in params if p != 'self']
 
         try:
@@ -159,38 +160,29 @@ class Super(ABC):
                 and sig.parameters[p].kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
             ]
 
-            # Validate and add method_args
-            if method_args is not None:
-                if isinstance(method_args, dict):
-                    for k, v in method_args.items():
-                        if k in expected_params:
-                            param = sig.parameters[k]
-                            if param.annotation != inspect.Parameter.empty and not isinstance(v, param.annotation):
-                                logger.warning(f"Argument '{k}' for {method_name} has unexpected type: got {type(v).__name__}, expected {param.annotation.__name__}")
-                            final_args[k] = v
-                else:
-                    if required_params:
-                        final_args[required_params[0]] = method_args
-                    elif expected_params:
-                        final_args[expected_params[0]] = method_args
+            if not expected_params:
+                logger.debug(f"Applying {method_name} to {type(obj).__name__} with no args")
+                result = method(obj)
+            else:
+                if method_args is not None:
+                    if isinstance(method_args, dict):
+                        final_args.update(method_args)
+                    else:
+                        if required_params:
+                            final_args[required_params[0]] = method_args
+                        else:
+                            final_args[expected_params[0]] = method_args
 
-            # Add extra_args with priority over method_args
-            if extra_args:
-                for k, v in extra_args.items():
-                    if k in expected_params:
-                        param = sig.parameters[k]
-                        if param.annotation != inspect.Parameter.empty and not isinstance(v, param.annotation):
-                            logger.warning(f"Extra argument '{k}' for {method_name} has unexpected type: got {type(v).__name__}, expected {param.annotation.__name__}")
-                        final_args[k] = v  # Extra args overwrite method_args
+                if extra_args:
+                    final_args.update(extra_args)
 
-            # Check for missing required parameters
-            for param in required_params:
-                if param not in final_args:
-                    logger.error(f"Missing required argument '{param}' for {method_name}")
-                    return self._build_response(obj, False, method_name, None, f"Missing required argument '{param}'")
+                for param in required_params:
+                    if param not in final_args:
+                        logger.error(f"Missing required argument '{param}' for {method_name}")
+                        return self._build_response(obj, False, method_name, None, f"Missing required argument '{param}'")
 
-            # Apply the method with validated arguments
-            result = method(obj, **final_args)
+                valid_args = {k: v for k, v in final_args.items() if k in expected_params}
+                result = method(obj, **valid_args)
 
             logger.info(f"Applied {method_name} to {type(obj).__name__}, result={result}")
             return self._build_response(obj, True, method_name, result)
