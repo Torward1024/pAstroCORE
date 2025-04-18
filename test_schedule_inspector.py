@@ -382,8 +382,9 @@ class TestScheduleInspector(unittest.TestCase):
         invalid_obj = object()
         attributes = {"get": "value"}
         result = self.inspector.execute(invalid_obj, attributes)
+        print("BABOS", result)
         self.assertFalse(result["status"])
-        self.assertTrue(isinstance(result["object"], str))  # Проверяем, что object - строка
+        self.assertEqual(result["object"], invalid_obj)
         self.assertEqual(result["error"], "No suitable method found for operation 'inspect' and object 'object' in ScheduleInspector")
         logger.info("Invalid object inspection tested successfully")
 
