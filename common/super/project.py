@@ -31,9 +31,19 @@ class Project(ABC):
         return TypedContainer(items=items, name=name)
 
     def add_item(self, item: BaseEntity) -> None:
-        """Add a BaseEntity item to the project's container."""
+        """Add a BaseEntity item to the project's container.
+
+        Args:
+            item (BaseEntity): The item to add.
+
+        Raises:
+            TypeError: If the item type does not match the expected type.
+            ValueError: If an item with the same name already exists in the project.
+        """
         if not isinstance(item, self._item_type):
             raise TypeError(f"Item must be of type {self._item_type.__name__} for project '{self._name}', got {type(item).__name__}")
+        if self._items.has_item(item.name):
+            raise ValueError(f"Item with name '{item.name}' already exists in project '{self._name}'")
         self._items.add(item)
         logger.info(f"Added item '{item.name}' to project '{self._name}'")
 

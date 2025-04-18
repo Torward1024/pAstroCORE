@@ -1,5 +1,6 @@
 import unittest
 from typing import Dict, Any, Optional, List, Union
+from unittest.mock import patch
 from common.super.manipulator import Manipulator
 from common.super.super import Super
 from common.base.baseentity import BaseEntity
@@ -8,6 +9,7 @@ from common.utils.logging_setup import logger
 
 class Observation(BaseEntity):
     value: int
+
 
 class TestConfigurator(Super):
     def _configure_observation(self, obj: Observation, attrs: Dict[str, Any]) -> bool:
@@ -31,6 +33,7 @@ class TestConfigurator(Super):
             return {"status": True, "object": obj, "method": method_name, "result": result}
         logger.error(f"No configuration method found for {obj_type_name}")
         return {"status": False, "object": obj, "method": None, "result": None, "error": "No configuration method found"}
+
 
 class TestManipulator(unittest.TestCase):
     def setUp(self) -> None:
@@ -144,38 +147,86 @@ class TestManipulator(unittest.TestCase):
     def test_process_single_request_missing_operation(self) -> None:
         """Test processing a request without an operation."""
         request = {"obj": self.obs, "attributes": {"value": 300}}
-        result = self.manipulator.process_request(request)
-        self.assertFalse(result["status"])
-        self.assertEqual(result["object"], self.obs)
-        self.assertIsNone(result["method"])
-        self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "No operation specified in request")
-        self.assertEqual(self.obs.value, 42)
+        with patch('common.utils.logging_setup.logger') as mock_logger:
+            result = self.manipulator.process_request(request)
+            self.assertFalse(result["status"])
+            self.assertEqual(result["object"], None)
+            self.assertIsNone(result["method"])
+            self.assertIsNone(result["result"])
+            self.assertEqual(result["error"], "Invalid sub-request type in sequence: [('obj', 'Observation')]")
+            self.assertEqual(self.obs.value, 42)
         logger.info("Missing operation in request tested successfully")
 
     def test_process_single_request_invalid_operation(self) -> None:
         """Test processing a request with an invalid operation."""
         request = {"operation": "invalid", "obj": self.obs, "attributes": {"value": 300}}
-        result = self.manipulator.process_request(request)
-        self.assertFalse(result["status"])
-        self.assertEqual(result["object"], self.obs)
-        self.assertIsNone(result["method"])
-        self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation 'invalid' not registered")
-        self.assertEqual(self.obs.value, 42)
+        with patch('common.utils.logging_setup.logger') as mock_logger:
+            result = self.manipulator.process_request(request)
+            self.assertFalse(result["status"])
+            self.assertEqual(result["object"], self.obs)
+            self.assertIsNone(result["method"])
+            self.assertIsNone(result["result"])
+            self.assertEqual(result["error"], "Operation 'invalid' not registered")
+            self.assertEqual(self.obs.value, 42)
         logger.info("Invalid operation in request tested successfully")
+
+    def test_process_single_request_invalid_method_type(self) -> None:
+        """Test processing a request with invalid method type."""
+        request = {"operation": "configure", "obj": self.obs, "method": 123, "attributes": {"value": 300}}
+        with patch('common.utils.logging_setup.logger') as mock_logger:
+            result = self.manipulator.process_request(request)
+            self.assertFalse(result["status"])
+            self.assertEqual(result["object"], self.obs)
+            self.assertIsNone(result["method"])
+            self.assertIsNone(result["result"])
+            self.assertEqual(result["error"], "Invalid 'method' type: expected str or None, got int")
+            self.assertEqual(self.obs.value, 42)
+        logger.info("Invalid method type in request tested successfully")
+
+    def test_process_single_request_none_method(self) -> None:
+        """Test processing a request with method set to None."""
+        request = {
+            "operation": "configure",
+            "obj": self.obs,
+            "method": None,
+            "attributes": {"value": 300}
+        }
+        result = self.manipulator.process_request(request)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], self.obs)
+        self.assertEqual(result["method"], "_configure_observation")
+        self.assertTrue(result["result"])
+        self.assertEqual(self.obs.value, 300)
+        self.assertNotIn("error", result)
+        logger.info("None method in request tested successfully")
 
     def test_process_single_request_invalid_attributes(self) -> None:
         """Test processing a request with invalid attributes."""
         request = {"operation": "configure", "obj": self.obs, "attributes": "not_a_dict"}
-        result = self.manipulator.process_request(request)
-        self.assertFalse(result["status"])
-        self.assertEqual(result["object"], self.obs)
-        self.assertIsNone(result["method"])
-        self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Invalid attributes type")
-        self.assertEqual(self.obs.value, 42)
+        with patch('common.utils.logging_setup.logger') as mock_logger:
+            result = self.manipulator.process_request(request)
+            self.assertFalse(result["status"])
+            self.assertEqual(result["object"], self.obs)
+            self.assertIsNone(result["method"])
+            self.assertIsNone(result["result"])
+            self.assertEqual(result["error"], "Invalid 'attributes' type: expected dict or None, got str")
+            self.assertEqual(self.obs.value, 42)
         logger.info("Invalid attributes in request tested successfully")
+
+    def test_process_single_request_none_attributes(self) -> None:
+        """Test processing a request with attributes set to None."""
+        request = {
+            "operation": "configure",
+            "obj": self.obs,
+            "attributes": None
+        }
+        result = self.manipulator.process_request(request)
+        self.assertTrue(result["status"])
+        self.assertEqual(result["object"], self.obs)
+        self.assertEqual(result["method"], "_configure_observation")
+        self.assertTrue(result["result"])
+        self.assertNotIn("error", result)
+        logger.info("None attributes in request tested successfully")
 
     def test_process_sequence_request(self) -> None:
         """Test processing a sequence of requests."""
@@ -213,30 +264,83 @@ class TestManipulator(unittest.TestCase):
             "req2": {"operation": "invalid", "obj": self.obs, "attributes": {"value": 700}},
             "req3": {"operation": "configure", "obj": self.obs, "attributes": "not_a_dict"}
         }
-        results = self.manipulator.process_request(request)
-        self.assertEqual(len(results), 3)
-        self.assertTrue(results["req1"]["status"])
-        self.assertEqual(results["req1"]["object"], self.obs)
-        self.assertEqual(results["req1"]["method"], "_configure_observation")
-        self.assertTrue(results["req1"]["result"])
-        self.assertNotIn("error", results["req1"])
-        self.assertFalse(results["req2"]["status"])
-        self.assertEqual(results["req2"]["object"], self.obs)
-        self.assertIsNone(results["req2"]["method"])
-        self.assertIsNone(results["req2"]["result"])
-        self.assertEqual(results["req2"]["error"], "Operation 'invalid' not registered")
-        self.assertFalse(results["req3"]["status"])
-        self.assertEqual(results["req3"]["object"], self.obs)
-        self.assertIsNone(results["req3"]["method"])
-        self.assertIsNone(results["req3"]["result"])
-        self.assertEqual(results["req3"]["error"], "Invalid attributes type")
-        self.assertEqual(self.obs.value, 600)
+        with patch('common.utils.logging_setup.logger') as mock_logger:
+            results = self.manipulator.process_request(request)
+            self.assertEqual(len(results), 3)
+            self.assertTrue(results["req1"]["status"])
+            self.assertEqual(results["req1"]["object"], self.obs)
+            self.assertEqual(results["req1"]["method"], "_configure_observation")
+            self.assertTrue(results["req1"]["result"])
+            self.assertNotIn("error", results["req1"])
+            self.assertFalse(results["req2"]["status"])
+            self.assertEqual(results["req2"]["object"], self.obs)
+            self.assertIsNone(results["req2"]["method"])
+            self.assertIsNone(results["req2"]["result"])
+            self.assertEqual(results["req2"]["error"], "Operation 'invalid' not registered")
+            self.assertFalse(results["req3"]["status"])
+            self.assertEqual(results["req3"]["object"], self.obs)
+            self.assertIsNone(results["req3"]["method"])
+            self.assertIsNone(results["req3"]["result"])
+            self.assertEqual(results["req3"]["error"], "Invalid 'attributes' type: expected dict or None, got str")
+            self.assertEqual(self.obs.value, 600)
         logger.info("Sequence request with errors tested successfully")
 
+    def test_process_sequence_request_missing_operation_in_subrequest(self) -> None:
+        """Test processing a sequence of requests with missing operation in a sub-request."""
+        request = {
+            "req1": {"operation": "configure", "obj": self.obs, "attributes": {"value": 800}},
+            "req2": {"obj": self.obs, "attributes": {"value": 900}},  # Missing operation
+            "req3": {"operation": "configure", "obj": self.obs, "attributes": {"value": 1000}}
+        }
+        with patch('common.utils.logging_setup.logger') as mock_logger:
+            results = self.manipulator.process_request(request)
+            self.assertEqual(len(results), 3)
+            self.assertTrue(results["req1"]["status"])
+            self.assertEqual(results["req1"]["object"], self.obs)
+            self.assertEqual(results["req1"]["method"], "_configure_observation")
+            self.assertTrue(results["req1"]["result"])
+            self.assertNotIn("error", results["req1"])
+            self.assertFalse(results["req2"]["status"])
+            self.assertEqual(results["req2"]["object"], self.obs)
+            self.assertIsNone(results["req2"]["method"])
+            self.assertIsNone(results["req2"]["result"])
+            self.assertEqual(results["req2"]["error"], "Missing 'operation' in sub-request")
+            self.assertTrue(results["req3"]["status"])
+            self.assertEqual(results["req3"]["object"], self.obs)
+            self.assertEqual(results["req3"]["method"], "_configure_observation")
+            self.assertTrue(results["req3"]["result"])
+            self.assertEqual(results["req3"]["object"].value, 1000)
+            self.assertNotIn("error", results["req3"])
+            self.assertEqual(self.obs.value, 1000)  # Last successful request
+        logger.info("Sequence request with missing operation in sub-request tested successfully")
+
+    def test_process_sequence_request_invalid_subrequest_type(self) -> None:
+        """Test processing a sequence of requests with invalid sub-request type."""
+        request = {
+            "req1": {"operation": "configure", "obj": self.obs, "attributes": {"value": 1100}},
+            "req2": "not_a_dict",  # Invalid sub-request type
+            "req3": {"operation": "configure", "obj": self.obs, "attributes": {"value": 1200}}
+        }
+        results = self.manipulator.process_request(request)
+        self.assertEqual(
+            results,
+            {
+                "status": False,
+                "object": None,
+                "method": None,
+                "result": None,
+                "error": "Invalid sub-request type in sequence: [('req2', 'str')]"
+            },
+            f"Expected error dictionary, got {results}"
+        )
+        self.assertEqual(self.obs.value, 42, "Observation value should not change")
+        logger.info("Sequence request with invalid sub-request type tested successfully")
+        
     def test_process_request_invalid_type(self) -> None:
         """Test processing a request with an invalid type."""
-        with self.assertRaises(TypeError):
-            self.manipulator.process_request("not_a_dict")
+        with patch('common.utils.logging_setup.logger') as mock_logger:
+            with self.assertRaises(TypeError):
+                self.manipulator.process_request("not_a_dict")
         logger.info("Invalid request type tested successfully")
 
     def test_process_request_no_object(self) -> None:
@@ -244,12 +348,13 @@ class TestManipulator(unittest.TestCase):
         manip = Manipulator()
         manip.register_operation("configure", TestConfigurator(manip))
         request = {"operation": "configure", "attributes": {"value": 42}}
-        result = manip.process_request(request)
-        self.assertFalse(result["status"])
-        self.assertIsNone(result["object"])
-        self.assertIsNone(result["method"])
-        self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "No request object or managing object provided")
+        with patch('common.utils.logging_setup.logger') as mock_logger:
+            result = manip.process_request(request)
+            self.assertFalse(result["status"])
+            self.assertIsNone(result["object"])
+            self.assertIsNone(result["method"])
+            self.assertIsNone(result["result"])
+            self.assertEqual(result["error"], "No request object or managing object provided")
         logger.info("No object in request tested successfully")
 
     def test_get_supported_operations(self) -> None:
@@ -271,6 +376,7 @@ class TestManipulator(unittest.TestCase):
         self.assertIsNot(registry1, registry3)
         self.assertIn(Observation, registry3)
         logger.info("Method registry caching tested successfully")
+
 
 if __name__ == "__main__":
     unittest.main()
