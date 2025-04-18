@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Dict, Any, Callable, Type, Optional
+from typing import Dict, Any, Callable, Type, Optional, Union
 from common.utils.logging_setup import logger
 from common.super.manipulator import Manipulator
 from common.base.baseentity import BaseEntity
@@ -22,7 +22,7 @@ class Super(ABC):
     Notes:
         - Method resolution order: explicit method, prefixed method (`_<operation>_<method>`), type-specific method (`_<operation>_<type>`), default method (`_<operation>`).
         - Logging is integrated via `common.utils.logging_setup.logger`.
-        - Results are returned as dictionaries with keys: status (bool), object (Any), method (str | None),
+        - Results are returned as dictionaries with keys: status (bool), object (str), method (str | None),
           result (Any), error (str | None, included only if status=False).
     """
     def __init__(self, manipulator: 'Manipulator' = None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None,
@@ -40,7 +40,7 @@ class Super(ABC):
         self._cache_size = cache_size
 
     def _build_response(self, obj: Any, status: bool, method: str = None, result: Any = None,
-                         error: str = None) -> Dict[str, Any]:
+                    error: str = None) -> Dict[str, Any]:
         """Format a standardized response dictionary.
 
         Args:
@@ -51,11 +51,15 @@ class Super(ABC):
             error (str, optional): Error message if status is False. Defaults to None.
 
         Returns:
-            Dict[str, Any]: Standardized response dictionary.
+            Dict[str, Any]: Standardized response dictionary with object name in 'object' key.
         """
+        obj_name = getattr(obj, 'name', None)
+        if obj_name is None:
+            obj_name = f"{obj.__class__.__name__}(id={id(obj)})"
+        
         response = {
             "status": status,
-            "object": obj,
+            "object": obj_name,
             "method": method,
             "result": result
         }
@@ -124,7 +128,7 @@ class Super(ABC):
         try:
             nested_obj = self._get_nested_object(obj, index, getter_method)
             if nested_obj is None:
-                return self._build_response(obj, False, None, None, "Operation not executed")
+                return self._build_response(obj, False, None, None, f"Name '{index}' not found in {type(obj).__name__}")
 
             nested_attrs = {k: v for k, v in attributes.items() if k != key}
             result = nested_handler(nested_obj, nested_attrs)
@@ -146,34 +150,21 @@ class Super(ABC):
         sig = inspect.signature(method)
         expected_params = set(sig.parameters.keys()) - {"self", "obj"}
 
-        if method_args is not None and not isinstance(method_args, (dict, str, list, type(None))):
-            logger.error(f"Arguments for {method_name} must be a dictionary, string, list, or None, got {type(method_args)}")
-            return self._build_response(obj, False, method_name, None, f"Invalid argument type: {type(method_args)}")
-
-        if method_args is not None and not isinstance(method_args, (dict, type(None))):
-            valid_arg = False
-            for param_name, param in sig.parameters.items():
-                if param_name in ("self", "obj"):
-                    continue
-                annotation = param.annotation
-                if annotation is inspect.Parameter.empty:
-                    if isinstance(method_args, (str, list)):
-                        logger.error(f"Invalid argument type for {method_name}: got {type(method_args)}")
-                        return self._build_response(obj, False, method_name, None, f"Invalid argument type: {type(method_args)}")
-                    valid_arg = True
-                    break
-                if isinstance(method_args, annotation):
-                    valid_arg = True
-                    break
-            if not valid_arg:
-                logger.error(f"Invalid argument type for {method_name}: got {type(method_args)}")
-                return self._build_response(obj, False, method_name, None, f"Invalid argument type: {type(method_args)}")
-
-        if isinstance(method_args, dict):
-            provided_params = set(method_args.keys())
-            if not provided_params.issubset(expected_params):
-                logger.error(f"Invalid arguments for {method_name}: expected {expected_params}, got {provided_params}")
-                return self._build_response(obj, False, method_name, None, f"Invalid arguments: expected {expected_params}, got {provided_params}")
+        if method_name == "get" and method_args is not None:
+            valid_keys = getattr(obj, '_fields', {}).keys()
+            if isinstance(method_args, str) and method_args not in valid_keys:
+                logger.error(f"Invalid key '{method_args}' for get in {type(obj).__name__}")
+                return self._build_response(obj, False, method_name, None, f"Invalid key '{method_args}'")
+            elif isinstance(method_args, list) and not all(k in valid_keys for k in method_args):
+                invalid_keys = [k for k in method_args if k not in valid_keys]
+                logger.error(f"Invalid keys {invalid_keys} for get in {type(obj).__name__}")
+                return self._build_response(obj, False, method_name, None, f"Invalid keys {invalid_keys}")
+            elif isinstance(method_args, dict):
+                # Если get ожидает словарь, проверяем ключи
+                if not all(k in valid_keys for k in method_args.keys()):
+                    invalid_keys = [k for k in method_args.keys() if k not in valid_keys]
+                    logger.error(f"Invalid keys {invalid_keys} for get in {type(obj).__name__}")
+                    return self._build_response(obj, False, method_name, None, f"Invalid keys {invalid_keys}")
 
         try:
             if extra_args:
@@ -249,7 +240,7 @@ class Super(ABC):
             method (str, optional): Explicit method to call, if provided in the request.
 
         Returns:
-            Dict[str, Any]: Dictionary with status, object, method, result, and error (if status=False).
+            Dict[str, Any]: Dictionary with status, object (name), method, result, and error (if status=False).
         """
         if attributes is None:
             attributes = {}
@@ -337,7 +328,7 @@ class Super(ABC):
             obj (Any): The object associated with the operation.
 
         Returns:
-            Dict[str, Any]: Dictionary with status, object, method, result, and error.
+            Dict[str, Any]: Dictionary with status, object (name), method, result, and error.
         """
         return self._build_response(obj, False, None, None, "Operation not executed")
 
@@ -348,7 +339,7 @@ class Super(ABC):
             obj (Any): The object associated with the operation.
 
         Returns:
-            Dict[str, Any]: Dictionary with status, object, method, result, and error.
+            Dict[str, Any]: Dictionary with status, object (name), method, result, and error.
         """
         return self._build_response(obj, False, None, None, "Operation not executed")
 

@@ -14,12 +14,13 @@ class Project(ABC):
         _items (BaseContainer[BaseEntity]): Container of BaseEntity items indexed by their names.
         _item_type (Type[BaseEntity]): The type of items stored in the container, defaults to BaseEntity.
     """
+    name: str
     _item_type: Type[BaseEntity] = BaseEntity
 
     def __init__(self, name: str = "DEFAULT_PROJECT", items: Optional[Dict[str, BaseEntity]] = None):
         """Initialize a Project with a name and an optional dictionary of BaseEntity items."""
         check_non_empty_string(name, "Project name")
-        self._name = name
+        self.name = name
         self._items = self._create_container(items=items, name=f"{name}_items")
         logger.info(f"Initialized project '{name}' with {len(self._items)} items")
 
@@ -41,11 +42,11 @@ class Project(ABC):
             ValueError: If an item with the same name already exists in the project.
         """
         if not isinstance(item, self._item_type):
-            raise TypeError(f"Item must be of type {self._item_type.__name__} for project '{self._name}', got {type(item).__name__}")
+            raise TypeError(f"Item must be of type {self._item_type.__name__} for project '{self.name}', got {type(item).__name__}")
         if self._items.has_item(item.name):
-            raise ValueError(f"Item with name '{item.name}' already exists in project '{self._name}'")
+            raise ValueError(f"Item with name '{item.name}' already exists in project '{self.name}'")
         self._items.add(item)
-        logger.info(f"Added item '{item.name}' to project '{self._name}'")
+        logger.info(f"Added item '{item.name}' to project '{self.name}'")
 
     @abstractmethod
     def create_item(self, item_code: str = "ITEM_DEFAULT", isactive: bool = True) -> None:
@@ -55,17 +56,17 @@ class Project(ABC):
     def set_item(self, name: str, item: BaseEntity) -> None:
         """Set an item in the project by its name."""
         self._items.set_item(name, item)
-        logger.info(f"Set item '{item.name}' in project '{self._name}'")
+        logger.info(f"Set item '{item.name}' in project '{self.name}'")
 
     def remove_item(self, name: str) -> None:
         """Remove an item from the project by its name."""
         self._items.remove(name)
-        logger.info(f"Removed item '{name}' from project '{self._name}'")
+        logger.info(f"Removed item '{name}' from project '{self.name}'")
 
     def get_item(self, name: str) -> BaseEntity:
         """Retrieve an item from the project by its name."""
         item = self._items.get(name)
-        logger.info(f"Retrieved item '{name}' from project '{self._name}'")
+        logger.info(f"Retrieved item '{name}' from project '{self.name}'")
         return item
 
     def get_items(self) -> Dict[str, BaseEntity]:
@@ -74,7 +75,7 @@ class Project(ABC):
 
     def get_name(self) -> str:
         """Retrieve the project's name."""
-        logger.info(f"Retrieved name '{self._name}' for project")
+        logger.info(f"Retrieved name '{self.name}' for project")
         return self._name
 
     def set_name(self, name: str) -> None:
@@ -99,12 +100,12 @@ class Project(ABC):
     def get_project(self) -> Dict[str, Any]:
         """Get the entire project configuration as a dictionary."""
         result = {"name": self._name, "items": self._items.to_dict()["items"]}
-        logger.info(f"Retrieved project configuration for '{self._name}' with {len(self._items)} items")
+        logger.info(f"Retrieved project configuration for '{self.name}' with {len(self._items)} items")
         return result
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the project to a dictionary for serialization."""
-        return {"name": self._name, "items": self._items.to_dict()["items"]}
+        return {"name": self.name, "items": self._items.to_dict()["items"]}
 
     @classmethod
     @abstractmethod

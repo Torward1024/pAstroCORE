@@ -53,7 +53,7 @@ class ScheduleProject(Project):
         """
         check_type(item, Observation, "Observation")
         super().add_item(item)
-        logger.info(f"Added observation '{item.get_observation_code()}' to project '{self._name}'")
+        logger.info(f"Added observation '{item.get_observation_code()}' to project '{self.name}'")
 
     def create_item(self, item_code: str = "OBS_DEFAULT", isactive: bool = True) -> None:
         """Create and add a new Observation object to the project.
@@ -68,7 +68,7 @@ class ScheduleProject(Project):
         check_non_empty_string(item_code, "Observation code")
         new_observation = Observation(name=item_code, isactive=isactive)
         self.add_item(new_observation)
-        logger.info(f"Created and added observation '{item_code}' to project '{self._name}'")
+        logger.info(f"Created and added observation '{item_code}' to project '{self.name}'")
 
     def set_item(self, name: str, item: Observation) -> None:
         """Set or replace an observation in the project by its code.
@@ -82,7 +82,7 @@ class ScheduleProject(Project):
         """
         check_type(item, Observation, "Observation")
         super().set_item(name, item)
-        logger.info(f"Set observation '{name}' in project '{self._name}'")
+        logger.info(f"Set observation '{name}' in project '{self.name}'")
 
     def get_observation(self, name: str) -> Observation:
         """Retrieve an observation by its code.
@@ -97,7 +97,7 @@ class ScheduleProject(Project):
             KeyError: If the observation code is not found.
         """
         observation = self.get_item(name)
-        logger.info(f"Retrieved observation '{name}' from project '{self._name}'")
+        logger.info(f"Retrieved observation '{name}' from project '{self.name}'")
         return observation
 
     def set_project(self, name: str, items: Dict[str, Observation]) -> None:
@@ -124,7 +124,7 @@ class ScheduleProject(Project):
         """
         result = super().get_project()
         result["observations"] = [obs.to_dict() for obs in self._items.get_items()]
-        logger.info(f"Retrieved project configuration for '{self._name}' with {len(self._items)} observations")
+        logger.info(f"Retrieved project configuration for '{self.name}' with {len(self._items)} observations")
         return result
 
     def to_dict(self) -> Dict[str, Any]:
@@ -134,7 +134,7 @@ class ScheduleProject(Project):
             Dict[str, Any]: A dictionary with the project name and observations.
         """
         result = super().to_dict()
-        logger.info(f"Serialized ScheduleProject '{self._name}' with {len(self._items)} observations")
+        logger.info(f"Serialized ScheduleProject '{self.name}' with {len(self._items)} observations")
         return result
 
     @classmethod
@@ -176,4 +176,4 @@ class ScheduleProject(Project):
         Returns:
             str: A string in the format "ScheduleProject(name='{name}', observations_count={count})".
         """
-        return f"ScheduleProject(name='{self._name}', observations_count={len(self._items)})"
+        return f"ScheduleProject(name='{self.name}', observations_count={len(self._items)})"

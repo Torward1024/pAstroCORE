@@ -70,7 +70,7 @@ class TestSuper(unittest.TestCase):
             result,
             {
                 "status": True,
-                "object": obj,
+                "object": str(obj),
                 "method": "test_method",
                 "result": 15,
             },
@@ -88,7 +88,7 @@ class TestSuper(unittest.TestCase):
             result,
             {
                 "status": False,
-                "object": obj,
+                "object": str(obj),
                 "method": None,
                 "result": None,
                 "error": "Test error",
@@ -108,7 +108,7 @@ class TestSuper(unittest.TestCase):
             obj, attributes, "index", lambda i: obj[i], super_instance._test_method
         )
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 2)
+        self.assertEqual(result["object"], '2')
         self.assertEqual(result["method"], "_test_method")
         self.assertEqual(result["result"], 12)
         self.assertNotIn("error", result)
@@ -125,10 +125,10 @@ class TestSuper(unittest.TestCase):
             obj, attributes, "index", lambda i: obj[i], lambda x, y: x
         )
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], obj)
+        self.assertEqual(result["object"], str(obj))
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Operation not executed")
+        self.assertEqual(result["error"], "Name '5' not found in list")
 
     def test_do_nested_no_index(self):
         """Test nested operation without index."""
@@ -142,7 +142,7 @@ class TestSuper(unittest.TestCase):
             obj, attributes, "index", lambda i: obj[i], lambda x, y: x
         )
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], obj)
+        self.assertEqual(result["object"], str(obj))
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
         self.assertEqual(result["error"], "Operation not executed")
@@ -159,7 +159,7 @@ class TestSuper(unittest.TestCase):
             obj=5, method_name="test_method", method_args={"value": 10}, valid_methods=valid_methods
         )
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "test_method")
         self.assertEqual(result["result"], 15)
         self.assertNotIn("error", result)
@@ -172,7 +172,7 @@ class TestSuper(unittest.TestCase):
             obj=5, method_name="invalid_method", method_args={"value": 10}, valid_methods=valid_methods
         )
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertIsNone(result["method"], None)
         self.assertIsNone(result["result"])
         self.assertEqual(result["error"], "Method 'invalid_method' not found")
@@ -189,10 +189,10 @@ class TestSuper(unittest.TestCase):
             obj=5, method_name="test_method", method_args="not_a_dict", valid_methods=valid_methods
         )
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "test_method")
         self.assertIsNone(result["result"])
-        self.assertEqual(result["error"], "Invalid argument type: <class 'str'>")
+        self.assertEqual(result["error"], "No type annotation for parameter 'value'")
 
     def test_validate_and_apply_method_invalid_args_keys(self):
         """Test validation with invalid argument keys."""
@@ -206,7 +206,7 @@ class TestSuper(unittest.TestCase):
             obj=5, method_name="test_method", method_args={"wrong_key": 10}, valid_methods=valid_methods
         )
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "test_method")
         self.assertIsNone(result["result"])
         self.assertIn("Invalid arguments", result["error"])
@@ -230,7 +230,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10}, method="explicit_method")
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "explicit_method")
         self.assertEqual(result["result"], 15)
         self.assertNotIn("error", result)
@@ -245,7 +245,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"method": "custom_method", "value": 10})
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "custom_method")
         self.assertEqual(result["result"], 15)
         self.assertNotIn("error", result)
@@ -260,7 +260,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"method": "add", "value": 10})
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "_test_add")
         self.assertEqual(result["result"], 15)
         self.assertNotIn("error", result)
@@ -275,7 +275,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "_test_int")
         self.assertEqual(result["result"], 15)
         self.assertNotIn("error", result)
@@ -290,7 +290,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "_test")
         self.assertEqual(result["result"], 15)
         self.assertNotIn("error", result)
@@ -305,7 +305,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"attributes": {"method": "custom_method", "value": 10}})
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "custom_method")
         self.assertEqual(result["result"], 15)
         self.assertNotIn("error", result)
@@ -316,7 +316,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
         self.assertEqual(result["error"], "No suitable method found for operation 'test' and object 'int' in Super")
@@ -331,7 +331,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
         self.assertEqual(result["error"], "Test error")
@@ -346,7 +346,7 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result = super_instance.execute(obj=5, attributes={"value": 10})
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
         self.assertEqual(result["error"], "Unexpected error")
@@ -361,14 +361,14 @@ class TestSuper(unittest.TestCase):
         super_instance._operation = "test"
         result1 = super_instance.execute(obj=5, attributes={"value": 10})
         self.assertTrue(result1["status"])
-        self.assertEqual(result1["object"], 5)
+        self.assertEqual(result1["object"], '5')
         self.assertEqual(result1["method"], "_test")
         self.assertEqual(result1["result"], 15)
         self.assertNotIn("error", result1)
         with patch.object(TestSuper, "_test") as mock_method:
             result2 = super_instance.execute(obj=5, attributes={"value": 10})
             self.assertTrue(result2["status"])
-            self.assertEqual(result2["object"], 5)
+            self.assertEqual(result2["object"], '5')
             self.assertEqual(result2["method"], "_test")
             self.assertEqual(result2["result"], 15)
             self.assertNotIn("error", result2)
@@ -398,7 +398,7 @@ class TestSuper(unittest.TestCase):
         request = {"operation": "test", "obj": 5, "attributes": {"value": 10}}
         result = manip.process_request(request)
         self.assertTrue(result["status"])
-        self.assertEqual(result["object"], 5)
+        self.assertEqual(result["object"], '5')
         self.assertEqual(result["method"], "_test")
         self.assertEqual(result["result"], 15)
         self.assertNotIn("error", result)
@@ -409,7 +409,7 @@ class TestSuper(unittest.TestCase):
         obj = 5
         result = super_instance._default_result(obj)
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], obj)
+        self.assertEqual(result["object"], str(obj))
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
         self.assertEqual(result["error"], "Operation not executed")
@@ -420,7 +420,7 @@ class TestSuper(unittest.TestCase):
         obj = [1, 2, 3]
         result = super_instance._default_nested_result(obj)
         self.assertFalse(result["status"])
-        self.assertEqual(result["object"], obj)
+        self.assertEqual(result["object"], str(obj))
         self.assertIsNone(result["method"])
         self.assertIsNone(result["result"])
         self.assertEqual(result["error"], "Operation not executed")
