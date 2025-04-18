@@ -242,16 +242,14 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             result = {k: getattr(self, k) for k in self._fields if not k.startswith('_') and hasattr(self, k)}
             logger.debug(f"Retrieved all public attributes from {self.__class__.__name__}: {result}")
             return result
-        
-        if isinstance(key, str):
+        elif isinstance(key, str):
             if key not in self._fields:
                 logger.error(f"Attribute '{key}' not found in {self.__class__.__name__}")
                 raise KeyError(f"Attribute '{key}' not found in {self.__class__.__name__}")
             value = getattr(self, key) if hasattr(self, key) else None
             logger.debug(f"Retrieved attribute '{key}' from {self.__class__.__name__}: {value}")
             return value
-        
-        if isinstance(key, list):
+        elif isinstance(key, list):
             invalid_keys = [k for k in key if k not in self._fields]
             if invalid_keys:
                 logger.error(f"Attributes {invalid_keys} not found in {self.__class__.__name__}")

@@ -28,13 +28,13 @@ class IF(BaseEntity):
         - Polarizations must belong to a single group: circular, paired linear, or single linear.
         - Wavelength is calculated as C_MHZ_CM / frequency.
     """
-    name: Optional[str]
+    name: str
     frequency: float
     bandwidth: float
     polarizations: List[str]
     isactive: bool
 
-    def __init__(self, *, name: Optional[str] = None, frequency: float = 1000.0, bandwidth: float = 16.0,
+    def __init__(self, *, name: str = None, frequency: float = 1000.0, bandwidth: float = 16.0,
                  polarizations: Optional[Union[str, List[str]]] = None, isactive: bool = True):
         """Initialize an IF object with frequency, bandwidth, polarizations, and active status."""
         polarizations = self._validate_polarizations(polarizations)

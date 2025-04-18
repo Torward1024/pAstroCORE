@@ -41,6 +41,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         >>> print(container.get_items())
         [MyItem(name='item1', isactive=True, value=42)]
     """
+    name: str
     _items: Dict[str, T]
     _use_cache: bool
     _cached_to_dict: Dict[str, Any]
