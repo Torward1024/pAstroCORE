@@ -254,29 +254,39 @@ class ScheduleInspector(Super):
         check_type(scan_obj, Scan, "Scan object")
         valid_getters = self._get_methods(Scan)
         applied = False
-        observation = attributes.get("observation")
+
         for getter_name, getter_args in attributes.items():
-            if getter_name == "observation":
-                continue
             if getter_name in {"get_source", "get_telescopes", "get_frequencies", "check_telescope_availability"}:
+                observation = None
+                if isinstance(getter_args, dict):
+                    observation = getter_args.get("observation")
+                print(f"Observation for {getter_name}: {observation}")
                 if not observation or not isinstance(observation, Observation):
-                    logger.error(f"Getter {getter_name} requires a valid Observation object")
+                    logger.error(f"Getter {getter_name} requires a valid Observation object, got {type(observation)}")
                     raise ValueError(f"Getter {getter_name} requires a valid Observation object")
+                extra_args = {"observation": observation}
+            else:
+                extra_args = None
+
             value = self._validate_and_apply_method(
                 scan_obj,
                 getter_name,
                 getter_args,
                 valid_getters,
-                {"observation": observation} if observation else None
+                extra_args
             )
             if value["status"]:
                 applied = True
+                result = value["result"]
+                return result
             else:
                 logger.warning(f"Invalid getter '{getter_name}' for Scan inspection: {value['error']}")
                 raise ValueError(value["error"])
+
         if not applied:
             logger.warning("No valid getters applied for Scan inspection")
             raise ValueError("No valid getters applied")
+        
         getter_args = attributes.get("get")
         final_result = scan_obj.get(getter_args) if getter_args else scan_obj.get()
         logger.info(f"Inspected Scan: start={scan_obj.get('start').isot}, result={final_result}")

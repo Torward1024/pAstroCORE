@@ -149,7 +149,7 @@ class Super(ABC):
         method = valid_methods[method_name]
         sig = inspect.signature(method)
         params = list(sig.parameters.keys())
-        expected_params = [p for p in params if p != 'self']  # Исключаем self из параметров
+        expected_params = [p for p in params if p != 'self']
 
         try:
             final_args = {}
