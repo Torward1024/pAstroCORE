@@ -150,15 +150,15 @@ class TestSuper(unittest.TestCase):
     def test_validate_and_apply_method_valid(self):
         """Test validation and application of a valid method."""
         class TestSuper(Super):
-            def test_method(self, data, value):
-                return data + value
+            def test_method(self, obj, value):
+                return obj + value
 
         super_instance = TestSuper()
         valid_methods = {"test_method": super_instance.test_method}
         result = super_instance._validate_and_apply_method(
             obj=5,
             method_name="test_method",
-            method_args={"data": 5, "value": 10},
+            method_args={"value": 10},
             valid_methods=valid_methods,
         )
         print("BABAH", result)
