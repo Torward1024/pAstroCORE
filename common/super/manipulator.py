@@ -210,24 +210,98 @@ class Manipulator(ABC):
 
         Args:
             request (Dict[str, Any]): The request dictionary specifying the operation, object, and attributes.
+                For a single request, expected keys include "operation", and optionally "obj", "method" (str),
+                "attributes" (dict). For a sequence of requests, expected format is {request_id: {sub_request}}
+                where each sub_request has the same structure as a single request.
 
         Returns:
             Any: For a single request, a dictionary with status, object, method, result, and error (if status=False).
-                 For a sequence of requests, a dictionary mapping request IDs to results.
+                For a sequence of requests, a dictionary mapping request IDs to results.
 
         Raises:
-            TypeError: If the request is not a dictionary.
+            TypeError: If the request is not a dictionary or contains invalid types.
+            ValueError: If the request structure is invalid.
         """
         if not isinstance(request, dict):
             logger.error(f"Invalid request type: expected dict, got {type(request).__name__}")
             raise TypeError(f"Request must be a dictionary, got {type(request).__name__}")
-        if all(isinstance(k, str) and isinstance(v, dict) for k, v in request.items()) and "operation" not in request:
-            results = {}
+
+        # Debug: Log request keys and types
+        logger.debug(f"Request keys and types: {[(k, type(v).__name__) for k, v in request.items()]}")
+
+        # Check if the request is a potential sequence (no 'operation' key and multiple keys)
+        is_potential_sequence = len(request) > 0 and "operation" not in request
+
+        if is_potential_sequence:
+            # Validate that all sub-requests are dictionaries
+            invalid_sub_requests = [
+                (k, type(v).__name__) for k, v in request.items() if not isinstance(v, dict)
+            ]
+            if invalid_sub_requests:
+                error_msg = f"Invalid sub-request type in sequence: {invalid_sub_requests}"
+                logger.error(error_msg)
+                return {
+                    "status": False,
+                    "object": None,
+                    "method": None,
+                    "result": None,
+                    "error": error_msg
+                }
+
+            # If all sub-requests are dictionaries, process as sequence
             logger.info(f"Processing sequence of {len(request)} requests")
+            results = {}
             for req_id, sub_request in request.items():
+                if "operation" not in sub_request:
+                    logger.error(f"Missing 'operation' in sub-request for ID '{req_id}'")
+                    results[req_id] = {
+                        "status": False,
+                        "object": sub_request.get("obj"),
+                        "method": None,
+                        "result": None,
+                        "error": "Missing 'operation' in sub-request"
+                    }
+                    continue
+                if "method" in sub_request and not isinstance(sub_request["method"], (str, type(None))):
+                    logger.error(f"Invalid 'method' type in sub-request for ID '{req_id}': expected str or None, got {type(sub_request['method']).__name__}")
+                    results[req_id] = {
+                        "status": False,
+                        "object": sub_request.get("obj"),
+                        "method": None,
+                        "result": None,
+                        "error": f"Invalid 'method' type: expected str or None, got {type(sub_request['method']).__name__}"
+                    }
+                    continue
+                if "attributes" in sub_request and not isinstance(sub_request["attributes"], (dict, type(None))):
+                    logger.error(f"Invalid 'attributes' type in sub-request for ID '{req_id}': expected dict or None, got {type(sub_request['attributes']).__name__}")
+                    results[req_id] = {
+                        "status": False,
+                        "object": sub_request.get("obj"),
+                        "method": None,
+                        "result": None,
+                        "error": f"Invalid 'attributes' type: expected dict or None, got {type(sub_request['attributes']).__name__}"
+                    }
+                    continue
                 result = self._process_single_request(sub_request)
                 results[req_id] = result
+            logger.debug(f"Sequence processing results: {results}")
             return results
+
+        if "operation" not in request:
+            error_msg = "No operation specified in request"
+            logger.error(error_msg)
+            return {"status": False, "object": request.get("obj"), "method": None, "result": None, "error": error_msg}
+
+        if "method" in request and not isinstance(request["method"], (str, type(None))):
+            error_msg = f"Invalid 'method' type: expected str or None, got {type(request['method']).__name__}"
+            logger.error(error_msg)
+            return {"status": False, "object": request.get("obj"), "method": None, "result": None, "error": error_msg}
+
+        if "attributes" in request and not isinstance(request["attributes"], (dict, type(None))):
+            error_msg = f"Invalid 'attributes' type: expected dict or None, got {type(request['attributes']).__name__}"
+            logger.error(error_msg)
+            return {"status": False, "object": request.get("obj"), "method": None, "result": None, "error": error_msg}
+
         return self._process_single_request(request)
 
     def _process_single_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
