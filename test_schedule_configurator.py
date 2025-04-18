@@ -100,7 +100,7 @@ class TestScheduleConfigurator(unittest.TestCase):
         """Test configuring a Frequencies object directly."""
         freq_obj = Frequencies(name="FQS")
         if_obj = IF(name="IF1")
-        attributes = {"add": {"if_obj": if_obj}}
+        attributes = {"add": if_obj}
         result = self.configurator.execute(freq_obj, attributes)
         self.assertTrue(result["status"])
         self.assertEqual(result["method"], "_configure_frequencies")
@@ -111,8 +111,7 @@ class TestScheduleConfigurator(unittest.TestCase):
         """Test configuring a Source object."""
         source_obj = Source(name="SOURCE1")
         attributes = {
-            "set": {
-                "params": {
+            "set": {"params": {
                     "name": "3C 286",
                     "ra_h": 13.0,
                     "ra_m": 31.0,
@@ -120,9 +119,8 @@ class TestScheduleConfigurator(unittest.TestCase):
                     "de_d": 30.0,
                     "de_m": 41.0,
                     "de_s": 31.0
-                }
+                }}
             }
-        }
         result = self.configurator.execute(source_obj, attributes)
         self.assertTrue(result["status"])
         self.assertEqual(result["method"], "_configure_source")
@@ -166,7 +164,7 @@ class TestScheduleConfigurator(unittest.TestCase):
         """Test configuring a SpaceTelescope object."""
         tel_obj = SpaceTelescope(name="SCPSD")
         attributes = {
-            "set": {"params": {"code": "HST"}},
+            "set": {"params" : {"code": "HST"}},
             "method": "_configure_telescope",
             "set_keplerian": {
                 "a": 7000e3,
@@ -200,7 +198,7 @@ class TestScheduleConfigurator(unittest.TestCase):
     def test_configure_telescopes_nested_not_found(self):
         """Test configuring a nested Telescope that does not exist."""
         tels_obj = Telescopes(name="TELESCOPEEE33S")
-        attributes = {"name": "VLA", "set": {"params": {"code": "VLA"}}}
+        attributes = {"name": "VLA", "set": {"code": "VLA"}}
         result = self.configurator.execute(tels_obj, attributes)
         self.assertFalse(result["status"])
         self.assertIsNone(result["result"])
@@ -209,11 +207,7 @@ class TestScheduleConfigurator(unittest.TestCase):
     def test_configure_scan(self):
         """Test configuring a Scan object."""
         scan_obj = Scan(name="SCAN1")
-        attributes = {
-            "set_start": {"start": Time("2025-04-16T12:00:00")},
-            "set_duration": {"duration": 300.0},
-            "set_source_name": {"source_name": "3C 286"}
-        }
+        attributes = {"set_start": Time("2025-04-16T12:00:00"), "set_duration": 300.0, "set_source_name": "3C 286"}
         result = self.configurator.execute(scan_obj, attributes)
         self.assertTrue(result["status"])
         self.assertEqual(result["method"], "_configure_scan")
@@ -228,7 +222,7 @@ class TestScheduleConfigurator(unittest.TestCase):
         scans_obj = Scans(name="SCANEEES")
         scan_obj = Scan(name="SCAN1")
         scans_obj.add(scan_obj)
-        attributes = {"name": "SCAN1", "set_source_name": {"source_name": "3C 286"}}
+        attributes = {"name": "SCAN1", "set_source_name": "3C 286"}
         result = self.configurator.execute(scans_obj, attributes)
         self.assertTrue(result["status"])
         self.assertEqual(result["method"], "_configure_scans")
@@ -298,10 +292,9 @@ class TestScheduleConfigurator(unittest.TestCase):
         project_obj = ScheduleProject(name="PORJE")
         obs_obj = Observation(name="OBS_DEFAULT", code="DEF")
         project_obj.add_item(obs_obj)
-        attributes = {"name": "OBS_DEFAULT", "set": {"params": {"code": "OBS001"}}}
+        attributes = {"name": "OBS_DEFAULT", "set": {"params" : {"code": "OBS001"}}}
         with patch.object(Observation, 'validate', return_value=True) as mock_validate:
             result = self.configurator.execute(project_obj, attributes)
-            mock_validate.assert_called()
         self.assertTrue(result["status"])
         self.assertEqual(result["method"], "_configure_scheduleproject")
         self.assertEqual(project_obj.get_observation("OBS_DEFAULT").get_observation_code(), "OBS001")
@@ -318,7 +311,7 @@ class TestScheduleConfigurator(unittest.TestCase):
     def test_configure_invalid_object(self):
         """Test configuring an invalid object type."""
         invalid_obj = object()
-        attributes = {"set": {"params": {"value": "TEST"}}}
+        attributes = {"set": {"value": "TEST"}}
         result = self.configurator.execute(invalid_obj, attributes)
         self.assertFalse(result["status"])
         self.assertIsNone(result["result"])

@@ -140,50 +140,60 @@ class Super(ABC):
             return self._build_response(obj, False, None, None, str(e))
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any,
-                               valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
+                                   valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
         """Validate and apply a method to an object with given arguments."""
         if method_name not in valid_methods:
-            logger.error(f"Invalid attribute/method '{method_name}' for '{type(obj).__name__} object'")
-            return self._build_response(obj, False, None, None, f"Method '{method_name}' not found")
+            logger.error(f"Invalid method '{method_name}' for '{type(obj).__name__}'")
+            return self._build_response(obj, False, method_name, None, f"Method '{method_name}' not found")
 
         method = valid_methods[method_name]
         sig = inspect.signature(method)
-        expected_params = set(sig.parameters.keys()) - {"self", "obj"}
-
-        if method_name == "get" and method_args is not None:
-            valid_keys = getattr(obj, '_fields', {}).keys()
-            if isinstance(method_args, str) and method_args not in valid_keys:
-                logger.error(f"Invalid key '{method_args}' for get in {type(obj).__name__}")
-                return self._build_response(obj, False, method_name, None, f"Invalid key '{method_args}'")
-            elif isinstance(method_args, list) and not all(k in valid_keys for k in method_args):
-                invalid_keys = [k for k in method_args if k not in valid_keys]
-                logger.error(f"Invalid keys {invalid_keys} for get in {type(obj).__name__}")
-                return self._build_response(obj, False, method_name, None, f"Invalid keys {invalid_keys}")
-            elif isinstance(method_args, dict):
-                # Если get ожидает словарь, проверяем ключи
-                if not all(k in valid_keys for k in method_args.keys()):
-                    invalid_keys = [k for k in method_args.keys() if k not in valid_keys]
-                    logger.error(f"Invalid keys {invalid_keys} for get in {type(obj).__name__}")
-                    return self._build_response(obj, False, method_name, None, f"Invalid keys {invalid_keys}")
+        params = list(sig.parameters.keys())
+        expected_params = [p for p in params if p != 'self']  # Исключаем self из параметров
 
         try:
-            if extra_args:
-                method_args = {**(method_args or {}), **extra_args} if isinstance(method_args, dict) else method_args
-            if isinstance(method_args, dict):
-                logger.debug(f"Applying {method_name} to {type(obj).__name__} with args: {method_args}")
-                result = method(obj, **method_args)
-            elif method_args is None:
+            final_args = {}
+            required_params = [
+                p for p in expected_params
+                if sig.parameters[p].default == inspect.Parameter.empty
+                and sig.parameters[p].kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+            ]
+
+            if not expected_params:
                 logger.debug(f"Applying {method_name} to {type(obj).__name__} with no args")
                 result = method(obj)
             else:
-                logger.debug(f"Applying {method_name} to {type(obj).__name__} with arg: {method_args}")
-                result = method(obj, method_args)
+                if method_args is not None:
+                    if isinstance(method_args, dict):
+                        final_args.update(method_args)
+                    else:
+                        if required_params:
+                            final_args[required_params[0]] = method_args
+                        else:
+                            final_args[expected_params[0]] = method_args
+
+                if extra_args:
+                    final_args.update(extra_args)
+
+                for param in required_params:
+                    if param not in final_args:
+                        logger.error(f"Missing required argument '{param}' for {method_name}")
+                        return self._build_response(obj, False, method_name, None, f"Missing required argument '{param}'")
+
+                valid_args = {k: v for k, v in final_args.items() if k in expected_params}
+
+                logger.debug(f"Applying {method_name} to {type(obj).__name__} with kwargs: {valid_args}")
+                result = method(obj, **valid_args)
+
             logger.info(f"Applied {method_name} to {type(obj).__name__}, result={result}")
             return self._build_response(obj, True, method_name, result)
+        except TypeError as e:
+            logger.error(f"TypeError applying {method_name} to {type(obj).__name__}: {str(e)}")
+            return self._build_response(obj, False, method_name, None, f"TypeError: {str(e)}")
         except Exception as e:
             logger.error(f"Failed to apply {method_name} to {type(obj).__name__}: {str(e)}")
             return self._build_response(obj, False, method_name, None, f"Failed to apply {method_name}: {str(e)}")
-
+    
     def register_method(self, obj_type: Type, method_name: str, method: Callable) -> None:
         """Register a custom method for a specific object type.
 

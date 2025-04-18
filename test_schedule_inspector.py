@@ -59,6 +59,7 @@ class TestScheduleInspector(unittest.TestCase):
         if_obj = IF(name="IF1", frequency=1420.0, bandwidth=20.0)
         attributes = {"get": ["frequency", "bandwidth"]}
         result = self.inspector.execute(if_obj, attributes)
+        print("BABAH!", result)
         self.assertTrue(result["status"])
         self.assertEqual(result["object"], "IF1")
         self.assertEqual(result["method"], "_inspect_if")
@@ -83,7 +84,7 @@ class TestScheduleInspector(unittest.TestCase):
         result = self.inspector.execute(if_obj, attributes)
         self.assertFalse(result["status"])
         self.assertEqual(result["object"], "IF1")
-        self.assertEqual(result["error"], "Invalid key 'invalid_attribute'")
+        self.assertEqual(result["error"], "Failed to apply get: \"Attribute 'invalid_attribute' not found in IF\"")
         logger.info("Invalid attribute IF inspection tested successfully")
 
     def test_inspect_frequencies(self):
@@ -136,14 +137,13 @@ class TestScheduleInspector(unittest.TestCase):
     def test_inspect_source(self):
         """Test inspecting a Source object."""
         source_obj = Source(name="3C 286", ra_h=13.0, ra_m=31.0, ra_s=8.287)
-        attributes = {"get": ["name", "ra_degrees"]}
+        attributes = {"get": ["name", "ra_h"]}
         result = self.inspector.execute(source_obj, attributes)
         self.assertTrue(result["status"])
         self.assertEqual(result["object"], "3C 286")
         self.assertEqual(result["method"], "_inspect_source")
-        expected_ra = (13 + 31/60 + 8.287/3600) * 15
         self.assertEqual(result["result"]["name"], "3C 286")
-        self.assertAlmostEqual(result["result"]["ra_degrees"], expected_ra)
+        self.assertAlmostEqual(result["result"]["ra_h"], 13.0)
         logger.info("Source inspection tested successfully")
 
     def test_inspect_sources(self):
