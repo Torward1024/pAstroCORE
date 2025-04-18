@@ -29,6 +29,7 @@ class Observation(BaseEntity):
         calculated_data (Dict[str, Any]): Dictionary storing calculated results.
         isactive (bool): Indicates whether the observation is active.
     """
+    name: str
     code: str
     observation_type: str
     sources: Sources

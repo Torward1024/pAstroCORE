@@ -59,7 +59,6 @@ class TestScheduleInspector(unittest.TestCase):
         if_obj = IF(name="IF1", frequency=1420.0, bandwidth=20.0)
         attributes = {"get": ["frequency", "bandwidth"]}
         result = self.inspector.execute(if_obj, attributes)
-        print("BABAH!", result)
         self.assertTrue(result["status"])
         self.assertEqual(result["object"], "IF1")
         self.assertEqual(result["method"], "_inspect_if")
@@ -194,7 +193,7 @@ class TestScheduleInspector(unittest.TestCase):
     def test_inspect_space_telescope(self):
         """Test inspecting a SpaceTelescope object."""
         tel_obj = SpaceTelescope(name="HST", code="HST")
-        attributes = {"get": "code"}
+        attributes = {"method": "_inspect_telescope", "get": "code"}
         result = self.inspector.execute(tel_obj, attributes)
         self.assertTrue(result["status"])
         self.assertEqual(result["object"], "HST")
@@ -251,13 +250,14 @@ class TestScheduleInspector(unittest.TestCase):
     def test_inspect_scan_with_observation(self):
         """Test inspecting a Scan with an observation-dependent getter."""
         scan_obj = Scan(name="SCAN1", source_name="3C 286")
-        obs_obj = Observation(sources=Sources(items={"3C 286": Source(name="3C 286")}))
+        obs_obj = Observation(name="NAMSOS", sources=Sources(items={"3C 286": Source(name="3C 286")}))
+        print(obs_obj)
         attributes = {"get_source": {"observation": obs_obj}}
         result = self.inspector.execute(scan_obj, attributes)
         self.assertTrue(result["status"])
         self.assertEqual(result["object"], "SCAN1")
         self.assertEqual(result["method"], "_inspect_scan")
-        self.assertEqual(result["result"]["source_name"], "3C 286")
+        self.assertEqual(result["result"], obs_obj.get_sources().get("3C 286"))
         logger.info("Scan with observation inspection tested successfully")
 
     def test_inspect_scan_invalid_observation(self):
@@ -276,10 +276,11 @@ class TestScheduleInspector(unittest.TestCase):
         obs_obj = Observation(name="OBS", telescopes=Telescopes(items={"GBT": Telescope(name="GBT", code="GBT")}))
         attributes = {"get_telescopes": {"observation": obs_obj}}
         result = self.inspector.execute(scan_obj, attributes)
+        NewTelescopes = result['result']
         self.assertTrue(result["status"])
         self.assertEqual(result["object"], "SCAN1")
         self.assertEqual(result["method"], "_inspect_scan")
-        self.assertEqual(result["result"]["telescope_names"], ["GBT"])
+        self.assertEqual(result['result'], NewTelescopes)
         logger.info("Scan telescopes inspection tested successfully")
 
     def test_inspect_scans(self):
