@@ -76,22 +76,22 @@ class Project(ABC):
     def get_name(self) -> str:
         """Retrieve the project's name."""
         logger.info(f"Retrieved name '{self.name}' for project")
-        return self._name
+        return self.name
 
     def set_name(self, name: str) -> None:
         """Set the project's name."""
         check_non_empty_string(name, "Project name")
-        old_name = self._name
-        self._name = name
+        old_name = self.name
+        self.name = name
         self._items.name = f"{name}_items"
         logger.info(f"Project name changed from '{old_name}' to '{name}'")
 
     def set_project(self, name: str, items: Dict[str, BaseEntity]) -> None:
         """Set the entire project configuration, replacing name and items."""
         check_non_empty_string(name, "Project name")
-        old_name = self._name
+        old_name = self.name
         old_count = len(self._items)
-        self._name = name
+        self.name = name
         self._items.set_items(items)
         self._items.name = f"{name}_items"
         logger.info(f"Project updated: name changed from '{old_name}' to '{name}', "
@@ -99,7 +99,7 @@ class Project(ABC):
 
     def get_project(self) -> Dict[str, Any]:
         """Get the entire project configuration as a dictionary."""
-        result = {"name": self._name, "items": self._items.to_dict()["items"]}
+        result = {"name": self.name, "items": self._items.to_dict()["items"]}
         logger.info(f"Retrieved project configuration for '{self.name}' with {len(self._items)} items")
         return result
 
@@ -137,4 +137,4 @@ class Project(ABC):
 
     def __repr__(self) -> str:
         """Return a string representation of the Project."""
-        return f"Project(name='{self._name}', items_count={len(self._items)})"
+        return f"Project(name='{self.name}', items_count={len(self._items)})"

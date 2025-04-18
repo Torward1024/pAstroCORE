@@ -15,13 +15,13 @@ class TestScheduleProject(unittest.TestCase):
         """Test ScheduleProject initialization with and without items."""
         # Test empty initialization
         project = ScheduleProject(name="EmptyProject")
-        self.assertEqual(project._name, "EmptyProject")
+        self.assertEqual(project.name, "EmptyProject")
         self.assertEqual(len(project._items), 0)
 
         # Test initialization with items
         items = {"OBS001": self.obs1, "OBS002": self.obs2}
         project = ScheduleProject(name="PopulatedProject", items=items)
-        self.assertEqual(project._name, "PopulatedProject")
+        self.assertEqual(project.name, "PopulatedProject")
         self.assertEqual(len(project._items), 2)
         self.assertEqual(project.get_observation("OBS001").get_observation_code(), "OBS001")
         self.assertEqual(project.get_observation("OBS002").isactive, False)
@@ -73,7 +73,7 @@ class TestScheduleProject(unittest.TestCase):
         """Test setting project name and items."""
         new_items = {"OBS001": self.obs1, "OBS002": self.obs2}
         self.project.set_project(name="NewProject", items=new_items)
-        self.assertEqual(self.project._name, "NewProject")
+        self.assertEqual(self.project.name, "NewProject")
         self.assertEqual(len(self.project._items), 2)
         self.assertEqual(self.project.get_observation("OBS002").isactive, False)
 
@@ -113,7 +113,7 @@ class TestScheduleProject(unittest.TestCase):
             }
         }
         project = ScheduleProject.from_dict(data)
-        self.assertEqual(project._name, "TestProject")
+        self.assertEqual(project.name, "TestProject")
         self.assertEqual(len(project._items), 2)
         self.assertEqual(project.get_observation("OBS001").get_observation_type(), "VLBI")
         self.assertFalse(project.get_observation("OBS002").isactive)
