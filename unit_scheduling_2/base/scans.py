@@ -138,6 +138,8 @@ class Scan(BaseEntity):
     def set_telescope_names(self, telescope_names: List[str], observation: 'Observation' = None) -> None:
         """Set the telescope names for the scan."""
         check_type(telescope_names, list, "Telescope names")
+        if not self.original_telescope_names:
+            self.set({"original_telescope_names": self.telescope_names.copy()})
         self.set({"telescope_names": telescope_names})
         if observation:
             self.validate_with_observation(observation)
@@ -146,6 +148,8 @@ class Scan(BaseEntity):
     def set_frequency_names(self, frequency_names: List[str], observation: 'Observation' = None) -> None:
         """Set the frequency names for the scan."""
         check_type(frequency_names, list, "Frequency names")
+        if not self.original_frequency_names:
+            self.set({"original_frequency_names": self.frequency_names.copy()})
         self.set({"frequency_names": frequency_names})
         if observation:
             self.validate_with_observation(observation)

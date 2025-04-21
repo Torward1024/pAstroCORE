@@ -243,13 +243,15 @@ class SpaceTelescope(Telescope):
         j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
         t_start = (start_time - j2000_epoch).sec
         t_end = (end_time - j2000_epoch).sec
-        logger.info(f"Interpolating orbit from {start_time.isot} to {end_time.isot}")
-        mask = (times >= t_start) & (times <= t_end)
-        if not np.any(mask):
+        logger.info(f"Interpolating orbit for {self.name} from {start_time.isot} to {end_time.isot}")
+        
+        start_idx = np.searchsorted(times, t_start, side='left')
+        end_idx = np.searchsorted(times, t_end, side='right')
+        if start_idx >= end_idx:
             raise ValueError(f"No orbit data within time range {start_time.isot} to {end_time.isot}")
-        filtered_times = times[mask]
-        filtered_positions = positions[mask]
-        filtered_velocities = velocities[mask]
+        filtered_times = times[start_idx:end_idx]
+        filtered_positions = positions[start_idx:end_idx]
+        filtered_velocities = velocities[start_idx:end_idx]
 
         unique_indices = np.unique(filtered_times, return_index=True)[1]
         filtered_times = filtered_times[unique_indices]
@@ -454,7 +456,20 @@ class SpaceTelescope(Telescope):
         )
 
     def _solve_kepler(self, initial: float, e: float, tol: float = 1e-8, max_iter: int = 200) -> float:
-        """Solve Kepler's equation iteratively to find the eccentric anomaly."""
+        """Solve Kepler's equation iteratively to find the eccentric anomaly.
+
+        Args:
+            initial (float): Initial guess for mean anomaly (radians).
+            e (float): Orbital eccentricity (must be < 1 for elliptical orbits).
+            tol (float): Convergence tolerance. Defaults to 1e-8.
+            max_iter (int): Maximum number of iterations. Defaults to 200.
+
+        Returns:
+            float: Eccentric anomaly (radians).
+
+        Raises:
+            ValueError: If eccentricity is >= 1 (non-elliptical orbit).
+        """
         if e >= 1:
             raise ValueError("Eccentricity must be < 1 for elliptical orbit")
         x = initial if e < 0.9 else np.pi
