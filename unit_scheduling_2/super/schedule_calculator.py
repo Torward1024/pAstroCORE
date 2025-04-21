@@ -253,10 +253,9 @@ class ScheduleCalculator(Super):
         for tel in telescopes:
             pos = positions.get(tel.get_code())
             if pos is None:
-                logger.warning(f"No position data for telescope '{tel.get_code()}' at {time.isot}")
+                logger.debug(f"No position data for telescope '{tel.get_code()}' at {time.isot}")
                 visibility[tel.get_code()] = False
                 continue
-
             if isinstance(tel, SpaceTelescope):
                 itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
                 altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
@@ -274,7 +273,6 @@ class ScheduleCalculator(Super):
                 az = altaz.az.deg
                 hadec = source_coord.transform_to(HADec(obstime=time, location=location))
                 ha = hadec.ha.deg
-
                 mount_type = tel.get("mount_type")
                 if mount_type.value == "AZIM":
                     el_range = tel.get_elevation_range()
@@ -286,7 +284,6 @@ class ScheduleCalculator(Super):
                     dec_range = tel.get_elevation_range()
                     is_visible = (dec_range[0] <= dec <= dec_range[1]) and (ha_range[0] <= ha <= ha_range[1])
                 else:
-                    logger.warning(f"Unsupported mount type {mount_type.value} for telescope '{tel.get_code()}'")
                     is_visible = False
             visibility[tel.get_code()] = is_visible
         return visibility

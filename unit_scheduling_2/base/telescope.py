@@ -292,7 +292,15 @@ class Telescope(BaseEntity):
         return super().from_dict(data)
 
     def _check_sefd(self, frequency: float, sefd: float) -> bool:
-        """Check if an SEFD value is a duplicate with a different value."""
+        """Check if an SEFD value is a duplicate with a different value.
+
+        Args:
+            frequency (float): Frequency in MHz.
+            sefd (float): SEFD value in Jy.
+
+        Returns:
+            bool: True if the frequency already exists with a different SEFD value, False otherwise.
+        """
         if frequency in self.sefd_table and self.sefd_table[frequency] != sefd:
             logger.warning(f"Overwriting SEFD for frequency {frequency} MHz on '{self.code}': "
                            f"old={self.sefd_table[frequency]} Jy, new={sefd} Jy")
