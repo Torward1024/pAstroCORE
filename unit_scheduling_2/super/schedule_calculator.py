@@ -207,7 +207,7 @@ class ScheduleCalculator(Super):
         source = sources.get(source_name)
         telescope_names = scan.get_telescope_names()
         active_telescopes = [telescopes.get(i) for i in telescope_names if telescopes.get(i).isactive]
-        scan_idx = list(observation.get_scans().get_active_scans(observation)).index(scan)
+        scan_idx = list(observation.get_scans().get_active_items()).index(scan)
 
         logger.info(f"Processing visibility for scan {scan_idx}: {len(active_telescopes)} telescopes")
 
@@ -235,11 +235,11 @@ class ScheduleCalculator(Super):
             return {"source": source.name, "times": times.isot.tolist(), "visibility": visibility}
     
 
-    def _compute_visibility_at_time(self, target: Source | SpaceTelescope, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
-        """Compute visibility of a target (source or spacecraft) for telescopes at a given time.
+    def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
+        """Compute visibility of a source for telescopes at a given time using precomputed positions.
 
         Args:
-            target (Source | SpaceTelescope): The target to check visibility for.
+            source (Source): The source to check visibility for.
             telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
             time (Time): The time of observation.
             positions (Dict[str, Tuple[float, float, float]]): Precomputed GCRS positions.
@@ -247,39 +247,33 @@ class ScheduleCalculator(Super):
         Returns:
             Dict[str, bool]: Visibility status per telescope code.
         """
+        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
         visibility = {}
-
-        if isinstance(target, Source):
-            target_coord = SkyCoord(ra=target.ra_degrees * u.deg, dec=target.dec_degrees * u.deg, frame='icrs')
-        elif isinstance(target, SpaceTelescope):
-            spacecraft_pos, _ = target.get_state_vector(time)
-            target_coord = GCRS(CartesianRepresentation(*spacecraft_pos, unit=u.m), obstime=time)
-        else:
-            logger.error(f"Invalid target object: {target.name}")
-            return {}
-
         for tel in telescopes:
             pos = positions.get(tel.get_code())
-            if not pos:
+            if pos is None:
                 logger.warning(f"No position data for telescope '{tel.get_code()}' at {time.isot}")
                 visibility[tel.get_code()] = False
                 continue
 
-            itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
-            location = itrs.earth_location
-            altaz = target_coord.transform_to(AltAz(obstime=time, location=location))
-
             if isinstance(tel, SpaceTelescope):
+                itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
+                altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
                 pitch = altaz.alt.deg
                 yaw = altaz.az.deg
                 pitch_range = tel.get_pitch_range()
                 yaw_range = tel.get_yaw_range()
                 is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
             else:
+                gcrs = GCRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
+                itrs = gcrs.transform_to(ITRS(obstime=time))
+                location = itrs.earth_location
+                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
                 el = altaz.alt.deg
                 az = altaz.az.deg
-                hadec = target_coord.transform_to(HADec(obstime=time, location=location))
+                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
                 ha = hadec.ha.deg
+
                 mount_type = tel.get("mount_type")
                 if mount_type.value == "AZIM":
                     el_range = tel.get_elevation_range()
@@ -291,7 +285,7 @@ class ScheduleCalculator(Super):
                     dec_range = tel.get_elevation_range()
                     is_visible = (dec_range[0] <= dec <= dec_range[1]) and (ha_range[0] <= ha <= ha_range[1])
                 else:
-                    logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel.get_code()}'")
+                    logger.warning(f"Unsupported mount type {mount_type.value} for telescope '{tel.get_code()}'")
                     is_visible = False
             visibility[tel.get_code()] = is_visible
         return visibility
