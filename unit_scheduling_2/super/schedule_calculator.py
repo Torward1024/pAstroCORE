@@ -141,9 +141,6 @@ class ScheduleCalculator(Super):
             time_step = attributes.get("time_step", 3600)
             start_time = attributes.get("start_time")
             end_time = attributes.get("end_time")
-            telescope_code = attributes.get("telescope_code")
-            target_type = attributes.get("target_type", "source")
-            target_name = attributes.get("target_name")
             store_key = attributes.get("store_key", "visibility")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
             recalculate = attributes.get("recalculate", False)
@@ -258,7 +255,6 @@ class ScheduleCalculator(Super):
                         }
                     return results
                 else:
-                    # Handle non-scan case (when start_time and end_time are provided)
                     if target_type == "source":
                         sources = obj.get_sources()
                         if target_name:
