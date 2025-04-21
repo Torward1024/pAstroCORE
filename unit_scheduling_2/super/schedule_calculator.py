@@ -140,6 +140,7 @@ class ScheduleCalculator(Super):
         try:
             time_step = attributes.get("time_step", 3600)
             start_time = attributes.get("start_time")
+            telescope_code = attributes.get("telescope_code")
             end_time = attributes.get("end_time")
             store_key = attributes.get("store_key", "visibility")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
