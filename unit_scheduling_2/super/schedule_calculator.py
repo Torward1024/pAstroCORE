@@ -345,7 +345,7 @@ class ScheduleCalculator(Super):
             Dict[str, Any]: Telescope positions per scan or time range, keyed by index.
         """
         try:
-            time_step = attributes.get("time_step", 3600)
+            time_step = attributes.get("time_step")
             start_time = attributes.get("start_time")
             end_time = attributes.get("end_time")
             store_key = attributes.get("store_key", "telescope_positions")
@@ -394,7 +394,7 @@ class ScheduleCalculator(Super):
                 times = Time(start.mjd + time_values.to(u.d).value, format='mjd')
                 logger.debug(f"Calculating telescope positions for {len(times)} time points from {start.isot} to {end.isot}")
 
-                # Cache orbit interpolations for SpaceTelescopes
+                # сache orbit interpolations for SpaceTelescopes
                 for tel in active_telescopes:
                     if isinstance(tel, SpaceTelescope) and time_step and not tel.get("use_kep"):
                         tel.interpolate_orbit(start, end, time_step)
@@ -410,7 +410,7 @@ class ScheduleCalculator(Super):
                         tel_positions = {}
                         for tel in active_telescopes:
                             if isinstance(tel, Telescope) and not isinstance(tel, SpaceTelescope):
-                                # Vectorized computation for ground telescopes
+                                # vectorized computation for ground telescopes
                                 x, y, z = tel.get_coordinates()
                                 res = tel.get(["vx", "vy", "vz"])
                                 vx, vy, vz = res["vx"], res["vy"], res["vz"]
@@ -426,7 +426,7 @@ class ScheduleCalculator(Super):
                                     gcrs.cartesian.z.value
                                 ]).T.tolist()
                             else:
-                                # Use cached orbit for SpaceTelescope
+                                # use cached orbit for SpaceTelescope
                                 positions = [self._compute_telescope_position(tel, t) for t in scan_times]
                             tel_positions[tel.get_code()] = {
                                 "times": [t.isot for t in scan_times],
@@ -437,7 +437,7 @@ class ScheduleCalculator(Super):
                     tel_positions = {}
                     for tel in active_telescopes:
                         if isinstance(tel, Telescope) and not isinstance(tel, SpaceTelescope):
-                            # Vectorized computation for ground telescopes
+                            # vectorized computation for ground telescopes
                             x, y, z = tel.get_coordinates()
                             res = tel.get(["vx", "vy", "vz"])
                             vx, vy, vz = res["vx"], res["vy"], res["vz"]
@@ -453,7 +453,7 @@ class ScheduleCalculator(Super):
                                 gcrs.cartesian.z.value
                             ]).T.tolist()
                         else:
-                            # Use cached orbit for SpaceTelescope
+                            # use cached orbit for SpaceTelescope
                             positions = [self._compute_telescope_position(tel, t) for t in times]
                         tel_positions[tel.get_code()] = {
                             "times": [t.isot for t in times],
@@ -935,7 +935,7 @@ class ScheduleCalculator(Super):
             return {"source": source.name, "az_el": az_el}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')  # Массовое создание Time
+            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
             az_el = {tel.get_code(): {"coord1": [], "coord2": []} for tel in active_ground_tels}
             for t in times:
                 result = self._compute_az_el_at_time(source_coord, active_ground_tels, t)
