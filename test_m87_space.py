@@ -173,7 +173,6 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                     "method": "uv_coverage",
                     "time_step": 600,
                     "freq_name": "IF1",
-                    "store_key": "uv_coverage_f0",
                     "recalculate": False
                 },
                 "obj": observation
