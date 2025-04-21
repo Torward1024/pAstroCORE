@@ -233,7 +233,7 @@ class ScheduleVisualizer(Super):
             - Uses pre-calculated data from the observation's store_key.
         """
         freq_name = attributes.get("freq_name")
-        store_key = attributes.get("store_key", f"uv_coverage_f{freq_name}")
+        store_key = attributes.get("store_key", f"uv_coverage_{freq_name}")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
             logger.error(f"No UV coverage data found for '{store_key}' in {obj.get_observation_code()}")
@@ -486,7 +486,7 @@ class ScheduleVisualizer(Super):
             - Plots normalized beam patterns against theta (radians) for each telescope.
         """
         freq_name = attributes.get("freq_name")
-        store_key = attributes.get("store_key", f"beam_pattern_f{freq_name}")
+        store_key = attributes.get("store_key", f"beam_pattern_{freq_name}")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
             logger.error(f"No beam pattern data found for '{store_key}' in {obj.get_observation_code()}")
@@ -531,7 +531,7 @@ class ScheduleVisualizer(Super):
             - Displays a 2D beam pattern in microarcseconds using a custom red-purple colormap.
         """
         freq_name = attributes.get("freq_name")
-        store_key = attributes.get("store_key", f"synthesized_beam_f{freq_name}")
+        store_key = attributes.get("store_key", f"synthesized_beam_{freq_name}")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
             logger.error(f"No synthesized beam data found for '{store_key}' in {obj.get_observation_code()}")
@@ -588,7 +588,7 @@ class ScheduleVisualizer(Super):
             - Plots baseline lengths in wavelengths against MJD time for each telescope pair.
         """
         freq_name = attributes.get("freq_name")
-        store_key = attributes.get("store_key", f"baseline_projections_f{freq_name}")
+        store_key = attributes.get("store_key", f"baseline_projections_{freq_name}")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
             logger.error(f"No baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
