@@ -210,7 +210,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             else:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
         self._invalidate_cache()
-        logger.info(f"Updated attributes of {self.__class__.__name__}: {params}")
+        logger.info(f"Updated attributes of {self.__class__.__name__}: {params.keys}")
 
     def get(self, key: Union[str, List[str], None] = None) -> Union[Any, Dict[str, Any]]:
         """Retrieve one or more attributes of the entity.
@@ -492,7 +492,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         self._validate_type(key, value, expected_type)
         setattr(self, key, value)
         self._invalidate_cache()
-        logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
+        logger.info(f"Set attribute '{key}' of {self.__class__.__name__}")
 
     def __eq__(self, other: Any) -> bool:
         """Compare two entities for equality based on their attributes and state.
@@ -539,7 +539,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             self._validate_type(key, value, expected_type)
             super().__setattr__(key, value)
             self._invalidate_cache()
-            logger.info(f"Set attribute '{key}' of {self.__class__.__name__} to {value}")
+            logger.info(f"Set attribute '{key}' of {self.__class__.__name__}")
         else:
             raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
 
