@@ -357,7 +357,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         start = time.time()
         vis_results = self.manipulator.process_request(vis_requests)
         for vis_id, result in vis_results.items():
-            self.assertEqual(result["status"], "success", f"{vis_id} visualization failed")
+            self.assertEqual(result["status"], True)
         print(f"All visualizations took {time.time() - start:.2f} seconds")
 
 if __name__ == "__main__":

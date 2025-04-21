@@ -128,23 +128,24 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_source_visibility(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate visibility of a source or spacecraft from telescopes over a time range.
+        """Calculate source visibility for all scans.
 
         Args:
             obj (Observation | ScheduleProject): The object to calculate visibility for.
-            attributes (Dict[str, Any]): Parameters including "time_step", "start_time", "end_time".
+            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", and "position_store_key".
 
         Returns:
-            Dict[str, Any]: Visibility data per scan or time range.
+            Dict[str, Any]: Visibility data per scan, keyed by observation code (for Project) or scan index (for Observation).
+
+        Notes:
+            - Depends on precomputed telescope positions.
+            - Uses parallel processing for multiple scans.
         """
         try:
-            time_step = attributes.get("time_step", 3600)
-            start_time = attributes.get("start_time")
-            telescope_code = attributes.get("telescope_code")
-            end_time = attributes.get("end_time")
-            store_key = attributes.get("store_key", "visibility")
+            time_step = attributes.get("time_step")
+            store_key = attributes.get("store_key", "source_visibility")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
-            recalculate = attributes.get("recalculate", False)
+
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_observations()
                 if not observations:
@@ -154,172 +155,84 @@ class ScheduleCalculator(Super):
                 for obs in observations:
                     obs_result = self._calculate_source_visibility(obs, attributes)
                     results[obs.get_observation_code()] = obs_result
-                logger.info(f"Calculated visibility for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.name}'")
                 return results
 
-            telescopes = obj.get_telescopes()
-            active_telescopes = telescopes.get_active_items()
-            if not active_telescopes:
-                logger.warning(f"No active telescopes in observation '{obj.get_observation_code()}'")
-                return {}
-            if telescope_code:
-                target_telescope = next((tel for tel in active_telescopes if tel.get_code() == telescope_code), None)
-                if not target_telescope:
-                    logger.error(f"Telescope '{telescope_code}' not found in observation '{obj.get_observation_code()}'")
-                    return {}
-                active_telescopes = [target_telescope]
-
             def calculate_visibility(obj, attrs):
-                if start_time and end_time:
-                    start = Time(start_time)
-                    end = Time(end_time)
-                    use_scans = False
-                else:
-                    scans = obj.get_scans().get_active_items()
-                    if not scans:
-                        logger.warning(f"No active scans or time range in observation '{obj.get_observation_code()}'")
-                        return {}
-                    start_times = [scan.get_start() for scan in scans]
-                    end_times = [scan.get_start() + scan.get_duration() * u.s for scan in scans]
-                    start = min(start_times)
-                    end = max(end_times)
-                    use_scans = True
-
-                time_values = np.arange(0, (end - start).sec, time_step) * u.s
-                times = Time(start.mjd + time_values.to(u.d).value, format='mjd')
-                logger.info(f"Calculating visibility for {len(times)} time points from {start.isot} to {end.isot}")
-
-                if use_scans:
-                    results = {}
-                    for i, scan in enumerate(scans):
-                        if target_type == "source":
-                            sources = obj.get_sources()
-                            if target_name:
-                                target = sources.get(target_name)
-                            else:
-                                scan_source = sources.get(scan.source_name)
-                                if not scan_source:
-                                    logger.warning(f"No source defined for scan {i} in observation '{obj.get_observation_code()}'")
-                                    continue
-                                target = sources.get(scan.source_name)
-                            if not target:
-                                logger.error(f"Source not found for scan {i} in observation '{obj.get_observation_code()}'")
-                                continue
-                            current_target_name = target_name or scan_source.name
-                        elif target_type == "spacecraft":
-                            all_telescopes = telescopes.get_all()
-                            target = next((tel for tel in all_telescopes if isinstance(tel, SpaceTelescope)), None)
-                            if not target:
-                                logger.error(f"No SpaceTelescope found in observation '{obj.get_observation_code()}'")
-                                return {}
-                            current_target_name = target.get_code()
-                        else:
-                            logger.error(f"Unsupported target type: {target_type}. Use 'source' or 'spacecraft'")
-                            return {}
-
-                        if isinstance(target, SpaceTelescope):
-                            logger.info(f"Interpolating orbit for {current_target_name}")
-                            target.interpolate_orbit(start, end, time_step)
-
-                        position_attrs = {
-                            "time_step": time_step,
-                            "store_key": position_store_key,
-                            "recalculate": recalculate,
-                            "start_time": start.isot,
-                            "end_time": end.isot
+                scans = obj.get_scans().get_active_items()
+                telescopes = obj.get_telescopes()
+                sources = obj.get_sources()
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": attrs.get("recalculate")}
+                position_data = self._calculate_telescope_positions(obj, position_attrs)
+                if not position_data:
+                    logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
+                    return {}
+                results = {}
+                if len(scans) > 1:
+                    with ThreadPoolExecutor() as executor:
+                        futures = {
+                            executor.submit(self._process_source_visibility, scan, telescopes, sources, time_step, position_data, obj): i
+                            for i, scan in enumerate(scans)
                         }
-                        position_data = self._calculate_telescope_positions(obj, position_attrs)
-                        if not position_data:
-                            logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
-                            return {}
-
-                        scan_start = scan.get_start()
-                        scan_duration = scan.get_duration()
-                        scan_times = [t for t in times if scan_start <= t <= scan_start + scan_duration * u.s]
-                        if not scan_times:
-                            continue
-                        visibility = {tel.get_code(): [] for tel in active_telescopes}
-                        tel_positions_data = position_data.get(i, {}).get("telescope_positions", {})
-                        for t in scan_times:
-                            tel_positions = {}
-                            for tel in active_telescopes:
-                                pos_data = tel_positions_data.get(tel.get_code(), {})
-                                t_idx = pos_data["times"].index(t.isot) if "times" in pos_data else 0
-                                tel_positions[tel.get_code()] = pos_data["positions"][t_idx]
-                            vis = self._compute_visibility_at_time(target, active_telescopes, t, tel_positions)
-                            for tel_code, is_visible in vis.items():
-                                visibility[tel_code].append(is_visible)
-                        results[i] = {
-                            "target": current_target_name,
-                            "times": [t.isot for t in scan_times],
-                            "visibility": visibility
-                        }
-                    return results
+                        for future in futures:
+                            scan_idx = futures[future]
+                            results[scan_idx] = future.result()
                 else:
-                    if target_type == "source":
-                        sources = obj.get_sources()
-                        if target_name:
-                            target = sources.get(target_name)
-                        else:
-                            logger.warning(f"No target_name provided for non-scan mode in observation '{obj.get_observation_code()}'")
-                            return {}
-                        if not target:
-                            logger.error(f"Source '{target_name}' not found in observation '{obj.get_observation_code()}'")
-                            return {}
-                        current_target_name = target_name
-                    elif target_type == "spacecraft":
-                        all_telescopes = telescopes.get_all()
-                        target = next((tel for tel in all_telescopes if isinstance(tel, SpaceTelescope)), None)
-                        if not target:
-                            logger.error(f"No SpaceTelescope found in observation '{obj.get_observation_code()}'")
-                            return {}
-                        current_target_name = target.get_code()
-                    else:
-                        logger.error(f"Unsupported target type: {target_type}. Use 'source' or 'spacecraft'")
-                        return {}
+                    results[0] = self._process_source_visibility(scans[0], telescopes, sources, time_step, position_data, obj)
+                return results
 
-                    if isinstance(target, SpaceTelescope):
-                        logger.info(f"Interpolating orbit for {current_target_name}")
-                        target.interpolate_orbit(start, end, time_step)
-
-                    position_attrs = {
-                        "time_step": time_step,
-                        "store_key": position_store_key,
-                        "recalculate": recalculate,
-                        "start_time": start.isot,
-                        "end_time": end.isot
-                    }
-                    position_data = self._calculate_telescope_positions(obj, position_attrs)
-                    if not position_data:
-                        logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
-                        return {}
-
-                    visibility = {tel.get_code(): [] for tel in active_telescopes}
-                    tel_positions_data = position_data.get(0, {}).get("telescope_positions", {})
-                    for t_idx, t in enumerate(times):
-                        tel_positions = {}
-                        for tel in active_telescopes:
-                            pos_data = tel_positions_data.get(tel.get_code(), {})
-                            if "positions" not in pos_data or t_idx >= len(pos_data["positions"]):
-                                logger.warning(f"No position data for {tel.get_code()} at {t.isot}, using default")
-                                tel_positions[tel.get_code()] = (0.0, 0.0, 0.0)
-                            else:
-                                tel_positions[tel.get_code()] = pos_data["positions"][t_idx]
-                        vis = self._compute_visibility_at_time(target, active_telescopes, t, tel_positions)
-                        for tel_code, is_visible in vis.items():
-                            visibility[tel_code].append(is_visible)
-                    result = {
-                        "target": current_target_name,
-                        "times": times.isot.tolist(),
-                        "visibility": visibility
-                    }
-                    return {0: result}
-
-            metadata = {"time_step": time_step, "start_time": start_time, "end_time": end_time, "telescope_code": telescope_code}
+            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
             return self._get_cached_or_calculate(obj, store_key, calculate_visibility, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate visibility: {str(e)}")
+            logger.error(f"Failed to calculate source visibility: {str(e)}")
             return {}
+        
+    def _process_source_visibility(self, scan: Scan, telescopes: Telescopes, sources: Sources, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
+        """Process source visibility for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            telescopes (Telescopes): Collection of telescopes.
+            sources (Sources): Collection of sources.
+            time_step (Optional[float]): Time interval for sampling (seconds).
+            position_data (Dict[str, Any]): Precomputed telescope positions.
+            observation (Observation): The parent observation.
+
+        Returns:
+            Dict[str, Any]: Visibility data including source name and visibility per telescope.
+        """
+        start_time = scan.get_start()
+        duration = scan.get_duration()
+        source_name = scan.get_source_name()
+        source = sources.get(source_name)
+        telescope_names = scan.get_telescope_names()
+        active_telescopes = [telescopes.get(i) for i in telescope_names if telescopes.get(i).isactive]
+        scan_idx = list(observation.get_scans().get_active_scans(observation)).index(scan)
+
+        logger.info(f"Processing visibility for scan {scan_idx}: {len(active_telescopes)} telescopes")
+
+        if time_step is None:
+            mean_time = start_time + (duration / 2) * u.s
+            positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
+            visibility = self._compute_visibility_at_time(source, active_telescopes, mean_time, positions)
+            return {"source": source.name, "visibility": visibility}
+        else:
+            time_values = np.arange(0, duration, time_step) * u.s
+            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+            visibility = {tel.get_code(): [] for tel in active_telescopes}
+            positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
+            for t_idx, t in enumerate(times):
+                pos_at_time = {}
+                for tel in active_telescopes:
+                    pos_data = positions.get(tel.get_code(), {})
+                    if "positions" in pos_data:
+                        pos_at_time[tel.get_code()] = pos_data["positions"][t_idx]
+                    else:
+                        pos_at_time[tel.get_code()] = pos_data
+                vis = self._compute_visibility_at_time(source, active_telescopes, t, pos_at_time)
+                for tel_code, is_visible in vis.items():
+                    visibility[tel_code].append(is_visible)
+            return {"source": source.name, "times": times.isot.tolist(), "visibility": visibility}
     
 
     def _compute_visibility_at_time(self, target: Source | SpaceTelescope, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
@@ -382,7 +295,6 @@ class ScheduleCalculator(Super):
                     is_visible = False
             visibility[tel.get_code()] = is_visible
         return visibility
-
 
     @time_execution
     def _calculate_telescope_positions(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -544,55 +456,6 @@ class ScheduleCalculator(Super):
             pos, _ = telescope.get_state_vector(time)
             return tuple(float(p) for p in pos)
         raise ValueError(f"Unsupported telescope type: {type(telescope)}")
-
-    
-
-    def _process_source_visibility(self, scan: Scan, telescopes: Telescopes, sources: Sources, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
-        """Process source visibility for a single scan.
-
-        Args:
-            scan (Scan): The scan to process.
-            telescopes (Telescopes): Collection of telescopes.
-            sources (Sources): Collection of sources.
-            time_step (Optional[float]): Time interval for sampling (seconds).
-            position_data (Dict[str, Any]): Precomputed telescope positions.
-            observation (Observation): The parent observation.
-
-        Returns:
-            Dict[str, Any]: Visibility data including source name and visibility per telescope.
-        """
-        start_time = scan.get_start()
-        duration = scan.get_duration()
-        source = sources.get(scan.source_name)
-        telescope_names = scan.get_telescope_names()
-        active_telescopes = [telescopes.get(i) for i in telescope_names if telescopes.get(i).isactive]
-        scan_idx = list(observation.get_scans().get_active_items()).index(scan)
-
-        logger.info(f"Processing visibility for scan {scan_idx}: {len(active_telescopes)} telescopes")
-
-        if time_step is None:
-            mean_time = start_time + (duration / 2) * u.s
-            positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
-            visibility = self._compute_visibility_at_time(source, active_telescopes, mean_time, positions)
-            return {"source": source.name, "visibility": visibility}
-        else:
-            time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
-            visibility = {tel.get_code(): [] for tel in active_telescopes}
-            positions = position_data.get(scan_idx, {}).get("telescope_positions", {})
-            for t_idx, t in enumerate(times):
-                pos_at_time = {}
-                for tel in active_telescopes:
-                    pos_data = positions.get(tel.get_code(), {})
-                    if "positions" in pos_data:
-                        pos_at_time[tel.get_code()] = pos_data["positions"][t_idx]
-                    else:
-                        pos_at_time[tel.get_code()] = pos_data
-                vis = self._compute_visibility_at_time(source, active_telescopes, t, pos_at_time)
-                for tel_code, is_visible in vis.items():
-                    visibility[tel_code].append(is_visible)
-            return {"source": source.name, "times": times.isot.tolist(), "visibility": visibility}
-    
     
     @time_execution
     def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -632,7 +495,7 @@ class ScheduleCalculator(Super):
                 frequencies = obj.get_frequencies()
                 results = {}
 
-                visibility_attrs = {"time_step": time_step, "target_type": "source", "store_key": "source_visibility", "recalculate": attrs.get("recalculate", False)}
+                visibility_attrs = {"time_step": time_step, "store_key": "source_visibility", "recalculate": attrs.get("recalculate", False)}
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": attrs.get("recalculate", False)}
 
                 visibility_data = self._calculate_source_visibility(obj, visibility_attrs)
