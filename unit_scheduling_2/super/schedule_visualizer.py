@@ -41,7 +41,7 @@ class ScheduleVisualizer(Super):
         >>> manipulator = ScheduleManipulator()
         >>> visualizer = ScheduleVisualizer(manipulator)
         >>> obs = Observation()
-        >>> result = visualizer.visualize(obs, {"plot_type": "uv_coverage", "freq_idx": 0})
+        >>> result = visualizer.visualize(obs, {"plot_type": "uv_coverage", "freq_name": "IF1"})
         {'status': 'success', 'baselines': 3}
     """
     def __init__(self, manipulator: 'Manipulator'):
@@ -223,7 +223,7 @@ class ScheduleVisualizer(Super):
 
         Args:
             obj (Observation): The Observation object to visualize.
-            attributes (Dict[str, Any]): Parameters including "freq_idx" (default 0) and "store_key".
+            attributes (Dict[str, Any]): Parameters including "freq_name" and "store_key".
 
         Returns:
             Dict[str, Any]: Result with status and number of baselines plotted.
@@ -232,14 +232,14 @@ class ScheduleVisualizer(Super):
             - Plots UV points in wavelength units, including mirrored points for symmetry.
             - Uses pre-calculated data from the observation's store_key.
         """
-        freq_idx = attributes.get("freq_idx", 0)
-        store_key = attributes.get("store_key", f"uv_coverage_f{freq_idx}")
+        freq_name = attributes.get("freq_name")
+        store_key = attributes.get("store_key", f"uv_coverage_f{freq_name}")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
             logger.error(f"No UV coverage data found for '{store_key}' in {obj.get_observation_code()}")
             return {"status": "error", "message": f"No data for {store_key}"}
 
-        frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency() * 1e6
+        frequency = obj.get_frequencies().get(freq_name).get("frequency") * 1e6
         data = data.get("data", {})
         
         baselines = {}
@@ -477,7 +477,7 @@ class ScheduleVisualizer(Super):
 
         Args:
             obj (Observation): The Observation object to visualize.
-            attributes (Dict[str, Any]): Parameters including "freq_idx" (default 0) and "store_key".
+            attributes (Dict[str, Any]): Parameters including "freq_name" and "store_key".
 
         Returns:
             Dict[str, Any]: Result with status and number of telescopes plotted.
@@ -485,8 +485,8 @@ class ScheduleVisualizer(Super):
         Notes:
             - Plots normalized beam patterns against theta (radians) for each telescope.
         """
-        freq_idx = attributes.get("freq_idx", 0)
-        store_key = attributes.get("store_key", f"beam_pattern_f{freq_idx}")
+        freq_name = attributes.get("freq_name")
+        store_key = attributes.get("store_key", f"beam_pattern_f{freq_name}")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
             logger.error(f"No beam pattern data found for '{store_key}' in {obj.get_observation_code()}")
@@ -522,7 +522,7 @@ class ScheduleVisualizer(Super):
 
         Args:
             obj (Observation): The Observation object to visualize.
-            attributes (Dict[str, Any]): Parameters including "freq_idx" (default 0) and "store_key".
+            attributes (Dict[str, Any]): Parameters including "freq_name" and "store_key".
 
         Returns:
             Dict[str, Any]: Result with status.
@@ -530,8 +530,8 @@ class ScheduleVisualizer(Super):
         Notes:
             - Displays a 2D beam pattern in microarcseconds using a custom red-purple colormap.
         """
-        freq_idx = attributes.get("freq_idx", 0)
-        store_key = attributes.get("store_key", f"synthesized_beam_f{freq_idx}")
+        freq_name = attributes.get("freq_name")
+        store_key = attributes.get("store_key", f"synthesized_beam_f{freq_name}")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
             logger.error(f"No synthesized beam data found for '{store_key}' in {obj.get_observation_code()}")
@@ -569,7 +569,7 @@ class ScheduleVisualizer(Super):
         plt.colorbar(im, label='Normalized Peak Flux, (Jy)', ax=ax)
         ax.set_xlabel("Relative Right Ascension, (μas)")
         ax.set_ylabel("Relative Declination, (μas)")
-        ax.set_title(f"Synthesized Beam at {obj.get_frequencies().get_by_index(freq_idx).get_frequency()} MHz")
+        ax.set_title(f"Synthesized Beam at {obj.get_frequencies().get(freq_name).get("frequency")} MHz")
         
         plt.tight_layout()
         return {"status": "success"}
@@ -579,7 +579,7 @@ class ScheduleVisualizer(Super):
 
         Args:
             obj (Observation): The Observation object to visualize.
-            attributes (Dict[str, Any]): Parameters including "freq_idx" (default 0) and "store_key".
+            attributes (Dict[str, Any]): Parameters including "freq_name" and "store_key".
 
         Returns:
             Dict[str, Any]: Result with status and number of scans plotted.
@@ -587,14 +587,14 @@ class ScheduleVisualizer(Super):
         Notes:
             - Plots baseline lengths in wavelengths against MJD time for each telescope pair.
         """
-        freq_idx = attributes.get("freq_idx", 0)
-        store_key = attributes.get("store_key", f"baseline_projections_f{freq_idx}")
+        freq_name = attributes.get("freq_name")
+        store_key = attributes.get("store_key", f"baseline_projections_f{freq_name}")
         data = obj.get_calculated_data_by_key(store_key)
         if not data:
             logger.error(f"No baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
             return {"status": "error", "message": f"No data for {store_key}"}
 
-        frequency = obj.get_frequencies().get_by_index(freq_idx).get_frequency()
+        frequency = obj.get_frequencies().get(freq_name).get("frequency")
         data = data.get("data", {})
         
         for scan_idx, scan_data in data.items():

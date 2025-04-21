@@ -37,56 +37,56 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         result = self.manipulator.process_request({
             "operation": "configure",
             "attributes": {
-                "set_source": {
+                "set": {"params":{
                     "name": "M87",
-                    "ra_h": 12.0, "ra_m": 30, "ra_s": 49.42,
-                    "de_d": 12.0, "de_m": 23, "de_s": 28.0
-                },
-                "set_flux": {"frequency": 86e3, "flux": 1.2}
+                    "ra_h": 12.0, "ra_m": 30.0, "ra_s": 49.42,
+                    "de_d": 12.0, "de_m": 23.0, "de_s": 28.0
+                }},
+                "add_flux": {"frequency": 86e3, "flux": 1.2}
             },
             "obj": m87_source
         })
         self.assertTrue(result, "Failed to configure M87 source")
         sources = Sources()
         sources.add(m87_source)
-
         telescopes = Telescopes()
         tel_configs = {
             "alma": {
                 "operation": "configure",
-                "attributes": {"set": {
+                "attributes": {"set": {"params": {
                     "code": "ALMA", "name": "ALMA", "x": 2225061.164, "y": -5440057.37, "z": -2481681.15,
                     "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 100.0},
                     "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
-                }},
+                }}},
                 "obj": Telescope()
             },
             "apex": {
                 "operation": "configure",
-                "attributes": {"set_telescope": {
+                "attributes": {"set": {"params": {
                     "code": "APEX", "name": "APEX", "x": 2225039.53, "y": -5441197.63, "z": -2479303.36,
                     "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 12.0, "sefd_table": {86e3: 120.0},
                     "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
-                }},
-                "obj": Telescope()
+                }}},
+                "obj": Telescope(name="APEX")
             },
             "smt": {
                 "operation": "configure",
-                "attributes": {"set_telescope": {
+                "attributes": {"set": {"params": {
                     "code": "SMT", "name": "SMT", "x": -1828796.2, "y": -5054406.8, "z": 3427865.2,
                     "vx": 0.0, "vy": 0.0, "vz": 0.0, "diameter": 10.0, "sefd_table": {86e3: 150.0},
                     "elevation_range": (0.0, 90.0), "azimuth_range": (0.0, 360.0), "mount_type": "AZIM"
-                }},
-                "obj": Telescope()
+                }}},
+                "obj": Telescope(name="SSMT")
             },
             "space370": {
                 "operation": "configure",
-                "attributes": { "set_telescope": {
-                    "code": "SPACE370", "use_kep": False, "name": "Space Telescope 370", "diameter": 10.0,
+                "method": "_configure_telescope",
+                "attributes": { "set": {"params": {
+                    "code": "SPACE370", "use_kep": False, "name": "SPACE370", "diameter": 10.0,
                     "sefd_table": {86e3: 200.0}, "pitch_range": (-90.0, 90.0), "yaw_range": (0.0, 180.0),
                     "orbit_file": "final_orbit370.txt", "interpolation_method": "linear"
-                }},
-                "obj": SpaceTelescope(use_kep=False, orbit_file="final_orbit370.txt", interpolation_method="linear")
+                }}},
+                "obj": SpaceTelescope(name="SPSPT", use_kep=False, orbit_file="final_orbit370.txt", interpolation_method="linear")
             }
         }
         tel_results = self.manipulator.process_request(tel_configs)
@@ -94,14 +94,15 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
             self.assertTrue(result, f"Failed to configure telescope {tel_id}")
             telescopes.add(tel_configs[tel_id]["obj"])
 
-        frequency = IF()
+        frequency = IF(name="IF1")
         result = self.manipulator.process_request({
             "operation": "configure",
-            "attributes": {"set_frequency": {"frequency": 86e3}, "set_bandwidth": {"bandwidth": 4e3}},
+            "attributes": {"set": {"params": {"frequency": 86e3}, "set_bandwidth": {"bandwidth": 4e3}}},
             "obj": frequency
         })
         self.assertTrue(result, "Failed to configure frequency")
-        frequencies = Frequencies([frequency])
+        frequencies = Frequencies()
+        frequencies.add(frequency)
 
         start_time = Time("2031-03-10T00:00:00", format="isot", scale="utc")
         duration = 864000 * u.s
@@ -109,49 +110,51 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         result = self.manipulator.process_request({
             "operation": "configure",
             "attributes": {
-                "set_scan": {
+                "set": {"params": {
+                    "name": "SCAN01",
                     "start": start_time,
                     "duration": duration.value,
-                    "source_index": 0,
-                    "telescope_indices": [0, 1, 2, 3],
-                    "frequency_indices": [0]
-                }
+                    "source_name": "M87",
+                    "telescope_names": ["ALMA", "APEX", "SMT", "SPACE370"],
+                    "frequency_names": ["IF1"]
+                }}
             },
             "obj": scan
         })
         self.assertTrue(result, "Failed to configure scan")
-        scans = Scans([scan])
+        scans = Scans()
+        scans.add(scan)
 
-        observation = Observation(observation_code="M87_SPACE_OBS")
-        single_dish_obs = Observation(observation_code="M87_SINGLE_DISH", observation_type="SINGLE_DISH")
+        observation = Observation(name="M87_SPACE_OBS")
+        single_dish_obs = Observation(name="M87_SINGLE_DISH", observation_type="SINGLE_DISH")
         obs_configs = {
             "vlbi": {
                 "operation": "configure",
                 "attributes": {
-                    "set_observation": {
-                        "observation_code": "M87_SPACE_OBS",
+                    "set": {"params": {
+                        "code": "M87_SPACE_OBS",
                         "sources": sources,
                         "telescopes": telescopes,
                         "frequencies": frequencies,
                         "scans": scans,
                         "observation_type": "VLBI",
                         "isactive": True
-                    }
+                    }}
                 },
                 "obj": observation
             },
             "single_dish": {
                 "operation": "configure",
                 "attributes": {
-                    "set_observation": {
-                        "observation_code": "M87_SINGLE_DISH",
+                    "set": {"params": {
+                        "code": "M87_SINGLE_DISH",
                         "sources": sources,
-                        "telescopes": Telescopes([telescopes.get_by_index(0), telescopes.get_by_index(1)]),
+                        "telescopes": Telescopes({telescopes.get("ALMA").name: telescopes.get("ALMA"), telescopes.get("APEX").name: telescopes.get("APEX")}),
                         "frequencies": frequencies,
-                        "scans": Scans([Scan(start=start_time, duration=3600, source_index=0, telescope_indices=[0, 1], frequency_indices=[0])]),
+                        "scans": Scans(items={"SCAN1": Scan(name="SCAN1", start=start_time, duration=3600.0, source_name="M87", telescope_names=["ALMA", "APEX"], frequency_names=["IF1"])}),
                         "observation_type": "SINGLE_DISH",
                         "isactive": True
-                    }
+                    }}
                 },
                 "obj": single_dish_obs
             }
@@ -169,7 +172,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "attributes": {
                     "method": "uv_coverage",
                     "time_step": 600,
-                    "freq_idx": 0,
+                    "freq_name": "IF1",
                     "store_key": "uv_coverage_f0",
                     "recalculate": False
                 },
@@ -190,8 +193,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "attributes": {
                     "method": "baseline_projections",
                     "time_step": 600,
-                    "freq_idx": 0,
-                    "store_key": "baseline_projections_f0",
+                    "freq_name": "IF1",
                     "recalculate": False
                 },
                 "obj": observation
@@ -200,8 +202,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "operation": "calculate",
                 "attributes": {
                     "method": "beam_pattern",
-                    "freq_idx": 0,
-                    "store_key": "beam_pattern_f0",
+                    "freq_name": "IF1",
                     "recalculate": False
                 },
                 "obj": single_dish_obs
@@ -210,8 +211,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "operation": "calculate",
                 "attributes": {
                     "method": "synthesized_beam",
-                    "freq_idx": 0,
-                    "store_key": "synthesized_beam_f0",
+                    "freq_name": "IF1",
                     "recalculate": False,
                     "time_step": 600
                 },
@@ -261,7 +261,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                     "method": "_visualize",
                     "plot_type": "uv_coverage",
                     "time_step": 600,
-                    "freq_idx": 0,
+                    "freq_name": "IF1",
                     "output_file": "uv_coverage_m87_space_with_conjugates.png",
                     "show": True,
                     "figsize": (12, 12)
@@ -286,7 +286,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                     "method": "_visualize",
                     "plot_type": "baseline_projections",
                     "time_step": 600,
-                    "freq_idx": 0,
+                    "freq_name": "IF1",
                     "output_file": "baseline_projections_m87_space.png",
                     "show": True,
                     "figsize": (12, 6)
@@ -298,7 +298,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "attributes": {
                     "method": "_visualize",
                     "plot_type": "beam_pattern",
-                    "freq_idx": 0,
+                    "freq_name": "IF1",
                     "output_file": "beam_pattern_m87_single_dish.png",
                     "show": True,
                     "figsize": (10, 6)
@@ -310,7 +310,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
                 "attributes": {
                     "method": "_visualize",
                     "plot_type": "synthesized_beam",
-                    "freq_idx": 0,
+                    "freq_name": "IF1",
                     "output_file": "synthesized_beam_2d_m87_vlbi.png",
                     "show": True,
                     "figsize": (10, 8)

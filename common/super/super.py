@@ -149,7 +149,6 @@ class Super(ABC):
         method = valid_methods[method_name]
         sig = inspect.signature(method)
         params = list(sig.parameters.keys())
-        print(f"DEBUG signature: {sig}, params: {params}")
         expected_params = [p for p in params if p != 'self']
 
         try:
