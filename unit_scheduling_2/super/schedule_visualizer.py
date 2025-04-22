@@ -244,17 +244,17 @@ class ScheduleVisualizer(Super):
         
         baselines = {}
         for scan_data in data.values():
-            uv_points = scan_data.get("uv_points", {}).get(frequency, [])
-            for point in uv_points:
-                try:
-                    baseline, u, v, *_ = point
-                    if baseline not in baselines:
-                        baselines[baseline] = {"u": [], "v": []}
-                    baselines[baseline]["u"].append(float(u))
-                    baselines[baseline]["v"].append(float(v))
-                except (ValueError, TypeError) as e:
-                    logger.error(f"Invalid UV point format: {point}, error: {str(e)}")
-                    return {"status": "error", "message": f"Invalid UV point format: {point}"}
+            uv_points = scan_data.get("uv_points", {}).get(frequency, {})
+            for time_idx, points in uv_points.items():
+                for baseline, (u, v, _) in points.items():
+                    try:
+                        if baseline not in baselines:
+                            baselines[baseline] = {"u": [], "v": []}
+                        baselines[baseline]["u"].append(float(u))
+                        baselines[baseline]["v"].append(float(v))
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Invalid UV point format for baseline {baseline}: {(u, v)}, error: {str(e)}")
+                        return {"status": "error", "message": f"Invalid UV point format for baseline {baseline}"}
 
         for i, (baseline, coords) in enumerate(baselines.items()):
             color = self.moderate2_colors[i % len(self.moderate2_colors)]
@@ -575,7 +575,7 @@ class ScheduleVisualizer(Super):
         return {"status": "success"}
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Plot baseline projections for an Observation.
+        """Plot baseline projections for an Observation using scatter points.
 
         Args:
             obj (Observation): The Observation object to visualize.
@@ -585,7 +585,8 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Result with status and number of scans plotted.
 
         Notes:
-            - Plots baseline lengths in wavelengths against MJD time for each telescope pair.
+            - Plots baseline lengths in wavelengths against MJD time for each telescope pair using scatter points.
+            - Uses projection-specific times to ensure accurate visualization.
         """
         freq_name = attributes.get("freq_name")
         store_key = attributes.get("store_key", f"baseline_projections_{freq_name}")
@@ -598,15 +599,21 @@ class ScheduleVisualizer(Super):
         data = data.get("data", {})
         
         for scan_idx, scan_data in data.items():
-            times = scan_data.get("times", [])
+            times_mjd = [Time(t).mjd for t in scan_data.get("times", [])]
+            if not times_mjd:
+                logger.debug(f"No valid times for scan {scan_idx}")
+                continue
             projections = scan_data.get("projections", {})
-            for i, (pair, bl_list) in enumerate(projections.items()):
-                valid_pairs = [(Time(t).mjd, float(bl)) for t, bl in zip(times, bl_list) if t and bl is not None]
-                if valid_pairs:
-                    times_mjd, bl_valid = zip(*valid_pairs)
-                    plt.plot(times_mjd, bl_valid, label=pair, color=self.moderate2_colors[i % len(self.moderate2_colors)])
-                else:
-                    logger.debug(f"No valid projection data for {pair} in scan {scan_idx}")
+            for i, (time_idx, proj_dict) in enumerate(projections.items()):
+                for pair, bl in proj_dict.items():
+                    if bl is not None:
+                        plt.scatter(
+                            times_mjd[time_idx], bl, 
+                            label=pair if i == 0 else None,  # Label only once per pair
+                            color=self.moderate2_colors[i % len(self.moderate2_colors)], 
+                            s=10, 
+                            alpha=0.7
+                        )
 
         plt.xlabel("Time (MJD)")
         plt.ylabel("Baseline Length (wavelengths)")
