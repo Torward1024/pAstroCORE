@@ -583,10 +583,6 @@ class ScheduleVisualizer(Super):
 
         Returns:
             Dict[str, Any]: Result with status and number of scans plotted.
-
-        Notes:
-            - Plots baseline lengths in wavelengths against MJD time for each telescope pair using scatter points.
-            - Uses projection-specific times to ensure accurate visualization.
         """
         freq_name = attributes.get("freq_name")
         store_key = attributes.get("store_key", f"baseline_projections_{freq_name}")
@@ -595,32 +591,61 @@ class ScheduleVisualizer(Super):
             logger.error(f"No baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
             return {"status": "error", "message": f"No data for {store_key}"}
 
-        frequency = obj.get_frequencies().get(freq_name).get("frequency")
+        frequency = obj.get_frequencies().get(freq_name).get("frequency") * 1e6
+        logger.debug(f"Processing frequency: {frequency/1e6} MHz for {obj.get_observation_code()}")
         data = data.get("data", {})
-        
+        plotted_pairs = set()
+        valid_projections = 0
+
+        # Собираем данные по парам
+        pair_data = {}
         for scan_idx, scan_data in data.items():
-            times_mjd = [Time(t).mjd for t in scan_data.get("times", [])]
+            times_mjd = [Time(t).mjd for t in scan_data.get("times", []) if t]
             if not times_mjd:
-                logger.debug(f"No valid times for scan {scan_idx}")
+                logger.debug(f"No valid times for scan {scan_idx} in {obj.get_observation_code()}")
                 continue
-            projections = scan_data.get("projections", {})
-            for i, (time_idx, proj_dict) in enumerate(projections.items()):
+            projections = scan_data.get("projections", {}).get(frequency, {})
+            if not projections:
+                logger.debug(f"No projection data for frequency {frequency/1e6} MHz in scan {scan_idx}")
+                continue
+
+            for time_idx, proj_dict in projections.items():
+                if time_idx >= len(times_mjd):
+                    logger.warning(f"Time index {time_idx} exceeds available times ({len(times_mjd)}) in scan {scan_idx}")
+                    continue
                 for pair, bl in proj_dict.items():
-                    if bl is not None:
-                        plt.scatter(
-                            times_mjd[time_idx], bl, 
-                            label=pair if i == 0 else None,  # Label only once per pair
-                            color=self.moderate2_colors[i % len(self.moderate2_colors)], 
-                            s=10, 
-                            alpha=0.7
-                        )
+                    if bl is None or np.isnan(bl):
+                        logger.debug(f"Skipping invalid baseline for pair {pair} at time_idx {time_idx}: {bl}")
+                        continue
+                    if pair not in pair_data:
+                        pair_data[pair] = {"times": [], "bl": []}
+                    pair_data[pair]["times"].append(times_mjd[time_idx])
+                    pair_data[pair]["bl"].append(bl)
+                    valid_projections += 1
+
+        if not pair_data:
+            logger.warning(f"No valid projection data to plot for {obj.get_observation_code()}. Scans processed: {len(data)}")
+            return {"status": "no data", "scans": len(data), "message": "No valid projection data found"}
+
+        # Построение графика
+        for i, (pair, data) in enumerate(pair_data.items()):
+            color_idx = i % len(self.moderate2_colors)
+            plt.scatter(
+                data["times"],
+                data["bl"],
+                label=pair if pair not in plotted_pairs else None,
+                color=self.moderate2_colors[color_idx],
+                s=10,
+                alpha=0.7
+            )
+            plotted_pairs.add(pair)
 
         plt.xlabel("Time (MJD)")
         plt.ylabel("Baseline Length (wavelengths)")
-        plt.title(f"Baseline Projections at {frequency} MHz")
+        plt.title(f"Baseline Projections at {frequency/1e6} MHz")
         plt.legend()
         plt.grid(True)
-        return {"status": "success", "scans": len(data)}
+        return {"status": "success", "scans": len(data), "baselines": len(plotted_pairs), "projections": valid_projections}
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Plot Mollweide tracks for an Observation.
