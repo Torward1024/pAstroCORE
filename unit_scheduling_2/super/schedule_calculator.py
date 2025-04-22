@@ -128,18 +128,18 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_source_visibility(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate source visibility for all scans.
+        """calculate source visibility for all scans.
 
-        Args:
-            obj (Observation | ScheduleProject): The object to calculate visibility for.
-            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", and "position_store_key".
+        args:
+            obj (Observation | ScheduleProject): the object to calculate visibility for.
+            attributes (Dict[str, Any]): parameters including "time_step", "store_key", and "position_store_key".
 
-        Returns:
-            Dict[str, Any]: Visibility data per scan, keyed by observation code (for Project) or scan index (for Observation).
+        returns:
+            Dict[str, Any]: visibility data per scan, keyed by observation code (for Project) or scan index (for Observation).
 
-        Notes:
-            - Depends on precomputed telescope positions.
-            - Uses parallel processing for multiple scans.
+        notes:
+            - depends on precomputed telescope positions.
+            - uses parallel processing for multiple scans.
         """
         try:
             time_step = attributes.get("time_step")
@@ -149,7 +149,7 @@ class ScheduleCalculator(Super):
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_observations()
                 if not observations:
-                    logger.warning(f"No observations in project '{obj.name}'")
+                    logger.warning(f"no observations in project '{obj.name}'")
                     return {}
                 results = {}
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
@@ -161,7 +161,7 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         obs_code = futures[future]
                         results[obs_code] = future.result()
-                logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"calculated source visibility for {len(observations)} observations in project '{obj.name}'")
                 return results
 
             def calculate_visibility(obj, attrs):
@@ -171,7 +171,7 @@ class ScheduleCalculator(Super):
                 position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": attrs.get("recalculate")}
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
                 if not position_data:
-                    logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
+                    logger.error(f"failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return {}
                 results = {}
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
@@ -188,22 +188,22 @@ class ScheduleCalculator(Super):
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
             return self._get_cached_or_calculate(obj, store_key, calculate_visibility, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate source visibility: {str(e)}")
+            logger.error(f"failed to calculate source visibility: {str(e)}")
             return {}
         
     def _process_source_visibility(self, scan: Scan, telescopes: Telescopes, sources: Sources, time_step: Optional[float], position_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
-        """Process source visibility for a single scan.
+        """process source visibility for a single scan.
 
-        Args:
-            scan (Scan): The scan to process.
-            telescopes (Telescopes): Collection of telescopes.
-            sources (Sources): Collection of sources.
-            time_step (Optional[float]): Time interval for sampling (seconds).
-            position_data (Dict[str, Any]): Precomputed telescope positions.
-            observation (Observation): The parent observation.
+        args:
+            scan (Scan): the scan to process.
+            telescopes (Telescopes): collection of telescopes.
+            sources (Sources): collection of sources.
+            time_step (Optional[float]): time interval for sampling (seconds).
+            position_data (Dict[str, Any]): precomputed telescope positions.
+            observation (Observation): the parent observation.
 
-        Returns:
-            Dict[str, Any]: Visibility data including source name and visibility per telescope.
+        returns:
+            Dict[str, Any]: visibility data including source name and visibility per telescope.
         """
         start_time = scan.get_start()
         duration = scan.get_duration()
@@ -214,32 +214,35 @@ class ScheduleCalculator(Super):
         active_telescopes = [telescopes.get(i) for i in telescope_names if telescopes.get(i).isactive]
         scan_name = scan.name
 
-        logger.debug(f"Processing visibility for scan {scan_name}: {len(active_telescopes)} telescopes")
+        logger.debug(f"processing visibility for scan {scan_name}: {len(active_telescopes)} telescopes")
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
             positions = position_data.get(scan_name, {}).get("telescope_positions", {})
             visibility = self._compute_visibility_at_time(source, active_telescopes, mean_time, positions)
-            return {"source": source.name, "visibility": visibility}
+            # convert boolean values to numpy array for consistency
+            visibility_array = np.array([visibility[tel.get_code()] for tel in active_telescopes], dtype=bool)
+            visibility_dict = {tel.get_code(): visibility_array[i] for i, tel in enumerate(active_telescopes)}
+            return {"source": source.name, "visibility": visibility_dict}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
-            visibility = {tel.get_code(): [] for tel in active_telescopes}
             positions = position_data.get(scan_name, {}).get("telescope_positions", {})
             
-            # preprocess position data into NumPy arrays
+            # initialize visibility array: shape (n_telescopes, n_times)
+            visibility = np.zeros((len(active_telescopes), len(times)), dtype=bool)
             pos_arrays = {}
-            for tel in active_telescopes:
+            for i, tel in enumerate(active_telescopes):
                 tel_code = tel.get_code()
                 pos_data = positions.get(tel_code, {})
                 pos_array = np.array(pos_data.get("positions", [])) if "positions" in pos_data else None
                 if pos_array is None or len(pos_array) != len(times):
-                    logger.warning(f"No or mismatched position data for telescope '{tel_code}' in scan {scan_name}")
-                    visibility[tel_code] = [False] * len(times)
+                    logger.warning(f"no or mismatched position data for telescope '{tel_code}' in scan {scan_name}")
+                    visibility[i] = False
                 else:
                     pos_arrays[tel_code] = pos_array
 
-            for tel in active_telescopes:
+            for i, tel in enumerate(active_telescopes):
                 tel_code = tel.get_code()
                 if tel_code not in pos_arrays:
                     continue
@@ -253,7 +256,7 @@ class ScheduleCalculator(Super):
                     pitch_range = tel.get_pitch_range()
                     yaw_range = tel.get_yaw_range()
                     is_visible = (pitch_range[0] <= pitch) & (pitch <= pitch_range[1]) & (yaw_range[0] <= yaw) & (yaw <= yaw_range[1])
-                    visibility[tel_code] = is_visible.tolist()
+                    visibility[i] = is_visible
                 else:
                     gcrs = GCRS(CartesianRepresentation(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], unit=u.m), obstime=times)
                     itrs = gcrs.transform_to(ITRS(obstime=times))
@@ -274,10 +277,13 @@ class ScheduleCalculator(Super):
                         dec_range = tel.get_elevation_range()
                         is_visible = (dec_range[0] <= dec) & (dec <= dec_range[1]) & (ha_range[0] <= ha) & (ha <= ha_range[1])
                     else:
-                        logger.debug(f"Unsupported mount type {mount_type.value} for telescope '{tel_code}'")
+                        logger.debug(f"unsupported mount type {mount_type.value} for telescope '{tel_code}'")
                         is_visible = np.zeros(len(times), dtype=bool)
-                    visibility[tel_code] = is_visible.tolist()
-            return {"source": source.name, "times": times.isot.tolist(), "visibility": visibility}
+                    visibility[i] = is_visible
+
+            # convert visibility array to dictionary for compatibility with visualizer
+            visibility_dict = {tel.get_code(): visibility[i].tolist() for i, tel in enumerate(active_telescopes)}
+            return {"source": source.name, "times": times.isot.tolist(), "visibility": visibility_dict}
     
 
     def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
@@ -335,14 +341,14 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_telescope_positions(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate telescope positions in GCRS (J2000) for all scans or time range.
+        """calculate telescope positions in GCRS (J2000) for all scans or time range.
 
-        Args:
-            obj (Observation | ScheduleProject): The object to calculate positions for.
-            attributes (Dict[str, Any]): Parameters including "time_step", "start_time", "end_time".
+        args:
+            obj (Observation | ScheduleProject): the object to calculate positions for.
+            attributes (Dict[str, Any]): parameters including "time_step", "start_time", "end_time".
 
-        Returns:
-            Dict[str, Any]: Telescope positions per scan or time range, keyed by index.
+        returns:
+            Dict[str, Any]: telescope positions per scan or time range, keyed by index.
         """
         try:
             time_step = attributes.get("time_step")
@@ -354,7 +360,7 @@ class ScheduleCalculator(Super):
                 if isinstance(obj, ScheduleProject):
                     observations = obj.get_observations()
                     if not observations:
-                        logger.warning(f"No observations in project '{obj.name}'")
+                        logger.warning(f"no observations in project '{obj.name}'")
                         return {}
                     results = {}
                     max_workers = min(len(observations), 4) if len(observations) > 1 else 1
@@ -366,13 +372,13 @@ class ScheduleCalculator(Super):
                         for future in futures:
                             obs_code = futures[future]
                             results[obs_code] = future.result()
-                    logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.name}'")
+                    logger.info(f"calculated telescope positions for {len(observations)} observations in project '{obj.name}'")
                     return results
 
                 telescopes = obj.get_telescopes()
                 active_telescopes = telescopes.get_active_items()
                 if not active_telescopes:
-                    logger.warning(f"No active telescopes in observation '{obj.get_observation_code()}'")
+                    logger.warning(f"no active telescopes in observation '{obj.get_observation_code()}'")
                     return {}
 
                 if start_time and end_time:
@@ -382,7 +388,7 @@ class ScheduleCalculator(Super):
                 else:
                     scans = obj.get_scans().get_active_items()
                     if not scans:
-                        logger.warning(f"No scans or time range specified in observation '{obj.get_observation_code()}'")
+                        logger.warning(f"no scans or time range specified in observation '{obj.get_observation_code()}'")
                         return {}
                     start_times = [scan.get_start() for scan in scans]
                     end_times = [scan.get_start() + scan.get_duration() * u.s for scan in scans]
@@ -392,9 +398,9 @@ class ScheduleCalculator(Super):
 
                 time_values = np.arange(0, (end - start).sec, time_step) * u.s if time_step else [((end - start).sec / 2) * u.s]
                 times = Time(start.mjd + time_values.to(u.d).value, format='mjd')
-                logger.debug(f"Calculating telescope positions for {len(times)} time points from {start.isot} to {end.isot}")
+                logger.debug(f"calculating telescope positions for {len(times)} time points from {start.isot} to {end.isot}")
 
-                # сache orbit interpolations for SpaceTelescopes
+                # cache orbit interpolations for SpaceTelescopes
                 for tel in active_telescopes:
                     if isinstance(tel, SpaceTelescope) and time_step and not tel.get("use_kep"):
                         tel.interpolate_orbit(start, end, time_step)
@@ -424,13 +430,13 @@ class ScheduleCalculator(Super):
                                     gcrs.cartesian.x.value,
                                     gcrs.cartesian.y.value,
                                     gcrs.cartesian.z.value
-                                ]).T.tolist()
+                                ]).T  # shape: (n_times, 3)
                             else:
                                 # use cached orbit for SpaceTelescope
-                                positions = [self._compute_telescope_position(tel, t) for t in scan_times]
+                                positions = np.array([self._compute_telescope_position(tel, t) for t in scan_times])
                             tel_positions[tel.get_code()] = {
                                 "times": [t.isot for t in scan_times],
-                                "positions": positions
+                                "positions": positions.tolist()  # convert to list for visualizer compatibility
                             }
                         results[scan.name] = {"telescope_positions": tel_positions}
                 else:
@@ -451,38 +457,35 @@ class ScheduleCalculator(Super):
                                 gcrs.cartesian.x.value,
                                 gcrs.cartesian.y.value,
                                 gcrs.cartesian.z.value
-                            ]).T.tolist()
+                            ]).T  # shape: (n_times, 3)
                         else:
                             # use cached orbit for SpaceTelescope
-                            positions = [self._compute_telescope_position(tel, t) for t in times]
+                            positions = np.array([self._compute_telescope_position(tel, t) for t in times])
                         tel_positions[tel.get_code()] = {
                             "times": [t.isot for t in times],
-                            "positions": positions
+                            "positions": positions.tolist()  # convert to list for visualizer compatibility
                         }
                     results[0] = {"telescope_positions": tel_positions}
 
-                logger.debug(f"Calculated telescope positions for {len(results)} entries in '{obj.get_observation_code()}'")
+                logger.debug(f"calculated telescope positions for {len(results)} entries in '{obj.get_observation_code()}'")
                 return results
 
             metadata = {"time_step": time_step, "start_time": start_time, "end_time": end_time}
             return self._get_cached_or_calculate(obj, store_key, calculate_positions, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate telescope positions: {str(e)}")
+            logger.error(f"failed to calculate telescope positions: {str(e)}")
             return {}    
 
     def _process_scan_positions(self, scan: Scan, telescopes: Telescopes, time_step: Optional[float]) -> Dict[str, Any]:
-        """Process telescope positions for a single scan.
+        """process telescope positions for a single scan.
 
-        Args:
-            scan (Scan): The scan to process.
-            telescopes (Telescopes): Collection of telescopes involved in the scan.
-            time_step (Optional[float]): Time interval for position sampling (seconds). If None, uses mean time.
+        args:
+            scan (Scan): the scan to process.
+            telescopes (Telescopes): collection of telescopes involved in the scan.
+            time_step (Optional[float]): time interval for position sampling (seconds). if None, uses mean time.
 
-        Returns:
-            Dict[str, Any]: Positions for active telescopes, with times if time_step is provided.
-
-        Notes:
-            - Returns positions at mean time if time_step is None, otherwise samples over duration.
+        returns:
+            Dict[str, Any]: positions for active telescopes, with times if time_step is provided.
         """
         start_time = scan.get_start()
         duration = scan.get_duration()
@@ -490,13 +493,15 @@ class ScheduleCalculator(Super):
         active_telescopes = [telescopes.get(i) for i in telescope_names if telescopes.get(i).isactive]
 
         if not active_telescopes:
-            logger.warning(f"No active telescopes for scan starting at {start_time.isot}")
+            logger.warning(f"no active telescopes for scan starting at {start_time.isot}")
             return {"telescope_positions": {}}
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
             positions = {tel.get_code(): self._compute_telescope_position(tel, mean_time) for tel in active_telescopes}
-            return {"telescope_positions": positions}
+            # convert to numpy array for consistency
+            pos_array = np.array(list(positions.values()))  # shape: (n_telescopes, 3)
+            return {"telescope_positions": {tel.get_code(): pos_array[i].tolist() for i, tel in enumerate(active_telescopes)}}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
@@ -517,11 +522,14 @@ class ScheduleCalculator(Super):
                         gcrs.cartesian.x.value,
                         gcrs.cartesian.y.value,
                         gcrs.cartesian.z.value
-                    ]).T.tolist()
+                    ]).T  # shape: (n_times, 3)
                 else:
-                    # Use cached orbit for SpaceTelescope
-                    positions = [self._compute_telescope_position(tel, t) for t in times]
-                result[tel.get_code()] = {"times": times.isot.tolist(), "positions": positions}
+                    # use cached orbit for SpaceTelescope
+                    positions = np.array([self._compute_telescope_position(tel, t) for t in times])
+                result[tel.get_code()] = {
+                    "times": times.isot.tolist(),
+                    "positions": positions.tolist()  # convert to list for visualizer compatibility
+                }
             return {"telescope_positions": result}
 
     def _compute_telescope_position(self, telescope: Telescope | SpaceTelescope, time: Time) -> Tuple[float, float, float]:
@@ -553,13 +561,13 @@ class ScheduleCalculator(Super):
     
     @time_execution
     def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate (u,v) coverage for all scans in the observation or project.
+        """calculate (u,v) coverage for all scans in the observation or project.
 
-        Args:
-            obj (Observation | ScheduleProject): The object to calculate UV coverage for.
-            attributes (Dict[str, Any]): Parameters including "time_step", "freq_name", and "store_key".
+        args:
+            obj (Observation | ScheduleProject): the object to calculate UV coverage for.
+            attributes (Dict[str, Any]): parameters including "time_step", "freq_name", and "store_key".
 
-        Returns:
+        returns:
             Dict[str, Any]: UV coverage data per scan, including u, v, w coordinates.
         """
         try:
@@ -570,7 +578,7 @@ class ScheduleCalculator(Super):
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_observations()
                 if not observations:
-                    logger.warning(f"No observations in project '{obj.name}'")
+                    logger.warning(f"no observations in project '{obj.name}'")
                     return {}
                 results = {}
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
@@ -582,7 +590,7 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         obs_code = futures[future]
                         results[obs_code] = future.result()
-                logger.info(f"Calculated (u,v) coverage for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"calculated (u,v) coverage for {len(observations)} observations in project '{obj.name}'")
                 return results
 
             def calculate_uv(obj, attrs):
@@ -598,7 +606,7 @@ class ScheduleCalculator(Super):
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
                 
                 if not visibility_data or not position_data:
-                    logger.error(f"Missing visibility or position data for '{obj.get_observation_code()}'")
+                    logger.error(f"missing visibility or position data for '{obj.get_observation_code()}'")
                     return {}
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
@@ -615,23 +623,23 @@ class ScheduleCalculator(Super):
             metadata = {"time_step": time_step, "freq_name": freq_name, "scan_count": len(obj.get_scans().get_active_items())}
             return self._get_cached_or_calculate(obj, store_key, calculate_uv, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate (u,v) coverage: {str(e)}")
+            logger.error(f"failed to calculate (u,v) coverage: {str(e)}")
             return {}
 
     def _process_uv_coverage(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_name: Optional[str], observation: Observation, visibility_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process UV coverage for a single scan using vectorized computations.
+        """process UV coverage for a single scan using vectorized computations.
 
-        Args:
-            scan (Scan): The scan to process.
-            telescopes (Telescopes): Collection of telescopes.
-            frequencies (Frequencies): Collection of frequencies.
-            time_step (Optional[float]): Sampling interval (seconds).
-            freq_name (Optional[str]): Frequency index to use.
-            observation (Observation): Parent observation.
-            visibility_data (Dict[str, Any]): Precomputed visibility data.
-            position_data (Dict[str, Any]): Precomputed position data.
+        args:
+            scan (Scan): the scan to process.
+            telescopes (Telescopes): collection of telescopes.
+            frequencies (Frequencies): collection of frequencies.
+            time_step (Optional[float]): sampling interval (seconds).
+            freq_name (Optional[str]): frequency index to use.
+            observation (Observation): parent observation.
+            visibility_data (Dict[str, Any]): precomputed visibility data.
+            position_data (Dict[str, Any]): precomputed position data.
 
-        Returns:
+        returns:
             Dict[str, Any]: UV points per frequency, with times if sampled.
         """
         start_time = scan.get_start()
@@ -642,13 +650,13 @@ class ScheduleCalculator(Super):
         scan_name = scan.name
 
         if len(active_telescopes) < 2:
-            logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for UV coverage in scan {scan_name}")
-            return {"uv_points": {f: [] for f in freqs}}
+            logger.warning(f"insufficient telescopes ({len(active_telescopes)}) for UV coverage in scan {scan_name}")
+            return {"uv_points": {f: [] for f in freqs}} if time_step is None else {"times": [], "uv_points": {f: [] for f in freqs}}
 
         # define time array
         if time_step is None:
             times = Time(start_time + (duration / 2) * u.s)
-            times = times.reshape(-1)  # Ensure 1D array
+            times = times.reshape(-1)  # ensure 1D array
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
@@ -658,20 +666,24 @@ class ScheduleCalculator(Super):
         scan_positions = position_data.get(scan_name, {}).get("telescope_positions", {})
         
         if not scan_visibility or not scan_positions:
-            logger.warning(f"No visibility or position data for scan {scan_name}")
+            logger.warning(f"no visibility or position data for scan {scan_name}")
             return {"uv_points": {f: [] for f in freqs}} if time_step is None else {"times": times.isot.tolist(), "uv_points": {f: [] for f in freqs}}
 
         # prepare arrays
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        visibility = np.array([scan_visibility.get(code, [False] * len(times)) for code in tel_codes], dtype=bool)  # Shape: (n_tels, n_times)
-        positions = np.array([scan_positions.get(code, {}).get("positions", [[]] * len(times))[0:len(times)] for code in tel_codes])  # Shape: (n_tels, n_times, 3)
+        visibility = np.array([scan_visibility.get(code, [False] * len(times)) for code in tel_codes], dtype=bool)  # shape: (n_tels, n_times)
+        positions = np.array([scan_positions.get(code, {}).get("positions", [[]] * len(times))[0:len(times)] for code in tel_codes])  # shape: (n_tels, n_times, 3)
 
         if positions.shape[1] != len(times):
-            logger.warning(f"Mismatched position data length for scan {scan_name}")
+            logger.warning(f"mismatched position data length for scan {scan_name}")
             return {"uv_points": {f: [] for f in freqs}} if time_step is None else {"times": times.isot.tolist(), "uv_points": {f: [] for f in freqs}}
 
         # compute UV points
         uv_points = self._compute_uv_at_time(active_telescopes, times, freqs, source, visibility, positions)
+
+        # convert uv_points to list of tuples for visualizer compatibility
+        for freq in uv_points:
+            uv_points[freq] = [(pair, u, v, w) for pair, u, v, w in uv_points[freq]]
 
         # format output
         result = {"uv_points": uv_points}
@@ -680,46 +692,46 @@ class ScheduleCalculator(Super):
         return result
 
     def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], times: Time, frequencies: List[float], source: Optional[Source] = None, visibility: Optional[np.ndarray] = None, gcrs_positions: Optional[np.ndarray] = None) -> Dict[float, List[Tuple[str, float, float, float]]]:
-        """Compute UV coordinates for multiple times using vectorized operations.
+        """compute UV coordinates for multiple times using vectorized operations.
 
-        Args:
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
-            times (Time): Array of observation times.
-            frequencies (List[float]): Frequencies in Hz.
-            source (Optional[Source]): Source for UV calculation.
-            visibility (Optional[np.ndarray]): Visibility array of shape (n_telescopes, n_times).
+        args:
+            telescopes (List[Telescope | SpaceTelescope]): list of telescopes.
+            times (Time): array of observation times.
+            frequencies (List[float]): frequencies in Hz.
+            source (Optional[Source]): source for UV calculation.
+            visibility (Optional[np.ndarray]): visibility array of shape (n_telescopes, n_times).
             gcrs_positions (Optional[np.ndarray]): GCRS positions of shape (n_telescopes, n_times, 3).
 
-        Returns:
+        returns:
             Dict[float, List[Tuple[str, float, float, float]]]: UVW coordinates per frequency and baseline.
         """
         uv_points = {f: [] for f in frequencies}
         c = 299792458  # m/s
 
         if not telescopes or len(telescopes) < 2:
-            logger.warning(f"Insufficient telescopes ({len(telescopes)}) to compute (u,v) at {times[0].isot}")
+            logger.warning(f"insufficient telescopes ({len(telescopes)}) to compute (u,v) at {times[0].isot}")
             return uv_points
 
         if source is None:
-            logger.warning("No source provided; cannot calculate (u,v,w)")
+            logger.warning("no source provided; cannot calculate (u,v,w)")
             return uv_points
 
-        # Prepare source coordinates
+        # prepare source coordinates
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
         ra = source_coord.ra.rad
         dec = source_coord.dec.rad
 
-        # Compute positions if not provided
+        # compute positions if not provided
         if gcrs_positions is None:
-            gcrs_positions = np.array([self._compute_telescope_position(tel, times) for tel in telescopes])  # Shape: (n_tels, n_times, 3)
+            gcrs_positions = np.array([self._compute_telescope_position(tel, times) for tel in telescopes])  # shape: (n_tels, n_times, 3)
 
-        # Compute visibility if not provided
+        # compute visibility if not provided
         if visibility is None:
             positions_dict = {tel.get_code(): pos for tel, pos in zip(telescopes, gcrs_positions[:, 0, :])}
             visibility = np.array([self._compute_visibility_at_time(source, telescopes, times[0], positions_dict)[tel.get_code()] for tel in telescopes])
-            visibility = np.repeat(visibility[:, None], len(times), axis=1)  # Shape: (n_tels, n_times)
+            visibility = np.repeat(visibility[:, None], len(times), axis=1)  # shape: (n_tels, n_times)
 
-        # Compute baselines
+        # compute baselines
         n_tels = len(telescopes)
         n_times = len(times)
         baselines = np.zeros((n_tels, n_tels, n_times, 3))
@@ -728,40 +740,46 @@ class ScheduleCalculator(Super):
                 baselines[i, j] = gcrs_positions[i] - gcrs_positions[j]
                 baselines[j, i] = -baselines[i, j]
 
-        # Compute UVW coordinates
+        # compute UVW coordinates
         X, Y, Z = baselines[:, :, :, 0], baselines[:, :, :, 1], baselines[:, :, :, 2]
         uu = -np.sin(ra) * X + np.cos(ra) * Y
         vv = -np.cos(ra) * np.sin(dec) * X - np.sin(ra) * np.sin(dec) * Y + np.cos(dec) * Z
         ww = np.cos(ra) * np.cos(dec) * X + np.sin(ra) * np.cos(dec) * Y + np.sin(dec) * Z
 
-        # Apply visibility mask
-        vis_mask = visibility[:, None, :] & visibility[None, :, :]  # Shape: (n_tels, n_tels, n_times)
+        # apply visibility mask
+        vis_mask = visibility[:, None, :] & visibility[None, :, :]  # shape: (n_tels, n_tels, n_times)
 
-        # Collect UV points for each frequency
+        # collect UV points for each frequency
         for freq in frequencies:
             wavelength = c / freq
-            uvw_scaled = np.stack([uu / wavelength, vv / wavelength, ww / wavelength], axis=-1)  # Shape: (n_tels, n_tels, n_times, 3)
+            uvw_scaled = np.stack([uu / wavelength, vv / wavelength, ww / wavelength], axis=-1)  # shape: (n_tels, n_tels, n_times, 3)
+            uvw_array = []
+            pairs = []
             for i in range(n_tels):
                 for j in range(i + 1, n_tels):
                     pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
                     valid = vis_mask[i, j]
                     if valid.any():
-                        uvw_points = uvw_scaled[i, j][valid]
-                        for uuu, vvv, www in uvw_points:
-                            uv_points[freq].append((pair, float(uuu), float(vvv), float(www)))
+                        uvw_points = uvw_scaled[i, j][valid]  # shape: (n_valid, 3)
+                        uvw_array.extend(uvw_points)
+                        pairs.extend([pair] * len(uvw_points))
+            if uvw_array:
+                uvw_array = np.array(uvw_array)  # shape: (n_points, 3)
+                for idx, pair in enumerate(pairs):
+                    uv_points[freq].append((pair, float(uvw_array[idx, 0]), float(uvw_array[idx, 1]), float(uvw_array[idx, 2])))
 
         return uv_points
 
     @time_execution
     def _calculate_sun_angles(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate angular separation between source and Sun for all scans.
+        """calculate angular separation between source and Sun for all scans.
 
-        Args:
-            obj (Observation | ScheduleProject): The object to calculate sun angles for.
-            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
+        args:
+            obj (Observation | ScheduleProject): the object to calculate sun angles for.
+            attributes (Dict[str, Any]): parameters including "time_step" and "store_key".
 
-        Returns:
-            Dict[str, Any]: Sun angles per scan, keyed by scan index or observation code.
+        returns:
+            Dict[str, Any]: sun angles per scan, keyed by scan index or observation code.
         """
         try:
             time_step = attributes.get("time_step")
@@ -770,7 +788,7 @@ class ScheduleCalculator(Super):
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_observations()
                 if not observations:
-                    logger.warning(f"No observations in project '{obj.name}'")
+                    logger.warning(f"no observations in project '{obj.name}'")
                     return {}
                 results = {}
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
@@ -782,7 +800,7 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         obs_code = futures[future]
                         results[obs_code] = future.result()
-                logger.info(f"Calculated Sun angles for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"calculated sun angles for {len(observations)} observations in project '{obj.name}'")
                 return results
 
             def calculate_sun_angles(obj, attrs):
@@ -792,7 +810,7 @@ class ScheduleCalculator(Super):
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": attrs.get("recalculate", False)}
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
                 if not position_data:
-                    logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
+                    logger.error(f"failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return {}
                 results = {}
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
@@ -809,21 +827,21 @@ class ScheduleCalculator(Super):
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
             return self._get_cached_or_calculate(obj, store_key, calculate_sun_angles, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate Sun angles: {str(e)}")
+            logger.error(f"failed to calculate sun angles: {str(e)}")
             return {}
 
     def _process_sun_angles(self, scan: Scan, sources: Sources, telescopes: Telescopes, time_step: Optional[float], position_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process Sun angles for a single scan using vectorized computations.
+        """process sun angles for a single scan using vectorized computations.
 
-        Args:
-            scan (Scan): The scan to process.
-            sources (Sources): Collection of sources.
-            telescopes (Telescopes): Collection of telescopes.
-            time_step (Optional[float]): Sampling interval (seconds). If None, uses mean time.
-            position_data (Dict[str, Any]): Precomputed telescope positions.
+        args:
+            scan (Scan): the scan to process.
+            sources (Sources): collection of sources.
+            telescopes (Telescopes): collection of telescopes.
+            time_step (Optional[float]): sampling interval (seconds). if None, uses mean time.
+            position_data (Dict[str, Any]): precomputed telescope positions.
 
-        Returns:
-            Dict[str, Any]: Sun angles per telescope, with times if sampled.
+        returns:
+            Dict[str, Any]: sun angles per telescope, with times if sampled.
         """
         start_time = scan.get_start()
         duration = scan.get_duration()
@@ -845,8 +863,8 @@ class ScheduleCalculator(Super):
         ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
         space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope)]
 
-        # initialize result dictionary
-        angles = {tel.get_code(): [] for tel in active_telescopes}
+        # initialize angles array
+        angles = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
         scan_positions = position_data.get(scan_name, {}).get("telescope_positions", {})
 
         # process ground telescopes
@@ -881,7 +899,8 @@ class ScheduleCalculator(Super):
 
             # assign results
             for idx, tel_code in enumerate(ground_codes):
-                angles[tel_code] = separations[idx].tolist()
+                tel_idx = [tel.get_code() for tel in active_telescopes].index(tel_code)
+                angles[tel_idx] = separations[idx]
 
         # process space telescopes
         if space_tels:
@@ -898,26 +917,29 @@ class ScheduleCalculator(Super):
                 source_icrs.cartesian.y.value,
                 source_icrs.cartesian.z.value
             ])
-            source_dir /= np.linalg.norm(source_dir)  # Normalize
+            source_dir /= np.linalg.norm(source_dir)  # normalize
 
             for tel in space_tels:
                 tel_code = tel.get_code()
+                tel_idx = [tel.get_code() for tel in active_telescopes].index(tel_code)
                 pos_data = scan_positions.get(tel_code, {})
                 positions = np.array(pos_data.get("positions", [])) if "positions" in pos_data else None
                 if positions is None or len(positions) != len(times):
-                    logger.warning(f"No or mismatched position data for telescope '{tel_code}' in scan {scan_name}")
-                    angles[tel_code] = [np.nan] * len(times)
+                    logger.warning(f"no or mismatched position data for telescope '{tel_code}' in scan {scan_name}")
                     continue
 
                 # vectorized computation
-                vec_to_sun = sun_pos - positions  # Shape: (n_times, 3)
-                vec_to_sun /= np.linalg.norm(vec_to_sun, axis=1)[:, None]  # Normalize each vector
+                vec_to_sun = sun_pos - positions  # shape: (n_times, 3)
+                vec_to_sun /= np.linalg.norm(vec_to_sun, axis=1)[:, None]  # normalize each vector
                 cos_angles = np.clip(np.dot(vec_to_sun, source_dir), -1.0, 1.0)
                 tel_angles = np.degrees(np.arccos(cos_angles))
-                angles[tel_code] = tel_angles.tolist()
+                angles[tel_idx] = tel_angles
+
+        # convert angles to dictionary for visualizer compatibility
+        angles_dict = {tel.get_code(): angles[i].tolist() for i, tel in enumerate(active_telescopes)}
 
         # format output
-        result = {"source": source.name, "sun_angles": angles}
+        result = {"source": source.name, "sun_angles": angles_dict}
         if time_step is not None:
             result["times"] = times.isot.tolist()
         return result
@@ -1334,14 +1356,14 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate beam pattern for single-dish observations.
+        """calculate beam pattern for single-dish observations.
 
-        Args:
-            obj (Observation | ScheduleProject): The object to calculate beam pattern for.
-            attributes (Dict[str, Any]): Parameters including "freq_name" and "store_key".
+        args:
+            obj (Observation | ScheduleProject): the object to calculate beam pattern for.
+            attributes (Dict[str, Any]): parameters including "freq_name" and "store_key".
 
-        Returns:
-            Dict[str, Any]: Beam pattern data per telescope.
+        returns:
+            Dict[str, Any]: beam pattern data per telescope.
         """
         try:
             freq_name = attributes.get("freq_name")
@@ -1350,17 +1372,17 @@ class ScheduleCalculator(Super):
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_observations()
                 if not observations:
-                    logger.warning(f"No observations in project '{obj.name}'")
+                    logger.warning(f"no observations in project '{obj.name}'")
                     return {}
                 results = {}
                 for obs in observations:
                     obs_result = self._calculate_beam_pattern(obs, attributes)
                     results[obs.get_observation_code()] = obs_result
-                logger.info(f"Calculated beam pattern for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"calculated beam pattern for {len(observations)} observations in project '{obj.name}'")
                 return results
 
             if obj.get_observation_type() != "SINGLE_DISH":
-                logger.warning(f"Beam pattern calculation is only for SINGLE_DISH, got {obj.get_observation_type()}")
+                logger.warning(f"beam pattern calculation is only for SINGLE_DISH, got {obj.get_observation_type()}")
                 return {}
 
             def calculate_beam_pattern(obj, attrs):
@@ -1369,33 +1391,36 @@ class ScheduleCalculator(Super):
                 results = {}
                 c = 299792458
                 wavelength = c / frequency
+                theta = np.linspace(-np.pi/2, np.pi/2, 5000)
                 for tel in telescopes:
                     if isinstance(tel, SpaceTelescope):
                         continue
                     D = tel.get("diameter")
-                    theta = np.linspace(-np.pi/2, np.pi/2, 5000)
                     x = (np.pi * D / wavelength) * np.sin(theta)
                     pattern = (2 * j1(x) / x) ** 2
-                    pattern[np.isnan(pattern)] = 1.0
-                    results[tel.get_code()] = {"theta": theta.tolist(), "pattern": pattern.tolist()}
+                    pattern = np.where(np.isnan(pattern), 1.0, pattern)
+                    results[tel.get_code()] = {
+                        "theta": theta.tolist(),
+                        "pattern": pattern.tolist()  # convert to list for visualizer compatibility
+                    }
                 return results
 
             metadata = {"freq_name": freq_name}
             return self._get_cached_or_calculate(obj, store_key, calculate_beam_pattern, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate beam pattern: {str(e)}")
+            logger.error(f"failed to calculate beam pattern: {str(e)}")
             return {}
 
     @time_execution
     def _calculate_synthesized_beam(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate synthesized beam for VLBI observations.
+        """calculate synthesized beam for VLBI observations.
 
-        Args:
-            obj (Observation | ScheduleProject): The object to calculate synthesized beam for.
-            attributes (Dict[str, Any]): Parameters including "freq_name", "time_step", and "store_key".
+        args:
+            obj (Observation | ScheduleProject): the object to calculate synthesized beam for.
+            attributes (Dict[str, Any]): parameters including "freq_name", "time_step", and "store_key".
 
-        Returns:
-            Dict[str, Any]: Synthesized beam data.
+        returns:
+            Dict[str, Any]: synthesized beam data.
         """
         try:
             freq_name = attributes.get("freq_name")
@@ -1410,7 +1435,7 @@ class ScheduleCalculator(Super):
                 return results
 
             if obj.get_observation_type() != "VLBI":
-                logger.warning(f"Synthesized beam calculation is only for VLBI, got {obj.get_observation_type()}")
+                logger.warning(f"synthesized beam calculation is only for VLBI, got {obj.get_observation_type()}")
                 return {}
 
             def calculate_synthesized_beam(obj, attrs):
@@ -1423,7 +1448,7 @@ class ScheduleCalculator(Super):
                     "recalculate": attrs.get("recalculate", False)
                 })
                 if not uv_data:
-                    logger.warning(f"No UV data available for '{obj.get_observation_code()}'")
+                    logger.warning(f"no UV data available for '{obj.get_observation_code()}'")
                     return {}
 
                 u = []
@@ -1435,11 +1460,13 @@ class ScheduleCalculator(Super):
                     u.extend([point[1] for point in uv_points])
                     v.extend([point[2] for point in uv_points])
                 if not u or not v:
-                    logger.warning(f"No valid UV points for frequency {frequency/1e6} MHz")
+                    logger.warning(f"no valid UV points for frequency {frequency/1e6} MHz")
                     return {}
 
-                u_max = max(abs(min(u)), abs(max(u)))
-                v_max = max(abs(min(v)), abs(max(v)))
+                u = np.array(u)
+                v = np.array(v)
+                u_max = np.max(np.abs(u))
+                v_max = np.max(np.abs(v))
                 grid_size = 512
                 u_grid = np.linspace(-u_max, u_max, grid_size)
                 v_grid = np.linspace(-v_max, v_max, grid_size)
@@ -1455,7 +1482,7 @@ class ScheduleCalculator(Super):
                         uv_plane[v_idx, u_idx] = 1.0
                 beam_2d = fftshift(fft2(uv_plane))
                 beam_2d = np.abs(beam_2d)
-                beam_2d /= beam_2d.max()
+                beam_2d /= np.max(beam_2d)
                 wavelength = 299792458 / frequency
                 theta_u_max = wavelength / (2 * u_max)
                 theta_v_max = wavelength / (2 * v_max)
@@ -1467,26 +1494,26 @@ class ScheduleCalculator(Super):
                     0: {
                         "theta_u": theta_u_deg.tolist(),
                         "theta_v": theta_v_deg.tolist(),
-                        "beam_2d": beam_2d.tolist()
+                        "beam_2d": beam_2d.tolist()  # convert to list for visualizer compatibility
                     }
                 }
 
             metadata = {"freq_name": freq_name, "time_step": attributes.get("time_step")}
             return self._get_cached_or_calculate(obj, store_key, calculate_synthesized_beam, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate synthesized beam: {str(e)}")
+            logger.error(f"failed to calculate synthesized beam: {str(e)}")
             return {}
     
     @time_execution
     def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate baseline projections for VLBI observations.
+        """calculate baseline projections for VLBI observations.
 
-        Args:
-            obj (Observation | ScheduleProject): The object to calculate projections for.
-            attributes (Dict[str, Any]): Parameters including "time_step", "freq_name", and "store_key".
+        args:
+            obj (Observation | ScheduleProject): the object to calculate projections for.
+            attributes (Dict[str, Any]): parameters including "time_step", "freq_name", and "store_key".
 
-        Returns:
-            Dict[str, Any]: Baseline projection data per scan.
+        returns:
+            Dict[str, Any]: baseline projection data per scan.
         """
         try:
             time_step = attributes.get("time_step")
@@ -1496,17 +1523,17 @@ class ScheduleCalculator(Super):
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_observations()
                 if not observations:
-                    logger.warning(f"No observations in project '{obj.name}'")
+                    logger.warning(f"no observations in project '{obj.name}'")
                     return {}
                 results = {}
                 for obs in observations:
                     obs_result = self._calculate_baseline_projections(obs, attributes)
                     results[obs.get_observation_code()] = obs_result
-                logger.info(f"Calculated baseline projections for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"calculated baseline projections for {len(observations)} observations in project '{obj.name}'")
                 return results
 
             if obj.get_observation_type() != "VLBI":
-                logger.warning(f"Baseline projections are only for VLBI, got {obj.get_observation_type()}")
+                logger.warning(f"baseline projections are only for VLBI, got {obj.get_observation_type()}")
                 return {}
 
             def calculate_baseline_projections(obj, attrs):
@@ -1525,13 +1552,13 @@ class ScheduleCalculator(Super):
                     "recalculate": attrs.get("recalculate", False)
                 })
                 if not uv_data:
-                    logger.error(f"Failed to obtain UV coverage data for '{obj.get_observation_code()}'")
+                    logger.error(f"failed to obtain UV coverage data for '{obj.get_observation_code()}'")
                     return {}
                 results = {}
                 with ThreadPoolExecutor() as executor:
                     futures = {
                         executor.submit(self._process_baseline_projections, scan, telescopes, frequencies, time_step, freq_name, uv_data, obj): scan.name
-                        for i, scan in enumerate(scans)
+                        for scan in scans
                     }
                     for future in futures:
                         scan_name = futures[future]
@@ -1541,23 +1568,23 @@ class ScheduleCalculator(Super):
             metadata = {"time_step": time_step, "freq_name": freq_name, "scan_count": len(obj.get_scans().get_active_items())}
             return self._get_cached_or_calculate(obj, store_key, calculate_baseline_projections, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate baseline projections: {str(e)}")
+            logger.error(f"failed to calculate baseline projections: {str(e)}")
             return {}
 
     def _process_baseline_projections(self, scan: Scan, telescopes: Telescopes, frequencies: Frequencies, time_step: Optional[float], freq_name: int, uv_data: Dict[str, Any], observation: Observation) -> Dict[str, Any]:
-        """Process baseline projections for a single scan.
+        """process baseline projections for a single scan.
 
-        Args:
-            scan (Scan): The scan to process.
-            telescopes (Telescopes): Collection of telescopes.
-            frequencies (Frequencies): Collection of frequencies.
-            time_step (Optional[float]): Sampling interval (seconds).
-            freq_name (int): Frequency index.
-            uv_data (Dict[str, Any]): Precomputed UV data.
-            observation (Observation): Parent observation.
+        args:
+            scan (Scan): the scan to process.
+            telescopes (Telescopes): collection of telescopes.
+            frequencies (Frequencies): collection of frequencies.
+            time_step (Optional[float]): sampling interval (seconds).
+            freq_name (int): frequency index.
+            uv_data (Dict[str, Any]): precomputed UV data.
+            observation (Observation): parent observation.
 
-        Returns:
-            Dict[str, Any]: Baseline projections per telescope pair.
+        returns:
+            Dict[str, Any]: baseline projections per telescope pair.
         """
         start_time = scan.get_start()
         duration = scan.get_duration()
@@ -1568,49 +1595,52 @@ class ScheduleCalculator(Super):
 
         scan_uv_data = uv_data.get(scan_name, {}) if isinstance(uv_data, dict) else {}
         if not scan_uv_data or "uv_points" not in scan_uv_data:
-            logger.error(f"No UV data available for scan {scan_name} at {start_time.isot}")
+            logger.error(f"no UV data available for scan {scan_name} at {start_time.isot}")
             return {"projections": {} if time_step is None else {"times": [], "projections": {}}}
 
         if time_step is None:
             projections = self._compute_projections_from_uv(scan_uv_data["uv_points"], active_telescopes, frequency)
-            logger.info(f"Static projections: {projections}")
             return {"projections": projections}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
             projections = {
-                f"{t1.get_code()}-{t2.get_code()}": [] 
-                for i, t1 in enumerate(active_telescopes) 
+                f"{t1.get_code()}-{t2.get_code()}": np.full(len(times), np.nan, dtype=float)
+                for i, t1 in enumerate(active_telescopes)
                 for t2 in active_telescopes[i+1:]
             }
             uv_points = scan_uv_data.get("uv_points", {}).get(frequency, [])
             if not uv_points:
-                logger.warning(f"No UV points found for frequency {frequency} in scan {scan_name}")
-                return {"times": times.isot.tolist(), "projections": projections}
+                logger.warning(f"no UV points found for frequency {frequency} in scan {scan_name}")
+                return {"times": times.isot.tolist(), "projections": {k: v.tolist() for k, v in projections.items()}}
 
-            for uv_list in uv_points:
-                proj = self._compute_projections_from_uv({frequency: [uv_list]}, active_telescopes, frequency)
-                for pair, bl in proj.items():
-                    if pair in projections:
-                        projections[pair].append(bl)
+            # collect UV points into arrays
+            for uv_point in uv_points:
+                pair, uuu, vvv, _ = uv_point
+                bl = np.sqrt(uuu * uuu + vvv * vvv)
+                if pair in projections:
+                    # assume UV points align with times; fill first available NaN
+                    idx = np.where(np.isnan(projections[pair]))[0]
+                    if len(idx) > 0:
+                        projections[pair][idx[0]] = bl
 
-            return {"times": times.isot.tolist(), "projections": projections}
+            return {"times": times.isot.tolist(), "projections": {k: v.tolist() for k, v in projections.items()}}
         
     def _compute_projections_from_uv(self, uv_points: Dict[float, List[Tuple[str, float, float, float]]], telescopes: List[Telescope | SpaceTelescope], frequency: float) -> Dict[str, float]:
-        """Compute baseline projection BL = sqrt(u² + v²) from pre-calculated (u,v) data.
+        """compute baseline projection BL = sqrt(u² + v²) from pre-calculated (u,v) data.
 
-        Args:
+        args:
             uv_points (Dict[float, List[Tuple[str, float, float, float]]]): UV data.
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
-            frequency (float): Frequency in Hz.
+            telescopes (List[Telescope | SpaceTelescope]): list of telescopes.
+            frequency (float): frequency in Hz.
 
-        Returns:
-            Dict[str, float]: Baseline length per telescope pair.
+        returns:
+            Dict[str, float]: baseline length per telescope pair.
         """
         projections = {}
         uv_list = uv_points.get(frequency, [])
         for pair, uuu, vvv, _ in uv_list:
-            bl = math.sqrt(uuu * uuu + vvv * vvv)  # BL = sqrt(u² + v²)
+            bl = np.sqrt(uuu * uuu + vvv * vvv)  # BL = sqrt(u² + v²)
             projections[pair] = bl
         return projections
 
