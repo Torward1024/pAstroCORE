@@ -3,9 +3,9 @@ from common.base.baseentity import BaseEntity
 from common.base.basecontainer import BaseContainer
 from common.utils.validation import check_type, check_positive
 from common.utils.logging_setup import logger
-from unit_scheduling_2.base.frequencies import Frequencies
-from unit_scheduling_2.base.sources import Source
-from unit_scheduling_2.base.telescopes import Telescopes, SpaceTelescope
+from .frequencies import Frequencies
+from .sources import Source
+from .telescopes import Telescopes, SpaceTelescope
 import numpy as np
 from typing import Optional, List, Dict
 from astropy.time import Time
@@ -91,7 +91,7 @@ class Scan(BaseEntity):
 
     def get_source(self, observation: 'Observation') -> Optional[Source]:
         """Retrieve the source associated with this scan from an Observation."""
-        from unit_scheduling_2.base.observation import Observation
+        from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
         if self.source_name is None or self.is_off_source:
             return None
@@ -100,14 +100,14 @@ class Scan(BaseEntity):
 
     def get_telescopes(self, observation: 'Observation') -> Telescopes:
         """Retrieve the telescopes associated with this scan from an Observation."""
-        from unit_scheduling_2.base.observation import Observation
+        from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
         all_tels = observation.get_telescopes()
         selected = {name: t for name in self.telescope_names if (t := all_tels.get(name))}
         return Telescopes(items=selected)
 
     def get_frequencies(self, observation: 'Observation') -> Frequencies:
-        from unit_scheduling_2.base.observation import Observation
+        from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
         all_freqs = observation.get_frequencies()
         selected = {name: f for name in self.frequency_names if (f := all_freqs.get(name))}
@@ -157,7 +157,7 @@ class Scan(BaseEntity):
 
     def validate_with_observation(self, observation: 'Observation') -> bool:
         """Validate the scan's names against an Observation's data."""
-        from unit_scheduling_2.base.observation import Observation
+        from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
         
         if self.source_name is not None and not observation.get_sources().get(self.source_name):
@@ -181,7 +181,7 @@ class Scan(BaseEntity):
 
     def check_telescope_availability(self, observation: 'Observation', time: Time = None) -> dict[str, bool]:
         """Check telescope availability for this scan at a given time."""
-        from unit_scheduling_2.base.observation import Observation
+        from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
         if time is not None:
             check_type(time, Time, "Time")
@@ -269,7 +269,7 @@ class Scans(BaseContainer[Scan]):
 
     def add(self, scan: Scan, observation: 'Observation' = None) -> None:
         """Add a Scan object to the collection with overlap checking."""
-        from unit_scheduling_2.base.observation import Observation
+        from pastrocore.base.observation import Observation
         check_type(scan, Scan, "Scan")
         if observation:
             check_type(observation, Observation, "Observation")
@@ -308,7 +308,7 @@ class Scans(BaseContainer[Scan]):
 
     def get_active_scans(self, observation: 'Observation' = None) -> List[Scan]:
         """Retrieve all active scans, optionally filtering by entity activity in an Observation."""
-        from unit_scheduling_2.base.observation import Observation
+        from pastrocore.base.observation import Observation
         active = []
         for scan in self.get_items():
             if not scan.isactive:

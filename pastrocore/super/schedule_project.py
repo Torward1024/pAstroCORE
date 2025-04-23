@@ -1,6 +1,6 @@
 # /unit_scheduling/super/schedule_project.py
 from typing import Dict, Any, Optional
-from unit_scheduling_2.base.observation import Observation
+from pastrocore.base.observation import Observation
 from common.super.project import Project
 from common.utils.validation import check_type, check_non_empty_string
 from common.utils.logging_setup import logger

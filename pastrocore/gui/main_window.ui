@@ -20,7 +20,7 @@
   <property name="styleSheet">
    <string>background-color: #f5f5f5; font-family: Arial;</string>
   </property>
-  <widget class="QWidget" name="centralWidget">
+  <widget class="QWidget" name="mainCentralWidget">
    <layout class="QHBoxLayout" name="mainLayout">
     <item>
      <widget class="QTabWidget" name="tabContainer">
@@ -50,7 +50,7 @@
     </item>
    </layout>
   </widget>
-  <widget class="QMenuBar" name="menuBar">
+  <widget class="QMenuBar" name="mainMenuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
@@ -107,7 +107,7 @@
    <addaction name="menuWindow"/>
    <addaction name="menuHelp"/>
   </widget>
-  <widget class="QStatusBar" name="statusBar">
+  <widget class="QStatusBar" name="mainStatusBar">
    <property name="autoFillBackground">
     <bool>false</bool>
    </property>
