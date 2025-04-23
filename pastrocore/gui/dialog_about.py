@@ -70,7 +70,7 @@ class Ui_AboutDialog(object):
         self.label_2 = QLabel(AboutDialog)
         self.label_2.setObjectName(u"label_2")
         self.label_2.setGeometry(QRect(10, 10, 121, 123))
-        self.label_2.setPixmap(QPixmap(r"../gui/pAstroCORE_icon.png"))
+        self.label_2.setPixmap(QPixmap("pastrocore/gui/pAstroCORE_icon.png"))
         self.label_2.setScaledContents(True)
 
         self.retranslateUi(AboutDialog)
