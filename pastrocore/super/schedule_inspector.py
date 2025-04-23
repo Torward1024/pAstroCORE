@@ -1,10 +1,10 @@
 from common.super.super import Super
-from unit_scheduling_2.super.schedule_project import ScheduleProject
-from unit_scheduling_2.base.frequencies import IF, Frequencies
-from unit_scheduling_2.base.sources import Source, Sources
-from unit_scheduling_2.base.telescopes import Telescope, SpaceTelescope, Telescopes
-from unit_scheduling_2.base.scans import Scan, Scans
-from unit_scheduling_2.base.observation import Observation
+from pastrocore.super.schedule_project import ScheduleProject
+from pastrocore.base.frequencies import IF, Frequencies
+from pastrocore.base.sources import Source, Sources
+from pastrocore.base.telescopes import Telescope, SpaceTelescope, Telescopes
+from pastrocore.base.scans import Scan, Scans
+from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from common.utils.validation import check_type
 from typing import Dict, Any, Union
@@ -25,7 +25,7 @@ class ScheduleInspector(Super):
         in a response dictionary with keys status, object, method, result, and error (if status=False).
 
     Examples:
-        >>> from unit_scheduling_2.super.manipulator import ScheduleManipulator
+        >>> from pastrocore.super.manipulator import ScheduleManipulator
         >>> manipulator = ScheduleManipulator()
         >>> inspector = ScheduleInspector(manipulator)
         >>> source = Source(name="3C 286")

@@ -2,10 +2,10 @@
 from common.base.baseentity import BaseEntity
 from common.utils.validation import check_type, check_non_empty_string
 from common.utils.logging_setup import logger
-from unit_scheduling_2.base.sources import Sources
-from unit_scheduling_2.base.telescopes import Telescopes
-from unit_scheduling_2.base.frequencies import Frequencies
-from unit_scheduling_2.base.scans import Scans
+from .sources import Sources
+from .telescopes import Telescopes
+from .frequencies import Frequencies
+from .scans import Scans
 from astropy.time import Time
 from typing import Optional, Dict, Any
 import astropy.units as u

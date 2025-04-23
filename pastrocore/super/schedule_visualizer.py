@@ -1,10 +1,10 @@
 from common.super.super import Super
-from unit_scheduling_2.super.schedule_project import ScheduleProject
-from unit_scheduling_2.base.observation import Observation
-from unit_scheduling_2.base.telescopes import Telescope, SpaceTelescope, Telescopes
-from unit_scheduling_2.base.sources import Source, Sources
-from unit_scheduling_2.base.scans import Scan, Scans
-from unit_scheduling_2.base.frequencies import IF, Frequencies
+from pastrocore.super.schedule_project import ScheduleProject
+from pastrocore.base.observation import Observation
+from pastrocore.base.telescopes import Telescope, SpaceTelescope, Telescopes
+from pastrocore.base.sources import Source, Sources
+from pastrocore.base.scans import Scan, Scans
+from pastrocore.base.frequencies import IF, Frequencies
 from common.utils.logging_setup import logger
 from typing import Dict, Any, Callable, Union
 from concurrent.futures import ThreadPoolExecutor

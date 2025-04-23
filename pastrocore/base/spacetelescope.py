@@ -1,4 +1,4 @@
-from pastrocore.base.telescope import Telescope
+from .telescope import Telescope
 from common.utils.logging_setup import logger
 import numpy as np
 from scipy.interpolate import CubicSpline
