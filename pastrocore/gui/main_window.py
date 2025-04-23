@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowPwoPwe.ui'
+## Form generated from reading UI file 'main_windowuAsYSe.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -16,10 +16,10 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QIcon, QImage, QKeySequence, QLinearGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
-from PySide6.QtWidgets import (QApplication, QDockWidget, QHBoxLayout, QHeaderView,
-    QLabel, QMainWindow, QMenu, QMenuBar,
-    QProgressBar, QSizePolicy, QStatusBar, QTabWidget,
-    QTreeView, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QDockWidget, QHBoxLayout,
+    QHeaderView, QLabel, QMainWindow, QMenu,
+    QMenuBar, QProgressBar, QSizePolicy, QStatusBar,
+    QTabWidget, QTreeView, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(1119, 720)
         icon = QIcon()
-        icon.addFile(u"./pastrocore/gui/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u":/main_icon/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
         self.actionNewProject = QAction(MainWindow)
         self.actionNewProject.setObjectName(u"actionNewProject")
@@ -83,15 +83,17 @@ class Ui_MainWindow(object):
         self.mainLayout.setObjectName(u"mainLayout")
         self.tabContainer = QTabWidget(self.mainCentralWidget)
         self.tabContainer.setObjectName(u"tabContainer")
+        self.tabContainer.setTabsClosable(True)
+        self.tabContainer.setMovable(True)
         self.tabWelcome = QWidget()
         self.tabWelcome.setObjectName(u"tabWelcome")
         self.welcomeLayout = QVBoxLayout(self.tabWelcome)
         self.welcomeLayout.setObjectName(u"welcomeLayout")
-        self.welcomeLabel = QLabel(self.tabWelcome)
-        self.welcomeLabel.setObjectName(u"welcomeLabel")
-        self.welcomeLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label = QLabel(self.tabWelcome)
+        self.label.setObjectName(u"label")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.welcomeLayout.addWidget(self.welcomeLabel)
+        self.welcomeLayout.addWidget(self.label)
 
         self.tabContainer.addTab(self.tabWelcome, "")
 
@@ -100,7 +102,14 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.mainCentralWidget)
         self.mainMenuBar = QMenuBar(MainWindow)
         self.mainMenuBar.setObjectName(u"mainMenuBar")
-        self.mainMenuBar.setGeometry(QRect(0, 0, 1119, 20))
+        self.mainMenuBar.setGeometry(QRect(0, 0, 1119, 23))
+        self.mainMenuBar.setStyleSheet(u"QMenuBar {background-color: #f5f5f5; font-family: Arial;}\n"
+"QMenuBar::item {background: #f5f5f5; padding: 4px 8px; color: #000000;}\n"
+"QMenuBar::item:selected{background: #0078d7; color: #ffffff;}\n"
+"QMenu {background-color: #ffffff; border: 1px solid #d3d3d3;}\n"
+"QMenu::item {padding: 4px 12px;background: #ffffff; color: #000000;}\n"
+"QMenu::item:selected {background: #0078d7;color: #ffffff;}\n"
+"QMenu::item:hover {background: #e0e0e0;color: #000000;}")
         self.mainMenuBar.setNativeMenuBar(False)
         self.menuFile = QMenu(self.mainMenuBar)
         self.menuFile.setObjectName(u"menuFile")
@@ -109,6 +118,8 @@ class Ui_MainWindow(object):
         self.menuOptions.setObjectName(u"menuOptions")
         self.menuHelp = QMenu(self.mainMenuBar)
         self.menuHelp.setObjectName(u"menuHelp")
+        self.menuHelp.setMouseTracking(True)
+        self.menuHelp.setAutoFillBackground(False)
         self.menuWindow = QMenu(self.mainMenuBar)
         self.menuWindow.setObjectName(u"menuWindow")
         MainWindow.setMenuBar(self.mainMenuBar)
@@ -131,13 +142,14 @@ class Ui_MainWindow(object):
         self.projectExplorer = QTreeView(self.dockWidgetContents)
         self.projectExplorer.setObjectName(u"projectExplorer")
         self.projectExplorer.setMinimumSize(QSize(300, 0))
-        self.projectExplorer.setHeaderHidden(False)
+        self.projectExplorer.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.projectExplorer.setHeaderHidden(True)
+        self.projectExplorer.header().setVisible(False)
 
         self.horizontalLayout.addWidget(self.projectExplorer)
 
         self.dockWidget.setWidget(self.dockWidgetContents)
         MainWindow.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dockWidget)
-        QWidget.setTabOrder(self.tabContainer, self.projectExplorer)
 
         self.mainMenuBar.addAction(self.menuFile.menuAction())
         self.mainMenuBar.addAction(self.menuOptions.menuAction())
@@ -186,7 +198,7 @@ class Ui_MainWindow(object):
         self.tabContainer.setStyleSheet(QCoreApplication.translate("MainWindow", u"QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }\n"
 "               QTabBar::tab { background: #e0e0e0; padding: 8px; }\n"
 "               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }", None))
-        self.welcomeLabel.setText(QCoreApplication.translate("MainWindow", u"Select an item in Project Explorer to begin.", None))
+        self.label.setText(QCoreApplication.translate("MainWindow", u"Select item from Project Explorer.", None))
         self.tabContainer.setTabText(self.tabContainer.indexOf(self.tabWelcome), QCoreApplication.translate("MainWindow", u"Welcome", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"Options", None))
@@ -194,4 +206,3 @@ class Ui_MainWindow(object):
         self.menuWindow.setTitle(QCoreApplication.translate("MainWindow", u"Window", None))
         self.projectExplorer.setStyleSheet(QCoreApplication.translate("MainWindow", u"border: 1px solid #d3d3d3; background-color: #ffffff;", None))
     # retranslateUi
-

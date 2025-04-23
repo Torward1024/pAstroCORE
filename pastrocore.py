@@ -1,10 +1,8 @@
 import sys
 import os
 import json
-# pyside files
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QDialog, QTreeView, QTabWidget
-from PySide6.QtCore import QFile, QIODevice, Qt
+from PySide6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QDialog, QTreeView, QTabWidget, QWidget
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 # core files
 from pastrocore.super.schedule_project import ScheduleProject
@@ -15,6 +13,8 @@ from pastrocore.base.observation import Observation
 # ui files
 from pastrocore.gui.main_window import Ui_MainWindow
 from pastrocore.gui.dialog_about import Ui_AboutDialog
+from pastrocore.gui.tab_project import Ui_ProjectInfoTab
+
 # Диалоги закомментированы, раскомментируйте, если файлы доступны
 # from application_settings import ApplicationSettingsDialog
 # from spacetelescope_editor import SpaceTelescopeEditorDialog
@@ -26,6 +26,43 @@ class AboutDialog(QDialog):
         self.ui = Ui_AboutDialog()
         self.ui.setupUi(self)
         self.setModal(True)
+
+class ProjectInfoTab(QWidget):
+    def __init__(self, project, parent=None):
+        super().__init__(parent)
+        self.ui = Ui_ProjectInfoTab()
+        self.ui.setupUi(self)
+        self.project = project
+        self.setup_ui()
+
+    def setup_ui(self):
+        # Установить имя проекта в QLineEdit
+        self.ui.lineEdit.setText(self.project.name)
+        # Подключить изменение имени
+        self.ui.lineEdit.textChanged.connect(self.update_project_name)
+        # Инициализировать таблицу (заглушка, так как данные не указаны)
+        self.setup_table()
+
+    def setup_table(self):
+        # Модель для таблицы (заглушка)
+        model = QStandardItemModel()
+        model.setHorizontalHeaderLabels(["Observation Code", "Status"])
+        # Пример данных
+        items = [
+            ("Observations", str(len(self.project.get_items()))),
+        ]
+        for prop, val in items:
+            model.appendRow([QStandardItem(prop), QStandardItem(val)])
+        self.ui.projectInfoTable.setModel(model)
+        self.ui.projectInfoTable.horizontalHeader().setStretchLastSection(True)
+
+    def update_project_name(self, name):
+        self.project.name = name
+        # Обновить таблицу
+        self.setup_table()
+        # Обновить Project Explorer в родительском окне
+        if self.parent():
+            self.parent().update_project_explorer()
 
 class PAstroCoreMainWindow(QMainWindow):
     def __init__(self):
@@ -61,8 +98,14 @@ class PAstroCoreMainWindow(QMainWindow):
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["Project Explorer"])
         root = model.invisibleRootItem()
+        # Узел проекта
+        project_item = QStandardItem(f"Project: {self.project.name}")
+        project_item.setData("project", Qt.UserRole)  # Метка для идентификации
+        root.appendRow(project_item)
+        # Узел наблюдений
         observations_item = QStandardItem("Observations")
-        root.appendRow(observations_item)
+        observations_item.setData("observations", Qt.UserRole)
+        project_item.appendRow(observations_item)
         project_explorer = self.ui.projectExplorer
         if not project_explorer:
             QMessageBox.critical(self, "Error", "Failed to find projectExplorer in UI")
@@ -87,11 +130,11 @@ class PAstroCoreMainWindow(QMainWindow):
         # Project Explorer
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
-            project_explorer.doubleClicked.connect(self.handle_project_explorer_double_click)
+            project_explorer.clicked.connect(self.handle_project_explorer_double_click)
 
     def new_project(self):
         self.project = ScheduleProject(name="Untitled Project")
-        self.manipulator = Manipulator(self.project)
+        self.manipulator = ScheduleManipulator(self.project)
         self.current_project_path = None
         self.update_project_explorer()
         tab_container = self.ui.tabContainer
@@ -106,7 +149,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 with open(file_path, "r") as f:
                     data = json.load(f)
                 self.project = ScheduleProject.from_dict(data)
-                self.manipulator = Manipulator(self.project)
+                self.manipulator = ScheduleManipulator(self.project)
                 self.current_project_path = file_path
                 self.update_project_explorer()
                 QMessageBox.information(self, "Open Project", f"Project {file_path} opened.")
@@ -159,7 +202,6 @@ class PAstroCoreMainWindow(QMainWindow):
         # telescope = SpaceTelescope(code="ST1", name="Sample Telescope", diameter=2.0)
         # dialog = SpaceTelescopeEditorDialog(telescope, parent=self)
         # if dialog.exec():
-        #     # Используем Manipulator для добавления телескопа
         #     self.manipulator.add_telescope(telescope)
         #     self.update_project_explorer()
         #     QMessageBox.information(self, "Telescope Catalog", "Telescope saved.")
@@ -175,8 +217,12 @@ class PAstroCoreMainWindow(QMainWindow):
         item = self.ui.projectExplorer.model().itemFromIndex(index)
         if not item:
             return
+        item_type = item.data(Qt.UserRole)
         text = item.text()
-        if text.startswith("Observation:"):
+        if item_type == "project":
+            # Открыть вкладку ProjectInfoTab
+            self.open_project_info_tab()
+        elif text.startswith("Observation:"):
             obs_code = text.split(":", 1)[1].strip()
             observation = self.project.get_observation(obs_code)
             QMessageBox.information(self, "Edit Observation", f"Editing observation {obs_code} not implemented yet.")
@@ -187,12 +233,32 @@ class PAstroCoreMainWindow(QMainWindow):
             #     configurator.update_observation(obs_code, dialog.get_observation())
             #     self.update_project_explorer()
 
+    def open_project_info_tab(self):
+        # Проверяем, есть ли уже вкладка ProjectInfoTab
+        tab_container = self.ui.tabContainer
+        for i in range(tab_container.count()):
+            if tab_container.widget(i).objectName() == "projectInfoTab":
+                tab_container.setCurrentIndex(i)
+                return
+        # Создаем новую вкладку
+        project_tab = ProjectInfoTab(self.project, self)
+        project_tab.setObjectName("projectInfoTab")
+        tab_container.addTab(project_tab, "Project Information")
+        tab_container.setCurrentWidget(project_tab)
+
     def update_project_explorer(self):
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["Project Explorer"])
         root = model.invisibleRootItem()
+        # Узел проекта
+        project_item = QStandardItem(f"Project: {self.project.name}")
+        project_item.setData("project", Qt.UserRole)
+        root.appendRow(project_item)
+        # Узел наблюдений
         observations_item = QStandardItem("Observations")
-        root.appendRow(observations_item)
+        observations_item.setData("observations", Qt.UserRole)
+        project_item.appendRow(observations_item)
+        # Вложенные наблюдения
         for obs_code, obs in self.project.get_items().items():
             obs_item = QStandardItem(f"Observation: {obs.get_observation_code()}")
             observations_item.appendRow(obs_item)
