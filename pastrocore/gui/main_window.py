@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(1119, 720)
         icon = QIcon()
-        icon.addFile(u":/main_icon/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u"pastrocore/gui/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
         self.actionNewProject = QAction(MainWindow)
         self.actionNewProject.setObjectName(u"actionNewProject")
