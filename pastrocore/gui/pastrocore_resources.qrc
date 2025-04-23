@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="main_icon">
+    <file>pAstroCORE_icon.png</file>
+  </qresource>
+</RCC>
