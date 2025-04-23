@@ -1,15 +1,20 @@
 import sys
 import os
 import json
-from PySide6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QMenuBar, QStatusBar, QDockWidget, QWidget, QDialog, QTreeView, QTabWidget
+# pyside files
 from PySide6.QtUiTools import QUiLoader
+from PySide6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QDialog, QTreeView, QTabWidget
 from PySide6.QtCore import QFile, QIODevice, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
-# Импорты классов
+# core files
 from pastrocore.super.schedule_project import ScheduleProject
-from pastrocore.super.schedule_manipulator import Manipulator
+from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.base.frequencies import IF, Frequencies
+from pastrocore.base.observation import Observation
+# ui files
+from pastrocore.gui.main_window import Ui_MainWindow
+from pastrocore.gui.dialog_about import Ui_AboutDialog
 # Диалоги закомментированы, раскомментируйте, если файлы доступны
 # from application_settings import ApplicationSettingsDialog
 # from spacetelescope_editor import SpaceTelescopeEditorDialog
@@ -18,44 +23,21 @@ from pastrocore.base.frequencies import IF, Frequencies
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.load_ui()
-
-    def load_ui(self):
-        ui_file_path = r"pastrocore/gui/main_window.ui"
-        if not os.path.exists(ui_file_path):
-            QMessageBox.critical(self, "Error", f"UI file not found: {ui_file_path}")
-            sys.exit(1)
-        self.ui = loadUi(ui_file_path, self)
-        self.setCentralWidget(self.ui.mainCentralWidget)
-        self.setMenuBar(self.ui.mainMenuBar)
-        self.setStatusBar(self.ui.mainStatusBar)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.ui.dockWidget)
+        self.ui = Ui_AboutDialog()
+        self.ui.setupUi(self)
+        self.setModal(True)
 
 class PAstroCoreMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.load_ui()
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
         self.settings = self.load_settings()
-        self.project = ScheduleProject(name="Untitled Project")  # Используем ScheduleProject
+        self.project = ScheduleProject(name="Untitled Project")
+        self.manipulator = ScheduleManipulator(self.project)
         self.setup_project_explorer()
         self.setup_connections()
         self.current_project_path = None
-        self.manipulator = Manipulator(self.project)  # Инициализация Manipulator
-
-    def load_ui(self):
-        loader = QUiLoader()
-        ui_file_path = r"pastrocore/gui/main_window.ui"
-        file = QFile(ui_file_path)
-        if not file.exists():
-            QMessageBox.critical(self, "Error", f"UI file not found: {ui_file_path}")
-            sys.exit(1)
-        file.open(QIODevice.ReadOnly)
-        self.ui = loader.load(file, self)
-        file.close()
-        self.setCentralWidget(self.ui.mainCentralWidget)
-        self.setMenuBar(self.ui.mainMenuBar)
-        self.setStatusBar(self.ui.mainStatusBar)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.ui.dockWidget)        
 
     def load_settings(self):
         settings_file = "settings.json"
@@ -79,15 +61,11 @@ class PAstroCoreMainWindow(QMainWindow):
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["Project Explorer"])
         root = model.invisibleRootItem()
-        telescopes_item = QStandardItem("Telescopes")
-        frequencies_item = QStandardItem("Frequencies")
-        sources_item = QStandardItem("Sources")
-        root.appendRow(telescopes_item)
-        root.appendRow(frequencies_item)
-        root.appendRow(sources_item)
+        observations_item = QStandardItem("Observations")
+        root.appendRow(observations_item)
         project_explorer = self.ui.projectExplorer
         if not project_explorer:
-            QMessageBox.critical(self, "Error", "Failed to find projectExplorer in UI file")
+            QMessageBox.critical(self, "Error", "Failed to find projectExplorer in UI")
             sys.exit(1)
         project_explorer.setModel(model)
         project_explorer.expandAll()
@@ -112,12 +90,13 @@ class PAstroCoreMainWindow(QMainWindow):
             project_explorer.doubleClicked.connect(self.handle_project_explorer_double_click)
 
     def new_project(self):
-        self.project_data = {"telescopes": [], "frequencies": [], "sources": []}
+        self.project = ScheduleProject(name="Untitled Project")
+        self.manipulator = Manipulator(self.project)
         self.current_project_path = None
         self.update_project_explorer()
-        tab_container = self.central_widget.findChild(QTabWidget, "tabContainer")
+        tab_container = self.ui.tabContainer
         if tab_container:
-            tab_container.setCurrentWidget(self.ui.findChild(QWidget, "tabWelcome"))
+            tab_container.setCurrentWidget(self.ui.tabWelcome)
         QMessageBox.information(self, "New Project", "New project created.")
 
     def open_project(self):
@@ -125,7 +104,9 @@ class PAstroCoreMainWindow(QMainWindow):
         if file_path:
             try:
                 with open(file_path, "r") as f:
-                    self.project_data = json.load(f)
+                    data = json.load(f)
+                self.project = ScheduleProject.from_dict(data)
+                self.manipulator = Manipulator(self.project)
                 self.current_project_path = file_path
                 self.update_project_explorer()
                 QMessageBox.information(self, "Open Project", f"Project {file_path} opened.")
@@ -136,7 +117,7 @@ class PAstroCoreMainWindow(QMainWindow):
         if self.current_project_path:
             try:
                 with open(self.current_project_path, "w") as f:
-                    json.dump(self.project_data, f, indent=4)
+                    json.dump(self.project.to_dict(), f, indent=4)
                 QMessageBox.information(self, "Save Project", "Project saved.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save project: {e}")
@@ -159,17 +140,15 @@ class PAstroCoreMainWindow(QMainWindow):
 
     def open_preferences(self):
         QMessageBox.information(self, "Preferences", "Preferences dialog not implemented yet.")
-        """
-        dialog = ApplicationSettingsDialog(
-            sources_dir=self.settings.get("sources_dir", ""),
-            telescopes_dir=self.settings.get("telescopes_dir", ""),
-            parent=self
-        )
-        if dialog.exec():
-            self.settings = dialog.get_settings()
-            self.save_settings()
-            QMessageBox.information(self, "Preferences", "Settings saved.")
-        """
+        # dialog = ApplicationSettingsDialog(
+        #     sources_dir=self.settings.get("sources_dir", ""),
+        #     telescopes_dir=self.settings.get("telescopes_dir", ""),
+        #     parent=self
+        # )
+        # if dialog.exec():
+        #     self.settings = dialog.get_settings()
+        #     self.save_settings()
+        #     QMessageBox.information(self, "Preferences", "Settings saved.")
 
     def open_telescope_catalog_manager(self):
         telescopes_dir = self.settings.get("telescopes_dir", "")
@@ -177,14 +156,13 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please set a valid telescopes directory in Preferences.")
             return
         QMessageBox.information(self, "Telescope Catalog", "Telescope Catalog Manager not implemented yet.")
-        """
-        telescope = SpaceTelescope(code="ST1", name="Sample Telescope", diameter=2.0)
-        dialog = SpaceTelescopeEditorDialog(telescope, parent=self)
-        if dialog.exec():
-            self.project_data["telescopes"].append(telescope.to_dict())
-            self.update_project_explorer()
-            QMessageBox.information(self, "Telescope Catalog", "Telescope saved.")
-        """
+        # telescope = SpaceTelescope(code="ST1", name="Sample Telescope", diameter=2.0)
+        # dialog = SpaceTelescopeEditorDialog(telescope, parent=self)
+        # if dialog.exec():
+        #     # Используем Manipulator для добавления телескопа
+        #     self.manipulator.add_telescope(telescope)
+        #     self.update_project_explorer()
+        #     QMessageBox.information(self, "Telescope Catalog", "Telescope saved.")
 
     def open_source_catalog_manager(self):
         QMessageBox.information(self, "Source Catalog Manager", "Source catalog manager not implemented yet.")
@@ -198,41 +176,27 @@ class PAstroCoreMainWindow(QMainWindow):
         if not item:
             return
         text = item.text()
-        if text.startswith("Telescope:"):
-            telescope_name = text.split(":", 1)[1].strip()
-            for t in self.project_data["telescopes"]:
-                if t.get("name") == telescope_name:
-                    QMessageBox.information(self, "Edit Telescope", "Telescope Editor not implemented yet.")
-                    break
-                    """
-                    telescope = SpaceTelescope(**t)
-                    dialog = SpaceTelescopeEditorDialog(telescope, parent=self)
-                    if dialog.exec():
-                        self.project_data["telescopes"] = [t for t in self.project_data["telescopes"] if t.get("name") != telescope_name]
-                        self.project_data["telescopes"].append(telescope.to_dict())
-                        self.update_project_explorer()
-                    break
-                    """
-        elif text.startswith("Frequency:"):
-            QMessageBox.information(self, "Edit Frequency", "Frequency editing not fully implemented yet.")
+        if text.startswith("Observation:"):
+            obs_code = text.split(":", 1)[1].strip()
+            observation = self.project.get_observation(obs_code)
+            QMessageBox.information(self, "Edit Observation", f"Editing observation {obs_code} not implemented yet.")
+            # Реализация редактирования через Configurator
+            # configurator = Configurator(self.project)
+            # dialog = ObservationEditorDialog(observation, parent=self)
+            # if dialog.exec():
+            #     configurator.update_observation(obs_code, dialog.get_observation())
+            #     self.update_project_explorer()
 
     def update_project_explorer(self):
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["Project Explorer"])
         root = model.invisibleRootItem()
-        telescopes_item = QStandardItem("Telescopes")
-        frequencies_item = QStandardItem("Frequencies")
-        sources_item = QStandardItem("Sources")
-        root.appendRow(telescopes_item)
-        root.appendRow(frequencies_item)
-        root.appendRow(sources_item)
-        for t in self.project_data["telescopes"]:
-            telescope_item = QStandardItem(f"Telescope: {t.get('name', 'Unknown')}")
-            telescopes_item.appendRow(telescope_item)
-        for f in self.project_data["frequencies"]:
-            frequency_item = QStandardItem(f"Frequency: {f.get('name', 'Unknown')}")
-            frequencies_item.appendRow(frequency_item)
-        project_explorer = self.dock_widget.findChild(QTreeView, "projectExplorer")
+        observations_item = QStandardItem("Observations")
+        root.appendRow(observations_item)
+        for obs_code, obs in self.project.get_items().items():
+            obs_item = QStandardItem(f"Observation: {obs.get_observation_code()}")
+            observations_item.appendRow(obs_item)
+        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.setModel(model)
             project_explorer.expandAll()
