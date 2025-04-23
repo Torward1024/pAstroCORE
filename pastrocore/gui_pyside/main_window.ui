@@ -200,6 +200,9 @@
    </property>
   </action>
   <action name="actionAbout">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::HelpAbout"/>
+   </property>
    <property name="text">
     <string>About</string>
    </property>
@@ -211,16 +214,25 @@
    <property name="checked">
     <bool>true</bool>
    </property>
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::EditFind"/>
+   </property>
    <property name="text">
     <string>Project Explorer</string>
    </property>
   </action>
   <action name="actionSource_Catalog_Manager">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::DocumentPageSetup"/>
+   </property>
    <property name="text">
     <string>Source Catalog Manager</string>
    </property>
   </action>
   <action name="actionTelescope_Catalog_Manager">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::DocumentPageSetup"/>
+   </property>
    <property name="text">
     <string>Telescope Catalog Manager</string>
    </property>
@@ -234,11 +246,17 @@
    </property>
   </action>
   <action name="actionImport_Observation">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::DocumentRevert"/>
+   </property>
    <property name="text">
     <string>Import Observation</string>
    </property>
   </action>
   <action name="actionExport_Observation">
+   <property name="icon">
+    <iconset theme="QIcon::ThemeIcon::EditRedo"/>
+   </property>
    <property name="text">
     <string>Export Observation</string>
    </property>
