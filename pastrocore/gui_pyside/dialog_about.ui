@@ -109,7 +109,21 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+    <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
    </property>
    <property name="text">
     <string>Close</string>
@@ -131,16 +145,14 @@
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap resource="pastrocore_resources.qrc">:/main_icon/pAstroCORE_icon.png</pixmap>
+    <pixmap>../gui/pAstroCORE_icon.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
    </property>
   </widget>
  </widget>
- <resources>
-  <include location="pastrocore_resources.qrc"/>
- </resources>
+ <resources/>
  <connections>
   <connection>
    <sender>closeButton</sender>

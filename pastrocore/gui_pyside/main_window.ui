@@ -14,7 +14,7 @@
    <string>pAstroCORE</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="pastrocore_resources.qrc">
+   <iconset>
     <normaloff>:/main_icon/pAstroCORE_icon.png</normaloff>:/main_icon/pAstroCORE_icon.png</iconset>
   </property>
   <property name="styleSheet">
@@ -29,15 +29,21 @@
                QTabBar::tab { background: #e0e0e0; padding: 8px; }
                QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
       </property>
+      <property name="tabsClosable">
+       <bool>true</bool>
+      </property>
+      <property name="movable">
+       <bool>true</bool>
+      </property>
       <widget class="QWidget" name="tabWelcome">
        <attribute name="title">
         <string>Welcome</string>
        </attribute>
        <layout class="QVBoxLayout" name="welcomeLayout">
         <item>
-         <widget class="QLabel" name="welcomeLabel">
+         <widget class="QLabel" name="label">
           <property name="text">
-           <string>Select an item in Project Explorer to begin.</string>
+           <string>Select item from Project Explorer.</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -56,8 +62,17 @@
      <x>0</x>
      <y>0</y>
      <width>1119</width>
-     <height>20</height>
+     <height>23</height>
     </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QMenuBar {background-color: #f5f5f5; font-family: Arial;}
+QMenuBar::item {background: #f5f5f5; padding: 4px 8px; color: #000000;}
+QMenuBar::item:selected{background: #0078d7; color: #ffffff;}
+QMenu {background-color: #ffffff; border: 1px solid #d3d3d3;}
+QMenu::item {padding: 4px 12px;background: #ffffff; color: #000000;}
+QMenu::item:selected {background: #0078d7;color: #ffffff;}
+QMenu::item:hover {background: #e0e0e0;color: #000000;}</string>
    </property>
    <property name="nativeMenuBar">
     <bool>false</bool>
@@ -91,6 +106,12 @@
     <addaction name="actionTelescope_Catalog_Manager"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="autoFillBackground">
+     <bool>false</bool>
+    </property>
     <property name="title">
      <string>Help</string>
     </property>
@@ -151,9 +172,15 @@
        <property name="styleSheet">
         <string>border: 1px solid #d3d3d3; background-color: #ffffff;</string>
        </property>
-       <property name="headerHidden">
-        <bool>false</bool>
+       <property name="editTriggers">
+        <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
        </property>
+       <property name="headerHidden">
+        <bool>true</bool>
+       </property>
+       <attribute name="headerVisible">
+        <bool>false</bool>
+       </attribute>
       </widget>
      </item>
     </layout>
@@ -263,7 +290,6 @@
   </action>
  </widget>
  <tabstops>
-  <tabstop>tabContainer</tabstop>
   <tabstop>projectExplorer</tabstop>
  </tabstops>
  <resources>
