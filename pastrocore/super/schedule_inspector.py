@@ -364,10 +364,10 @@ class ScheduleInspector(Super):
 
         Args:
             project_obj (ScheduleProject): The ScheduleProject object to inspect.
-            attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
+            attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection or getter methods.
 
         Returns:
-            Any: Result of project_obj.get_name() or result of nested Observation inspection.
+            Any: Result of the requested getter method or nested Observation inspection.
 
         Raises:
             ValueError: If no valid getters are applied or nested inspection fails.
@@ -387,15 +387,23 @@ class ScheduleInspector(Super):
                 return result["result"]
             logger.warning(f"Failed to inspect nested Observation in ScheduleProject: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
+
         valid_getters = self._get_methods(ScheduleProject)
         applied = False
+        final_result = None
+
         for getter_name, getter_args in attributes.items():
             value = self._validate_and_apply_method(project_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
+            else:
+                logger.warning(f"Invalid getter '{getter_name}' for ScheduleProject inspection: {value['error']}")
+                raise ValueError(value["error"])
+
         if not applied:
             logger.warning("No valid getters applied for ScheduleProject inspection")
             raise ValueError("No valid getters applied")
-        final_result = project_obj.get_name()
-        logger.info(f"Inspected ScheduleProject: name='{final_result}', result={final_result}")
+
+        logger.info(f"Inspected ScheduleProject: name='{project_obj.get_name()}', result={final_result}")
         return final_result

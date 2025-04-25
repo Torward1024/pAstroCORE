@@ -54,7 +54,7 @@
       <string>border: 1px solid #d3d3d3; background-color: #ffffff;</string>
      </property>
      <property name="editTriggers">
-      <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
+      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
      </property>
      <property name="alternatingRowColors">
       <bool>true</bool>

@@ -36,11 +36,11 @@ class Super(ABC):
         """
         self._manipulator = manipulator
         self._methods = methods or {}
-        self._method_cache = OrderedDict()
+        self._method_cache = OrderedDict()  # Оставляем для совместимости, но не используем
         self._cache_size = cache_size
 
     def _build_response(self, obj: Any, status: bool, method: str = None, result: Any = None,
-                    error: str = None) -> Dict[str, Any]:
+                        error: str = None) -> Dict[str, Any]:
         """Format a standardized response dictionary.
 
         Args:
@@ -256,20 +256,14 @@ class Super(ABC):
         """
         if attributes is None:
             attributes = {}
-        cache_key = (self._operation, type(obj).__name__, method, self._make_hashable(attributes))
-
-        if cache_key in self._method_cache:
-            logger.debug(f"Cache hit for {cache_key}")
-            return self._method_cache[cache_key]
+        logger.debug(f"Executing operation '{self._operation}' on {type(obj).__name__} with attributes={attributes}, method={method}")
 
         try:
             if method:
                 method_func = getattr(self, method, None)
                 if callable(method_func):
                     result = method_func(obj, attributes)
-                    response = self._build_response(obj, True, method, result)
-                    self._update_cache(cache_key, response)
-                    return response
+                    return self._build_response(obj, True, method, result)
 
             method_name = attributes.get("method")
             if not method_name and "attributes" in attributes and isinstance(attributes["attributes"], dict):
@@ -283,55 +277,41 @@ class Super(ABC):
                 method = getattr(self, method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    response = self._build_response(obj, True, method_name, result)
-                    self._update_cache(cache_key, response)
-                    return response
+                    return self._build_response(obj, True, method_name, result)
 
                 prefixed_method_name = f"_{self._operation}_{method_name}"
                 method = getattr(self, prefixed_method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    response = self._build_response(obj, True, prefixed_method_name, result)
-                    self._update_cache(cache_key, response)
-                    return response
+                    return self._build_response(obj, True, prefixed_method_name, result)
 
             obj_type_name = type(obj).__name__.lower()
             auto_method_name = f"_{self._operation}_{obj_type_name}"
             method = getattr(self, auto_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
-                response = self._build_response(obj, True, auto_method_name, result)
-                self._update_cache(cache_key, response)
-                return response
+                return self._build_response(obj, True, auto_method_name, result)
 
             if isinstance(obj, BaseContainer):
                 base_method_name = f"_{self._operation}_basecontainer"
                 method = getattr(self, base_method_name, None)
                 if callable(method):
                     result = method(obj, object_attributes)
-                    response = self._build_response(obj, True, base_method_name, result)
-                    self._update_cache(cache_key, response)
-                    return response
+                    return self._build_response(obj, True, base_method_name, result)
 
             default_method_name = f"_{self._operation}"
             method = getattr(self, default_method_name, None)
             if callable(method):
                 result = method(obj, object_attributes)
-                response = self._build_response(obj, True, default_method_name, result)
-                self._update_cache(cache_key, response)
-                return response
+                return self._build_response(obj, True, default_method_name, result)
 
             raise ValueError(f"No suitable method found for operation '{self._operation}' and object '{obj_type_name}' in {self.__class__.__name__}")
         except ValueError as e:
             logger.error(f"Execution failed for operation '{self._operation}': {str(e)}")
-            response = self._build_response(obj, False, None, None, str(e))
-            self._update_cache(cache_key, response)
-            return response
+            return self._build_response(obj, False, None, None, str(e))
         except Exception as e:
             logger.error(f"Unexpected error in execute for '{self._operation}': {str(e)}")
-            response = self._build_response(obj, False, None, None, str(e))
-            self._update_cache(cache_key, response)
-            return response
+            return self._build_response(obj, False, None, None, str(e))
 
     def _default_result(self, obj: Any) -> Dict[str, Any]:
         """Provide a default result when an operation cannot be executed.

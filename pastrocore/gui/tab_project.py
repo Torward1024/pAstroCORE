@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectsuJvfH.ui'
+## Form generated from reading UI file 'tab_projectayyyYV.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -53,7 +53,7 @@ class Ui_ProjectInfoTab(object):
 
         self.projectInfoTable = QTableView(ProjectInfoTab)
         self.projectInfoTable.setObjectName(u"projectInfoTable")
-        self.projectInfoTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
+        self.projectInfoTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.projectInfoTable.setAlternatingRowColors(True)
         self.projectInfoTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.projectInfoTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -105,3 +105,4 @@ class Ui_ProjectInfoTab(object):
         self.projectInfoTable.setStyleSheet(QCoreApplication.translate("ProjectInfoTab", u"border: 1px solid #d3d3d3; background-color: #ffffff;", None))
         self.refreshButton.setText(QCoreApplication.translate("ProjectInfoTab", u"Refresh", None))
     # retranslateUi
+
