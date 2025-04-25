@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowAigHDe.ui'
+## Form generated from reading UI file 'main_windowQJvzyQ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -25,9 +25,9 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1119, 720)
+        MainWindow.resize(1119, 721)
         icon = QIcon()
-        icon.addFile(u":/main_icon/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u"pastrocore/gui/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.actionNewProject = QAction(MainWindow)
@@ -84,6 +84,8 @@ class Ui_MainWindow(object):
         self.mainLayout.setObjectName(u"mainLayout")
         self.tabContainer = QTabWidget(self.mainCentralWidget)
         self.tabContainer.setObjectName(u"tabContainer")
+        self.tabContainer.setTabShape(QTabWidget.TabShape.Rounded)
+        self.tabContainer.setElideMode(Qt.TextElideMode.ElideNone)
         self.tabContainer.setTabsClosable(True)
         self.tabContainer.setMovable(True)
         self.tabWelcome = QWidget()
@@ -104,13 +106,51 @@ class Ui_MainWindow(object):
         self.mainMenuBar = QMenuBar(MainWindow)
         self.mainMenuBar.setObjectName(u"mainMenuBar")
         self.mainMenuBar.setGeometry(QRect(0, 0, 1119, 23))
-        self.mainMenuBar.setStyleSheet(u"QMenuBar {background-color: #ffffff; font-family: Arial;}\n"
-"QMenuBar::item {background: #ffffff; padding: 4px 8px; color: #000000;}\n"
-"QMenuBar::item:selected{background: #0078d7; color: #ffffff;}\n"
-"QMenu {background-color: #ffffff; border: 1px solid #d3d3d3;}\n"
-"QMenu::item {padding: 4px 12px;background: #ffffff; color: #000000;}\n"
-"QMenu::item:selected {background: #0078d7;color: #ffffff;}\n"
-"QMenu::item:hover {background: #e0e0e0;color: #000000;}")
+        self.mainMenuBar.setStyleSheet(u"QMenuBar {\n"
+"    background-color: #ffffff;\n"
+"    font-family: Arial;\n"
+"    color: #000000;\n"
+"}\n"
+"\n"
+"QMenuBar::item {\n"
+"    background: #ffffff;\n"
+"    padding: 4px 8px;\n"
+"    color: #000000;\n"
+"    spacing: 4px; /* \u0420\u0430\u0441\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043c\u0435\u0436\u0434\u0443 \u0438\u043a\u043e\u043d\u043a\u043e\u0439 \u0438 \u0442\u0435\u043a\u0441\u0442\u043e\u043c */\n"
+"}\n"
+"\n"
+"QMenuBar::item:selected {\n"
+"    background: #0078d7;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"QMenu {\n"
+"    background-color: #ffffff;\n"
+"    border: 1px solid #d3d3d3;\n"
+"    font-family: Arial;\n"
+"}\n"
+"\n"
+"QMenu::item {\n"
+"    padding: 4px 24px 4px 8px; /* \u041b\u0435\u0432\u044b\u0439 \u043e\u0442\u0441\u0442\u0443\u043f \u0443\u043c\u0435\u043d\u044c\u0448\u0435\u043d, \u043f\u0440\u0430\u0432\u044b\u0439 \u0443\u0432\u0435\u043b\u0438\u0447\u0435\u043d \u0434\u043b\u044f \u0431\u0430\u043b\u0430\u043d\u0441\u0430 */\n"
+"    background: #ffffff;\n"
+"    color: #000000;"
+                        "\n"
+"    icon-size: 24px; /* \u0424\u0438\u043a\u0441\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u0440\u0430\u0437\u043c\u0435\u0440 \u0438\u043a\u043e\u043d\u043e\u043a */\n"
+"}\n"
+"\n"
+"QMenu::item:selected {\n"
+"    background: #0078d7;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"QMenu::item:hover {\n"
+"    background: #e0e0e0;\n"
+"    color: #000000;\n"
+"}\n"
+"\n"
+"QMenu::icon {\n"
+"    padding-left: 4px; /* \u0423\u043c\u0435\u043d\u044c\u0448\u0430\u0435\u043c \u043e\u0442\u0441\u0442\u0443\u043f \u0441\u043b\u0435\u0432\u0430 \u0434\u043b\u044f \u0438\u043a\u043e\u043d\u043a\u0438 */\n"
+"}")
         self.mainMenuBar.setNativeMenuBar(False)
         self.menuFile = QMenu(self.mainMenuBar)
         self.menuFile.setObjectName(u"menuFile")
@@ -207,3 +247,4 @@ class Ui_MainWindow(object):
         self.menuWindow.setTitle(QCoreApplication.translate("MainWindow", u"Window", None))
         self.projectExplorer.setStyleSheet(QCoreApplication.translate("MainWindow", u"border: 1px solid #d3d3d3; background-color: #ffffff;", None))
     # retranslateUi
+
