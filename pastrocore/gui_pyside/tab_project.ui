@@ -46,7 +46,32 @@
     </widget>
    </item>
    <item row="1" column="1">
-    <widget class="QLineEdit" name="lineEdit"/>
+    <widget class="QLineEdit" name="lineEdit">
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+    </widget>
    </item>
    <item row="2" column="0" colspan="2">
     <widget class="QTableView" name="projectInfoTable">

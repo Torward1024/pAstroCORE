@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectayyyYV.ui'
+## Form generated from reading UI file 'tab_projectSEeocB.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -48,6 +48,28 @@ class Ui_ProjectInfoTab(object):
 
         self.lineEdit = QLineEdit(ProjectInfoTab)
         self.lineEdit.setObjectName(u"lineEdit")
+        self.lineEdit.setStyleSheet(u"QLineEdit {\n"
+"    font-family: Arial;\n"
+"    font-size: 12pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"}\n"
+"QLineEdit[readOnly=\"true\"] {\n"
+"    border: 1px solid #d3d3d3;\n"
+"    background-color: #f9f9f9;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"] {\n"
+"    border: 1px solid #0078d7;\n"
+"    background-color: #f0f6ff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:hover {\n"
+"    border: 1px solid #1a8cff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:focus {\n"
+"    border: 1px solid #005bb5;\n"
+"    background-color: #ffffff;\n"
+"}")
 
         self.gridLayout.addWidget(self.lineEdit, 1, 1, 1, 1)
 

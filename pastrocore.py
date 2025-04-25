@@ -3,10 +3,10 @@ import os
 import json
 from PySide6.QtWidgets import (
     QMainWindow, QApplication, QFileDialog, QMessageBox, QDialog,
-    QTreeView, QTabWidget, QWidget, QProgressDialog
+    QTreeView, QTabWidget, QWidget, QProgressDialog, QMenu, QInputDialog
 )
-from PySide6.QtCore import Qt, Signal, Slot, QEvent, QMetaObject
-from PySide6.QtGui import QStandardItemModel, QStandardItem
+from PySide6.QtCore import Qt, Signal, Slot, QEvent, QMetaObject, QPoint
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 # Core files
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -14,149 +14,19 @@ from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.base.frequencies import IF, Frequencies
 from pastrocore.base.observation import Observation
 # UI files
-from pastrocore.gui.main_window import Ui_MainWindow
-from pastrocore.gui.dialog_about import Ui_AboutDialog
-from pastrocore.gui.tab_project import Ui_ProjectInfoTab
+from pastrocore.gui.ui_main_window import Ui_MainWindow
+from pastrocore.gui.ui_dialog_about import Ui_AboutDialog
+from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
+from pastrocore.gui.p_dialog_about import AboutDialog
+from pastrocore.gui.p_tab_project import ProjectInfoTab
+from pastrocore.gui.p_tab_observation import ObservationTab
 from common.utils.logging_setup import logger
 
-class AboutDialog(QDialog):
-    """Dialog for displaying application information."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.ui = Ui_AboutDialog()
-        self.ui.setupUi(self)
-        self.setModal(True)
-
-class ProjectInfoTab(QWidget):
-    """Widget for displaying and editing project information."""
-    project_name_changed = Signal(str)  # Signal for project name changes
-
-    def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
-        super().__init__(parent)
-        self.ui = Ui_ProjectInfoTab()
-        self.ui.setupUi(self)
-        self.project = project
-        self.manipulator = manipulator
-        self._ignore_editing_finished = False
-        logger.info(f"ProjectInfoTab initialized with project id: {id(self.project)}, manipulator id: {id(self.manipulator)}")
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Initialize UI elements and connect signals."""
-        name = self.get_project_name()
-        self.ui.lineEdit.setText(name)
-        self.ui.lineEdit.setReadOnly(True)
-        self.ui.lineEdit.editingFinished.connect(self.handle_project_name_confirmed)
-        self.ui.lineEdit.installEventFilter(self)
-        self.ui.lineEdit.setStyleSheet("QLineEdit[readOnly='true'] { border: none; background: transparent; }")
-        self.setup_table()
-
-    def keyPressEvent(self, event):
-        """Handle key press events, including Esc."""
-        if event.key() == Qt.Key_Escape and not self.ui.lineEdit.isReadOnly():
-            logger.info(f"keyPressEvent: Esc pressed, current text={self.ui.lineEdit.text()}")
-            self._ignore_editing_finished = True
-            self.ui.lineEdit.setText(self.get_project_name())
-            self.ui.lineEdit.setReadOnly(True)
-            self._ignore_editing_finished = False
-        super().keyPressEvent(event)
-
-    def setup_table(self):
-        """Set up project information table."""
-        model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(["Property", "Value"])
-        items = [
-            ("Observations", str(len(self.project.get_items()))),
-        ]
-        for prop, val in items:
-            model.appendRow([QStandardItem(prop), QStandardItem(val)])
-        self.ui.projectInfoTable.setModel(model)
-        self.ui.projectInfoTable.horizontalHeader().setStretchLastSection(True)
-
-    def get_project_name(self) -> str:
-        """Retrieve project name using ScheduleInspector."""
-        direct_name = self.project.get_name()
-        response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_name": None}
-        })
-        if response["status"]:
-            logger.info(f"get_project_name: project id={id(self.project)}, name={response['result']}, direct_name={direct_name}")
-            return response["result"]
-        logger.error(f"Failed to inspect project name: {response.get('error', 'Unknown error')}")
-        return "NOSE"
-
-    def eventFilter(self, obj, event):
-        """Handle events for QLineEdit."""
-        if obj == self.ui.lineEdit and event.type() == QEvent.MouseButtonDblClick:
-            self.ui.lineEdit.setReadOnly(False)
-            self.ui.lineEdit.setFocus()
-            self.ui.lineEdit.selectAll()
-            return True
-        return super().eventFilter(obj, event)
-
-    @Slot()
-    def handle_project_name_confirmed(self):
-        """Handle project name confirmation after editing."""
-        logger.info(f"handle_project_name_confirmed: text={self.ui.lineEdit.text()}, ignore={self._ignore_editing_finished}")
-        if self._ignore_editing_finished:
-            logger.info("Ignoring editingFinished due to Esc key")
-            return
-
-        name = self.ui.lineEdit.text().strip()
-        if not name:
-            QMessageBox.warning(self, "Invalid Name", "Project name cannot be empty.")
-            self.ui.lineEdit.setText(self.get_project_name())
-            self.ui.lineEdit.setReadOnly(True)
-            return
-
-        current_name = self.get_project_name()
-        if name == current_name:
-            logger.info(f"Project name '{name}' unchanged, skipping configure")
-            self.ui.lineEdit.setReadOnly(True)
-            return
-
-        logger.info(f"Before configure: project id={id(self.project)}, name={current_name}, manipulator id={id(self.manipulator)}")
-        response = self.manipulator.process_request({
-            "operation": "configure",
-            "obj": self.project,
-            "attributes": {"set_name": name}
-        })
-
-        if response["status"]:
-            self.project.set_name(name)
-            logger.info(f"Project name updated to '{name}', project id={id(self.project)}")
-            self.project_name_changed.emit(name)
-        else:
-            logger.error(f"Failed to update project name: {response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to update project name: {response.get('error', 'Unknown error')}")
-            self.ui.lineEdit.setText(self.get_project_name())
-
-        self.ui.lineEdit.setReadOnly(True)
-        self.setup_table()
-
-class ObservationTab(QWidget):
-    """Widget for editing observation details."""
-    observation_updated = Signal()
-
-    def __init__(self, observation: Observation, manipulator: ScheduleManipulator, parent=None):
-        super().__init__(parent)
-        self.observation = observation
-        self.manipulator = manipulator
-        self.setup_ui()
-
-    def setup_ui(self):
-        from PySide6.QtWidgets import QPushButton, QVBoxLayout
-        layout = QVBoxLayout(self)
-        button = QPushButton("Test Observation Update")
-        button.clicked.connect(self.observation_updated.emit)
-        layout.addWidget(button)
+import pastrocore.gui.rc_icons
 
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
-    project_updated = Signal()  # Signal for project updates
-
+    project_updated = Signal()
     def __init__(self):
         super().__init__()
         self.ui = Ui_MainWindow()
@@ -172,6 +42,10 @@ class PAstroCoreMainWindow(QMainWindow):
     def setup_ui(self):
         self.update_project_explorer()
         self.open_project_info_tab()
+        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+        if project_explorer:
+            project_explorer.setContextMenuPolicy(Qt.CustomContextMenu)
+            project_explorer.customContextMenuRequested.connect(self.show_context_menu)
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -189,6 +63,125 @@ class PAstroCoreMainWindow(QMainWindow):
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
         self.project_updated.connect(self.update_project_explorer)
+
+    def show_context_menu(self, position: QPoint):
+        """Show context menu for Project Explorer."""
+        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+        if not project_explorer:
+            return
+
+        index = project_explorer.indexAt(position)
+        if not index.isValid():
+            return
+
+        item = project_explorer.model().itemFromIndex(index)
+        if not item:
+            return
+
+        item_type = item.data(Qt.UserRole)
+        text = item.text()
+        menu = QMenu(self)
+
+        # Пункты меню в зависимости от типа элемента
+        if item_type == "project":
+            add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
+            menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "New Project")
+            menu.addAction(QIcon(":/icons/edit_project_icon.svg"), "Edit Project")
+        elif item_type == "observations" or item_type == "observation":
+            add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
+            if item_type == "observation":
+                remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
+                edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
+                remove_action.triggered.connect(lambda: self.remove_observation(text))
+                edit_action.triggered.connect(lambda: self.edit_observation(text))
+            else:
+                menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "Remove Observations")
+                menu.addAction(QIcon(":/icons/edit_project_icon.svg"), "Edit Observations")
+        else:
+            return
+
+        # Подключение действия Add Observation
+        add_action.triggered.connect(self.add_observation)
+        # Заглушки для остальных пунктов
+        for action in menu.actions():
+            if action.text() not in ["Add Observation", "Remove Observation", "Edit Observation"]:
+                action.triggered.connect(lambda: QMessageBox.information(self, "Info", f"{action.text()} not implemented yet."))
+
+        # Показать меню
+        menu.exec(project_explorer.viewport().mapToGlobal(position))
+
+    @Slot()
+    def add_observation(self):
+        """Add a new observation to the project via ScheduleManipulator."""
+        obs_code, ok = QInputDialog.getText(self, "Add Observation", "Enter observation code:", text="OBS_DEFAULT")
+        if not ok or not obs_code.strip():
+            logger.info("Add observation cancelled or empty code provided")
+            return
+
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {
+                    "create_item": {"item_code": obs_code, "isactive": True}
+                }
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Observation '{obs_code}' added to project '{self.project.get_name()}'")
+                self.project_updated.emit()
+                QMessageBox.information(self, "Success", f"Observation '{obs_code}' added successfully.")
+            else:
+                logger.error(f"Failed to add observation '{obs_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to add observation: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while adding observation '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to add observation: {str(e)}")
+
+    @Slot(str)
+    def remove_observation(self, obs_code: str):
+        """Remove an observation from the project via ScheduleManipulator."""
+        reply = QMessageBox.question(
+            self, "Confirm Delete",
+            f"Are you sure you want to delete observation '{obs_code}'?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            logger.info(f"Deletion of observation '{obs_code}' cancelled")
+            return
+
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {
+                    "remove_item": obs_code
+                }
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Observation '{obs_code}' removed from project '{self.project.get_name()}'")
+                self.project_updated.emit()
+                # Закрыть вкладку, если она открыта
+                tab_container = self.ui.tabContainer
+                for i in range(tab_container.count()):
+                    widget = tab_container.widget(i)
+                    if widget.objectName() == f"observationTab_{obs_code}":
+                        tab_container.removeTab(i)
+                        break
+                QMessageBox.information(self, "Success", f"Observation '{obs_code}' removed successfully.")
+            else:
+                logger.error(f"Failed to remove observation '{obs_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to remove observation: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while removing observation '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to remove observation: {str(e)}")
+
+    @Slot(str)
+    def edit_observation(self, obs_code: str):
+        """Open the ObservationTab for the specified observation."""
+        logger.info(f"Opening edit tab for observation '{obs_code}'")
+        self.open_observation_tab(obs_code)
 
     @Slot()
     def update_project_explorer(self):
@@ -225,7 +218,8 @@ class PAstroCoreMainWindow(QMainWindow):
                 if result:
                     for obs_code, obs in result.items():
                         if isinstance(obs, Observation):
-                            obs_item = QStandardItem(f"Observation: {obs.get_observation_code()}")
+                            obs_item = QStandardItem(f"{obs.get_observation_code()}")
+                            obs_item.setData("observation", Qt.UserRole)
                             observations_item.appendRow(obs_item)
                         else:
                             logger.error(f"Invalid observation type for code '{obs_code}': {type(obs)}")
@@ -371,10 +365,10 @@ class PAstroCoreMainWindow(QMainWindow):
         text = item.text()
         if item_type == "project":
             self.open_project_info_tab()
-        elif text.startswith("Observation:"):
-            obs_code = text.split(":", 1)[1].strip()
+        elif item_type == "observation":
+            obs_code = text
             observation = self.project.get_observation(obs_code)
-            QMessageBox.information(self, "Edit Observation", f"Editing observation {obs_code} not implemented yet.")
+            self.open_observation_tab(obs_code)
 
     def open_project_info_tab(self):
         """Open or switch to ProjectInfoTab."""
@@ -385,7 +379,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 return
         project_tab = ProjectInfoTab(self.project, self.manipulator, self)
         project_tab.setObjectName("projectInfoTab")
-        tab_container.addTab(project_tab, "Project Information")
+        tab_container.addTab(project_tab, "Project")
         tab_container.setCurrentWidget(project_tab)
         project_tab.project_name_changed.connect(self.on_projectInfoTab_project_name_changed)
 
@@ -401,12 +395,14 @@ class PAstroCoreMainWindow(QMainWindow):
             widget = tab_container.widget(i)
             if widget.objectName() == f"observationTab_{obs_code}":
                 tab_container.setCurrentIndex(i)
+                widget.setFocus()  # Установить фокус на вкладку
                 return
         observation = self.project.get_observation(obs_code)
         observation_tab = ObservationTab(observation, self.manipulator, self)
         observation_tab.setObjectName(f"observationTab_{obs_code}")
         tab_container.addTab(observation_tab, f"Observation: {obs_code}")
         tab_container.setCurrentWidget(observation_tab)
+        observation_tab.setFocus()  # Установить фокус на новую вкладку
         observation_tab.observation_updated.connect(self.on_observationTab_observation_updated)
 
     @Slot()
@@ -417,6 +413,46 @@ class PAstroCoreMainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    # Применение QSS
+    app.setStyleSheet("""
+        QMenuBar {
+            background-color: #ffffff;
+            font-family: Arial;
+            color: #000000;
+        }
+        QMenuBar::item {
+            background: #ffffff;
+            padding: 4px 8px;
+            color: #000000;
+            spacing: 4px;
+        }
+        QMenuBar::item:selected {
+            background: #0078d7;
+            color: #ffffff;
+        }
+        QMenu {
+            background-color: #ffffff;
+            border: 1px solid #d3d3d3;
+            font-family: Arial;
+        }
+        QMenu::item {
+            padding: 4px 24px 4px 8px;
+            background: #ffffff;
+            color: #000000;
+            icon-size: 24px;
+        }
+        QMenu::item:selected {
+            background: #0078d7;
+            color: #ffffff;
+        }
+        QMenu::item:hover {
+            background: #e0e0e0;
+            color: #000000;
+        }
+        QMenu::icon {
+            padding-left: 4px;
+        }
+    """)
     window = PAstroCoreMainWindow()
     window.show()
     sys.exit(app.exec())

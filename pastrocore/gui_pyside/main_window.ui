@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1119</width>
-    <height>720</height>
+    <height>721</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -28,6 +28,12 @@
        <string>QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
                QTabBar::tab { background: #e0e0e0; padding: 8px; }
                QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
+      </property>
+      <property name="tabShape">
+       <enum>QTabWidget::TabShape::Rounded</enum>
+      </property>
+      <property name="elideMode">
+       <enum>Qt::TextElideMode::ElideNone</enum>
       </property>
       <property name="tabsClosable">
        <bool>true</bool>
@@ -66,13 +72,50 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true">QMenuBar {background-color: #ffffff; font-family: Arial;}
-QMenuBar::item {background: #ffffff; padding: 4px 8px; color: #000000;}
-QMenuBar::item:selected{background: #0078d7; color: #ffffff;}
-QMenu {background-color: #ffffff; border: 1px solid #d3d3d3;}
-QMenu::item {padding: 4px 12px;background: #ffffff; color: #000000;}
-QMenu::item:selected {background: #0078d7;color: #ffffff;}
-QMenu::item:hover {background: #e0e0e0;color: #000000;}</string>
+    <string notr="true">QMenuBar {
+    background-color: #ffffff;
+    font-family: Arial;
+    color: #000000;
+}
+
+QMenuBar::item {
+    background: #ffffff;
+    padding: 4px 8px;
+    color: #000000;
+    spacing: 4px; /* Расстояние между иконкой и текстом */
+}
+
+QMenuBar::item:selected {
+    background: #0078d7;
+    color: #ffffff;
+}
+
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    font-family: Arial;
+}
+
+QMenu::item {
+    padding: 4px 24px 4px 8px; /* Левый отступ уменьшен, правый увеличен для баланса */
+    background: #ffffff;
+    color: #000000;
+    icon-size: 24px; /* Фиксированный размер иконок */
+}
+
+QMenu::item:selected {
+    background: #0078d7;
+    color: #ffffff;
+}
+
+QMenu::item:hover {
+    background: #e0e0e0;
+    color: #000000;
+}
+
+QMenu::icon {
+    padding-left: 4px; /* Уменьшаем отступ слева для иконки */
+}</string>
    </property>
    <property name="nativeMenuBar">
     <bool>false</bool>
@@ -199,7 +242,8 @@ QMenu::item:hover {background: #e0e0e0;color: #000000;}</string>
   </action>
   <action name="actionOpenProject">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentOpen"/>
+    <iconset resource="pastrocore_resources.qrc">
+     <normaloff>:/open_project/icon_open.png</normaloff>:/open_project/icon_open.png</iconset>
    </property>
    <property name="text">
     <string>Open Project</string>
@@ -243,9 +287,6 @@ QMenu::item:hover {background: #e0e0e0;color: #000000;}</string>
    </property>
    <property name="checked">
     <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::EditFind"/>
    </property>
    <property name="text">
     <string>Project Explorer</string>

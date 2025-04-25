@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>add_observation_icon.svg</file>
+        <file>remove_observation_icon.svg</file>
+        <file>edit_observation_icon.svg</file>
+        <file>remove_project_icon.svg</file>
+        <file>edit_project_icon.svg</file>
+        <file>save_icon.svg</file>
+        <file>open_icon.svg</file>
+        <file>observe_icon.svg</file>
+        <file>orbit_icon.svg</file>
+        <file>data_icon.svg</file>
+    </qresource>
+</RCC>
