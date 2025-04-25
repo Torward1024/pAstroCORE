@@ -18,7 +18,7 @@
     <normaloff>:/main_icon/pAstroCORE_icon.png</normaloff>:/main_icon/pAstroCORE_icon.png</iconset>
   </property>
   <property name="styleSheet">
-   <string>background-color: #f5f5f5; font-family: Arial;</string>
+   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
   </property>
   <widget class="QWidget" name="mainCentralWidget">
    <layout class="QHBoxLayout" name="mainLayout">
@@ -66,8 +66,8 @@
     </rect>
    </property>
    <property name="styleSheet">
-    <string notr="true">QMenuBar {background-color: #f5f5f5; font-family: Arial;}
-QMenuBar::item {background: #f5f5f5; padding: 4px 8px; color: #000000;}
+    <string notr="true">QMenuBar {background-color: #ffffff; font-family: Arial;}
+QMenuBar::item {background: #ffffff; padding: 4px 8px; color: #000000;}
 QMenuBar::item:selected{background: #0078d7; color: #ffffff;}
 QMenu {background-color: #ffffff; border: 1px solid #d3d3d3;}
 QMenu::item {padding: 4px 12px;background: #ffffff; color: #000000;}
@@ -156,6 +156,9 @@ QMenu::item:hover {background: #e0e0e0;color: #000000;}</string>
    </widget>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
+   <property name="styleSheet">
+    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
+   </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>

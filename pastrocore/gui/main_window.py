@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowuAsYSe.ui'
+## Form generated from reading UI file 'main_windowAigHDe.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -27,8 +27,9 @@ class Ui_MainWindow(object):
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(1119, 720)
         icon = QIcon()
-        icon.addFile(u"pastrocore/gui/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u":/main_icon/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
+        MainWindow.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.actionNewProject = QAction(MainWindow)
         self.actionNewProject.setObjectName(u"actionNewProject")
         icon1 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentNew))
@@ -103,8 +104,8 @@ class Ui_MainWindow(object):
         self.mainMenuBar = QMenuBar(MainWindow)
         self.mainMenuBar.setObjectName(u"mainMenuBar")
         self.mainMenuBar.setGeometry(QRect(0, 0, 1119, 23))
-        self.mainMenuBar.setStyleSheet(u"QMenuBar {background-color: #f5f5f5; font-family: Arial;}\n"
-"QMenuBar::item {background: #f5f5f5; padding: 4px 8px; color: #000000;}\n"
+        self.mainMenuBar.setStyleSheet(u"QMenuBar {background-color: #ffffff; font-family: Arial;}\n"
+"QMenuBar::item {background: #ffffff; padding: 4px 8px; color: #000000;}\n"
 "QMenuBar::item:selected{background: #0078d7; color: #ffffff;}\n"
 "QMenu {background-color: #ffffff; border: 1px solid #d3d3d3;}\n"
 "QMenu::item {padding: 4px 12px;background: #ffffff; color: #000000;}\n"
@@ -135,6 +136,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.mainStatusBar)
         self.dockWidget = QDockWidget(MainWindow)
         self.dockWidget.setObjectName(u"dockWidget")
+        self.dockWidget.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.dockWidgetContents = QWidget()
         self.dockWidgetContents.setObjectName(u"dockWidgetContents")
         self.horizontalLayout = QHBoxLayout(self.dockWidgetContents)
@@ -182,7 +184,6 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"pAstroCORE", None))
-        MainWindow.setStyleSheet(QCoreApplication.translate("MainWindow", u"background-color: #f5f5f5; font-family: Arial;", None))
         self.actionNewProject.setText(QCoreApplication.translate("MainWindow", u"New Project", None))
         self.actionOpenProject.setText(QCoreApplication.translate("MainWindow", u"Open Project", None))
         self.actionSaveProject.setText(QCoreApplication.translate("MainWindow", u"Save Project", None))
