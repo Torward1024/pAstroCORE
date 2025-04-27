@@ -141,7 +141,7 @@ class Frequencies(BaseContainer[IF]):
     def __init__(self, *, name: Optional[str] = None, items: Dict[str, IF] = None, isactive: bool = True, use_cache: bool = False):
         """Initialize a Frequencies object with optional IFs."""
         if name is None:
-            name = f"fqs_{uuid.uuid4().hex[:8]}"
+            name = f"fqs_{uuid.uuid4().hex[:32]}"
         super().__init__(name=name, items=items or {}, isactive=isactive, use_cache=use_cache)
         for if_name, if_obj in (items or {}).items():
             self._check_overlap(if_obj, exclude_name=if_name)

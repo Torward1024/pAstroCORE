@@ -82,7 +82,6 @@ class PAstroCoreMainWindow(QMainWindow):
         text = item.text()
         menu = QMenu(self)
 
-        # Пункты меню в зависимости от типа элемента
         if item_type == "project":
             add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
             menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "New Project")
@@ -100,19 +99,17 @@ class PAstroCoreMainWindow(QMainWindow):
         else:
             return
 
-        # Подключение действия Add Observation
         add_action.triggered.connect(self.add_observation)
-        # Заглушки для остальных пунктов
         for action in menu.actions():
             if action.text() not in ["Add Observation", "Remove Observation", "Edit Observation"]:
                 action.triggered.connect(lambda: QMessageBox.information(self, "Info", f"{action.text()} not implemented yet."))
 
-        # Показать меню
         menu.exec(project_explorer.viewport().mapToGlobal(position))
 
     @Slot()
     def add_observation(self):
         """Add a new observation to the project via ScheduleManipulator."""
+        # observation editor dialog
         obs_code, ok = QInputDialog.getText(self, "Add Observation", "Enter observation code:", text="OBS_DEFAULT")
         if not ok or not obs_code.strip():
             logger.info("Add observation cancelled or empty code provided")
