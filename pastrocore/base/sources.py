@@ -51,7 +51,7 @@ class Source(BaseEntity, ABC):
         isactive: bool = True,
     ):
         if name is None:
-            name = f"scan_{uuid.uuid4().hex[:32]}"
+            name = f"src_{uuid.uuid4().hex[:32]}"
         super().__init__(
             name=name,
             ra_h=ra_h,
@@ -209,6 +209,13 @@ class Sources(BaseContainer[Source]):
         _items (Dict[str, Source]): Dictionary mapping source names to Source objects.
         isactive (bool): Whether the Sources object itself is active.
     """
+    def __init__(self, items: Dict[str, Source] = None, name: str = None, isactive: bool = True, use_cache: bool = False):
+        """Initialize a Scans object with an optional dictionary of Scan objects."""
+        if name is None:
+            name = f"srcs_{uuid.uuid4().hex[:32]}"
+        super().__init__(items=items, name=name, isactive=isactive)
+        self._key_cache = list(self._items.keys()) if items else []
+        logger.info(f"Initialized Sources with name={name}, {len(self._items)} sources")
 
     def create_source(
         self,
@@ -245,16 +252,15 @@ class Sources(BaseContainer[Source]):
 
     @classmethod
     def from_dict(cls, data: dict) -> "Sources":
-        """Create a Sources object from a dictionary, supporting legacy format."""
-        if "data" in data:
-            # Legacy format: {"data": [...]}
-            items = {item_data["name"]: Source.from_dict(item_data) for item_data in data["data"]}
-            return cls(items=items, name=data.get("name"), isactive=data.get("isactive", True))
-        # New format: {"items": {...}}
+        """Create a Sources object from a dictionary"""
         data.pop("type", None)
         return super().from_dict(data)
 
     def __repr__(self) -> str:
         """Return a string representation of the Sources object."""
         active_count = len(self.get_active_items())
-        return f"Sources(count={len(self._items)}, active={active_count}, inactive={len(self._items) - active_count})"
+        attrs = [f"name={self.name!r}" if self.name else ""]
+        attrs.append(f"count={len(self._items)}")
+        attrs.append(f"active={active_count}")
+        attrs.append(f"inactive={len(self._items) - active_count}")
+        return f"Sources({', '.join(attr for attr in attrs if attr)})"
