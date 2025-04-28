@@ -53,7 +53,6 @@ class PAstroCoreMainWindow(QMainWindow):
         # Убираем кнопку закрытия для вкладки проекта
         for i in range(self.ui.tabContainer.count()):
             if self.ui.tabContainer.widget(i).objectName() == "projectInfoTab":
-                # Используем tabBar() для управления кнопками вкладок
                 self.ui.tabContainer.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
         # Включаем контекстное меню для projectExplorer
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
@@ -133,7 +132,6 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def add_observation(self):
         """Add a new observation to the project via ScheduleManipulator."""
-        # observation editor dialog
         obs_code, ok = QInputDialog.getText(self, "Add Observation", "Enter observation code:", text="OBS_DEFAULT")
         if not ok or not obs_code.strip():
             logger.info("Add observation cancelled or empty code provided")
@@ -149,7 +147,7 @@ class PAstroCoreMainWindow(QMainWindow):
             }
             response = self.manipulator.process_request(request)
             if response["status"]:
-                logger.info(f"Observation '{obs_code}' added to project '{self.project.get_name()}'")
+                logger.info(f"Observation with code '{obs_code}' added to project '{self.project.get_name()}'")
                 self.project_updated.emit()
                 QMessageBox.information(self, "Success", f"Observation '{obs_code}' added successfully.")
             else:
@@ -172,16 +170,28 @@ class PAstroCoreMainWindow(QMainWindow):
             return
 
         try:
+            # Найти имя наблюдения по коду
+            obs_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.project,
+                "attributes": {"get_observation_by_code": obs_code}
+            })
+            if not obs_response["status"]:
+                logger.error(f"Failed to find observation with code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
+                return
+            obs_name = obs_response["result"].name
+
             request = {
                 "operation": "configure",
                 "obj": self.project,
                 "attributes": {
-                    "remove_item": obs_code
+                    "remove_item": obs_name
                 }
             }
             response = self.manipulator.process_request(request)
             if response["status"]:
-                logger.info(f"Observation '{obs_code}' removed from project '{self.project.get_name()}'")
+                logger.info(f"Observation with code '{obs_code}' and name '{obs_name}' removed from project '{self.project.get_name()}'")
                 self.project_updated.emit()
                 # Закрыть вкладку, если она открыта
                 tab_container = self.ui.tabContainer
@@ -203,7 +213,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Remove all observations from the project via ScheduleManipulator."""
         reply = QMessageBox.question(
             self, "Confirm Delete",
-            f"Are you sure you want to delete all observations ?",
+            f"Are you sure you want to delete all observations?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
@@ -231,7 +241,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 QMessageBox.information(self, "Success", f"All observations removed successfully.")
             else:
                 logger.error(f"Failed to remove observations: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to remove observation: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to remove observations: {response.get('error', 'Unknown error')}")
         except Exception as e:
             logger.error(f"Exception while removing observations: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove observations: {str(e)}")
@@ -239,7 +249,7 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot(str)
     def edit_observation(self, obs_code: str):
         """Open the ObservationTab for the specified observation."""
-        logger.info(f"Opening edit tab for observation '{obs_code}'")
+        logger.info(f"Opening edit tab for observation with code '{obs_code}'")
         self.open_observation_tab(obs_code)
 
     @Slot()
@@ -254,7 +264,7 @@ class PAstroCoreMainWindow(QMainWindow):
             "obj": self.project,
             "attributes": {"get_name": None}
         })
-        project_name = project_name_response["result"] if project_name_response["status"] else "BABS"
+        project_name = project_name_response["result"] if project_name_response["status"] else "Untitled Project"
         direct_name = self.project.get_name()
         logger.info(f"update_project_explorer: project id={id(self.project)}, name={project_name}, direct_name={direct_name}")
 
@@ -275,13 +285,19 @@ class PAstroCoreMainWindow(QMainWindow):
             result = observations_response["result"]
             if isinstance(result, dict):
                 if result:
-                    for obs_code, obs in result.items():
-                        if isinstance(obs, Observation):
-                            obs_item = QStandardItem(f"{obs.get_observation_code()}")
+                    for obs_name, obs in result.items():
+                        # Запрашиваем код наблюдения через Manipulator
+                        code_response = self.manipulator.process_request({
+                            "operation": "inspect",
+                            "obj": obs,
+                            "attributes": {"get_observation_code": None}
+                        })
+                        if code_response["status"]:
+                            obs_item = QStandardItem(code_response["result"])  # Отображаем code
                             obs_item.setData("observation", Qt.UserRole)
                             observations_item.appendRow(obs_item)
                         else:
-                            logger.error(f"Invalid observation type for code '{obs_code}': {type(obs)}")
+                            logger.error(f"Failed to get code for observation with name '{obs_name}': {code_response.get('error', 'Unknown error')}")
                 else:
                     logger.info("No observations found in project")
             else:
@@ -434,8 +450,17 @@ class PAstroCoreMainWindow(QMainWindow):
             self.open_project_info_tab()
         elif item_type == "observation":
             obs_code = text
-            observation = self.project.get_observation(obs_code)
-            self.open_observation_tab(obs_code)
+            # Получаем наблюдение через Manipulator
+            obs_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.project,
+                "attributes": {"get_observation_by_code": obs_code}
+            })
+            if obs_response["status"]:
+                self.open_observation_tab(obs_code)
+            else:
+                logger.error(f"Failed to get observation with code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
 
     def open_project_info_tab(self):
         """Open or switch to ProjectInfoTab."""
@@ -479,15 +504,25 @@ class PAstroCoreMainWindow(QMainWindow):
                 # Обновляем вкладку наблюдения
                 widget.update_tab()
                 return
-        observation = self.project.get_observation(obs_code)
-        observation_tab = ObservationTab(observation, self.manipulator, self)
-        observation_tab.setObjectName(f"observationTab_{obs_code}")
-        tab_container.addTab(observation_tab, f"Observation: {obs_code}")
-        tab_container.setCurrentWidget(observation_tab)
-        observation_tab.setFocus()
-        observation_tab.observation_updated.connect(self.on_observationTab_observation_updated)
-        # Подключаем сигнал project_updated для обновления вкладки
-        self.project_updated.connect(observation_tab.update_tab)
+        # Получаем наблюдение через Manipulator
+        obs_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.project,
+            "attributes": {"get_observation_by_code": obs_code}
+        })
+        if obs_response["status"]:
+            observation = obs_response["result"]
+            observation_tab = ObservationTab(observation, self.project, self.manipulator, self)
+            observation_tab.setObjectName(f"observationTab_{obs_code}")
+            tab_container.addTab(observation_tab, f"Observation: {obs_code}")
+            tab_container.setCurrentWidget(observation_tab)
+            observation_tab.setFocus()
+            observation_tab.observation_updated.connect(self.on_observationTab_observation_updated)
+            # Подключаем сигнал project_updated для обновления вкладки
+            self.project_updated.connect(observation_tab.update_tab)
+        else:
+            logger.error(f"Failed to open observation tab for code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+            QMessageBox.critical(self, "Error", f"Failed to open observation tab: {obs_response.get('error', 'Unknown error')}")
 
     @Slot()
     def on_observationTab_observation_updated(self):

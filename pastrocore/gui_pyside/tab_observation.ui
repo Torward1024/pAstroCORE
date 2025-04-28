@@ -395,6 +395,15 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
        <height>16777215</height>
       </size>
      </property>
+     <property name="styleSheet">
+      <string notr="true">QComboBox {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}</string>
+     </property>
      <property name="currentText">
       <string/>
      </property>

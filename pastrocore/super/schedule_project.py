@@ -4,16 +4,17 @@ from pastrocore.base.observation import Observation
 from common.super.project import Project
 from common.utils.validation import check_type, check_non_empty_string
 from common.utils.logging_setup import logger
+import uuid
 
 class ScheduleProject(Project):
     """Container for managing multiple observations, inheriting from Project.
 
-    Represents a project that organizes a collection of Observation objects, indexed by their observation codes.
+    Represents a project that organizes a collection of Observation objects, indexed by their observation names.
     Provides methods to add, create, set, retrieve, and manage observations, as well as serialize/deserialize the project.
 
     Examples:
         >>> project = ScheduleProject(name="MyProject")
-        >>> project.create_item(item_code="OBS001")
+        >>> project.create_item(item_name="OBS001")
         >>> project.get_observation("OBS001").get_observation_code()
         'OBS001'
         >>> project.set_item("OBS001", Observation(name="OBS001", isactive=False))
@@ -30,7 +31,7 @@ class ScheduleProject(Project):
 
         Args:
             name (str): The name of the project. Defaults to "OBS_DEFAULT_PROJECT".
-            items (Dict[str, Observation], optional): Initial dictionary of observations, keyed by observation code.
+            items (Dict[str, Observation], optional): Initial dictionary of observations, keyed by observation name.
                                                     Defaults to an empty dict if None.
 
         Raises:
@@ -59,22 +60,23 @@ class ScheduleProject(Project):
         """Create and add a new Observation object to the project.
 
         Args:
-            item_code (str): The code for the new observation. Defaults to "OBS_DEFAULT".
+            item_name (str): The name for the new observation. Defaults to "OBS_DEFAULT".
             isactive (bool): Whether the new observation is active. Defaults to True.
 
         Raises:
-            ValueError: If item_code is not a non-empty string.
+            ValueError: If item_name is not a non-empty string.
         """
         check_non_empty_string(item_code, "Observation code")
-        new_observation = Observation(name=item_code, isactive=isactive)
+        unique_name = f"obs_{uuid.uuid4().hex[:32]}"
+        new_observation = Observation(name=unique_name, code=item_code, isactive=isactive)
         self.add_item(new_observation)
-        logger.info(f"Created and added observation '{item_code}' to project '{self.name}'")
+        logger.info(f"Created and added observation with code '{item_code}' and name '{unique_name}' to project '{self.name}'")
 
     def set_item(self, name: str, item: Observation) -> None:
-        """Set or replace an observation in the project by its code.
+        """Set or replace an observation in the project by its name.
 
         Args:
-            name (str): The code of the observation to set.
+            name (str): The name of the observation to set.
             item (Observation): The Observation object to set.
 
         Raises:
@@ -82,30 +84,51 @@ class ScheduleProject(Project):
         """
         check_type(item, Observation, "Observation")
         super().set_item(name, item)
-        logger.info(f"Set observation '{name}' in project '{self.name}'")
+        logger.info(f"Set observation with name='{name}' and code='{item.get_observation_code}' in project '{self.name}'")
 
     def get_observation(self, name: str) -> Observation:
+        """Retrieve an observation by its name.
+
+        Args:
+            name (str): The name of the observation to retrieve.
+
+        Returns:
+            Observation: The Observation object with the specified name.
+
+        Raises:
+            KeyError: If the observation name is not found.
+        """
+        observation = self.get_item(name)
+        logger.info(f"Retrieved observation '{name}' from project '{self.name}'")
+        return observation
+    
+    def get_observation_by_code(self, code: str) -> Observation:
         """Retrieve an observation by its code.
 
         Args:
-            name (str): The code of the observation to retrieve.
+            code (str): The code of the observation to retrieve.
 
         Returns:
             Observation: The Observation object with the specified code.
 
         Raises:
             KeyError: If the observation code is not found.
+            ValueError: If the code is not a non-empty string.
         """
-        observation = self.get_item(name)
-        logger.info(f"Retrieved observation '{name}' from project '{self.name}'")
-        return observation
+        check_non_empty_string(code, "Observation code")
+        for name, observation in self._items.get_all().items():
+            if observation.get_observation_code() == code:
+                logger.info(f"Retrieved observation with code='{code}' from project '{self.name}'")
+                return observation
+        logger.error(f"Observation with code='{code}' not found in project '{self.name}'")
+        raise KeyError(f"Observation with code '{code}' not found")
 
     def set_project(self, name: str, items: Dict[str, Observation]) -> None:
         """Set the entire project configuration, replacing name and observations.
 
         Args:
             name (str): The new name for the project. Must be a non-empty string.
-            items (Dict[str, Observation]): The new dictionary of observations, keyed by observation code.
+            items (Dict[str, Observation]): The new dictionary of observations, keyed by observation name.
 
         Raises:
             TypeError: If any item in items is not an Observation object.
@@ -160,8 +183,9 @@ class ScheduleProject(Project):
             if "items" in data:
                 if not data["items"]:
                     raise ValueError("Items dictionary cannot be empty")
-                for code, item_data in data["items"].items():
-                    items[code] = Observation.from_dict(item_data)
+                for item_name, item_data in data["items"].items():
+                    items[item_name] = Observation.from_dict(item_data)
+                    logger.info(f"Imported Project: name='{name}'")
             else:
                 raise ValueError("No 'items' or 'observations' key found in data")
             
