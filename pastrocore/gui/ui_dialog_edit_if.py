@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifWDmUYn.ui'
+## Form generated from reading UI file 'dialog_editor_ifoBaugl.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -38,8 +38,8 @@ class Ui_IFEditorDialog(object):
         self.frequencyEdit.setObjectName(u"frequencyEdit")
         self.frequencyEdit.setStyleSheet(u"")
         self.frequencyEdit.setDecimals(3)
-        self.frequencyEdit.setMinimum(0.001000000000000)
-        self.frequencyEdit.setMaximum(100000.000000000000000)
+        self.frequencyEdit.setMinimum(1.000000000000000)
+        self.frequencyEdit.setMaximum(1000000.000000000000000)
         self.frequencyEdit.setValue(1000.000000000000000)
 
         self.formLayout.setWidget(0, QFormLayout.FieldRole, self.frequencyEdit)
@@ -219,3 +219,4 @@ class Ui_IFEditorDialog(object):
         self.saveButton.setText(QCoreApplication.translate("IFEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("IFEditorDialog", u"Cancel", None))
     # retranslateUi
+

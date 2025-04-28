@@ -34,7 +34,7 @@ class IFEditorDialog(QDialog):
                 item = self.ui.polarizationsList.item(index)
                 if item.text() in self.if_obj.polarizations:
                     item.setSelected(True)
-            self.setWindowTitle(f"Edit IF: {self.if_obj.name}")
+            self.setWindowTitle(f"Edit IF")
         else:
             # Значения по умолчанию для нового IF
             self.ui.frequencyEdit.setValue(1000.0)

@@ -47,7 +47,7 @@ class ProjectInfoTab(QWidget):
         self.ui.projectInfoTable.sortByColumn(0, Qt.AscendingOrder)
         self.ui.projectInfoTable.verticalHeader().setVisible(False)
         # Устанавливаем ширину столбца Active для иконок
-        self.ui.projectInfoTable.setColumnWidth(1, 30)
+        self.ui.projectInfoTable.setColumnWidth(1, 24)
 
     def setup_connections(self):
         """Connect signals to slots."""
@@ -180,6 +180,7 @@ class ProjectInfoTab(QWidget):
             active_item = QStandardItem()
             active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
             active_item.setToolTip("Active" if is_active else "Inactive")
+            active_item.setTextAlignment(Qt.AlignCenter)
 
             type_response = self.manipulator.process_request({
                 "operation": "inspect",
@@ -188,6 +189,7 @@ class ProjectInfoTab(QWidget):
             })
             obs_type = type_response["result"] if type_response["status"] and type_response["result"] in ["VLBI", "SINGLE_DISH"] else "N/A"
 
+            # Fetch frequencies by getting all IF objects
             frequencies_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": obs,
@@ -195,13 +197,25 @@ class ProjectInfoTab(QWidget):
             })
             freqs = "N/A"
             if frequencies_response["status"] and frequencies_response["result"]:
-                bands_response = self.manipulator.process_request({
+                items_response = self.manipulator.process_request({
                     "operation": "inspect",
                     "obj": frequencies_response["result"],
-                    "attributes": {"get_bands": None}
+                    "attributes": {"get_active_items": None}
                 })
-                if bands_response["status"] and isinstance(bands_response["result"], list):
-                    freqs = ", ".join([f"{f} Hz" for f in bands_response["result"]])
+                if items_response["status"] and isinstance(items_response["result"], list):
+                    frequencies = []
+                    for if_obj in items_response["result"]:
+                        freq_response = self.manipulator.process_request({
+                            "operation": "inspect",
+                            "obj": if_obj,
+                            "attributes": {"get": "frequency"}
+                        })
+                        if freq_response["status"] and isinstance(freq_response["result"], (int, float)):
+                            frequencies.append(f"{freq_response['result']:.0f} MHz")
+                    if frequencies:
+                        freqs = ", ".join(frequencies)
+                    else:
+                        freqs = "N/A"
 
             start_time_response = self.manipulator.process_request({
                 "operation": "inspect",
@@ -222,21 +236,21 @@ class ProjectInfoTab(QWidget):
                 "obj": obs,
                 "attributes": {"get_sources": None}
             })
-            sources = str(len(sources_response["result"])) if sources_response["status"] and isinstance(sources_response["result"], list) else "0"
+            sources = str(len(sources_response["result"].get_items())) if sources_response["status"] and hasattr(sources_response["result"], 'get_items') else "0"
 
             telescopes_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": obs,
                 "attributes": {"get_telescopes": None}
             })
-            telescopes = str(len(telescopes_response["result"])) if telescopes_response["status"] and isinstance(telescopes_response["result"], list) else "0"
+            telescopes = str(len(telescopes_response["result"].get_items())) if telescopes_response["status"] and hasattr(telescopes_response["result"], 'get_items') else "0"
 
             scans_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": obs,
                 "attributes": {"get_scans": None}
             })
-            scans = str(len(scans_response["result"])) if scans_response["status"] and isinstance(scans_response["result"], list) else "0"
+            scans = str(len(scans_response["result"].get_items())) if scans_response["status"] and hasattr(scans_response["result"], 'get_items') else "0"
 
             row = [
                 QStandardItem(str(idx)),
