@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_observationyWrMGr.ui'
+## Form generated from reading UI file 'tab_observationQYHBuv.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -134,7 +134,7 @@ class Ui_ObservationInfoTab(object):
         self.tabWidget = QTabWidget(ObservationInfoTab)
         self.tabWidget.setObjectName(u"tabWidget")
         self.tabWidget.setStyleSheet(u"QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }\n"
-"               QTabBar::tab { background: #e0e0e0; padding: 8px; }\n"
+"               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}\n"
 "               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }")
         self.tab_freq = QWidget()
         self.tab_freq.setObjectName(u"tab_freq")

@@ -26,7 +26,7 @@ class ProjectInfoTab(QWidget):
         """Set up the observations table with appropriate columns."""
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
-            "№", "Active", "Code", "Type", "Frequencies", "Start Time",
+            "#", "Active", "Code", "Type", "Frequencies", "Start Time",
             "Duration", "Sources", "Telescopes", "Scans"
         ])
         self.proxy_model = QSortFilterProxyModel()
