@@ -35,13 +35,27 @@
                             "LCP"
                         ]
                     },
-                    "freq_ad8c20a2": {
-                        "name": "freq_ad8c20a2",
+                    "freq_78fbd604dca745f58242ecbd9f9dd72f": {
+                        "name": "freq_78fbd604dca745f58242ecbd9f9dd72f",
                         "isactive": true,
                         "type": "IF",
-                        "frequency": 2200.0,
+                        "frequency": 3400.0,
                         "bandwidth": 16.0,
-                        "polarizations": []
+                        "polarizations": [
+                            "RCP",
+                            "LCP"
+                        ]
+                    },
+                    "freq_140b01b0e6c745278f5f54e344265701": {
+                        "name": "freq_140b01b0e6c745278f5f54e344265701",
+                        "isactive": true,
+                        "type": "IF",
+                        "frequency": 100000.0,
+                        "bandwidth": 16.0,
+                        "polarizations": [
+                            "RCP",
+                            "LCP"
+                        ]
                     }
                 }
             },
@@ -75,7 +89,56 @@
                 "name": "fqs_9da1a764b93e4f0b9280d67eb0d4dd61",
                 "isactive": true,
                 "type": "Frequencies",
-                "items": {}
+                "items": {
+                    "freq_46a3261a592a42e195ca1a9798a40c56": {
+                        "name": "freq_46a3261a592a42e195ca1a9798a40c56",
+                        "isactive": true,
+                        "type": "IF",
+                        "frequency": 1000.0,
+                        "bandwidth": 16.0,
+                        "polarizations": []
+                    },
+                    "freq_93008c7b9f7b49e99820d4159cfbb9dd": {
+                        "name": "freq_93008c7b9f7b49e99820d4159cfbb9dd",
+                        "isactive": true,
+                        "type": "IF",
+                        "frequency": 2000.0,
+                        "bandwidth": 16.0,
+                        "polarizations": []
+                    },
+                    "freq_47ecbf01c98d458b9a673c3c664bc114": {
+                        "name": "freq_47ecbf01c98d458b9a673c3c664bc114",
+                        "isactive": true,
+                        "type": "IF",
+                        "frequency": 3000.0,
+                        "bandwidth": 16.0,
+                        "polarizations": []
+                    },
+                    "freq_33ab720c68c5490c8db2daee1cfffe0c": {
+                        "name": "freq_33ab720c68c5490c8db2daee1cfffe0c",
+                        "isactive": true,
+                        "type": "IF",
+                        "frequency": 5000.0,
+                        "bandwidth": 16.0,
+                        "polarizations": []
+                    },
+                    "freq_6ec9092400664eccb1f7c0486533b468": {
+                        "name": "freq_6ec9092400664eccb1f7c0486533b468",
+                        "isactive": true,
+                        "type": "IF",
+                        "frequency": 9000.0,
+                        "bandwidth": 16.0,
+                        "polarizations": []
+                    },
+                    "freq_5a17a7caadf043d188796c8b32c951fd": {
+                        "name": "freq_5a17a7caadf043d188796c8b32c951fd",
+                        "isactive": true,
+                        "type": "IF",
+                        "frequency": 10000.0,
+                        "bandwidth": 16.0,
+                        "polarizations": []
+                    }
+                }
             },
             "scans": {
                 "name": "scans_1e0f4c5cf497402c8109e1a259e19740",

@@ -189,6 +189,73 @@ class Frequencies(BaseContainer[IF]):
         )
         self.add(new_if)
         logger.info(f"Created and added IF '{new_if.name}' to Frequencies")
+    
+    def set_if(
+        self,
+        name: str,
+        frequency: Optional[float] = None,
+        bandwidth: Optional[float] = None,
+        polarizations: Optional[Union[str, List[str]]] = None,
+        isactive: Optional[bool] = None,
+    ) -> None:
+        """Update an existing IF object in the collection with new parameters.
+
+        Args:
+            name (str): The name of the IF to update.
+            frequency (float, optional): The new IF frequency in MHz.
+            bandwidth (float, optional): The new bandwidth in MHz.
+            polarizations (Optional[Union[str, List[str]]], optional): The new polarization codes.
+            isactive (bool, optional): The new active status.
+
+        Raises:
+            KeyError: If the IF with the given name does not exist.
+            ValueError: If the new frequency range overlaps with existing IFs, or if frequency/bandwidth is not positive.
+            ValueError: If polarizations are invalid or mix groups.
+            TypeError: If polarizations contain non-string elements.
+        """
+        if name not in self._items:
+            logger.error(f"IF with name '{name}' not found in Frequencies")
+            raise KeyError(f"IF with name '{name}' not found in Frequencies")
+
+        if_obj = self._items[name]
+        
+        temp_frequency = frequency if frequency is not None else if_obj.frequency
+        temp_bandwidth = bandwidth if bandwidth is not None else if_obj.bandwidth
+        temp_polarizations = polarizations if polarizations is not None else if_obj.polarizations
+        temp_isactive = isactive if isactive is not None else if_obj.isactive
+
+        if temp_frequency <= 0:
+            logger.error("Frequency must be positive")
+            raise ValueError("Frequency must be positive")
+        if temp_bandwidth <= 0:
+            logger.error("Bandwidth must be positive")
+            raise ValueError("Bandwidth must be positive")
+
+        temp_if = IF(
+            name=name,
+            frequency=temp_frequency,
+            bandwidth=temp_bandwidth,
+            polarizations=temp_polarizations,
+            isactive=temp_isactive,
+        )
+
+        self._check_overlap(temp_if, exclude_name=name)
+
+        params = {}
+        if frequency is not None:
+            params["frequency"] = frequency
+        if bandwidth is not None:
+            params["bandwidth"] = bandwidth
+        if polarizations is not None:
+            params["polarizations"] = temp_if.polarizations
+        if isactive is not None:
+            params["isactive"] = isactive
+
+        if params:
+            if_obj.set(params)
+            logger.info(f"Updated IF '{name}' in Frequencies with params: {params}")
+        else:
+            logger.debug(f"No parameters to update for IF '{name}' in Frequencies")
 
     def set_items(self, items: Dict[str, IF]) -> None:
         """Set or replace all IF objects in the collection.
