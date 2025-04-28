@@ -1,11 +1,12 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu
-from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression
+from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
+import pastrocore.gui.rc_icons
 import uuid
 
 class ObservationTab(QWidget):
@@ -19,7 +20,7 @@ class ObservationTab(QWidget):
         self.observation = observation
         self.manipulator = manipulator
         self.parent_widget = parent
-        self._updating = False  # Флаг для предотвращения рекурсивных обновлений
+        self._updating = False
         self.setup_tables()
         self.setup_connections()
         self.update_tab()
@@ -36,6 +37,8 @@ class ObservationTab(QWidget):
         self.ui.frequencies_table.setModel(self.freq_proxy_model)
         self.ui.frequencies_table.setAlternatingRowColors(True)
         self.ui.frequencies_table.setSortingEnabled(True)
+        self.ui.frequencies_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.frequencies_table.customContextMenuRequested.connect(self.show_freqs_context_menu)
         self.ui.frequencies_table.verticalHeader().setVisible(False)
 
         # Sources table
@@ -48,6 +51,8 @@ class ObservationTab(QWidget):
         self.ui.sources_table.setModel(self.sources_proxy_model)
         self.ui.sources_table.setAlternatingRowColors(True)
         self.ui.sources_table.setSortingEnabled(True)
+        self.ui.sources_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.sources_table.customContextMenuRequested.connect(self.show_sources_context_menu)
         self.ui.sources_table.verticalHeader().setVisible(False)
 
         # Telescopes table
@@ -60,6 +65,8 @@ class ObservationTab(QWidget):
         self.ui.telescopes_table.setModel(self.telescopes_proxy_model)
         self.ui.telescopes_table.setAlternatingRowColors(True)
         self.ui.telescopes_table.setSortingEnabled(True)
+        self.ui.telescopes_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.telescopes_table.customContextMenuRequested.connect(self.show_telescopes_context_menu)
         self.ui.telescopes_table.verticalHeader().setVisible(False)
 
         # Scans table
@@ -72,6 +79,8 @@ class ObservationTab(QWidget):
         self.ui.scans_table.setModel(self.scans_proxy_model)
         self.ui.scans_table.setAlternatingRowColors(True)
         self.ui.scans_table.setSortingEnabled(True)
+        self.ui.scans_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.scans_table.customContextMenuRequested.connect(self.show_scans_context_menu)
         self.ui.scans_table.verticalHeader().setVisible(False)
 
         # Disable editing in obs_name_edit by default
@@ -132,7 +141,6 @@ class ObservationTab(QWidget):
             self.ui.obs_name_edit.setReadOnly(True)
             return
         try:
-            # Обновляем только code
             request = {
                 "operation": "configure",
                 "obj": self.observation,
@@ -176,6 +184,288 @@ class ObservationTab(QWidget):
         except Exception as e:
             logger.error(f"Exception while changing observation type: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to change observation type: {str(e)}")
+
+    def show_freqs_context_menu(self, position: QPoint):
+        """Show context menu for the frequencies table."""
+        index = self.ui.frequencies_table.indexAt(position)
+        menu = QMenu(self)
+        add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Frequency")
+        add_action.triggered.connect(self.add_frequency)
+        
+        if index.isValid():
+            source_index = self.freq_proxy_model.mapToSource(index)
+            freq_name = self.freq_model.item(source_index.row(), 0).text().replace(" Hz", "")
+            remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Frequency")
+            edit_action = menu.addAction(QIcon(":/icons/edit_icon.svg"), "Edit Frequency")
+            remove_action.triggered.connect(lambda: self.remove_frequency(freq_name))
+            edit_action.triggered.connect(lambda: self.edit_frequency(freq_name))
+        
+        menu.exec(self.ui.frequencies_table.viewport().mapToGlobal(position))
+
+    def show_sources_context_menu(self, position: QPoint):
+        """Show context menu for the sources table."""
+        index = self.ui.sources_table.indexAt(position)
+        menu = QMenu(self)
+        add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Source")
+        add_action.triggered.connect(self.add_source)
+        
+        if index.isValid():
+            source_index = self.sources_proxy_model.mapToSource(index)
+            source_name = self.sources_model.item(source_index.row(), 0).text()
+            remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Source")
+            edit_action = menu.addAction(QIcon(":/icons/edit_icon.svg"), "Edit Source")
+            remove_action.triggered.connect(lambda: self.remove_source(source_name))
+            edit_action.triggered.connect(lambda: self.edit_source(source_name))
+        
+        menu.exec(self.ui.sources_table.viewport().mapToGlobal(position))
+
+    def show_telescopes_context_menu(self, position: QPoint):
+        """Show context menu for the telescopes table."""
+        index = self.ui.telescopes_table.indexAt(position)
+        menu = QMenu(self)
+        add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Telescope")
+        add_action.triggered.connect(self.add_telescope)
+        
+        if index.isValid():
+            source_index = self.telescopes_proxy_model.mapToSource(index)
+            telescope_name = self.telescopes_model.item(source_index.row(), 0).text()
+            remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Telescope")
+            edit_action = menu.addAction(QIcon(":/icons/edit_icon.svg"), "Edit Telescope")
+            remove_action.triggered.connect(lambda: self.remove_telescope(telescope_name))
+            edit_action.triggered.connect(lambda: self.edit_telescope(telescope_name))
+        
+        menu.exec(self.ui.telescopes_table.viewport().mapToGlobal(position))
+
+    def show_scans_context_menu(self, position: QPoint):
+        """Show context menu for the scans table."""
+        index = self.ui.scans_table.indexAt(position)
+        menu = QMenu(self)
+        add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Scan")
+        add_action.triggered.connect(self.add_scan)
+        
+        if index.isValid():
+            source_index = self.scans_proxy_model.mapToSource(index)
+            scan_name = self.scans_model.item(source_index.row(), 0).text()
+            remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Scan")
+            edit_action = menu.addAction(QIcon(":/icons/edit_icon.svg"), "Edit Scan")
+            remove_action.triggered.connect(lambda: self.remove_scan(scan_name))
+            edit_action.triggered.connect(lambda: self.edit_scan(scan_name))
+        
+        menu.exec(self.ui.scans_table.viewport().mapToGlobal(position))
+
+    @Slot()
+    def add_frequency(self):
+        """Add a new frequency to the observation."""
+        try:
+            # Создаём уникальное имя для частоты
+            freq_name = f"freq_{uuid.uuid4().hex[:8]}"
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"add_item": {"name": freq_name, "band": 1.0e9}}  # Пример: 1 GHz
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
+                self.update_tab()
+                self.observation_updated.emit()
+            else:
+                logger.error(f"Failed to add frequency: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to add frequency: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while adding frequency: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(e)}")
+
+    @Slot(str)
+    def remove_frequency(self, freq_name: str):
+        """Remove a frequency from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"remove_item": freq_name}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Removed frequency '{freq_name}' from observation '{self.observation.code}'")
+                self.update_tab()
+                self.observation_updated.emit()
+            else:
+                logger.error(f"Failed to remove frequency: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to remove frequency: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while removing frequency: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to remove frequency: {str(e)}")
+
+    @Slot(str)
+    def edit_frequency(self, freq_name: str):
+        """Edit an existing frequency (placeholder for dialog or parent widget)."""
+        if self.parent_widget:
+            logger.info(f"Requesting edit for frequency '{freq_name}' in observation '{self.observation.code}'")
+            # Предполагаем, что родительский виджет имеет метод edit_frequency
+            self.parent_widget.edit_frequency(self.observation, freq_name)
+        else:
+            logger.warning("No parent widget to handle frequency edit")
+            QMessageBox.warning(self, "Warning", "Editing frequency is not implemented yet.")
+
+    @Slot()
+    def add_source(self):
+        """Add a new source to the observation."""
+        try:
+            source_name = f"source_{uuid.uuid4().hex[:8]}"
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_sources(),
+                "attributes": {"add_item": {"name": source_name}}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Added source '{source_name}' to observation '{self.observation.code}'")
+                self.update_tab()
+                self.observation_updated.emit()
+            else:
+                logger.error(f"Failed to add source: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to add source: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while adding source: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to add source: {str(e)}")
+
+    @Slot(str)
+    def remove_source(self, source_name: str):
+        """Remove a source from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_sources(),
+                "attributes": {"remove_item": source_name}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Removed source '{source_name}' from observation '{self.observation.code}'")
+                self.update_tab()
+                self.observation_updated.emit()
+            else:
+                logger.error(f"Failed to remove source: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to remove source: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while removing source: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to remove source: {str(e)}")
+
+    @Slot(str)
+    def edit_source(self, source_name: str):
+        """Edit an existing source (placeholder for dialog or parent widget)."""
+        if self.parent_widget:
+            logger.info(f"Requesting edit for source '{source_name}' in observation '{self.observation.code}'")
+            self.parent_widget.edit_source(self.observation, source_name)
+        else:
+            logger.warning("No parent widget to handle source edit")
+            QMessageBox.warning(self, "Warning", "Editing source is not implemented yet.")
+
+    @Slot()
+    def add_telescope(self):
+        """Add a new telescope to the observation."""
+        try:
+            telescope_name = f"telescope_{uuid.uuid4().hex[:8]}"
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"add_item": {"name": telescope_name}}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Added telescope '{telescope_name}' to observation '{self.observation.code}'")
+                self.update_tab()
+                self.observation_updated.emit()
+            else:
+                logger.error(f"Failed to add telescope: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while adding telescope: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
+
+    @Slot(str)
+    def remove_telescope(self, telescope_name: str):
+        """Remove a telescope from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"remove_item": telescope_name}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Removed telescope '{telescope_name}' from observation '{self.observation.code}'")
+                self.update_tab()
+                self.observation_updated.emit()
+            else:
+                logger.error(f"Failed to remove telescope: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to remove telescope: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while removing telescope: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to remove telescope: {str(e)}")
+
+    @Slot(str)
+    def edit_telescope(self, telescope_name: str):
+        """Edit an existing telescope (placeholder for dialog or parent widget)."""
+        if self.parent_widget:
+            logger.info(f"Requesting edit for telescope '{telescope_name}' in observation '{self.observation.code}'")
+            self.parent_widget.edit_telescope(self.observation, telescope_name)
+        else:
+            logger.warning("No parent widget to handle telescope edit")
+            QMessageBox.warning(self, "Warning", "Editing telescope is not implemented yet.")
+
+    @Slot()
+    def add_scan(self):
+        """Add a new scan to the observation."""
+        try:
+            scan_name = f"scan_{uuid.uuid4().hex[:8]}"
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_scans(),
+                "attributes": {"add_item": {"name": scan_name}}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Added scan '{scan_name}' to observation '{self.observation.code}'")
+                self.update_tab()
+                self.observation_updated.emit()
+            else:
+                logger.error(f"Failed to add scan: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to add scan: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while adding scan: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to add scan: {str(e)}")
+
+    @Slot(str)
+    def remove_scan(self, scan_name: str):
+        """Remove a scan from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_scans(),
+                "attributes": {"remove_item": scan_name}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Removed scan '{scan_name}' from observation '{self.observation.code}'")
+                self.update_tab()
+                self.observation_updated.emit()
+            else:
+                logger.error(f"Failed to remove scan: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to remove scan: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while removing scan: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to remove scan: {str(e)}")
+
+    @Slot(str)
+    def edit_scan(self, scan_name: str):
+        """Edit an existing scan (placeholder for dialog or parent widget)."""
+        if self.parent_widget:
+            logger.info(f"Requesting edit for scan '{scan_name}' in observation '{self.observation.code}'")
+            self.parent_widget.edit_scan(self.observation, scan_name)
+        else:
+            logger.warning("No parent widget to handle scan edit")
+            QMessageBox.warning(self, "Warning", "Editing scan is not implemented yet.")
 
     @Slot()
     def update_tab(self):
