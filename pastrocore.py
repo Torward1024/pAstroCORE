@@ -118,14 +118,14 @@ class PAstroCoreMainWindow(QMainWindow):
                 remove_action.triggered.connect(lambda: self.remove_observation(text))
                 edit_action.triggered.connect(lambda: self.edit_observation(text))
             else:
-                menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "Remove Observations")
-                menu.addAction(QIcon(":/icons/edit_project_icon.svg"), "Edit Observations")
+                remove_action = menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "Remove Observations")
+                remove_action.triggered.connect(lambda: self.remove_observations())
         else:
             return
 
         add_action.triggered.connect(self.add_observation)
         for action in menu.actions():
-            if action.text() not in ["Add Observation", "Remove Observation", "Edit Observation"]:
+            if action.text() not in ["Add Observation", "Remove Observation", "Remove Observations", "Edit Observation"]:
                 action.triggered.connect(lambda: QMessageBox.information(self, "Info", f"{action.text()} not implemented yet."))
 
         menu.exec(project_explorer.viewport().mapToGlobal(position))
@@ -197,6 +197,44 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Exception while removing observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove observation: {str(e)}")
+
+    @Slot(str)
+    def remove_observations(self):
+        """Remove all observations from the project via ScheduleManipulator."""
+        reply = QMessageBox.question(
+            self, "Confirm Delete",
+            f"Are you sure you want to delete all observations ?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            logger.info(f"Deletion of observations cancelled")
+            return
+
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {
+                    "clear": None
+                }
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All observations were removed from project '{self.project.get_name()}'")
+                self.project_updated.emit()
+                # Закрыть вкладки, если они открыты
+                tab_container = self.ui.tabContainer
+                for i in range(self.ui.tabContainer.count() - 1, -1, -1):
+                    widget = self.ui.tabContainer.widget(i)
+                    if widget.objectName() != "projectInfoTab":
+                        self.ui.tabContainer.removeTab(i)
+                QMessageBox.information(self, "Success", f"All observations removed successfully.")
+            else:
+                logger.error(f"Failed to remove observations: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to remove observation: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while removing observations: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to remove observations: {str(e)}")
 
     @Slot(str)
     def edit_observation(self, obs_code: str):
@@ -311,13 +349,10 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.info(f"Project opened with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
                 self.current_project_path = file_path
                 self.project_updated.emit()
-                # Очищаем все вкладки, кроме вкладки проекта
+                # Очищаем все вкладки, включая вкладку проекта
                 for i in range(self.ui.tabContainer.count() - 1, -1, -1):
-                    widget = self.ui.tabContainer.widget(i)
-                    if widget.objectName() != "projectInfoTab":
-                        self.ui.tabContainer.removeTab(i)
+                    self.ui.tabContainer.removeTab(i)
                 self.open_project_info_tab()
-                QMessageBox.information(self, "Open Project", f"Project {file_path} opened.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to open project: {e}")
             finally:
@@ -418,6 +453,7 @@ class PAstroCoreMainWindow(QMainWindow):
         project_tab.setObjectName("projectInfoTab")
         tab_container.addTab(project_tab, "Project")
         tab_container.setCurrentWidget(project_tab)
+        project_tab.update_tab()  # Обновляем вкладку сразу после создания
         # Убираем кнопку закрытия для новой вкладки проекта
         for i in range(tab_container.count()):
             if tab_container.widget(i).objectName() == "projectInfoTab":

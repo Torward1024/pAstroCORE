@@ -102,6 +102,11 @@ class Project(ABC):
         result = {"name": self.name, "items": self._items.to_dict()["items"]}
         logger.info(f"Retrieved project configuration for '{self.name}' with {len(self._items)} items")
         return result
+    
+    def clear(self) -> None:
+        "Clear all items from container."
+        self._items.clear()
+        logger.info(f"Removed from project '{self.name}' all {len(self._items)} items")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the project to a dictionary for serialization."""

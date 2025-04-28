@@ -1,0 +1,37 @@
+{
+    "name": "JUKA",
+    "items": {
+        "OBS_DEFAULT": {
+            "name": "OBS_DEFAULT",
+            "isactive": true,
+            "type": "Observation",
+            "code": "OBS_DEFAULT",
+            "observation_type": "VLBI",
+            "sources": {
+                "name": "srcs_9cbd519102f044d1b7cc07615e153c75",
+                "isactive": true,
+                "type": "Sources",
+                "items": {}
+            },
+            "telescopes": {
+                "name": "tlscs_dd2f74d642f74c8fb9000cf986927d2d",
+                "isactive": true,
+                "type": "Telescopes",
+                "items": {}
+            },
+            "frequencies": {
+                "name": "fqs_3e71b04e74be46f29fb7fdeb62b051f3",
+                "isactive": true,
+                "type": "Frequencies",
+                "items": {}
+            },
+            "scans": {
+                "name": "scans_67fa8f5c1a9542ba929323df0689f991",
+                "isactive": true,
+                "type": "Scans",
+                "items": {}
+            },
+            "calculated_data": {}
+        }
+    }
+}
