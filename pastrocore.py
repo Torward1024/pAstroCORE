@@ -3,7 +3,7 @@ import os
 import json
 from PySide6.QtWidgets import (
     QMainWindow, QApplication, QFileDialog, QMessageBox, QDialog,
-    QTreeView, QTabWidget, QWidget, QProgressDialog, QMenu, QInputDialog
+    QTreeView, QTabWidget, QTabBar, QWidget, QProgressDialog, QMenu, QInputDialog
 )
 from PySide6.QtCore import Qt, Signal, Slot, QEvent, QMetaObject, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
@@ -41,7 +41,21 @@ class PAstroCoreMainWindow(QMainWindow):
 
     def setup_ui(self):
         self.update_project_explorer()
+        # Удаляем вкладку Welcome, если она есть
+        for i in range(self.ui.tabContainer.count()):
+            if self.ui.tabContainer.widget(i).objectName() == "tabWelcome":
+                self.ui.tabContainer.removeTab(i)
+                break
+        # Открываем вкладку проекта сразу
         self.open_project_info_tab()
+        # Делаем вкладки закрываемыми
+        self.ui.tabContainer.setTabsClosable(True)
+        # Убираем кнопку закрытия для вкладки проекта
+        for i in range(self.ui.tabContainer.count()):
+            if self.ui.tabContainer.widget(i).objectName() == "projectInfoTab":
+                # Используем tabBar() для управления кнопками вкладок
+                self.ui.tabContainer.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
+        # Включаем контекстное меню для projectExplorer
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -63,6 +77,15 @@ class PAstroCoreMainWindow(QMainWindow):
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
         self.project_updated.connect(self.update_project_explorer)
+        # Подключаем сигнал закрытия вкладок
+        self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
+
+    def handle_tab_close(self, index):
+        """Handle closing of tabs, prevent closing of project tab."""
+        widget = self.ui.tabContainer.widget(index)
+        if widget.objectName() == "projectInfoTab":
+            return  # Не закрываем вкладку проекта
+        self.ui.tabContainer.removeTab(index)
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for Project Explorer."""
@@ -265,7 +288,12 @@ class PAstroCoreMainWindow(QMainWindow):
         logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
         self.current_project_path = None
         self.project_updated.emit()
-        self.ui.tabContainer.setCurrentWidget(self.ui.tabWelcome)
+        # Очищаем все вкладки, кроме вкладки проекта
+        for i in range(self.ui.tabContainer.count() - 1, -1, -1):
+            widget = self.ui.tabContainer.widget(i)
+            if widget.objectName() != "projectInfoTab":
+                self.ui.tabContainer.removeTab(i)
+        self.open_project_info_tab()
         QMessageBox.information(self, "New Project", "New project created.")
 
     @Slot()
@@ -285,6 +313,12 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.info(f"Project opened with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
                 self.current_project_path = file_path
                 self.project_updated.emit()
+                # Очищаем все вкладки, кроме вкладки проекта
+                for i in range(self.ui.tabContainer.count() - 1, -1, -1):
+                    widget = self.ui.tabContainer.widget(i)
+                    if widget.objectName() != "projectInfoTab":
+                        self.ui.tabContainer.removeTab(i)
+                self.open_project_info_tab()
                 QMessageBox.information(self, "Open Project", f"Project {file_path} opened.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to open project: {e}")
@@ -376,12 +410,24 @@ class PAstroCoreMainWindow(QMainWindow):
         for i in range(tab_container.count()):
             if tab_container.widget(i).objectName() == "projectInfoTab":
                 tab_container.setCurrentIndex(i)
+                # Обновляем вкладку проекта
+                widget = tab_container.widget(i)
+                widget.update_tab()
+                # Убираем кнопку закрытия для вкладки проекта
+                tab_container.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
                 return
         project_tab = ProjectInfoTab(self.project, self.manipulator, self)
         project_tab.setObjectName("projectInfoTab")
         tab_container.addTab(project_tab, "Project")
         tab_container.setCurrentWidget(project_tab)
+        # Убираем кнопку закрытия для новой вкладки проекта
+        for i in range(tab_container.count()):
+            if tab_container.widget(i).objectName() == "projectInfoTab":
+                tab_container.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
+                break
         project_tab.project_name_changed.connect(self.on_projectInfoTab_project_name_changed)
+        # Подключаем сигнал project_updated для обновления вкладки
+        self.project_updated.connect(project_tab.update_tab)
 
     @Slot(str)
     def on_projectInfoTab_project_name_changed(self, name: str):
@@ -395,15 +441,19 @@ class PAstroCoreMainWindow(QMainWindow):
             widget = tab_container.widget(i)
             if widget.objectName() == f"observationTab_{obs_code}":
                 tab_container.setCurrentIndex(i)
-                widget.setFocus()  # Установить фокус на вкладку
+                widget.setFocus()
+                # Обновляем вкладку наблюдения
+                widget.update_tab()
                 return
         observation = self.project.get_observation(obs_code)
         observation_tab = ObservationTab(observation, self.manipulator, self)
         observation_tab.setObjectName(f"observationTab_{obs_code}")
         tab_container.addTab(observation_tab, f"Observation: {obs_code}")
         tab_container.setCurrentWidget(observation_tab)
-        observation_tab.setFocus()  # Установить фокус на новую вкладку
+        observation_tab.setFocus()
         observation_tab.observation_updated.connect(self.on_observationTab_observation_updated)
+        # Подключаем сигнал project_updated для обновления вкладки
+        self.project_updated.connect(observation_tab.update_tab)
 
     @Slot()
     def on_observationTab_observation_updated(self):
@@ -415,16 +465,19 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     # Применение QSS
     app.setStyleSheet("""
+        QMainWindow {
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
         QMenuBar {
             background-color: #ffffff;
-            font-family: Arial;
-            color: #000000;
+            color: #333333;
+            padding: 4px;
         }
         QMenuBar::item {
             background: #ffffff;
             padding: 4px 8px;
-            color: #000000;
-            spacing: 4px;
+            color: #333333;
         }
         QMenuBar::item:selected {
             background: #0078d7;
@@ -433,24 +486,49 @@ if __name__ == "__main__":
         QMenu {
             background-color: #ffffff;
             border: 1px solid #d3d3d3;
-            font-family: Arial;
+            color: #333333;
         }
         QMenu::item {
             padding: 4px 24px 4px 8px;
             background: #ffffff;
-            color: #000000;
-            icon-size: 24px;
+            color: #333333;
         }
         QMenu::item:selected {
             background: #0078d7;
             color: #ffffff;
         }
-        QMenu::item:hover {
-            background: #e0e0e0;
-            color: #000000;
+        QTableView {
+            background-color: #ffffff;
+            border: 1px solid #d3d3d3;
+            gridline-color: #e0e0e0;
+            selection-background-color: #0078d7;
+            selection-color: #ffffff;
+            font-size: 12px;
         }
-        QMenu::icon {
-            padding-left: 4px;
+        QTableView::item {
+            padding: 4px;
+        }
+        QHeaderView::section {
+            background-color: #f0f0f0;
+            padding: 4px;
+            border: 1px solid #d3d3d3;
+        }
+        QLineEdit {
+            background-color: #ffffff;
+            border: 1px solid #d3d3d3;
+            padding: 4px;
+            border-radius: 4px;
+            color: #333333;
+        }
+        QLineEdit:focus {
+            border: 1px solid #0078d7;
+        }
+        QLineEdit[readOnly="true"] {
+            background-color: #f0f0f0;
+            border: 1px solid #e0e0e0;
+        }
+        QWidget {
+            color: #333333;
         }
     """)
     window = PAstroCoreMainWindow()

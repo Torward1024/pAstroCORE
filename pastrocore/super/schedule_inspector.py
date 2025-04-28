@@ -123,8 +123,8 @@ class ScheduleInspector(Super):
         if not applied:
             logger.warning("No valid getters applied for Frequencies inspection")
             raise ValueError("No valid getters applied")
-        final_result = len(freq_obj)
-        logger.info(f"Inspected Frequencies: count={final_result}, result={final_result}")
+        final_result = value['result']
+        logger.info(f"Inspected Frequencies: name={freq_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_source(self, source_obj: Source, attributes: Dict[str, Any]) -> Any:
@@ -143,8 +143,8 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Source inspection")
             raise ValueError("No valid getters applied")
         getter_args = attributes.get("get")
-        final_result = source_obj.get(getter_args) if getter_args else source_obj.get()
-        logger.info(f"Inspected Source: name='{source_obj.get('name')}', result={final_result}")
+        final_result = value['result'] #source_obj.get(getter_args) if getter_args else source_obj.get()
+        logger.info(f"Inspected Source: name='{source_obj.name}', result={final_result}")
         return final_result
 
     def _inspect_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> Any:
@@ -184,8 +184,8 @@ class ScheduleInspector(Super):
         if not applied:
             logger.warning("No valid getters applied for Sources inspection")
             raise ValueError("No valid getters applied")
-        final_result = len(sources_obj)
-        logger.info(f"Inspected Sources: count={final_result}, result={final_result}")
+        final_result = value['result']
+        logger.info(f"Inspected Sources: name={sources_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_telescope(self, telescope_obj: Union[Telescope, SpaceTelescope], attributes: Dict[str, Any]) -> str:
@@ -204,8 +204,8 @@ class ScheduleInspector(Super):
         if not applied:
             logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
             raise ValueError("No valid getters applied")
-        final_result = telescope_obj.get_code()
-        logger.info(f"Inspected {obj_type.__name__}: code='{final_result}', result={final_result}")
+        final_result = value['result']
+        logger.info(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
         return final_result
 
     def _inspect_telescopes(self, telescopes_obj: Telescopes, attributes: Dict[str, Any]) -> Any:
@@ -245,8 +245,8 @@ class ScheduleInspector(Super):
         if not applied:
             logger.warning("No valid getters applied for Telescopes inspection")
             raise ValueError("No valid getters applied")
-        final_result = len(telescopes_obj)
-        logger.info(f"Inspected Telescopes: count={final_result}, result={final_result}")
+        final_result = value['result']
+        logger.info(f"Inspected Telescopes: name={telescopes_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> Any:
@@ -288,7 +288,7 @@ class ScheduleInspector(Super):
             raise ValueError("No valid getters applied")
         
         getter_args = attributes.get("get")
-        final_result = scan_obj.get(getter_args) if getter_args else scan_obj.get()
+        final_result = value['result'] #scan_obj.get(getter_args) if getter_args else scan_obj.get()
         logger.info(f"Inspected Scan: start={scan_obj.get('start').isot}, result={final_result}")
         return final_result
 
@@ -336,8 +336,8 @@ class ScheduleInspector(Super):
         if not applied:
             logger.warning("No valid getters applied for Scans inspection")
             raise ValueError("No valid getters applied")
-        final_result = len(scans_obj)
-        logger.info(f"Inspected Scans: count={final_result}, result={final_result}")
+        final_result = value['result']
+        logger.info(f"Inspected Scans: name={scan_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> str:
@@ -355,8 +355,8 @@ class ScheduleInspector(Super):
         if not applied:
             logger.warning("No valid getters applied for Observation inspection")
             raise ValueError("No valid getters applied")
-        final_result = obs_obj.get_observation_code()
-        logger.info(f"Inspected Observation: code='{final_result}', result={final_result}")
+        final_result = value['result']
+        logger.info(f"Inspected Observation: code='{obs_obj.get_observation_code()}', result={final_result}")
         return final_result
 
     def _inspect_scheduleproject(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Any:
