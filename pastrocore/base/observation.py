@@ -10,6 +10,7 @@ from astropy.time import Time
 from typing import Optional, Dict, Any
 import astropy.units as u
 import numpy as np
+import uuid
 
 class Observation(BaseEntity):
     """Base class representing an astronomical observation with sources, telescopes, frequencies, and scans.
@@ -20,7 +21,7 @@ class Observation(BaseEntity):
     scans and their referenced entities, updating names and availability as entities are modified.
 
     Attributes:
-        observation_code (str): Unique identifier for the observation.
+        code (str): Unique identifier for the observation.
         observation_type (str): Type of observation, either 'VLBI' or 'SINGLE_DISH'.
         sources (Sources): Collection of source objects observed.
         telescopes (Telescopes): Collection of telescope objects used.
@@ -38,13 +39,13 @@ class Observation(BaseEntity):
     scans: Scans
     calculated_data: Dict[str, Any]
 
-    def __init__(self, name: str = "OBS_DEFAULT", code: str = None, sources: Sources = None,
+    def __init__(self, name: str, code: str = "OBS_DEFAULT", sources: Sources = None,
                  telescopes: Telescopes = None, frequencies: Frequencies = None,
                  scans: Scans = None, observation_type: str = "VLBI", 
                  calculated_data: Dict[str, Any] = None, isactive: bool = True):
         """Initialize an Observation with code, entities, type, calculated data, and active status."""
-        if code is None:
-            code = name
+        if name is None:
+            name = f"obs_{uuid.uuid4().hex[:32]}"
         if observation_type not in ("VLBI", "SINGLE_DISH"):
             logger.error(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
             raise ValueError(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
@@ -145,24 +146,24 @@ class Observation(BaseEntity):
 
         observation_type = self.get("observation_type")
         if observation_type not in ["VLBI", "SINGLE_DISH"]:
-            logger.error(f"Invalid observation type: {observation_type}. Must be 'VLBI' or 'SINGLE_DISH'")
+            logger.warning(f"Invalid observation type: {observation_type}. Must be 'VLBI' or 'SINGLE_DISH'")
             return False
 
         if not self.sources.get_active_items():
-            logger.error("No active sources defined in observation")
-            return False
+            logger.warning("No active sources defined in observation")
+            return True
 
         if not self.telescopes.get_active_items():
-            logger.error("No active telescopes defined in observation")
+            logger.warning("No active telescopes defined in observation")
             return False
 
         if not self.frequencies.get_active_items():
-            logger.error("No active frequencies defined in observation")
-            return False
+            logger.warning("No active frequencies defined in observation")
+            return True
 
         if not self.scans.get_active_scans(self):
-            logger.error("No active scans defined in observation")
-            return False
+            logger.warning("No active scans defined in observation")
+            return True
 
         active_scans = sorted(self.scans.get_active_scans(self), key=lambda x: x.get_start())
         telescope_scans = {}
@@ -264,7 +265,6 @@ class Observation(BaseEntity):
                         scan.set({original_attr: current_names[:]})
                     scan.set({attr: updated_names})
                 elif is_active and name in original_names:
-                    # Проверяем, есть ли активный объект с нужным именем
                     for entity in entities:
                         if entity.name == name and entity.isactive:
                             scan.set({attr: sorted(list(set(current_names + [name])))})
@@ -295,6 +295,7 @@ class Observation(BaseEntity):
         """Create an Observation object from a dictionary."""
         kwargs = {
             "name": data["name"],
+            "code": data["code"],
             "observation_type": data["observation_type"],
             "sources": Sources.from_dict(data["sources"]),
             "telescopes": Telescopes.from_dict(data["telescopes"]),
@@ -309,7 +310,7 @@ class Observation(BaseEntity):
 
     def __repr__(self) -> str:
         """Return a string representation of the Observation object."""
-        return (f"Observation(code='{self.name}', sources={self.sources}, "
+        return (f"Observation(name='{self.name}', code='{self.code}', sources={self.sources}, "
                 f"telescopes={self.telescopes}, frequencies={self.frequencies}, "
                 f"scans={self.scans}, isactive={self.isactive}, "
                 f"observation_type={self.observation_type}, "

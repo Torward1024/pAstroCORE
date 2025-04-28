@@ -1,64 +1,32 @@
 {
-    "name": "JUKA",
+    "name": "BALAKALA",
     "items": {
-        "OBS_DEFAULT": {
-            "name": "OBS_DEFAULT",
+        "obs_49127aa525c74e3e9b40f6a6f08016ee": {
+            "name": "obs_49127aa525c74e3e9b40f6a6f08016ee",
             "isactive": true,
             "type": "Observation",
-            "code": "OBS_DEFAULT",
+            "code": "TUBOS2",
             "observation_type": "VLBI",
             "sources": {
-                "name": "srcs_9cbd519102f044d1b7cc07615e153c75",
+                "name": "srcs_f309e2b3c1b64213a78ded9cda4766c2",
                 "isactive": true,
                 "type": "Sources",
                 "items": {}
             },
             "telescopes": {
-                "name": "tlscs_dd2f74d642f74c8fb9000cf986927d2d",
+                "name": "tlscs_709e65828fa54063a303b826c3a33b9d",
                 "isactive": true,
                 "type": "Telescopes",
                 "items": {}
             },
             "frequencies": {
-                "name": "fqs_3e71b04e74be46f29fb7fdeb62b051f3",
+                "name": "fqs_b3eae63f0f92475cb3bd1a68a15c0065",
                 "isactive": true,
                 "type": "Frequencies",
                 "items": {}
             },
             "scans": {
-                "name": "scans_67fa8f5c1a9542ba929323df0689f991",
-                "isactive": true,
-                "type": "Scans",
-                "items": {}
-            },
-            "calculated_data": {}
-        },
-        "OBS_DEFAULT2": {
-            "name": "OBS_DEFAULT2",
-            "isactive": true,
-            "type": "Observation",
-            "code": "OBS_DEFAULT2",
-            "observation_type": "VLBI",
-            "sources": {
-                "name": "srcs_ed432a535ae449e18b8795506f7638be",
-                "isactive": true,
-                "type": "Sources",
-                "items": {}
-            },
-            "telescopes": {
-                "name": "tlscs_58a7b1cf42cb42f4890357047298b295",
-                "isactive": true,
-                "type": "Telescopes",
-                "items": {}
-            },
-            "frequencies": {
-                "name": "fqs_62626d7512244e9eacf2987d1aa18e5a",
-                "isactive": true,
-                "type": "Frequencies",
-                "items": {}
-            },
-            "scans": {
-                "name": "scans_fa78712f41274e3b92f41e916ef45846",
+                "name": "scans_242c6bb297b84ea5aab82c5c3ea79101",
                 "isactive": true,
                 "type": "Scans",
                 "items": {}

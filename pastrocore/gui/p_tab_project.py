@@ -21,7 +21,6 @@ class ProjectInfoTab(QWidget):
         self.parent_widget = parent  # Reference to PAstroCoreMainWindow
         self.setup_table()
         self.setup_connections()
-        self.update_tab()
 
     def setup_table(self):
         """Set up the observations table with appropriate columns."""
@@ -123,7 +122,16 @@ class ProjectInfoTab(QWidget):
             return
 
         # Create a set of current observation codes
-        current_codes = set(result.keys())
+        current_codes = set()
+        for obs in result.values():
+            code_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get_observation_code": None}
+            })
+            if code_response["status"]:
+                current_codes.add(code_response["result"])
+
         existing_codes = {self.model.item(i, 2).text() for i in range(self.model.rowCount()) if self.model.item(i, 2)}
 
         # Remove rows for observations that no longer exist
@@ -133,10 +141,22 @@ class ProjectInfoTab(QWidget):
                 self.model.removeRow(i)
 
         # Add or update rows for observations
-        for idx, (obs_code, obs) in enumerate(result.items(), 1):
+        idx = 1
+        for obs_name, obs in result.items():
             if not isinstance(obs, Observation):
-                logger.error(f"Invalid observation type for code '{obs_code}': {type(obs)}")
+                logger.error(f"Invalid observation type for name '{obs_name}': {type(obs)}")
                 continue
+
+            # Fetch observation code
+            code_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get_observation_code": None}
+            })
+            if not code_response["status"]:
+                logger.error(f"Failed to get code for observation with name '{obs_name}': {code_response.get('error', 'Unknown error')}")
+                continue
+            obs_code = code_response["result"]
 
             # Check if row exists
             row_idx = None
@@ -230,6 +250,7 @@ class ProjectInfoTab(QWidget):
             else:
                 for col, item in enumerate(row):
                     self.model.setItem(row_idx, col, item)
+            idx += 1
 
         # Adjust column widths
         self.ui.projectInfoTable.resizeColumnsToContents()
