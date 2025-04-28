@@ -269,7 +269,7 @@ class ObservationTab(QWidget):
         if dialog.exec() == QDialog.Accepted:
             try:
                 if_data = dialog.get_if_data()
-                freq_name = f"freq_{uuid.uuid4().hex[:8]}"
+                freq_name = f"freq_{uuid.uuid4().hex[:32]}"
                 # Используем метод create_if из Frequencies
                 request = {
                     "operation": "configure",
@@ -328,7 +328,7 @@ class ObservationTab(QWidget):
             freq_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.observation.get_frequencies(),
-                "attributes": {"get_item": freq_name}
+                "attributes": {"name": freq_name}
             })
             if not freq_response["status"]:
                 logger.error(f"Failed to retrieve frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
@@ -663,7 +663,6 @@ class ObservationTab(QWidget):
                             freq_value = freq_response["result"]
                             if isinstance(freq_value, (int, float)):
                                 frequency = freq_value
-                                QMessageBox.information(self, "Info", f"Frequency ok! {frequency}")
                             else:
                                 logger.warning(f"Unexpected frequency value type: {type(freq_value)} for freq '{name}'")
                                 frequency = "N/A"
@@ -675,7 +674,6 @@ class ObservationTab(QWidget):
                             "attributes": {"get": "isactive"}
                         })
                         is_active = is_active_response["status"] and bool(is_active_response["result"])
-                        QMessageBox.information(self, "Info", f"Active ok! {is_active}")
                         active_item = QStandardItem()
                         active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
                         active_item.setToolTip("Active" if is_active else "Inactive")
@@ -687,7 +685,7 @@ class ObservationTab(QWidget):
                             "attributes": {"get_frequency_wavelength": None}
                         })
                         wavelength = wavelength_response['result'] if wavelength_response["status"] else "N/A"
-                        QMessageBox.information(self, "Info", f"Wavelength ok! {wavelength}")
+
                         # Получаем полосу пропускания
                         bandwidth_response = self.manipulator.process_request({
                             "operation": "inspect",
@@ -699,7 +697,6 @@ class ObservationTab(QWidget):
                             bw_value = bandwidth_response["result"]
                             if isinstance(bw_value, (int, float)):
                                 bandwidth = bw_value
-                                QMessageBox.information(self, "Info", f"Bandwidth ok!")
                             else:
                                 logger.warning(f"Unexpected bandwidth value type: {type(bw_value)} for freq '{name}'")
                                 bandwidth = "N/A"
@@ -717,7 +714,7 @@ class ObservationTab(QWidget):
                             QStandardItem(str(idx)),
                             active_item,
                             QStandardItem(f"{frequency:.0f}" if isinstance(frequency, (int, float)) else str(frequency)),
-                            QStandardItem(wavelength),
+                            QStandardItem(f"{wavelength:.2f}" if isinstance(wavelength, (int, float)) else str(wavelength)),
                             QStandardItem(f"{bandwidth:.0f}" if isinstance(bandwidth, (int, float)) else str(bandwidth)),
                             QStandardItem(polarizations)
                         ]
