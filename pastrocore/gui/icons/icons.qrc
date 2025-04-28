@@ -4,6 +4,8 @@
         <file>add_icon.svg</file>
         <file>remove_icon.svg</file>
         <file>edit_icon.svg</file>
+	<file>active_icon.svg</file>
+	<file>inactive_icon.svg</file>
         <file>remove_observation_icon.svg</file>
         <file>edit_observation_icon.svg</file>
         <file>remove_project_icon.svg</file>

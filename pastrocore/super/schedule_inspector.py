@@ -54,7 +54,7 @@ class ScheduleInspector(Super):
             attributes (Dict[str, Any]): Dictionary of getter method names and arguments.
 
         Returns:
-            Any: Result of if_obj.get(getter_args) or if_obj.get().
+            Any: Result of the last applied method or if_obj.get(getter_args).
 
         Raises:
             ValueError: If no valid getters are applied.
@@ -62,6 +62,7 @@ class ScheduleInspector(Super):
         check_type(if_obj, IF, "IF object")
         valid_getters = self._get_methods(IF)
         applied = False
+        final_result = None
         
         for getter_name, getter_args in attributes.items():
             if getter_name == "get":
@@ -69,20 +70,25 @@ class ScheduleInspector(Super):
             value = self._validate_and_apply_method(if_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
             else:
                 logger.warning(f"Invalid getter '{getter_name}' for IF inspection: {value['error']}")
                 raise ValueError(value["error"])
         
         getter_args = attributes.get("get")
-        if not applied and not getter_args:
+        if getter_args is not None:
+            result = self._validate_and_apply_method(if_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for IF inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
+        if not applied:
             logger.warning("No valid getters applied for IF inspection")
             raise ValueError("No valid getters applied")
         
-        result = self._validate_and_apply_method(if_obj, "get", getter_args, valid_getters)
-        if not result["status"]:
-            raise ValueError(result["error"])
-        
-        final_result = result["result"]
         logger.info(f"Inspected IF: frequency={if_obj.get('frequency')} MHz, result={final_result}")
         return final_result
 
@@ -114,16 +120,36 @@ class ScheduleInspector(Super):
                 return result["result"]
             logger.warning(f"Failed to inspect nested IF in Frequencies: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
+        
         valid_getters = self._get_methods(Frequencies)
         applied = False
+        final_result = None
+        
         for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
             value = self._validate_and_apply_method(freq_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
+            else:
+                logger.warning(f"Invalid getter '{getter_name}' for Frequencies inspection: {value['error']}")
+                raise ValueError(value["error"])
+        
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(freq_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for Frequencies inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
         if not applied:
             logger.warning("No valid getters applied for Frequencies inspection")
             raise ValueError("No valid getters applied")
-        final_result = value['result']
+        
         logger.info(f"Inspected Frequencies: name={freq_obj.name}, result={final_result}")
         return final_result
 
@@ -132,18 +158,33 @@ class ScheduleInspector(Super):
         check_type(source_obj, Source, "Source object")
         valid_getters = self._get_methods(Source)
         applied = False
+        final_result = None
+        
         for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
             value = self._validate_and_apply_method(source_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
             else:
                 logger.warning(f"Invalid getter '{getter_name}' for Source inspection: {value['error']}")
                 raise ValueError(value["error"])
+        
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(source_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for Source inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
         if not applied:
             logger.warning("No valid getters applied for Source inspection")
             raise ValueError("No valid getters applied")
-        getter_args = attributes.get("get")
-        final_result = value['result'] #source_obj.get(getter_args) if getter_args else source_obj.get()
+        
         logger.info(f"Inspected Source: name='{source_obj.name}', result={final_result}")
         return final_result
 
@@ -175,16 +216,36 @@ class ScheduleInspector(Super):
                 return result["result"]
             logger.warning(f"Failed to inspect nested Source in Sources: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
+        
         valid_getters = self._get_methods(Sources)
         applied = False
+        final_result = None
+        
         for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
             value = self._validate_and_apply_method(sources_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
+            else:
+                logger.warning(f"Invalid getter '{getter_name}' for Sources inspection: {value['error']}")
+                raise ValueError(value["error"])
+        
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(sources_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for Sources inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
         if not applied:
             logger.warning("No valid getters applied for Sources inspection")
             raise ValueError("No valid getters applied")
-        final_result = value['result']
+        
         logger.info(f"Inspected Sources: name={sources_obj.name}, result={final_result}")
         return final_result
 
@@ -194,17 +255,33 @@ class ScheduleInspector(Super):
         obj_type = type(telescope_obj)
         valid_getters = self._get_methods(obj_type)
         applied = False
+        final_result = None
+        
         for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
             value = self._validate_and_apply_method(telescope_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
             else:
                 logger.warning(f"Invalid getter '{getter_name}' for {obj_type.__name__} inspection: {value['error']}")
                 raise ValueError(value["error"])
+        
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(telescope_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for {obj_type.__name__} inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
         if not applied:
             logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
             raise ValueError("No valid getters applied")
-        final_result = value['result']
+        
         logger.info(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
         return final_result
 
@@ -236,16 +313,36 @@ class ScheduleInspector(Super):
                 return result["result"]
             logger.warning(f"Failed to inspect nested Telescope in Telescopes: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
+        
         valid_getters = self._get_methods(Telescopes)
         applied = False
+        final_result = None
+        
         for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
             value = self._validate_and_apply_method(telescopes_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
+            else:
+                logger.warning(f"Invalid getter '{getter_name}' for Telescopes inspection: {value['error']}")
+                raise ValueError(value["error"])
+        
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(telescopes_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for Telescopes inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
         if not applied:
             logger.warning("No valid getters applied for Telescopes inspection")
             raise ValueError("No valid getters applied")
-        final_result = value['result']
+        
         logger.info(f"Inspected Telescopes: name={telescopes_obj.name}, result={final_result}")
         return final_result
 
@@ -254,6 +351,7 @@ class ScheduleInspector(Super):
         check_type(scan_obj, Scan, "Scan object")
         valid_getters = self._get_methods(Scan)
         applied = False
+        final_result = None
 
         for getter_name, getter_args in attributes.items():
             if getter_name in {"get_source", "get_telescopes", "get_frequencies", "check_telescope_availability"}:
@@ -277,18 +375,25 @@ class ScheduleInspector(Super):
             )
             if value["status"]:
                 applied = True
-                result = value["result"]
-                return result
+                final_result = value["result"]
             else:
                 logger.warning(f"Invalid getter '{getter_name}' for Scan inspection: {value['error']}")
                 raise ValueError(value["error"])
 
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(scan_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for Scan inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
         if not applied:
             logger.warning("No valid getters applied for Scan inspection")
             raise ValueError("No valid getters applied")
         
-        getter_args = attributes.get("get")
-        final_result = value['result'] #scan_obj.get(getter_args) if getter_args else scan_obj.get()
         logger.info(f"Inspected Scan: start={scan_obj.get('start').isot}, result={final_result}")
         return final_result
 
@@ -323,9 +428,14 @@ class ScheduleInspector(Super):
                 return result["result"]
             logger.warning(f"Failed to inspect nested Scan in Scans: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
+        
         valid_getters = self._get_methods(Scans)
         applied = False
+        final_result = None
+        
         for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
             if getter_name == "get_active_scans" and getter_args and "observation" in getter_args:
                 if not isinstance(getter_args["observation"], Observation):
                     logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
@@ -333,11 +443,26 @@ class ScheduleInspector(Super):
             value = self._validate_and_apply_method(scans_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
+            else:
+                logger.warning(f"Invalid getter '{getter_name}' for Scans inspection: {value['error']}")
+                raise ValueError(value["error"])
+        
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(scans_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for Scans inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
         if not applied:
             logger.warning("No valid getters applied for Scans inspection")
             raise ValueError("No valid getters applied")
-        final_result = value['result']
-        logger.info(f"Inspected Scans: name={scan_obj.name}, result={final_result}")
+        
+        logger.info(f"Inspected Scans: name={scans_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> str:
@@ -345,17 +470,33 @@ class ScheduleInspector(Super):
         check_type(obs_obj, Observation, "Observation object")
         valid_getters = self._get_methods(Observation)
         applied = False
+        final_result = None
+        
         for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
             value = self._validate_and_apply_method(obs_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
+                final_result = value["result"]
             else:
                 logger.warning(f"Invalid getter '{getter_name}' for Observation inspection: {value['error']}")
                 raise ValueError(value["error"])
+        
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(obs_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for Observation inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
         if not applied:
             logger.warning("No valid getters applied for Observation inspection")
             raise ValueError("No valid getters applied")
-        final_result = value['result']
+        
         logger.info(f"Inspected Observation: code='{obs_obj.get_observation_code()}', result={final_result}")
         return final_result
 
@@ -393,6 +534,8 @@ class ScheduleInspector(Super):
         final_result = None
 
         for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
             value = self._validate_and_apply_method(project_obj, getter_name, getter_args, valid_getters)
             if value["status"]:
                 applied = True
@@ -400,6 +543,16 @@ class ScheduleInspector(Super):
             else:
                 logger.warning(f"Invalid getter '{getter_name}' for ScheduleProject inspection: {value['error']}")
                 raise ValueError(value["error"])
+
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(project_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for ScheduleProject inspection: {result['error']}")
+                raise ValueError(result["error"])
 
         if not applied:
             logger.warning("No valid getters applied for ScheduleProject inspection")
