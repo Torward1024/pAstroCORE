@@ -7,6 +7,7 @@ from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 
+
 class ProjectInfoTab(QWidget):
     """Widget for displaying and editing project information in a tab."""
     project_name_changed = Signal(str)
@@ -26,7 +27,7 @@ class ProjectInfoTab(QWidget):
         """Set up the observations table with appropriate columns."""
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
-            "№", "Active", "Code", "Frequencies", "Start Time",
+            "№", "Active", "Code", "Type", "Frequencies", "Start Time",
             "Duration", "Sources", "Telescopes", "Scans"
         ])
         self.proxy_model = QSortFilterProxyModel()
@@ -38,6 +39,11 @@ class ProjectInfoTab(QWidget):
         self.ui.projectInfoTable.customContextMenuRequested.connect(self.show_context_menu)
         # Disable editing in lineEdit by default
         self.ui.lineEdit.setReadOnly(True)
+        # Optimize table appearance
+        self.ui.projectInfoTable.setAlternatingRowColors(True)
+        self.ui.projectInfoTable.setSortingEnabled(True)
+        self.ui.projectInfoTable.sortByColumn(0, Qt.AscendingOrder)
+        self.ui.projectInfoTable.verticalHeader().setVisible(False)
 
     def setup_connections(self):
         """Connect signals to slots."""
@@ -80,15 +86,14 @@ class ProjectInfoTab(QWidget):
         except Exception as e:
             logger.error(f"Exception while changing project name: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to change project name: {str(e)}")
-            self.update_tab()  # Revert to previous name
         finally:
             self.ui.lineEdit.setReadOnly(True)
 
     @Slot(str)
     def on_search_text_changed(self, text: str):
         """Handle search text change for filtering the table."""
-        reg_exp = QRegularExpression(text, Qt.CaseInsensitive, QRegularExpression.Wildcard)
-        self.proxy_model.setFilterRegExp(reg_exp)
+        reg_exp = QRegularExpression(text)
+        self.proxy_model.setFilterRegularExpression(reg_exp)
 
     @Slot()
     def update_tab(self):
@@ -99,7 +104,7 @@ class ProjectInfoTab(QWidget):
             "obj": self.project,
             "attributes": {"get_name": None}
         })
-        project_name = project_name_response["result"] if project_name_response["status"] else "Untitled Project"
+        project_name = project_name_response["result"] if project_name_response["status"] and isinstance(project_name_response["result"], str) else "Untitled Project"
         self.ui.lineEdit.setText(project_name)
 
         # Get current observations
@@ -119,7 +124,7 @@ class ProjectInfoTab(QWidget):
 
         # Create a set of current observation codes
         current_codes = set(result.keys())
-        existing_codes = {self.model.item(i, 2).text() for i in range(self.model.rowCount())}
+        existing_codes = {self.model.item(i, 2).text() for i in range(self.model.rowCount()) if self.model.item(i, 2)}
 
         # Remove rows for observations that no longer exist
         for i in range(self.model.rowCount() - 1, -1, -1):
@@ -129,116 +134,121 @@ class ProjectInfoTab(QWidget):
 
         # Add or update rows for observations
         for idx, (obs_code, obs) in enumerate(result.items(), 1):
-            if isinstance(obs, Observation):
-                # Check if row exists
-                row_idx = None
-                for i in range(self.model.rowCount()):
-                    if self.model.item(i, 2).text() == obs_code:
-                        row_idx = i
-                        break
-
-                # Fetch observation data via Manipulator
-                is_active_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": obs,
-                    "attributes": {"get": "isactive"}
-                })
-                active = "Active" if is_active_response["result"] else "Inactive"
-
-                frequencies_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": obs,
-                    "attributes": {"get_frequencies": None}
-                })
-                freqs = "N/A"
-                if frequencies_response["status"] and frequencies_response["result"]:
-                    bands_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": frequencies_response["result"],
-                        "attributes": {"get_bands": None}
-                    })
-                    if bands_response["status"] and bands_response["result"]:
-                        freqs = ", ".join([f"{f} Hz" for f in bands_response["result"]])
-
-                start_time_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": obs,
-                    "attributes": {"get_start_datetime": None}
-                })
-                start_time = str(start_time_response["result"]) if start_time_response["status"] and start_time_response["result"] else "N/A"
-
-                duration_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": obs,
-                    "attributes": {"get_start_datetime": None}
-                })
-                duration = str(duration_response["result"]) if duration_response["status"] and duration_response["result"] else "N/A"
-
-                sources_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": obs,
-                    "attributes": {"get_sources": None}
-                })
-                sources = str(len(sources_response["result"])) if sources_response["status"] and sources_response["result"] else "0"
-
-                telescopes_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": obs,
-                    "attributes": {"get_telescopes": None}
-                })
-                telescopes = str(len(telescopes_response["result"])) if telescopes_response["status"] and telescopes_response["result"] else "0"
-
-                scans_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": obs,
-                    "attributes": {"get_scans": None}
-                })
-                scans = str(len(scans_response["result"])) if scans_response["status"] and scans_response["result"] else "0"
-
-                row = [
-                    QStandardItem(str(idx)),
-                    QStandardItem(active),
-                    QStandardItem(obs_code),
-                    QStandardItem(freqs),
-                    QStandardItem(start_time),
-                    QStandardItem(duration),
-                    QStandardItem(sources),
-                    QStandardItem(telescopes),
-                    QStandardItem(scans)
-                ]
-                for item in row:
-                    item.setEditable(False)
-
-                if row_idx is None:
-                    self.model.appendRow(row)
-                else:
-                    for col, item in enumerate(row):
-                        self.model.setItem(row_idx, col, item)
-            else:
+            if not isinstance(obs, Observation):
                 logger.error(f"Invalid observation type for code '{obs_code}': {type(obs)}")
+                continue
+
+            # Check if row exists
+            row_idx = None
+            for i in range(self.model.rowCount()):
+                if self.model.item(i, 2).text() == obs_code:
+                    row_idx = i
+                    break
+
+            # Fetch observation data via Manipulator
+            is_active_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get": "isactive"}
+            })
+            active = "Active" if is_active_response["status"] and is_active_response["result"] else "Inactive"
+
+            type_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get": "observation_type"}
+            })
+            obs_type = type_response["result"] if type_response["status"] and type_response["result"] in ["VLBI", "SINGLE_DISH"] else "N/A"
+
+            frequencies_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get_frequencies": None}
+            })
+            freqs = "N/A"
+            if frequencies_response["status"] and frequencies_response["result"]:
+                bands_response = self.manipulator.process_request({
+                    "operation": "inspect",
+                    "obj": frequencies_response["result"],
+                    "attributes": {"get_bands": None}
+                })
+                if bands_response["status"] and isinstance(bands_response["result"], list):
+                    freqs = ", ".join([f"{f} Hz" for f in bands_response["result"]])
+
+            start_time_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get_start_datetime": None}
+            })
+            start_time = str(start_time_response["result"]) if start_time_response["status"] and start_time_response["result"] else "N/A"
+
+            duration_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get_duration": None}
+            })
+            duration = str(duration_response["result"]) if duration_response["status"] and duration_response["result"] else "N/A"
+
+            sources_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get_sources": None}
+            })
+            sources = str(len(sources_response["result"])) if sources_response["status"] and isinstance(sources_response["result"], list) else "0"
+
+            telescopes_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get_telescopes": None}
+            })
+            telescopes = str(len(telescopes_response["result"])) if telescopes_response["status"] and isinstance(telescopes_response["result"], list) else "0"
+
+            scans_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": obs,
+                "attributes": {"get_scans": None}
+            })
+            scans = str(len(scans_response["result"])) if scans_response["status"] and isinstance(scans_response["result"], list) else "0"
+
+            row = [
+                QStandardItem(str(idx)),
+                QStandardItem(active),
+                QStandardItem(obs_code),
+                QStandardItem(obs_type),
+                QStandardItem(freqs),
+                QStandardItem(start_time),
+                QStandardItem(duration),
+                QStandardItem(sources),
+                QStandardItem(telescopes),
+                QStandardItem(scans)
+            ]
+            for item in row:
+                item.setEditable(False)
+
+            if row_idx is None:
+                self.model.appendRow(row)
+            else:
+                for col, item in enumerate(row):
+                    self.model.setItem(row_idx, col, item)
 
         # Adjust column widths
-        for i in range(self.model.columnCount()):
-            self.ui.projectInfoTable.setColumnWidth(i, 120)
+        self.ui.projectInfoTable.resizeColumnsToContents()
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the observations table."""
         index = self.ui.projectInfoTable.indexAt(position)
-        if not index.isValid():
-            return
-
-        source_index = self.proxy_model.mapToSource(index)
-        obs_code = self.model.item(source_index.row(), 2).text()  # Observation code in third column
-
         menu = QMenu(self)
         add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
-        remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
-        edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
+
+        if index.isValid():
+            source_index = self.proxy_model.mapToSource(index)
+            obs_code = self.model.item(source_index.row(), 2).text()  # Observation code in third column
+            remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
+            edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
+            remove_action.triggered.connect(lambda: self.remove_observation(obs_code))
+            edit_action.triggered.connect(lambda: self.edit_observation(obs_code))
 
         add_action.triggered.connect(self.add_observation)
-        remove_action.triggered.connect(lambda: self.remove_observation(obs_code))
-        edit_action.triggered.connect(lambda: self.edit_observation(obs_code))
-
         menu.exec(self.ui.projectInfoTable.viewport().mapToGlobal(position))
 
     @Slot()
@@ -262,6 +272,7 @@ class ProjectInfoTab(QWidget):
     @Slot()
     def on_table_double_click(self, index):
         """Handle double-click on table to edit observation."""
-        source_index = self.proxy_model.mapToSource(index)
-        obs_code = self.model.item(source_index.row(), 2).text()
-        self.edit_observation(obs_code)
+        if index.isValid():
+            source_index = self.proxy_model.mapToSource(index)
+            obs_code = self.model.item(source_index.row(), 2).text()
+            self.edit_observation(obs_code)

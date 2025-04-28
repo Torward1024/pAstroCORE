@@ -79,6 +79,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.project_updated.connect(self.update_project_explorer)
         # Подключаем сигнал закрытия вкладок
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
+        self.project_updated.connect(self.update_all_tabs)
 
     def handle_tab_close(self, index):
         """Handle closing of tabs, prevent closing of project tab."""
@@ -457,6 +458,15 @@ class PAstroCoreMainWindow(QMainWindow):
         """Handle observation update signal."""
         logger.info("Observation updated")
         self.project_updated.emit()
+    
+    @Slot()
+    def update_all_tabs(self):
+        """Update all open tabs when project data changes."""
+        for i in range(self.ui.tabContainer.count()):
+            widget = self.ui.tabContainer.widget(i)
+            if hasattr(widget, 'update_tab'):
+                widget.update_tab()
+        logger.info("All tabs updated")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

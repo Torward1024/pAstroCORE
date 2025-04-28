@@ -124,6 +124,18 @@ class Observation(BaseEntity):
         start_time = min(scan.get_start() for scan in active_scans)
         logger.debug(f"Retrieved start datetime {start_time.isot} for observation '{self.name}'")
         return start_time
+    
+    def get_duration(self) -> int:
+        """Retrieve the total observation duration in seconds"""
+        active_scans = self.scans.get_active_scans(self)
+        if not active_scans:
+            logger.debug(f"No active scans found for observation '{self.name}'")
+            return None
+        start_time = self.get_start_datetime()
+        end_time = max(scan.get_start()+scan.duration for scan in active_scans)
+        duration = end_time - start_time
+        logger.debug(f"Retrieved duration={duration} for observation '{self.name}'")
+        return duration
 
     def validate(self) -> bool:
         """Validate the observation's data for consistency and completeness."""
