@@ -1,7 +1,8 @@
-from PySide6.QtWidgets import QWidget, QMessageBox, QMenu
+from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog
 from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
+from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
@@ -29,7 +30,7 @@ class ObservationTab(QWidget):
         """Set up tables for frequencies, sources, telescopes, and scans."""
         # Frequencies table
         self.freq_model = QStandardItemModel()
-        self.freq_model.setHorizontalHeaderLabels(["Band (Hz)"])
+        self.freq_model.setHorizontalHeaderLabels(["IF (MHz)"])
         self.freq_proxy_model = QSortFilterProxyModel()
         self.freq_proxy_model.setSourceModel(self.freq_model)
         self.freq_proxy_model.setFilterKeyColumn(-1)
@@ -40,6 +41,7 @@ class ObservationTab(QWidget):
         self.ui.frequencies_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.frequencies_table.customContextMenuRequested.connect(self.show_freqs_context_menu)
         self.ui.frequencies_table.verticalHeader().setVisible(False)
+        self.ui.frequencies_table.sortByColumn(0, Qt.AscendingOrder)
 
         # Sources table
         self.sources_model = QStandardItemModel()
@@ -255,26 +257,40 @@ class ObservationTab(QWidget):
 
     @Slot()
     def add_frequency(self):
-        """Add a new frequency to the observation."""
-        try:
-            # Создаём уникальное имя для частоты
-            freq_name = f"freq_{uuid.uuid4().hex[:8]}"
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"add_item": {"name": freq_name, "band": 1.0e9}}  # Пример: 1 GHz
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
-                self.update_tab()
-                self.observation_updated.emit()
-            else:
-                logger.error(f"Failed to add frequency: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to add frequency: {response.get('error', 'Unknown error')}")
-        except Exception as e:
-            logger.error(f"Exception while adding frequency: {str(e)}")
-            QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(e)}")
+        """Add a new frequency to the observation using IFEditorDialog."""
+        dialog = IFEditorDialog(parent=self)
+        if dialog.exec() == QDialog.Accepted:
+            try:
+                if_data = dialog.get_if_data()
+                freq_name = f"freq_{uuid.uuid4().hex[:8]}"
+                # Используем метод create_if из Frequencies
+                request = {
+                    "operation": "configure",
+                    "obj": self.observation.get_frequencies(),
+                    "attributes": {
+                        "create_if": {
+                            "name": freq_name,
+                            "frequency": if_data["frequency"],
+                            "bandwidth": if_data["bandwidth"],
+                            "polarizations": if_data["polarizations"],
+                            "isactive": if_data["isactive"]
+                        }
+                    }
+                }
+                response = self.manipulator.process_request(request)
+                if response["status"]:
+                    logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
+                    self.update_tab()
+                    self.observation_updated.emit()
+                else:
+                    logger.error(f"Failed to add frequency: {response.get('error', 'Unknown error')}")
+                    QMessageBox.critical(self, "Error", f"Failed to add frequency: {response.get('error', 'Unknown error')}")
+            except ValueError as ve:
+                logger.error(f"Validation error while adding frequency: {str(ve)}")
+                QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(ve)}")
+            except Exception as e:
+                logger.error(f"Exception while adding frequency: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(e)}")
 
     @Slot(str)
     def remove_frequency(self, freq_name: str):
@@ -299,14 +315,79 @@ class ObservationTab(QWidget):
 
     @Slot(str)
     def edit_frequency(self, freq_name: str):
-        """Edit an existing frequency (placeholder for dialog or parent widget)."""
-        if self.parent_widget:
-            logger.info(f"Requesting edit for frequency '{freq_name}' in observation '{self.observation.code}'")
-            # Предполагаем, что родительский виджет имеет метод edit_frequency
-            self.parent_widget.edit_frequency(self.observation, freq_name)
-        else:
-            logger.warning("No parent widget to handle frequency edit")
-            QMessageBox.warning(self, "Warning", "Editing frequency is not implemented yet.")
+        """Edit an existing frequency using IFEditorDialog."""
+        try:
+            # Получаем объект IF для редактирования
+            freq_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"get_item": freq_name}
+            })
+            if not freq_response["status"]:
+                logger.error(f"Failed to retrieve frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to retrieve frequency: {freq_response.get('error', 'Unknown error')}")
+                return
+            
+            if_obj = freq_response["result"]
+            dialog = IFEditorDialog(if_obj=if_obj, parent=self)
+            if dialog.exec() == QDialog.Accepted:
+                try:
+                    if_data = dialog.get_if_data()
+                    # Удаляем старый IF
+                    remove_request = {
+                        "operation": "configure",
+                        "obj": self.observation.get_frequencies(),
+                        "attributes": {"remove_item": freq_name}
+                    }
+                    remove_response = self.manipulator.process_request(remove_request)
+                    if not remove_response["status"]:
+                        logger.error(f"Failed to remove old frequency '{freq_name}': {remove_response.get('error', 'Unknown error')}")
+                        QMessageBox.critical(self, "Error", f"Failed to update frequency: {remove_response.get('error', 'Unknown error')}")
+                        return
+
+                    # Добавляем новый IF с обновлёнными данными
+                    add_request = {
+                        "operation": "configure",
+                        "obj": self.observation.get_frequencies(),
+                        "attributes": {
+                            "create_if": {
+                                "name": freq_name,
+                                "frequency": if_data["frequency"],
+                                "bandwidth": if_data["bandwidth"],
+                                "polarizations": if_data["polarizations"],
+                                "isactive": if_data["isactive"]
+                            }
+                        }
+                    }
+                    add_response = self.manipulator.process_request(add_request)
+                    if add_response["status"]:
+                        logger.info(f"Updated frequency '{freq_name}' in observation '{self.observation.code}'")
+                        self.update_tab()
+                        self.observation_updated.emit()
+                    else:
+                        logger.error(f"Failed to update frequency: {add_response.get('error', 'Unknown error')}")
+                        QMessageBox.critical(self, "Error", f"Failed to update frequency: {add_response.get('error', 'Unknown error')}")
+                except ValueError as ve:
+                    logger.error(f"Validation error while updating frequency: {str(ve)}")
+                    QMessageBox.critical(self, "Error", f"Failed to update frequency: {str(ve)}")
+                    # Попытка восстановить старый IF
+                    restore_request = {
+                        "operation": "configure",
+                        "obj": self.observation.get_frequencies(),
+                        "attributes": {
+                            "create_if": {
+                                "name": freq_name,
+                                "frequency": if_obj.frequency,
+                                "bandwidth": if_obj.bandwidth,
+                                "polarizations": if_obj.polarizations,
+                                "isactive": if_obj.isactive
+                            }
+                        }
+                    }
+                    self.manipulator.process_request(restore_request)
+        except Exception as e:
+            logger.error(f"Exception while editing frequency: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to edit frequency: {str(e)}")
 
     @Slot()
     def add_source(self):
@@ -554,16 +635,26 @@ class ObservationTab(QWidget):
             })
             self.freq_model.removeRows(0, self.freq_model.rowCount())
             if frequencies_response["status"] and frequencies_response["result"]:
-                bands_response = self.manipulator.process_request({
+                freqs = frequencies_response["result"]
+                # Получаем все IF объекты
+                items_response = self.manipulator.process_request({
                     "operation": "inspect",
-                    "obj": frequencies_response["result"],
-                    "attributes": {"get_bands": None}
+                    "obj": freqs,
+                    "attributes": {"get_all": None}
                 })
-                if bands_response["status"] and isinstance(bands_response["result"], list):
-                    for band in bands_response["result"]:
-                        item = QStandardItem(f"{band} Hz")
-                        item.setEditable(False)
-                        self.freq_model.appendRow([item])
+                if items_response["status"] and isinstance(items_response["result"], dict):
+                    for name, if_obj in items_response["result"].items():
+                        freq_response = self.manipulator.process_request({
+                            "operation": "inspect",
+                            "obj": if_obj,
+                            "attributes": {"get": "frequency"}
+                        })
+                        if freq_response["status"]:
+                            frequency = freq_response["result"]
+                            item = QStandardItem(f"{frequency * 1e6:.0f} Hz")  # Переводим MHz в Hz
+                            item.setData(name, Qt.UserRole)  # Сохраняем имя для идентификации
+                            item.setEditable(False)
+                            self.freq_model.appendRow([item])
 
             # Update sources table
             sources_response = self.manipulator.process_request({

@@ -25,8 +25,8 @@
     <item>
      <widget class="QTabWidget" name="tabContainer">
       <property name="styleSheet">
-       <string>QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
-               QTabBar::tab { background: #e0e0e0; padding: 8px; }
+       <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
+               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}
                QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
       </property>
       <property name="tabShape">
@@ -242,7 +242,7 @@ QMenu::icon {
   </action>
   <action name="actionOpenProject">
    <property name="icon">
-    <iconset resource="pastrocore_resources.qrc">
+    <iconset>
      <normaloff>:/open_project/icon_open.png</normaloff>:/open_project/icon_open.png</iconset>
    </property>
    <property name="text">

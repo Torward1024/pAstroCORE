@@ -136,7 +136,7 @@ QComboBox QAbstractItemView::item:hover {
     <widget class="QTabWidget" name="tabWidget">
      <property name="styleSheet">
       <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
-               QTabBar::tab { background: #e0e0e0; padding: 8px; }
+               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}
                QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
      </property>
      <property name="currentIndex">

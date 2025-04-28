@@ -157,6 +157,38 @@ class Frequencies(BaseContainer[IF]):
         """
         self._check_overlap(if_obj, exclude_name=None)
         super().add(if_obj)
+    
+    def create_if(
+        self,
+        name: str = None,
+        frequency: float = 1000.0,
+        bandwidth: float = 16.0,
+        polarizations: Optional[Union[str, List[str]]] = None,
+        isactive: bool = True,
+    ) -> None:
+        """Create and add a new IF object to the collection.
+
+        Args:
+            name (str, optional): Unique identifier for the IF. If None, a UUID-based name is generated.
+            frequency (float): The IF frequency in MHz. Default is 1000.0 MHz.
+            bandwidth (float): The bandwidth in MHz. Default is 16.0 MHz.
+            polarizations (Optional[Union[str, List[str]]]): Polarization codes. Default is None (empty list).
+            isactive (bool): Whether the IF is active. Default is True.
+
+        Raises:
+            ValueError: If frequency or bandwidth is not positive, or if frequency range overlaps with existing IFs.
+            ValueError: If polarizations are invalid or mix groups.
+            TypeError: If polarizations contain non-string elements.
+        """
+        new_if = IF(
+            name=name,
+            frequency=frequency,
+            bandwidth=bandwidth,
+            polarizations=polarizations,
+            isactive=isactive,
+        )
+        self.add(new_if)
+        logger.info(f"Created and added IF '{new_if.name}' to Frequencies")
 
     def set_items(self, items: Dict[str, IF]) -> None:
         """Set or replace all IF objects in the collection.

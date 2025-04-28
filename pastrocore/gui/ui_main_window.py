@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowQJvzyQ.ui'
+## Form generated from reading UI file 'main_windowVIeZwZ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(1119, 721)
         icon = QIcon()
-        icon.addFile(u"pastrocore/gui/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u":/main_icon/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.actionNewProject = QAction(MainWindow)
@@ -36,7 +36,8 @@ class Ui_MainWindow(object):
         self.actionNewProject.setIcon(icon1)
         self.actionOpenProject = QAction(MainWindow)
         self.actionOpenProject.setObjectName(u"actionOpenProject")
-        icon2 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentOpen))
+        icon2 = QIcon()
+        icon2.addFile(u":/open_project/icon_open.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.actionOpenProject.setIcon(icon2)
         self.actionSaveProject = QAction(MainWindow)
         self.actionSaveProject.setObjectName(u"actionSaveProject")
@@ -57,33 +58,34 @@ class Ui_MainWindow(object):
         self.actionProject_Explorer.setObjectName(u"actionProject_Explorer")
         self.actionProject_Explorer.setCheckable(True)
         self.actionProject_Explorer.setChecked(True)
-        icon6 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditFind))
-        self.actionProject_Explorer.setIcon(icon6)
         self.actionSource_Catalog_Manager = QAction(MainWindow)
         self.actionSource_Catalog_Manager.setObjectName(u"actionSource_Catalog_Manager")
-        icon7 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentPageSetup))
-        self.actionSource_Catalog_Manager.setIcon(icon7)
+        icon6 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentPageSetup))
+        self.actionSource_Catalog_Manager.setIcon(icon6)
         self.actionTelescope_Catalog_Manager = QAction(MainWindow)
         self.actionTelescope_Catalog_Manager.setObjectName(u"actionTelescope_Catalog_Manager")
-        self.actionTelescope_Catalog_Manager.setIcon(icon7)
+        self.actionTelescope_Catalog_Manager.setIcon(icon6)
         self.actionSave_Project_As = QAction(MainWindow)
         self.actionSave_Project_As.setObjectName(u"actionSave_Project_As")
-        icon8 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSaveAs))
-        self.actionSave_Project_As.setIcon(icon8)
+        icon7 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentSaveAs))
+        self.actionSave_Project_As.setIcon(icon7)
         self.actionImport_Observation = QAction(MainWindow)
         self.actionImport_Observation.setObjectName(u"actionImport_Observation")
-        icon9 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentRevert))
-        self.actionImport_Observation.setIcon(icon9)
+        icon8 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentRevert))
+        self.actionImport_Observation.setIcon(icon8)
         self.actionExport_Observation = QAction(MainWindow)
         self.actionExport_Observation.setObjectName(u"actionExport_Observation")
-        icon10 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditRedo))
-        self.actionExport_Observation.setIcon(icon10)
+        icon9 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditRedo))
+        self.actionExport_Observation.setIcon(icon9)
         self.mainCentralWidget = QWidget(MainWindow)
         self.mainCentralWidget.setObjectName(u"mainCentralWidget")
         self.mainLayout = QHBoxLayout(self.mainCentralWidget)
         self.mainLayout.setObjectName(u"mainLayout")
         self.tabContainer = QTabWidget(self.mainCentralWidget)
         self.tabContainer.setObjectName(u"tabContainer")
+        self.tabContainer.setStyleSheet(u"QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }\n"
+"               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}\n"
+"               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }")
         self.tabContainer.setTabShape(QTabWidget.TabShape.Rounded)
         self.tabContainer.setElideMode(Qt.TextElideMode.ElideNone)
         self.tabContainer.setTabsClosable(True)
@@ -236,9 +238,6 @@ class Ui_MainWindow(object):
         self.actionSave_Project_As.setText(QCoreApplication.translate("MainWindow", u"Save Project As...", None))
         self.actionImport_Observation.setText(QCoreApplication.translate("MainWindow", u"Import Observation", None))
         self.actionExport_Observation.setText(QCoreApplication.translate("MainWindow", u"Export Observation", None))
-        self.tabContainer.setStyleSheet(QCoreApplication.translate("MainWindow", u"QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }\n"
-"               QTabBar::tab { background: #e0e0e0; padding: 8px; }\n"
-"               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Select item from Project Explorer.", None))
         self.tabContainer.setTabText(self.tabContainer.indexOf(self.tabWelcome), QCoreApplication.translate("MainWindow", u"Welcome", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
@@ -247,4 +246,3 @@ class Ui_MainWindow(object):
         self.menuWindow.setTitle(QCoreApplication.translate("MainWindow", u"Window", None))
         self.projectExplorer.setStyleSheet(QCoreApplication.translate("MainWindow", u"border: 1px solid #d3d3d3; background-color: #ffffff;", None))
     # retranslateUi
-
