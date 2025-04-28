@@ -22,6 +22,9 @@ class ObservationTab(QWidget):
         self.manipulator = manipulator
         self.parent_widget = parent
         self._updating = False
+        # Инициализация иконок из ресурсов
+        self.active_icon = QIcon(":/icons/active_icon.svg")  # Зелёный кружок
+        self.inactive_icon = QIcon(":/icons/inactive_icon.svg")  # Лососевый кружок
         self.setup_tables()
         self.setup_connections()
         self.update_tab()
@@ -30,7 +33,9 @@ class ObservationTab(QWidget):
         """Set up tables for frequencies, sources, telescopes, and scans."""
         # Frequencies table
         self.freq_model = QStandardItemModel()
-        self.freq_model.setHorizontalHeaderLabels(["IF (MHz)"])
+        self.freq_model.setHorizontalHeaderLabels([
+            "#", " ", "IF (MHz)", "λ (cm)", "Bandwidth (MHz)", "Polarizations"
+        ])
         self.freq_proxy_model = QSortFilterProxyModel()
         self.freq_proxy_model.setSourceModel(self.freq_model)
         self.freq_proxy_model.setFilterKeyColumn(-1)
@@ -42,6 +47,8 @@ class ObservationTab(QWidget):
         self.ui.frequencies_table.customContextMenuRequested.connect(self.show_freqs_context_menu)
         self.ui.frequencies_table.verticalHeader().setVisible(False)
         self.ui.frequencies_table.sortByColumn(0, Qt.AscendingOrder)
+        # Устанавливаем ширину столбца Active для иконок
+        self.ui.frequencies_table.setColumnWidth(1, 30)
 
         # Sources table
         self.sources_model = QStandardItemModel()
@@ -196,7 +203,7 @@ class ObservationTab(QWidget):
         
         if index.isValid():
             source_index = self.freq_proxy_model.mapToSource(index)
-            freq_name = self.freq_model.item(source_index.row(), 0).text().replace(" Hz", "")
+            freq_name = self.freq_model.item(source_index.row(), 0).data(Qt.UserRole)
             remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Frequency")
             edit_action = menu.addAction(QIcon(":/icons/edit_icon.svg"), "Edit Frequency")
             remove_action.triggered.connect(lambda: self.remove_frequency(freq_name))
@@ -643,18 +650,82 @@ class ObservationTab(QWidget):
                     "attributes": {"get_all": None}
                 })
                 if items_response["status"] and isinstance(items_response["result"], dict):
+                    idx = 1
                     for name, if_obj in items_response["result"].items():
+                        # Получаем частоту
                         freq_response = self.manipulator.process_request({
                             "operation": "inspect",
                             "obj": if_obj,
                             "attributes": {"get": "frequency"}
                         })
+                        frequency = "N/A"
                         if freq_response["status"]:
-                            frequency = freq_response["result"]
-                            item = QStandardItem(f"{frequency * 1e6:.0f} Hz")  # Переводим MHz в Hz
-                            item.setData(name, Qt.UserRole)  # Сохраняем имя для идентификации
+                            freq_value = freq_response["result"]
+                            if isinstance(freq_value, (int, float)):
+                                frequency = freq_value
+                                QMessageBox.information(self, "Info", f"Frequency ok! {frequency}")
+                            else:
+                                logger.warning(f"Unexpected frequency value type: {type(freq_value)} for freq '{name}'")
+                                frequency = "N/A"
+
+                        # Получаем статус активности
+                        is_active_response = self.manipulator.process_request({
+                            "operation": "inspect",
+                            "obj": if_obj,
+                            "attributes": {"get": "isactive"}
+                        })
+                        is_active = is_active_response["status"] and bool(is_active_response["result"])
+                        QMessageBox.information(self, "Info", f"Active ok! {is_active}")
+                        active_item = QStandardItem()
+                        active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
+                        active_item.setToolTip("Active" if is_active else "Inactive")
+
+                        # Получаем длину волны
+                        wavelength_response = self.manipulator.process_request({
+                            "operation": "inspect",
+                            "obj": if_obj,
+                            "attributes": {"get_frequency_wavelength": None}
+                        })
+                        wavelength = wavelength_response['result'] if wavelength_response["status"] else "N/A"
+                        QMessageBox.information(self, "Info", f"Wavelength ok! {wavelength}")
+                        # Получаем полосу пропускания
+                        bandwidth_response = self.manipulator.process_request({
+                            "operation": "inspect",
+                            "obj": if_obj,
+                            "attributes": {"get": "bandwidth"}
+                        })
+                        bandwidth = "N/A"
+                        if bandwidth_response["status"]:
+                            bw_value = bandwidth_response["result"]
+                            if isinstance(bw_value, (int, float)):
+                                bandwidth = bw_value
+                                QMessageBox.information(self, "Info", f"Bandwidth ok!")
+                            else:
+                                logger.warning(f"Unexpected bandwidth value type: {type(bw_value)} for freq '{name}'")
+                                bandwidth = "N/A"
+
+                        # Получаем поляризации
+                        polarizations_response = self.manipulator.process_request({
+                            "operation": "inspect",
+                            "obj": if_obj,
+                            "attributes": {"get": "polarizations"}
+                        })
+                        polarizations = ", ".join(polarizations_response["result"]) if polarizations_response["status"] and polarizations_response["result"] else "N/A"
+
+                        # Создаём строку таблицы
+                        row = [
+                            QStandardItem(str(idx)),
+                            active_item,
+                            QStandardItem(f"{frequency:.0f}" if isinstance(frequency, (int, float)) else str(frequency)),
+                            QStandardItem(wavelength),
+                            QStandardItem(f"{bandwidth:.0f}" if isinstance(bandwidth, (int, float)) else str(bandwidth)),
+                            QStandardItem(polarizations)
+                        ]
+                        for item in row:
                             item.setEditable(False)
-                            self.freq_model.appendRow([item])
+                        row[0].setData(name, Qt.UserRole)  # Сохраняем имя для идентификации
+                        self.freq_model.appendRow(row)
+                        idx += 1
 
             # Update sources table
             sources_response = self.manipulator.process_request({

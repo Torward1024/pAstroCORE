@@ -585,7 +585,7 @@ if __name__ == "__main__":
         }
         QTableView::item {
             padding: 4px;
-        }
+        }                  
         QHeaderView::section {
             background-color: #f0f0f0;
             padding: 4px;

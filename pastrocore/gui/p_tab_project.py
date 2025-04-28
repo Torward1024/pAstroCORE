@@ -6,7 +6,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
-
+import pastrocore.gui.rc_icons  # Импорт ресурсов
 
 class ProjectInfoTab(QWidget):
     """Widget for displaying and editing project information in a tab."""
@@ -21,12 +21,15 @@ class ProjectInfoTab(QWidget):
         self.parent_widget = parent  # Reference to PAstroCoreMainWindow
         self.setup_table()
         self.setup_connections()
+        # Инициализация иконок из ресурсов
+        self.active_icon = QIcon(":/icons/active_icon.svg")  # Зелёный кружок
+        self.inactive_icon = QIcon(":/icons/inactive_icon.svg")  # Лососевый кружок
 
     def setup_table(self):
         """Set up the observations table with appropriate columns."""
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
-            "#", "Active", "Code", "Type", "Frequencies", "Start Time",
+            "#", " ", "Code", "Type", "Frequencies", "Start Time",
             "Duration", "Sources", "Telescopes", "Scans"
         ])
         self.proxy_model = QSortFilterProxyModel()
@@ -43,6 +46,8 @@ class ProjectInfoTab(QWidget):
         self.ui.projectInfoTable.setSortingEnabled(True)
         self.ui.projectInfoTable.sortByColumn(0, Qt.AscendingOrder)
         self.ui.projectInfoTable.verticalHeader().setVisible(False)
+        # Устанавливаем ширину столбца Active для иконок
+        self.ui.projectInfoTable.setColumnWidth(1, 30)
 
     def setup_connections(self):
         """Connect signals to slots."""
@@ -171,7 +176,10 @@ class ProjectInfoTab(QWidget):
                 "obj": obs,
                 "attributes": {"get": "isactive"}
             })
-            active = "Active" if is_active_response["status"] and is_active_response["result"] else "Inactive"
+            is_active = is_active_response["status"] and is_active_response["result"]
+            active_item = QStandardItem()
+            active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
+            active_item.setToolTip("Active" if is_active else "Inactive")
 
             type_response = self.manipulator.process_request({
                 "operation": "inspect",
@@ -232,7 +240,7 @@ class ProjectInfoTab(QWidget):
 
             row = [
                 QStandardItem(str(idx)),
-                QStandardItem(active),
+                active_item,
                 QStandardItem(obs_code),
                 QStandardItem(obs_type),
                 QStandardItem(freqs),
@@ -264,6 +272,32 @@ class ProjectInfoTab(QWidget):
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
             obs_code = self.model.item(source_index.row(), 2).text()  # Observation code in third column
+            # Проверяем текущее состояние наблюдения
+            obs_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.project,
+                "attributes": {"get_observation_by_code": obs_code}
+            })
+            if not obs_response["status"] or not obs_response["result"]:
+                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+                return
+            observation = obs_response["result"]
+            
+            is_active_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": observation,
+                "attributes": {"get": "isactive"}
+            })
+            is_active = is_active_response["status"] and is_active_response["result"]
+
+            # Добавляем пункты Activate/Deactivate в зависимости от текущего состояния
+            if is_active:
+                deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
+                deactivate_action.triggered.connect(lambda: self.deactivate_observation(obs_code))
+            else:
+                activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
+                activate_action.triggered.connect(lambda: self.activate_observation(obs_code))
+
             remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
             edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
             remove_action.triggered.connect(lambda: self.remove_observation(obs_code))
@@ -271,6 +305,74 @@ class ProjectInfoTab(QWidget):
 
         add_action.triggered.connect(self.add_observation)
         menu.exec(self.ui.projectInfoTable.viewport().mapToGlobal(position))
+
+    @Slot(str)
+    def activate_observation(self, obs_code: str):
+        """Activate the specified observation."""
+        try:
+            # Получаем объект наблюдения
+            obs_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.project,
+                "attributes": {"get_observation_by_code": obs_code}
+            })
+            if not obs_response["status"] or not obs_response["result"]:
+                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to activate observation: {obs_response.get('error', 'Unknown error')}")
+                return
+
+            observation = obs_response["result"]
+            # Активируем наблюдение
+            request = {
+                "operation": "configure",
+                "obj": observation,
+                "attributes": {"set": {"params": {"isactive": True}}}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Observation '{obs_code}' activated")
+                self.update_tab()  # Обновляем таблицу
+                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+            else:
+                logger.error(f"Failed to activate observation '{obs_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to activate observation: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while activating observation '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to activate observation: {str(e)}")
+
+    @Slot(str)
+    def deactivate_observation(self, obs_code: str):
+        """Deactivate the specified observation."""
+        try:
+            # Получаем объект наблюдения
+            obs_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.project,
+                "attributes": {"get_observation_by_code": obs_code}
+            })
+            if not obs_response["status"] or not obs_response["result"]:
+                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {obs_response.get('error', 'Unknown error')}")
+                return
+
+            observation = obs_response["result"]
+            # Деактивируем наблюдение
+            request = {
+                "operation": "configure",
+                "obj": observation,
+                "attributes": {"set": {"params": {"isactive": False}}}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Observation '{obs_code}' deactivated")
+                self.update_tab()  # Обновляем таблицу
+                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+            else:
+                logger.error(f"Failed to deactivate observation '{obs_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while deactivating observation '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {str(e)}")
 
     @Slot()
     def add_observation(self):
