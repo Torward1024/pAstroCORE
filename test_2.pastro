@@ -32,6 +32,38 @@
                 "items": {}
             },
             "calculated_data": {}
+        },
+        "obs_07e82e21c2774184b44462fe5ecf3bd3": {
+            "name": "obs_07e82e21c2774184b44462fe5ecf3bd3",
+            "isactive": true,
+            "type": "Observation",
+            "code": "RAKS17A",
+            "observation_type": "SINGLE_DISH",
+            "sources": {
+                "name": "srcs_c1fa05d09c744b22812c8a91c675bea9",
+                "isactive": true,
+                "type": "Sources",
+                "items": {}
+            },
+            "telescopes": {
+                "name": "tlscs_a301f713210b4d46b30080ed7b4624a0",
+                "isactive": true,
+                "type": "Telescopes",
+                "items": {}
+            },
+            "frequencies": {
+                "name": "fqs_9da1a764b93e4f0b9280d67eb0d4dd61",
+                "isactive": true,
+                "type": "Frequencies",
+                "items": {}
+            },
+            "scans": {
+                "name": "scans_1e0f4c5cf497402c8109e1a259e19740",
+                "isactive": true,
+                "type": "Scans",
+                "items": {}
+            },
+            "calculated_data": {}
         }
     }
 }

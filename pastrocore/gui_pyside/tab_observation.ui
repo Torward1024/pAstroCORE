@@ -21,6 +21,117 @@
      </property>
     </widget>
    </item>
+   <item row="1" column="4">
+    <widget class="QComboBox" name="combo_obs_type">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>150</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>150</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>150</width>
+       <height>23</height>
+      </size>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QComboBox {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
+    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
+}
+
+QComboBox:editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
+}
+
+QComboBox:editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
+}
+
+QComboBox:!editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:!editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
+}
+
+QComboBox:!editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
+}
+
+/* Стилизация кнопки со стрелкой */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: right;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
+}
+
+QComboBox::drop-down:hover {
+    background-color: #0078d7; /* Лёгкое выделение при наведении */
+}
+
+QComboBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    /* Стандартная стрелка Qt, если нет иконки */
+    /* Если есть иконка, раскомментируйте: */
+    /* image: url(:/icons/down_arrow.png); */
+}
+
+/* Стилизация выпадающего списка */
+QComboBox QAbstractItemView {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    selection-background-color: #0078d7;
+    selection-color: #ffffff;
+    padding: 1px;
+}
+
+QComboBox QAbstractItemView::item {
+    padding: 4px;
+    min-height: 20px;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: #0078d7;
+}</string>
+     </property>
+     <property name="currentText">
+      <string/>
+     </property>
+    </widget>
+   </item>
    <item row="3" column="0" colspan="5">
     <widget class="QTabWidget" name="tabWidget">
      <property name="styleSheet">
@@ -357,13 +468,6 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
      </property>
     </widget>
    </item>
-   <item row="2" column="0" colspan="3">
-    <widget class="QLabel" name="lbl_obs_info">
-     <property name="text">
-      <string>Start Time/Date: [get_start_time_date] Duration: [DURATION] sec.</string>
-     </property>
-    </widget>
-   </item>
    <item row="1" column="0">
     <widget class="QLabel" name="titleLabel">
      <property name="font">
@@ -381,31 +485,16 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
      </property>
     </widget>
    </item>
-   <item row="1" column="4">
-    <widget class="QComboBox" name="combo_obs_type">
-     <property name="minimumSize">
-      <size>
-       <width>66</width>
-       <height>0</height>
-      </size>
+   <item row="2" column="0" colspan="5">
+    <widget class="QLabel" name="lbl_obs_info">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>12</pointsize>
+      </font>
      </property>
-     <property name="maximumSize">
-      <size>
-       <width>66</width>
-       <height>16777215</height>
-      </size>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">QComboBox {
-    font-family: Arial;
-    font-size: 12pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}</string>
-     </property>
-     <property name="currentText">
-      <string/>
+     <property name="text">
+      <string>Start Time/Date: [get_start_time_date]; Duration: [DURATION] sec.</string>
      </property>
     </widget>
    </item>
