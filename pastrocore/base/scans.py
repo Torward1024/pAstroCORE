@@ -262,7 +262,7 @@ class Scans(BaseContainer[Scan]):
     def __init__(self, items: Dict[str, Scan] = None, name: str = None, isactive: bool = True, use_cache: bool = False):
         """Initialize a Scans object with an optional dictionary of Scan objects."""
         if name is None:
-            name = f"scans_{uuid.uuid4().hex[:8]}"
+            name = f"scans_{uuid.uuid4().hex[:32]}"
         super().__init__(items=items, name=name, isactive=isactive)
         self._key_cache = list(self._items.keys()) if items else []
         logger.info(f"Initialized Scans with name={name}, {len(self._items)} scans")
