@@ -470,7 +470,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 "operation": "configure",
                 "obj": self.project,
                 "attributes": {
-                    "set_item": {existing_name, imported_observation}
+                    "set_item": {"name": existing_name, "item": imported_observation}
                 }
             }
             response = self.manipulator.process_request(request)
@@ -485,14 +485,9 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.error(f"Exception while importing observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
 
-    @Slot()
-    def export_observation(self):
+    @Slot(str)
+    def export_observation(self, obs_code: str):
         """Export an observation by prompting for observation code."""
-        obs_code, ok = QInputDialog.getText(self, "Export Observation", "Enter observation code to export:")
-        if not ok or not obs_code.strip():
-            logger.info("Export observation cancelled: No code provided")
-            return
-
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Observation", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
             logger.info(f"Export observation '{obs_code}' cancelled: No file selected")

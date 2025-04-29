@@ -134,9 +134,6 @@ QMenu::icon {
     <addaction name="actionSaveProject"/>
     <addaction name="actionSave_Project_As"/>
     <addaction name="separator"/>
-    <addaction name="actionImport_Observation"/>
-    <addaction name="actionExport_Observation"/>
-    <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuOptions">
