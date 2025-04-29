@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>595</width>
+    <width>715</width>
     <height>1218</height>
    </rect>
   </property>
@@ -398,6 +398,9 @@
       </item>
       <item row="6" column="1">
        <widget class="QDateTimeEdit" name="epochEdit">
+        <property name="styleSheet">
+         <string notr="true"/>
+        </property>
         <property name="calendarPopup">
          <bool>true</bool>
         </property>

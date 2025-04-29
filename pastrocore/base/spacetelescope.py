@@ -6,8 +6,14 @@ from numpy.polynomial import chebyshev
 import re
 from typing import Optional, Dict, Tuple, Any, Union
 from astropy.time import Time
+from enum import Enum
 import os
 import uuid
+
+class MountType(Enum):
+    EQUATORIAL = "EQUA"
+    AZIMUTHAL = "AZIM"
+    SPACE = "NONE"
 
 class SpaceTelescope(Telescope):
     """Class representing a space-based telescope with orbital parameters and SEFD properties.
@@ -379,25 +385,30 @@ class SpaceTelescope(Telescope):
     def to_dict(self) -> dict:
         """Convert the SpaceTelescope object to a dictionary for serialization."""
         data = super().to_dict()
+        orbit_data = self.get_orbit()
         data.update({
             "orbit_file": self.orbit_file,
-            "pitch_range": self.pitch_range,
-            "yaw_range": self.yaw_range,
+            "pitch_range": list(self.pitch_range),
+            "yaw_range": list(self.yaw_range),
             "use_kep": self.use_kep,
             "kepler_elements": None if self.kepler_elements is None else {
                 "a": self.kepler_elements["a"],
                 "e": self.kepler_elements["e"],
-                "i": np.degrees(self.kepler_elements["i"]),
-                "raan": np.degrees(self.kepler_elements["raan"]),
-                "argp": np.degrees(self.kepler_elements["argp"]),
-                "nu": np.degrees(self.kepler_elements["nu"]),
+                "i": self.kepler_elements["i"],
+                "raan": self.kepler_elements["raan"],
+                "argp": self.kepler_elements["argp"],
+                "nu": self.kepler_elements["nu"],
                 "epoch": self.kepler_elements["epoch"].isot,
                 "mu": self.kepler_elements["mu"]
             },
-            "orbit_data": self.get_orbit(),
+            "orbit_data": None if orbit_data is None else {
+                "times": orbit_data["times"].tolist(),
+                "positions": orbit_data["positions"].tolist(),
+                "velocities": orbit_data["velocities"].tolist()
+            },
             "interpolation_method": self.interpolation_method,
             "interpolated_orbit": None if self._interpolated_orbit is None else {
-                "time_range": self._interpolated_orbit["time_range"],
+                "time_range": list(self._interpolated_orbit["time_range"]),
                 "times": self._interpolated_orbit["times"].tolist(),
                 "positions": self._interpolated_orbit["positions"].tolist(),
                 "velocities": self._interpolated_orbit["velocities"].tolist()
@@ -408,52 +419,84 @@ class SpaceTelescope(Telescope):
     @classmethod
     def from_dict(cls, data: dict) -> 'SpaceTelescope':
         """Create a SpaceTelescope object from a dictionary."""
-        kepler_elements = data.get("kepler_elements")
-        if kepler_elements:
-            kepler_elements = {
-                "a": kepler_elements["a"],
-                "e": kepler_elements["e"],
-                "i": np.radians(kepler_elements["i"]),
-                "raan": np.radians(kepler_elements["raan"]),
-                "argp": np.radians(kepler_elements["argp"]),
-                "nu": np.radians(kepler_elements["nu"]),
-                "epoch": Time(kepler_elements["epoch"], scale='utc'),
-                "mu": kepler_elements["mu"]
+        data = data.copy()
+        # Handle Telescope attributes first
+        for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
+            if table in data and isinstance(data[table], dict):
+                data[table] = {float(k): v for k, v in data[table].items()}
+        if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
+            data["elevation_range"] = tuple(data["elevation_range"])
+        if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
+            data["azimuth_range"] = tuple(data["azimuth_range"])
+        if "mount_type" in data and isinstance(data["mount_type"], str):
+            try:
+                data["mount_type"] = MountType(data["mount_type"].upper())
+            except ValueError:
+                raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
+
+        # Handle SpaceTelescope-specific attributes
+        if "pitch_range" in data and isinstance(data["pitch_range"], (list, tuple)):
+            data["pitch_range"] = tuple(data["pitch_range"])
+        if "yaw_range" in data and isinstance(data["yaw_range"], (list, tuple)):
+            data["yaw_range"] = tuple(data["yaw_range"])
+        if "kepler_elements" in data and data["kepler_elements"] is not None:
+            kepler = data["kepler_elements"]
+            data["kepler_elements"] = {
+                "a": kepler["a"],
+                "e": kepler["e"],
+                "i": kepler["i"],
+                "raan": kepler["raan"],
+                "argp": kepler["argp"],
+                "nu": kepler["nu"],
+                "epoch": Time(kepler["epoch"], scale='utc'),
+                "mu": kepler["mu"]
             }
-        orbit_data = data.get("orbit_data")
-        if orbit_data:
-            orbit_data = {
+        if "orbit_data" in data and data["orbit_data"] is not None:
+            orbit_data = data["orbit_data"]
+            data["orbit_data"] = {
                 "times": np.array(orbit_data["times"]),
                 "positions": np.array(orbit_data["positions"]),
                 "velocities": np.array(orbit_data["velocities"])
             }
-        interpolated_orbit = data.get("interpolated_orbit")
-        if interpolated_orbit:
-            interpolated_orbit = {
-                "time_range": interpolated_orbit["time_range"],
-                "times": np.array(interpolated_orbit["times"]),
-                "positions": np.array(interpolated_orbit["positions"]),
-                "velocities": np.array(interpolated_orbit["velocities"])
+        if "interpolated_orbit" in data and data["interpolated_orbit"] is not None:
+            interp_orbit = data["interpolated_orbit"]
+            data["interpolated_orbit"] = {
+                "time_range": tuple(interp_orbit["time_range"]),
+                "times": np.array(interp_orbit["times"]),
+                "positions": np.array(interp_orbit["positions"]),
+                "velocities": np.array(interp_orbit["velocities"])
             }
-        return cls(
-            code=data["code"],
-            name=data["name"],
-            orbit_file=data["orbit_file"],
-            diameter=data["diameter"],
-            sefd_table=data.get("sefd_table", {}),
-            pitch_range=tuple(data["pitch_range"]),
-            yaw_range=tuple(data["yaw_range"]),
-            isactive=data.get("isactive", True),
-            use_kep=data.get("use_kep", True),
-            kepler_elements=kepler_elements,
-            orbit_data=orbit_data,
-            interpolation_method=data.get("interpolation_method", "linear"),
-            surface_accuracy=data.get("surface_accuracy"),
-            surface_efficiency_table=data.get("surface_efficiency_table", {}),
-            effective_area_table=data.get("effective_area_table", {}),
-            system_temperature_table=data.get("system_temperature_table", {}),
-            _interpolated_orbit=interpolated_orbit
-        )
+
+        # Set defaults for required fields
+        data.setdefault("name", f"stlsc_{uuid.uuid4().hex[:32]}")
+        data.setdefault("code", data["code"])
+        data.setdefault("type", data["type"])
+        data.setdefault("orbit_file", "dummy_orbit.oem")
+        data.setdefault("diameter", 1.0)
+        data.setdefault("sefd_table", {})
+        data.setdefault("pitch_range", (-90.0, 90.0))
+        data.setdefault("yaw_range", (-180.0, 180.0))
+        data.setdefault("isactive", True)
+        data.setdefault("use_kep", True)
+        data.setdefault("kepler_elements", None)
+        data.setdefault("orbit_data", None)
+        data.setdefault("interpolation_method", "linear")
+        data.setdefault("surface_accuracy", None)
+        data.setdefault("surface_efficiency_table", {})
+        data.setdefault("effective_area_table", {})
+        data.setdefault("system_temperature_table", {})
+        data.setdefault("interpolated_orbit", None)
+        data.setdefault("x", 0.0)
+        data.setdefault("y", 0.0)
+        data.setdefault("z", 0.0)
+        data.setdefault("vx", 0.0)
+        data.setdefault("vy", 0.0)
+        data.setdefault("vz", 0.0)
+        data.setdefault("elevation_range", (0.0, 0.0))
+        data.setdefault("azimuth_range", (0.0, 0.0))
+        data.setdefault("mount_type", MountType.SPACE)
+
+        return cls(**data)
 
     def _solve_kepler(self, initial: float, e: float, tol: float = 1e-8, max_iter: int = 200) -> float:
         """Solve Kepler's equation iteratively to find the eccentric anomaly.

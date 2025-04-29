@@ -447,21 +447,14 @@ QComboBox QAbstractItemView::item:hover {
        </property>
        <item>
         <property name="text">
-         <string>EQUATORIAL</string>
+         <string>EQUA</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>AZIMUTHAL</string>
+         <string>AZIM</string>
         </property>
        </item>
-       <item>
-        <property name="text">
-         <string>SPACE</string>
-        </property>
-       </item>
-      </widget>
-     </item>
      <item row="13" column="0">
       <widget class="QLabel" name="labelIsActive">
        <property name="text">

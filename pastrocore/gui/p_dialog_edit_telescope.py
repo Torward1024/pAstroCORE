@@ -188,7 +188,7 @@ class TelescopeEditorDialog(QDialog):
         self.ui.elevationMaxEdit.setValue(self.telescope.elevation_range[1])
         self.ui.azimuthMinEdit.setValue(self.telescope.azimuth_range[0])
         self.ui.azimuthMaxEdit.setValue(self.telescope.azimuth_range[1])
-        self.ui.mountTypeCombo.setCurrentText(self.telescope.mount_type)
+        self.ui.mountTypeCombo.setCurrentText(self.telescope.mount_type.value)
         self.ui.isActiveCheckBox.setChecked(self.telescope.isactive)
         
         if self.telescope.sefd_table:

@@ -20,6 +20,7 @@ class Telescope(BaseEntity):
     """Class representing a ground-based telescope with ITRF coordinates, velocities, and SEFD properties."""
     code: str
     name: str
+    type: str
     x: float
     y: float
     z: float
@@ -36,7 +37,7 @@ class Telescope(BaseEntity):
     effective_area_table: Dict[float, float]
     system_temperature_table: Dict[float, float]
 
-    def __init__(self, *, code: str = "TEMP", name: str = "Temporary Telescope",
+    def __init__(self, *, code: str = "TEMP", name: str = "Temporary Telescope", type = "Telescope",
                  x: float = 0.0, y: float = 0.0, z: float = 0.0,
                  vx: float = 0.0, vy: float = 0.0, vz: float = 0.0,
                  diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,
@@ -74,7 +75,7 @@ class Telescope(BaseEntity):
         system_temperature_table = system_temperature_table if system_temperature_table is not None else {}
         
         super().__init__(name=name, isactive=isactive,
-                         code=code, x=x, y=y, z=z, vx=vx, vy=vy, vz=vz,
+                         code=code, type=type, x=x, y=y, z=z, vx=vx, vy=vy, vz=vz,
                          diameter=diameter, sefd_table=sefd_table,
                          elevation_range=elevation_range, azimuth_range=azimuth_range,
                          mount_type=mount_type, surface_accuracy=surface_accuracy,
@@ -280,17 +281,6 @@ class Telescope(BaseEntity):
         logger.debug(f"Calculated SEFD={sefd:.2f} Jy for frequency {frequency} MHz on '{self.code}'")
         return sefd
 
-    def to_dict(self) -> dict:
-        """Convert the Telescope object to a dictionary for serialization."""
-        data = super().to_dict()
-        data["mount_type"] = self.mount_type.value
-        return data
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Telescope':
-        """Create a Telescope object from a dictionary."""
-        return super().from_dict(data)
-
     def _check_sefd(self, frequency: float, sefd: float) -> bool:
         """Check if an SEFD value is a duplicate with a different value.
 
@@ -330,6 +320,65 @@ class Telescope(BaseEntity):
                            f"old={self.system_temperature_table[frequency]} K, new={tsys} K")
             return True
         return False
+    
+    def to_dict(self) -> dict:
+        """Convert the Telescope object to a dictionary for serialization."""
+        data = super().to_dict()
+        data.update({
+            "mount_type": self.mount_type.value,
+            "elevation_range": list(self.elevation_range),
+            "azimuth_range": list(self.azimuth_range),
+            # Convert float keys to strings for JSON compatibility
+            "sefd_table": {str(k): v for k, v in self.sefd_table.items()},
+            "surface_efficiency_table": {str(k): v for k, v in self.surface_efficiency_table.items()},
+            "effective_area_table": {str(k): v for k, v in self.effective_area_table.items()},
+            "system_temperature_table": {str(k): v for k, v in self.system_temperature_table.items()}
+        })
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'Telescope':
+        """Create a Telescope object from a dictionary."""
+        # Copy data to avoid modifying the input
+        data = data.copy()
+        # Convert string keys back to floats for dictionary attributes
+        for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
+            if table in data and isinstance(data[table], dict):
+                data[table] = {float(k): v for k, v in data[table].items()}
+        # Convert lists back to tuples
+        if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
+            data["elevation_range"] = tuple(data["elevation_range"])
+        if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
+            data["azimuth_range"] = tuple(data["azimuth_range"])
+        # Handle mount_type
+        if "mount_type" in data and isinstance(data["mount_type"], str):
+            try:
+                data["mount_type"] = MountType(data["mount_type"].upper())
+            except ValueError:
+                raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
+        
+        # Ensure required fields have defaults if missing
+        data.setdefault("name", f"tlsc_{uuid.uuid4().hex[:32]}")
+        data.setdefault("code", data["code"])
+        data.setdefault("type", data["type"])
+        data.setdefault("x", 0.0)
+        data.setdefault("y", 0.0)
+        data.setdefault("z", 0.0)
+        data.setdefault("vx", 0.0)
+        data.setdefault("vy", 0.0)
+        data.setdefault("vz", 0.0)
+        data.setdefault("diameter", 1.0)
+        data.setdefault("sefd_table", {})
+        data.setdefault("elevation_range", (15.0, 90.0))
+        data.setdefault("azimuth_range", (0.0, 360.0))
+        data.setdefault("mount_type", MountType.AZIMUTHAL)
+        data.setdefault("isactive", True)
+        data.setdefault("surface_accuracy", None)
+        data.setdefault("surface_efficiency_table", {})
+        data.setdefault("effective_area_table", {})
+        data.setdefault("system_temperature_table", {})
+
+        return cls(**data)
 
     def __repr__(self) -> str:
         """Return a string representation of the Telescope object."""

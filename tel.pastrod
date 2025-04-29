@@ -1,0 +1,27 @@
+{
+    "name": "Algopark",
+    "isactive": true,
+    "type": "Telescope",
+    "code": "AP",
+    "x": 918036.7274,
+    "y": 4346133.0783,
+    "z": 4561971.5475,
+    "vx": 0.0,
+    "vy": 0.0,
+    "vz": 0.0,
+    "diameter": 47.0,
+    "sefd_table": {},
+    "elevation_range": [
+        15.0,
+        90.0
+    ],
+    "azimuth_range": [
+        0.0,
+        360.0
+    ],
+    "mount_type": "AZIM",
+    "surface_accuracy": null,
+    "surface_efficiency_table": {},
+    "effective_area_table": {},
+    "system_temperature_table": {}
+}
