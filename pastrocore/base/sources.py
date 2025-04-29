@@ -280,6 +280,101 @@ class Sources(BaseContainer[Source]):
         )
         self.add(new_source)
         logger.info(f"Created and added source '{name}' to Sources")
+    
+    def set_source(
+        self,
+        name: str,
+        ra_h: Optional[float] = None,
+        ra_m: Optional[float] = None,
+        ra_s: Optional[float] = None,
+        de_d: Optional[float] = None,
+        de_m: Optional[float] = None,
+        de_s: Optional[float] = None,
+        name_J2000: Optional[str] = None,
+        alt_name: Optional[str] = None,
+        flux_table: Optional[Dict[float, float]] = None,
+        spectral_index: Optional[float] = None,
+        isactive: Optional[bool] = None,
+    ) -> None:
+        """Update an existing Source object in the collection with provided parameters.
+
+        Args:
+            name (str): Name of the source to update.
+            ra_h (Optional[float]): Right Ascension hours (0-23).
+            ra_m (Optional[float]): Right Ascension minutes (0-59).
+            ra_s (Optional[float]): Right Ascension seconds (0-59.999).
+            de_d (Optional[float]): Declination degrees (-90 to 90).
+            de_m (Optional[float]): Declination minutes (0-59).
+            de_s (Optional[float]): Declination seconds (0-59.999).
+            name_J2000 (Optional[str]): Source name in J2000 notation.
+            alt_name (Optional[str]): Alternative source name.
+            flux_table (Optional[Dict[float, float]]): Flux table mapping frequencies (MHz) to flux values (Jy).
+            spectral_index (Optional[float]): Spectral index for flux extrapolation.
+            isactive (Optional[bool]): Whether the source is active.
+
+        Raises:
+            KeyError: If the source with the given name does not exist.
+            ValueError: If provided parameters fail validation.
+        """
+        if name not in self._items:
+            raise KeyError(f"Source '{name}' not found in Sources")
+
+        # Get the existing source
+        existing_source = self._items[name]
+
+        # Prepare parameters, using existing values if not provided
+        params = {
+            "name": name,
+            "ra_h": ra_h if ra_h is not None else existing_source.ra_h,
+            "ra_m": ra_m if ra_m is not None else existing_source.ra_m,
+            "ra_s": ra_s if ra_s is not None else existing_source.ra_s,
+            "de_d": de_d if de_d is not None else existing_source.de_d,
+            "de_m": de_m if de_m is not None else existing_source.de_m,
+            "de_s": de_s if de_s is not None else existing_source.de_s,
+            "name_J2000": name_J2000 if name_J2000 is not None else existing_source.name_J2000,
+            "alt_name": alt_name if alt_name is not None else existing_source.alt_name,
+            "flux_table": flux_table if flux_table is not None else existing_source.flux_table,
+            "spectral_index": spectral_index if spectral_index is not None else existing_source.spectral_index,
+            "isactive": isactive if isactive is not None else existing_source.isactive,
+        }
+
+        # Create a new Source object to validate parameters
+        updated_source = Source(**params)
+
+        # Update the source in the collection
+        self._items[name] = updated_source
+        self._key_cache = list(self._items.keys())
+        logger.info(f"Updated source '{name}' in Sources with params: {params}")
+    
+    def activate_item(self, name: str) -> None:
+        """Activate a specific source by its name.
+
+        Triggers synchronization with a parent Observation if present.
+
+        Args:
+            name (str): The name of the source to activate.
+
+        Raises:
+            KeyError: If the name is not found in the collection.
+        """
+        super().activate_item(name)
+        if hasattr(self, '_parent') and self._parent:
+            self._parent._sync_scans_with_activation("sources", name, True)
+
+    def deactivate_item(self, name: str) -> None:
+        """Deactivate a specific source by its name.
+
+        Triggers synchronization with a parent Observation if present.
+
+        Args:
+            name (str): The name of the source to deactivate.
+
+        Raises:
+            KeyError: If the name is not found in the collection.
+        """
+        super().deactivate_item(name)
+        if hasattr(self, '_parent') and self._parent:
+            self._parent._sync_scans_with_activation("sources", name, False)
 
     @classmethod
     def from_dict(cls, data: dict) -> "Sources":
