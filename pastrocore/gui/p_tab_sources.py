@@ -202,7 +202,6 @@ class SourcesTab(QWidget):
                     logger.info(f"Added source '{source_name}' from catalog to observation '{self.observation.code}'")
                     self.update()
                     self.data_updated.emit()
-                    QMessageBox.information(self, "Success", f"Source '{source_name}' added successfully.")
                 else:
                     logger.error(f"Failed to add source from catalog: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add source: {response.get('error', 'Unknown error')}")

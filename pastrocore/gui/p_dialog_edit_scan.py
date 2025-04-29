@@ -1,7 +1,7 @@
 # pastrocore/gui/p_dialog_edit_scan.py
 from PySide6.QtWidgets import QDialog, QMessageBox, QListView, QStyledItemDelegate
 from PySide6.QtCore import Slot, Qt, QDateTime
-from PySide6.QtGui import QStandardItemModel, QStandardItem
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QIntValidator
 from .ui_dialog_edit_scan import Ui_ScanEditorDialog
 from pastrocore.base.observation import Observation
 from pastrocore.base.scans import Scan
@@ -55,7 +55,9 @@ class ScanEditorDialog(QDialog):
 
         # Initialize UI components
         self.ui.startTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        self.ui.durationEdit.setText("1.0")
+        self.ui.durationEdit.setText("1")
+        validator = QIntValidator(1, 999999, self)  # Только целые числа > 0
+        self.ui.durationEdit.setValidator(validator)
         self.ui.sourceCombo.addItem("None", None)
 
         # Populate combo boxes and lists
@@ -124,19 +126,19 @@ class ScanEditorDialog(QDialog):
         """Load existing scan data into the dialog."""
         # Load start time
         try:
-            logger.info(f"Parsing scan start time: {self.scan.start.isot}")
-            start_dt = datetime.strptime(self.scan.start.isot, "%Y-%m-%dT%H:%M:%S")
+            start_time = self.scan.start
+            start_dt = start_time.to_datetime()
             self.ui.startTimeEdit.setDateTime(QDateTime(start_dt))
             logger.info(f"Set start time to: {start_dt}")
         except Exception as e:
-            logger.error(f"Failed to parse start time '{self.scan.start.isot}': {str(e)}")
+            logger.error(f"Failed to load start time '{self.scan.start.isot}': {str(e)}")
             current_time = QDateTime.currentDateTime()
             self.ui.startTimeEdit.setDateTime(current_time)
             logger.info(f"Fallback to current time: {current_time.toString(Qt.ISODate)}")
 
         # Load duration
-        self.ui.durationEdit.setText(str(self.scan.duration))
-        logger.info(f"Set duration: {self.scan.duration}")
+        self.ui.durationEdit.setText(str(int(self.scan.duration)))
+        logger.info(f"Set duration: {int(self.scan.duration)}")
 
         # Load source
         source_name = self.scan.source_name
@@ -170,14 +172,21 @@ class ScanEditorDialog(QDialog):
         Returns:
             dict: Dictionary containing scan parameters.
         """
+        # Получаем start_time и округляем до целых секунд
         start_time = Time(self.ui.startTimeEdit.dateTime().toPython())
+        start_time = start_time.to_datetime().replace(microsecond=0)  # Убираем доли секунд
+        start_time = Time(start_time)  # Конвертируем обратно в Time
+        logger.info(f"Retrieved start time from dialog: {start_time.isot}")
+
+        # Получаем duration и конвертируем в целое число
         try:
             duration = float(self.ui.durationEdit.text())
+            #duration = int(duration)  # Преобразуем в целое число
             if duration <= 0:
                 raise ValueError("Duration must be positive")
         except ValueError as e:
             logger.error(f"Invalid duration: {str(e)}")
-            raise ValueError("Duration must be a positive number")
+            raise ValueError("Duration must be a positive integer")
 
         source_name = self.ui.sourceCombo.currentData()
         telescope_names = []

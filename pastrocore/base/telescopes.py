@@ -120,30 +120,30 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         logger.info(f"Created and added telescope '{code}'")
 
     def activate_item(self, name: str) -> None:
-        """Activate a specific telescope by its code.
+        """Activate a specific telescope by its name.
 
         Triggers synchronization with a parent Observation if present.
 
         Args:
-            name (str): The code of the telescope to activate.
+            name (str): The name of the telescope to activate.
 
         Raises:
-            KeyError: If the code is not found in the collection.
+            KeyError: If the name is not found in the collection.
         """
         super().activate_item(name)
         if hasattr(self, '_parent') and self._parent:
             self._parent._sync_scans_with_activation("telescopes", name, True)
 
     def deactivate_item(self, name: str) -> None:
-        """Deactivate a specific telescope by its code.
+        """Deactivate a specific telescope by its name.
 
         Triggers synchronization with a parent Observation if present.
 
         Args:
-            name (str): The code of the telescope to deactivate.
+            name (str): The name of the telescope to deactivate.
 
         Raises:
-            KeyError: If the code is not found in the collection.
+            KeyError: If the name is not found in the collection.
         """
         super().deactivate_item(name)
         if hasattr(self, '_parent') and self._parent:
