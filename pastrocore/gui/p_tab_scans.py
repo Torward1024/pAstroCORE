@@ -27,11 +27,11 @@ class ScansTab(QWidget):
         self.ui = Ui_observation_tab()
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search scans...")
-
+        
         # Setup table
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
-            "#", " ", "Scan ID", "Start Time", "Duration (s)", "Source", "Telescopes", "Frequencies", "Polarizations"
+            "#", " ", "Scan ID", "Start Time", "Duration (s)", "Source", "Telescopes", "Frequencies"
         ])
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -127,7 +127,7 @@ class ScansTab(QWidget):
             menu.addSeparator()
             edit_action = menu.addAction(QIcon(":/icons/edit_icon.svg"), "Edit Scan")
             remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Scan")
-            edit_action.triggered.connect(lambda: self.edit_scan(scan_name))
+            edit_action.triggered.connect(lambda: self.edit_scan(scan_obj))
             remove_action.triggered.connect(lambda: self.remove_scan(scan_name))
 
         menu.exec(self.ui.table.viewport().mapToGlobal(position))
@@ -135,15 +135,15 @@ class ScansTab(QWidget):
     @Slot()
     def add_scan(self):
         """Add a new scan to the observation using ScanEditorDialog."""
-        dialog = ScanEditorDialog(self.observation, self.manipulator, parent=self)
+        dialog = ScanEditorDialog(self.observation, self.manipulator, scan=None, parent=self)
         if dialog.exec() == QDialog.Accepted:
             self.update()
             self.data_updated.emit()
 
-    @Slot(str)
-    def edit_scan(self, scan_name: str):
+    @Slot(object)
+    def edit_scan(self, scan_obj: object):
         """Edit an existing scan using ScanEditorDialog."""
-        dialog = ScanEditorDialog(self.observation, self.manipulator, scan_name, parent=self)
+        dialog = ScanEditorDialog(self.observation, self.manipulator, scan=scan_obj, parent=self)
         if dialog.exec() == QDialog.Accepted:
             self.update()
             self.data_updated.emit()
@@ -394,9 +394,6 @@ class ScansTab(QWidget):
                     telescopes = ", ".join(attrs["telescope_names"]) if attrs["telescope_names"] else "None"
                     frequencies = ", ".join(attrs["frequency_names"]) if attrs["frequency_names"] else "None"
 
-                    # Polarizations (placeholder, as not stored directly in Scan)
-                    polarizations = "N/A"  # Could be derived from frequencies if needed
-
                     row = [
                         QStandardItem(str(idx)),
                         active_item,
@@ -405,8 +402,7 @@ class ScansTab(QWidget):
                         QStandardItem(duration),
                         QStandardItem(source_name),
                         QStandardItem(telescopes),
-                        QStandardItem(frequencies),
-                        QStandardItem(polarizations)
+                        QStandardItem(frequencies)
                     ]
                     for item in row:
                         item.setEditable(False)

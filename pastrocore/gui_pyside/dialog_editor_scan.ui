@@ -65,7 +65,21 @@
    <item row="5" column="2">
     <widget class="QPushButton" name="pushButton">
      <property name="styleSheet">
-      <string notr="true">background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
      </property>
      <property name="text">
       <string>ОК</string>
@@ -86,7 +100,7 @@
      <property name="styleSheet">
       <string notr="true">QComboBox {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -171,7 +185,21 @@ QComboBox QAbstractItemView::item:hover {
    <item row="5" column="3">
     <widget class="QPushButton" name="pushButton_2">
      <property name="styleSheet">
-      <string notr="true">background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
      </property>
      <property name="text">
       <string>Cancel</string>
@@ -185,14 +213,25 @@ QComboBox QAbstractItemView::item:hover {
     </widget>
    </item>
    <item row="1" column="1" colspan="3">
-    <widget class="QDateTimeEdit" name="startTimeEdit"/>
+    <widget class="QDateTimeEdit" name="startTimeEdit">
+     <property name="minimumDateTime">
+      <datetime>
+       <hour>0</hour>
+       <minute>0</minute>
+       <second>0</second>
+       <year>2000</year>
+       <month>1</month>
+       <day>1</day>
+      </datetime>
+     </property>
+    </widget>
    </item>
    <item row="2" column="1" colspan="3">
     <widget class="QLineEdit" name="durationEdit">
      <property name="styleSheet">
       <string notr="true">QLineEdit {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;

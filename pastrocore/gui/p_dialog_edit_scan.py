@@ -4,21 +4,23 @@ from PySide6.QtCore import Slot, Qt, QDateTime
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from .ui_dialog_edit_scan import Ui_ScanEditorDialog
 from pastrocore.base.observation import Observation
+from pastrocore.base.scans import Scan
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from common.utils.logging_setup import logger
 from astropy.time import Time
+from datetime import datetime
 import uuid
 
 class ScanEditorDialog(QDialog):
     """Dialog for creating or editing a scan in an observation."""
 
-    def __init__(self, observation: Observation, manipulator: ScheduleManipulator, scan_name: str = None, parent=None):
+    def __init__(self, observation: Observation, manipulator: ScheduleManipulator, scan: Scan = None, parent=None):
         """Initialize the ScanEditorDialog.
 
         Args:
             observation (Observation): The observation containing the scan.
             manipulator (ScheduleManipulator): Manipulator for data operations.
-            scan_name (str, optional): Name of the scan to edit. If None, creates a new scan.
+            scan (Scan, optional): The Scan object to edit. If None, creates a new scan.
             parent (QWidget, optional): Parent widget.
         """
         super().__init__(parent)
@@ -26,8 +28,8 @@ class ScanEditorDialog(QDialog):
         self.ui.setupUi(self)
         self.observation = observation
         self.manipulator = manipulator
-        self.scan_name = scan_name
-        self.is_new = scan_name is None
+        self.scan = scan
+        self.is_new = scan is None
 
         # Initialize models for QListView
         self.telescopes_model = QStandardItemModel()
@@ -49,10 +51,10 @@ class ScanEditorDialog(QDialog):
 
         # Connect model signal for debugging
         self.telescopes_model.itemChanged.connect(self.debug_item_changed)
+        self.frequencies_model.itemChanged.connect(self.debug_item_changed)
 
         # Initialize UI components
         self.ui.startTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        self.ui.startTimeEdit.setMinimumDateTime(QDateTime.currentDateTime())
         self.ui.durationEdit.setText("1.0")
         self.ui.sourceCombo.addItem("None", None)
 
@@ -65,7 +67,7 @@ class ScanEditorDialog(QDialog):
         if not self.is_new:
             self._load_scan_data()
 
-        logger.info(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan_name}'} in observation '{self.observation.code}'")
+        logger.info(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan.name}'} in observation '{self.observation.code}'")
 
     def debug_item_changed(self, item):
         """Debug signal for item changes in the model."""
@@ -120,60 +122,47 @@ class ScanEditorDialog(QDialog):
 
     def _load_scan_data(self):
         """Load existing scan data into the dialog."""
-        scan_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation.get_scans(),
-            "attributes": {"get": self.scan_name}
-        })
-        if not scan_response["status"] or not scan_response["result"]:
-            logger.error(f"Failed to load scan '{self.scan_name}': {scan_response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to load scan: {scan_response.get('error', 'Unknown error')}")
-            self.reject()
-            return
+        # Load start time
+        try:
+            logger.info(f"Parsing scan start time: {self.scan.start.isot}")
+            start_dt = datetime.strptime(self.scan.start.isot, "%Y-%m-%dT%H:%M:%S")
+            self.ui.startTimeEdit.setDateTime(QDateTime(start_dt))
+            logger.info(f"Set start time to: {start_dt}")
+        except Exception as e:
+            logger.error(f"Failed to parse start time '{self.scan.start.isot}': {str(e)}")
+            current_time = QDateTime.currentDateTime()
+            self.ui.startTimeEdit.setDateTime(current_time)
+            logger.info(f"Fallback to current time: {current_time.toString(Qt.ISODate)}")
 
-        scan = scan_response["result"]
-        attrs_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": scan,
-            "attributes": {
-                "get": ["start", "duration", "source_name", "telescope_names", "frequency_names"]
-            }
-        })
-        if attrs_response["status"]:
-            attrs = attrs_response["result"]
-            # Convert start time to QDateTime
-            try:
-                self.ui.startTimeEdit.setDateTime(QDateTime.fromString(attrs["start"].isot, Qt.ISODate))
-            except Exception as e:
-                logger.error(f"Failed to parse start time '{attrs['start'].isot}': {str(e)}")
-                QMessageBox.critical(self, "Error", f"Invalid start time format: {str(e)}")
-                self.reject()
-                return
+        # Load duration
+        self.ui.durationEdit.setText(str(self.scan.duration))
+        logger.info(f"Set duration: {self.scan.duration}")
 
-            self.ui.durationEdit.setText(str(attrs["duration"]))
-            source_name = attrs["source_name"]
-            if source_name:
-                index = self.ui.sourceCombo.findData(source_name)
-                if index >= 0:
-                    self.ui.sourceCombo.setCurrentIndex(index)
+        # Load source
+        source_name = self.scan.source_name
+        if source_name:
+            index = self.ui.sourceCombo.findData(source_name)
+            if index >= 0:
+                self.ui.sourceCombo.setCurrentIndex(index)
+                logger.info(f"Set source: {source_name}")
+            else:
+                logger.warning(f"Source '{source_name}' not found in combo box")
 
-            # Set checked telescopes
-            for row in range(self.telescopes_model.rowCount()):
-                item = self.telescopes_model.item(row)
-                if item.text() in attrs["telescope_names"]:
-                    item.setData(Qt.Checked, Qt.CheckStateRole)
-                    logger.info(f"Checked telescope: {item.text()}, state: {item.data(Qt.CheckStateRole)}")
+        # Set checked telescopes
+        for row in range(self.telescopes_model.rowCount()):
+            item = self.telescopes_model.item(row)
+            if item.text() in self.scan.telescope_names:
+                item.setData(Qt.Checked, Qt.CheckStateRole)
+                self.telescopes_model.dataChanged.emit(item.index(), item.index())
+                logger.info(f"Checked telescope: {item.text()}, state: {item.data(Qt.CheckStateRole)}")
 
-            # Set checked frequencies
-            for row in range(self.frequencies_model.rowCount()):
-                item = self.frequencies_model.item(row)
-                if item.text() in attrs["frequency_names"]:
-                    item.setData(Qt.Checked, Qt.CheckStateRole)
-                    logger.info(f"Checked frequency: {item.text()}, state: {item.data(Qt.CheckStateRole)}")
-        else:
-            logger.error(f"Failed to load scan attributes: {attrs_response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to load scan attributes: {attrs_response.get('error', 'Unknown error')}")
-            self.reject()
+        # Set checked frequencies
+        for row in range(self.frequencies_model.rowCount()):
+            item = self.frequencies_model.item(row)
+            if item.text() in self.scan.frequency_names:
+                item.setData(Qt.Checked, Qt.CheckStateRole)
+                self.frequencies_model.dataChanged.emit(item.index(), item.index())
+                logger.info(f"Checked frequency: {item.text()}, state: {item.data(Qt.CheckStateRole)}")
 
     def get_scan_data(self):
         """Retrieve scan data from the dialog.
@@ -197,7 +186,7 @@ class ScanEditorDialog(QDialog):
             item = self.telescopes_model.item(row)
             check_state = item.data(Qt.CheckStateRole)
             logger.info(f"Telescope {item.text()}: check_state={check_state}")
-            if check_state == 2:  # Qt.Checked is 2
+            if check_state == Qt.Checked:
                 telescope_names.append(item.text())
                 logger.info(f"Added telescope to selection: {item.text()}")
 
@@ -207,7 +196,7 @@ class ScanEditorDialog(QDialog):
             item = self.frequencies_model.item(row)
             check_state = item.data(Qt.CheckStateRole)
             logger.info(f"Frequency {item.text()}: check_state={check_state}")
-            if check_state == 2:  # Qt.Checked is 2
+            if check_state == Qt.Checked:
                 frequency_names.append(item.text())
                 logger.info(f"Added frequency to selection: {item.text()}")
 
@@ -219,7 +208,7 @@ class ScanEditorDialog(QDialog):
             raise ValueError("At least one frequency must be selected")
 
         scan_data = {
-            "name": self.scan_name if not self.is_new else f"scan_{uuid.uuid4().hex[:32]}",
+            "name": self.scan.name if not self.is_new else f"scan_{uuid.uuid4().hex[:32]}",
             "start": start_time,
             "duration": duration,
             "source_name": source_name,
@@ -232,27 +221,13 @@ class ScanEditorDialog(QDialog):
 
     @Slot()
     def accept(self):
-        """Handle OK button click, validate and save scan data."""
+        """Handle OK button click, validate scan data."""
         try:
-            scan_data = self.get_scan_data()
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_scans(),
-                "attributes": {
-                    "create_scan" if self.is_new else "set_item": scan_data
-                }
-            }
-            logger.info(f"Sending request to Manipulator: {request}")
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"{'Created' if self.is_new else 'Updated'} scan '{scan_data['name']}' in observation '{self.observation.code}'")
-                super().accept()
-            else:
-                logger.error(f"Failed to {'create' if self.is_new else 'update'} scan: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to {'create' if self.is_new else 'update'} scan: {response.get('error', 'Unknown error')}")
+            self.get_scan_data()
+            super().accept()
         except ValueError as ve:
             logger.error(f"Validation error: {str(ve)}")
             QMessageBox.critical(self, "Error", str(ve))
         except Exception as e:
-            logger.error(f"Exception while saving scan: {str(e)}")
-            QMessageBox.critical(self, "Error", f"Failed to save scan: {str(e)}")
+            logger.error(f"Exception while validating scan: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to validate scan: {str(e)}")
