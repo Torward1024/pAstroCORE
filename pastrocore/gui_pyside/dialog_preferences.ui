@@ -1,147 +1,226 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>ApplicationSettingsDialog</class>
- <widget class="QDialog" name="ApplicationSettingsDialog">
+ <class>PreferencesDialog</class>
+ <widget class="QDialog" name="PreferencesDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>500</width>
-    <height>200</height>
+    <width>600</width>
+    <height>152</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Application Settings</string>
+   <string>Dialog</string>
   </property>
   <property name="styleSheet">
-   <string>background-color: #ffffff; font-family: Arial;</string>
+   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <item>
-    <layout class="QFormLayout" name="formLayout">
-     <item row="0" column="0">
-      <widget class="QLabel" name="labelSourcesDir">
-       <property name="text">
-        <string>Sources Directory:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <layout class="QHBoxLayout" name="sourcesDirLayout">
-       <item>
-        <widget class="QLineEdit" name="sourcesDirEdit">
-         <property name="placeholderText">
-          <string>Enter or select sources directory</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="browseSourcesDirButton">
-         <property name="styleSheet">
-          <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-         </property>
-         <property name="text">
-          <string>Browse</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="labelTelescopesDir">
-       <property name="text">
-        <string>Telescopes Directory:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <layout class="QHBoxLayout" name="telescopesDirLayout">
-       <item>
-        <widget class="QLineEdit" name="telescopesDirEdit">
-         <property name="placeholderText">
-          <string>Enter or select telescopes directory</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="browseTelescopesDirButton">
-         <property name="styleSheet">
-          <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-         </property>
-         <property name="text">
-          <string>Browse</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="1" column="5">
+    <widget class="QLineEdit" name="telescopesCatalogPath">
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
      </property>
-     <property name="sizeHint">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
+    </widget>
    </item>
-   <item>
-    <layout class="QHBoxLayout" name="buttonLayout">
-     <item>
-      <spacer name="horizontalSpacerButtons">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="saveButton">
-       <property name="styleSheet">
-        <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Save</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="cancelButton">
-       <property name="styleSheet">
-        <string>background-color: #6c757d; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Cancel</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
+   <item row="4" column="7">
+    <widget class="QPushButton" name="cancelButton">
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+     </property>
+     <property name="text">
+      <string>Cancel</string>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lbl_telescopes_catalog_path">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>12</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Telescopes Catalog Path:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="7">
+    <widget class="QPushButton" name="openTelescopesCatalogButton">
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+     </property>
+     <property name="text">
+      <string>Open</string>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="6">
+    <widget class="QPushButton" name="okButton">
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+     </property>
+     <property name="text">
+      <string>Ok</string>
+     </property>
+     <property name="autoDefault">
+      <bool>true</bool>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="5">
+    <widget class="QLineEdit" name="sourcesCatalogPath">
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="7">
+    <widget class="QPushButton" name="openSourcesCatalogButton">
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+     </property>
+     <property name="text">
+      <string>Open</string>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lbl_sources_catalog_path">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>12</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Sources Catalog Path:</string>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>
  <resources/>
- <connections>
-  <connection>
-   <sender>saveButton</sender>
-   <signal>clicked()</signal>
-   <receiver>ApplicationSettingsDialog</receiver>
-   <slot>accept()</slot>
-  </connection>
-  <connection>
-   <sender>cancelButton</sender>
-   <signal>clicked()</signal>
-   <receiver>ApplicationSettingsDialog</receiver>
-   <slot>reject()</slot>
-  </connection>
- </connections>
+ <connections/>
 </ui>

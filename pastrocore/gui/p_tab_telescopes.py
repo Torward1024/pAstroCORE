@@ -1,31 +1,42 @@
-from PySide6.QtWidgets import QWidget, QMessageBox, QMenu
+from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QFileDialog, QDialog
 from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
+from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
+from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
+from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
+from pastrocore.base.telescope import Telescope
+from pastrocore.base.spacetelescope import SpaceTelescope
+from pastrocore.utils.catalogmanager import CatalogManager
 from common.utils.logging_setup import logger
 import pastrocore.gui.rc_icons
+import json
 import uuid
 
 class TelescopesTab(QWidget):
+    """Widget for displaying and managing telescopes in an observation."""
     data_updated = Signal()
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
         super().__init__(parent)
         self.observation = observation
         self.project = project
         self.manipulator = manipulator
+        self.catalog_manager = catalog_manager
+        self.active_icon = QIcon(":/icons/active_icon.svg")
+        self.inactive_icon = QIcon(":/icons/inactive_icon.svg")
         
-        # Настройка UI
+        # Setup UI
         self.ui = Ui_observation_tab()
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search telescopes...")
 
-        # Настройка таблицы
+        # Setup table
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(["Telescope Name"])
+        self.model.setHorizontalHeaderLabels(["#", " ", "Code", "Name", "Type"])
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterKeyColumn(-1)
@@ -35,10 +46,13 @@ class TelescopesTab(QWidget):
         self.ui.table.setSortingEnabled(True)
         self.ui.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.table.verticalHeader().setVisible(False)
+        self.ui.table.sortByColumn(0, Qt.AscendingOrder)
+        self.ui.table.setColumnWidth(1, 24)
 
-        # Подключение сигналов
+        # Connect signals
         self.ui.search.textChanged.connect(self.on_search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
+        self.update()
 
     @Slot(str)
     def on_search_changed(self, text: str):
@@ -48,55 +62,297 @@ class TelescopesTab(QWidget):
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the telescopes table."""
-        index = self.ui.table.indexAt(position)
         menu = QMenu(self)
-        add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Telescope")
-        add_action.triggered.connect(self.add_telescope)
         
+        # Always add actions for adding telescopes
+        add_telescope_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Telescope")
+        add_space_telescope_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Space Telescope")
+        add_from_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add Telescope from Catalog")
+        import_new_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import New Telescope")
+        add_telescope_action.triggered.connect(self.add_telescope)
+        add_space_telescope_action.triggered.connect(self.add_space_telescope)
+        add_from_catalog_action.triggered.connect(self.add_from_catalog)
+        import_new_action.triggered.connect(self.import_new_telescope)
+
+        # Check if there are any telescopes in the observation
+        telescopes_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_telescopes": None}
+        })
+        has_telescopes = False
+        if telescopes_response["status"] and telescopes_response["result"]:
+            items_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": telescopes_response["result"],
+                "attributes": {"get_all": None}
+            })
+            has_telescopes = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
+        else:
+            logger.error(f"Failed to inspect telescopes: {telescopes_response.get('error', 'Unknown error')}")
+
+        if has_telescopes:
+            # Add bulk actions for telescopes
+            activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
+            deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
+            drop_active_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Drop Active")
+            drop_inactive_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Drop Inactive")
+            clear_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Clear")
+            activate_all_action.triggered.connect(self.activate_all_telescopes)
+            deactivate_all_action.triggered.connect(self.deactivate_all_telescopes)
+            drop_active_action.triggered.connect(self.drop_active_telescopes)
+            drop_inactive_action.triggered.connect(self.drop_inactive_telescopes)
+            clear_action.triggered.connect(self.clear_telescopes)
+
+        # Check if a specific row is selected
+        index = self.ui.table.indexAt(position)
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
-            telescope_name = self.model.item(source_index.row(), 0).text()
+            telescope_code = self.model.item(source_index.row(), 2).text()
+            telescope_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"get": telescope_code}
+            })
+            if not telescope_response["status"] or not telescope_response["result"]:
+                logger.error(f"Failed to get telescope '{telescope_code}': {telescope_response.get('error', 'Unknown error')}")
+                return
+            telescope = telescope_response["result"]
+            
+            is_active_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": telescope,
+                "attributes": {"get": "isactive"}
+            })
+            is_active = is_active_response["status"] and bool(is_active_response["result"])
+
+            menu.addSeparator()
+            if is_active:
+                deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
+                deactivate_action.triggered.connect(lambda: self.deactivate_telescope(telescope_code))
+            else:
+                activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
+                activate_action.triggered.connect(lambda: self.activate_telescope(telescope_code))
+
+            menu.addSeparator()
+            import_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import Telescope")
+            export_action = menu.addAction(QIcon(":/icons/export_icon.svg"), "Export Telescope")
+            import_action.triggered.connect(lambda: self.import_telescope(telescope_code))
+            export_action.triggered.connect(lambda: self.export_telescope(telescope_code))
+            menu.addSeparator()
             remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Telescope")
             edit_action = menu.addAction(QIcon(":/icons/edit_icon.svg"), "Edit Telescope")
-            remove_action.triggered.connect(lambda: self.remove_telescope(telescope_name))
-            edit_action.triggered.connect(lambda: self.edit_telescope(telescope_name))
+            remove_action.triggered.connect(lambda: self.remove_telescope(telescope_code))
+            edit_action.triggered.connect(lambda: self.edit_telescope(telescope_code))
         
         menu.exec(self.ui.table.viewport().mapToGlobal(position))
 
     @Slot()
     def add_telescope(self):
-        """Add a new telescope to the observation."""
+        """Add a new ground-based telescope using TelescopeEditorDialog."""
+        dialog = TelescopeEditorDialog(parent=self)
+        dialog.ui.codeEdit.setText(f"telescope_{uuid.uuid4().hex[:8]}")
+        dialog.ui.nameEdit.setText(f"Telescope {uuid.uuid4().hex[:8]}")
+        if dialog.exec() == QDialog.Accepted:
+            try:
+                telescope_data = dialog.get_telescope_data()
+                telescope = Telescope(**telescope_data)
+                request = {
+                    "operation": "configure",
+                    "obj": self.observation.get_telescopes(),
+                    "attributes": {"add": telescope}
+                }
+                response = self.manipulator.process_request(request)
+                if response["status"]:
+                    logger.info(f"Added telescope '{telescope_data['code']}' to observation '{self.observation.code}'")
+                    self.update()
+                    self.data_updated.emit()
+                else:
+                    logger.error(f"Failed to add telescope: {response.get('error', 'Unknown error')}")
+                    QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
+            except Exception as e:
+                logger.error(f"Exception while adding telescope: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
+
+    @Slot()
+    def add_space_telescope(self):
+        """Add a new space telescope using SpaceTelescopeEditorDialog."""
+        dialog = SpaceTelescopeEditorDialog(parent=self)
+        dialog.ui.codeEdit.setText(f"spacetelescope_{uuid.uuid4().hex[:8]}")
+        dialog.ui.nameEdit.setText(f"Space Telescope {uuid.uuid4().hex[:8]}")
+        if dialog.exec() == QDialog.Accepted:
+            try:
+                telescope_data = dialog.get_telescope_data()
+                telescope = SpaceTelescope(**telescope_data)
+                request = {
+                    "operation": "configure",
+                    "obj": self.observation.get_telescopes(),
+                    "attributes": {"add": telescope}
+                }
+                response = self.manipulator.process_request(request)
+                if response["status"]:
+                    logger.info(f"Added space telescope '{telescope_data['code']}' to observation '{self.observation.code}'")
+                    self.update()
+                    self.data_updated.emit()
+                else:
+                    logger.error(f"Failed to add space telescope: {response.get('error', 'Unknown error')}")
+                    QMessageBox.critical(self, "Error", f"Failed to add space telescope: {response.get('error', 'Unknown error')}")
+            except Exception as e:
+                logger.error(f"Exception while adding space telescope: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to add space telescope: {str(e)}")
+
+    @Slot()
+    def add_from_catalog(self):
+        """Add a telescope from the catalog to the observation."""
+        dialog = TelescopesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
+        if dialog.exec() == QDialog.Accepted and dialog.selected_telescope:
+            try:
+                telescope = dialog.selected_telescope
+                telescope_code = telescope.code
+                # Ensure unique code to avoid conflicts
+                existing_telescopes = self.manipulator.process_request({
+                    "operation": "inspect",
+                    "obj": self.observation.get_telescopes(),
+                    "attributes": {"get_all": None}
+                })
+                if existing_telescopes["status"] and telescope_code in existing_telescopes["result"]:
+                    telescope_code = f"{telescope_code}_{uuid.uuid4().hex[:8]}"
+                    telescope.code = telescope_code
+                    telescope.name = telescope_code
+                request = {
+                    "operation": "configure",
+                    "obj": self.observation.get_telescopes(),
+                    "attributes": {"add": telescope}
+                }
+                response = self.manipulator.process_request(request)
+                if response["status"]:
+                    logger.info(f"Added telescope '{telescope_code}' from catalog to observation '{self.observation.code}'")
+                    self.update()
+                    self.data_updated.emit()
+                    QMessageBox.information(self, "Success", f"Telescope '{telescope_code}' added successfully.")
+                else:
+                    logger.error(f"Failed to add telescope from catalog: {response.get('error', 'Unknown error')}")
+                    QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
+            except Exception as e:
+                logger.error(f"Exception while adding telescope from catalog: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
+
+    @Slot()
+    def import_new_telescope(self):
+        """Import a new telescope into the observation."""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import New Telescope", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info("Import new telescope cancelled: No file selected")
+            return
+
         try:
-            telescope_name = f"telescope_{uuid.uuid4().hex[:8]}"
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            telescope_type = data.get("type", "Telescope")
+            if telescope_type == "SpaceTelescope":
+                telescope = SpaceTelescope.from_dict(data)
+            else:
+                telescope = Telescope.from_dict(data)
+            telescope.code = f"telescope_{uuid.uuid4().hex[:8]}"  # Ensure unique code
+            telescope.name = telescope.code
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_telescopes(),
-                "attributes": {"add_item": {"name": telescope_name}}
+                "attributes": {"add": telescope}
             }
             response = self.manipulator.process_request(request)
             if response["status"]:
-                logger.info(f"Added telescope '{telescope_name}' to observation '{self.observation.code}'")
+                logger.info(f"New telescope '{telescope.code}' imported successfully to observation '{self.observation.code}'")
                 self.update()
                 self.data_updated.emit()
+                QMessageBox.information(self, "Success", f"Telescope '{telescope.code}' imported successfully.")
             else:
-                logger.error(f"Failed to add telescope: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
+                logger.error(f"Failed to import telescope: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to import telescope: {response.get('error', 'Unknown error')}")
         except Exception as e:
-            logger.error(f"Exception while adding telescope: {str(e)}")
-            QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
+            logger.error(f"Exception while importing new telescope: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to import telescope: {str(e)}")
 
     @Slot(str)
-    def remove_telescope(self, telescope_name: str):
+    def import_telescope(self, telescope_code: str):
+        """Import a telescope to overwrite an existing one."""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import Telescope", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info(f"Import telescope '{telescope_code}' cancelled: No file selected")
+            return
+
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            telescope_type = data.get("type", "Telescope")
+            # Remove type key from data to avoid passing it to from_dict
+            data.pop("type", None)
+            if telescope_type == "SpaceTelescope":
+                telescope = SpaceTelescope.from_dict(data)
+            else:
+                telescope = Telescope.from_dict(data)
+            telescope.code = telescope_code  # Preserve existing code
+            telescope.name = telescope_code
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"set_item": {"name": telescope_code, "item": telescope}}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Telescope '{telescope_code}' overwritten successfully in observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+                QMessageBox.information(self, "Success", f"Telescope '{telescope_code}' imported successfully.")
+            else:
+                logger.error(f"Failed to overwrite telescope '{telescope_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to import telescope: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while importing telescope '{telescope_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to import telescope: {str(e)}")
+
+    @Slot(str)
+    def export_telescope(self, telescope_code: str):
+        """Export a telescope to a file."""
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export Telescope", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info(f"Export telescope '{telescope_code}' cancelled: No file selected")
+            return
+        if not file_path.endswith(".pastrod"):
+            file_path += ".pastrod"
+
+        try:
+            telescope_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"get": telescope_code}
+            })
+            if not telescope_response["status"] or not telescope_response["result"]:
+                logger.error(f"Failed to get telescope '{telescope_code}': {telescope_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Telescope '{telescope_code}' not found")
+                return
+
+            telescope = telescope_response["result"]
+            with open(file_path, "w") as f:
+                json.dump(telescope.to_dict(), f, indent=4)
+            logger.info(f"Telescope '{telescope_code}' exported to '{file_path}'")
+            QMessageBox.information(self, "Success", f"Telescope '{telescope_code}' exported successfully.")
+        except Exception as e:
+            logger.error(f"Exception while exporting telescope '{telescope_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to export telescope: {str(e)}")
+
+    @Slot(str)
+    def remove_telescope(self, telescope_code: str):
         """Remove a telescope from the observation."""
         try:
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_telescopes(),
-                "attributes": {"remove_item": telescope_name}
+                "attributes": {"remove_item": telescope_code}
             }
             response = self.manipulator.process_request(request)
             if response["status"]:
-                logger.info(f"Removed telescope '{telescope_name}' from observation '{self.observation.code}'")
+                logger.info(f"Removed telescope '{telescope_code}' from observation '{self.observation.code}'")
                 self.update()
                 self.data_updated.emit()
             else:
@@ -107,14 +363,223 @@ class TelescopesTab(QWidget):
             QMessageBox.critical(self, "Error", f"Failed to remove telescope: {str(e)}")
 
     @Slot(str)
-    def edit_telescope(self, telescope_name: str):
-        """Edit an existing telescope."""
-        if self.parent().parent_widget:
-            logger.info(f"Requesting edit for telescope '{telescope_name}' in observation '{self.observation.code}'")
-            self.parent().parent_widget.edit_telescope(self.observation, telescope_name)
-        else:
-            logger.warning("No parent widget to handle telescope edit")
-            QMessageBox.warning(self, "Warning", "Editing telescope is not implemented yet.")
+    def edit_telescope(self, telescope_code: str):
+        """Edit an existing telescope using appropriate editor dialog."""
+        try:
+            telescope_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"get": telescope_code}
+            })
+            if not telescope_response["status"] or not telescope_response["result"]:
+                logger.error(f"Failed to retrieve telescope '{telescope_code}': {telescope_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to retrieve telescope: {telescope_response.get('error', 'Unknown error')}")
+                return
+            
+            telescope = telescope_response["result"]
+            if isinstance(telescope, SpaceTelescope):
+                dialog = SpaceTelescopeEditorDialog(telescope=telescope, parent=self)
+            else:
+                dialog = TelescopeEditorDialog(telescope=telescope, parent=self)
+            
+            if dialog.exec() == QDialog.Accepted:
+                try:
+                    telescope_data = dialog.get_telescope_data()
+                    # Update the existing telescope's attributes
+                    for key, value in telescope_data.items():
+                        if hasattr(telescope, key):
+                            setattr(telescope, key, value)
+                        else:
+                            logger.warning(f"Attribute '{key}' not found in telescope object")
+                    
+                    # Reassign the updated telescope to ensure persistence
+                    request = {
+                        "operation": "configure",
+                        "obj": self.observation.get_telescopes(),
+                        "attributes": {"set_item": {"name": telescope_code, "item": telescope}}
+                    }
+                    response = self.manipulator.process_request(request)
+                    if response["status"]:
+                        logger.info(f"Updated telescope '{telescope_code}' in observation '{self.observation.code}'")
+                        self.update()
+                        self.data_updated.emit()
+                    else:
+                        logger.error(f"Failed to update telescope: {response.get('error', 'Unknown error')}")
+                        QMessageBox.critical(self, "Error", f"Failed to update telescope: {response.get('error', 'Unknown error')}")
+                except Exception as e:
+                    logger.error(f"Exception while updating telescope: {str(e)}")
+                    QMessageBox.critical(self, "Error", f"Failed to update telescope: {str(e)}")
+        except Exception as e:
+            logger.error(f"Exception while editing telescope: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to edit telescope: {str(e)}")
+
+    @Slot(str)
+    def activate_telescope(self, telescope_code: str):
+        """Activate the specified telescope."""
+        try:
+            telescope_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"get": telescope_code}
+            })
+            if not telescope_response["status"] or not telescope_response["result"]:
+                logger.error(f"Failed to get telescope '{telescope_code}': {telescope_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to activate telescope: {telescope_response.get('error', 'Unknown error')}")
+                return
+
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"activate_item": telescope_code}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Telescope '{telescope_code}' activated in observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to activate telescope '{telescope_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to activate telescope: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while activating telescope '{telescope_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to activate telescope: {str(e)}")
+
+    @Slot(str)
+    def deactivate_telescope(self, telescope_code: str):
+        """Deactivate the specified telescope."""
+        try:
+            telescope_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"get": telescope_code}
+            })
+            if not telescope_response["status"] or not telescope_response["result"]:
+                logger.error(f"Failed to get telescope '{telescope_code}': {telescope_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to deactivate telescope: {telescope_response.get('error', 'Unknown error')}")
+                return
+
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"deactivate_item": telescope_code}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Telescope '{telescope_code}' deactivated in observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to deactivate telescope '{telescope_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to deactivate telescope: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while deactivating telescope '{telescope_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to deactivate telescope: {str(e)}")
+
+    @Slot()
+    def activate_all_telescopes(self):
+        """Activate all telescopes in the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"activate_all": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All telescopes activated in observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to activate all telescopes: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to activate all telescopes: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while activating all telescopes: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to activate all telescopes: {str(e)}")
+
+    @Slot()
+    def deactivate_all_telescopes(self):
+        """Deactivate all telescopes in the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"deactivate_all": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All telescopes deactivated in observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to deactivate all telescopes: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to deactivate all telescopes: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while deactivating all telescopes: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to deactivate all telescopes: {str(e)}")
+    
+    @Slot()
+    def clear_telescopes(self):
+        """Clear all telescopes from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"clear": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All telescopes cleared from observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to clear telescopes: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to clear telescopes: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while clearing telescopes: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to clear telescopes: {str(e)}")
+
+
+    @Slot()
+    def drop_active_telescopes(self):
+        """Remove all active telescopes from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"drop_active": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All active telescopes dropped from observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to drop active telescopes: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to drop active telescopes: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while dropping active telescopes: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to drop active telescopes: {str(e)}")
+
+    @Slot()
+    def drop_inactive_telescopes(self):
+        """Remove all inactive telescopes from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"drop_inactive": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All inactive telescopes dropped from observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to drop inactive telescopes: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to drop inactive telescopes: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while dropping inactive telescopes: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to drop inactive telescopes: {str(e)}")
 
     @Slot()
     def update(self):
@@ -125,10 +590,46 @@ class TelescopesTab(QWidget):
             "obj": self.observation,
             "attributes": {"get_telescopes": None}
         })
-        if telescopes_response["status"]:
-            telescopes = telescopes_response["result"].get_items() if hasattr(telescopes_response["result"], 'get_items') else []
-            for telescope in telescopes:
-                item = QStandardItem(str(telescope.name))
-                item.setEditable(False)
-                self.model.appendRow([item])
+        if telescopes_response["status"] and telescopes_response["result"]:
+            telescopes = telescopes_response["result"]
+            items_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": telescopes,
+                "attributes": {"get_all": None}
+            })
+            if items_response["status"] and isinstance(items_response["result"], dict):
+                idx = 1
+                for code, telescope in items_response["result"].items():
+                    is_active_response = self.manipulator.process_request({
+                        "operation": "inspect",
+                        "obj": telescope,
+                        "attributes": {"get": "isactive"}
+                    })
+                    is_active = is_active_response["status"] and bool(is_active_response["result"])
+                    active_item = QStandardItem()
+                    active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
+                    active_item.setToolTip("Active" if is_active else "Inactive")
+                    active_item.setTextAlignment(Qt.AlignCenter)
+
+                    name_response = self.manipulator.process_request({
+                        "operation": "inspect",
+                        "obj": telescope,
+                        "attributes": {"get": "name"}
+                    })
+                    name = name_response["result"] if name_response["status"] else "N/A"
+
+                    telescope_type = "Space Telescope" if isinstance(telescope, SpaceTelescope) else "Ground Telescope"
+
+                    row = [
+                        QStandardItem(str(idx)),
+                        active_item,
+                        QStandardItem(code),
+                        QStandardItem(name),
+                        QStandardItem(telescope_type)
+                    ]
+                    for item in row:
+                        item.setEditable(False)
+                    self.model.appendRow(row)
+                    idx += 1
+
         self.ui.table.resizeColumnsToContents()

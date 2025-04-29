@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_add_observationzrdFgN.ui'
+## Form generated from reading UI file 'dialog_editor_scanWVpiUQ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -15,38 +15,66 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QGridLayout,
-    QLabel, QLineEdit, QPushButton, QSizePolicy,
-    QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QDateTimeEdit, QDialog,
+    QGridLayout, QLabel, QLineEdit, QListView,
+    QPushButton, QSizePolicy, QWidget)
 
-class Ui_AddObservationDialog(object):
-    def setupUi(self, AddObservationDialog):
-        if not AddObservationDialog.objectName():
-            AddObservationDialog.setObjectName(u"AddObservationDialog")
-        AddObservationDialog.resize(391, 113)
-        AddObservationDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
-        self.gridLayout = QGridLayout(AddObservationDialog)
+class Ui_ScanEditorDialog(object):
+    def setupUi(self, ScanEditorDialog):
+        if not ScanEditorDialog.objectName():
+            ScanEditorDialog.setObjectName(u"ScanEditorDialog")
+        ScanEditorDialog.resize(495, 308)
+        icon = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentOpenRecent))
+        ScanEditorDialog.setWindowIcon(icon)
+        self.gridLayout = QGridLayout(ScanEditorDialog)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.lbl_obs_code = QLabel(AddObservationDialog)
-        self.lbl_obs_code.setObjectName(u"lbl_obs_code")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(12)
-        self.lbl_obs_code.setFont(font)
+        self.label = QLabel(ScanEditorDialog)
+        self.label.setObjectName(u"label")
 
-        self.gridLayout.addWidget(self.lbl_obs_code, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.label, 3, 0, 1, 1)
 
-        self.combo_obs_type = QComboBox(AddObservationDialog)
-        self.combo_obs_type.setObjectName(u"combo_obs_type")
-        self.combo_obs_type.setEnabled(True)
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(150)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.combo_obs_type.sizePolicy().hasHeightForWidth())
-        self.combo_obs_type.setSizePolicy(sizePolicy)
-        self.combo_obs_type.setMinimumSize(QSize(150, 0))
-        self.combo_obs_type.setMaximumSize(QSize(150, 23))
-        self.combo_obs_type.setStyleSheet(u"QComboBox {\n"
+        self.label_2 = QLabel(ScanEditorDialog)
+        self.label_2.setObjectName(u"label_2")
+
+        self.gridLayout.addWidget(self.label_2, 3, 1, 1, 1)
+
+        self.labelDuration = QLabel(ScanEditorDialog)
+        self.labelDuration.setObjectName(u"labelDuration")
+
+        self.gridLayout.addWidget(self.labelDuration, 2, 0, 1, 1)
+
+        self.labelStartTime = QLabel(ScanEditorDialog)
+        self.labelStartTime.setObjectName(u"labelStartTime")
+
+        self.gridLayout.addWidget(self.labelStartTime, 1, 0, 1, 1)
+
+        self.labelSource = QLabel(ScanEditorDialog)
+        self.labelSource.setObjectName(u"labelSource")
+
+        self.gridLayout.addWidget(self.labelSource, 0, 0, 1, 1)
+
+        self.listView = QListView(ScanEditorDialog)
+        self.listView.setObjectName(u"listView")
+        self.listView.setViewMode(QListView.ViewMode.ListMode)
+
+        self.gridLayout.addWidget(self.listView, 4, 0, 2, 1)
+
+        self.pushButton = QPushButton(ScanEditorDialog)
+        self.pushButton.setObjectName(u"pushButton")
+        self.pushButton.setStyleSheet(u"background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;")
+        self.pushButton.setAutoDefault(False)
+        self.pushButton.setFlat(True)
+
+        self.gridLayout.addWidget(self.pushButton, 5, 2, 1, 1)
+
+        self.listView_2 = QListView(ScanEditorDialog)
+        self.listView_2.setObjectName(u"listView_2")
+
+        self.gridLayout.addWidget(self.listView_2, 4, 1, 2, 1)
+
+        self.sourceCombo = QComboBox(ScanEditorDialog)
+        self.sourceCombo.setObjectName(u"sourceCombo")
+        self.sourceCombo.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
 "    font-size: 12pt;\n"
 "    color: #333333;\n"
@@ -133,60 +161,24 @@ class Ui_AddObservationDialog(object):
 "    background-color: #0078d7;\n"
 "}")
 
-        self.gridLayout.addWidget(self.combo_obs_type, 1, 1, 1, 2)
+        self.gridLayout.addWidget(self.sourceCombo, 0, 1, 1, 3)
 
-        self.okButton = QPushButton(AddObservationDialog)
-        self.okButton.setObjectName(u"okButton")
-        self.okButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-        self.okButton.setFlat(True)
+        self.pushButton_2 = QPushButton(ScanEditorDialog)
+        self.pushButton_2.setObjectName(u"pushButton_2")
+        self.pushButton_2.setStyleSheet(u"background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;")
+        self.pushButton_2.setAutoDefault(True)
+        self.pushButton_2.setFlat(True)
 
-        self.gridLayout.addWidget(self.okButton, 2, 1, 1, 1)
+        self.gridLayout.addWidget(self.pushButton_2, 5, 3, 1, 1)
 
-        self.closeButton = QPushButton(AddObservationDialog)
-        self.closeButton.setObjectName(u"closeButton")
-        self.closeButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-        self.closeButton.setAutoDefault(False)
-        self.closeButton.setFlat(True)
+        self.startTimeEdit = QDateTimeEdit(ScanEditorDialog)
+        self.startTimeEdit.setObjectName(u"startTimeEdit")
 
-        self.gridLayout.addWidget(self.closeButton, 2, 2, 1, 1)
+        self.gridLayout.addWidget(self.startTimeEdit, 1, 1, 1, 3)
 
-        self.label = QLabel(AddObservationDialog)
-        self.label.setObjectName(u"label")
-        self.label.setFont(font)
-
-        self.gridLayout.addWidget(self.label, 1, 0, 1, 1)
-
-        self.obs_code = QLineEdit(AddObservationDialog)
-        self.obs_code.setObjectName(u"obs_code")
-        self.obs_code.setStyleSheet(u"QLineEdit {\n"
+        self.durationEdit = QLineEdit(ScanEditorDialog)
+        self.durationEdit.setObjectName(u"durationEdit")
+        self.durationEdit.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
 "    font-size: 12pt;\n"
 "    color: #333333;\n"
@@ -209,19 +201,22 @@ class Ui_AddObservationDialog(object):
 "    background-color: #ffffff;\n"
 "}")
 
-        self.gridLayout.addWidget(self.obs_code, 0, 1, 1, 2)
+        self.gridLayout.addWidget(self.durationEdit, 2, 1, 1, 3)
 
 
-        self.retranslateUi(AddObservationDialog)
+        self.retranslateUi(ScanEditorDialog)
 
-        QMetaObject.connectSlotsByName(AddObservationDialog)
+        QMetaObject.connectSlotsByName(ScanEditorDialog)
     # setupUi
 
-    def retranslateUi(self, AddObservationDialog):
-        AddObservationDialog.setWindowTitle(QCoreApplication.translate("AddObservationDialog", u"Dialog", None))
-        self.lbl_obs_code.setText(QCoreApplication.translate("AddObservationDialog", u"Observation code:", None))
-        self.combo_obs_type.setCurrentText("")
-        self.okButton.setText(QCoreApplication.translate("AddObservationDialog", u"OK", None))
-        self.closeButton.setText(QCoreApplication.translate("AddObservationDialog", u"Cancel", None))
-        self.label.setText(QCoreApplication.translate("AddObservationDialog", u"Observation type:", None))
+    def retranslateUi(self, ScanEditorDialog):
+        ScanEditorDialog.setWindowTitle(QCoreApplication.translate("ScanEditorDialog", u"Edit Scan", None))
+        ScanEditorDialog.setStyleSheet(QCoreApplication.translate("ScanEditorDialog", u"background-color: #ffffff; font-family: Arial;", None))
+        self.label.setText(QCoreApplication.translate("ScanEditorDialog", u"Telescopes:", None))
+        self.label_2.setText(QCoreApplication.translate("ScanEditorDialog", u"Frequencies:", None))
+        self.labelDuration.setText(QCoreApplication.translate("ScanEditorDialog", u"Duration (s):", None))
+        self.labelStartTime.setText(QCoreApplication.translate("ScanEditorDialog", u"Start Time:", None))
+        self.labelSource.setText(QCoreApplication.translate("ScanEditorDialog", u"Source:", None))
+        self.pushButton.setText(QCoreApplication.translate("ScanEditorDialog", u"\u041e\u041a", None))
+        self.pushButton_2.setText(QCoreApplication.translate("ScanEditorDialog", u"Cancel", None))
     # retranslateUi

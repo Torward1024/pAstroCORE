@@ -2,7 +2,7 @@
 from common.base.basecontainer import BaseContainer
 from common.utils.validation import check_type
 from common.utils.logging_setup import logger
-from typing import Optional, Dict, Tuple, Union
+from typing import Optional, Dict, Tuple, Union, Any
 from .telescope import Telescope
 from .spacetelescope import SpaceTelescope
 import re
@@ -65,16 +65,19 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             ValueError: If the telescope's code is empty, invalid, or does not match name.
         """
         check_type(item, (Telescope, SpaceTelescope), "Telescope")
+        name = item.name
         code = item.get_code()
+        if not name or not isinstance(name, str):
+            raise ValueError("Telescope name must be a non-empty string")
+        if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+            raise ValueError(f"Telescope name '{name}' contains invalid characters...")
         if not code or not isinstance(code, str):
             raise ValueError("Telescope code must be a non-empty string")
         if not re.match(r'^[a-zA-Z0-9_-]+$', code):
-            raise ValueError(f"Telescope code '{code}' contains invalid characters (use alphanumeric, underscore, or hyphen)")
-        if code != item.name:
-            logger.warning(f"Telescope name '{item.name}' does not match code '{code}'; using code as key")
-            item.name = code
-        if code in self._items and self._items[code] is not item:
-            raise ValueError(f"Telescope with code '{code}' already exists")
+            raise ValueError(f"Telescope code '{code}' contains invalid characters...")
+        if name in self._items and self._items[name] is not item:
+            raise ValueError(f"Telescope with name '{name}' already exists")
+        logger.debug(f"Validated telescope with name='{name}', code='{code}'")
 
     def create_telescope(self, code: str = "TEMP", name: str = "Temporary Telescope",
                         x: float = 0.0, y: float = 0.0, z: float = 0.0,
@@ -145,3 +148,30 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         super().deactivate_item(name)
         if hasattr(self, '_parent') and self._parent:
             self._parent._sync_scans_with_activation("telescopes", name, False)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Telescopes':
+        """Create a Telescopes object from a dictionary."""
+        items = {}
+        for key, item_data in data.get("items", {}).items():
+            try:
+                telescope_type = item_data.get("type", "Telescope")
+                if telescope_type == "SpaceTelescope":
+                    telescope = SpaceTelescope.from_dict(item_data)
+                else:
+                    telescope = Telescope.from_dict(item_data)
+                if telescope.name in items:
+                    logger.error(f"Duplicate telescope name '{telescope.name}' found for key '{key}'")
+                    raise ValueError(f"Telescope with name '{telescope.name}' already exists")
+                items[telescope.name] = telescope
+                logger.debug(f"Deserialized telescope with name='{telescope.name}', code='{telescope.code}' for key='{key}'")
+            except Exception as e:
+                logger.error(f"Failed to deserialize telescope for key '{key}': {str(e)}")
+                raise ValueError(f"Invalid telescope data for key '{key}': {str(e)}") from e
+
+        return cls(
+            items=items,
+            name=data.get("name", f"tlscs_{uuid.uuid4().hex[:32]}"),
+            isactive=data.get("isactive", True),
+            use_cache=data.get("use_cache", False)
+        )

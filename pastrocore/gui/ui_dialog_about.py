@@ -83,9 +83,9 @@ class Ui_AboutDialog(object):
         AboutDialog.setWindowTitle(QCoreApplication.translate("AboutDialog", u"About pAstroCORE", None))
         AboutDialog.setStyleSheet(QCoreApplication.translate("AboutDialog", u"background-color: #ffffff; font-family: Arial;", None))
         self.labelTitle.setText(QCoreApplication.translate("AboutDialog", u"pAstroCORE", None))
-        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.07b", None))
+        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.8a", None))
         self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for VLBI observation planning and visualization.", None))
-        self.label.setText(QCoreApplication.translate("AboutDialog", u"Ballistics Laboratory, Astro Space Center LPI, 2025", None))
+        self.label.setText(QCoreApplication.translate("AboutDialog", u"Ballistics Laboratory, Astro Space Center LPI, 2018-2025", None))
         self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
         self.label_2.setText("")
     # retranslateUi

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>499</width>
+    <width>495</width>
     <height>308</height>
    </rect>
   </property>
@@ -20,22 +20,6 @@
    <string>background-color: #ffffff; font-family: Arial;</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="5" column="3">
-    <widget class="QPushButton" name="pushButton">
-     <property name="styleSheet">
-      <string notr="true">background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-     </property>
-     <property name="text">
-      <string>ОК</string>
-     </property>
-     <property name="autoDefault">
-      <bool>false</bool>
-     </property>
-     <property name="flat">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
    <item row="3" column="0">
     <widget class="QLabel" name="label">
      <property name="text">
@@ -43,27 +27,10 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="labelSource">
-     <property name="text">
-      <string>Source:</string>
-     </property>
-    </widget>
-   </item>
    <item row="3" column="1">
     <widget class="QLabel" name="label_2">
      <property name="text">
       <string>Frequencies:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="1" rowspan="2">
-    <widget class="QListView" name="listView_2"/>
-   </item>
-   <item row="4" column="0" rowspan="2">
-    <widget class="QListView" name="listView">
-     <property name="viewMode">
-      <enum>QListView::ViewMode::ListMode</enum>
      </property>
     </widget>
    </item>
@@ -81,17 +48,127 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="2" rowspan="2">
-    <widget class="QListView" name="listView_3"/>
-   </item>
-   <item row="3" column="2">
-    <widget class="QLabel" name="label_3">
+   <item row="0" column="0">
+    <widget class="QLabel" name="labelSource">
      <property name="text">
-      <string>Polarizations:</string>
+      <string>Source:</string>
      </property>
     </widget>
    </item>
-   <item row="5" column="4">
+   <item row="4" column="0" rowspan="2">
+    <widget class="QListView" name="listView">
+     <property name="viewMode">
+      <enum>QListView::ViewMode::ListMode</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="2">
+    <widget class="QPushButton" name="pushButton">
+     <property name="styleSheet">
+      <string notr="true">background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+     </property>
+     <property name="text">
+      <string>ОК</string>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1" rowspan="2">
+    <widget class="QListView" name="listView_2"/>
+   </item>
+   <item row="0" column="1" colspan="3">
+    <widget class="QComboBox" name="sourceCombo">
+     <property name="styleSheet">
+      <string notr="true">QComboBox {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
+    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
+}
+
+QComboBox:editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
+}
+
+QComboBox:editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
+}
+
+QComboBox:!editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:!editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
+}
+
+QComboBox:!editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
+}
+
+/* Стилизация кнопки со стрелкой */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: right;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
+}
+
+QComboBox::drop-down:hover {
+    background-color: #0078d7; /* Лёгкое выделение при наведении */
+}
+
+QComboBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    /* Стандартная стрелка Qt, если нет иконки */
+    /* Если есть иконка, раскомментируйте: */
+    /* image: url(:/icons/down_arrow.png); */
+}
+
+/* Стилизация выпадающего списка */
+QComboBox QAbstractItemView {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    selection-background-color: #0078d7;
+    selection-color: #ffffff;
+    padding: 1px;
+}
+
+QComboBox QAbstractItemView::item {
+    padding: 4px;
+    min-height: 20px;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: #0078d7;
+}</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="3">
     <widget class="QPushButton" name="pushButton_2">
      <property name="styleSheet">
       <string notr="true">background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
@@ -107,14 +184,36 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="1" colspan="4">
-    <widget class="QLineEdit" name="durationEdit"/>
-   </item>
-   <item row="1" column="1" colspan="4">
+   <item row="1" column="1" colspan="3">
     <widget class="QDateTimeEdit" name="startTimeEdit"/>
    </item>
-   <item row="0" column="1" colspan="4">
-    <widget class="QComboBox" name="sourceCombo"/>
+   <item row="2" column="1" colspan="3">
+    <widget class="QLineEdit" name="durationEdit">
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>
