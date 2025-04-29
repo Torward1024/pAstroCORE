@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectnkcnXo.ui'
+## Form generated from reading UI file 'tab_projectksjveQ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -96,9 +96,9 @@ class Ui_ProjectInfoTab(object):
 
         self.gridLayout.addItem(self.horizontalSpacer, 1, 2, 1, 1)
 
-        self.lineEdit_2 = QLineEdit(ProjectInfoTab)
-        self.lineEdit_2.setObjectName(u"lineEdit_2")
-        self.lineEdit_2.setStyleSheet(u"QLineEdit {\n"
+        self.search = QLineEdit(ProjectInfoTab)
+        self.search.setObjectName(u"search")
+        self.search.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
 "    font-size: 12pt;\n"
 "    color: #333333;\n"
@@ -121,7 +121,7 @@ class Ui_ProjectInfoTab(object):
 "    background-color: #ffffff;\n"
 "}")
 
-        self.gridLayout.addWidget(self.lineEdit_2, 3, 1, 1, 1)
+        self.gridLayout.addWidget(self.search, 3, 1, 1, 1)
 
 
         self.retranslateUi(ProjectInfoTab)

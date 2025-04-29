@@ -122,7 +122,7 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     </spacer>
    </item>
    <item row="3" column="1">
-    <widget class="QLineEdit" name="lineEdit_2">
+    <widget class="QLineEdit" name="search">
      <property name="styleSheet">
       <string notr="true">QLineEdit {
     font-family: Arial;

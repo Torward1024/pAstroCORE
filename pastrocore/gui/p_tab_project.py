@@ -24,6 +24,7 @@ class ProjectInfoTab(QWidget):
         # Инициализация иконок из ресурсов
         self.active_icon = QIcon(":/icons/active_icon.svg")  # Зелёный кружок
         self.inactive_icon = QIcon(":/icons/inactive_icon.svg")  # Лососевый кружок
+        self.ui.search.setPlaceholderText("Search observations...")
 
     def setup_table(self):
         """Set up the observations table with appropriate columns."""
@@ -52,7 +53,7 @@ class ProjectInfoTab(QWidget):
     def setup_connections(self):
         """Connect signals to slots."""
         self.ui.lineEdit.editingFinished.connect(self.on_project_name_confirmed)
-        self.ui.lineEdit_2.textChanged.connect(self.on_search_text_changed)
+        self.ui.search.textChanged.connect(self.on_search_text_changed)
         self.ui.projectInfoTable.doubleClicked.connect(self.on_table_double_click)
         self.ui.lineEdit.mouseDoubleClickEvent = self.on_line_edit_double_click
 
@@ -421,7 +422,7 @@ class ProjectInfoTab(QWidget):
         try:
             request = {
                 "operation": "configure",
-                "obj": self.project._items,
+                "obj": self.project,
                 "attributes": {"activate_all": None}
             }
             response = self.manipulator.process_request(request)
@@ -442,7 +443,7 @@ class ProjectInfoTab(QWidget):
         try:
             request = {
                 "operation": "configure",
-                "obj": self.project._items,
+                "obj": self.project,
                 "attributes": {"deactivate_all": None}
             }
             response = self.manipulator.process_request(request)
@@ -463,7 +464,7 @@ class ProjectInfoTab(QWidget):
         try:
             request = {
                 "operation": "configure",
-                "obj": self.project._items,
+                "obj": self.project,
                 "attributes": {"drop_active": None}
             }
             response = self.manipulator.process_request(request)
@@ -484,7 +485,7 @@ class ProjectInfoTab(QWidget):
         try:
             request = {
                 "operation": "configure",
-                "obj": self.project._items,
+                "obj": self.project,
                 "attributes": {"drop_inactive": None}
             }
             response = self.manipulator.process_request(request)
