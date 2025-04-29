@@ -1,0 +1,83 @@
+from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtCore import Signal, Slot
+from pastrocore.gui.ui_dialog_add_observation import Ui_AddObservationDialog
+from pastrocore.super.schedule_manipulator import ScheduleManipulator
+from pastrocore.super.schedule_project import ScheduleProject
+from common.utils.logging_setup import logger
+
+class AddObservationDialog(QDialog):
+    """Dialog for adding a new observation with code and type."""
+    observation_added = Signal(str, str)  # Signal with obs_code and obs_type
+
+    def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+        super().__init__(parent)
+        self.ui = Ui_AddObservationDialog()
+        self.ui.setupUi(self)
+        self.project = project
+        self.manipulator = manipulator
+        self.setup_dialog()
+        self.setup_connections()
+
+    def setup_dialog(self):
+        """Initialize the dialog with default settings."""
+        self.setWindowTitle("Add Observation")
+        # Populate observation types
+        self.ui.combo_obs_type.addItems(["VLBI", "SINGLE_DISH"])
+        self.ui.combo_obs_type.setCurrentText("VLBI")  # Default type
+        self.ui.obs_code.setText("OBS_DEFAULT")  # Default code
+        logger.info("AddObservationDialog initialized")
+
+    def setup_connections(self):
+        """Connect UI signals to slots."""
+        self.ui.okButton.clicked.connect(self.accept)
+        self.ui.closeButton.clicked.connect(self.reject)
+
+    def accept(self):
+        """Handle OK button click to add observation."""
+        obs_code = self.ui.obs_code.text().strip()
+        obs_type = self.ui.combo_obs_type.currentText()
+
+        if not obs_code:
+            QMessageBox.critical(self, "Error", "Observation code cannot be empty.")
+            logger.error("Attempted to add observation with empty code")
+            return
+
+        # Check if observation code is unique
+        obs_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.project,
+            "attributes": {"get_observation_by_code": obs_code}
+        })
+        if obs_response["status"] and obs_response["result"] is not None:
+            QMessageBox.critical(self, "Error", f"Observation code '{obs_code}' already exists.")
+            logger.error(f"Observation code '{obs_code}' already exists")
+            return
+
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {
+                    "create_item": {
+                        "item_code": obs_code,
+                        "isactive": True,
+                        "observation_type": obs_type  # Pass observation type
+                    }
+                }
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Observation '{obs_code}' (type: {obs_type}) added to project '{self.project.get_name()}'")
+                self.observation_added.emit(obs_code, obs_type)
+                super().accept()
+            else:
+                logger.error(f"Failed to add observation '{obs_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to add observation: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while adding observation '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to add observation: {str(e)}")
+
+    def reject(self):
+        """Handle Cancel button click."""
+        logger.info("Add observation cancelled")
+        super().reject()
