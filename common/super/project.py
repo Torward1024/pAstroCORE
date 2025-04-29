@@ -70,7 +70,7 @@ class Project(ABC):
         Returns:
             List[T]: A list of items where isactive is True.
         """
-        return self._items.get_by_value({"isactive": True})
+        return self._items.get_active_items()
 
     def get_inactive_items(self) -> List[T]:
         """Retrieve all inactive items in the container.
@@ -78,7 +78,7 @@ class Project(ABC):
         Returns:
             List[T]: A list of items where isactive is False.
         """
-        return self._items.get_by_value({"isactive": False})
+        return self._items.get_inactive_items()
 
     def get_item(self, name: str) -> BaseEntity:
         """Retrieve an item from the project by its name."""
@@ -131,7 +131,7 @@ class Project(ABC):
         Raises:
             ValueError: If the container is empty.
         """
-        self._items.activate_all
+        return self._items.activate_all()
 
     def deactivate_all(self) -> None:
         """Deactivate all items in the container.
@@ -139,7 +139,7 @@ class Project(ABC):
         Raises:
             ValueError: If the container is empty.
         """
-        self._items.deactivate_all
+        return self._items.deactivate_all()
 
     def drop_active(self) -> None:
         """Remove all active items from the container.
@@ -147,7 +147,7 @@ class Project(ABC):
         Raises:
             ValueError: If there are no active items.
         """
-        self._items.drop_active
+        return self._items.drop_active()
 
     def drop_inactive(self) -> None:
         """Remove all inactive items from the container.
@@ -155,7 +155,7 @@ class Project(ABC):
         Raises:
             ValueError: If there are no inactive items.
         """
-        self._items.drop_inactive
+        return self._items.drop_inactive()
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the project to a dictionary for serialization."""
