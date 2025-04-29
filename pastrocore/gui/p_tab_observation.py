@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QVBoxLayout
 from PySide6.QtCore import Signal, Slot, Qt
+from pastrocore.utils.catalogmanager import CatalogManager
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
@@ -14,19 +15,20 @@ import pastrocore.gui.rc_icons
 class ObservationTab(QWidget):
     observation_updated = Signal()
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
         super().__init__(parent)
         self.ui = Ui_ObservationInfoTab()
         self.ui.setupUi(self)
         self.project = project
         self.observation = observation
         self.manipulator = manipulator
+        self.catalog_manager = catalog_manager
         self.parent_widget = parent
         self._updating = False
 
         # Инициализация вкладок для таблиц
         self.frequencies_tab = FrequenciesTab(observation, project, manipulator, self)
-        self.sources_tab = SourcesTab(observation, project, manipulator, self)
+        self.sources_tab = SourcesTab(self.observation, self.project, self.manipulator, self.catalog_manager, self)
         self.telescopes_tab = TelescopesTab(observation, project, manipulator, self)
         self.scans_tab = ScansTab(observation, project, manipulator, self)
 

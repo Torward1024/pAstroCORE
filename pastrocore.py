@@ -13,11 +13,15 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.base.frequencies import IF, Frequencies
 from pastrocore.base.observation import Observation
+from pastrocore.utils.catalogmanager import CatalogManager
 # UI files
 from pastrocore.gui.ui_main_window import Ui_MainWindow
 from pastrocore.gui.ui_dialog_about import Ui_AboutDialog
 from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
 from pastrocore.gui.p_dialog_about import AboutDialog
+from pastrocore.gui.p_dialog_preferences import PreferencesDialog
+from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
+from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
 from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
@@ -28,6 +32,7 @@ import pastrocore.gui.rc_icons
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
     project_updated = Signal()
+
     def __init__(self):
         super().__init__()
         self.ui = Ui_MainWindow()
@@ -35,10 +40,34 @@ class PAstroCoreMainWindow(QMainWindow):
         self.settings = self.load_settings()
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
-        logger.info(f"PAstroCoreMainWindow initialized with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
+        self.catalog_manager = self.initialize_catalog_manager()
+        logger.info(f"PAstroCoreMainWindow initialized with project id: {id(self.project)}, manipulator id={id(self.manipulator)}, catalog_manager id={id(self.catalog_manager)}")
         self.current_project_path = None
         self.setup_ui()
         self.setup_connections()
+
+    def initialize_catalog_manager(self):
+        """Initialize CatalogManager with paths from settings or defaults."""
+        default_sources_path = os.path.join("catalogs", "sources.dat")
+        default_telescopes_path = os.path.join("catalogs", "telescopes.dat")
+        sources_path = self.settings.get("sources_catalog_path", default_sources_path)
+        telescopes_path = self.settings.get("telescopes_catalog_path", default_telescopes_path)
+
+        try:
+            if not os.path.isfile(sources_path):
+                logger.warning(f"Sources catalog file not found: {sources_path}. Initializing empty source catalog.")
+            if not os.path.isfile(telescopes_path):
+                logger.warning(f"Telescopes catalog file not found: {telescopes_path}. Initializing empty telescope catalog.")
+                
+            catalog_manager = CatalogManager(source_file=sources_path, telescope_file=telescopes_path)
+            sources_count = len(catalog_manager.source_catalog.get_items())
+            telescopes_count = len(catalog_manager.telescope_catalog.get_items())
+            logger.info(f"CatalogManager initialized with {sources_count} sources and {telescopes_count} telescopes")
+            return catalog_manager
+        except Exception as e:
+            logger.error(f"Failed to initialize CatalogManager with sources='{sources_path}', telescopes='{telescopes_path}': {str(e)}")
+            QMessageBox.warning(self, "Warning", f"Failed to load catalogs: {str(e)}. Using empty catalogs.")
+            return CatalogManager()
 
     def setup_ui(self):
         self.update_project_explorer()
@@ -194,7 +223,7 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.error(f"Exception while removing observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove observation: {str(e)}")
 
-    @Slot(str)
+    @Slot()
     def remove_observations(self):
         """Remove all observations from the project via ScheduleManipulator."""
         reply = QMessageBox.question(
@@ -299,24 +328,35 @@ class PAstroCoreMainWindow(QMainWindow):
             project_explorer.viewport().update()
 
     def load_settings(self) -> dict:
-        """Load application settings from JSON file."""
-        settings_file = "settings.json"
-        default_settings = {"sources_dir": "", "telescopes_dir": ""}
+        """Load application settings from settings.pastro file."""
+        settings_file = "settings.pastro"
+        default_settings = {
+            "sources_catalog_path": os.path.join("catalogs", "sources.dat"),
+            "telescopes_catalog_path": os.path.join("catalogs", "telescopes.dat")
+        }
         if os.path.exists(settings_file):
             try:
                 with open(settings_file, "r") as f:
-                    return json.load(f)
+                    loaded_settings = json.load(f)
+                # Merge with default settings to ensure all keys are present
+                default_settings.update(loaded_settings)
+                logger.info(f"Settings loaded from '{settings_file}'")
+                return default_settings
             except Exception as e:
-                QMessageBox.warning(self, "Error", f"Failed to load settings: {e}")
+                logger.error(f"Failed to load settings from '{settings_file}': {str(e)}")
+                QMessageBox.warning(self, "Error", f"Failed to load settings: {str(e)}")
+        logger.info("No settings file found, using default settings")
         return default_settings
 
-    def save_settings(self):
-        """Save application settings to JSON file."""
+    def save_settings(self, settings: dict):
+        """Save application settings to settings.pastro file."""
         try:
-            with open("settings.json", "w") as f:
-                json.dump(self.settings, f, indent=4)
+            with open("settings.pastro", "w") as f:
+                json.dump(settings, f, indent=4)
+            logger.info("Settings saved to 'settings.pastro'")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save settings: {e}")
+            logger.error(f"Failed to save settings to 'settings.pastro': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to save settings: {str(e)}")
 
     @Slot()
     def new_project(self):
@@ -354,7 +394,8 @@ class PAstroCoreMainWindow(QMainWindow):
                     self.ui.tabContainer.removeTab(i)
                 self.open_project_info_tab()
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to open project: {e}")
+                logger.error(f"Failed to open project: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
             finally:
                 progress.close()
 
@@ -369,9 +410,11 @@ class PAstroCoreMainWindow(QMainWindow):
             try:
                 with open(self.current_project_path, "w") as f:
                     json.dump(self.project.to_dict(), f, indent=4)
+                logger.info(f"Project saved to '{self.current_project_path}'")
                 QMessageBox.information(self, "Save Project", "Project saved.")
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save project: {e}")
+                logger.error(f"Failed to save project: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to save project: {str(e)}")
             finally:
                 progress.close()
         else:
@@ -518,22 +561,57 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def open_preferences(self):
-        """Open preferences dialog (placeholder)."""
-        QMessageBox.information(self, "Preferences", "Preferences dialog not implemented yet.")
+        """Open the preferences dialog to configure settings."""
+        dialog = PreferencesDialog(self.settings, self)
+        dialog.settings_updated.connect(self.handle_settings_updated)
+        dialog.exec()
+
+    @Slot(dict)
+    def handle_settings_updated(self, settings: dict):
+        """Handle settings updated signal from PreferencesDialog."""
+        self.settings = settings
+        self.save_settings(self.settings)
+        # Reinitialize CatalogManager with new settings
+        self.catalog_manager = self.initialize_catalog_manager()
+        logger.info(f"CatalogManager reinitialized with new settings, id={id(self.catalog_manager)}")
 
     @Slot()
     def open_telescope_catalog_manager(self):
-        """Open telescope catalog manager (placeholder)."""
-        telescopes_dir = self.settings.get("telescopes_dir", "")
-        if not telescopes_dir or not os.path.isdir(telescopes_dir):
-            QMessageBox.warning(self, "Warning", "Please set a valid telescopes directory in Preferences.")
+        """Open the telescopes catalog browser dialog."""
+        telescopes_path = self.settings.get("telescopes_catalog_path", os.path.join("catalogs", "telescopes.dat"))
+        if not os.path.isfile(telescopes_path):
+            logger.error(f"Telescopes catalog file not found: {telescopes_path}")
+            QMessageBox.warning(self, "Warning", "Please set a valid telescopes catalog path in Preferences.")
             return
-        QMessageBox.information(self, "Telescope Catalog", "Telescope Catalog Manager not implemented yet.")
+
+        telescopes = self.catalog_manager.telescope_catalog.get_items()  # Используем get_items()
+        if not telescopes:
+            logger.warning("Telescopes catalog is empty")
+            QMessageBox.warning(self, "Warning", "Telescopes catalog is empty. Check the catalog file or reload in Preferences.")
+            return
+
+        dialog = TelescopesCatalogDialog(self.catalog_manager, self)
+        dialog.exec()
+        logger.info("Telescopes catalog browser dialog opened")
 
     @Slot()
     def open_source_catalog_manager(self):
-        """Open source catalog manager (placeholder)."""
-        QMessageBox.information(self, "Source Catalog Manager", "Source catalog manager not implemented yet.")
+        """Open the sources catalog browser dialog."""
+        sources_path = self.settings.get("sources_catalog_path", os.path.join("catalogs", "sources.dat"))
+        if not os.path.isfile(sources_path):
+            logger.error(f"Sources catalog file not found: {sources_path}")
+            QMessageBox.warning(self, "Warning", "Please set a valid sources catalog path in Preferences.")
+            return
+
+        sources = self.catalog_manager.source_catalog.get_items()  # Используем get_items()
+        if not sources:
+            logger.warning("Sources catalog is empty")
+            QMessageBox.warning(self, "Warning", "Sources catalog is empty. Check the catalog file or reload in Preferences.")
+            return
+
+        dialog = SourcesCatalogDialog(self.catalog_manager, self)
+        dialog.exec()
+        logger.info("Sources catalog browser dialog opened")
 
     @Slot()
     def show_about(self):
@@ -615,7 +693,7 @@ class PAstroCoreMainWindow(QMainWindow):
         })
         if obs_response["status"]:
             observation = obs_response["result"]
-            observation_tab = ObservationTab(observation, self.project, self.manipulator, self)
+            observation_tab = ObservationTab(observation, self.project, self.manipulator, self.catalog_manager, self)
             observation_tab.setObjectName(f"observationTab_{obs_code}")
             tab_container.addTab(observation_tab, f"Observation: {obs_code}")
             tab_container.setCurrentWidget(observation_tab)
@@ -632,7 +710,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Handle observation update signal."""
         logger.info("Observation updated")
         self.project_updated.emit()
-    
+
     @Slot()
     def update_all_tabs(self):
         """Update all open tabs when project data changes."""
@@ -688,7 +766,7 @@ if __name__ == "__main__":
         }
         QTableView::item {
             padding: 4px;
-        }                  
+        }
         QHeaderView::section {
             background-color: #f0f0f0;
             padding: 4px;

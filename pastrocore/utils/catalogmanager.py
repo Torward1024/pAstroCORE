@@ -1,8 +1,8 @@
 # utils/catalogmanager.py
-from base.sources import Source, Sources
-from base.telescopes import Telescope, Telescopes
+from pastrocore.base.sources import Source, Sources
+from pastrocore.base.telescopes import Telescope, Telescopes
 
-from utils.logging_setup import logger
+from common.utils.logging_setup import logger
 from typing import Optional, List
 import re
 
@@ -70,7 +70,7 @@ class CatalogManager:
         Notes:
             - Logs warnings for invalid lines and a summary of loaded/failed sources.
         """
-        sources = []
+        sources = {}
         failed_count = 0
         try:
             with open(source_file, 'r', encoding='utf-8') as f:
@@ -109,12 +109,11 @@ class CatalogManager:
                             name_J2000=j2000_name,
                             alt_name=alt_name
                         )
-                        sources.append(source)
+                        self.source_catalog.add(source)
                     except ValueError as e:
                         logger.warning(f"Failed to parse source '{line}': {e}")
                         failed_count += 1
                         continue
-            self.source_catalog = Sources(sources)
             if failed_count > 0:
                 logger.warning(f"Loaded {len(sources)} sources from '{source_file}', {failed_count} failed")
             else:
@@ -178,7 +177,7 @@ class CatalogManager:
             - Logs warnings for invalid lines and a summary of loaded/failed telescopes.
             - Velocities (vx, vy, vz) are set to 0.0 as they are not provided in the catalog format.
         """
-        telescopes = []
+        telescopes = {}
         failed_count = 0
         try:
             with open(telescope_file, 'r', encoding='utf-8') as f:
@@ -206,12 +205,11 @@ class CatalogManager:
                             diameter=diameter,
                             isactive=True
                         )
-                        telescopes.append(telescope)
+                        self.telescope_catalog.add(telescope)
                     except (ValueError, IndexError) as e:
                         logger.warning(f"Failed to parse telescope '{line}': {e}")
                         failed_count += 1
                         continue
-            self.telescope_catalog = Telescopes(telescopes)
             if failed_count > 0:
                 logger.warning(f"Loaded {len(telescopes)} telescopes from '{telescope_file}', {failed_count} failed")
             else:
