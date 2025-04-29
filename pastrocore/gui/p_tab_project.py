@@ -279,53 +279,72 @@ class ProjectInfoTab(QWidget):
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the observations table."""
-        index = self.ui.projectInfoTable.indexAt(position)
         menu = QMenu(self)
+        
+        # Check if there are any observations in the project
+        observations_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.project,
+            "attributes": {"get_items": None}
+        })
+        has_observations = False
+        if observations_response["status"] and isinstance(observations_response["result"], dict):
+            has_observations = len(observations_response["result"]) > 0
+        else:
+            logger.error(f"Failed to inspect observations: {observations_response.get('error', 'Unknown error')}")
+        
+        # Always add "Add Observation"
         add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
-        activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
-        deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
-        drop_active_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Active")
-        drop_inactive_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Inactive")
-
-        if index.isValid():
-            source_index = self.proxy_model.mapToSource(index)
-            obs_code = self.model.item(source_index.row(), 2).text()  # Observation code in third column
-            # Проверяем текущее состояние наблюдения
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
-            })
-            if not obs_response["status"] or not obs_response["result"]:
-                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-                return
-            observation = obs_response["result"]
-            
-            is_active_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": observation,
-                "attributes": {"get": "isactive"}
-            })
-            is_active = is_active_response["status"] and is_active_response["result"]
-
-            # Добавляем пункты Activate/Deactivate в зависимости от текущего состояния
-            if is_active:
-                deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
-                deactivate_action.triggered.connect(lambda: self.deactivate_observation(obs_code))
-            else:
-                activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
-                activate_action.triggered.connect(lambda: self.activate_observation(obs_code))
-
-            remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
-            edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
-            remove_action.triggered.connect(lambda: self.remove_observation(obs_code))
-            edit_action.triggered.connect(lambda: self.edit_observation(obs_code))
-
         add_action.triggered.connect(self.add_observation)
-        activate_all_action.triggered.connect(self.activate_all_observations)
-        deactivate_all_action.triggered.connect(self.deactivate_all_observations)
-        drop_active_action.triggered.connect(self.drop_active_observations)
-        drop_inactive_action.triggered.connect(self.drop_inactive_observations)
+
+        if has_observations:
+            # Add bulk actions for observations
+            activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
+            deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
+            drop_active_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Active")
+            drop_inactive_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Inactive")
+            activate_all_action.triggered.connect(self.activate_all_observations)
+            deactivate_all_action.triggered.connect(self.deactivate_all_observations)
+            drop_active_action.triggered.connect(self.drop_active_observations)
+            drop_inactive_action.triggered.connect(self.drop_inactive_observations)
+
+            # Check if a specific row is selected
+            index = self.ui.projectInfoTable.indexAt(position)
+            if index.isValid():
+                source_index = self.proxy_model.mapToSource(index)
+                obs_code = self.model.item(source_index.row(), 2).text()  # Observation code in third column
+                # Get observation state
+                obs_response = self.manipulator.process_request({
+                    "operation": "inspect",
+                    "obj": self.project,
+                    "attributes": {"get_observation_by_code": obs_code}
+                })
+                if not obs_response["status"] or not obs_response["result"]:
+                    logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+                    return
+                observation = obs_response["result"]
+                
+                is_active_response = self.manipulator.process_request({
+                    "operation": "inspect",
+                    "obj": observation,
+                    "attributes": {"get": "isactive"}
+                })
+                is_active = is_active_response["status"] and is_active_response["result"]
+
+                # Add Activate/Deactivate based on current state
+                if is_active:
+                    deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
+                    deactivate_action.triggered.connect(lambda: self.deactivate_observation(obs_code))
+                else:
+                    activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
+                    activate_action.triggered.connect(lambda: self.activate_observation(obs_code))
+
+                # Add Remove and Edit actions
+                remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
+                edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
+                remove_action.triggered.connect(lambda: self.remove_observation(obs_code))
+                edit_action.triggered.connect(lambda: self.edit_observation(obs_code))
+
         menu.exec(self.ui.projectInfoTable.viewport().mapToGlobal(position))
 
     @Slot(str)
@@ -402,7 +421,7 @@ class ProjectInfoTab(QWidget):
         try:
             request = {
                 "operation": "configure",
-                "obj": self.project,
+                "obj": self.project._items,
                 "attributes": {"activate_all": None}
             }
             response = self.manipulator.process_request(request)
@@ -423,7 +442,7 @@ class ProjectInfoTab(QWidget):
         try:
             request = {
                 "operation": "configure",
-                "obj": self.project,
+                "obj": self.project._items,
                 "attributes": {"deactivate_all": None}
             }
             response = self.manipulator.process_request(request)
@@ -444,7 +463,7 @@ class ProjectInfoTab(QWidget):
         try:
             request = {
                 "operation": "configure",
-                "obj": self.project,
+                "obj": self.project._items,
                 "attributes": {"drop_active": None}
             }
             response = self.manipulator.process_request(request)
@@ -465,7 +484,7 @@ class ProjectInfoTab(QWidget):
         try:
             request = {
                 "operation": "configure",
-                "obj": self.project,
+                "obj": self.project._items,
                 "attributes": {"drop_inactive": None}
             }
             response = self.manipulator.process_request(request)
