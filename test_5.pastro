@@ -90,8 +90,8 @@
                         "name": "scan_141a665363994b8d86fe8d3b92908459",
                         "isactive": true,
                         "type": "Scan",
-                        "start": "2025-04-29T17:15:35.239",
-                        "duration": 1.0,
+                        "start": "2025-04-29T23:33:54.255",
+                        "duration": 252.0,
                         "source_name": "0007+106",
                         "telescope_names": [
                             "TELESCOPAS"

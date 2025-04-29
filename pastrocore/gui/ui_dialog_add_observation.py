@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_add_observationzrdFgN.ui'
+## Form generated from reading UI file 'dialog_add_observationfoSyFk.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.2
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,7 +23,7 @@ class Ui_AddObservationDialog(object):
     def setupUi(self, AddObservationDialog):
         if not AddObservationDialog.objectName():
             AddObservationDialog.setObjectName(u"AddObservationDialog")
-        AddObservationDialog.resize(391, 113)
+        AddObservationDialog.resize(273, 113)
         AddObservationDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.gridLayout = QGridLayout(AddObservationDialog)
         self.gridLayout.setObjectName(u"gridLayout")
@@ -31,7 +31,7 @@ class Ui_AddObservationDialog(object):
         self.lbl_obs_code.setObjectName(u"lbl_obs_code")
         font = QFont()
         font.setFamilies([u"Arial"])
-        font.setPointSize(12)
+        font.setPointSize(9)
         self.lbl_obs_code.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_obs_code, 0, 0, 1, 1)
@@ -45,10 +45,10 @@ class Ui_AddObservationDialog(object):
         sizePolicy.setHeightForWidth(self.combo_obs_type.sizePolicy().hasHeightForWidth())
         self.combo_obs_type.setSizePolicy(sizePolicy)
         self.combo_obs_type.setMinimumSize(QSize(150, 0))
-        self.combo_obs_type.setMaximumSize(QSize(150, 23))
+        self.combo_obs_type.setFont(font)
         self.combo_obs_type.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -61,8 +61,8 @@ class Ui_AddObservationDialog(object):
 "    border: 1px solid #0078d7; /* \u0413\u0440\u0430\u043d\u0438\u0446\u0430 \u0434\u043b\u044f \u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u0443\u0435\u043c\u043e\u0433\u043e \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f */\n"
 "}\n"
 "\n"
-"QComb"
-                        "oBox:editable:hover {\n"
+"QCombo"
+                        "Box:editable:hover {\n"
 "    border: 1px solid #1a8cff; /* \u0413\u0440\u0430\u043d\u0438\u0446\u0430 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438, \u043a\u0430\u043a \u0443 readOnly=\"false\":hover */\n"
 "}\n"
 "\n"
@@ -186,9 +186,10 @@ class Ui_AddObservationDialog(object):
 
         self.obs_code = QLineEdit(AddObservationDialog)
         self.obs_code.setObjectName(u"obs_code")
+        self.obs_code.setFont(font)
         self.obs_code.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"

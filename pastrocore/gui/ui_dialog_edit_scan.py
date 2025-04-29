@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_scanWVpiUQ.ui'
+## Form generated from reading UI file 'dialog_editor_scanFhDYjG.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.2
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -61,7 +61,21 @@ class Ui_ScanEditorDialog(object):
 
         self.pushButton = QPushButton(ScanEditorDialog)
         self.pushButton.setObjectName(u"pushButton")
-        self.pushButton.setStyleSheet(u"background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;")
+        self.pushButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
         self.pushButton.setAutoDefault(False)
         self.pushButton.setFlat(True)
 
@@ -76,7 +90,7 @@ class Ui_ScanEditorDialog(object):
         self.sourceCombo.setObjectName(u"sourceCombo")
         self.sourceCombo.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -89,8 +103,8 @@ class Ui_ScanEditorDialog(object):
 "    border: 1px solid #0078d7; /* \u0413\u0440\u0430\u043d\u0438\u0446\u0430 \u0434\u043b\u044f \u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u0443\u0435\u043c\u043e\u0433\u043e \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f */\n"
 "}\n"
 "\n"
-"QComb"
-                        "oBox:editable:hover {\n"
+"QCombo"
+                        "Box:editable:hover {\n"
 "    border: 1px solid #1a8cff; /* \u0413\u0440\u0430\u043d\u0438\u0446\u0430 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438, \u043a\u0430\u043a \u0443 readOnly=\"false\":hover */\n"
 "}\n"
 "\n"
@@ -165,7 +179,21 @@ class Ui_ScanEditorDialog(object):
 
         self.pushButton_2 = QPushButton(ScanEditorDialog)
         self.pushButton_2.setObjectName(u"pushButton_2")
-        self.pushButton_2.setStyleSheet(u"background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;")
+        self.pushButton_2.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
         self.pushButton_2.setAutoDefault(True)
         self.pushButton_2.setFlat(True)
 
@@ -173,6 +201,7 @@ class Ui_ScanEditorDialog(object):
 
         self.startTimeEdit = QDateTimeEdit(ScanEditorDialog)
         self.startTimeEdit.setObjectName(u"startTimeEdit")
+        self.startTimeEdit.setMinimumDateTime(QDateTime(QDate(2000, 1, 1), QTime(0, 0, 0)))
 
         self.gridLayout.addWidget(self.startTimeEdit, 1, 1, 1, 3)
 
@@ -180,7 +209,7 @@ class Ui_ScanEditorDialog(object):
         self.durationEdit.setObjectName(u"durationEdit")
         self.durationEdit.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"

@@ -305,6 +305,108 @@ class Scans(BaseContainer[Scan]):
             isactive=isactive
         )
         self.add(scan, observation)
+    
+    def set_scan(
+        self,
+        name: str,
+        start: Optional[Time] = None,
+        duration: Optional[float] = None,
+        source_name: Optional[str] = None,
+        telescope_names: Optional[List[str]] = None,
+        frequency_names: Optional[List[str]] = None,
+        is_off_source: Optional[bool] = None,
+        isactive: Optional[bool] = None,
+        observation: 'Observation' = None
+    ) -> None:
+        """Update an existing Scan object in the collection with new parameters.
+
+        Args:
+            name (str): The name of the Scan to update.
+            start (Time, optional): The new start time.
+            duration (float, optional): The new duration in seconds.
+            source_name (str, optional): The new source name.
+            telescope_names (List[str], optional): The new list of telescope names.
+            frequency_names (List[str], optional): The new list of frequency names.
+            is_off_source (bool, optional): The new off-source status.
+            isactive (bool, optional): The new active status.
+            observation (Observation, optional): Observation for validation.
+
+        Raises:
+            KeyError: If the Scan with the given name does not exist.
+            ValueError: If the new parameters are invalid or cause time overlaps.
+            TypeError: If the parameter types are incorrect.
+        """
+        from pastrocore.base.observation import Observation
+        if name not in self._items:
+            logger.error(f"Scan with name '{name}' not found in Scans")
+            raise KeyError(f"Scan with name '{name}' not found in Scans")
+
+        scan = self._items[name]
+        
+        # Prepare temporary parameters
+        temp_start = start if start is not None else scan.start
+        temp_duration = duration if duration is not None else scan.duration
+        temp_source_name = source_name if source_name is not None else scan.source_name
+        temp_telescope_names = telescope_names if telescope_names is not None else scan.telescope_names
+        temp_frequency_names = frequency_names if frequency_names is not None else scan.frequency_names
+        temp_is_off_source = is_off_source if is_off_source is not None else scan.is_off_source
+        temp_isactive = isactive if isactive is not None else scan.isactive
+
+        # Validate types and values
+        check_type(temp_start, Time, "Start time")
+        check_positive(temp_duration, "Duration")
+        if temp_source_name is not None:
+            check_type(temp_source_name, str, "Source name")
+        check_type(temp_telescope_names, list, "Telescope names")
+        check_type(temp_frequency_names, list, "Frequency names")
+
+        # Create temporary Scan for overlap and validation
+        temp_scan = Scan(
+            name=name,
+            start=temp_start,
+            duration=temp_duration,
+            source_name=temp_source_name,
+            telescope_names=temp_telescope_names,
+            frequency_names=temp_frequency_names,
+            is_off_source=temp_is_off_source,
+            isactive=temp_isactive
+        )
+
+        # Check for overlaps
+        overlap, reason = self._check_overlap(temp_scan, exclude_name=name)
+        if overlap:
+            logger.error(f"Updated scan '{name}' {reason}")
+            raise ValueError(f"Scan update conflicts: {reason}")
+
+        # Validate with observation if provided
+        if observation:
+            check_type(observation, Observation, "Observation")
+            if not temp_scan.validate_with_observation(observation):
+                logger.error(f"Updated scan '{name}' failed validation against observation '{observation.get_observation_code()}'")
+                raise ValueError("Scan validation failed")
+
+        # Prepare parameters to update
+        params = {}
+        if start is not None:
+            params["start"] = start
+        if duration is not None:
+            params["duration"] = duration
+        if source_name is not None or is_off_source is not None:
+            params["source_name"] = temp_source_name
+            params["is_off_source"] = temp_is_off_source
+        if telescope_names is not None:
+            params["telescope_names"] = telescope_names
+        if frequency_names is not None:
+            params["frequency_names"] = frequency_names
+        if isactive is not None:
+            params["isactive"] = isactive
+
+        # Update the scan
+        if params:
+            scan.set(params)
+            logger.info(f"Updated scan '{name}' in Scans with params: {params}")
+        else:
+            logger.debug(f"No parameters to update for scan '{name}' in Scans")
 
     def get_active_scans(self, observation: 'Observation' = None) -> List[Scan]:
         """Retrieve all active scans, optionally filtering by entity activity in an Observation."""
