@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectwePaxc.ui'
+## Form generated from reading UI file 'tab_projectnkcnXo.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -57,6 +57,10 @@ class Ui_ProjectInfoTab(object):
 
         self.label_2 = QLabel(ProjectInfoTab)
         self.label_2.setObjectName(u"label_2")
+        font2 = QFont()
+        font2.setFamilies([u"Arial"])
+        font2.setPointSize(12)
+        self.label_2.setFont(font2)
 
         self.gridLayout.addWidget(self.label_2, 3, 0, 1, 1)
 
@@ -84,6 +88,7 @@ class Ui_ProjectInfoTab(object):
 "    border: 1px solid #005bb5;\n"
 "    background-color: #ffffff;\n"
 "}")
+        self.lineEdit.setReadOnly(True)
 
         self.gridLayout.addWidget(self.lineEdit, 1, 1, 1, 1)
 

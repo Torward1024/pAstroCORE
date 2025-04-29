@@ -282,6 +282,10 @@ class ProjectInfoTab(QWidget):
         index = self.ui.projectInfoTable.indexAt(position)
         menu = QMenu(self)
         add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
+        activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
+        deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
+        drop_active_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Active")
+        drop_inactive_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Inactive")
 
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
@@ -318,6 +322,10 @@ class ProjectInfoTab(QWidget):
             edit_action.triggered.connect(lambda: self.edit_observation(obs_code))
 
         add_action.triggered.connect(self.add_observation)
+        activate_all_action.triggered.connect(self.activate_all_observations)
+        deactivate_all_action.triggered.connect(self.deactivate_all_observations)
+        drop_active_action.triggered.connect(self.drop_active_observations)
+        drop_inactive_action.triggered.connect(self.drop_inactive_observations)
         menu.exec(self.ui.projectInfoTable.viewport().mapToGlobal(position))
 
     @Slot(str)
@@ -387,6 +395,90 @@ class ProjectInfoTab(QWidget):
         except Exception as e:
             logger.error(f"Exception while deactivating observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {str(e)}")
+
+    @Slot()
+    def activate_all_observations(self):
+        """Activate all observations in the project."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {"activate_all": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info("All observations activated")
+                self.update_tab()  # Обновляем таблицу
+                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+            else:
+                logger.error(f"Failed to activate all observations: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to activate all observations: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while activating all observations: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to activate all observations: {str(e)}")
+
+    @Slot()
+    def deactivate_all_observations(self):
+        """Deactivate all observations in the project."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {"deactivate_all": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info("All observations deactivated")
+                self.update_tab()  # Обновляем таблицу
+                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+            else:
+                logger.error(f"Failed to deactivate all observations: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to deactivate all observations: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while deactivating all observations: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to deactivate all observations: {str(e)}")
+
+    @Slot()
+    def drop_active_observations(self):
+        """Remove all active observations from the project."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {"drop_active": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info("All active observations dropped")
+                self.update_tab()  # Обновляем таблицу
+                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+            else:
+                logger.error(f"Failed to drop active observations: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to drop active observations: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while dropping active observations: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to drop active observations: {str(e)}")
+
+    @Slot()
+    def drop_inactive_observations(self):
+        """Remove all inactive observations from the project."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {"drop_inactive": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info("All inactive observations dropped")
+                self.update_tab()  # Обновляем таблицу
+                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+            else:
+                logger.error(f"Failed to drop inactive observations: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to drop inactive observations: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while dropping inactive observations: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to drop inactive observations: {str(e)}")
 
     @Slot()
     def add_observation(self):

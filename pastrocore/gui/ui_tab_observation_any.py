@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_observation_anyMiYDHR.ui'
+## Form generated from reading UI file 'tab_observation_anyEwuiSF.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -29,6 +29,10 @@ class Ui_observation_tab(object):
         self.gridLayout.setObjectName(u"gridLayout")
         self.lbl_search = QLabel(observation_tab)
         self.lbl_search.setObjectName(u"lbl_search")
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        font.setPointSize(12)
+        self.lbl_search.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_search, 1, 0, 1, 1)
 
@@ -59,7 +63,7 @@ class Ui_observation_tab(object):
 
         self.gridLayout.addWidget(self.search, 1, 1, 1, 1)
 
-        self.horizontalSpacer = QSpacerItem(200, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer = QSpacerItem(194, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.gridLayout.addItem(self.horizontalSpacer, 1, 2, 1, 1)
 

@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QMessageBox
+from PySide6.QtWidgets import QWidget, QMessageBox, QVBoxLayout
 from PySide6.QtCore import Signal, Slot, Qt
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -30,11 +30,34 @@ class ObservationTab(QWidget):
         self.telescopes_tab = TelescopesTab(observation, project, manipulator, self)
         self.scans_tab = ScansTab(observation, project, manipulator, self)
 
-        # Заменяем placeholders в ui на новые вкладки
-        self.ui.frequencies_layout.addWidget(self.frequencies_tab)
-        self.ui.sources_layout.addWidget(self.sources_tab)
-        self.ui.telescopes_layout.addWidget(self.telescopes_tab)
-        self.ui.scans_layout.addWidget(self.scans_tab)
+        # Создание вкладок и добавление их в tabWidget
+        # Frequencies Tab
+        self.tab_freq = QWidget()
+        self.tab_freq.setObjectName("tab_freq")
+        frequencies_layout = QVBoxLayout(self.tab_freq)
+        frequencies_layout.addWidget(self.frequencies_tab)
+        self.ui.tabWidget.addTab(self.tab_freq, "Frequencies")
+
+        # Sources Tab
+        self.tab_sources = QWidget()
+        self.tab_sources.setObjectName("tab_sources")
+        sources_layout = QVBoxLayout(self.tab_sources)
+        sources_layout.addWidget(self.sources_tab)
+        self.ui.tabWidget.addTab(self.tab_sources, "Sources")
+
+        # Telescopes Tab
+        self.tab_tels = QWidget()
+        self.tab_tels.setObjectName("tab_tels")
+        telescopes_layout = QVBoxLayout(self.tab_tels)
+        telescopes_layout.addWidget(self.telescopes_tab)
+        self.ui.tabWidget.addTab(self.tab_tels, "Telescopes")
+
+        # Scans Tab
+        self.tab_scans = QWidget()
+        self.tab_scans.setObjectName("tab_scans")
+        scans_layout = QVBoxLayout(self.tab_scans)
+        scans_layout.addWidget(self.scans_tab)
+        self.ui.tabWidget.addTab(self.tab_scans, "Scans")
 
         self.setup_connections()
         self.update_tab()

@@ -1,6 +1,7 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QTableView, QMessageBox, QMenu
+from PySide6.QtWidgets import QWidget, QMessageBox, QMenu
 from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
@@ -18,13 +19,9 @@ class ScansTab(QWidget):
         self.manipulator = manipulator
         
         # Настройка UI
-        self.layout = QVBoxLayout(self)
-        self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Search scans...")
-        self.table = QTableView()
-        self.layout.addWidget(self.search_bar)
-        self.layout.addWidget(self.table)
-        self.setLayout(self.layout)
+        self.ui = Ui_observation_tab()
+        self.ui.setupUi(self)
+        self.ui.search.setPlaceholderText("Search scans...")
 
         # Настройка таблицы
         self.model = QStandardItemModel()
@@ -33,15 +30,15 @@ class ScansTab(QWidget):
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterKeyColumn(-1)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
-        self.table.setModel(self.proxy_model)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table.verticalHeader().setVisible(False)
+        self.ui.table.setModel(self.proxy_model)
+        self.ui.table.setAlternatingRowColors(True)
+        self.ui.table.setSortingEnabled(True)
+        self.ui.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.table.verticalHeader().setVisible(False)
 
         # Подключение сигналов
-        self.search_bar.textChanged.connect(self.on_search_changed)
-        self.table.customContextMenuRequested.connect(self.show_context_menu)
+        self.ui.search.textChanged.connect(self.on_search_changed)
+        self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
 
     @Slot(str)
     def on_search_changed(self, text: str):
@@ -51,7 +48,7 @@ class ScansTab(QWidget):
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the scans table."""
-        index = self.table.indexAt(position)
+        index = self.ui.table.indexAt(position)
         menu = QMenu(self)
         add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Scan")
         add_action.triggered.connect(self.add_scan)
@@ -64,7 +61,7 @@ class ScansTab(QWidget):
             remove_action.triggered.connect(lambda: self.remove_scan(scan_name))
             edit_action.triggered.connect(lambda: self.edit_scan(scan_name))
         
-        menu.exec(self.table.viewport().mapToGlobal(position))
+        menu.exec(self.ui.table.viewport().mapToGlobal(position))
 
     @Slot()
     def add_scan(self):
@@ -134,4 +131,4 @@ class ScansTab(QWidget):
                 item = QStandardItem(str(scan.name))
                 item.setEditable(False)
                 self.model.appendRow([item])
-        self.table.resizeColumnsToContents()
+        self.ui.table.resizeColumnsToContents()
