@@ -10,9 +10,10 @@ C_MHZ_CM = 29979.2458
 
 # Allowed polarization code values
 CIRCULAR_POLARIZATIONS = {"RCP", "LCP"}
-PAIRED_LINEAR_POLARIZATIONS = {"RR", "LL", "RL", "LR"}
+#PAIRED_LINEAR_POLARIZATIONS = {"RR", "LL", "RL", "LR"}
 SINGLE_LINEAR_POLARIZATIONS = {"H", "V"}
-VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(PAIRED_LINEAR_POLARIZATIONS).union(SINGLE_LINEAR_POLARIZATIONS)
+#VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(PAIRED_LINEAR_POLARIZATIONS).union(SINGLE_LINEAR_POLARIZATIONS)
+VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(SINGLE_LINEAR_POLARIZATIONS)
 
 class IF(BaseEntity):
     """Base class representing an Intermediate Frequency (IF) with frequency, bandwidth, and polarization properties.
@@ -107,8 +108,8 @@ class IF(BaseEntity):
         if polarizations:
             if all(p in CIRCULAR_POLARIZATIONS for p in polarizations):
                 group = "circular (RCP, LCP)"
-            elif all(p in PAIRED_LINEAR_POLARIZATIONS for p in polarizations):
-                group = "paired linear (RR, LL, RL, LR)"
+            #elif all(p in PAIRED_LINEAR_POLARIZATIONS for p in polarizations):
+                #group = "paired linear (RR, LL, RL, LR)"
             elif all(p in SINGLE_LINEAR_POLARIZATIONS for p in polarizations):
                 group = "single linear (H, V)"
             else:

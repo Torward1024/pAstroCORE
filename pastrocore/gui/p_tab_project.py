@@ -333,6 +333,7 @@ class ProjectInfoTab(QWidget):
                 is_active = is_active_response["status"] and is_active_response["result"]
 
                 # Add Activate/Deactivate based on current state
+                menu.addSeparator()
                 if is_active:
                     deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
                     deactivate_action.triggered.connect(lambda: self.deactivate_observation(obs_code))

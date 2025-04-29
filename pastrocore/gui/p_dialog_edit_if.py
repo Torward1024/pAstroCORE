@@ -22,7 +22,7 @@ class IFEditorDialog(QDialog):
     def setup_dialog(self):
         """Initialize the dialog with IF data or defaults."""
         # Устанавливаем доступные поляризации из frequencies.py
-        self.valid_polarizations = {"RCP", "LCP", "RR", "LL", "RL", "LR", "H", "V"}
+        self.valid_polarizations = {"RCP", "LCP", "H", "V"}
         
         # Если редактируем существующий IF
         if self.if_obj:
@@ -86,13 +86,13 @@ class IFEditorDialog(QDialog):
         # Валидация поляризаций (аналогично frequencies.py)
         if polarizations:
             circular = {"RCP", "LCP"}
-            paired_linear = {"RR", "LL", "RL", "LR"}
+            #paired_linear = {"RR", "LL", "RL", "LR"}
             single_linear = {"H", "V"}
             
             if all(p in circular for p in polarizations):
                 group = "circular"
-            elif all(p in paired_linear for p in polarizations):
-                group = "paired linear"
+            #elif all(p in paired_linear for p in polarizations):
+                #group = "paired linear"
             elif all(p in single_linear for p in polarizations):
                 group = "single linear"
             else:
