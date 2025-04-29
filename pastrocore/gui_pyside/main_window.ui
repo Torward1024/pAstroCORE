@@ -14,8 +14,8 @@
    <string>pAstroCORE</string>
   </property>
   <property name="windowIcon">
-   <iconset>
-    <normaloff>:/main_icon/pAstroCORE_icon.png</normaloff>:/main_icon/pAstroCORE_icon.png</iconset>
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/pAstroCORE_icon.png</normaloff>:/icons/pAstroCORE_icon.png</iconset>
   </property>
   <property name="styleSheet">
    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
@@ -318,7 +318,8 @@ QMenu::icon {
   </action>
   <action name="actionImport_Observation">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentRevert"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/import_icon.svg</normaloff>:/icons/import_icon.svg</iconset>
    </property>
    <property name="text">
     <string>Import Observation</string>
@@ -326,7 +327,8 @@ QMenu::icon {
   </action>
   <action name="actionExport_Observation">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::EditRedo"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
    </property>
    <property name="text">
     <string>Export Observation</string>
@@ -337,7 +339,7 @@ QMenu::icon {
   <tabstop>projectExplorer</tabstop>
  </tabstops>
  <resources>
-  <include location="pastrocore_resources.qrc"/>
+  <include location="../gui/icons/icons.qrc"/>
  </resources>
  <connections>
   <connection>

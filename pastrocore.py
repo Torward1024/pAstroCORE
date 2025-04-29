@@ -20,6 +20,7 @@ from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
 from pastrocore.gui.p_dialog_about import AboutDialog
 from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
+from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from common.utils.logging_setup import logger
 
 import pastrocore.gui.rc_icons
@@ -66,7 +67,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.actionOpenProject.triggered.connect(self.open_project)
         self.ui.actionSaveProject.triggered.connect(self.save_project)
         self.ui.actionSave_Project_As.triggered.connect(self.save_project_as)
-        self.ui.actionImport_Observation.triggered.connect(self.import_observation)
+        self.ui.actionImport_Observation.triggered.connect(self.import_new_observation)
         self.ui.actionExport_Observation.triggered.connect(self.export_observation)
         self.ui.actionPreferences.triggered.connect(self.open_preferences)
         self.ui.actionTelescope_Catalog_Manager.triggered.connect(self.open_telescope_catalog_manager)
@@ -132,30 +133,15 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def add_observation(self):
         """Add a new observation to the project via ScheduleManipulator."""
-        obs_code, ok = QInputDialog.getText(self, "Add Observation", "Enter observation code:", text="OBS_DEFAULT")
-        if not ok or not obs_code.strip():
-            logger.info("Add observation cancelled or empty code provided")
-            return
+        dialog = AddObservationDialog(self.project, self.manipulator, self)
+        dialog.observation_added.connect(self.on_observation_added)
+        dialog.exec()
 
-        try:
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {
-                    "create_item": {"item_code": obs_code, "isactive": True}
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation with code '{obs_code}' added to project '{self.project.get_name()}'")
-                self.project_updated.emit()
-                QMessageBox.information(self, "Success", f"Observation '{obs_code}' added successfully.")
-            else:
-                logger.error(f"Failed to add observation '{obs_code}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to add observation: {response.get('error', 'Unknown error')}")
-        except Exception as e:
-            logger.error(f"Exception while adding observation '{obs_code}': {str(e)}")
-            QMessageBox.critical(self, "Error", f"Failed to add observation: {str(e)}")
+    @Slot(str, str)
+    def on_observation_added(self, obs_code: str, obs_type: str):
+        """Handle observation added signal."""
+        logger.info(f"Observation '{obs_code}' (type: {obs_type}) added")
+        self.project_updated.emit()
 
     @Slot(str)
     def remove_observation(self, obs_code: str):
@@ -339,13 +325,11 @@ class PAstroCoreMainWindow(QMainWindow):
         self.manipulator = ScheduleManipulator(self.project)
         logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
         self.current_project_path = None
-        self.project_updated.emit()
-        # Очищаем все вкладки, кроме вкладки проекта
+        # Очищаем все вкладки, включая вкладку проекта
         for i in range(self.ui.tabContainer.count() - 1, -1, -1):
-            widget = self.ui.tabContainer.widget(i)
-            if widget.objectName() != "projectInfoTab":
-                self.ui.tabContainer.removeTab(i)
+            self.ui.tabContainer.removeTab(i)
         self.open_project_info_tab()
+        self.project_updated.emit()
         QMessageBox.information(self, "New Project", "New project created.")
 
     @Slot()
@@ -404,14 +388,138 @@ class PAstroCoreMainWindow(QMainWindow):
             self.save_project()
 
     @Slot()
-    def import_observation(self):
-        """Import an observation (placeholder)."""
-        QMessageBox.information(self, "Import Observation", "Import observation functionality not implemented yet.")
+    def import_new_observation(self):
+        """Import a new observation into the project."""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import New Observation", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info("Import new observation cancelled: No file selected")
+            return
+
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            # Создаем новое наблюдение
+            imported_observation = Observation.from_dict(data)
+            if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in ["VLBI", "SINGLE_DISH"]:
+                imported_observation.observation_type = "VLBI"  # Значение по умолчанию
+            # Запрашиваем уникальный код наблюдения
+            # Проверяем уникальность кода
+            obs_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.project,
+                "attributes": {"get_observation_by_code": imported_observation.code}
+            })
+            if obs_response["status"] and obs_response["result"] is not None:
+                logger.error(f"Observation code '{imported_observation.code}' already exists")
+                QMessageBox.critical(self, "Error", f"Observation code '{imported_observation.code}' already exists.")
+                return
+            # Добавляем наблюдение через Manipulator
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {
+                    "add_item": imported_observation
+                    }
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"New observation '{imported_observation.code}' imported successfully")
+                self.project_updated.emit()
+                QMessageBox.information(self, "Success", f"Observation '{imported_observation.code}' imported successfully.")
+            else:
+                logger.error(f"Failed to set observation data for '{imported_observation.code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to import observation: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while importing new observation: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
+
+    @Slot(str)
+    def import_observation(self, obs_code: str):
+        """Import an observation to overwrite an existing one."""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import Observation", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info(f"Import observation '{obs_code}' cancelled: No file selected")
+            return
+
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            # Получаем существующее наблюдение
+            obs_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.project,
+                "attributes": {"get_observation_by_code": obs_code}
+            })
+            if not obs_response["status"] or not obs_response["result"]:
+                logger.error(f"Failed to find observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
+                return
+
+            existing_observation = obs_response["result"]
+            existing_name = existing_observation.name
+            existing_code = existing_observation.code
+
+            # Создаем новое наблюдение из данных файла
+            imported_observation = Observation.from_dict(data)
+            # Сохраняем существующие имя и код
+            imported_observation.name = existing_name
+            imported_observation.code = existing_code
+
+            # Обновляем наблюдение через Manipulator
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {
+                    "set_item": {existing_name, imported_observation}
+                }
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Observation '{obs_code}' overwritten successfully")
+                self.project_updated.emit()
+                QMessageBox.information(self, "Success", f"Observation '{obs_code}' imported successfully.")
+            else:
+                logger.error(f"Failed to overwrite observation '{obs_code}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to import observation: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while importing observation '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
 
     @Slot()
     def export_observation(self):
-        """Export an observation (placeholder)."""
-        QMessageBox.information(self, "Export Observation", "Export observation functionality not implemented yet.")
+        """Export an observation by prompting for observation code."""
+        obs_code, ok = QInputDialog.getText(self, "Export Observation", "Enter observation code to export:")
+        if not ok or not obs_code.strip():
+            logger.info("Export observation cancelled: No code provided")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export Observation", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info(f"Export observation '{obs_code}' cancelled: No file selected")
+            return
+        if not file_path.endswith(".pastrod"):
+            file_path += ".pastrod"
+
+        try:
+            # Получаем объект наблюдения
+            obs_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.project,
+                "attributes": {"get_observation_by_code": obs_code}
+            })
+            if not obs_response["status"] or not obs_response["result"]:
+                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
+                return
+
+            observation = obs_response["result"]
+            with open(file_path, "w") as f:
+                json.dump(observation.to_dict(), f, indent=4)
+            logger.info(f"Observation '{obs_code}' exported to '{file_path}'")
+            QMessageBox.information(self, "Success", f"Observation '{obs_code}' exported successfully.")
+        except Exception as e:
+            logger.error(f"Exception while exporting observation '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to export observation: {str(e)}")
 
     @Slot()
     def open_preferences(self):

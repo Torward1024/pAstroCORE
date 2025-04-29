@@ -1,19 +1,19 @@
 <RCC>
-    <qresource prefix="/icons">
-        <file>add_observation_icon.svg</file>
-        <file>add_icon.svg</file>
-        <file>remove_icon.svg</file>
-        <file>edit_icon.svg</file>
-	<file>active_icon.svg</file>
-	<file>inactive_icon.svg</file>
-        <file>remove_observation_icon.svg</file>
-        <file>edit_observation_icon.svg</file>
-        <file>remove_project_icon.svg</file>
-        <file>edit_project_icon.svg</file>
-        <file>save_icon.svg</file>
-        <file>open_icon.svg</file>
-        <file>observe_icon.svg</file>
-        <file>orbit_icon.svg</file>
-        <file>data_icon.svg</file>
-    </qresource>
+  <qresource prefix="/icons">
+    <file>pAstroCORE_icon.png</file>
+    <file>add_observation_icon.svg</file>
+    <file>add_icon.svg</file>
+    <file>remove_icon.svg</file>
+    <file>edit_icon.svg</file>
+    <file>active_icon.svg</file>
+    <file>inactive_icon.svg</file>
+    <file>import_icon.svg</file>
+    <file>export_icon.svg</file>
+    <file>remove_observation_icon.svg</file>
+    <file>edit_observation_icon.svg</file>
+    <file>remove_project_icon.svg</file>
+    <file>edit_project_icon.svg</file>
+    <file>save_icon.svg</file>
+    <file>open_icon.svg</file>
+  </qresource>
 </RCC>

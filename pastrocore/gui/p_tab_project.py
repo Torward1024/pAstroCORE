@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QTableView, QMessageBox, QMenu
+from PySide6.QtWidgets import QWidget, QTableView, QMessageBox, QMenu, QFileDialog
 from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
@@ -6,6 +6,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
+import json
 import pastrocore.gui.rc_icons  # Импорт ресурсов
 
 class ProjectInfoTab(QWidget):
@@ -282,6 +283,12 @@ class ProjectInfoTab(QWidget):
         """Show context menu for the observations table."""
         menu = QMenu(self)
         
+        # Always add "Add Observation" and "Import New Observation"
+        add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
+        import_new_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import New Observation")
+        add_action.triggered.connect(self.add_observation)
+        import_new_action.triggered.connect(self.import_new_observation)
+
         # Check if there are any observations in the project
         observations_response = self.manipulator.process_request({
             "operation": "inspect",
@@ -293,10 +300,6 @@ class ProjectInfoTab(QWidget):
             has_observations = len(observations_response["result"]) > 0
         else:
             logger.error(f"Failed to inspect observations: {observations_response.get('error', 'Unknown error')}")
-        
-        # Always add "Add Observation"
-        add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
-        add_action.triggered.connect(self.add_observation)
 
         if has_observations:
             # Add bulk actions for observations
@@ -343,13 +346,37 @@ class ProjectInfoTab(QWidget):
                     activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
                     activate_action.triggered.connect(lambda: self.activate_observation(obs_code))
 
-                # Add Remove and Edit actions
+                # Add Import, Export, Remove, and Edit actions
+                menu.addSeparator()
+                import_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import Observation")
+                export_action = menu.addAction(QIcon(":/icons/export_icon.svg"), "Export Observation")
+                import_action.triggered.connect(lambda: self.import_observation(obs_code))
+                export_action.triggered.connect(lambda: self.export_observation(obs_code))
+                menu.addSeparator()
                 remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
                 edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
                 remove_action.triggered.connect(lambda: self.remove_observation(obs_code))
                 edit_action.triggered.connect(lambda: self.edit_observation(obs_code))
 
         menu.exec(self.ui.projectInfoTable.viewport().mapToGlobal(position))
+
+    @Slot()
+    def import_new_observation(self):
+        """Import a new observation into the project."""
+        if self.parent_widget:
+            self.parent_widget.import_new_observation()
+
+    @Slot(str)
+    def import_observation(self, obs_code: str):
+        """Import specific observation."""
+        if self.parent_widget:
+            self.parent_widget.import_observation(obs_code)
+
+    @Slot(str)
+    def export_observation(self, obs_code: str):
+        """Export specific observation."""
+        if self.parent_widget:
+            self.parent_widget.export_observation(obs_code)
 
     @Slot(str)
     def activate_observation(self, obs_code: str):
@@ -422,23 +449,8 @@ class ProjectInfoTab(QWidget):
     @Slot()
     def clear(self):
         """Clear all observations in the project."""
-        try:
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {"clear": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info("All observations removed from the project")
-                self.update_tab() 
-                self.project_name_changed.emit(self.ui.lineEdit.text())
-            else:
-                logger.error(f"Failed to clear all observations: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to clear all observations: {response.get('error', 'Unknown error')}")
-        except Exception as e:
-            logger.error(f"Exception while clearing all observations: {str(e)}")
-            QMessageBox.critical(self, "Error", f"Failed to clear all observations: {str(e)}")
+        if self.parent_widget:
+            self.parent_widget.remove_observations()
 
     @Slot()
     def activate_all_observations(self):
