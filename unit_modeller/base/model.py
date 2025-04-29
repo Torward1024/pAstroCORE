@@ -5,7 +5,7 @@ from common.utils.logging_setup import logger
 import numpy as np
 from pastrocore.base.sources import Source
 from pastrocore.base.frequencies import IF
-
+import matplotlib.pyplot as plt
 class Model(BaseEntity):
     """
     Класс, представляющий модель источника для телескопических наблюдений или симуляций.
@@ -110,6 +110,91 @@ class Model(BaseEntity):
             raise ValueError("Файл должен содержать один или два столбца")
 
         self._validate_data()
+
+    def initialize_from_function(self, brightness_function: callable, phase_noise: float = 0.0):
+        """Инициализация данных модели с использованием функции распределения яркости.
+
+        Args:
+            brightness_function: Функция, возвращающая двумерный массив значений.
+            phase_noise: Амплитуда случайного фазового шума (по умолчанию 0).
+        """
+        if self.resolution is None:
+            raise ValueError("Resolution must be set before initializing from function")
+        if self.vis_width is None:
+            raise ValueError("vis_width must be set before initializing from function")
+        
+        # Генерация сетки координат
+        x = np.linspace(-self.vis_width / 2, self.vis_width / 2, self.resolution)
+        y = np.linspace(-self.vis_width / 2, self.vis_width / 2, self.resolution)
+        X, Y = np.meshgrid(x, y)
+        
+        # Применение функции распределения яркости
+        result = brightness_function(X, Y)
+        
+        # Проверка формы результата
+        if result.shape != (self.resolution, self.resolution):
+            raise ValueError(f"brightness_function must return an array of shape ({self.resolution}, {self.resolution})")
+        
+        # Преобразование в комплексные числа, если результат вещественный
+        if np.isrealobj(result):
+            data = result.astype(np.complex128)
+        else:
+            data = result
+        
+        # Добавление фазового шума, если указано
+        if phase_noise > 0:
+            noise = np.random.normal(0, phase_noise, data.shape)
+            data = np.abs(data) * np.exp(1j * (np.angle(data) + noise))
+        
+        self.data = data
+        self._validate_data()
+
+    def visualize(self, show_phase: bool = False):
+        """Визуализация модели в виде цветовой карты.
+
+        Args:
+            show_phase: Если True, отображается фаза, иначе амплитуда (по умолчанию False).
+        """
+        if self.data is None:
+            raise ValueError("Data is not initialized")
+        
+        plt.figure(figsize=(8, 6))
+        if show_phase:
+            img = plt.imshow(np.angle(self.data), cmap='hsv', 
+                            extent=[-self.vis_width/2, self.vis_width/2, -self.vis_width/2, self.vis_width/2])
+            plt.title("Phase of the Model")
+        else:
+            img = plt.imshow(np.abs(self.data), cmap='viridis', 
+                            extent=[-self.vis_width/2, self.vis_width/2, -self.vis_width/2, self.vis_width/2])
+            plt.title("Amplitude of the Model")
+        plt.colorbar(img, label="Phase (radians)" if show_phase else "Amplitude")
+        plt.xlabel("X (Field of View)")
+        plt.ylabel("Y (Field of View)")
+        plt.show()
+
+def crescent_function(x, y, params_list):
+    """Функция распределения яркости в форме серпа.
+
+    Args:
+        x, y: Координатные сетки.
+        params_list: Список словарей с параметрами серпа (A, r0, sigma, t0, n).
+
+    Returns:
+        Двумерный массив значений яркости.
+    """
+    r = np.sqrt(x**2 + y**2)
+    t = np.arctan2(y, x)
+    result = np.zeros_like(x, dtype=float)
+    for params in params_list:
+        A = params.get("A", 1)
+        r0 = params["r0"]
+        sigma = params["sigma"]
+        t0 = params.get("t0", 0)
+        n = params.get("n", 2)
+        fr = A * np.exp(-((r - r0) / (2 * sigma))**2)
+        ft = (np.sin((t - t0) / 2))**n
+        result += fr * ft
+    return result
 
 class Models(BaseContainer[Model]):
     """
