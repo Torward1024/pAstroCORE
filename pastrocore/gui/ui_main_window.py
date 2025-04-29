@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowAWxJaW.ui'
+## Form generated from reading UI file 'main_windowRMgPIY.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -207,9 +207,6 @@ class Ui_MainWindow(object):
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionSaveProject)
         self.menuFile.addAction(self.actionSave_Project_As)
-        self.menuFile.addSeparator()
-        self.menuFile.addAction(self.actionImport_Observation)
-        self.menuFile.addAction(self.actionExport_Observation)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionExit)
         self.menuOptions.addAction(self.actionPreferences)

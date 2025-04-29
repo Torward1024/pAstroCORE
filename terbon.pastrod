@@ -1,0 +1,66 @@
+{
+    "name": "obs_49127aa525c74e3e9b40f6a6f08016ee",
+    "isactive": true,
+    "type": "Observation",
+    "code": "TERBON",
+    "observation_type": "VLBI",
+    "sources": {
+        "name": "srcs_f309e2b3c1b64213a78ded9cda4766c2",
+        "isactive": true,
+        "type": "Sources",
+        "items": {}
+    },
+    "telescopes": {
+        "name": "tlscs_709e65828fa54063a303b826c3a33b9d",
+        "isactive": true,
+        "type": "Telescopes",
+        "items": {}
+    },
+    "frequencies": {
+        "name": "fqs_b3eae63f0f92475cb3bd1a68a15c0065",
+        "isactive": true,
+        "type": "Frequencies",
+        "items": {
+            "freq_cc60d394": {
+                "name": "freq_cc60d394",
+                "isactive": true,
+                "type": "IF",
+                "frequency": 1000.0,
+                "bandwidth": 16.0,
+                "polarizations": [
+                    "RCP",
+                    "LCP"
+                ]
+            },
+            "freq_78fbd604dca745f58242ecbd9f9dd72f": {
+                "name": "freq_78fbd604dca745f58242ecbd9f9dd72f",
+                "isactive": true,
+                "type": "IF",
+                "frequency": 3400.0,
+                "bandwidth": 16.0,
+                "polarizations": [
+                    "RCP",
+                    "LCP"
+                ]
+            },
+            "freq_140b01b0e6c745278f5f54e344265701": {
+                "name": "freq_140b01b0e6c745278f5f54e344265701",
+                "isactive": true,
+                "type": "IF",
+                "frequency": 100000.0,
+                "bandwidth": 16.0,
+                "polarizations": [
+                    "RCP",
+                    "LCP"
+                ]
+            }
+        }
+    },
+    "scans": {
+        "name": "scans_242c6bb297b84ea5aab82c5c3ea79101",
+        "isactive": true,
+        "type": "Scans",
+        "items": {}
+    },
+    "calculated_data": {}
+}

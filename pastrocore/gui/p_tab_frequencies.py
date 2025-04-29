@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog
+from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog, QFileDialog
 from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
@@ -6,11 +6,14 @@ from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
+from pastrocore.base.frequencies import IF
 from common.utils.logging_setup import logger
 import pastrocore.gui.rc_icons
 import uuid
+import json
 
 class FrequenciesTab(QWidget):
+    """Widget for displaying and managing frequencies in an observation."""
     data_updated = Signal()
 
     def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
@@ -46,6 +49,7 @@ class FrequenciesTab(QWidget):
         # Подключение сигналов
         self.ui.search.textChanged.connect(self.on_search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
+        self.update()
 
     @Slot(str)
     def on_search_changed(self, text: str):
@@ -55,11 +59,46 @@ class FrequenciesTab(QWidget):
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the frequencies table."""
-        index = self.ui.table.indexAt(position)
         menu = QMenu(self)
-        add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Frequency")
-        add_action.triggered.connect(self.add_frequency)
         
+        # Always add "Add Frequency" and "Import New Frequency"
+        add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Frequency")
+        import_new_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import New Frequency")
+        add_action.triggered.connect(self.add_frequency)
+        import_new_action.triggered.connect(self.import_new_if)
+
+        # Check if there are any frequencies in the observation
+        frequencies_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_frequencies": None}
+        })
+        has_frequencies = False
+        if frequencies_response["status"] and frequencies_response["result"]:
+            items_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": frequencies_response["result"],
+                "attributes": {"get_all": None}
+            })
+            has_frequencies = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
+        else:
+            logger.error(f"Failed to inspect frequencies: {frequencies_response.get('error', 'Unknown error')}")
+
+        if has_frequencies:
+            # Add bulk actions for frequencies
+            activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
+            deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
+            drop_active_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Drop Active")
+            drop_inactive_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Drop Inactive")
+            clear_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Clear")
+            activate_all_action.triggered.connect(self.activate_all_frequencies)
+            deactivate_all_action.triggered.connect(self.deactivate_all_frequencies)
+            drop_active_action.triggered.connect(self.drop_active_frequencies)
+            drop_inactive_action.triggered.connect(self.drop_inactive_frequencies)
+            clear_action.triggered.connect(self.clear_frequencies)
+
+        # Check if a specific row is selected
+        index = self.ui.table.indexAt(position)
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
             freq_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
@@ -80,6 +119,7 @@ class FrequenciesTab(QWidget):
             })
             is_active = is_active_response["status"] and bool(is_active_response["result"])
 
+            menu.addSeparator()
             if is_active:
                 deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
                 deactivate_action.triggered.connect(lambda: self.deactivate_frequency(freq_name))
@@ -87,6 +127,12 @@ class FrequenciesTab(QWidget):
                 activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
                 activate_action.triggered.connect(lambda: self.activate_frequency(freq_name))
 
+            menu.addSeparator()
+            import_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import Frequency")
+            export_action = menu.addAction(QIcon(":/icons/export_icon.svg"), "Export Frequency")
+            import_action.triggered.connect(lambda: self.import_if(freq_name))
+            export_action.triggered.connect(lambda: self.export_if(freq_name))
+            menu.addSeparator()
             remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Frequency")
             edit_action = menu.addAction(QIcon(":/icons/edit_icon.svg"), "Edit Frequency")
             remove_action.triggered.connect(lambda: self.remove_frequency(freq_name))
@@ -129,6 +175,121 @@ class FrequenciesTab(QWidget):
             except Exception as e:
                 logger.error(f"Exception while adding frequency: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(e)}")
+
+    @Slot()
+    def import_new_if(self):
+        """Import a new frequency into the observation."""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import New Frequency", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info("Import new frequency cancelled: No file selected")
+            return
+
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            # Create new IF object
+            imported_if = IF.from_dict(data)
+            # Generate unique name
+            freq_name = f"freq_{uuid.uuid4().hex[:32]}"
+            imported_if.name = freq_name
+            # Add frequency through Manipulator
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {
+                    "add": imported_if
+                }
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"New frequency '{freq_name}' imported successfully to observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+                QMessageBox.information(self, "Success", f"Frequency '{freq_name}' imported successfully.")
+            else:
+                logger.error(f"Failed to import frequency: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to import frequency: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while importing new frequency: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
+
+    @Slot(str)
+    def import_if(self, freq_name: str):
+        """Import a frequency to overwrite an existing one."""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import Frequency", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info(f"Import frequency '{freq_name}' cancelled: No file selected")
+            return
+
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            # Get existing frequency
+            freq_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"get": freq_name}
+            })
+            if not freq_response["status"] or not freq_response["result"]:
+                logger.error(f"Failed to find frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
+                return
+
+            # Create new IF object from file data
+            imported_if = IF.from_dict(data)
+            # Preserve existing name
+            imported_if.name = freq_name
+            # Update frequency through Manipulator
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {
+                    "set_item": {"name": freq_name, "item": imported_if}
+                }
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"Frequency '{freq_name}' overwritten successfully in observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+                QMessageBox.information(self, "Success", f"Frequency '{freq_name}' imported successfully.")
+            else:
+                logger.error(f"Failed to overwrite frequency '{freq_name}': {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to import frequency: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while importing frequency '{freq_name}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
+
+    @Slot(str)
+    def export_if(self, freq_name: str):
+        """Export a frequency to a file."""
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export Frequency", "", "pAstroCORE Data (*.pastrod)")
+        if not file_path:
+            logger.info(f"Export frequency '{freq_name}' cancelled: No file selected")
+            return
+        if not file_path.endswith(".pastrod"):
+            file_path += ".pastrod"
+
+        try:
+            # Get frequency object
+            freq_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"get": freq_name}
+            })
+            if not freq_response["status"] or not freq_response["result"]:
+                logger.error(f"Failed to get frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
+                return
+
+            if_obj = freq_response["result"]
+            with open(file_path, "w") as f:
+                json.dump(if_obj.to_dict(), f, indent=4)
+            logger.info(f"Frequency '{freq_name}' exported to '{file_path}'")
+            QMessageBox.information(self, "Success", f"Frequency '{freq_name}' exported successfully.")
+        except Exception as e:
+            logger.error(f"Exception while exporting frequency '{freq_name}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to export frequency: {str(e)}")
 
     @Slot(str)
     def remove_frequency(self, freq_name: str):
@@ -271,6 +432,111 @@ class FrequenciesTab(QWidget):
         except Exception as e:
             logger.error(f"Exception while deactivating frequency '{freq_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate frequency: {str(e)}")
+
+    @Slot()
+    def activate_all_frequencies(self):
+        """Activate all frequencies in the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"activate_all": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All frequencies activated in observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to activate all frequencies: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to activate all frequencies: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while activating all frequencies: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to activate all frequencies: {str(e)}")
+
+    @Slot()
+    def deactivate_all_frequencies(self):
+        """Deactivate all frequencies in the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"deactivate_all": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All frequencies deactivated in observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to deactivate all frequencies: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to deactivate all frequencies: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while deactivating all frequencies: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to deactivate all frequencies: {str(e)}")
+
+    @Slot()
+    def drop_active_frequencies(self):
+        """Remove all active frequencies from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"drop_active": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All active frequencies dropped from observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to drop active frequencies: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to drop active frequencies: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while dropping active frequencies: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to drop active frequencies: {str(e)}")
+
+    @Slot()
+    def drop_inactive_frequencies(self):
+        """Remove all inactive frequencies from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"drop_inactive": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All inactive frequencies dropped from observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to drop inactive frequencies: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to drop inactive frequencies: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while dropping inactive frequencies: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to drop inactive frequencies: {str(e)}")
+
+    @Slot()
+    def clear_frequencies(self):
+        """Clear all frequencies from the observation."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_frequencies(),
+                "attributes": {"clear": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info(f"All frequencies cleared from observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit()
+            else:
+                logger.error(f"Failed to clear frequencies: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to clear frequencies: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while clearing frequencies: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to clear frequencies: {str(e)}")
 
     @Slot()
     def update(self):
