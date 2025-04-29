@@ -1,7 +1,8 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QTableView, QMessageBox, QMenu
+from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog
 from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
+from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
@@ -21,13 +22,9 @@ class FrequenciesTab(QWidget):
         self.inactive_icon = QIcon(":/icons/inactive_icon.svg")
         
         # Настройка UI
-        self.layout = QVBoxLayout(self)
-        self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Search frequencies...")
-        self.table = QTableView()
-        self.layout.addWidget(self.search_bar)
-        self.layout.addWidget(self.table)
-        self.setLayout(self.layout)
+        self.ui = Ui_observation_tab()
+        self.ui.setupUi(self)
+        self.ui.search.setPlaceholderText("Search frequencies...")
 
         # Настройка таблицы
         self.model = QStandardItemModel()
@@ -38,17 +35,17 @@ class FrequenciesTab(QWidget):
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterKeyColumn(-1)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
-        self.table.setModel(self.proxy_model)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSortingEnabled(True)
-        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.table.verticalHeader().setVisible(False)
-        self.table.sortByColumn(0, Qt.AscendingOrder)
-        self.table.setColumnWidth(1, 24)
+        self.ui.table.setModel(self.proxy_model)
+        self.ui.table.setAlternatingRowColors(True)
+        self.ui.table.setSortingEnabled(True)
+        self.ui.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.table.verticalHeader().setVisible(False)
+        self.ui.table.sortByColumn(0, Qt.AscendingOrder)
+        self.ui.table.setColumnWidth(1, 24)
 
         # Подключение сигналов
-        self.search_bar.textChanged.connect(self.on_search_changed)
-        self.table.customContextMenuRequested.connect(self.show_context_menu)
+        self.ui.search.textChanged.connect(self.on_search_changed)
+        self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
 
     @Slot(str)
     def on_search_changed(self, text: str):
@@ -58,7 +55,7 @@ class FrequenciesTab(QWidget):
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the frequencies table."""
-        index = self.table.indexAt(position)
+        index = self.ui.table.indexAt(position)
         menu = QMenu(self)
         add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Frequency")
         add_action.triggered.connect(self.add_frequency)
@@ -95,7 +92,7 @@ class FrequenciesTab(QWidget):
             remove_action.triggered.connect(lambda: self.remove_frequency(freq_name))
             edit_action.triggered.connect(lambda: self.edit_frequency(freq_name))
         
-        menu.exec(self.table.viewport().mapToGlobal(position))
+        menu.exec(self.ui.table.viewport().mapToGlobal(position))
 
     @Slot()
     def add_frequency(self):
@@ -361,4 +358,4 @@ class FrequenciesTab(QWidget):
                     self.model.appendRow(row)
                     idx += 1
 
-        self.table.resizeColumnsToContents()
+        self.ui.table.resizeColumnsToContents()

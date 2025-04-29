@@ -66,6 +66,12 @@
    </item>
    <item row="3" column="0">
     <widget class="QLabel" name="label_2">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>12</pointsize>
+      </font>
+     </property>
      <property name="text">
       <string>Search:</string>
      </property>
@@ -96,6 +102,9 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     border: 1px solid #005bb5;
     background-color: #ffffff;
 }</string>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
