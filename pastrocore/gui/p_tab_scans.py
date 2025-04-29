@@ -45,6 +45,7 @@ class ScansTab(QWidget):
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
         self.ui.table.setColumnWidth(1, 24)
         self.ui.table.setColumnWidth(0, 50)
+        self.ui.table.setColumnHidden(2, True)  # Скрываем столбец "Scan ID"
 
         # Connect signals
         self.ui.search.textChanged.connect(self.on_search_changed)
