@@ -1,10 +1,11 @@
 # /common/super/project.py
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Type
+from typing import Dict, Any, Optional, Type, List, TypeVar
 from common.utils.validation import check_non_empty_string
 from common.utils.logging_setup import logger
 from common.base.basecontainer import BaseContainer
 from common.base.baseentity import BaseEntity
+T = TypeVar('T', bound=BaseEntity)
 
 class Project(ABC):
     """Abstract super-class for managing collections of BaseEntity items within a project using BaseContainer.
@@ -62,6 +63,22 @@ class Project(ABC):
         """Remove an item from the project by its name."""
         self._items.remove(name)
         logger.info(f"Removed item '{name}' from project '{self.name}'")
+    
+    def get_active_items(self) -> List[T]:
+        """Retrieve all active items in the container.
+
+        Returns:
+            List[T]: A list of items where isactive is True.
+        """
+        return self._items.get_by_value({"isactive": True})
+
+    def get_inactive_items(self) -> List[T]:
+        """Retrieve all inactive items in the container.
+
+        Returns:
+            List[T]: A list of items where isactive is False.
+        """
+        return self._items.get_by_value({"isactive": False})
 
     def get_item(self, name: str) -> BaseEntity:
         """Retrieve an item from the project by its name."""
@@ -107,6 +124,38 @@ class Project(ABC):
         "Clear all items from container."
         self._items.clear()
         logger.info(f"Removed from project '{self.name}' all {len(self._items)} items")
+    
+    def activate_all(self) -> None:
+        """Activate all items in the container.
+
+        Raises:
+            ValueError: If the container is empty.
+        """
+        self._items.activate_all
+
+    def deactivate_all(self) -> None:
+        """Deactivate all items in the container.
+
+        Raises:
+            ValueError: If the container is empty.
+        """
+        self._items.deactivate_all
+
+    def drop_active(self) -> None:
+        """Remove all active items from the container.
+
+        Raises:
+            ValueError: If there are no active items.
+        """
+        self._items.drop_active
+
+    def drop_inactive(self) -> None:
+        """Remove all inactive items from the container.
+
+        Raises:
+            ValueError: If there are no inactive items.
+        """
+        self._items.drop_inactive
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the project to a dictionary for serialization."""
