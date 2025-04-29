@@ -28,6 +28,30 @@
      </item>
      <item row="0" column="1">
       <widget class="QLineEdit" name="codeEdit">
+       <property name="styleSheet">
+        <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+       </property>
        <property name="placeholderText">
         <string>Enter telescope code</string>
        </property>
@@ -42,6 +66,30 @@
      </item>
      <item row="1" column="1">
       <widget class="QLineEdit" name="nameEdit">
+       <property name="styleSheet">
+        <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+       </property>
        <property name="placeholderText">
         <string>Enter telescope name</string>
        </property>
@@ -185,6 +233,9 @@
        <property name="maximum">
         <double>1000.000000000000000</double>
        </property>
+       <property name="value">
+        <double>1.000000000000000</double>
+       </property>
       </widget>
      </item>
      <item row="9" column="0">
@@ -249,6 +300,9 @@
          <property name="maximum">
           <double>90.000000000000000</double>
          </property>
+         <property name="value">
+          <double>90.000000000000000</double>
+         </property>
         </widget>
        </item>
       </layout>
@@ -292,6 +346,9 @@
          <property name="maximum">
           <double>360.000000000000000</double>
          </property>
+         <property name="value">
+          <double>360.000000000000000</double>
+         </property>
         </widget>
        </item>
       </layout>
@@ -305,6 +362,89 @@
      </item>
      <item row="12" column="1">
       <widget class="QComboBox" name="mountTypeCombo">
+       <property name="styleSheet">
+        <string notr="true">QComboBox {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
+    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
+}
+
+QComboBox:editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
+}
+
+QComboBox:editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
+}
+
+QComboBox:!editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:!editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
+}
+
+QComboBox:!editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
+}
+
+/* Стилизация кнопки со стрелкой */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: right;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
+}
+
+QComboBox::drop-down:hover {
+    background-color: #0078d7; /* Лёгкое выделение при наведении */
+}
+
+QComboBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    /* Стандартная стрелка Qt, если нет иконки */
+    /* Если есть иконка, раскомментируйте: */
+    /* image: url(:/icons/down_arrow.png); */
+}
+
+/* Стилизация выпадающего списка */
+QComboBox QAbstractItemView {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    selection-background-color: #0078d7;
+    selection-color: #ffffff;
+    padding: 1px;
+}
+
+QComboBox QAbstractItemView::item {
+    padding: 4px;
+    min-height: 20px;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: #0078d7;
+}</string>
+       </property>
        <item>
         <property name="text">
          <string>EQUATORIAL</string>
@@ -676,7 +816,21 @@
      <item>
       <widget class="QPushButton" name="saveButton">
        <property name="styleSheet">
-        <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
        </property>
        <property name="text">
         <string>Save</string>
@@ -686,7 +840,21 @@
      <item>
       <widget class="QPushButton" name="cancelButton">
        <property name="styleSheet">
-        <string>background-color: #6c757d; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
        </property>
        <property name="text">
         <string>Cancel</string>
