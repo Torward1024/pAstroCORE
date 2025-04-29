@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_add_observationnrvKMN.ui'
+## Form generated from reading UI file 'dialog_add_observationzrdFgN.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -173,6 +173,7 @@ class Ui_AddObservationDialog(object):
 "    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
 "    padding-bottom: 5px;\n"
 "}")
+        self.closeButton.setAutoDefault(False)
         self.closeButton.setFlat(True)
 
         self.gridLayout.addWidget(self.closeButton, 2, 2, 1, 1)
@@ -220,7 +221,7 @@ class Ui_AddObservationDialog(object):
         AddObservationDialog.setWindowTitle(QCoreApplication.translate("AddObservationDialog", u"Dialog", None))
         self.lbl_obs_code.setText(QCoreApplication.translate("AddObservationDialog", u"Observation code:", None))
         self.combo_obs_type.setCurrentText("")
-        self.okButton.setText(QCoreApplication.translate("AddObservationDialog", u"Ok", None))
+        self.okButton.setText(QCoreApplication.translate("AddObservationDialog", u"OK", None))
         self.closeButton.setText(QCoreApplication.translate("AddObservationDialog", u"Cancel", None))
         self.label.setText(QCoreApplication.translate("AddObservationDialog", u"Observation type:", None))
     # retranslateUi

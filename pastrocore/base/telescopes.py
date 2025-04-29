@@ -65,16 +65,16 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             ValueError: If the telescope's code is empty, invalid, or does not match name.
         """
         check_type(item, (Telescope, SpaceTelescope), "Telescope")
+        name = item.name
         code = item.get_code()
         if not code or not isinstance(code, str):
             raise ValueError("Telescope code must be a non-empty string")
         if not re.match(r'^[a-zA-Z0-9_-]+$', code):
             raise ValueError(f"Telescope code '{code}' contains invalid characters (use alphanumeric, underscore, or hyphen)")
-        if code != item.name:
-            logger.warning(f"Telescope name '{item.name}' does not match code '{code}'; using code as key")
-            item.name = code
-        if code in self._items and self._items[code] is not item:
-            raise ValueError(f"Telescope with code '{code}' already exists")
+        if code in self._items and self._items[name].code is not item:
+            raise ValueError(f"Telescope with code '{name}' already exists")
+        if name in self._items and self._items[name] is not item:
+            raise ValueError(f"Telescope with code '{name}' already exists")
 
     def create_telescope(self, code: str = "TEMP", name: str = "Temporary Telescope",
                         x: float = 0.0, y: float = 0.0, z: float = 0.0,
