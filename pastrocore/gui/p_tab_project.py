@@ -304,6 +304,8 @@ class ProjectInfoTab(QWidget):
             deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
             drop_active_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Active")
             drop_inactive_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Inactive")
+            clear_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Clear")
+            clear_action.triggered.connect(self.clear)
             activate_all_action.triggered.connect(self.activate_all_observations)
             deactivate_all_action.triggered.connect(self.deactivate_all_observations)
             drop_active_action.triggered.connect(self.drop_active_observations)
@@ -416,6 +418,27 @@ class ProjectInfoTab(QWidget):
         except Exception as e:
             logger.error(f"Exception while deactivating observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {str(e)}")
+
+    @Slot()
+    def clear(self):
+        """Clear all observations in the project."""
+        try:
+            request = {
+                "operation": "configure",
+                "obj": self.project,
+                "attributes": {"clear": None}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                logger.info("All observations removed from the project")
+                self.update_tab() 
+                self.project_name_changed.emit(self.ui.lineEdit.text())
+            else:
+                logger.error(f"Failed to clear all observations: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to clear all observations: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while clearing all observations: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to clear all observations: {str(e)}")
 
     @Slot()
     def activate_all_observations(self):
