@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectksjveQ.ui'
+## Form generated from reading UI file 'tab_projectpVfGOf.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -52,6 +52,7 @@ class Ui_ProjectInfoTab(object):
         self.projectInfoTable.setAlternatingRowColors(True)
         self.projectInfoTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.projectInfoTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.projectInfoTable.setSortingEnabled(False)
 
         self.gridLayout.addWidget(self.projectInfoTable, 2, 0, 1, 3)
 
