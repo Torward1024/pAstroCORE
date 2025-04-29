@@ -261,7 +261,6 @@ class Ui_TelescopeEditorDialog(object):
         self.mountTypeCombo = QComboBox(TelescopeEditorDialog)
         self.mountTypeCombo.addItem("")
         self.mountTypeCombo.addItem("")
-        self.mountTypeCombo.addItem("")
         self.mountTypeCombo.setObjectName(u"mountTypeCombo")
         self.mountTypeCombo.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
@@ -606,9 +605,8 @@ class Ui_TelescopeEditorDialog(object):
         self.azimuthMinEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
         self.azimuthMaxEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
         self.labelMountType.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Mount Type:", None))
-        self.mountTypeCombo.setItemText(0, QCoreApplication.translate("TelescopeEditorDialog", u"EQUATORIAL", None))
-        self.mountTypeCombo.setItemText(1, QCoreApplication.translate("TelescopeEditorDialog", u"AZIMUTHAL", None))
-        self.mountTypeCombo.setItemText(2, QCoreApplication.translate("TelescopeEditorDialog", u"SPACE", None))
+        self.mountTypeCombo.setItemText(0, QCoreApplication.translate("TelescopeEditorDialog", u"EQUA", None))
+        self.mountTypeCombo.setItemText(1, QCoreApplication.translate("TelescopeEditorDialog", u"AZIM", None))
 
         self.labelIsActive.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Active:", None))
         self.labelSefdTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"SEFD Table (MHz, Jy):", None))

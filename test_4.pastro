@@ -50,7 +50,35 @@
                 "name": "tlscs_709e65828fa54063a303b826c3a33b9d",
                 "isactive": true,
                 "type": "Telescopes",
-                "items": {}
+                "items": {
+                    "telescope_58dc45be": {
+                        "name": "telescope_58dc45be",
+                        "isactive": true,
+                        "type": "Telescope",
+                        "code": "telescope_58dc45be",
+                        "x": 918036.7274,
+                        "y": 4346133.0783,
+                        "z": 4561971.5475,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 47.0,
+                        "sefd_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "surface_accuracy": null,
+                        "surface_efficiency_table": {},
+                        "effective_area_table": {},
+                        "system_temperature_table": {}
+                    }
+                }
             },
             "frequencies": {
                 "name": "fqs_b3eae63f0f92475cb3bd1a68a15c0065",

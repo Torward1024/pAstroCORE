@@ -29,7 +29,7 @@ class ObservationTab(QWidget):
         # Инициализация вкладок для таблиц
         self.frequencies_tab = FrequenciesTab(observation, project, manipulator, self)
         self.sources_tab = SourcesTab(self.observation, self.project, self.manipulator, self.catalog_manager, self)
-        self.telescopes_tab = TelescopesTab(observation, project, manipulator, self)
+        self.telescopes_tab = TelescopesTab(observation, self.project, self.manipulator, self.catalog_manager, self)
         self.scans_tab = ScansTab(observation, project, manipulator, self)
 
         # Создание вкладок и добавление их в tabWidget
