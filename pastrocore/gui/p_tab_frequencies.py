@@ -32,7 +32,7 @@ class FrequenciesTab(QWidget):
         # Настройка таблицы
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
-            "#", " ", "IF (MHz)", "λ (cm)", "Bandwidth (MHz)", "Polarizations"
+            "#", " ", "IF ID", "IF (MHz)", "λ (cm)", "Bandwidth (MHz)", "Polarizations"
         ])
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -45,6 +45,7 @@ class FrequenciesTab(QWidget):
         self.ui.table.verticalHeader().setVisible(False)
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
         self.ui.table.setColumnWidth(1, 24)
+        self.ui.table.setColumnHidden(2, True)  # Скрываем столбец "Name"
 
         # Подключение сигналов
         self.ui.search.textChanged.connect(self.on_search_changed)
@@ -613,6 +614,7 @@ class FrequenciesTab(QWidget):
                     row = [
                         QStandardItem(str(idx)),
                         active_item,
+                        QStandardItem(name),  # Новый столбец "Name"
                         QStandardItem(f"{frequency:.0f}" if isinstance(frequency, (int, float)) else str(frequency)),
                         QStandardItem(f"{wavelength:.2f}" if isinstance(wavelength, (int, float)) else str(wavelength)),
                         QStandardItem(f"{bandwidth:.0f}" if isinstance(bandwidth, (int, float)) else str(bandwidth)),
@@ -620,7 +622,7 @@ class FrequenciesTab(QWidget):
                     ]
                     for item in row:
                         item.setEditable(False)
-                    row[0].setData(name, Qt.UserRole)
+                    row[0].setData(name, Qt.UserRole)  # Уже есть, оставляем без изменений
                     self.model.appendRow(row)
                     idx += 1
 
