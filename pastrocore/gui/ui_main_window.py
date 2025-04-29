@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowVIeZwZ.ui'
+## Form generated from reading UI file 'main_windowAWxJaW.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -27,7 +27,7 @@ class Ui_MainWindow(object):
             MainWindow.setObjectName(u"MainWindow")
         MainWindow.resize(1119, 721)
         icon = QIcon()
-        icon.addFile(u"pastrocore/gui/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u":/icons/pAstroCORE_icon.png", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.actionNewProject = QAction(MainWindow)
@@ -71,11 +71,13 @@ class Ui_MainWindow(object):
         self.actionSave_Project_As.setIcon(icon7)
         self.actionImport_Observation = QAction(MainWindow)
         self.actionImport_Observation.setObjectName(u"actionImport_Observation")
-        icon8 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.DocumentRevert))
+        icon8 = QIcon()
+        icon8.addFile(u":/icons/import_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.actionImport_Observation.setIcon(icon8)
         self.actionExport_Observation = QAction(MainWindow)
         self.actionExport_Observation.setObjectName(u"actionExport_Observation")
-        icon9 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.EditRedo))
+        icon9 = QIcon()
+        icon9.addFile(u":/icons/export_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.actionExport_Observation.setIcon(icon9)
         self.mainCentralWidget = QWidget(MainWindow)
         self.mainCentralWidget.setObjectName(u"mainCentralWidget")

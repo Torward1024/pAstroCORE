@@ -39,7 +39,7 @@ class Observation(BaseEntity):
     scans: Scans
     calculated_data: Dict[str, Any]
 
-    def __init__(self, name: str, code: str = "OBS_DEFAULT", sources: Sources = None,
+    def __init__(self, name: str = None, code: str = "OBS_DEFAULT", sources: Sources = None,
                  telescopes: Telescopes = None, frequencies: Frequencies = None,
                  scans: Scans = None, observation_type: str = "VLBI", 
                  calculated_data: Dict[str, Any] = None, isactive: bool = True):
