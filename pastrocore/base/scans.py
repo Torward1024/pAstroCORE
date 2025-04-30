@@ -27,7 +27,7 @@ class Scan(BaseEntity):
 
     def __init__(self, name: str = None, start: Time = None, duration: float = 1.0, source_name: Optional[str] = None,
                  telescope_names: List[str] = None, frequency_names: List[str] = None,
-                 is_off_source: bool = False, isactive: bool = True):
+                 is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None):
         """Initialize a Scan with name, start time, duration, and names referencing Observation data."""
         if start is None:
             start = Time.now()
@@ -52,10 +52,58 @@ class Scan(BaseEntity):
             original_source_name=source_name,  # Set original_source_name
             original_telescope_names=telescope_names.copy() if telescope_names else None,
             original_frequency_names=frequency_names.copy() if frequency_names else None,
-            isactive=isactive
+            isactive=isactive,
         )
+
+        # Check activity status if observation is provided
+        if observation:
+            from pastrocore.base.observation import Observation
+            check_type(observation, Observation, "Observation")
+            isactive = self._check_activity_status(observation)
+            if isactive != self.isactive:
+                self.set({"isactive": isactive})
+                logger.debug(f"Set scan '{name}' isactive={isactive} based on initial validation")
+
         source_str = "OFF SOURCE" if self.is_off_source else f"source_name={source_name}" if source_name else "no source"
         logger.info(f"Initialized Scan with name={name}, start={self.start.isot}, duration={duration}, {source_str}")
+    
+    def _check_activity_status(self, observation: 'Observation') -> bool:
+        """Check if the scan should be active based on telescope count, frequency count, and source status."""
+        from pastrocore.base.observation import Observation
+        check_type(observation, Observation, "Observation")
+
+        observation_type = observation.get_observation_type()
+        min_telescopes = 1 if observation_type == "SINGLE_DISH" else 2
+
+        # Check telescope count
+        active_telescopes = [
+            name for name in self.telescope_names
+            if name in observation.get_telescopes().get_items() and observation.get_telescopes().get(name).isactive
+        ]
+
+        # Check frequency count
+        active_frequencies = [
+            name for name in self.frequency_names
+            if name in observation.get_frequencies().get_items() and observation.get_frequencies().get(name).isactive
+        ]
+
+        # Check source status
+        source_active = (
+            self.source_name is None or self.is_off_source or
+            (self.source_name in observation.get_sources().get_items() and observation.get_sources().get(self.source_name).isactive)
+        )
+
+        # Determine activity status
+        should_be_active = (
+            len(active_telescopes) >= min_telescopes and
+            len(active_frequencies) >= 1 and
+            source_active
+        )
+
+        logger.debug(f"Checked activity for scan '{self.name}': "
+                     f"telescope_count={len(active_telescopes)}, frequency_count={len(active_frequencies)}, "
+                     f"source_active={source_active}, should_be_active={should_be_active}")
+        return should_be_active
 
     def get_start(self) -> Time:
         """Retrieve the start time of the scan."""
@@ -276,6 +324,12 @@ class Scans(BaseContainer[Scan]):
             if not scan.validate_with_observation(observation):
                 logger.error(f"Scan '{scan.name}' failed validation against observation '{observation.get_observation_code()}'")
                 raise ValueError("Scan validation failed")
+            # Check and update activity status
+            should_be_active = scan._check_activity_status(observation)
+            if should_be_active != scan.isactive:
+                scan.set({"isactive": should_be_active})
+                logger.debug(f"Set scan '{scan.name}' isactive={should_be_active} during add")
+
         overlap, reason = self._check_overlap(scan)
         if overlap:
             logger.error(f"Scan '{scan.name}' with start={scan.get_start().isot}, duration={scan.get_duration()} {reason}")
@@ -302,7 +356,8 @@ class Scans(BaseContainer[Scan]):
             telescope_names=telescope_names,
             frequency_names=frequency_names,
             is_off_source=is_off_source,
-            isactive=isactive
+            isactive=isactive,
+            observation=observation
         )
         self.add(scan, observation)
     
@@ -369,7 +424,8 @@ class Scans(BaseContainer[Scan]):
             telescope_names=temp_telescope_names,
             frequency_names=temp_frequency_names,
             is_off_source=temp_is_off_source,
-            isactive=temp_isactive
+            isactive=temp_isactive,
+            observation=observation
         )
 
         # Check for overlaps
@@ -384,6 +440,13 @@ class Scans(BaseContainer[Scan]):
             if not temp_scan.validate_with_observation(observation):
                 logger.error(f"Updated scan '{name}' failed validation against observation '{observation.get_observation_code()}'")
                 raise ValueError("Scan validation failed")
+        
+        # Check activity status if observation is provided
+        if observation and isactive is not None:
+            temp_isactive = temp_scan._check_activity_status(observation)
+            if temp_isactive != isactive:
+                logger.debug(f"Overriding isactive={isactive} to {temp_isactive} for scan '{name}' based on validation")
+                isactive = temp_isactive
 
         # Prepare parameters to update
         params = {}

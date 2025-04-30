@@ -151,7 +151,8 @@ class ScansTab(QWidget):
                             "source_name": scan_data["source_name"],
                             "telescope_names": scan_data["telescope_names"],
                             "frequency_names": scan_data["frequency_names"],
-                            "isactive": scan_data["isactive"]
+                            "isactive": scan_data["isactive"],
+                            "observation": self.observation
                         }
                     }
                 }
@@ -201,7 +202,8 @@ class ScansTab(QWidget):
                                 "source_name": scan_data["source_name"],
                                 "telescope_names": scan_data["telescope_names"],
                                 "frequency_names": scan_data["frequency_names"],
-                                "isactive": scan_data["isactive"]
+                                "isactive": scan_data["isactive"],
+                                "observation": self.observation
                             }
                         }
                     }
@@ -265,7 +267,8 @@ class ScansTab(QWidget):
                 "attributes": {
                     "set_scan": {
                         "name": scan_name,
-                        "isactive": True
+                        "isactive": True,
+                        "observation": self.observation
                     }
                 }
             }
@@ -301,7 +304,8 @@ class ScansTab(QWidget):
                 "attributes": {
                     "set_scan": {
                         "name": scan_name,
-                        "isactive": False
+                        "isactive": False,
+                        "observation": self.observation
                     }
                 }
             }
@@ -464,7 +468,7 @@ class ScansTab(QWidget):
                         continue
 
                     attrs = attrs_response["result"]
-                    start_time = attrs["start"].isot if attrs["start"] else "N/A"
+                    start_time = attrs["start"].strftime("%d.%m.%Y %H:%M:%S") if attrs["start"] else "N/A"
                     duration = f"{attrs['duration']:.1f}" if attrs["duration"] else "N/A"
                     source_name = attrs["source_name"] or "None"
                     telescopes = ", ".join(attrs["telescope_names"]) if attrs["telescope_names"] else "None"

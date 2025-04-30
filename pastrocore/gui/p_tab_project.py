@@ -225,7 +225,7 @@ class ProjectInfoTab(QWidget):
                 "obj": obs,
                 "attributes": {"get_start_datetime": None}
             })
-            start_time = str(start_time_response["result"]) if start_time_response["status"] and start_time_response["result"] else "N/A"
+            start_time = start_time_response["result"].strftime("%d.%m.%Y %H:%M:%S") if start_time_response["status"] and start_time_response["result"] else "N/A"
 
             duration_response = self.manipulator.process_request({
                 "operation": "inspect",

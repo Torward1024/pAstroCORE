@@ -56,22 +56,25 @@ class ScheduleProject(Project):
         super().add_item(item)
         logger.info(f"Added observation '{item.get_observation_code()}' to project '{self.name}'")
 
-    def create_item(self, item_code: str = "OBS_DEFAULT", isactive: bool = True) -> None:
+    def create_item(self, item_code: str = "OBS_DEFAULT", isactive: bool = True, observation_type: str = "VLBI") -> None:
         """Create and add a new Observation object to the project.
 
         Args:
-            item_name (str): The name for the new observation. Defaults to "OBS_DEFAULT".
-            
+            item_code (str): The code for the new observation. Defaults to "OBS_DEFAULT".
             isactive (bool): Whether the new observation is active. Defaults to True.
+            observation_type (str): The type of observation ('VLBI' or 'SINGLE_DISH'). Defaults to "VLBI".
 
         Raises:
-            ValueError: If item_name is not a non-empty string.
+            ValueError: If item_code is not a non-empty string or observation_type is invalid.
         """
         check_non_empty_string(item_code, "Observation code")
+        if observation_type not in ["VLBI", "SINGLE_DISH"]:
+            logger.error(f"Invalid observation type: {observation_type}. Must be 'VLBI' or 'SINGLE_DISH'")
+            raise ValueError(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
         unique_name = f"obs_{uuid.uuid4().hex[:32]}"
-        new_observation = Observation(name=unique_name, code=item_code, isactive=isactive)
+        new_observation = Observation(name=unique_name, code=item_code, isactive=isactive, observation_type=observation_type)
         self.add_item(new_observation)
-        logger.info(f"Created and added observation with code '{item_code}' and name '{unique_name}' to project '{self.name}'")
+        logger.info(f"Created and added observation with code '{item_code}', name '{unique_name}', type '{observation_type}' to project '{self.name}'")
 
     def set_item(self, name: str, item: Observation) -> None:
         """Set or replace an observation in the project by its name.

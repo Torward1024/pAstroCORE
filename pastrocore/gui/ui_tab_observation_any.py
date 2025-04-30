@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_observation_anyEwuiSF.ui'
+## Form generated from reading UI file 'tab_observation_anyyMKiEu.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -31,16 +31,17 @@ class Ui_observation_tab(object):
         self.lbl_search.setObjectName(u"lbl_search")
         font = QFont()
         font.setFamilies([u"Arial"])
-        font.setPointSize(12)
+        font.setPointSize(9)
         self.lbl_search.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_search, 1, 0, 1, 1)
 
         self.search = QLineEdit(observation_tab)
         self.search.setObjectName(u"search")
+        self.search.setFont(font)
         self.search.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
