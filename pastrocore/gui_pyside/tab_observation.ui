@@ -14,14 +14,67 @@
    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="2">
-    <widget class="QLabel" name="label">
+   <item row="1" column="0" colspan="5">
+    <widget class="QLabel" name="lbl_obs_info">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
      <property name="text">
-      <string>Type:</string>
+      <string>Start Time/Date: [get_start_time_date]; Duration: [DURATION] sec.</string>
      </property>
     </widget>
    </item>
-   <item row="1" column="4">
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="obs_name_edit">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>Observation code:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="4">
     <widget class="QComboBox" name="combo_obs_type">
      <property name="enabled">
       <bool>true</bool>
@@ -41,13 +94,13 @@
      <property name="maximumSize">
       <size>
        <width>150</width>
-       <height>23</height>
+       <height>16777215</height>
       </size>
      </property>
      <property name="styleSheet">
       <string notr="true">QComboBox {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -101,9 +154,7 @@ QComboBox::drop-down:hover {
 QComboBox::down-arrow {
     width: 12px;
     height: 12px;
-    /* Стандартная стрелка Qt, если нет иконки */
-    /* Если есть иконка, раскомментируйте: */
-    /* image: url(:/icons/down_arrow.png); */
+    image: url(:/icons/down_arrow_icon.svg);
 }
 
 /* Стилизация выпадающего списка */
@@ -132,7 +183,14 @@ QComboBox QAbstractItemView::item:hover {
      </property>
     </widget>
    </item>
-   <item row="3" column="0" colspan="5">
+   <item row="0" column="2">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Type:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="5">
     <widget class="QTabWidget" name="tabWidget">
      <property name="styleSheet">
       <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
@@ -141,70 +199,6 @@ QComboBox QAbstractItemView::item:hover {
      </property>
      <property name="currentIndex">
       <number>-1</number>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="1">
-    <widget class="QLineEdit" name="obs_name_edit">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 12pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
-     </property>
-     <property name="readOnly">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="titleLabel">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>14</pointsize>
-       <bold>true</bold>
-      </font>
-     </property>
-     <property name="styleSheet">
-      <string>color: #333333; padding-bottom: 10px;</string>
-     </property>
-     <property name="text">
-      <string>Observation:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0" colspan="5">
-    <widget class="QLabel" name="lbl_obs_info">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>12</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Start Time/Date: [get_start_time_date]; Duration: [DURATION] sec.</string>
      </property>
     </widget>
    </item>

@@ -231,7 +231,6 @@ class TelescopesTab(QWidget):
                     logger.info(f"Added telescope '{telescope_code}' from catalog to observation '{self.observation.code}'")
                     self.update()
                     self.data_updated.emit()
-                    QMessageBox.information(self, "Success", f"Telescope '{telescope_code}' added successfully.")
                 else:
                     logger.error(f"Failed to add telescope from catalog: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
@@ -600,7 +599,7 @@ class TelescopesTab(QWidget):
             })
             if items_response["status"] and isinstance(items_response["result"], dict):
                 idx = 1
-                for code, telescope in items_response["result"].items():
+                for name, telescope in items_response["result"].items():
                     is_active_response = self.manipulator.process_request({
                         "operation": "inspect",
                         "obj": telescope,
@@ -611,6 +610,13 @@ class TelescopesTab(QWidget):
                     active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
                     active_item.setToolTip("Active" if is_active else "Inactive")
                     active_item.setTextAlignment(Qt.AlignCenter)
+
+                    code_response = self.manipulator.process_request({
+                        "operation": "inspect",
+                        "obj": telescope,
+                        "attributes": {"get": "code"}
+                    })
+                    code = code_response["result"] if code_response["status"] else "N/A"
 
                     name_response = self.manipulator.process_request({
                         "operation": "inspect",

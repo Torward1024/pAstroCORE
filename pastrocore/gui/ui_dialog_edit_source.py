@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_edtior_sourcecUZLny.ui'
+## Form generated from reading UI file 'dialog_edtior_sourcesSEkkn.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -16,15 +16,18 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDialog,
-    QDoubleSpinBox, QFormLayout, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QPushButton, QSizePolicy,
-    QSpacerItem, QTableView, QVBoxLayout, QWidget)
+    QDoubleSpinBox, QFormLayout, QGridLayout, QHBoxLayout,
+    QHeaderView, QLabel, QLineEdit, QPushButton,
+    QSizePolicy, QSpacerItem, QTableView, QVBoxLayout,
+    QWidget)
 
 class Ui_SourceEditorDialog(object):
     def setupUi(self, SourceEditorDialog):
         if not SourceEditorDialog.objectName():
             SourceEditorDialog.setObjectName(u"SourceEditorDialog")
-        SourceEditorDialog.resize(600, 500)
+        SourceEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        SourceEditorDialog.resize(600, 397)
+        SourceEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(SourceEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.formLayout = QFormLayout()
@@ -38,7 +41,7 @@ class Ui_SourceEditorDialog(object):
         self.nameEdit.setObjectName(u"nameEdit")
         self.nameEdit.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -70,7 +73,7 @@ class Ui_SourceEditorDialog(object):
         self.nameJ2000Edit.setObjectName(u"nameJ2000Edit")
         self.nameJ2000Edit.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -102,7 +105,7 @@ class Ui_SourceEditorDialog(object):
         self.altNameEdit.setObjectName(u"altNameEdit")
         self.altNameEdit.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -195,6 +198,79 @@ class Ui_SourceEditorDialog(object):
 
         self.spectralIndexEdit = QDoubleSpinBox(SourceEditorDialog)
         self.spectralIndexEdit.setObjectName(u"spectralIndexEdit")
+        self.spectralIndexEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state */\n"
+"QDoubleSpinBox:!edita"
+                        "ble {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox::up-button:hover, QDoubl"
+                        "eSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.spectralIndexEdit.setDecimals(3)
         self.spectralIndexEdit.setMinimum(-999.000000000000000)
         self.spectralIndexEdit.setMaximum(999.000000000000000)
@@ -215,15 +291,31 @@ class Ui_SourceEditorDialog(object):
 
         self.verticalLayout.addLayout(self.formLayout)
 
-        self.labelFluxTable = QLabel(SourceEditorDialog)
-        self.labelFluxTable.setObjectName(u"labelFluxTable")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(10)
-        font.setBold(True)
-        self.labelFluxTable.setFont(font)
+        self.gridLayout = QGridLayout()
+        self.gridLayout.setObjectName(u"gridLayout")
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.addFluxButton = QPushButton(SourceEditorDialog)
+        self.addFluxButton.setObjectName(u"addFluxButton")
 
-        self.verticalLayout.addWidget(self.labelFluxTable)
+        self.horizontalLayout.addWidget(self.addFluxButton)
+
+        self.clearFluxButton = QPushButton(SourceEditorDialog)
+        self.clearFluxButton.setObjectName(u"clearFluxButton")
+
+        self.horizontalLayout.addWidget(self.clearFluxButton)
+
+        self.removeFluxButton = QPushButton(SourceEditorDialog)
+        self.removeFluxButton.setObjectName(u"removeFluxButton")
+
+        self.horizontalLayout.addWidget(self.removeFluxButton)
+
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer_2)
+
+
+        self.gridLayout.addLayout(self.horizontalLayout, 2, 0, 1, 1)
 
         self.fluxTable = QTableView(SourceEditorDialog)
         self.fluxTable.setObjectName(u"fluxTable")
@@ -232,37 +324,26 @@ class Ui_SourceEditorDialog(object):
         self.fluxTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.fluxTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
-        self.verticalLayout.addWidget(self.fluxTable)
+        self.gridLayout.addWidget(self.fluxTable, 1, 0, 1, 1)
 
-        self.fluxButtonLayout = QHBoxLayout()
-        self.fluxButtonLayout.setObjectName(u"fluxButtonLayout")
-        self.addFluxButton = QPushButton(SourceEditorDialog)
-        self.addFluxButton.setObjectName(u"addFluxButton")
+        self.labelFluxTable = QLabel(SourceEditorDialog)
+        self.labelFluxTable.setObjectName(u"labelFluxTable")
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        font.setPointSize(10)
+        font.setBold(True)
+        self.labelFluxTable.setFont(font)
 
-        self.fluxButtonLayout.addWidget(self.addFluxButton)
-
-        self.removeFluxButton = QPushButton(SourceEditorDialog)
-        self.removeFluxButton.setObjectName(u"removeFluxButton")
-
-        self.fluxButtonLayout.addWidget(self.removeFluxButton)
-
-        self.clearFluxButton = QPushButton(SourceEditorDialog)
-        self.clearFluxButton.setObjectName(u"clearFluxButton")
-
-        self.fluxButtonLayout.addWidget(self.clearFluxButton)
-
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.fluxButtonLayout.addItem(self.horizontalSpacer)
+        self.gridLayout.addWidget(self.labelFluxTable, 0, 0, 1, 1)
 
 
-        self.verticalLayout.addLayout(self.fluxButtonLayout)
+        self.verticalLayout.addLayout(self.gridLayout)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.setObjectName(u"buttonLayout")
-        self.horizontalSpacer1 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.buttonLayout.addItem(self.horizontalSpacer1)
+        self.buttonLayout.addItem(self.horizontalSpacer)
 
         self.saveButton = QPushButton(SourceEditorDialog)
         self.saveButton.setObjectName(u"saveButton")
@@ -335,14 +416,14 @@ class Ui_SourceEditorDialog(object):
         self.labelSpectralIndex.setText(QCoreApplication.translate("SourceEditorDialog", u"Spectral Index:", None))
         self.spectralIndexEdit.setProperty(u"placeholderText", QCoreApplication.translate("SourceEditorDialog", u"Enter spectral index (optional)", None))
         self.labelIsActive.setText(QCoreApplication.translate("SourceEditorDialog", u"Active:", None))
-        self.labelFluxTable.setText(QCoreApplication.translate("SourceEditorDialog", u"Flux Table (MHz, Jy):", None))
-        self.fluxTable.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"border: 1px solid #d3d3d3;", None))
         self.addFluxButton.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;", None))
         self.addFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Add Flux", None))
-        self.removeFluxButton.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;", None))
-        self.removeFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Remove Flux", None))
         self.clearFluxButton.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;", None))
         self.clearFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Clear Flux Table", None))
+        self.removeFluxButton.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;", None))
+        self.removeFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Remove Flux", None))
+        self.fluxTable.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"border: 1px solid #d3d3d3;", None))
+        self.labelFluxTable.setText(QCoreApplication.translate("SourceEditorDialog", u"Flux Table (MHz, Jy):", None))
         self.saveButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Cancel", None))
     # retranslateUi

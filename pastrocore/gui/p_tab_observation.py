@@ -30,7 +30,12 @@ class ObservationTab(QWidget):
         self.frequencies_tab = FrequenciesTab(observation, project, manipulator, self)
         self.sources_tab = SourcesTab(self.observation, self.project, self.manipulator, self.catalog_manager, self)
         self.telescopes_tab = TelescopesTab(observation, self.project, self.manipulator, self.catalog_manager, self)
-        self.scans_tab = ScansTab(observation, project, manipulator, self)
+        self.scans_tab = ScansTab(
+            observation, project, manipulator,
+            telescopes_tab=self.telescopes_tab,
+            frequencies_tab=self.frequencies_tab,
+            sources_tab=self.sources_tab
+        )
 
         # Создание вкладок и добавление их в tabWidget
         # Frequencies Tab
@@ -214,7 +219,7 @@ class ObservationTab(QWidget):
                 "obj": self.observation,
                 "attributes": {"get_start_datetime": None}
             })
-            start_time = str(start_time_response["result"]) if start_time_response["status"] and start_time_response["result"] else "N/A"
+            start_time = start_time_response["result"].strftime("%d.%m.%Y %H:%M:%S") if start_time_response["status"] and start_time_response["result"] else "N/A"
 
             duration_response = self.manipulator.process_request({
                 "operation": "inspect",

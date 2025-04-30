@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifoBaugl.ui'
+## Form generated from reading UI file 'dialog_editor_ifCCDAvE.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -24,7 +24,7 @@ class Ui_IFEditorDialog(object):
     def setupUi(self, IFEditorDialog):
         if not IFEditorDialog.objectName():
             IFEditorDialog.setObjectName(u"IFEditorDialog")
-        IFEditorDialog.resize(456, 304)
+        IFEditorDialog.resize(456, 238)
         self.verticalLayout = QVBoxLayout(IFEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.formLayout = QFormLayout()
@@ -36,7 +36,79 @@ class Ui_IFEditorDialog(object):
 
         self.frequencyEdit = QDoubleSpinBox(IFEditorDialog)
         self.frequencyEdit.setObjectName(u"frequencyEdit")
-        self.frequencyEdit.setStyleSheet(u"")
+        self.frequencyEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state */\n"
+"QDoubleSpinBox:!edita"
+                        "ble {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox::up-button:hover, QDoubl"
+                        "eSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.frequencyEdit.setDecimals(3)
         self.frequencyEdit.setMinimum(1.000000000000000)
         self.frequencyEdit.setMaximum(1000000.000000000000000)
@@ -61,6 +133,79 @@ class Ui_IFEditorDialog(object):
 
         self.bandwidthEdit = QDoubleSpinBox(IFEditorDialog)
         self.bandwidthEdit.setObjectName(u"bandwidthEdit")
+        self.bandwidthEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state */\n"
+"QDoubleSpinBox:!edita"
+                        "ble {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox::up-button:hover, QDoubl"
+                        "eSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.bandwidthEdit.setDecimals(3)
         self.bandwidthEdit.setMinimum(0.001000000000000)
         self.bandwidthEdit.setMaximum(1000.000000000000000)
@@ -92,11 +237,9 @@ class Ui_IFEditorDialog(object):
 
         self.verticalLayout.addWidget(self.labelPolarizations)
 
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.polarizationsList = QListWidget(IFEditorDialog)
-        QListWidgetItem(self.polarizationsList)
-        QListWidgetItem(self.polarizationsList)
-        QListWidgetItem(self.polarizationsList)
-        QListWidgetItem(self.polarizationsList)
         QListWidgetItem(self.polarizationsList)
         QListWidgetItem(self.polarizationsList)
         QListWidgetItem(self.polarizationsList)
@@ -104,7 +247,14 @@ class Ui_IFEditorDialog(object):
         self.polarizationsList.setObjectName(u"polarizationsList")
         self.polarizationsList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
 
-        self.verticalLayout.addWidget(self.polarizationsList)
+        self.horizontalLayout.addWidget(self.polarizationsList)
+
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout)
 
         self.polarizationsButtonLayout = QHBoxLayout()
         self.polarizationsButtonLayout.setObjectName(u"polarizationsButtonLayout")
@@ -201,22 +351,13 @@ class Ui_IFEditorDialog(object):
         ___qlistwidgetitem1 = self.polarizationsList.item(1)
         ___qlistwidgetitem1.setText(QCoreApplication.translate("IFEditorDialog", u"LCP", None));
         ___qlistwidgetitem2 = self.polarizationsList.item(2)
-        ___qlistwidgetitem2.setText(QCoreApplication.translate("IFEditorDialog", u"RR", None));
+        ___qlistwidgetitem2.setText(QCoreApplication.translate("IFEditorDialog", u"H", None));
         ___qlistwidgetitem3 = self.polarizationsList.item(3)
-        ___qlistwidgetitem3.setText(QCoreApplication.translate("IFEditorDialog", u"LL", None));
-        ___qlistwidgetitem4 = self.polarizationsList.item(4)
-        ___qlistwidgetitem4.setText(QCoreApplication.translate("IFEditorDialog", u"RL", None));
-        ___qlistwidgetitem5 = self.polarizationsList.item(5)
-        ___qlistwidgetitem5.setText(QCoreApplication.translate("IFEditorDialog", u"LR", None));
-        ___qlistwidgetitem6 = self.polarizationsList.item(6)
-        ___qlistwidgetitem6.setText(QCoreApplication.translate("IFEditorDialog", u"H", None));
-        ___qlistwidgetitem7 = self.polarizationsList.item(7)
-        ___qlistwidgetitem7.setText(QCoreApplication.translate("IFEditorDialog", u"V", None));
+        ___qlistwidgetitem3.setText(QCoreApplication.translate("IFEditorDialog", u"V", None));
         self.polarizationsList.setSortingEnabled(__sortingEnabled)
 
         self.polarizationsList.setStyleSheet(QCoreApplication.translate("IFEditorDialog", u"border: 1px solid #d3d3d3;", None))
-        self.clearPolarizationsButton.setText(QCoreApplication.translate("IFEditorDialog", u"Clear Polarizations", None))
+        self.clearPolarizationsButton.setText(QCoreApplication.translate("IFEditorDialog", u"Clear", None))
         self.saveButton.setText(QCoreApplication.translate("IFEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("IFEditorDialog", u"Cancel", None))
     # retranslateUi
-

@@ -15,7 +15,9 @@ class ScansTab(QWidget):
     """Widget for displaying and managing scans in an observation."""
     data_updated = Signal()
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator,
+                 telescopes_tab: 'TelescopesTab' = None, frequencies_tab: 'FrequenciesTab' = None,
+                 sources_tab: 'SourcesTab' = None, parent=None):
         super().__init__(parent)
         self.observation = observation
         self.project = project
@@ -50,7 +52,18 @@ class ScansTab(QWidget):
         # Connect signals
         self.ui.search.textChanged.connect(self.on_search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
+
+        # Connect data_updated signals from other tabs
+        if telescopes_tab:
+            telescopes_tab.data_updated.connect(self.recalculate_scans_status)
+        if frequencies_tab:
+            frequencies_tab.data_updated.connect(self.recalculate_scans_status)
+        if sources_tab:
+            sources_tab.data_updated.connect(self.recalculate_scans_status)
+
         self.update()
+
+        logger.info(f"ScansTab initialized for observation '{observation.code}'")
 
         logger.info(f"ScansTab initialized for observation '{observation.code}'")
 
@@ -134,8 +147,80 @@ class ScansTab(QWidget):
         menu.exec(self.ui.table.viewport().mapToGlobal(position))
 
     @Slot()
+    @Slot()
     def add_scan(self):
-        """Add a new scan to the observation using ScanEditorDialog."""
+        """Add a new scan to the observation using ScanEditorDialog after checking prerequisites."""
+        # Check prerequisites: telescopes, sources, frequencies
+        missing_components = []
+
+        # Check observation type
+        obs_type_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get": "observation_type"}
+        })
+        if not obs_type_response["status"]:
+            logger.error(f"Failed to get observation type: {obs_type_response.get('error', 'Unknown error')}")
+            QMessageBox.critical(self, "Error", f"Failed to get observation type: {obs_type_response.get('error', 'Unknown error')}")
+            return
+        obs_type = obs_type_response["result"]
+
+        # Check telescopes
+        telescopes_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_telescopes": None}
+        })
+        if not telescopes_response["status"] or not telescopes_response["result"]:
+            logger.error(f"Failed to get telescopes: {telescopes_response.get('error', 'Unknown error')}")
+            missing_components.append("telescopes")
+        else:
+            telescopes_items_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": telescopes_response["result"],
+                "attributes": {"get_all": None}
+            })
+            if not telescopes_items_response["status"] or not isinstance(telescopes_items_response["result"], dict):
+                logger.error(f"Failed to get telescope items: {telescopes_items_response.get('error', 'Unknown error')}")
+                missing_components.append("telescopes")
+            else:
+                telescope_count = len(telescopes_items_response["result"])
+                if obs_type == "VLBI" and telescope_count < 2:
+                    missing_components.append("at least 2 telescopes (required for VLBI)")
+                elif obs_type == "SINGLE_DISH" and telescope_count < 1:
+                    missing_components.append("at least 1 telescope (required for SINGLE_DISH)")
+
+        # Check frequencies
+        frequencies_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_frequencies": None}
+        })
+        if not frequencies_response["status"] or not frequencies_response["result"]:
+            logger.error(f"Failed to get frequencies: {frequencies_response.get('error', 'Unknown error')}")
+            missing_components.append("frequencies")
+        else:
+            frequencies_items_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": frequencies_response["result"],
+                "attributes": {"get_all": None}
+            })
+            if not frequencies_items_response["status"] or not isinstance(frequencies_items_response["result"], dict) or len(frequencies_items_response["result"]) < 1:
+                logger.error(f"No frequencies found: {frequencies_items_response.get('error', 'No frequencies available')}")
+                missing_components.append("at least 1 frequency")
+
+        # If there are missing components, show a message and return
+        if missing_components:
+            logger.warning(f"Cannot add scan: missing components: {', '.join(missing_components)}")
+            QMessageBox.information(
+                self,
+                "Cannot Add Scan",
+                f"Cannot add a scan. Please add the following to the observation:\n- {', '.join(missing_components)}",
+                QMessageBox.Ok
+            )
+            return
+
+        # Proceed with scan creation if all prerequisites are met
         dialog = ScanEditorDialog(self.observation, self.manipulator, scan=None, parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:
@@ -151,7 +236,8 @@ class ScansTab(QWidget):
                             "source_name": scan_data["source_name"],
                             "telescope_names": scan_data["telescope_names"],
                             "frequency_names": scan_data["frequency_names"],
-                            "isactive": scan_data["isactive"]
+                            "isactive": scan_data["isactive"],
+                            "observation": self.observation
                         }
                     }
                 }
@@ -201,7 +287,8 @@ class ScansTab(QWidget):
                                 "source_name": scan_data["source_name"],
                                 "telescope_names": scan_data["telescope_names"],
                                 "frequency_names": scan_data["frequency_names"],
-                                "isactive": scan_data["isactive"]
+                                "isactive": scan_data["isactive"],
+                                "observation": self.observation
                             }
                         }
                     }
@@ -265,7 +352,8 @@ class ScansTab(QWidget):
                 "attributes": {
                     "set_scan": {
                         "name": scan_name,
-                        "isactive": True
+                        "isactive": True,
+                        "observation": self.observation
                     }
                 }
             }
@@ -301,7 +389,8 @@ class ScansTab(QWidget):
                 "attributes": {
                     "set_scan": {
                         "name": scan_name,
-                        "isactive": False
+                        "isactive": False,
+                        "observation": self.observation
                     }
                 }
             }
@@ -324,7 +413,7 @@ class ScansTab(QWidget):
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_scans(),
-                "attributes": {"activate_all": None}
+                "attributes": {"activate_all": self.observation}
             }
             response = self.manipulator.process_request(request)
             if response["status"]:
@@ -421,6 +510,77 @@ class ScansTab(QWidget):
         except Exception as e:
             logger.error(f"Exception while clearing scans: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to clear scans: {str(e)}")
+    
+    @Slot()
+    def recalculate_scans_status(self):
+        """Recalculate the activity status of all scans based on current observation state."""
+        logger.debug(f"Recalculating activity status for all scans in observation '{self.observation.code}'")
+        
+        scans_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_scans": None}
+        })
+        if not scans_response["status"] or not scans_response["result"]:
+            logger.error(f"Failed to retrieve scans: {scans_response.get('error', 'Unknown error')}")
+            return
+
+        scans = scans_response["result"]
+        items_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": scans,
+            "attributes": {"get_all": None}
+        })
+        if not items_response["status"] or not isinstance(items_response["result"], dict):
+            logger.error(f"Failed to retrieve scan items: {items_response.get('error', 'Unknown error')}")
+            return
+
+        for scan_name, scan_obj in items_response["result"].items():
+            # Get current isactive status
+            is_active_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": scan_obj,
+                "attributes": {"get": "isactive"}
+            })
+            if not is_active_response["status"]:
+                logger.error(f"Failed to get isactive for scan '{scan_name}': {is_active_response.get('error', 'Unknown error')}")
+                continue
+            current_isactive = bool(is_active_response["result"])
+
+            # Recalculate activity status
+            check_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": scan_obj,
+                "attributes": {"check_activity_status": self.observation}
+            })
+            if not check_response["status"]:
+                logger.error(f"Failed to check activity status for scan '{scan_name}': {check_response.get('error', 'Unknown error')}")
+                continue
+            new_isactive = bool(check_response["result"])
+
+            # Update if changed
+            if current_isactive != new_isactive:
+                logger.info(f"Updating scan '{scan_name}' isactive from {current_isactive} to {new_isactive}")
+                request = {
+                    "operation": "configure",
+                    "obj": self.observation.get_scans(),
+                    "attributes": {
+                        "set_scan": {
+                            "name": scan_name,
+                            "isactive": new_isactive,
+                            "observation": self.observation
+                        }
+                    }
+                }
+                response = self.manipulator.process_request(request)
+                if not response["status"]:
+                    logger.error(f"Failed to update scan '{scan_name}' isactive: {response.get('error', 'Unknown error')}")
+                else:
+                    logger.debug(f"Scan '{scan_name}' isactive updated to {new_isactive}")
+
+        self.update()
+        self.data_updated.emit()
+        logger.debug("Scans status recalculation completed")
 
     @Slot()
     def update(self):
@@ -464,7 +624,7 @@ class ScansTab(QWidget):
                         continue
 
                     attrs = attrs_response["result"]
-                    start_time = attrs["start"].isot if attrs["start"] else "N/A"
+                    start_time = attrs["start"].strftime("%d.%m.%Y %H:%M:%S") if attrs["start"] else "N/A"
                     duration = f"{attrs['duration']:.1f}" if attrs["duration"] else "N/A"
                     source_name = attrs["source_name"] or "None"
                     telescopes = ", ".join(attrs["telescope_names"]) if attrs["telescope_names"] else "None"
