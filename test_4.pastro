@@ -56,9 +56,9 @@
                         "isactive": true,
                         "type": "Telescope",
                         "code": "telescope_58dc45be",
-                        "x": 918036.7274,
-                        "y": 4346133.0783,
-                        "z": 4561971.5475,
+                        "x": 918036.73,
+                        "y": 4346133.08,
+                        "z": 4561971.55,
                         "vx": 0.0,
                         "vy": 0.0,
                         "vz": 0.0,
@@ -73,7 +73,7 @@
                             360.0
                         ],
                         "mount_type": "AZIM",
-                        "surface_accuracy": null,
+                        "surface_accuracy": 0.0,
                         "surface_efficiency_table": {},
                         "effective_area_table": {},
                         "system_temperature_table": {}
