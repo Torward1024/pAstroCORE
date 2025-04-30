@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifZZKXlH.ui'
+## Form generated from reading UI file 'dialog_editor_ifFWneLy.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.2
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -16,16 +16,16 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDialog,
-    QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel,
-    QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
-    QSpacerItem, QVBoxLayout, QWidget)
+    QDoubleSpinBox, QFormLayout, QFrame, QHBoxLayout,
+    QLabel, QListWidget, QListWidgetItem, QPushButton,
+    QSizePolicy, QSpacerItem, QVBoxLayout, QWidget)
 
 class Ui_IFEditorDialog(object):
     def setupUi(self, IFEditorDialog):
         if not IFEditorDialog.objectName():
             IFEditorDialog.setObjectName(u"IFEditorDialog")
         IFEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        IFEditorDialog.resize(456, 238)
+        IFEditorDialog.resize(436, 245)
         IFEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(IFEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -34,7 +34,7 @@ class Ui_IFEditorDialog(object):
         self.labelFrequency = QLabel(IFEditorDialog)
         self.labelFrequency.setObjectName(u"labelFrequency")
 
-        self.formLayout.setWidget(0, QFormLayout.LabelRole, self.labelFrequency)
+        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.labelFrequency)
 
         self.frequencyEdit = QDoubleSpinBox(IFEditorDialog)
         self.frequencyEdit.setObjectName(u"frequencyEdit")
@@ -44,6 +44,7 @@ class Ui_IFEditorDialog(object):
 "    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
+"    padding-right: 20px;\n"
 "    border-radius: 3px;\n"
 "    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
 "    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
@@ -66,9 +67,9 @@ class Ui_IFEditorDialog(object):
 "    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
 "}\n"
 "\n"
-"/* Non-editable state */\n"
-"QDoubleSpinBox:!edita"
-                        "ble {\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
 "    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
 "    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
 "}\n"
@@ -91,10 +92,9 @@ class Ui_IFEditorDialog(object):
 "    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
 "    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
 "}\n"
-"\n"
 "/* Hover state for up/down buttons */\n"
-"QDoubleSpinBox::up-button:hover, QDoubl"
-                        "eSpinBox::down-button:hover {\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
 "    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
 "}\n"
 "\n"
@@ -104,7 +104,6 @@ class Ui_IFEditorDialog(object):
 "    height: 12px;\n"
 "    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
 "}\n"
-"\n"
 "/* Down arrow styling */\n"
 "QDoubleSpinBox::down-arrow {\n"
 "    width: 12px;\n"
@@ -116,22 +115,34 @@ class Ui_IFEditorDialog(object):
         self.frequencyEdit.setMaximum(1000000.000000000000000)
         self.frequencyEdit.setValue(1000.000000000000000)
 
-        self.formLayout.setWidget(0, QFormLayout.FieldRole, self.frequencyEdit)
+        self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.frequencyEdit)
 
         self.labelWavelength = QLabel(IFEditorDialog)
         self.labelWavelength.setObjectName(u"labelWavelength")
 
-        self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelWavelength)
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.labelWavelength)
 
         self.wavelengthDisplay = QLabel(IFEditorDialog)
         self.wavelengthDisplay.setObjectName(u"wavelengthDisplay")
+        self.wavelengthDisplay.setStyleSheet(u"QLabel {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}")
+        self.wavelengthDisplay.setFrameShape(QFrame.Shape.Panel)
+        self.wavelengthDisplay.setFrameShadow(QFrame.Shadow.Sunken)
+        self.wavelengthDisplay.setIndent(1)
 
-        self.formLayout.setWidget(1, QFormLayout.FieldRole, self.wavelengthDisplay)
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.wavelengthDisplay)
 
         self.labelBandwidth = QLabel(IFEditorDialog)
         self.labelBandwidth.setObjectName(u"labelBandwidth")
 
-        self.formLayout.setWidget(2, QFormLayout.LabelRole, self.labelBandwidth)
+        self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.labelBandwidth)
 
         self.bandwidthEdit = QDoubleSpinBox(IFEditorDialog)
         self.bandwidthEdit.setObjectName(u"bandwidthEdit")
@@ -141,6 +152,7 @@ class Ui_IFEditorDialog(object):
 "    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
+"    padding-right: 20px;\n"
 "    border-radius: 3px;\n"
 "    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
 "    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
@@ -163,9 +175,9 @@ class Ui_IFEditorDialog(object):
 "    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
 "}\n"
 "\n"
-"/* Non-editable state */\n"
-"QDoubleSpinBox:!edita"
-                        "ble {\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
 "    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
 "    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
 "}\n"
@@ -188,10 +200,9 @@ class Ui_IFEditorDialog(object):
 "    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
 "    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
 "}\n"
-"\n"
 "/* Hover state for up/down buttons */\n"
-"QDoubleSpinBox::up-button:hover, QDoubl"
-                        "eSpinBox::down-button:hover {\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
 "    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
 "}\n"
 "\n"
@@ -201,7 +212,6 @@ class Ui_IFEditorDialog(object):
 "    height: 12px;\n"
 "    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
 "}\n"
-"\n"
 "/* Down arrow styling */\n"
 "QDoubleSpinBox::down-arrow {\n"
 "    width: 12px;\n"
@@ -213,18 +223,18 @@ class Ui_IFEditorDialog(object):
         self.bandwidthEdit.setMaximum(1000.000000000000000)
         self.bandwidthEdit.setValue(16.000000000000000)
 
-        self.formLayout.setWidget(2, QFormLayout.FieldRole, self.bandwidthEdit)
+        self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.bandwidthEdit)
 
         self.labelIsActive = QLabel(IFEditorDialog)
         self.labelIsActive.setObjectName(u"labelIsActive")
 
-        self.formLayout.setWidget(3, QFormLayout.LabelRole, self.labelIsActive)
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.labelIsActive)
 
         self.isActiveCheckBox = QCheckBox(IFEditorDialog)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
         self.isActiveCheckBox.setChecked(True)
 
-        self.formLayout.setWidget(3, QFormLayout.FieldRole, self.isActiveCheckBox)
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.isActiveCheckBox)
 
 
         self.verticalLayout.addLayout(self.formLayout)
@@ -340,7 +350,6 @@ class Ui_IFEditorDialog(object):
         IFEditorDialog.setStyleSheet(QCoreApplication.translate("IFEditorDialog", u"background-color: #ffffff; font-family: Arial;", None))
         self.labelFrequency.setText(QCoreApplication.translate("IFEditorDialog", u"Frequency (MHz):", None))
         self.labelWavelength.setText(QCoreApplication.translate("IFEditorDialog", u"Wavelength (cm):", None))
-        self.wavelengthDisplay.setStyleSheet(QCoreApplication.translate("IFEditorDialog", u"color: #6c757d;", None))
         self.wavelengthDisplay.setText(QCoreApplication.translate("IFEditorDialog", u"29.979", None))
         self.labelBandwidth.setText(QCoreApplication.translate("IFEditorDialog", u"Bandwidth (MHz):", None))
         self.labelIsActive.setText(QCoreApplication.translate("IFEditorDialog", u"Active:", None))

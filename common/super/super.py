@@ -187,7 +187,7 @@ class Super(ABC):
                 valid_args = {k: v for k, v in final_args.items() if k in expected_params}
                 result = method(obj, **valid_args) if 'obj' not in expected_params else method(**valid_args)
 
-            logger.info(f"Applied {method_name} to {type(obj).__name__}, result={result}")
+            logger.debug(f"Applied {method_name} to {type(obj).__name__}, result={result}")
             return self._build_response(obj, True, method_name, result)
         except TypeError as e:
             logger.error(f"TypeError applying {method_name} to {type(obj).__name__}: {str(e)}")

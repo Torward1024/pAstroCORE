@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_aboutGIOLxb.ui'
+## Form generated from reading UI file 'dialog_aboutYNOEgk.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.2
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -22,6 +22,7 @@ class Ui_AboutDialog(object):
     def setupUi(self, AboutDialog):
         if not AboutDialog.objectName():
             AboutDialog.setObjectName(u"AboutDialog")
+        AboutDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         AboutDialog.resize(319, 251)
         AboutDialog.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         AboutDialog.setModal(True)
@@ -37,7 +38,7 @@ class Ui_AboutDialog(object):
         self.labelTitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.labelVersion = QLabel(AboutDialog)
         self.labelVersion.setObjectName(u"labelVersion")
-        self.labelVersion.setGeometry(QRect(190, 80, 75, 16))
+        self.labelVersion.setGeometry(QRect(144, 80, 171, 20))
         self.labelVersion.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.labelDescription = QLabel(AboutDialog)
         self.labelDescription.setObjectName(u"labelDescription")
@@ -70,7 +71,7 @@ class Ui_AboutDialog(object):
         self.label_2 = QLabel(AboutDialog)
         self.label_2.setObjectName(u"label_2")
         self.label_2.setGeometry(QRect(10, 10, 121, 123))
-        self.label_2.setPixmap(QPixmap("pastrocore/gui/pAstroCORE_icon.png"))
+        self.label_2.setPixmap(QPixmap(u"../gui/pAstroCORE_icon.png"))
         self.label_2.setScaledContents(True)
 
         self.retranslateUi(AboutDialog)
