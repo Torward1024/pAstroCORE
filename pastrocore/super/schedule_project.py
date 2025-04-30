@@ -61,6 +61,7 @@ class ScheduleProject(Project):
 
         Args:
             item_name (str): The name for the new observation. Defaults to "OBS_DEFAULT".
+            
             isactive (bool): Whether the new observation is active. Defaults to True.
 
         Raises:
