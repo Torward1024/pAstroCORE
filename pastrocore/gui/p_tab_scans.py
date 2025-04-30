@@ -15,7 +15,9 @@ class ScansTab(QWidget):
     """Widget for displaying and managing scans in an observation."""
     data_updated = Signal()
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator,
+                 telescopes_tab: 'TelescopesTab' = None, frequencies_tab: 'FrequenciesTab' = None,
+                 sources_tab: 'SourcesTab' = None, parent=None):
         super().__init__(parent)
         self.observation = observation
         self.project = project
@@ -50,7 +52,18 @@ class ScansTab(QWidget):
         # Connect signals
         self.ui.search.textChanged.connect(self.on_search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
+
+        # Connect data_updated signals from other tabs
+        if telescopes_tab:
+            telescopes_tab.data_updated.connect(self.recalculate_scans_status)
+        if frequencies_tab:
+            frequencies_tab.data_updated.connect(self.recalculate_scans_status)
+        if sources_tab:
+            sources_tab.data_updated.connect(self.recalculate_scans_status)
+
         self.update()
+
+        logger.info(f"ScansTab initialized for observation '{observation.code}'")
 
         logger.info(f"ScansTab initialized for observation '{observation.code}'")
 
@@ -425,6 +438,77 @@ class ScansTab(QWidget):
         except Exception as e:
             logger.error(f"Exception while clearing scans: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to clear scans: {str(e)}")
+    
+    @Slot()
+    def recalculate_scans_status(self):
+        """Recalculate the activity status of all scans based on current observation state."""
+        logger.debug(f"Recalculating activity status for all scans in observation '{self.observation.code}'")
+        
+        scans_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_scans": None}
+        })
+        if not scans_response["status"] or not scans_response["result"]:
+            logger.error(f"Failed to retrieve scans: {scans_response.get('error', 'Unknown error')}")
+            return
+
+        scans = scans_response["result"]
+        items_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": scans,
+            "attributes": {"get_all": None}
+        })
+        if not items_response["status"] or not isinstance(items_response["result"], dict):
+            logger.error(f"Failed to retrieve scan items: {items_response.get('error', 'Unknown error')}")
+            return
+
+        for scan_name, scan_obj in items_response["result"].items():
+            # Get current isactive status
+            is_active_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": scan_obj,
+                "attributes": {"get": "isactive"}
+            })
+            if not is_active_response["status"]:
+                logger.error(f"Failed to get isactive for scan '{scan_name}': {is_active_response.get('error', 'Unknown error')}")
+                continue
+            current_isactive = bool(is_active_response["result"])
+
+            # Recalculate activity status
+            check_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": scan_obj,
+                "attributes": {"check_activity_status": self.observation}
+            })
+            if not check_response["status"]:
+                logger.error(f"Failed to check activity status for scan '{scan_name}': {check_response.get('error', 'Unknown error')}")
+                continue
+            new_isactive = bool(check_response["result"])
+
+            # Update if changed
+            if current_isactive != new_isactive:
+                logger.info(f"Updating scan '{scan_name}' isactive from {current_isactive} to {new_isactive}")
+                request = {
+                    "operation": "configure",
+                    "obj": self.observation.get_scans(),
+                    "attributes": {
+                        "set_scan": {
+                            "name": scan_name,
+                            "isactive": new_isactive,
+                            "observation": self.observation
+                        }
+                    }
+                }
+                response = self.manipulator.process_request(request)
+                if not response["status"]:
+                    logger.error(f"Failed to update scan '{scan_name}' isactive: {response.get('error', 'Unknown error')}")
+                else:
+                    logger.debug(f"Scan '{scan_name}' isactive updated to {new_isactive}")
+
+        self.update()
+        self.data_updated.emit()
+        logger.debug("Scans status recalculation completed")
 
     @Slot()
     def update(self):

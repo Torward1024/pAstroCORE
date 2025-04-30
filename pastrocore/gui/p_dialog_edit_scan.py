@@ -96,6 +96,10 @@ class ScanEditorDialog(QDialog):
         # Load scan data if editing
         if not self.is_new:
             self._load_scan_data()
+        else:
+            ### NEW/CHANGED ### Set chk_active based on conditions for new scans
+            self.ui.chk_active.setChecked(self._check_scan_conditions())
+            logger.info(f"Set chk_active for new scan based on conditions: {self.ui.chk_active.isChecked()}")
 
         logger.info(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan.name}'} in observation '{self.observation.code}'")
 
@@ -115,6 +119,9 @@ class ScanEditorDialog(QDialog):
             else:
                 target_set.discard(name)
             logger.debug(f"Current selected {'telescopes' if model == self.telescopes_model else 'frequencies'}: {target_set}")
+            ### NEW/CHANGED ### Update chk_active when selection changes
+            self.ui.chk_active.setChecked(self._check_scan_conditions())
+            logger.debug(f"Updated chk_active after selection change: {self.ui.chk_active.isChecked()}")
 
     def _populate_sources(self):
         """Populate the source combo box with available sources."""
@@ -126,6 +133,14 @@ class ScanEditorDialog(QDialog):
         logger.debug(f"Sources response: {sources_response}")
         if sources_response["status"] and isinstance(sources_response["result"], dict) and sources_response["result"]:
             for name, source in sources_response["result"].items():
+                ### NEW/CHANGED ### Log source activity status
+                is_active_response = self.manipulator.process_request({
+                    "operation": "inspect",
+                    "obj": source,
+                    "attributes": {"get": "isactive"}
+                })
+                is_active = is_active_response["status"] and bool(is_active_response["result"])
+                logger.debug(f"Source {name} isactive: {is_active}")
                 self.ui.sourceCombo.addItem(name, name)
             self.ui.sourceCombo.setCurrentIndex(0)
             self.ui.chk_offsource.setChecked(False)
@@ -154,6 +169,8 @@ class ScanEditorDialog(QDialog):
                     "attributes": {"get": "isactive"}
                 })
                 is_active = is_active_response["status"] and bool(is_active_response["result"])
+                ### NEW/CHANGED ### Log telescope activity status
+                logger.debug(f"Telescope {name} isactive: {is_active}")
 
                 row = [
                     QStandardItem(str(idx)),  # #
@@ -202,6 +219,8 @@ class ScanEditorDialog(QDialog):
                     "attributes": {"get": "isactive"}
                 })
                 is_active = is_active_response["status"] and bool(is_active_response["result"])
+                ### NEW/CHANGED ### Log frequency activity status
+                logger.debug(f"Frequency {name} isactive: {is_active}")
 
                 bandwidth_response = self.manipulator.process_request({
                     "operation": "inspect",
@@ -241,6 +260,70 @@ class ScanEditorDialog(QDialog):
         else:
             logger.error(f"Failed to populate frequencies: {frequencies_response.get('error', 'Unknown error')}")
 
+    ### NEW/CHANGED ### New method to check scan activation conditions
+    def _check_scan_conditions(self):
+        """Check if scan conditions for activation are met (2 active telescopes, 1 active frequency, active source).
+
+        Returns:
+            bool: True if conditions are met, False otherwise.
+        """
+        # Check telescopes
+        active_telescopes = []
+        for row in range(self.telescopes_model.rowCount()):
+            name_item = self.telescopes_model.item(row, 3)
+            check_item = self.telescopes_model.item(row, 1)
+            active_item = self.telescopes_model.item(row, 2)
+            name = name_item.data(Qt.UserRole) if name_item else None
+            is_checked = check_item.checkState() == Qt.Checked if check_item else False
+            is_active = active_item.toolTip() == "Active" if active_item else False
+            if is_checked and is_active and name:
+                active_telescopes.append(name)
+        logger.debug(f"Active and selected telescopes: {active_telescopes}")
+
+        # Check frequencies
+        active_frequencies = []
+        for row in range(self.frequencies_model.rowCount()):
+            name_item = self.frequencies_model.item(row, 3)
+            check_item = self.frequencies_model.item(row, 1)
+            active_item = self.frequencies_model.item(row, 2)
+            name = name_item.data(Qt.UserRole) if name_item else None
+            is_checked = check_item.checkState() == Qt.Checked if check_item else False
+            is_active = active_item.toolTip() == "Active" if active_item else False
+            if is_checked and is_active and name:
+                active_frequencies.append(name)
+        logger.debug(f"Active and selected frequencies: {active_frequencies}")
+
+        # Check source
+        is_off_source = self.ui.chk_offsource.isChecked()
+        source_name = self.ui.sourceCombo.currentData()
+        source_active = True
+        if not is_off_source and source_name:
+            source_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_sources(),
+                "attributes": {"get": source_name}
+            })
+            if source_response["status"]:
+                is_active_response = self.manipulator.process_request({
+                    "operation": "inspect",
+                    "obj": source_response["result"],
+                    "attributes": {"get": "isactive"}
+                })
+                source_active = is_active_response["status"] and bool(is_active_response["result"])
+        logger.debug(f"Source {source_name} active: {source_active}, is_off_source: {is_off_source}")
+
+        # Assume VLBI observation requires 2 telescopes
+        conditions_met = (
+            len(active_telescopes) >= 2 and
+            len(active_frequencies) >= 1 and
+            (is_off_source or source_active)
+        )
+        logger.debug(f"Scan conditions check: telescopes={len(active_telescopes)} (>=2), "
+                     f"frequencies={len(active_frequencies)} (>=1), "
+                     f"source_active={source_active or is_off_source}, "
+                     f"conditions_met={conditions_met}")
+        return conditions_met
+
     def _load_scan_data(self):
         """Load existing scan data into the dialog."""
         try:
@@ -274,8 +357,9 @@ class ScanEditorDialog(QDialog):
                 self.ui.sourceCombo.setCurrentIndex(0)
                 self.ui.sourceCombo.setEnabled(True)
 
-        self.ui.chk_active.setChecked(self.scan.isactive)
-        logger.info(f"Set active status: {self.scan.isactive}")
+        ### NEW/CHANGED ### Set chk_active based on conditions, not just scan.isactive
+        self.ui.chk_active.setChecked(self._check_scan_conditions())
+        logger.info(f"Set active status based on conditions: {self.ui.chk_active.isChecked()} (original scan.isactive: {self.scan.isactive})")
 
         # Load telescopes
         logger.debug(f"Loading telescopes for scan: {self.scan.telescope_names}")
@@ -311,6 +395,9 @@ class ScanEditorDialog(QDialog):
         if is_off_source:
             self.ui.sourceCombo.setCurrentIndex(self.ui.sourceCombo.findData(None))
         logger.info(f"OFF SOURCE changed to: {is_off_source}, sourceCombo enabled: {self.ui.sourceCombo.isEnabled()}")
+        ### NEW/CHANGED ### Update chk_active when offsource changes
+        self.ui.chk_active.setChecked(self._check_scan_conditions())
+        logger.debug(f"Updated chk_active after offsource change: {self.ui.chk_active.isChecked()}")
 
     def get_scan_data(self):
         """Retrieve scan data from the dialog.
@@ -381,6 +468,16 @@ class ScanEditorDialog(QDialog):
             raise ValueError("At least one frequency must be selected")
 
         isactive = self.ui.chk_active.isChecked()
+        ### NEW/CHANGED ### Warn if isactive=True but conditions not met
+        conditions_met = self._check_scan_conditions()
+        if isactive and not conditions_met:
+            logger.warning("Scan marked as active but conditions not met (less than 2 active telescopes, no active frequency, or inactive source)")
+            QMessageBox.warning(self, "Warning", 
+                                "Scan is marked as active, but conditions are not met:\n"
+                                "- At least 2 active telescopes required\n"
+                                "- At least 1 active frequency required\n"
+                                "- Source must be active (unless OFF SOURCE)")
+        logger.debug(f"Retrieved isactive from chk_active: {isactive}, conditions_met: {conditions_met}")
 
         scan_data = {
             "name": self.scan.name if not self.is_new else f"scan_{uuid.uuid4().hex[:32]}",
