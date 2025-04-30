@@ -322,8 +322,8 @@ class ProjectInfoTab(QWidget):
             if index.isValid():
                 source_index = self.proxy_model.mapToSource(index)
                 obs_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
+                obs_code = self.model.item(source_index.row(), 3).text()
                 logger.info(f"BABA '{obs_name}'")
-                obs_code = self.model.item(source_index.row(), 2).text()
                 # Get observation state
                 obs_response = self.manipulator.process_request({
                     "operation": "inspect",
@@ -565,5 +565,5 @@ class ProjectInfoTab(QWidget):
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
             obs_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
-            obs_code = self.model.item(source_index.row(), 2).text()
+            obs_code = self.model.item(source_index.row(), 3).text()
             self.edit_observation(obs_name, obs_code)
