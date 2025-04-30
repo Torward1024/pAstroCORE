@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifoBaugl.ui'
+## Form generated from reading UI file 'dialog_editor_ifIRJccc.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -24,7 +24,7 @@ class Ui_IFEditorDialog(object):
     def setupUi(self, IFEditorDialog):
         if not IFEditorDialog.objectName():
             IFEditorDialog.setObjectName(u"IFEditorDialog")
-        IFEditorDialog.resize(456, 304)
+        IFEditorDialog.resize(456, 234)
         self.verticalLayout = QVBoxLayout(IFEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.formLayout = QFormLayout()
@@ -93,10 +93,6 @@ class Ui_IFEditorDialog(object):
         self.verticalLayout.addWidget(self.labelPolarizations)
 
         self.polarizationsList = QListWidget(IFEditorDialog)
-        QListWidgetItem(self.polarizationsList)
-        QListWidgetItem(self.polarizationsList)
-        QListWidgetItem(self.polarizationsList)
-        QListWidgetItem(self.polarizationsList)
         QListWidgetItem(self.polarizationsList)
         QListWidgetItem(self.polarizationsList)
         QListWidgetItem(self.polarizationsList)
@@ -201,22 +197,13 @@ class Ui_IFEditorDialog(object):
         ___qlistwidgetitem1 = self.polarizationsList.item(1)
         ___qlistwidgetitem1.setText(QCoreApplication.translate("IFEditorDialog", u"LCP", None));
         ___qlistwidgetitem2 = self.polarizationsList.item(2)
-        ___qlistwidgetitem2.setText(QCoreApplication.translate("IFEditorDialog", u"RR", None));
+        ___qlistwidgetitem2.setText(QCoreApplication.translate("IFEditorDialog", u"H", None));
         ___qlistwidgetitem3 = self.polarizationsList.item(3)
-        ___qlistwidgetitem3.setText(QCoreApplication.translate("IFEditorDialog", u"LL", None));
-        ___qlistwidgetitem4 = self.polarizationsList.item(4)
-        ___qlistwidgetitem4.setText(QCoreApplication.translate("IFEditorDialog", u"RL", None));
-        ___qlistwidgetitem5 = self.polarizationsList.item(5)
-        ___qlistwidgetitem5.setText(QCoreApplication.translate("IFEditorDialog", u"LR", None));
-        ___qlistwidgetitem6 = self.polarizationsList.item(6)
-        ___qlistwidgetitem6.setText(QCoreApplication.translate("IFEditorDialog", u"H", None));
-        ___qlistwidgetitem7 = self.polarizationsList.item(7)
-        ___qlistwidgetitem7.setText(QCoreApplication.translate("IFEditorDialog", u"V", None));
+        ___qlistwidgetitem3.setText(QCoreApplication.translate("IFEditorDialog", u"V", None));
         self.polarizationsList.setSortingEnabled(__sortingEnabled)
 
         self.polarizationsList.setStyleSheet(QCoreApplication.translate("IFEditorDialog", u"border: 1px solid #d3d3d3;", None))
-        self.clearPolarizationsButton.setText(QCoreApplication.translate("IFEditorDialog", u"Clear Polarizations", None))
+        self.clearPolarizationsButton.setText(QCoreApplication.translate("IFEditorDialog", u"Clear", None))
         self.saveButton.setText(QCoreApplication.translate("IFEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("IFEditorDialog", u"Cancel", None))
     # retranslateUi
-

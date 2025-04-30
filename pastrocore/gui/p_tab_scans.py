@@ -341,7 +341,7 @@ class ScansTab(QWidget):
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_scans(),
-                "attributes": {"activate_all": None}
+                "attributes": {"activate_all": self.observation}
             }
             response = self.manipulator.process_request(request)
             if response["status"]:

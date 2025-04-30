@@ -26,7 +26,6 @@ from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from common.utils.logging_setup import logger
-
 import pastrocore.gui.rc_icons
 
 class PAstroCoreMainWindow(QMainWindow):
@@ -41,7 +40,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
         self.catalog_manager = self.initialize_catalog_manager()
-        logger.info(f"PAstroCoreMainWindow initialized with project id: {id(self.project)}, manipulator id={id(self.manipulator)}, catalog_manager id={id(self.catalog_manager)}")
+        logger.debug(f"PAstroCoreMainWindow initialized with project id: {id(self.project)}, manipulator id={id(self.manipulator)}, catalog_manager id={id(self.catalog_manager)}")
         self.current_project_path = None
         self.setup_ui()
         self.setup_connections()
@@ -263,7 +262,7 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot(str)
     def edit_observation(self, obs_name: str, obs_code: str):
         """Open the ObservationTab for the specified observation."""
-        logger.info(f"Opening edit tab for observation with code '{obs_code}'")
+        logger.debug(f"Opening edit tab for observation with code '{obs_code}'")
         self.open_observation_tab(obs_name, obs_code)
 
     @Slot()
@@ -280,7 +279,7 @@ class PAstroCoreMainWindow(QMainWindow):
         })
         project_name = project_name_response["result"] if project_name_response["status"] else "Untitled Project"
         direct_name = self.project.get_name()
-        logger.info(f"update_project_explorer: project id={id(self.project)}, name={project_name}, direct_name={direct_name}")
+        logger.debug(f"update_project_explorer: project id={id(self.project)}, name={project_name}, direct_name={direct_name}")
 
         project_item = QStandardItem(f"Project: {project_name}")
         project_item.setData("project", Qt.UserRole)

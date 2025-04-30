@@ -486,6 +486,32 @@ class Scans(BaseContainer[Scan]):
         else:
             logger.debug(f"No parameters to update for scan '{name}' in Scans")
 
+    def activate_all(self, observation: 'Observation') -> None:
+        """Activate all scans in the collection that satisfy activity conditions."""
+        from pastrocore.base.observation import Observation
+        check_type(observation, Observation, "Observation")
+        
+        activated_count = 0
+        skipped_count = 0
+        
+        for scan in self.get_items():
+            should_be_active = scan._check_activity_status(observation)
+            if should_be_active and not scan.isactive:
+                scan.set({"isactive": True})
+                activated_count += 1
+                logger.debug(f"Activated scan '{scan.name}' in Scans '{self.name}'")
+            elif not should_be_active and scan.isactive:
+                scan.set({"isactive": False})
+                skipped_count += 1
+                logger.debug(f"Deactivated scan '{scan.name}' in Scans '{self.name}' as it does not meet activity conditions")
+            elif not should_be_active:
+                skipped_count += 1
+                logger.debug(f"Skipped scan '{scan.name}' in Scans '{self.name}' as it does not meet activity conditions")
+            else:
+                logger.debug(f"Scan '{scan.name}' in Scans '{self.name}' already active and meets conditions")
+        
+        logger.info(f"Activated {activated_count} scans, skipped or deactivated {skipped_count} scans in Scans '{self.name}'")
+
     def get_active_scans(self, observation: 'Observation' = None) -> List[Scan]:
         """Retrieve all active scans, optionally filtering by entity activity in an Observation."""
         from pastrocore.base.observation import Observation
