@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifCCDAvE.ui'
+## Form generated from reading UI file 'dialog_editor_ifZZKXlH.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -24,7 +24,9 @@ class Ui_IFEditorDialog(object):
     def setupUi(self, IFEditorDialog):
         if not IFEditorDialog.objectName():
             IFEditorDialog.setObjectName(u"IFEditorDialog")
+        IFEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         IFEditorDialog.resize(456, 238)
+        IFEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(IFEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.formLayout = QFormLayout()
