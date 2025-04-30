@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_observationYwRgao.ui'
+## Form generated from reading UI file 'tab_observationTHPfVU.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -142,10 +142,8 @@ class Ui_ObservationInfoTab(object):
 "QComboBox::down-arrow {\n"
 "    width: 12px;\n"
 "    height: 12px;\n"
-"    /* \u0421\u0442"
-                        "\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u0430\u044f \u0441\u0442\u0440\u0435\u043b\u043a\u0430 Qt, \u0435\u0441\u043b\u0438 \u043d\u0435\u0442 \u0438\u043a\u043e\u043d\u043a\u0438 */\n"
-"    /* \u0415\u0441\u043b\u0438 \u0435\u0441\u0442\u044c \u0438\u043a\u043e\u043d\u043a\u0430, \u0440\u0430\u0441\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0438\u0440\u0443\u0439\u0442\u0435: */\n"
-"    /* image: url(:/icons/down_arrow.png); */\n"
+"    image: url("
+                        ":/icons/down_arrow_icon.svg);\n"
 "}\n"
 "\n"
 "/* \u0421\u0442\u0438\u043b\u0438\u0437\u0430\u0446\u0438\u044f \u0432\u044b\u043f\u0430\u0434\u0430\u044e\u0449\u0435\u0433\u043e \u0441\u043f\u0438\u0441\u043a\u0430 */\n"
@@ -165,8 +163,7 @@ class Ui_ObservationInfoTab(object):
 "    min-height: 20px;\n"
 "}\n"
 "\n"
-"QComboB"
-                        "ox QAbstractItemView::item:hover {\n"
+"QComboBox QAbstractItemView::item:hover {\n"
 "    background-color: #0078d7;\n"
 "}")
 

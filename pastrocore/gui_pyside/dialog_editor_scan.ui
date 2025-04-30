@@ -6,107 +6,21 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>471</width>
+    <width>576</width>
     <height>308</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Edit Scan</string>
   </property>
-  <property name="windowIcon">
-   <iconset theme="QIcon::ThemeIcon::DocumentOpenRecent"/>
-  </property>
   <property name="styleSheet">
    <string>background-color: #ffffff; font-family: Arial;</string>
   </property>
+  <property name="modal">
+   <bool>true</bool>
+  </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="4" column="1">
-    <widget class="QCheckBox" name="chk_active">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lbl_offsource">
-     <property name="text">
-      <string>Off source scan:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="1">
-    <widget class="QLabel" name="label_2">
-     <property name="text">
-      <string>Frequencies:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="labelSource">
-     <property name="text">
-      <string>Source:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="2">
-    <widget class="QPushButton" name="pushButton">
-     <property name="styleSheet">
-      <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-     </property>
-     <property name="text">
-      <string>ОК</string>
-     </property>
-     <property name="autoDefault">
-      <bool>false</bool>
-     </property>
-     <property name="flat">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1" colspan="3">
-    <widget class="QLineEdit" name="durationEdit">
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1" colspan="3">
+   <item row="1" column="1" colspan="3">
     <widget class="QComboBox" name="sourceCombo">
      <property name="styleSheet">
       <string notr="true">QComboBox {
@@ -165,9 +79,7 @@ QComboBox::drop-down:hover {
 QComboBox::down-arrow {
     width: 12px;
     height: 12px;
-    /* Стандартная стрелка Qt, если нет иконки */
-    /* Если есть иконка, раскомментируйте: */
-    /* image: url(:/icons/down_arrow.png); */
+    image: url(:/icons/down_arrow.svg);
 }
 
 /* Стилизация выпадающего списка */
@@ -193,7 +105,142 @@ QComboBox QAbstractItemView::item:hover {
      </property>
     </widget>
    </item>
-   <item row="7" column="3">
+   <item row="2" column="1">
+    <widget class="QCheckBox" name="chk_offsource">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="QCheckBox" name="chk_active">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="labelStartTime">
+     <property name="text">
+      <string>Start Time:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="labelSource">
+     <property name="text">
+      <string>Source:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1" colspan="3">
+    <widget class="QLineEdit" name="durationEdit">
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QLabel" name="lbl_active">
+     <property name="text">
+      <string>Active:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="0">
+    <widget class="QTableView" name="tab_telescopes">
+     <property name="styleSheet">
+      <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0">
+    <widget class="QLabel" name="labelDuration">
+     <property name="text">
+      <string>Duration (s):</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lbl_offsource">
+     <property name="text">
+      <string>Off source scan:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Telescopes:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Frequencies:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1" colspan="2">
+    <widget class="QTableView" name="tab_frequencies">
+     <property name="styleSheet">
+      <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="1">
+    <widget class="QPushButton" name="pushButton">
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+     </property>
+     <property name="text">
+      <string>ОК</string>
+     </property>
+     <property name="autoDefault">
+      <bool>false</bool>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="2">
     <widget class="QPushButton" name="pushButton_2">
      <property name="styleSheet">
       <string notr="true">QPushButton {
@@ -223,42 +270,7 @@ QPushButton:pressed {
      </property>
     </widget>
    </item>
-   <item row="4" column="0">
-    <widget class="QLabel" name="lbl_active">
-     <property name="text">
-      <string>Active:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="1">
-    <widget class="QCheckBox" name="chk_offsource">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>Telescopes:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="labelDuration">
-     <property name="text">
-      <string>Duration (s):</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="labelStartTime">
-     <property name="text">
-      <string>Start Time:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1" colspan="3">
+   <item row="3" column="1" colspan="3">
     <widget class="QDateTimeEdit" name="startTimeEdit">
      <property name="minimumDateTime">
       <datetime>
@@ -272,22 +284,10 @@ QPushButton:pressed {
      </property>
     </widget>
    </item>
-   <item row="6" column="0">
-    <widget class="QTableView" name="tab_telescopes">
-     <property name="styleSheet">
-      <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="1">
-    <widget class="QTableView" name="tab_frequencies">
-     <property name="styleSheet">
-      <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
-     </property>
-    </widget>
-   </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>

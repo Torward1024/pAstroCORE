@@ -10,7 +10,7 @@ from common.utils.logging_setup import logger
 from astropy.time import Time
 from datetime import datetime
 import uuid
-import pastrocore.gui.rc_icons  # For active/inactive icons
+import pastrocore.gui.rc_icons
 
 class ScanEditorDialog(QDialog):
     """Dialog for creating or editing a scan in an observation."""
@@ -43,21 +43,23 @@ class ScanEditorDialog(QDialog):
         self.ui.tab_frequencies.setModel(self.frequencies_model)
 
         # Configure telescopes table
-        self.telescopes_model.setHorizontalHeaderLabels(["#", "Check", "Active", "Name"])
+        self.telescopes_model.setHorizontalHeaderLabels(["#", " ", " ", "Name"])
         self.ui.tab_telescopes.setAlternatingRowColors(True)
         self.ui.tab_telescopes.setSortingEnabled(False)
         self.ui.tab_telescopes.verticalHeader().setVisible(False)
-        self.ui.tab_telescopes.setColumnWidth(1, 50)  # Check column
-        self.ui.tab_telescopes.setColumnWidth(2, 50)  # Active column
+        self.ui.tab_telescopes.setColumnWidth(0, 24)
+        self.ui.tab_telescopes.setColumnWidth(1, 24)  # Check column
+        self.ui.tab_telescopes.setColumnWidth(2, 24)  # Active column
         self.ui.tab_telescopes.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
 
         # Configure frequencies table
-        self.frequencies_model.setHorizontalHeaderLabels(["#", "Check", "Active", "Frequency (MHz)", "Bandwidth (MHz)", "Polarizations"])
+        self.frequencies_model.setHorizontalHeaderLabels(["#", " ", " ", "Frequency (MHz)", "Bandwidth (MHz)", "Polarizations"])
         self.ui.tab_frequencies.setAlternatingRowColors(True)
         self.ui.tab_frequencies.setSortingEnabled(False)
         self.ui.tab_frequencies.verticalHeader().setVisible(False)
-        self.ui.tab_frequencies.setColumnWidth(1, 50)  # Check column
-        self.ui.tab_frequencies.setColumnWidth(2, 50)  # Active column
+        self.ui.tab_frequencies.setColumnWidth(0, 24)
+        self.ui.tab_frequencies.setColumnWidth(1, 24)  # Check column
+        self.ui.tab_frequencies.setColumnWidth(2, 24)  # Active column
         self.ui.tab_frequencies.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
         self.ui.tab_frequencies.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self.ui.tab_frequencies.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
@@ -78,7 +80,6 @@ class ScanEditorDialog(QDialog):
         self.ui.durationEdit.setText("1")
         validator = QIntValidator(1, 999999, self)
         self.ui.durationEdit.setValidator(validator)
-        self.ui.sourceCombo.addItem("None", None)
 
         # Track selected items manually
         self.selected_telescopes = set()

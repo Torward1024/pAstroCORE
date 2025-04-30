@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>456</width>
-    <height>304</height>
+    <height>234</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -135,26 +135,6 @@
      </item>
      <item>
       <property name="text">
-       <string>RR</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>LL</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>RL</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>LR</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
        <string>H</string>
       </property>
      </item>
@@ -187,7 +167,7 @@ QPushButton:pressed {
 }</string>
        </property>
        <property name="text">
-        <string>Clear Polarizations</string>
+        <string>Clear</string>
        </property>
       </widget>
      </item>
