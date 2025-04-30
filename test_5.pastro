@@ -62,6 +62,33 @@
                         "surface_efficiency_table": {},
                         "effective_area_table": {},
                         "system_temperature_table": {}
+                    },
+                    "DSS42": {
+                        "name": "DSS42",
+                        "isactive": true,
+                        "type": "Telescope",
+                        "code": "42",
+                        "x": -4450283.98176176,
+                        "y": -2675980.57177026,
+                        "z": -3690480.32260641,
+                        "vx": 0.0,
+                        "vy": 0.0,
+                        "vz": 0.0,
+                        "diameter": 25.0,
+                        "sefd_table": {},
+                        "elevation_range": [
+                            15.0,
+                            90.0
+                        ],
+                        "azimuth_range": [
+                            0.0,
+                            360.0
+                        ],
+                        "mount_type": "AZIM",
+                        "surface_accuracy": null,
+                        "surface_efficiency_table": {},
+                        "effective_area_table": {},
+                        "system_temperature_table": {}
                     }
                 }
             },
@@ -96,7 +123,8 @@
                         "duration": 200.0,
                         "source_name": "0007+106",
                         "telescope_names": [
-                            "TELESCOPAS"
+                            "TELESCOPAS",
+                            "DSS42"
                         ],
                         "frequency_names": [
                             "freq_6000e2c178ae48f6b429094fbe688e02"
@@ -112,7 +140,7 @@
                     },
                     "scan_62a840f970c54209933af6fcce52a863": {
                         "name": "scan_62a840f970c54209933af6fcce52a863",
-                        "isactive": true,
+                        "isactive": false,
                         "type": "Scan",
                         "start": "2025-04-29T17:20:23.000",
                         "duration": 200.0,

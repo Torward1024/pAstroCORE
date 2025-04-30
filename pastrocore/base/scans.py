@@ -67,31 +67,45 @@ class Scan(BaseEntity):
         source_str = "OFF SOURCE" if self.is_off_source else f"source_name={source_name}" if source_name else "no source"
         logger.info(f"Initialized Scan with name={name}, start={self.start.isot}, duration={duration}, {source_str}")
     
+    def check_activity_status(self, observation: 'Observation') -> bool:
+        from pastrocore.base.observation import Observation
+        """Public method to check activity status."""
+        return self._check_activity_status(observation)
+    
     def _check_activity_status(self, observation: 'Observation') -> bool:
-        """Check if the scan should be active based on telescope count, frequency count, and source status."""
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
 
         observation_type = observation.get_observation_type()
         min_telescopes = 1 if observation_type == "SINGLE_DISH" else 2
+        logger.debug(f"Checking activity for scan '{self.name}', observation_type={observation_type}, min_telescopes={min_telescopes}")
 
         # Check telescope count
+        telescope_items = observation.get_telescopes().get_items()  # List[Telescope]
         active_telescopes = [
             name for name in self.telescope_names
-            if name in observation.get_telescopes().get_items() and observation.get_telescopes().get(name).isactive
+            if any(t.name == name and t.isactive for t in telescope_items)
         ]
+        logger.debug(f"Scan '{self.name}' telescope_names={self.telescope_names}, active_telescopes={active_telescopes}, "
+                    f"telescope_items_names={[t.name for t in telescope_items if hasattr(t, 'name')]}")
 
         # Check frequency count
+        frequency_items = observation.get_frequencies().get_items()  # List[Frequency]
         active_frequencies = [
             name for name in self.frequency_names
-            if name in observation.get_frequencies().get_items() and observation.get_frequencies().get(name).isactive
+            if any(f.name == name and f.isactive for f in frequency_items)
         ]
+        logger.debug(f"Scan '{self.name}' frequency_names={self.frequency_names}, active_frequencies={active_frequencies}, "
+                    f"frequency_items_names={[f.name for f in frequency_items if hasattr(f, 'name')]}")
 
         # Check source status
+        source_items = observation.get_sources().get_items()  # List[Source]
         source_active = (
             self.source_name is None or self.is_off_source or
-            (self.source_name in observation.get_sources().get_items() and observation.get_sources().get(self.source_name).isactive)
+            any(s.name == self.source_name and s.isactive for s in source_items)
         )
+        logger.debug(f"Scan '{self.name}' source_name={self.source_name}, is_off_source={self.is_off_source}, "
+                    f"source_active={source_active}, source_items_names={[s.name for s in source_items if hasattr(s, 'name')]}")
 
         # Determine activity status
         should_be_active = (
@@ -100,9 +114,10 @@ class Scan(BaseEntity):
             source_active
         )
 
-        logger.debug(f"Checked activity for scan '{self.name}': "
-                     f"telescope_count={len(active_telescopes)}, frequency_count={len(active_frequencies)}, "
-                     f"source_active={source_active}, should_be_active={should_be_active}")
+        logger.debug(f"Activity check for scan '{self.name}': "
+                    f"telescope_count={len(active_telescopes)} (min={min_telescopes}), "
+                    f"frequency_count={len(active_frequencies)}, "
+                    f"source_active={source_active}, should_be_active={should_be_active}")
         return should_be_active
 
     def get_start(self) -> Time:
