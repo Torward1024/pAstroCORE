@@ -186,12 +186,13 @@ class ScheduleProject(Project):
             
             if "items" in data:
                 if not data["items"]:
-                    raise ValueError("Items dictionary cannot be empty")
-                for item_name, item_data in data["items"].items():
-                    items[item_name] = Observation.from_dict(item_data)
-                    logger.info(f"Imported Project: name='{name}'")
+                    logger.warning(f"Creating ScheduleProject '{name}' with empty items dictionary")
+                else:
+                    for item_name, item_data in data["items"].items():
+                        items[item_name] = Observation.from_dict(item_data)
+                        logger.debug(f"Imported observation '{item_name}' for project '{name}'")
             else:
-                raise ValueError("No 'items' or 'observations' key found in data")
+                raise ValueError("No 'items' key found in data")
             
             return cls(name=name, items=items)
         except (KeyError, TypeError, ValueError) as e:

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowRMgPIY.ui'
+## Form generated from reading UI file 'main_windowlaKPOF.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -243,5 +243,6 @@ class Ui_MainWindow(object):
         self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"Options", None))
         self.menuHelp.setTitle(QCoreApplication.translate("MainWindow", u"Help", None))
         self.menuWindow.setTitle(QCoreApplication.translate("MainWindow", u"Window", None))
+        self.dockWidget.setWindowTitle(QCoreApplication.translate("MainWindow", u"Project Explorer", None))
         self.projectExplorer.setStyleSheet(QCoreApplication.translate("MainWindow", u"border: 1px solid #d3d3d3; background-color: #ffffff;", None))
     # retranslateUi

@@ -199,6 +199,9 @@ QMenu::icon {
    <property name="styleSheet">
     <string notr="true">background-color: #ffffff; font-family: Arial;</string>
    </property>
+   <property name="windowTitle">
+    <string>Project Explorer</string>
+   </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
    </attribute>
