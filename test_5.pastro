@@ -18,13 +18,15 @@
                         "type": "Source",
                         "ra_h": 0.0,
                         "ra_m": 10.0,
-                        "ra_s": 31.06861,
+                        "ra_s": 31.069,
                         "de_d": 10.0,
                         "de_m": 58.0,
                         "de_s": 29.448,
                         "name_J2000": "0007+106",
                         "alt_name": "$",
-                        "flux_table": {},
+                        "flux_table": {
+                            "1000.0": 1.0
+                        },
                         "spectral_index": null
                     }
                 }
@@ -73,7 +75,7 @@
                         "isactive": true,
                         "type": "IF",
                         "frequency": 1000.0,
-                        "bandwidth": 16.0,
+                        "bandwidth": 20.0,
                         "polarizations": [
                             "RCP",
                             "LCP"
@@ -90,8 +92,8 @@
                         "name": "scan_141a665363994b8d86fe8d3b92908459",
                         "isactive": true,
                         "type": "Scan",
-                        "start": "2025-04-29T17:15:35.239",
-                        "duration": 1.0,
+                        "start": "2025-03-29T23:33:54.000",
+                        "duration": 200.0,
                         "source_name": "0007+106",
                         "telescope_names": [
                             "TELESCOPAS"
@@ -112,8 +114,8 @@
                         "name": "scan_62a840f970c54209933af6fcce52a863",
                         "isactive": true,
                         "type": "Scan",
-                        "start": "2025-04-29T17:16:23.198",
-                        "duration": 25000.0,
+                        "start": "2025-04-29T17:20:23.000",
+                        "duration": 200.0,
                         "source_name": "0007+106",
                         "telescope_names": [
                             "TELESCOPAS"

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>391</width>
-    <height>113</height>
+    <width>273</width>
+    <height>116</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,12 +17,25 @@
    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="1" column="0">
+    <widget class="QLabel" name="label">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Observation type:</string>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="0">
     <widget class="QLabel" name="lbl_obs_code">
      <property name="font">
       <font>
        <family>Arial</family>
-       <pointsize>12</pointsize>
+       <pointsize>9</pointsize>
       </font>
      </property>
      <property name="text">
@@ -53,10 +66,16 @@
        <height>23</height>
       </size>
      </property>
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
      <property name="styleSheet">
       <string notr="true">QComboBox {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -168,6 +187,40 @@ QPushButton:pressed {
      </property>
     </widget>
    </item>
+   <item row="0" column="1" colspan="2">
+    <widget class="QLineEdit" name="obs_code">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+    </widget>
+   </item>
    <item row="2" column="2">
     <widget class="QPushButton" name="closeButton">
      <property name="styleSheet">
@@ -195,47 +248,6 @@ QPushButton:pressed {
      </property>
      <property name="flat">
       <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="label">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>12</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Observation type:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1" colspan="2">
-    <widget class="QLineEdit" name="obs_code">
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 12pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
      </property>
     </widget>
    </item>

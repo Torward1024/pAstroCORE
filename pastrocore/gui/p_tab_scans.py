@@ -27,11 +27,11 @@ class ScansTab(QWidget):
         self.ui = Ui_observation_tab()
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search scans...")
-
+        
         # Setup table
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
-            "#", " ", "Scan ID", "Start Time", "Duration (s)", "Source", "Telescopes", "Frequencies", "Polarizations"
+            "#", " ", "Scan ID", "Start Time", "Duration (s)", "Source", "Telescopes", "Frequencies"
         ])
         self.proxy_model = QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -45,6 +45,7 @@ class ScansTab(QWidget):
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
         self.ui.table.setColumnWidth(1, 24)
         self.ui.table.setColumnWidth(0, 50)
+        self.ui.table.setColumnHidden(2, True)  # Скрываем столбец "Scan ID"
 
         # Connect signals
         self.ui.search.textChanged.connect(self.on_search_changed)
@@ -135,18 +136,93 @@ class ScansTab(QWidget):
     @Slot()
     def add_scan(self):
         """Add a new scan to the observation using ScanEditorDialog."""
-        dialog = ScanEditorDialog(self.observation, self.manipulator, parent=self)
+        dialog = ScanEditorDialog(self.observation, self.manipulator, scan=None, parent=self)
         if dialog.exec() == QDialog.Accepted:
-            self.update()
-            self.data_updated.emit()
+            try:
+                scan_data = dialog.get_scan_data()
+                request = {
+                    "operation": "configure",
+                    "obj": self.observation.get_scans(),
+                    "attributes": {
+                        "create_scan": {
+                            "name": scan_data["name"],
+                            "start": scan_data["start"],
+                            "duration": scan_data["duration"],
+                            "source_name": scan_data["source_name"],
+                            "telescope_names": scan_data["telescope_names"],
+                            "frequency_names": scan_data["frequency_names"],
+                            "isactive": scan_data["isactive"]
+                        }
+                    }
+                }
+                logger.info(f"Sending create_scan request: {request}")
+                response = self.manipulator.process_request(request)
+                if response["status"]:
+                    logger.info(f"Added scan '{scan_data['name']}' to observation '{self.observation.code}'")
+                    self.update()
+                    self.data_updated.emit()
+                else:
+                    logger.error(f"Failed to add scan: {response.get('error', 'Unknown error')}")
+                    QMessageBox.critical(self, "Error", f"Failed to add scan: {response.get('error', 'Unknown error')}")
+            except ValueError as ve:
+                logger.error(f"Validation error while adding scan: {str(ve)}")
+                QMessageBox.critical(self, "Error", f"Failed to add scan: {str(ve)}")
+            except Exception as e:
+                logger.error(f"Exception while adding scan: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to add scan: {str(e)}")
 
     @Slot(str)
     def edit_scan(self, scan_name: str):
         """Edit an existing scan using ScanEditorDialog."""
-        dialog = ScanEditorDialog(self.observation, self.manipulator, scan_name, parent=self)
-        if dialog.exec() == QDialog.Accepted:
-            self.update()
-            self.data_updated.emit()
+        try:
+            scan_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_scans(),
+                "attributes": {"get": scan_name}
+            })
+            if not scan_response["status"]:
+                logger.error(f"Failed to retrieve scan '{scan_name}': {scan_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to retrieve scan: {scan_response.get('error', 'Unknown error')}")
+                return
+            
+            scan_obj = scan_response["result"]
+            dialog = ScanEditorDialog(self.observation, self.manipulator, scan=scan_obj, parent=self)
+            if dialog.exec() == QDialog.Accepted:
+                try:
+                    scan_data = dialog.get_scan_data()
+                    request = {
+                        "operation": "configure",
+                        "obj": self.observation.get_scans(),
+                        "attributes": {
+                            "set_scan": {
+                                "name": scan_name,
+                                "start": scan_data["start"],
+                                "duration": scan_data["duration"],
+                                "source_name": scan_data["source_name"],
+                                "telescope_names": scan_data["telescope_names"],
+                                "frequency_names": scan_data["frequency_names"],
+                                "isactive": scan_data["isactive"]
+                            }
+                        }
+                    }
+                    logger.info(f"Sending set_scan request for '{scan_name}': {request}")
+                    response = self.manipulator.process_request(request)
+                    if response["status"]:
+                        logger.info(f"Updated scan '{scan_name}' in observation '{self.observation.code}' with start={scan_data['start'].isot}")
+                        self.update()
+                        self.data_updated.emit()
+                    else:
+                        logger.error(f"Failed to update scan: {response.get('error', 'Unknown error')}")
+                        QMessageBox.critical(self, "Error", f"Failed to update scan: {response.get('error', 'Unknown error')}")
+                except ValueError as ve:
+                    logger.error(f"Validation error while updating scan: {str(ve)}")
+                    QMessageBox.critical(self, "Error", f"Failed to update scan: {str(ve)}")
+                except Exception as e:
+                    logger.error(f"Exception while updating scan: {str(e)}")
+                    QMessageBox.critical(self, "Error", f"Failed to update scan: {str(e)}")
+        except Exception as e:
+            logger.error(f"Exception while editing scan: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to edit scan: {str(e)}")
 
     @Slot(str)
     def remove_scan(self, scan_name: str):
@@ -394,9 +470,6 @@ class ScansTab(QWidget):
                     telescopes = ", ".join(attrs["telescope_names"]) if attrs["telescope_names"] else "None"
                     frequencies = ", ".join(attrs["frequency_names"]) if attrs["frequency_names"] else "None"
 
-                    # Polarizations (placeholder, as not stored directly in Scan)
-                    polarizations = "N/A"  # Could be derived from frequencies if needed
-
                     row = [
                         QStandardItem(str(idx)),
                         active_item,
@@ -405,8 +478,7 @@ class ScansTab(QWidget):
                         QStandardItem(duration),
                         QStandardItem(source_name),
                         QStandardItem(telescopes),
-                        QStandardItem(frequencies),
-                        QStandardItem(polarizations)
+                        QStandardItem(frequencies)
                     ]
                     for item in row:
                         item.setEditable(False)
