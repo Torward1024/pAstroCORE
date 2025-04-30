@@ -147,8 +147,80 @@ class ScansTab(QWidget):
         menu.exec(self.ui.table.viewport().mapToGlobal(position))
 
     @Slot()
+    @Slot()
     def add_scan(self):
-        """Add a new scan to the observation using ScanEditorDialog."""
+        """Add a new scan to the observation using ScanEditorDialog after checking prerequisites."""
+        # Check prerequisites: telescopes, sources, frequencies
+        missing_components = []
+
+        # Check observation type
+        obs_type_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get": "observation_type"}
+        })
+        if not obs_type_response["status"]:
+            logger.error(f"Failed to get observation type: {obs_type_response.get('error', 'Unknown error')}")
+            QMessageBox.critical(self, "Error", f"Failed to get observation type: {obs_type_response.get('error', 'Unknown error')}")
+            return
+        obs_type = obs_type_response["result"]
+
+        # Check telescopes
+        telescopes_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_telescopes": None}
+        })
+        if not telescopes_response["status"] or not telescopes_response["result"]:
+            logger.error(f"Failed to get telescopes: {telescopes_response.get('error', 'Unknown error')}")
+            missing_components.append("telescopes")
+        else:
+            telescopes_items_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": telescopes_response["result"],
+                "attributes": {"get_all": None}
+            })
+            if not telescopes_items_response["status"] or not isinstance(telescopes_items_response["result"], dict):
+                logger.error(f"Failed to get telescope items: {telescopes_items_response.get('error', 'Unknown error')}")
+                missing_components.append("telescopes")
+            else:
+                telescope_count = len(telescopes_items_response["result"])
+                if obs_type == "VLBI" and telescope_count < 2:
+                    missing_components.append("at least 2 telescopes (required for VLBI)")
+                elif obs_type == "SINGLE_DISH" and telescope_count < 1:
+                    missing_components.append("at least 1 telescope (required for SINGLE_DISH)")
+
+        # Check frequencies
+        frequencies_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_frequencies": None}
+        })
+        if not frequencies_response["status"] or not frequencies_response["result"]:
+            logger.error(f"Failed to get frequencies: {frequencies_response.get('error', 'Unknown error')}")
+            missing_components.append("frequencies")
+        else:
+            frequencies_items_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": frequencies_response["result"],
+                "attributes": {"get_all": None}
+            })
+            if not frequencies_items_response["status"] or not isinstance(frequencies_items_response["result"], dict) or len(frequencies_items_response["result"]) < 1:
+                logger.error(f"No frequencies found: {frequencies_items_response.get('error', 'No frequencies available')}")
+                missing_components.append("at least 1 frequency")
+
+        # If there are missing components, show a message and return
+        if missing_components:
+            logger.warning(f"Cannot add scan: missing components: {', '.join(missing_components)}")
+            QMessageBox.information(
+                self,
+                "Cannot Add Scan",
+                f"Cannot add a scan. Please add the following to the observation:\n- {', '.join(missing_components)}",
+                QMessageBox.Ok
+            )
+            return
+
+        # Proceed with scan creation if all prerequisites are met
         dialog = ScanEditorDialog(self.observation, self.manipulator, scan=None, parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:

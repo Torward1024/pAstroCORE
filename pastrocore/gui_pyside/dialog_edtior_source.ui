@@ -2,12 +2,15 @@
 <ui version="4.0">
  <class>SourceEditorDialog</class>
  <widget class="QDialog" name="SourceEditorDialog">
+  <property name="windowModality">
+   <enum>Qt::WindowModality::ApplicationModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>600</width>
-    <height>500</height>
+    <height>397</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,6 +18,9 @@
   </property>
   <property name="styleSheet">
    <string>background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <property name="modal">
+   <bool>true</bool>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -31,7 +37,7 @@
        <property name="styleSheet">
         <string notr="true">QLineEdit {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -69,7 +75,7 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
        <property name="styleSheet">
         <string notr="true">QLineEdit {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -107,7 +113,7 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
        <property name="styleSheet">
         <string notr="true">QLineEdit {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -245,6 +251,79 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
      </item>
      <item row="5" column="1">
       <widget class="QDoubleSpinBox" name="spectralIndexEdit">
+       <property name="styleSheet">
+        <string notr="true">/* Base style for QDoubleSpinBox */
+QDoubleSpinBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
+    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
+}
+
+/* Editable state */
+QDoubleSpinBox:editable {
+    background-color: #f0f6ff; /* Matches editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches editable QComboBox border */
+}
+
+/* Editable hover state */
+QDoubleSpinBox:editable:hover {
+    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
+}
+
+/* Editable focus state */
+QDoubleSpinBox:editable:focus {
+    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches editable QComboBox:focus background */
+}
+
+/* Non-editable state */
+QDoubleSpinBox:!editable {
+    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
+}
+
+/* Non-editable hover state */
+QDoubleSpinBox:!editable:hover {
+    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
+}
+
+/* Non-editable focus state */
+QDoubleSpinBox:!editable:focus {
+    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
+}
+
+/* Styling for up/down buttons */
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: padding;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
+    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
+}
+
+/* Hover state for up/down buttons */
+QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
+}
+
+/* Up arrow styling */
+QDoubleSpinBox::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
+}
+
+/* Down arrow styling */
+QDoubleSpinBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
+}</string>
+       </property>
        <property name="decimals">
         <number>3</number>
        </property>
@@ -276,82 +355,86 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     </layout>
    </item>
    <item>
-    <widget class="QLabel" name="labelFluxTable">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>10</pointsize>
-       <bold>true</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>Flux Table (MHz, Jy):</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QTableView" name="fluxTable">
-     <property name="styleSheet">
-      <string>border: 1px solid #d3d3d3;</string>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
-     </property>
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="fluxButtonLayout">
-     <item>
-      <widget class="QPushButton" name="addFluxButton">
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="2" column="0">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QPushButton" name="addFluxButton">
+         <property name="styleSheet">
+          <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+         </property>
+         <property name="text">
+          <string>Add Flux</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="clearFluxButton">
+         <property name="styleSheet">
+          <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+         </property>
+         <property name="text">
+          <string>Clear Flux Table</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="removeFluxButton">
+         <property name="styleSheet">
+          <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+         </property>
+         <property name="text">
+          <string>Remove Flux</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0">
+      <widget class="QTableView" name="fluxTable">
        <property name="styleSheet">
-        <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+        <string>border: 1px solid #d3d3d3;</string>
        </property>
-       <property name="text">
-        <string>Add Flux</string>
+       <property name="editTriggers">
+        <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
+       </property>
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
        </property>
       </widget>
      </item>
-     <item>
-      <widget class="QPushButton" name="removeFluxButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+     <item row="0" column="0">
+      <widget class="QLabel" name="labelFluxTable">
+       <property name="font">
+        <font>
+         <family>Arial</family>
+         <pointsize>10</pointsize>
+         <bold>true</bold>
+        </font>
        </property>
        <property name="text">
-        <string>Remove Flux</string>
+        <string>Flux Table (MHz, Jy):</string>
        </property>
       </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="clearFluxButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Clear Flux Table</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
      </item>
     </layout>
    </item>

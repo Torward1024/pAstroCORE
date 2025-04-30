@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QDialog, QFileDialog, QTableView, QMessageBox
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from pastrocore.gui.ui_dialog_edit_telescope import Ui_TelescopeEditorDialog
-from pastrocore.base.telescope import Telescope
+from pastrocore.base.telescope import Telescope, MountType
 import json
 import re
 from common.utils.logging_setup import logger
@@ -226,6 +226,15 @@ class TelescopeEditorDialog(QDialog):
 
     def get_telescope_data(self):
         """Retrieve telescope data from the dialog."""
+        mount_type_str = self.ui.mountTypeCombo.currentText()
+        try:
+            # Find MountType by value (e.g., "AZIM", "EQUA", "NONE")
+            mount_type = MountType._value2member_map_[mount_type_str.upper()]
+            logger.debug(f"Converted mount_type '{mount_type_str}' to {mount_type}")
+        except KeyError as e:
+            logger.error(f"Invalid mount_type value: {mount_type_str}")
+            raise ValueError(f"Invalid mount_type value: {mount_type_str}") from e
+
         return {
             "code": self.ui.codeEdit.text().strip(),
             "name": self.ui.nameEdit.text().strip(),
@@ -239,7 +248,7 @@ class TelescopeEditorDialog(QDialog):
             "surface_accuracy": self.ui.surfaceAccuracyEdit.value(),
             "elevation_range": (self.ui.elevationMinEdit.value(), self.ui.elevationMaxEdit.value()),
             "azimuth_range": (self.ui.azimuthMinEdit.value(), self.ui.azimuthMaxEdit.value()),
-            "mount_type": self.ui.mountTypeCombo.currentText(),
+            "mount_type": mount_type,
             "isactive": self.ui.isActiveCheckBox.isChecked(),
             "sefd_table": self.sefd_model.get_data(),
             "surface_efficiency_table": self.surface_efficiency_model.get_data(),
