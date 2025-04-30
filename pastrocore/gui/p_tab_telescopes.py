@@ -231,7 +231,6 @@ class TelescopesTab(QWidget):
                     logger.info(f"Added telescope '{telescope_code}' from catalog to observation '{self.observation.code}'")
                     self.update()
                     self.data_updated.emit()
-                    QMessageBox.information(self, "Success", f"Telescope '{telescope_code}' added successfully.")
                 else:
                     logger.error(f"Failed to add telescope from catalog: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
