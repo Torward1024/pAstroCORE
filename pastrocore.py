@@ -173,7 +173,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.project_updated.emit()
 
     @Slot(str)
-    def remove_observation(self, obs_code: str):
+    def remove_observation(self, obs_name: str, obs_code: str):
         """Remove an observation from the project via ScheduleManipulator."""
         reply = QMessageBox.question(
             self, "Confirm Delete",
@@ -189,13 +189,12 @@ class PAstroCoreMainWindow(QMainWindow):
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
+                "attributes": {"get_item": obs_name}
             })
             if not obs_response["status"]:
                 logger.error(f"Failed to find observation with code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
                 return
-            obs_name = obs_response["result"].name
 
             request = {
                 "operation": "configure",
@@ -262,10 +261,10 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to remove observations: {str(e)}")
 
     @Slot(str)
-    def edit_observation(self, obs_code: str):
+    def edit_observation(self, obs_name: str, obs_code: str):
         """Open the ObservationTab for the specified observation."""
         logger.info(f"Opening edit tab for observation with code '{obs_code}'")
-        self.open_observation_tab(obs_code)
+        self.open_observation_tab(obs_name, obs_code)
 
     @Slot()
     def update_project_explorer(self):
@@ -477,7 +476,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
 
     @Slot(str)
-    def import_observation(self, obs_code: str):
+    def import_observation(self, obs_name: str, obs_code: str):
         """Import an observation to overwrite an existing one."""
         file_path, _ = QFileDialog.getOpenFileName(self, "Import Observation", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
@@ -491,7 +490,7 @@ class PAstroCoreMainWindow(QMainWindow):
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
+                "attributes": {"get_item": obs_name}
             })
             if not obs_response["status"] or not obs_response["result"]:
                 logger.error(f"Failed to find observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
@@ -529,7 +528,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
 
     @Slot(str)
-    def export_observation(self, obs_code: str):
+    def export_observation(self, obs_name: str, obs_code: str):
         """Export an observation by prompting for observation code."""
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Observation", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
@@ -543,7 +542,7 @@ class PAstroCoreMainWindow(QMainWindow):
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
+                "attributes": {"get_item": obs_name}
             })
             if not obs_response["status"] or not obs_response["result"]:
                 logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
@@ -674,7 +673,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Handle project name change signal."""
         self.project_updated.emit()
 
-    def open_observation_tab(self, obs_code: str):
+    def open_observation_tab(self, obs_name: str, obs_code: str):
         """Open or switch to a tab for editing an observation."""
         tab_container = self.ui.tabContainer
         for i in range(tab_container.count()):
@@ -689,7 +688,7 @@ class PAstroCoreMainWindow(QMainWindow):
         obs_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
-            "attributes": {"get_observation_by_code": obs_code}
+            "attributes": {"get_item": obs_name}
         })
         if obs_response["status"]:
             observation = obs_response["result"]
