@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectedgnvv.ui'
+## Form generated from reading UI file 'tab_projectXbhtLq.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.2
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -15,9 +15,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QGridLayout, QHeaderView,
-    QLabel, QLineEdit, QSizePolicy, QSpacerItem,
-    QTableView, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QFrame, QGridLayout,
+    QHeaderView, QLabel, QLineEdit, QSizePolicy,
+    QSpacerItem, QTableView, QWidget)
 
 class Ui_ProjectInfoTab(object):
     def setupUi(self, ProjectInfoTab):
@@ -107,11 +107,67 @@ class Ui_ProjectInfoTab(object):
 
         self.projectInfoTable = QTableView(ProjectInfoTab)
         self.projectInfoTable.setObjectName(u"projectInfoTable")
+        self.projectInfoTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
+"\n"
+"/* Table View */\n"
+"QTableView, QTableWidget {\n"
+"    background-color: #ffffff;\n"
+"    gridline-color: #d3d3d3;\n"
+"    color: #333333;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"    border: 1px solid #d3d3d3; /* External border for table */\n"
+"}\n"
+"\n"
+"QTableView::item:selected, QTableWidget::item:selected {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"QTableView::item:hover, QTableWidget::item:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"/* Header View */\n"
+"QHeaderView {\n"
+"    background-color: #f9f9f9;\n"
+"    border: none; /* No external border to avoid doubling with QTableView */\n"
+"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
+"}\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: #f9f9f9;\n"
+"    color: #333333;\n"
+"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
+"   "
+                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
+"    border-left: none; /* Clean look */\n"
+"    border-top: none; /* Clean look */\n"
+"    padding: 4px;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"}\n"
+"\n"
+"QHeaderView::section:horizontal {\n"
+"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
+"}\n"
+"\n"
+"QHeaderView::section:vertical {\n"
+"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
+"}\n"
+"\n"
+"QHeaderView::section:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}")
+        self.projectInfoTable.setFrameShadow(QFrame.Shadow.Sunken)
         self.projectInfoTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.projectInfoTable.setAlternatingRowColors(True)
         self.projectInfoTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.projectInfoTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.projectInfoTable.setSortingEnabled(False)
+        self.projectInfoTable.verticalHeader().setVisible(False)
 
         self.gridLayout.addWidget(self.projectInfoTable, 1, 0, 1, 3)
 
@@ -125,5 +181,4 @@ class Ui_ProjectInfoTab(object):
         ProjectInfoTab.setStyleSheet(QCoreApplication.translate("ProjectInfoTab", u"background-color: #ffffff; font-family: Arial;", None))
         self.label.setText(QCoreApplication.translate("ProjectInfoTab", u"Name:", None))
         self.label_2.setText(QCoreApplication.translate("ProjectInfoTab", u"Search:", None))
-        self.projectInfoTable.setStyleSheet(QCoreApplication.translate("ProjectInfoTab", u"border: 1px solid #d3d3d3; background-color: #ffffff;", None))
     # retranslateUi

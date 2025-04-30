@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_observation_anyyMKiEu.ui'
+## Form generated from reading UI file 'tab_observation_anyfdklQX.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.2
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -70,6 +70,60 @@ class Ui_observation_tab(object):
 
         self.table = QTableView(observation_tab)
         self.table.setObjectName(u"table")
+        self.table.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
+"\n"
+"/* Table View */\n"
+"QTableView, QTableWidget {\n"
+"    background-color: #ffffff;\n"
+"    gridline-color: #d3d3d3;\n"
+"    color: #333333;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"    border: 1px solid #d3d3d3; /* External border for table */\n"
+"}\n"
+"\n"
+"QTableView::item:selected, QTableWidget::item:selected {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"QTableView::item:hover, QTableWidget::item:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"/* Header View */\n"
+"QHeaderView {\n"
+"    background-color: #f9f9f9;\n"
+"    border: none; /* No external border to avoid doubling with QTableView */\n"
+"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
+"}\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: #f9f9f9;\n"
+"    color: #333333;\n"
+"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
+"   "
+                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
+"    border-left: none; /* Clean look */\n"
+"    border-top: none; /* Clean look */\n"
+"    padding: 4px;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"}\n"
+"\n"
+"QHeaderView::section:horizontal {\n"
+"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
+"}\n"
+"\n"
+"QHeaderView::section:vertical {\n"
+"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
+"}\n"
+"\n"
+"QHeaderView::section:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}")
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -86,5 +140,4 @@ class Ui_observation_tab(object):
     def retranslateUi(self, observation_tab):
         observation_tab.setWindowTitle(QCoreApplication.translate("observation_tab", u"Form", None))
         self.lbl_search.setText(QCoreApplication.translate("observation_tab", u"Search:", None))
-        self.table.setStyleSheet(QCoreApplication.translate("observation_tab", u"border: 1px solid #d3d3d3; background-color: #ffffff;", None))
     # retranslateUi

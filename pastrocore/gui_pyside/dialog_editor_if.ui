@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>456</width>
-    <height>238</height>
+    <width>436</width>
+    <height>245</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -41,6 +41,7 @@ QDoubleSpinBox {
     font-size: 9pt;
     color: #333333;
     padding: 1px;
+    padding-right: 20px;
     border-radius: 3px;
     background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
     border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
@@ -87,7 +88,6 @@ QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
     border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
     background-color: #f9f9f9; /* Matches QComboBox drop-down background */
 }
-
 /* Hover state for up/down buttons */
 QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
     background-color: #0078d7; /* Matches QComboBox drop-down:hover */
@@ -99,7 +99,6 @@ QDoubleSpinBox::up-arrow {
     height: 12px;
     image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
 }
-
 /* Down arrow styling */
 QDoubleSpinBox::down-arrow {
     width: 12px;
@@ -131,10 +130,27 @@ QDoubleSpinBox::down-arrow {
      <item row="1" column="1">
       <widget class="QLabel" name="wavelengthDisplay">
        <property name="styleSheet">
-        <string>color: #6c757d;</string>
+        <string notr="true">QLabel {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
+    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
+}</string>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Shape::Panel</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Shadow::Sunken</enum>
        </property>
        <property name="text">
         <string>29.979</string>
+       </property>
+       <property name="indent">
+        <number>1</number>
        </property>
       </widget>
      </item>
@@ -154,6 +170,7 @@ QDoubleSpinBox {
     font-size: 9pt;
     color: #333333;
     padding: 1px;
+    padding-right: 20px;
     border-radius: 3px;
     background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
     border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
@@ -200,7 +217,6 @@ QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
     border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
     background-color: #f9f9f9; /* Matches QComboBox drop-down background */
 }
-
 /* Hover state for up/down buttons */
 QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
     background-color: #0078d7; /* Matches QComboBox drop-down:hover */
@@ -212,7 +228,6 @@ QDoubleSpinBox::up-arrow {
     height: 12px;
     image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
 }
-
 /* Down arrow styling */
 QDoubleSpinBox::down-arrow {
     width: 12px;

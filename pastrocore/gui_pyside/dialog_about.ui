@@ -2,6 +2,9 @@
 <ui version="4.0">
  <class>AboutDialog</class>
  <widget class="QDialog" name="AboutDialog">
+  <property name="windowModality">
+   <enum>Qt::WindowModality::ApplicationModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -51,14 +54,14 @@
   <widget class="QLabel" name="labelVersion">
    <property name="geometry">
     <rect>
-     <x>190</x>
+     <x>144</x>
      <y>80</y>
-     <width>75</width>
-     <height>16</height>
+     <width>171</width>
+     <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>Version 0.01b</string>
+    <string>Version 0.0.8a</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -93,7 +96,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Ballistics Laboratory, Astro Space Center LPI, 2025</string>
+    <string>Ballistics Laboratory, Astro Space Center LPI, 2018-2025</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignmentFlag::AlignCenter</set>

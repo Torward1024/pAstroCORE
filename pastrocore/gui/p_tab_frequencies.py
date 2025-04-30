@@ -83,7 +83,7 @@ class FrequenciesTab(QWidget):
             })
             has_frequencies = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
         else:
-            logger.error(f"Failed to inspect frequencies: {frequencies_response.get('error', 'Unknown error')}")
+            logger.info(f"No frequencies found in observation '{self.observation.code}'")
 
         if has_frequencies:
             # Add bulk actions for frequencies
