@@ -31,7 +31,7 @@ class SpaceTelescope(Telescope):
     interpolation_method: str
     _interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]]
 
-    def __init__(self, *, code: str = "TEMP_SPACE", name: str = "Temporary Space Telescope",
+    def __init__(self, *, code: str = "TS", name: str = "TEMPSPACETELESCOPE",
              orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
              sefd_table: Optional[Dict[float, float]] = None,
              pitch_range: Tuple[float, float] = (-90.0, 90.0),

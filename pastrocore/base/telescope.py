@@ -37,7 +37,7 @@ class Telescope(BaseEntity):
     effective_area_table: Dict[float, float]
     system_temperature_table: Dict[float, float]
 
-    def __init__(self, *, code: str = "TEMP", name: str = "Temporary Telescope", type = "Telescope",
+    def __init__(self, *, code: str = "TT", name: str = "TEMPTELESCOPE", type = "Telescope",
                  x: float = 0.0, y: float = 0.0, z: float = 0.0,
                  vx: float = 0.0, vy: float = 0.0, vz: float = 0.0,
                  diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,

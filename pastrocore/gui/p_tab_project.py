@@ -565,4 +565,5 @@ class ProjectInfoTab(QWidget):
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
             obs_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
-            self.edit_observation(obs_name)
+            obs_code = self.model.item(source_index.row(), 2).text()
+            self.edit_observation(obs_name, obs_code)
