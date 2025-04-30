@@ -18,8 +18,10 @@ obj/
 *.exe
 *.dll
 *.log
-*.pyc
-
 
 # Игнорировать кэш и индексы
 FileContentIndex/
+
+__pycache__/
+*.py[cod]
+*$py.class
