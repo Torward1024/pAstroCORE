@@ -346,7 +346,7 @@ class Manipulator(ABC):
 
         try:
             super_result = super_instance.execute(**execute_args)
-            logger.info(f"Processed operation '{operation}' on {type(effective_obj).__name__}")
+            logger.debug(f"Processed operation '{operation}' on {type(effective_obj).__name__}")
             result_dict = {
                 "status": super_result["status"],
                 "object": super_result["object"],
