@@ -636,8 +636,9 @@ class PAstroCoreMainWindow(QMainWindow):
                 "obj": self.project,
                 "attributes": {"get_observation_by_code": obs_code}
             })
+            obs_name = obs_response["result"].name
             if obs_response["status"]:
-                self.open_observation_tab(obs_code)
+                self.open_observation_tab(obs_name, obs_code)
             else:
                 logger.error(f"Failed to get observation with code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
