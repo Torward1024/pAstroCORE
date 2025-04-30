@@ -31,7 +31,7 @@ class ProjectInfoTab(QWidget):
         """Set up the observations table with appropriate columns."""
         self.model = QStandardItemModel()
         self.model.setHorizontalHeaderLabels([
-            "#", " ", "Code", "Type", "Frequencies", "Start Time",
+            "#", " ", "Name", "Code", "Type", "Frequencies", "Start Time",
             "Duration", "Sources", "Telescopes", "Scans"
         ])
         self.proxy_model = QSortFilterProxyModel()
@@ -50,6 +50,7 @@ class ProjectInfoTab(QWidget):
         self.ui.projectInfoTable.verticalHeader().setVisible(False)
         # Устанавливаем ширину столбца Active для иконок
         self.ui.projectInfoTable.setColumnWidth(1, 24)
+        self.ui.projectInfoTable.setColumnHidden(2, True)  # Скрываем столбец "Name"
 
     def setup_connections(self):
         """Connect signals to slots."""
@@ -139,11 +140,11 @@ class ProjectInfoTab(QWidget):
             if code_response["status"]:
                 current_codes.add(code_response["result"])
 
-        existing_codes = {self.model.item(i, 2).text() for i in range(self.model.rowCount()) if self.model.item(i, 2)}
+        existing_codes = {self.model.item(i, 3).text() for i in range(self.model.rowCount()) if self.model.item(i, 3)}  # Изменено: столбец Code теперь 3
 
         # Remove rows for observations that no longer exist
         for i in range(self.model.rowCount() - 1, -1, -1):
-            obs_code = self.model.item(i, 2).text()
+            obs_code = self.model.item(i, 3).text()  # Изменено: столбец Code теперь 3
             if obs_code not in current_codes:
                 self.model.removeRow(i)
 
@@ -168,7 +169,7 @@ class ProjectInfoTab(QWidget):
             # Check if row exists
             row_idx = None
             for i in range(self.model.rowCount()):
-                if self.model.item(i, 2).text() == obs_code:
+                if self.model.item(i, 3).text() == obs_code:  # Изменено: столбец Code теперь 3
                     row_idx = i
                     break
 
@@ -257,6 +258,7 @@ class ProjectInfoTab(QWidget):
             row = [
                 QStandardItem(str(idx)),
                 active_item,
+                QStandardItem(obs_name),  # Новый столбец "Name"
                 QStandardItem(obs_code),
                 QStandardItem(obs_type),
                 QStandardItem(freqs),
@@ -268,6 +270,7 @@ class ProjectInfoTab(QWidget):
             ]
             for item in row:
                 item.setEditable(False)
+            row[0].setData(obs_name, Qt.UserRole)  # Сохраняем имя наблюдения в столбце "#"
 
             if row_idx is None:
                 self.model.appendRow(row)
@@ -318,12 +321,14 @@ class ProjectInfoTab(QWidget):
             index = self.ui.projectInfoTable.indexAt(position)
             if index.isValid():
                 source_index = self.proxy_model.mapToSource(index)
-                obs_code = self.model.item(source_index.row(), 2).text()  # Observation code in third column
+                obs_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
+                logger.info(f"BABA '{obs_name}'")
+                obs_code = self.model.item(source_index.row(), 2).text()
                 # Get observation state
                 obs_response = self.manipulator.process_request({
                     "operation": "inspect",
                     "obj": self.project,
-                    "attributes": {"get_observation_by_code": obs_code}
+                    "attributes": {"get_item": obs_name}
                 })
                 if not obs_response["status"] or not obs_response["result"]:
                     logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
@@ -341,22 +346,22 @@ class ProjectInfoTab(QWidget):
                 menu.addSeparator()
                 if is_active:
                     deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
-                    deactivate_action.triggered.connect(lambda: self.deactivate_observation(obs_code))
+                    deactivate_action.triggered.connect(lambda: self.deactivate_observation(obs_name, obs_code))
                 else:
                     activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
-                    activate_action.triggered.connect(lambda: self.activate_observation(obs_code))
+                    activate_action.triggered.connect(lambda: self.activate_observation(obs_name, obs_code))
 
                 # Add Import, Export, Remove, and Edit actions
                 menu.addSeparator()
                 import_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import Observation")
                 export_action = menu.addAction(QIcon(":/icons/export_icon.svg"), "Export Observation")
-                import_action.triggered.connect(lambda: self.import_observation(obs_code))
-                export_action.triggered.connect(lambda: self.export_observation(obs_code))
+                import_action.triggered.connect(lambda: self.import_observation(obs_name, obs_code))
+                export_action.triggered.connect(lambda: self.export_observation(obs_name, obs_code))
                 menu.addSeparator()
                 remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
                 edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
-                remove_action.triggered.connect(lambda: self.remove_observation(obs_code))
-                edit_action.triggered.connect(lambda: self.edit_observation(obs_code))
+                remove_action.triggered.connect(lambda: self.remove_observation(obs_name, obs_code))
+                edit_action.triggered.connect(lambda: self.edit_observation(obs_name, obs_code))
 
         menu.exec(self.ui.projectInfoTable.viewport().mapToGlobal(position))
 
@@ -367,26 +372,26 @@ class ProjectInfoTab(QWidget):
             self.parent_widget.import_new_observation()
 
     @Slot(str)
-    def import_observation(self, obs_code: str):
+    def import_observation(self, obs_name: str, obs_code: str):
         """Import specific observation."""
         if self.parent_widget:
-            self.parent_widget.import_observation(obs_code)
+            self.parent_widget.import_observation(obs_name, obs_code)
 
     @Slot(str)
-    def export_observation(self, obs_code: str):
+    def export_observation(self, obs_name: str, obs_code: str):
         """Export specific observation."""
         if self.parent_widget:
-            self.parent_widget.export_observation(obs_code)
+            self.parent_widget.export_observation(obs_name, obs_code)
 
     @Slot(str)
-    def activate_observation(self, obs_code: str):
+    def activate_observation(self, obs_name: str, obs_code: str):
         """Activate the specified observation."""
         try:
             # Получаем объект наблюдения
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
+                "attributes": {"get_item": obs_name}
             })
             if not obs_response["status"] or not obs_response["result"]:
                 logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
@@ -413,14 +418,14 @@ class ProjectInfoTab(QWidget):
             QMessageBox.critical(self, "Error", f"Failed to activate observation: {str(e)}")
 
     @Slot(str)
-    def deactivate_observation(self, obs_code: str):
+    def deactivate_observation(self, obs_name: str, obs_code: str):
         """Deactivate the specified observation."""
         try:
             # Получаем объект наблюдения
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
+                "attributes": {"get_item": obs_name}
             })
             if not obs_response["status"] or not obs_response["result"]:
                 logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
@@ -436,14 +441,14 @@ class ProjectInfoTab(QWidget):
             }
             response = self.manipulator.process_request(request)
             if response["status"]:
-                logger.info(f"Observation '{obs_code}' deactivated")
+                logger.info(f"Observation '{obs_name}' deactivated")
                 self.update_tab()  # Обновляем таблицу
                 self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
             else:
-                logger.error(f"Failed to deactivate observation '{obs_code}': {response.get('error', 'Unknown error')}")
+                logger.error(f"Failed to deactivate observation '{obs_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {response.get('error', 'Unknown error')}")
         except Exception as e:
-            logger.error(f"Exception while deactivating observation '{obs_code}': {str(e)}")
+            logger.error(f"Exception while deactivating observation '{obs_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {str(e)}")
 
     @Slot()
@@ -543,21 +548,21 @@ class ProjectInfoTab(QWidget):
             self.parent_widget.add_observation()
 
     @Slot(str)
-    def remove_observation(self, obs_code: str):
+    def remove_observation(self, obs_name: str, obs_code: str):
         """Remove an observation from the project."""
         if self.parent_widget:
-            self.parent_widget.remove_observation(obs_code)
+            self.parent_widget.remove_observation(obs_name, obs_code)
 
     @Slot(str)
-    def edit_observation(self, obs_code: str):
+    def edit_observation(self, obs_name: str, obs_code: str):
         """Edit an observation."""
         if self.parent_widget:
-            self.parent_widget.edit_observation(obs_code)
+            self.parent_widget.edit_observation(obs_name, obs_code)
 
     @Slot()
     def on_table_double_click(self, index):
         """Handle double-click on table to edit observation."""
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
-            obs_code = self.model.item(source_index.row(), 2).text()
-            self.edit_observation(obs_code)
+            obs_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
+            self.edit_observation(obs_name)

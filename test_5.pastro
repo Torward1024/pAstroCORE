@@ -24,7 +24,9 @@
                         "de_s": 29.448,
                         "name_J2000": "0007+106",
                         "alt_name": "$",
-                        "flux_table": {},
+                        "flux_table": {
+                            "1000.0": 1.0
+                        },
                         "spectral_index": null
                     }
                 }
