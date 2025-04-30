@@ -251,7 +251,6 @@ class PAstroCoreMainWindow(QMainWindow):
                     widget = self.ui.tabContainer.widget(i)
                     if widget.objectName() != "projectInfoTab":
                         self.ui.tabContainer.removeTab(i)
-                QMessageBox.information(self, "Success", f"All observations removed successfully.")
             else:
                 logger.error(f"Failed to remove observations: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to remove observations: {response.get('error', 'Unknown error')}")
@@ -368,7 +367,6 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.tabContainer.removeTab(i)
         self.open_project_info_tab()
         self.project_updated.emit()
-        QMessageBox.information(self, "New Project", "New project created.")
 
     @Slot()
     def open_project(self):
@@ -409,7 +407,6 @@ class PAstroCoreMainWindow(QMainWindow):
                 with open(self.current_project_path, "w") as f:
                     json.dump(self.project.to_dict(), f, indent=4)
                 logger.info(f"Project saved to '{self.current_project_path}'")
-                QMessageBox.information(self, "Save Project", "Project saved.")
             except Exception as e:
                 logger.error(f"Failed to save project: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to save project: {str(e)}")
