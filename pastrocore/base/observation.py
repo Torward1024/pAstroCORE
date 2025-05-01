@@ -236,30 +236,23 @@ class Observation(BaseEntity):
                     })
                     logger.debug(f"Restored source name '{name}' for scan '{scan.name}' in '{self.name}'")
             else:
-                all_entities = self.get(entity_type).get_items()
+                all_entities = {item.name for item in self.get(entity_type).get_items()}
                 if operation == "remove" and name in current_names:
                     updated_names = [n for n in current_names if n != name]
-                    if entity_type == "frequencies":
-                        # Update original_frequency_names to remove the deleted frequency
-                        if original_names:
-                            params[original_attr] = [n for n in original_names if n != name]
-                        else:
-                            params[original_attr] = current_names[:]
-                    else:
-                        if current_names and not getattr(scan, original_attr, None):
-                            params[original_attr] = current_names[:]
+                    if not getattr(scan, original_attr, None):
+                        params[original_attr] = current_names[:]
                     params[attr] = updated_names
                     logger.debug(f"Removed {entity_type} name '{name}' from scan '{scan.name}' in '{self.name}', "
                                 f"updated_names={updated_names}, original_names={params.get(original_attr, [])}")
-                elif operation == "add" and original_names and name in original_names:
+                elif operation == "add" and name in (original_names or []) and name in all_entities:
                     updated_names = current_names[:] if current_names else []
-                    if name not in updated_names and name in all_entities:
+                    if name not in updated_names:
                         updated_names.append(name)
-                        updated_names = sorted(updated_names)
+                        updated_names.sort()
                     params[attr] = updated_names
-                    logger.debug(f"Restored {entity_type} name '{name}' to scan '{scan.name}' in '{self.name}'")
+                    logger.debug(f"Restored {entity_type} name '{name}' to scan '{scan.name}' in '{self.name}', "
+                                f"updated_names={updated_names}")
 
-            # Update scan activity status
             if params:
                 scan.set(params)
                 should_be_active = scan._check_activity_status(self)
@@ -268,7 +261,6 @@ class Observation(BaseEntity):
                             f"due to {entity_type} {operation}")
                 logger.info(f"Updated scan '{scan.name}' in observation '{self.name}' with params: {params}")
 
-                # Explicitly deactivate scan if telescope_names or frequency_names are empty
                 if entity_type == "telescopes" and not scan.telescope_names:
                     scan.set({"isactive": False})
                     logger.debug(f"Deactivated scan '{scan.name}' because telescope_names is empty")
@@ -302,7 +294,6 @@ class Observation(BaseEntity):
             logger.debug(f"Syncing scan '{scan.name}' for {entity_type} '{name}', is_active={is_active}, "
                         f"current_names={current_names}, original_names={original_names}")
 
-            # Handle source synchronization
             if entity_type == "sources":
                 if not is_active and current_names == name and not scan.is_off_source:
                     params.update({
@@ -318,27 +309,25 @@ class Observation(BaseEntity):
                         original_attr: None
                     })
                     logger.debug(f"Restored source '{name}' for scan '{scan.name}'")
-
-            # Handle telescope/frequency synchronization
             elif entity_type in ("telescopes", "frequencies"):
                 if not is_active and name in current_names:
                     updated_names = [n for n in current_names if n != name]
-                    # Always save current_names to original_names if not already set
                     if not original_names:
                         params[original_attr] = current_names[:]
                     params[attr] = updated_names
                     logger.debug(f"Removed inactive {entity_type} '{name}' from scan '{scan.name}', "
                                 f"updated_names={updated_names}, original_names={params.get(original_attr, original_names)}")
-                elif is_active and name in (original_names or []):
-                    # Restore name from original_names if it exists
+                elif is_active and original_names:
                     updated_names = current_names[:] if current_names else []
-                    if name not in updated_names:
-                        updated_names.append(name)
-                        updated_names = sorted(updated_names)
-                    params[attr] = updated_names
-                    logger.debug(f"Restored {entity_type} '{name}' to scan '{scan.name}', updated_names={updated_names}")
+                    all_active_entities = {f.name for f in self.get(entity_type).get_active_items()}
+                    for orig_name in original_names:
+                        if orig_name in all_active_entities and orig_name not in updated_names:
+                            updated_names.append(orig_name)
+                    updated_names.sort()
+                    if updated_names != current_names:
+                        params[attr] = updated_names
+                        logger.debug(f"Restored {entity_type} names to scan '{scan.name}', updated_names={updated_names}")
 
-            # Update scan activity status
             if params:
                 scan.set(params)
                 logger.debug(f"Applied params to scan '{scan.name}': {params}")
