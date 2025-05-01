@@ -312,21 +312,26 @@ class Observation(BaseEntity):
             elif entity_type in ("telescopes", "frequencies"):
                 if not is_active and name in current_names:
                     updated_names = [n for n in current_names if n != name]
-                    if not original_names:
+                    if not original_names and current_names:
                         params[original_attr] = current_names[:]
+                        logger.debug(f"Saved {original_attr}={current_names} for scan '{scan.name}'")
                     params[attr] = updated_names
                     logger.debug(f"Removed inactive {entity_type} '{name}' from scan '{scan.name}', "
                                 f"updated_names={updated_names}, original_names={params.get(original_attr, original_names)}")
                 elif is_active and original_names:
-                    updated_names = current_names[:] if current_names else []
                     all_active_entities = {f.name for f in self.get(entity_type).get_active_items()}
+                    logger.debug(f"Restoring {entity_type} for scan '{scan.name}', all_active_entities={all_active_entities}")
+                    # Start with current active names
+                    updated_names = [n for n in current_names if n in all_active_entities]
+                    # Add all original names that are now active and not already included
                     for orig_name in original_names:
                         if orig_name in all_active_entities and orig_name not in updated_names:
                             updated_names.append(orig_name)
+                            logger.debug(f"Restored {entity_type} name '{orig_name}' to scan '{scan.name}'")
                     updated_names.sort()
                     if updated_names != current_names:
                         params[attr] = updated_names
-                        logger.debug(f"Restored {entity_type} names to scan '{scan.name}', updated_names={updated_names}")
+                        logger.debug(f"Updated {entity_type} names for scan '{scan.name}', updated_names={updated_names}")
 
             if params:
                 scan.set(params)

@@ -215,12 +215,15 @@ class Scan(BaseEntity):
     def set_frequency_names(self, frequency_names: List[str], observation: 'Observation' = None) -> None:
         """Set the frequency names for the scan."""
         check_type(frequency_names, list, "Frequency names")
-        if not self.original_frequency_names:
+        # Save original_frequency_names if it's not set or incomplete
+        if (not self.original_frequency_names or 
+            len(self.original_frequency_names) < len(self.frequency_names)):
             self.set({"original_frequency_names": self.frequency_names.copy()})
+            logger.debug(f"Saved original_frequency_names={self.original_frequency_names} for scan '{self.name}'")
         self.set({"frequency_names": frequency_names})
         if observation:
             self.validate_with_observation(observation)
-        logger.info(f"Set scan frequency_names to {frequency_names}")
+        logger.info(f"Set scan frequency_names to {frequency_names} for scan '{self.name}'")
 
     def validate_with_observation(self, observation: 'Observation') -> bool:
         from pastrocore.base.observation import Observation
@@ -396,24 +399,7 @@ class Scans(BaseContainer[Scan]):
         isactive: Optional[bool] = None,
         observation: 'Observation' = None
     ) -> None:
-        """Update an existing Scan object in the collection with new parameters.
-
-        Args:
-            name (str): The name of the Scan to update.
-            start (Time, optional): The new start time.
-            duration (float, optional): The new duration in seconds.
-            source_name (str, optional): The new source name.
-            telescope_names (List[str], optional): The new list of telescope names.
-            frequency_names (List[str], optional): The new list of frequency names.
-            is_off_source (bool, optional): The new off-source status.
-            isactive (bool, optional): The new active status.
-            observation (Observation, optional): Observation for validation.
-
-        Raises:
-            KeyError: If the Scan with the given name does not exist.
-            ValueError: If the new parameters are invalid or cause time overlaps.
-            TypeError: If the parameter types are incorrect.
-        """
+        """Update an existing Scan object in the collection with new parameters."""
         from pastrocore.base.observation import Observation
         if name not in self._items:
             logger.error(f"Scan with name '{name}' not found in Scans")
@@ -464,13 +450,6 @@ class Scans(BaseContainer[Scan]):
                 logger.error(f"Updated scan '{name}' failed validation against observation '{observation.get_observation_code()}'")
                 raise ValueError("Scan validation failed")
         
-        # Check activity status if observation is provided
-        if observation and isactive is not None:
-            temp_isactive = temp_scan._check_activity_status(observation)
-            if temp_isactive != isactive:
-                logger.debug(f"Overriding isactive={isactive} to {temp_isactive} for scan '{name}' based on validation")
-                isactive = temp_isactive
-
         # Prepare parameters to update
         params = {}
         if start is not None:
@@ -491,8 +470,23 @@ class Scans(BaseContainer[Scan]):
         if params:
             scan.set(params)
             logger.info(f"Updated scan '{name}' in Scans with params: {params}")
+            # Re-check activity status only if isactive was not explicitly set
+            if observation and isactive is None:
+                should_be_active = scan._check_activity_status(observation)
+                scan.set({"isactive": should_be_active})
+                logger.debug(f"Scan '{name}' {'activated' if should_be_active else 'deactivated'} based on validation")
         else:
             logger.debug(f"No parameters to update for scan '{name}' in Scans")
+
+    def deactivate_all(self) -> None:
+        """Deactivate all scans in the collection."""
+        deactivated_count = 0
+        for scan in self.get_items():
+            if scan.isactive:
+                scan.set({"isactive": False})
+                deactivated_count += 1
+                logger.debug(f"Deactivated scan '{scan.name}' in Scans '{self.name}'")
+        logger.info(f"Deactivated {deactivated_count} scans in Scans '{self.name}'")
 
     def activate_all(self, observation: 'Observation') -> None:
         """Activate all scans in the collection that satisfy activity conditions."""
