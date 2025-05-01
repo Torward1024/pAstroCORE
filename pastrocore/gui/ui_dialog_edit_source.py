@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_edtior_sourceSBjtPU.ui'
+## Form generated from reading UI file 'dialog_edtior_sourceyIMWmn.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.8.2
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -26,7 +26,7 @@ class Ui_SourceEditorDialog(object):
         if not SourceEditorDialog.objectName():
             SourceEditorDialog.setObjectName(u"SourceEditorDialog")
         SourceEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        SourceEditorDialog.resize(471, 397)
+        SourceEditorDialog.resize(465, 386)
         SourceEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(SourceEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -35,7 +35,7 @@ class Ui_SourceEditorDialog(object):
         self.labelName = QLabel(SourceEditorDialog)
         self.labelName.setObjectName(u"labelName")
 
-        self.formLayout.setWidget(0, QFormLayout.LabelRole, self.labelName)
+        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.labelName)
 
         self.nameEdit = QLineEdit(SourceEditorDialog)
         self.nameEdit.setObjectName(u"nameEdit")
@@ -62,12 +62,12 @@ class Ui_SourceEditorDialog(object):
 "    background-color: #ffffff;\n"
 "}")
 
-        self.formLayout.setWidget(0, QFormLayout.FieldRole, self.nameEdit)
+        self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.nameEdit)
 
         self.labelNameJ2000 = QLabel(SourceEditorDialog)
         self.labelNameJ2000.setObjectName(u"labelNameJ2000")
 
-        self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelNameJ2000)
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.labelNameJ2000)
 
         self.nameJ2000Edit = QLineEdit(SourceEditorDialog)
         self.nameJ2000Edit.setObjectName(u"nameJ2000Edit")
@@ -94,12 +94,12 @@ class Ui_SourceEditorDialog(object):
 "    background-color: #ffffff;\n"
 "}")
 
-        self.formLayout.setWidget(1, QFormLayout.FieldRole, self.nameJ2000Edit)
+        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.nameJ2000Edit)
 
         self.labelAltName = QLabel(SourceEditorDialog)
         self.labelAltName.setObjectName(u"labelAltName")
 
-        self.formLayout.setWidget(2, QFormLayout.LabelRole, self.labelAltName)
+        self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.labelAltName)
 
         self.altNameEdit = QLineEdit(SourceEditorDialog)
         self.altNameEdit.setObjectName(u"altNameEdit")
@@ -126,17 +126,89 @@ class Ui_SourceEditorDialog(object):
 "    background-color: #ffffff;\n"
 "}")
 
-        self.formLayout.setWidget(2, QFormLayout.FieldRole, self.altNameEdit)
+        self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.altNameEdit)
 
         self.labelRa = QLabel(SourceEditorDialog)
         self.labelRa.setObjectName(u"labelRa")
 
-        self.formLayout.setWidget(3, QFormLayout.LabelRole, self.labelRa)
+        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.labelRa)
 
         self.raLayout = QHBoxLayout()
         self.raLayout.setObjectName(u"raLayout")
         self.raHEdit = QDoubleSpinBox(SourceEditorDialog)
         self.raHEdit.setObjectName(u"raHEdit")
+        self.raHEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    padding-right: 20px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.raHEdit.setDecimals(0)
         self.raHEdit.setMaximum(23.000000000000000)
 
@@ -144,6 +216,78 @@ class Ui_SourceEditorDialog(object):
 
         self.raMEdit = QDoubleSpinBox(SourceEditorDialog)
         self.raMEdit.setObjectName(u"raMEdit")
+        self.raMEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    padding-right: 20px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.raMEdit.setDecimals(0)
         self.raMEdit.setMaximum(59.000000000000000)
 
@@ -151,23 +295,167 @@ class Ui_SourceEditorDialog(object):
 
         self.raSEdit = QDoubleSpinBox(SourceEditorDialog)
         self.raSEdit.setObjectName(u"raSEdit")
+        self.raSEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    padding-right: 20px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.raSEdit.setDecimals(3)
         self.raSEdit.setMaximum(59.999000000000002)
 
         self.raLayout.addWidget(self.raSEdit)
 
 
-        self.formLayout.setLayout(3, QFormLayout.FieldRole, self.raLayout)
+        self.formLayout.setLayout(3, QFormLayout.ItemRole.FieldRole, self.raLayout)
 
         self.labelDec = QLabel(SourceEditorDialog)
         self.labelDec.setObjectName(u"labelDec")
 
-        self.formLayout.setWidget(4, QFormLayout.LabelRole, self.labelDec)
+        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.labelDec)
 
         self.decLayout = QHBoxLayout()
         self.decLayout.setObjectName(u"decLayout")
         self.deDEdit = QDoubleSpinBox(SourceEditorDialog)
         self.deDEdit.setObjectName(u"deDEdit")
+        self.deDEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    padding-right: 20px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.deDEdit.setDecimals(0)
         self.deDEdit.setMinimum(-90.000000000000000)
         self.deDEdit.setMaximum(90.000000000000000)
@@ -176,6 +464,78 @@ class Ui_SourceEditorDialog(object):
 
         self.deMEdit = QDoubleSpinBox(SourceEditorDialog)
         self.deMEdit.setObjectName(u"deMEdit")
+        self.deMEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    padding-right: 20px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.deMEdit.setDecimals(0)
         self.deMEdit.setMaximum(59.000000000000000)
 
@@ -183,18 +543,90 @@ class Ui_SourceEditorDialog(object):
 
         self.deSEdit = QDoubleSpinBox(SourceEditorDialog)
         self.deSEdit.setObjectName(u"deSEdit")
+        self.deSEdit.setStyleSheet(u"/* Base style for QDoubleSpinBox */\n"
+"QDoubleSpinBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    padding-right: 20px;\n"
+"    border-radius: 3px;\n"
+"    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
+"    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
+"}\n"
+"\n"
+"/* Editable state */\n"
+"QDoubleSpinBox:editable {\n"
+"    background-color: #f0f6ff; /* Matches editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Editable hover state */\n"
+"QDoubleSpinBox:editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Editable focus state */\n"
+"QDoubleSpinBox:editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
+"    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
+"    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
+"}\n"
+"\n"
+"/* Non-editable hover state */\n"
+"QDoubleSpinBox:!editable:hover {\n"
+"    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */\n"
+"}\n"
+"\n"
+"/* Non-editable focus state */\n"
+"QDoubleSpinBox:!editable:focus {\n"
+"    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */\n"
+"    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */\n"
+"}\n"
+"\n"
+"/* Styling for up/down buttons */\n"
+"QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"    subcontrol-origin: padding;\n"
+"    width: 20px;\n"
+"    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
+"    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
+"}\n"
+"/* Hover state for up/down buttons */\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
+"    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
+"}\n"
+"\n"
+"/* Up arrow styling */\n"
+"QDoubleSpinBox::up-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
+"}\n"
+"/* Down arrow styling */\n"
+"QDoubleSpinBox::down-arrow {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
+"}")
         self.deSEdit.setDecimals(3)
         self.deSEdit.setMaximum(59.999000000000002)
 
         self.decLayout.addWidget(self.deSEdit)
 
 
-        self.formLayout.setLayout(4, QFormLayout.FieldRole, self.decLayout)
+        self.formLayout.setLayout(4, QFormLayout.ItemRole.FieldRole, self.decLayout)
 
         self.labelSpectralIndex = QLabel(SourceEditorDialog)
         self.labelSpectralIndex.setObjectName(u"labelSpectralIndex")
 
-        self.formLayout.setWidget(5, QFormLayout.LabelRole, self.labelSpectralIndex)
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.labelSpectralIndex)
 
         self.spectralIndexEdit = QDoubleSpinBox(SourceEditorDialog)
         self.spectralIndexEdit.setObjectName(u"spectralIndexEdit")
@@ -275,18 +707,18 @@ class Ui_SourceEditorDialog(object):
         self.spectralIndexEdit.setMinimum(-999.000000000000000)
         self.spectralIndexEdit.setMaximum(999.000000000000000)
 
-        self.formLayout.setWidget(5, QFormLayout.FieldRole, self.spectralIndexEdit)
+        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.spectralIndexEdit)
 
         self.labelIsActive = QLabel(SourceEditorDialog)
         self.labelIsActive.setObjectName(u"labelIsActive")
 
-        self.formLayout.setWidget(6, QFormLayout.LabelRole, self.labelIsActive)
+        self.formLayout.setWidget(6, QFormLayout.ItemRole.LabelRole, self.labelIsActive)
 
         self.isActiveCheckBox = QCheckBox(SourceEditorDialog)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
         self.isActiveCheckBox.setChecked(True)
 
-        self.formLayout.setWidget(6, QFormLayout.FieldRole, self.isActiveCheckBox)
+        self.formLayout.setWidget(6, QFormLayout.ItemRole.FieldRole, self.isActiveCheckBox)
 
 
         self.verticalLayout.addLayout(self.formLayout)
@@ -300,15 +732,45 @@ class Ui_SourceEditorDialog(object):
 
         self.horizontalLayout.addWidget(self.addFluxButton)
 
-        self.clearFluxButton = QPushButton(SourceEditorDialog)
-        self.clearFluxButton.setObjectName(u"clearFluxButton")
-
-        self.horizontalLayout.addWidget(self.clearFluxButton)
-
         self.removeFluxButton = QPushButton(SourceEditorDialog)
         self.removeFluxButton.setObjectName(u"removeFluxButton")
+        self.removeFluxButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
 
         self.horizontalLayout.addWidget(self.removeFluxButton)
+
+        self.clearFluxButton = QPushButton(SourceEditorDialog)
+        self.clearFluxButton.setObjectName(u"clearFluxButton")
+        self.clearFluxButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.horizontalLayout.addWidget(self.clearFluxButton)
 
         self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
@@ -405,11 +867,11 @@ class Ui_SourceEditorDialog(object):
         self.nameJ2000Edit.setPlaceholderText(QCoreApplication.translate("SourceEditorDialog", u"Enter J2000 name (optional)", None))
         self.labelAltName.setText(QCoreApplication.translate("SourceEditorDialog", u"Alternative Name:", None))
         self.altNameEdit.setPlaceholderText(QCoreApplication.translate("SourceEditorDialog", u"Enter alternative name (optional)", None))
-        self.labelRa.setText(QCoreApplication.translate("SourceEditorDialog", u"Right Ascension (hms):", None))
+        self.labelRa.setText(QCoreApplication.translate("SourceEditorDialog", u"RA (hh:mm:ss):", None))
         self.raHEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"h", None))
         self.raMEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"m", None))
         self.raSEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"s", None))
-        self.labelDec.setText(QCoreApplication.translate("SourceEditorDialog", u"Declination (dms):", None))
+        self.labelDec.setText(QCoreApplication.translate("SourceEditorDialog", u"DEC (dd:mm:ss):", None))
         self.deDEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"d", None))
         self.deMEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"m", None))
         self.deSEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"s", None))
@@ -417,11 +879,9 @@ class Ui_SourceEditorDialog(object):
         self.spectralIndexEdit.setProperty(u"placeholderText", QCoreApplication.translate("SourceEditorDialog", u"Enter spectral index (optional)", None))
         self.labelIsActive.setText(QCoreApplication.translate("SourceEditorDialog", u"Active:", None))
         self.addFluxButton.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;", None))
-        self.addFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Add Flux", None))
-        self.clearFluxButton.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;", None))
-        self.clearFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Clear Flux Table", None))
-        self.removeFluxButton.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;", None))
-        self.removeFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Remove Flux", None))
+        self.addFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Add...", None))
+        self.removeFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Remove", None))
+        self.clearFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Clear", None))
         self.fluxTable.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"border: 1px solid #d3d3d3;", None))
         self.labelFluxTable.setText(QCoreApplication.translate("SourceEditorDialog", u"Flux Table (MHz, Jy):", None))
         self.saveButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Save", None))

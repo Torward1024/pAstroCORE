@@ -80,32 +80,37 @@ class Scan(BaseEntity):
         min_telescopes = 1 if observation_type == "SINGLE_DISH" else 2
         logger.debug(f"Checking activity for scan '{self.name}', observation_type={observation_type}, min_telescopes={min_telescopes}")
 
-        # Check telescope count
-        telescope_items = observation.get_telescopes().get_items()  # List[Telescope]
+        # Check if telescope_names or frequency_names are empty
+        if not self.telescope_names:
+            logger.debug(f"Scan '{self.name}' has no telescopes, marking inactive")
+            return False
+        if not self.frequency_names:
+            logger.debug(f"Scan '{self.name}' has no frequencies, marking inactive")
+            return False
+
+        # Check telescope activity
+        telescope_items = observation.get_telescopes().get_items()
         active_telescopes = [
             name for name in self.telescope_names
             if any(t.name == name and t.isactive for t in telescope_items)
         ]
-        logger.debug(f"Scan '{self.name}' telescope_names={self.telescope_names}, active_telescopes={active_telescopes}, "
-                    f"telescope_items_names={[t.name for t in telescope_items if hasattr(t, 'name')]}")
+        logger.debug(f"Scan '{self.name}' telescope_names={self.telescope_names}, active_telescopes={active_telescopes}")
 
-        # Check frequency count
-        frequency_items = observation.get_frequencies().get_items()  # List[Frequency]
+        # Check frequency activity
+        frequency_items = observation.get_frequencies().get_items()
         active_frequencies = [
             name for name in self.frequency_names
             if any(f.name == name and f.isactive for f in frequency_items)
         ]
-        logger.debug(f"Scan '{self.name}' frequency_names={self.frequency_names}, active_frequencies={active_frequencies}, "
-                    f"frequency_items_names={[f.name for f in frequency_items if hasattr(f, 'name')]}")
+        logger.debug(f"Scan '{self.name}' frequency_names={self.frequency_names}, active_frequencies={active_frequencies}")
 
-        # Check source status
-        source_items = observation.get_sources().get_items()  # List[Source]
+        # Check source activity
         source_active = (
-            self.source_name is None or self.is_off_source or
-            any(s.name == self.source_name and s.isactive for s in source_items)
+            self.is_off_source or
+            self.source_name is None or
+            any(s.name == self.source_name and s.isactive for s in observation.get_sources().get_items())
         )
-        logger.debug(f"Scan '{self.name}' source_name={self.source_name}, is_off_source={self.is_off_source}, "
-                    f"source_active={source_active}, source_items_names={[s.name for s in source_items if hasattr(s, 'name')]}")
+        logger.debug(f"Scan '{self.name}' source_name={self.source_name}, is_off_source={self.is_off_source}, source_active={source_active}")
 
         # Determine activity status
         should_be_active = (
@@ -113,7 +118,6 @@ class Scan(BaseEntity):
             len(active_frequencies) >= 1 and
             source_active
         )
-
         logger.debug(f"Activity check for scan '{self.name}': "
                     f"telescope_count={len(active_telescopes)} (min={min_telescopes}), "
                     f"frequency_count={len(active_frequencies)}, "
@@ -219,9 +223,13 @@ class Scan(BaseEntity):
         logger.info(f"Set scan frequency_names to {frequency_names}")
 
     def validate_with_observation(self, observation: 'Observation') -> bool:
-        """Validate the scan's names against an Observation's data."""
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
+        
+        if not self.telescope_names:
+            logger.warning(f"Scan '{self.name}' has no telescopes assigned")
+        if not self.frequency_names:
+            logger.warning(f"Scan '{self.name}' has no frequencies assigned")
         
         if self.source_name is not None and not observation.get_sources().get(self.source_name):
             logger.error(f"Invalid source_name {self.source_name} for observation")
