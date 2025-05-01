@@ -204,49 +204,80 @@ class Observation(BaseEntity):
             "telescopes": "telescope_names",
             "frequencies": "frequency_names"
         }
+        original_map = {
+            "sources": "original_source_name",
+            "telescopes": "original_telescope_names",
+            "frequencies": "original_frequency_names"
+        }
         if entity_type not in entity_map:
             logger.error(f"Invalid entity type: {entity_type}")
             raise ValueError(f"Invalid entity type: {entity_type}")
         attr = entity_map[entity_type]
+        original_attr = original_map[entity_type]
 
         for scan in self.scans.get_items():
+            params = {}
+            current_names = getattr(scan, attr, []) if entity_type != "sources" else getattr(scan, attr)
+            original_names = getattr(scan, original_attr, []) if entity_type != "sources" else getattr(scan, original_attr)
+
             if entity_type == "sources":
-                current_name = getattr(scan, attr)
-                if operation == "remove" and current_name == name:
-                    scan.set({"source_name": None, "is_off_source": True, "original_source_name": current_name})
-                    logger.debug(f"Reset source name to None for scan '{scan.name}' in observation '{self.name}'")
-                elif operation == "add" and getattr(scan, "original_source_name", None) == name:
-                    scan.set({"source_name": name, "is_off_source": False})
+                if operation == "remove" and current_names == name:
+                    params.update({
+                        "source_name": "OFF_SOURCE",
+                        "is_off_source": True,
+                        original_attr: current_names
+                    })
+                    logger.debug(f"Reset source name to OFF_SOURCE for scan '{scan.name}' in observation '{self.name}'")
+                elif operation == "add" and original_names == name:
+                    params.update({
+                        "source_name": name,
+                        "is_off_source": False,
+                        original_attr: None
+                    })
                     logger.debug(f"Restored source name '{name}' for scan '{scan.name}' in '{self.name}'")
             else:
-                current_names = getattr(scan, attr)
+                all_entities = self.get(entity_type).get_items()
                 if operation == "remove" and name in current_names:
                     updated_names = [n for n in current_names if n != name]
-                    scan.set({attr: updated_names})
-                    logger.debug(f"Removed {entity_type} name '{name}' from scan '{scan.name}' in '{self.name}'")
-                elif operation == "add":
-                    # Note: Adding names typically happens via Manipulator, so we may not need to handle it here
-                    pass
+                    if entity_type == "frequencies":
+                        # Update original_frequency_names to remove the deleted frequency
+                        if original_names:
+                            params[original_attr] = [n for n in original_names if n != name]
+                        else:
+                            params[original_attr] = current_names[:]
+                    else:
+                        if current_names and not getattr(scan, original_attr, None):
+                            params[original_attr] = current_names[:]
+                    params[attr] = updated_names
+                    logger.debug(f"Removed {entity_type} name '{name}' from scan '{scan.name}' in '{self.name}', "
+                                f"updated_names={updated_names}, original_names={params.get(original_attr, [])}")
+                elif operation == "add" and original_names and name in original_names:
+                    updated_names = current_names[:] if current_names else []
+                    if name not in updated_names and name in all_entities:
+                        updated_names.append(name)
+                        updated_names = sorted(updated_names)
+                    params[attr] = updated_names
+                    logger.debug(f"Restored {entity_type} name '{name}' to scan '{scan.name}' in '{self.name}'")
+
+            # Update scan activity status
+            if params:
+                scan.set(params)
+                should_be_active = scan._check_activity_status(self)
+                scan.set({"isactive": should_be_active})
+                logger.debug(f"Scan '{scan.name}' {'activated' if should_be_active else 'deactivated'} "
+                            f"due to {entity_type} {operation}")
+                logger.info(f"Updated scan '{scan.name}' in observation '{self.name}' with params: {params}")
+
+                # Explicitly deactivate scan if telescope_names or frequency_names are empty
+                if entity_type == "telescopes" and not scan.telescope_names:
+                    scan.set({"isactive": False})
+                    logger.debug(f"Deactivated scan '{scan.name}' because telescope_names is empty")
+                elif entity_type == "frequencies" and not scan.frequency_names:
+                    scan.set({"isactive": False})
+                    logger.debug(f"Deactivated scan '{scan.name}' because frequency_names is empty")
 
     def _sync_scans_with_activation(self, entity_type: str, name: str, is_active: bool) -> None:
-        """Synchronize scan names and activity with entity activation/deactivation.
-
-        Updates scan attributes and activity status based on entity changes:
-        - For sources: Deactivates scan if source is inactive and not OFF_SOURCE; reactivates when source is active.
-        - For telescopes: Updates telescope_names to include only active and existing telescopes; adjusts scan activity.
-        - For frequencies: Updates frequency_names and adjusts scan activity.
-
-        Scan activity rules:
-        - SINGLE_DISH: Deactivate if < 1 active telescope; activate if >= 1.
-        - VLBI: Deactivate if < 2 active telescopes; activate if >= 2.
-        - Deactivate if < 1 active frequency; activate if >= 1.
-        - Deactivate if source is inactive (non-OFF_SOURCE); reactivate when source is active.
-
-        Args:
-            entity_type (str): Type of entity ('sources', 'telescopes', 'frequencies').
-            name (str): Name of the entity (source name, telescope name, or frequency name).
-            is_active (bool): New activation status of the entity.
-        """
+        """Synchronize scan attributes and activity with entity activation/deactivation."""
         entity_map = {
             "sources": "source_name",
             "telescopes": "telescope_names",
@@ -265,68 +296,58 @@ class Observation(BaseEntity):
 
         for scan in self.scans.get_items():
             params = {}
-            current_names = getattr(scan, attr, []) or []
-            original_names = getattr(scan, original_attr, []) or []
+            current_names = getattr(scan, attr, []) if entity_type != "sources" else getattr(scan, attr)
+            original_names = getattr(scan, original_attr, []) if entity_type != "sources" else getattr(scan, original_attr)
+            
+            logger.debug(f"Syncing scan '{scan.name}' for {entity_type} '{name}', is_active={is_active}, "
+                        f"current_names={current_names}, original_names={original_names}")
 
             # Handle source synchronization
-            if entity_type == "sources" and current_names == name:
-                if not is_active and not scan.is_off_source:
+            if entity_type == "sources":
+                if not is_active and current_names == name and not scan.is_off_source:
                     params.update({
-                        "source_name": None,
+                        "source_name": "OFF_SOURCE",
                         "is_off_source": True,
-                        "original_source_name": name
+                        original_attr: name
                     })
-                    logger.debug(f"Scan '{scan.name}' source '{name}' deactivated")
-                elif is_active and getattr(scan, "original_source_name", None) == name:
+                    logger.debug(f"Scan '{scan.name}' source '{name}' deactivated, set to OFF_SOURCE")
+                elif is_active and original_names == name:
                     params.update({
                         "source_name": name,
                         "is_off_source": False,
-                        "original_source_name": None
+                        original_attr: None
                     })
                     logger.debug(f"Restored source '{name}' for scan '{scan.name}'")
 
-            # Handle telescope synchronization
-            elif entity_type == "telescopes":
-                all_telescopes = self.telescopes.get_items()
-                if name in current_names and not is_active:
-                    updated_names = [n for n in current_names if n != name and n in all_telescopes and all_telescopes[n].isactive]
-                    if not getattr(scan, original_attr, None):
+            # Handle telescope/frequency synchronization
+            elif entity_type in ("telescopes", "frequencies"):
+                if not is_active and name in current_names:
+                    updated_names = [n for n in current_names if n != name]
+                    # Always save current_names to original_names if not already set
+                    if not original_names:
                         params[original_attr] = current_names[:]
                     params[attr] = updated_names
-                    logger.debug(f"Removed inactive telescope '{name}' from scan '{scan.name}'")
-                elif is_active and name in original_names and name in all_telescopes:
-                    updated_names = sorted(list(set(current_names + [name])))
-                    updated_names = [n for n in updated_names if n in all_telescopes and all_telescopes[n].isactive]
+                    logger.debug(f"Removed inactive {entity_type} '{name}' from scan '{scan.name}', "
+                                f"updated_names={updated_names}, original_names={params.get(original_attr, original_names)}")
+                elif is_active and name in (original_names or []):
+                    # Restore name from original_names if it exists
+                    updated_names = current_names[:] if current_names else []
+                    if name not in updated_names:
+                        updated_names.append(name)
+                        updated_names = sorted(updated_names)
                     params[attr] = updated_names
-                    logger.debug(f"Restored telescope '{name}' to scan '{scan.name}'")
+                    logger.debug(f"Restored {entity_type} '{name}' to scan '{scan.name}', updated_names={updated_names}")
 
-            # Handle frequency synchronization
-            elif entity_type == "frequencies":
-                all_frequencies = self.frequencies.get_items()
-                if name in current_names and not is_active:
-                    updated_names = [n for n in current_names if n != name and n in all_frequencies and all_frequencies[n].isactive]
-                    if not getattr(scan, original_attr, None):
-                        params[original_attr] = current_names[:]
-                    params[attr] = updated_names
-                    logger.debug(f"Removed inactive frequency '{name}' from scan '{scan.name}'")
-                elif is_active and name in original_names and name in all_frequencies:
-                    updated_names = sorted(list(set(current_names + [name])))
-                    updated_names = [n for n in updated_names if n in all_frequencies and all_frequencies[n].isactive]
-                    params[attr] = updated_names
-                    logger.debug(f"Restored frequency '{name}' to scan '{scan.name}'")
-
-            # Update scan activity
-            if params or entity_type in ("telescopes", "frequencies", "sources"):
-                should_be_active = scan._check_activity_status(self)
-                if should_be_active != scan.isactive:
-                    params["isactive"] = should_be_active
-                    logger.debug(f"Scan '{scan.name}' {'activated' if should_be_active else 'deactivated'} based on entity changes")
-
-            # Apply updates if any
+            # Update scan activity status
             if params:
                 scan.set(params)
+                logger.debug(f"Applied params to scan '{scan.name}': {params}")
+                should_be_active = scan._check_activity_status(self)
+                scan.set({"isactive": should_be_active})
+                logger.debug(f"Scan '{scan.name}' {'activated' if should_be_active else 'deactivated'} "
+                            f"due to {entity_type} change")
                 logger.info(f"Updated scan '{scan.name}' in observation '{self.name}' with params: {params}")
-
+                
     def to_dict(self) -> dict:
         """Convert the Observation object to a dictionary for serialization."""
         def convert_quantity(obj):

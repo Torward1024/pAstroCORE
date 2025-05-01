@@ -14,7 +14,7 @@ import pastrocore.gui.rc_icons
 import uuid
 
 class SourcesTab(QWidget):
-    data_updated = Signal()
+    data_updated = Signal(str, bool, str)
 
     def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
         super().__init__(parent)
@@ -171,7 +171,7 @@ class SourcesTab(QWidget):
                 if response["status"]:
                     logger.info(f"Added source '{source_name}' to observation '{self.observation.code}'")
                     self.update()
-                    self.data_updated.emit()
+                    self.data_updated.emit(source_name, None, "add")
                 else:
                     logger.error(f"Failed to add source: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add source: {response.get('error', 'Unknown error')}")
@@ -201,7 +201,7 @@ class SourcesTab(QWidget):
                 if response["status"]:
                     logger.info(f"Added source '{source_name}' from catalog to observation '{self.observation.code}'")
                     self.update()
-                    self.data_updated.emit()
+                    self.data_updated.emit(source_name, None, "add")
                 else:
                     logger.error(f"Failed to add source from catalog: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add source: {response.get('error', 'Unknown error')}")
@@ -222,7 +222,7 @@ class SourcesTab(QWidget):
             if response["status"]:
                 logger.info(f"Removed source '{source_name}' from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(source_name, None, "remove")
             else:
                 logger.error(f"Failed to remove source: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to remove source: {response.get('error', 'Unknown error')}")
@@ -312,7 +312,7 @@ class SourcesTab(QWidget):
             if response["status"]:
                 logger.info(f"Source '{source_name}' activated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(source_name, True, "activate")
             else:
                 logger.error(f"Failed to activate source '{source_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to activate source: {response.get('error', 'Unknown error')}")
@@ -348,7 +348,7 @@ class SourcesTab(QWidget):
             if response["status"]:
                 logger.info(f"Source '{source_name}' deactivated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(source_name, False, "deactivate")
             else:
                 logger.error(f"Failed to deactivate source '{source_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate source: {response.get('error', 'Unknown error')}")
@@ -369,7 +369,7 @@ class SourcesTab(QWidget):
             if response["status"]:
                 logger.info(f"All sources activated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "activate_all")
             else:
                 logger.error(f"Failed to activate all sources: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to activate all sources: {response.get('error', 'Unknown error')}")
@@ -390,7 +390,7 @@ class SourcesTab(QWidget):
             if response["status"]:
                 logger.info(f"All sources deactivated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "deactivate_all")
             else:
                 logger.error(f"Failed to deactivate all sources: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate all sources: {response.get('error', 'Unknown error')}")
@@ -411,7 +411,7 @@ class SourcesTab(QWidget):
             if response["status"]:
                 logger.info(f"All active sources dropped from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "drop_active")
             else:
                 logger.error(f"Failed to drop active sources: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to drop active sources: {response.get('error', 'Unknown error')}")
@@ -432,7 +432,7 @@ class SourcesTab(QWidget):
             if response["status"]:
                 logger.info(f"All inactive sources dropped from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "drop_inactive")
             else:
                 logger.error(f"Failed to drop inactive sources: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to drop inactive sources: {response.get('error', 'Unknown error')}")
@@ -453,7 +453,7 @@ class SourcesTab(QWidget):
             if response["status"]:
                 logger.info(f"All sources cleared from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "clear")
             else:
                 logger.error(f"Failed to clear sources: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to clear sources: {response.get('error', 'Unknown error')}")

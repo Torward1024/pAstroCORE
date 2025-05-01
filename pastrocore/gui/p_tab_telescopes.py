@@ -18,7 +18,7 @@ import uuid
 
 class TelescopesTab(QWidget):
     """Widget for displaying and managing telescopes in an observation."""
-    data_updated = Signal()
+    data_updated = Signal(str, bool, str)
 
     def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
         super().__init__(parent)
@@ -166,7 +166,7 @@ class TelescopesTab(QWidget):
                 if response["status"]:
                     logger.info(f"Added telescope '{telescope_data['code']}' to observation '{self.observation.code}'")
                     self.update()
-                    self.data_updated.emit()
+                    self.data_updated.emit(telescope_data['name'], None, "add")
                 else:
                     logger.error(f"Failed to add telescope: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
@@ -193,7 +193,7 @@ class TelescopesTab(QWidget):
                 if response["status"]:
                     logger.info(f"Added space telescope '{telescope_data['code']}' to observation '{self.observation.code}'")
                     self.update()
-                    self.data_updated.emit()
+                    self.data_updated.emit(telescope_data['name'], None, "add")
                 else:
                     logger.error(f"Failed to add space telescope: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add space telescope: {response.get('error', 'Unknown error')}")
@@ -230,7 +230,7 @@ class TelescopesTab(QWidget):
                 if response["status"]:
                     logger.info(f"Added telescope '{telescope_code}' from catalog to observation '{self.observation.code}'")
                     self.update()
-                    self.data_updated.emit()
+                    self.data_updated.emit(telescope_name, None, "add")
                 else:
                     logger.error(f"Failed to add telescope from catalog: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
@@ -265,7 +265,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 logger.info(f"New telescope '{telescope.name}' imported successfully to observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(telescope.name, None, "add")
                 QMessageBox.information(self, "Success", f"Telescope '{telescope.name}' imported successfully.")
             else:
                 logger.error(f"Failed to import telescope: {response.get('error', 'Unknown error')}")
@@ -331,7 +331,6 @@ class TelescopesTab(QWidget):
                 logger.error(f"Failed to get telescope '{telescope_name}': {telescope_response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Telescope '{telescope_name}' not found")
                 return
-
             telescope = telescope_response["result"]
             with open(file_path, "w") as f:
                 json.dump(telescope.to_dict(), f, indent=4)
@@ -348,13 +347,13 @@ class TelescopesTab(QWidget):
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_telescopes(),
-                "attributes": {"remove_item": telescope_name}
+                "attributes": {"remove": telescope_name}
             }
             response = self.manipulator.process_request(request)
             if response["status"]:
                 logger.info(f"Removed telescope '{telescope_name}' from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(telescope_name, None, "remove")
             else:
                 logger.error(f"Failed to remove telescope: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to remove telescope: {response.get('error', 'Unknown error')}")
@@ -436,7 +435,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 logger.info(f"Telescope '{telescope_name}' activated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(telescope_name, True, "activate")
             else:
                 logger.error(f"Failed to activate telescope '{telescope_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to activate telescope: {response.get('error', 'Unknown error')}")
@@ -467,7 +466,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 logger.info(f"Telescope '{telescope_name}' deactivated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(telescope_name, False, "deactivate")
             else:
                 logger.error(f"Failed to deactivate telescope '{telescope_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate telescope: {response.get('error', 'Unknown error')}")
@@ -488,7 +487,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 logger.info(f"All telescopes activated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "activate_all")
             else:
                 logger.error(f"Failed to activate all telescopes: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to activate all telescopes: {response.get('error', 'Unknown error')}")
@@ -509,7 +508,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 logger.info(f"All telescopes deactivated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "deactivate_all")
             else:
                 logger.error(f"Failed to deactivate all telescopes: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate all telescopes: {response.get('error', 'Unknown error')}")
@@ -530,7 +529,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 logger.info(f"All telescopes cleared from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "clear")
             else:
                 logger.error(f"Failed to clear telescopes: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to clear telescopes: {response.get('error', 'Unknown error')}")
@@ -552,7 +551,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 logger.info(f"All active telescopes dropped from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "drop_active")
             else:
                 logger.error(f"Failed to drop active telescopes: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to drop active telescopes: {response.get('error', 'Unknown error')}")
@@ -573,7 +572,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 logger.info(f"All inactive telescopes dropped from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "drop_inactive")
             else:
                 logger.error(f"Failed to drop inactive telescopes: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to drop inactive telescopes: {response.get('error', 'Unknown error')}")

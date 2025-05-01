@@ -14,7 +14,7 @@ import json
 
 class FrequenciesTab(QWidget):
     """Widget for displaying and managing frequencies in an observation."""
-    data_updated = Signal()
+    data_updated = Signal(str, bool, str)
 
     def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
         super().__init__(parent)
@@ -166,7 +166,7 @@ class FrequenciesTab(QWidget):
                 if response["status"]:
                     logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
                     self.update()
-                    self.data_updated.emit()
+                    self.data_updated.emit(freq_name, None, "add")
                 else:
                     logger.error(f"Failed to add frequency: {response.get('error', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to add frequency: {response.get('error', 'Unknown error')}")
@@ -205,7 +205,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"New frequency '{freq_name}' imported successfully to observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(freq_name, None, "add")
                 QMessageBox.information(self, "Success", f"Frequency '{freq_name}' imported successfully.")
             else:
                 logger.error(f"Failed to import frequency: {response.get('error', 'Unknown error')}")
@@ -305,7 +305,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"Removed frequency '{freq_name}' from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(freq_name, None, "remove")
             else:
                 logger.error(f"Failed to remove frequency: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to remove frequency: {response.get('error', 'Unknown error')}")
@@ -389,7 +389,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"Frequency '{freq_name}' activated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(freq_name, True, "activate")
             else:
                 logger.error(f"Failed to activate frequency '{freq_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to activate frequency: {response.get('error', 'Unknown error')}")
@@ -426,7 +426,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"Frequency '{freq_name}' deactivated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(freq_name, False, "deactivate")
             else:
                 logger.error(f"Failed to deactivate frequency '{freq_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate frequency: {response.get('error', 'Unknown error')}")
@@ -447,7 +447,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"All frequencies activated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "activate_all")
             else:
                 logger.error(f"Failed to activate all frequencies: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to activate all frequencies: {response.get('error', 'Unknown error')}")
@@ -468,7 +468,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"All frequencies deactivated in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "deactivate_all")
             else:
                 logger.error(f"Failed to deactivate all frequencies: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate all frequencies: {response.get('error', 'Unknown error')}")
@@ -489,7 +489,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"All active frequencies dropped from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "drop_active")
             else:
                 logger.error(f"Failed to drop active frequencies: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to drop active frequencies: {response.get('error', 'Unknown error')}")
@@ -510,7 +510,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"All inactive frequencies dropped from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "drop_inactive")
             else:
                 logger.error(f"Failed to drop inactive frequencies: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to drop inactive frequencies: {response.get('error', 'Unknown error')}")
@@ -531,7 +531,7 @@ class FrequenciesTab(QWidget):
             if response["status"]:
                 logger.info(f"All frequencies cleared from observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
+                self.data_updated.emit(None, None, "clear")
             else:
                 logger.error(f"Failed to clear frequencies: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to clear frequencies: {response.get('error', 'Unknown error')}")
