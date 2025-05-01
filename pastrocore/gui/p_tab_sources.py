@@ -273,7 +273,7 @@ class SourcesTab(QWidget):
                     if response["status"]:
                         logger.info(f"Updated source '{source_name}' in observation '{self.observation.code}'")
                         self.update()
-                        self.data_updated.emit()
+                        self.data_updated.emit(source_name, source_data["isactive"], "edit")
                     else:
                         logger.error(f"Failed to update source: {response.get('error', 'Unknown error')}")
                         QMessageBox.critical(self, "Error", f"Failed to update source: {response.get('error', 'Unknown error')}")

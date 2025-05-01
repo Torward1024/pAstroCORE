@@ -349,7 +349,7 @@ class FrequenciesTab(QWidget):
                     if response["status"]:
                         logger.info(f"Updated frequency '{freq_name}' in observation '{self.observation.code}'")
                         self.update()
-                        self.data_updated.emit()
+                        self.data_updated.emit(freq_name, if_data["isactive"], "edit")
                     else:
                         logger.error(f"Failed to update frequency: {response.get('error', 'Unknown error')}")
                         QMessageBox.critical(self, "Error", f"Failed to update frequency: {response.get('error', 'Unknown error')}")

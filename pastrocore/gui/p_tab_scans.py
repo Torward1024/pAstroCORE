@@ -345,6 +345,24 @@ class ScansTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to activate scan: {scan_response.get('error', 'Unknown error')}")
                 return
 
+            scan_obj = scan_response["result"]
+            # Check if scan can be activated
+            check_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": scan_obj,
+                "attributes": {"check_activity_status": self.observation}
+            })
+            if not check_response["status"]:
+                logger.error(f"Failed to check activity status for scan '{scan_name}': {check_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to check scan status: {check_response.get('error', 'Unknown error')}")
+                return
+
+            can_activate = check_response["result"]
+            if not can_activate:
+                logger.warning(f"Scan '{scan_name}' cannot be activated due to invalid configuration")
+                QMessageBox.warning(self, "Cannot Activate", "The scan cannot be activated due to missing or inactive telescopes, frequencies, or source.")
+                return
+
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_scans(),
@@ -526,7 +544,7 @@ class ScansTab(QWidget):
             return
 
         # Handle specific operations
-        if operation in ("activate", "deactivate") and entity_name and is_active is not None:
+        if operation in ("activate", "deactivate", "edit") and entity_name and is_active is not None:
             self.observation._sync_scans_with_activation(entity_type, entity_name, is_active)
         elif operation in ("add", "remove") and entity_name:
             self.observation._update_scan_names(entity_type, entity_name, operation)
