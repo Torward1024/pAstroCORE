@@ -249,7 +249,43 @@ class ScheduleInspector(Super):
         logger.info(f"Inspected Sources: name={sources_obj.name}, result={final_result}")
         return final_result
 
-    def _inspect_telescope(self, telescope_obj: Union[Telescope, SpaceTelescope], attributes: Dict[str, Any]) -> str:
+    def _inspect_telescope(self, telescope_obj: Telescope, attributes: Dict[str, Any]) -> str:
+        """Inspect a Telescope or SpaceTelescope object and return its get_code() result."""
+        check_type(telescope_obj, (Telescope, SpaceTelescope), "Telescope object")
+        obj_type = type(telescope_obj)
+        valid_getters = self._get_methods(obj_type)
+        applied = False
+        final_result = None
+        
+        for getter_name, getter_args in attributes.items():
+            if getter_name == "get":
+                continue
+            value = self._validate_and_apply_method(telescope_obj, getter_name, getter_args, valid_getters)
+            if value["status"]:
+                applied = True
+                final_result = value["result"]
+            else:
+                logger.warning(f"Invalid getter '{getter_name}' for {obj_type.__name__} inspection: {value['error']}")
+                raise ValueError(value["error"])
+        
+        getter_args = attributes.get("get")
+        if getter_args is not None:
+            result = self._validate_and_apply_method(telescope_obj, "get", getter_args, valid_getters)
+            if result["status"]:
+                applied = True
+                final_result = result["result"]
+            else:
+                logger.warning(f"Invalid get method for {obj_type.__name__} inspection: {result['error']}")
+                raise ValueError(result["error"])
+        
+        if not applied:
+            logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
+            raise ValueError("No valid getters applied")
+        
+        logger.info(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
+        return final_result
+    
+    def _inspect_spacetelescope(self, telescope_obj: SpaceTelescope, attributes: Dict[str, Any]) -> str:
         """Inspect a Telescope or SpaceTelescope object and return its get_code() result."""
         check_type(telescope_obj, (Telescope, SpaceTelescope), "Telescope object")
         obj_type = type(telescope_obj)

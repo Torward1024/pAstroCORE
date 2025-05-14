@@ -180,9 +180,11 @@ class TelescopesTab(QWidget):
         dialog = SpaceTelescopeEditorDialog(parent=self)
         dialog.ui.codeEdit.setText(f"ST")
         dialog.ui.nameEdit.setText(f"SPACETELESCOPE")
+        dialog.ui.isActiveCheckBox.setChecked(True)
         if dialog.exec() == QDialog.Accepted:
             try:
                 telescope_data = dialog.get_telescope_data()
+                logger.debug(f"SpaceTelescope data: {telescope_data}")  # Log data for debugging
                 telescope = SpaceTelescope(**telescope_data)
                 request = {
                     "operation": "configure",

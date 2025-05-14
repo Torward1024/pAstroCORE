@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_space_telescopetGDZZG.ui'
+## Form generated from reading UI file 'dialog_editor_space_telescopeQdbUtH.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##

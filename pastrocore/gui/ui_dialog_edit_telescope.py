@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_telescopeYfXEwa.ui'
+## Form generated from reading UI file 'dialog_editor_telescopelkcWzW.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -26,7 +26,7 @@ class Ui_TelescopeEditorDialog(object):
         if not TelescopeEditorDialog.objectName():
             TelescopeEditorDialog.setObjectName(u"TelescopeEditorDialog")
         TelescopeEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        TelescopeEditorDialog.resize(464, 568)
+        TelescopeEditorDialog.resize(464, 587)
         TelescopeEditorDialog.setModal(True)
         self.gridLayout_2 = QGridLayout(TelescopeEditorDialog)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
@@ -1133,7 +1133,6 @@ class Ui_TelescopeEditorDialog(object):
         self.mountTypeCombo = QComboBox(self.tab)
         self.mountTypeCombo.addItem("")
         self.mountTypeCombo.addItem("")
-        self.mountTypeCombo.addItem("")
         self.mountTypeCombo.setObjectName(u"mountTypeCombo")
         font = QFont()
         font.setFamilies([u"Arial"])
@@ -1891,9 +1890,8 @@ class Ui_TelescopeEditorDialog(object):
         self.azimuthMinEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
         self.azimuthMaxEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
         self.labelMountType.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Mount Type:", None))
-        self.mountTypeCombo.setItemText(0, QCoreApplication.translate("TelescopeEditorDialog", u"EQUATORIAL", None))
-        self.mountTypeCombo.setItemText(1, QCoreApplication.translate("TelescopeEditorDialog", u"AZIMUTHAL", None))
-        self.mountTypeCombo.setItemText(2, QCoreApplication.translate("TelescopeEditorDialog", u"SPACE", None))
+        self.mountTypeCombo.setItemText(0, QCoreApplication.translate("TelescopeEditorDialog", u"EQUA", None))
+        self.mountTypeCombo.setItemText(1, QCoreApplication.translate("TelescopeEditorDialog", u"AZIM", None))
 
         self.labelIsActive.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Active:", None))
         self.labelSefdTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"SEFD Table (MHz, Jy):", None))

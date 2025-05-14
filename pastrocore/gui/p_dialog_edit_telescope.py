@@ -1,12 +1,9 @@
-from PySide6.QtWidgets import QDialog, QFileDialog, QTableView, QMessageBox
+from PySide6.QtWidgets import QDialog, QMessageBox
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
-from PySide6.QtGui import QStandardItemModel, QStandardItem
 from pastrocore.gui.ui_dialog_edit_telescope import Ui_TelescopeEditorDialog
-from pastrocore.base.telescope import Telescope, MountType
-import json
+from pastrocore.base.telescope import MountType
 import re
 from common.utils.logging_setup import logger
-import uuid
 
 class SEFDTableModel(QAbstractTableModel):
     """Table model for SEFD (MHz, Jy) data."""

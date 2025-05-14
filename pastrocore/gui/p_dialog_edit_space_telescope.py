@@ -262,7 +262,7 @@ class SpaceTelescopeEditorDialog(QDialog):
             "pitch_range": (self.ui.pitchMinEdit.value(), self.ui.pitchMaxEdit.value()),
             "yaw_range": (self.ui.yawMinEdit.value(), self.ui.yawMaxEdit.value()),
             "use_kep": self.ui.useKepCheckBox.isChecked(),
-            "kepler": kepler,
+            "kepler_elements": kepler,
             "isactive": self.ui.isActiveCheckBox.isChecked(),
             "sefd_table": self.sefd_model.get_data(),
             "surface_efficiency_table": self.surface_efficiency_model.get_data(),
@@ -285,7 +285,7 @@ class SpaceTelescopeEditorDialog(QDialog):
         if data["yaw_range"][0] >= data["yaw_range"][1]:
             QMessageBox.critical(self, "Error", "Minimum yaw must be less than maximum yaw.")
             return
-        if data["use_kep"] and not data["kepler"]:
+        if data["use_kep"] and not data["kepler_elements"]:
             QMessageBox.critical(self, "Error", "Keplerian elements are required when using Keplerian orbit.")
             return
         if not data["use_kep"] and not data["orbit_file"]:
