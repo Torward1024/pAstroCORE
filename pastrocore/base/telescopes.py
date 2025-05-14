@@ -149,6 +149,15 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         if hasattr(self, '_parent') and self._parent:
             self._parent._sync_scans_with_activation("telescopes", name, False)
     
+    def copy(self) -> 'Telescopes':
+        """Create a deep copy of the Telescopes object."""
+        return Telescopes(
+            items={name: item.copy() for name, item in self._items.items()},
+            name=self.name,
+            isactive=self.isactive,
+            use_cache=self._use_cache
+        )
+    
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Telescopes':
         """Create a Telescopes object from a dictionary."""

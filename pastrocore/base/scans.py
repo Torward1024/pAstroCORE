@@ -72,6 +72,19 @@ class Scan(BaseEntity):
         """Public method to check activity status."""
         return self._check_activity_status(observation)
     
+    def copy(self) -> 'Scan':
+        """Create a deep copy of the Scan object."""
+        return Scan(
+            name=self.name,
+            start=self.start,
+            duration=self.duration,
+            source_name=self.source_name,
+            telescope_names=self.telescope_names.copy(),
+            frequency_names=self.frequency_names.copy(),
+            is_off_source=self.is_off_source,
+            isactive=self.isactive
+        )
+    
     def _check_activity_status(self, observation: 'Observation') -> bool:
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
@@ -545,6 +558,15 @@ class Scans(BaseContainer[Scan]):
         inactive = [s for s in self.get_items() if not s.isactive]
         logger.debug(f"Retrieved {len(inactive)} inactive scans")
         return inactive
+    
+    def copy(self) -> 'Scans':
+        """Create a deep copy of the Scans object."""
+        return Scans(
+            name=self.name,
+            items={name: item.copy() for name, item in self._items.items()},
+            isactive=self.isactive,
+            use_cache=self._use_cache
+        )
 
     def _check_overlap(self, scan: Scan, exclude_name: str = None) -> tuple[bool, str]:
         """Check if a scan overlaps with existing active scans by time."""

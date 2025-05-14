@@ -1,12 +1,12 @@
 # base/sources.py
-from abc import ABC
+from copy import deepcopy
 from typing import Optional, Dict
 from common.base.baseentity import BaseEntity
 from common.base.basecontainer import BaseContainer
 from common.utils.logging_setup import logger
 import uuid
 
-class Source(BaseEntity, ABC):
+class Source(BaseEntity):
     """Base class representing an astronomical source with coordinates, names, and optional flux properties.
 
     Attributes:
@@ -184,6 +184,23 @@ class Source(BaseEntity, ABC):
         """Clear all entries from the flux table."""
         self.set({"flux_table": {}})
         logger.info(f"Cleared flux table for source '{self.name}'")
+    
+    def copy(self) -> 'Source':
+        """Create a deep copy of the Source object."""
+        return Source(
+            name=self.name,
+            ra_h=self.ra_h,
+            ra_m=self.ra_m,
+            ra_s=self.ra_s,
+            de_d=self.de_d,
+            de_m=self.de_m,
+            de_s=self.de_s,
+            name_J2000=self.name_J2000,
+            alt_name=self.alt_name,
+            flux_table=deepcopy(self.flux_table),
+            spectral_index=self.spectral_index,
+            isactive=self.isactive
+        )
     
     @classmethod
     def from_dict(cls, data: dict) -> 'Source':
@@ -375,6 +392,15 @@ class Sources(BaseContainer[Source]):
         super().deactivate_item(name)
         if hasattr(self, '_parent') and self._parent:
             self._parent._sync_scans_with_activation("sources", name, False)
+    
+    def copy(self) -> 'Sources':
+        """Create a deep copy of the Sources object."""
+        return Sources(
+            name=self.name,
+            items={name: item.copy() for name, item in self._items.items()},
+            isactive=self.isactive,
+            use_cache=self._use_cache
+        )
 
     @classmethod
     def from_dict(cls, data: dict) -> "Sources":

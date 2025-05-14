@@ -78,6 +78,16 @@ class IF(BaseEntity):
             raise ValueError("Wavelength must be positive")
         self.frequency = C_MHZ_CM / wavelength_cm
         logger.info(f"Set IF frequency to {self.frequency} MHz from wavelength={wavelength_cm} cm")
+    
+    def copy(self) -> 'IF':
+        """Create a deep copy of the IF object."""
+        return IF(
+            name=self.name,
+            frequency=self.frequency,
+            bandwidth=self.bandwidth,
+            polarizations=self.polarizations.copy(),
+            isactive=self.isactive
+        )
 
     def _validate_polarizations(self, polarization: Optional[Union[str, List[str]]]) -> List[str]:
         """Validate and normalize polarization values.
@@ -332,6 +342,15 @@ class Frequencies(BaseContainer[IF]):
             List[float]: List of wavelengths in centimeters.
         """
         return [if_obj.get_frequency_wavelength() for if_obj in self.get_items()]
+    
+    def copy(self) -> 'Frequencies':
+        """Create a deep copy of the Frequencies object."""
+        return Frequencies(
+            name=self.name,
+            items={name: item.copy() for name, item in self._items.items()},
+            isactive=self.isactive,
+            use_cache=self._use_cache
+        )
 
     def _check_overlap(self, if_obj: IF, exclude_name: Optional[str]) -> None:
         """Check if an IF's frequency range overlaps with existing IFs.
