@@ -388,21 +388,25 @@ class ScanEditorDialog(QDialog):
             if name in self.scan.frequency_names:
                 check_item.setCheckState(Qt.Checked)
                 self.selected_frequencies.add(name)
-                logger.info(f"Checked frequency: {name}, check_state: {check_item.checkState()}")
+                logger.debug(f"Checked frequency: {name}, check_state: {check_item.checkState()}")
             else:
                 check_item.setCheckState(Qt.Unchecked)
-                logger.info(f"Unchecked frequency: {name}, check_state: {check_item.checkState()}")
+                logger.debug(f"Unchecked frequency: {name}, check_state: {check_item.checkState()}")
             self.frequencies_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
         self.ui.tab_frequencies.viewport().update()
 
     @Slot(int)
     def on_offsource_changed(self, state):
-        """Handle OFF SOURCE checkbox state change."""
+        """Handle OFF SOURCE checkbox state change.
+
+        Args:
+            state (int): The new state of the checkbox (Qt.Checked or Qt.Unchecked).
+        """
         is_off_source = bool(state)
         self.ui.sourceCombo.setEnabled(not is_off_source)
         if is_off_source:
-            self.ui.sourceCombo.setCurrentIndex(self.ui.sourceCombo.findData(None))
-        logger.info(f"OFF SOURCE changed to: {is_off_source}, sourceCombo enabled: {self.ui.sourceCombo.isEnabled()}")
+            self.ui.sourceCombo.setCurrentIndex(-1)  # Reset to no selection
+        logger.debug(f"OFF SOURCE changed to: {is_off_source}, sourceCombo enabled: {self.ui.sourceCombo.isEnabled()}, selected: {self.ui.sourceCombo.currentText()}")
         # Update chk_active when offsource changes
         self.ui.chk_active.setChecked(self._check_scan_conditions())
         logger.debug(f"Updated chk_active after offsource change: {self.ui.chk_active.isChecked()}")

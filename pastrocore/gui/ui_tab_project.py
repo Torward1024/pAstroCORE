@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectXbhtLq.ui'
+## Form generated from reading UI file 'tab_projectolJNrY.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.8.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,7 +23,7 @@ class Ui_ProjectInfoTab(object):
     def setupUi(self, ProjectInfoTab):
         if not ProjectInfoTab.objectName():
             ProjectInfoTab.setObjectName(u"ProjectInfoTab")
-        ProjectInfoTab.resize(624, 468)
+        ProjectInfoTab.resize(598, 468)
         self.gridLayout = QGridLayout(ProjectInfoTab)
         self.gridLayout.setObjectName(u"gridLayout")
         self.lineEdit = QLineEdit(ProjectInfoTab)
@@ -117,22 +117,30 @@ class Ui_ProjectInfoTab(object):
 "    font-family: Arial, sans-serif;\n"
 "    font-size: 9pt;\n"
 "    border: 1px solid #d3d3d3; /* External border for table */\n"
+"    padding: 0; /* Ensure no default padding */\n"
+"}\n"
+"\n"
+"QTableView::item, QTableWidget::item {\n"
+"    padding: 4px; /* Consistent padding for normal state */\n"
 "}\n"
 "\n"
 "QTableView::item:selected, QTableWidget::item:selected {\n"
 "    background-color: #0078d7;\n"
 "    color: #ffffff;\n"
+"    padding: 4px; /* Consistent padding for selected state */\n"
 "}\n"
 "\n"
 "QTableView::item:hover, QTableWidget::item:hover {\n"
 "    background-color: #1a8cff;\n"
 "    color: #ffffff;\n"
+"    padding: 4px; /* Explicitly set same padding to avoid shift */\n"
 "}\n"
 "\n"
 "/* Header View */\n"
 "QHeaderView {\n"
 "    background-color: #f9f9f9;\n"
-"    border: none; /* No external border to avoid doubling with QTableView */\n"
+"    border: none; /* No external bord"
+                        "er to avoid doubling with QTableView */\n"
 "    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
 "}\n"
 "\n"
@@ -140,8 +148,7 @@ class Ui_ProjectInfoTab(object):
 "    background-color: #f9f9f9;\n"
 "    color: #333333;\n"
 "    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
-"   "
-                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
+"    border-right: none; /* Avoid doubling with adjacent sections */\n"
 "    border-left: none; /* Clean look */\n"
 "    border-top: none; /* Clean look */\n"
 "    padding: 4px;\n"
@@ -160,6 +167,7 @@ class Ui_ProjectInfoTab(object):
 "QHeaderView::section:hover {\n"
 "    background-color: #1a8cff;\n"
 "    color: #ffffff;\n"
+"    padding: 4px; /* Explicitly set same padding to avoid shift */\n"
 "}")
         self.projectInfoTable.setFrameShadow(QFrame.Shadow.Sunken)
         self.projectInfoTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)

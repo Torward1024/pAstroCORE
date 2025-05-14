@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_catalogbmfLbP.ui'
+## Form generated from reading UI file 'dialog_catalogchthQS.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -29,6 +29,60 @@ class Ui_CatalogDialog(object):
         self.gridLayout.setObjectName(u"gridLayout")
         self.catalogTable = QTableView(CatalogDialog)
         self.catalogTable.setObjectName(u"catalogTable")
+        self.catalogTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
+"\n"
+"/* Table View */\n"
+"QTableView, QTableWidget {\n"
+"    background-color: #ffffff;\n"
+"    gridline-color: #d3d3d3;\n"
+"    color: #333333;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"    border: 1px solid #d3d3d3; /* External border for table */\n"
+"}\n"
+"\n"
+"QTableView::item:selected, QTableWidget::item:selected {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"QTableView::item:hover, QTableWidget::item:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"/* Header View */\n"
+"QHeaderView {\n"
+"    background-color: #f9f9f9;\n"
+"    border: none; /* No external border to avoid doubling with QTableView */\n"
+"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
+"}\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: #f9f9f9;\n"
+"    color: #333333;\n"
+"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
+"   "
+                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
+"    border-left: none; /* Clean look */\n"
+"    border-top: none; /* Clean look */\n"
+"    padding: 4px;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"}\n"
+"\n"
+"QHeaderView::section:horizontal {\n"
+"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
+"}\n"
+"\n"
+"QHeaderView::section:vertical {\n"
+"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
+"}\n"
+"\n"
+"QHeaderView::section:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}")
         self.catalogTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.catalogTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.catalogTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -39,7 +93,7 @@ class Ui_CatalogDialog(object):
         self.search.setObjectName(u"search")
         self.search.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -104,7 +158,6 @@ class Ui_CatalogDialog(object):
 
     def retranslateUi(self, CatalogDialog):
         CatalogDialog.setWindowTitle(QCoreApplication.translate("CatalogDialog", u"Dialog", None))
-        self.catalogTable.setStyleSheet(QCoreApplication.translate("CatalogDialog", u"border: 1px solid #d3d3d3;", None))
         self.lbl_search.setText(QCoreApplication.translate("CatalogDialog", u"Search:", None))
         self.closeButton.setText(QCoreApplication.translate("CatalogDialog", u"Close", None))
     # retranslateUi
