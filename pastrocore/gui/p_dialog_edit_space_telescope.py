@@ -1,11 +1,8 @@
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from pastrocore.gui.ui_dialog_edit_space_telescope import Ui_SpaceTelescopeEditorDialog
-from pastrocore.base.spacetelescope import SpaceTelescope
-from datetime import datetime
-import json
+from astropy.time import Time
 from common.utils.logging_setup import logger
-import uuid
 import re
 
 class SEFDTableModel(QAbstractTableModel):
@@ -242,13 +239,13 @@ class SpaceTelescopeEditorDialog(QDialog):
         kepler = None
         if self.ui.useKepCheckBox.isChecked():
             kepler = {
-                "semi_major_axis": self.ui.semiMajorAxisEdit.value(),
-                "eccentricity": self.ui.eccentricityEdit.value(),
-                "inclination": self.ui.inclinationEdit.value(),
+                "a": self.ui.semiMajorAxisEdit.value(),
+                "e": self.ui.eccentricityEdit.value(),
+                "i": self.ui.inclinationEdit.value(),
                 "raan": self.ui.raanEdit.value(),
                 "argp": self.ui.argpEdit.value(),
                 "nu": self.ui.nuEdit.value(),
-                "epoch": self.ui.epochEdit.dateTime().toPython(),
+                "epoch": Time(self.ui.epochEdit.dateTime().toPython(), scale='utc'),
                 "mu": self.ui.muEdit.value()
             }
         

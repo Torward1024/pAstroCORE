@@ -27,7 +27,7 @@ class SpaceTelescope(Telescope):
     pitch_range: Tuple[float, float]
     yaw_range: Tuple[float, float]
     use_kep: bool
-    kepler_elements: Optional[Dict[str, Union[float, Time]]]
+    kepler_elements: dict
     orbit_data: Optional[Dict[str, np.ndarray]]
     interpolation_method: str
     _interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]]
@@ -38,7 +38,7 @@ class SpaceTelescope(Telescope):
              pitch_range: Tuple[float, float] = (-90.0, 90.0),
              yaw_range: Tuple[float, float] = (-180.0, 180.0),
              isactive: bool = True, use_kep: bool = True,
-             kepler_elements: Optional[Dict[str, Union[float, Time]]] = None,
+             kepler_elements: dict = None,
              orbit_data: Optional[Dict[str, np.ndarray]] = None,
              interpolation_method: str = "linear",
              surface_accuracy: Optional[float] = None,
@@ -94,8 +94,8 @@ class SpaceTelescope(Telescope):
         """Validate attribute types, with custom checks for SpaceTelescope attributes."""
         super()._validate_type(key, value, expected_type)
         if key == "orbit_file" and value is not None:
-            if not isinstance(value, str) or not value.strip():
-                raise TypeError("Orbit file must be a non-empty string")
+            if not isinstance(value, str):
+                raise TypeError("Orbit file must be a string")
         elif key == "pitch_range" and value is not None:
             if not isinstance(value, tuple) or len(value) != 2:
                 raise TypeError("Pitch range must be a tuple of two floats")
@@ -113,7 +113,7 @@ class SpaceTelescope(Telescope):
             if value not in valid_methods:
                 raise ValueError(f"Interpolation method must be one of {valid_methods}")
 
-    def _validate_kepler_elements(self, kepler_elements: Dict[str, Union[float, Time]]) -> None:
+    def _validate_kepler_elements(self, kepler_elements: dict) -> None:
         """Validate Keplerian elements."""
         required_keys = {"a", "e", "i", "raan", "argp", "nu", "epoch", "mu"}
         if not isinstance(kepler_elements, dict) or not required_keys.issubset(kepler_elements):
