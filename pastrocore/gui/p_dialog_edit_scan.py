@@ -98,7 +98,7 @@ class ScanEditorDialog(QDialog):
         if not self.is_new:
             self._load_scan_data()
         else:
-            ### NEW/CHANGED ### Set chk_active based on conditions for new scans
+            # Set chk_active based on conditions for new scans
             self.ui.chk_active.setChecked(self._check_scan_conditions())
             logger.info(f"Set chk_active for new scan based on conditions: {self.ui.chk_active.isChecked()}")
 
@@ -120,7 +120,7 @@ class ScanEditorDialog(QDialog):
             else:
                 target_set.discard(name)
             logger.debug(f"Current selected {'telescopes' if model == self.telescopes_model else 'frequencies'}: {target_set}")
-            ### NEW/CHANGED ### Update chk_active when selection changes
+            # Update chk_active when selection changes
             self.ui.chk_active.setChecked(self._check_scan_conditions())
             logger.debug(f"Updated chk_active after selection change: {self.ui.chk_active.isChecked()}")
 
@@ -134,7 +134,7 @@ class ScanEditorDialog(QDialog):
         logger.debug(f"Sources response: {sources_response}")
         if sources_response["status"] and isinstance(sources_response["result"], dict) and sources_response["result"]:
             for name, source in sources_response["result"].items():
-                ### NEW/CHANGED ### Log source activity status
+                # Log source activity status
                 is_active_response = self.manipulator.process_request({
                     "operation": "inspect",
                     "obj": source,
@@ -153,7 +153,7 @@ class ScanEditorDialog(QDialog):
             logger.info("No sources available, set OFF SOURCE to True and disabled sourceCombo")
 
     def _populate_telescopes(self):
-        """Populate the telescopes table with available telescopes."""
+        """Populate the telescopes table with available telescopes, all checked by default."""
         self.telescopes_model.removeRows(0, self.telescopes_model.rowCount())
         telescopes_response = self.manipulator.process_request({
             "operation": "inspect",
@@ -170,7 +170,6 @@ class ScanEditorDialog(QDialog):
                     "attributes": {"get": "isactive"}
                 })
                 is_active = is_active_response["status"] and bool(is_active_response["result"])
-                ### NEW/CHANGED ### Log telescope activity status
                 logger.debug(f"Telescope {name} isactive: {is_active}")
 
                 row = [
@@ -180,23 +179,24 @@ class ScanEditorDialog(QDialog):
                     QStandardItem(name)  # Name
                 ]
                 row[1].setCheckable(True)
-                row[1].setCheckState(Qt.Unchecked)
+                row[1].setCheckState(Qt.Checked)  # Check by default
                 row[2].setIcon(self.active_icon if is_active else self.inactive_icon)
                 row[2].setToolTip("Active" if is_active else "Inactive")
                 row[2].setTextAlignment(Qt.AlignCenter)
                 for item in row:
                     item.setEditable(False)
-                row[0].setData(name, Qt.UserRole)  # Store name in UserRole
+                row[0].setData(name, Qt.UserRole)
                 row[3].setData(name, Qt.UserRole)
                 self.telescopes_model.appendRow(row)
-                logger.info(f"Added telescope: {name}, checkable: True, active: {is_active}")
+                self.selected_telescopes.add(name)  # Add to selected set
+                logger.info(f"Added telescope: {name}, checkable: True, active: {is_active}, checked: True")
                 idx += 1
             logger.debug(f"Populated {self.telescopes_model.rowCount()} telescopes")
         else:
             logger.error(f"Failed to populate telescopes: {telescopes_response.get('error', 'Unknown error')}")
 
     def _populate_frequencies(self):
-        """Populate the frequencies table with available frequencies."""
+        """Populate the frequencies table with available frequencies, all checked by default."""
         self.frequencies_model.removeRows(0, self.frequencies_model.rowCount())
         frequencies_response = self.manipulator.process_request({
             "operation": "inspect",
@@ -220,7 +220,6 @@ class ScanEditorDialog(QDialog):
                     "attributes": {"get": "isactive"}
                 })
                 is_active = is_active_response["status"] and bool(is_active_response["result"])
-                ### NEW/CHANGED ### Log frequency activity status
                 logger.debug(f"Frequency {name} isactive: {is_active}")
 
                 bandwidth_response = self.manipulator.process_request({
@@ -246,7 +245,7 @@ class ScanEditorDialog(QDialog):
                     QStandardItem(polarizations)  # Polarizations
                 ]
                 row[1].setCheckable(True)
-                row[1].setCheckState(Qt.Unchecked)
+                row[1].setCheckState(Qt.Checked)  # Check by default
                 row[2].setIcon(self.active_icon if is_active else self.inactive_icon)
                 row[2].setToolTip("Active" if is_active else "Inactive")
                 row[2].setTextAlignment(Qt.AlignCenter)
@@ -255,13 +254,13 @@ class ScanEditorDialog(QDialog):
                 row[0].setData(name, Qt.UserRole)
                 row[3].setData(name, Qt.UserRole)
                 self.frequencies_model.appendRow(row)
-                logger.info(f"Added frequency: {name}, checkable: True, active: {is_active}")
+                self.selected_frequencies.add(name)  # Add to selected set
+                logger.info(f"Added frequency: {name}, checkable: True, active: {is_active}, checked: True")
                 idx += 1
             logger.debug(f"Populated {self.frequencies_model.rowCount()} frequencies")
         else:
             logger.error(f"Failed to populate frequencies: {frequencies_response.get('error', 'Unknown error')}")
 
-    ### NEW/CHANGED ### New method to check scan activation conditions
     def _check_scan_conditions(self):
         """Check if scan conditions for activation are met (2 active telescopes, 1 active frequency, active source).
 
@@ -358,34 +357,42 @@ class ScanEditorDialog(QDialog):
                 self.ui.sourceCombo.setCurrentIndex(0)
                 self.ui.sourceCombo.setEnabled(True)
 
-        ### NEW/CHANGED ### Set chk_active based on conditions, not just scan.isactive
+        # Set chk_active based on conditions
         self.ui.chk_active.setChecked(self._check_scan_conditions())
         logger.info(f"Set active status based on conditions: {self.ui.chk_active.isChecked()} (original scan.isactive: {self.scan.isactive})")
 
         # Load telescopes
         logger.debug(f"Loading telescopes for scan: {self.scan.telescope_names}")
-        self.selected_telescopes.update(self.scan.telescope_names)
+        self.selected_telescopes.clear()  # Clear before loading
         for row in range(self.telescopes_model.rowCount()):
             item = self.telescopes_model.item(row, 3)  # Name column
             name = item.data(Qt.UserRole) if item else None
+            check_item = self.telescopes_model.item(row, 1)
             if name in self.scan.telescope_names:
-                check_item = self.telescopes_model.item(row, 1)
                 check_item.setCheckState(Qt.Checked)
-                self.telescopes_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
+                self.selected_telescopes.add(name)
                 logger.info(f"Checked telescope: {name}, check_state: {check_item.checkState()}")
+            else:
+                check_item.setCheckState(Qt.Unchecked)
+                logger.info(f"Unchecked telescope: {name}, check_state: {check_item.checkState()}")
+            self.telescopes_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
         self.ui.tab_telescopes.viewport().update()
 
         # Load frequencies
         logger.debug(f"Loading frequencies for scan: {self.scan.frequency_names}")
-        self.selected_frequencies.update(self.scan.frequency_names)
+        self.selected_frequencies.clear()  # Clear before loading
         for row in range(self.frequencies_model.rowCount()):
             item = self.frequencies_model.item(row, 3)  # Frequency column
             name = item.data(Qt.UserRole) if item else None
+            check_item = self.frequencies_model.item(row, 1)
             if name in self.scan.frequency_names:
-                check_item = self.frequencies_model.item(row, 1)
                 check_item.setCheckState(Qt.Checked)
-                self.frequencies_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
+                self.selected_frequencies.add(name)
                 logger.info(f"Checked frequency: {name}, check_state: {check_item.checkState()}")
+            else:
+                check_item.setCheckState(Qt.Unchecked)
+                logger.info(f"Unchecked frequency: {name}, check_state: {check_item.checkState()}")
+            self.frequencies_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
         self.ui.tab_frequencies.viewport().update()
 
     @Slot(int)
@@ -396,7 +403,7 @@ class ScanEditorDialog(QDialog):
         if is_off_source:
             self.ui.sourceCombo.setCurrentIndex(self.ui.sourceCombo.findData(None))
         logger.info(f"OFF SOURCE changed to: {is_off_source}, sourceCombo enabled: {self.ui.sourceCombo.isEnabled()}")
-        ### NEW/CHANGED ### Update chk_active when offsource changes
+        # Update chk_active when offsource changes
         self.ui.chk_active.setChecked(self._check_scan_conditions())
         logger.debug(f"Updated chk_active after offsource change: {self.ui.chk_active.isChecked()}")
 
@@ -469,7 +476,7 @@ class ScanEditorDialog(QDialog):
             raise ValueError("At least one frequency must be selected")
 
         isactive = self.ui.chk_active.isChecked()
-        ### NEW/CHANGED ### Warn if isactive=True but conditions not met
+        # Warn if isactive=True but conditions not met
         conditions_met = self._check_scan_conditions()
         if isactive and not conditions_met:
             logger.warning("Scan marked as active but conditions not met (less than 2 active telescopes, no active frequency, or inactive source)")

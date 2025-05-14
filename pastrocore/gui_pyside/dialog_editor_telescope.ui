@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>464</width>
-    <height>568</height>
+    <height>587</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -1333,17 +1333,12 @@ QComboBox QAbstractItemView::item:hover {
            </property>
            <item>
             <property name="text">
-             <string>EQUATORIAL</string>
+             <string>EQUA</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>AZIMUTHAL</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>SPACE</string>
+             <string>AZIM</string>
             </property>
            </item>
           </widget>
