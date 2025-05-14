@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_edtior_sourceyIMWmn.ui'
+## Form generated from reading UI file 'dialog_edtior_sourcesfyZok.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.8.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -35,7 +35,7 @@ class Ui_SourceEditorDialog(object):
         self.labelName = QLabel(SourceEditorDialog)
         self.labelName.setObjectName(u"labelName")
 
-        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.labelName)
+        self.formLayout.setWidget(0, QFormLayout.LabelRole, self.labelName)
 
         self.nameEdit = QLineEdit(SourceEditorDialog)
         self.nameEdit.setObjectName(u"nameEdit")
@@ -62,12 +62,12 @@ class Ui_SourceEditorDialog(object):
 "    background-color: #ffffff;\n"
 "}")
 
-        self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.nameEdit)
+        self.formLayout.setWidget(0, QFormLayout.FieldRole, self.nameEdit)
 
         self.labelNameJ2000 = QLabel(SourceEditorDialog)
         self.labelNameJ2000.setObjectName(u"labelNameJ2000")
 
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.labelNameJ2000)
+        self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelNameJ2000)
 
         self.nameJ2000Edit = QLineEdit(SourceEditorDialog)
         self.nameJ2000Edit.setObjectName(u"nameJ2000Edit")
@@ -94,12 +94,12 @@ class Ui_SourceEditorDialog(object):
 "    background-color: #ffffff;\n"
 "}")
 
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.nameJ2000Edit)
+        self.formLayout.setWidget(1, QFormLayout.FieldRole, self.nameJ2000Edit)
 
         self.labelAltName = QLabel(SourceEditorDialog)
         self.labelAltName.setObjectName(u"labelAltName")
 
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.labelAltName)
+        self.formLayout.setWidget(2, QFormLayout.LabelRole, self.labelAltName)
 
         self.altNameEdit = QLineEdit(SourceEditorDialog)
         self.altNameEdit.setObjectName(u"altNameEdit")
@@ -126,12 +126,12 @@ class Ui_SourceEditorDialog(object):
 "    background-color: #ffffff;\n"
 "}")
 
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.altNameEdit)
+        self.formLayout.setWidget(2, QFormLayout.FieldRole, self.altNameEdit)
 
         self.labelRa = QLabel(SourceEditorDialog)
         self.labelRa.setObjectName(u"labelRa")
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.labelRa)
+        self.formLayout.setWidget(3, QFormLayout.LabelRole, self.labelRa)
 
         self.raLayout = QHBoxLayout()
         self.raLayout.setObjectName(u"raLayout")
@@ -373,12 +373,12 @@ class Ui_SourceEditorDialog(object):
         self.raLayout.addWidget(self.raSEdit)
 
 
-        self.formLayout.setLayout(3, QFormLayout.ItemRole.FieldRole, self.raLayout)
+        self.formLayout.setLayout(3, QFormLayout.FieldRole, self.raLayout)
 
         self.labelDec = QLabel(SourceEditorDialog)
         self.labelDec.setObjectName(u"labelDec")
 
-        self.formLayout.setWidget(4, QFormLayout.ItemRole.LabelRole, self.labelDec)
+        self.formLayout.setWidget(4, QFormLayout.LabelRole, self.labelDec)
 
         self.decLayout = QHBoxLayout()
         self.decLayout.setObjectName(u"decLayout")
@@ -621,12 +621,12 @@ class Ui_SourceEditorDialog(object):
         self.decLayout.addWidget(self.deSEdit)
 
 
-        self.formLayout.setLayout(4, QFormLayout.ItemRole.FieldRole, self.decLayout)
+        self.formLayout.setLayout(4, QFormLayout.FieldRole, self.decLayout)
 
         self.labelSpectralIndex = QLabel(SourceEditorDialog)
         self.labelSpectralIndex.setObjectName(u"labelSpectralIndex")
 
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.LabelRole, self.labelSpectralIndex)
+        self.formLayout.setWidget(5, QFormLayout.LabelRole, self.labelSpectralIndex)
 
         self.spectralIndexEdit = QDoubleSpinBox(SourceEditorDialog)
         self.spectralIndexEdit.setObjectName(u"spectralIndexEdit")
@@ -636,6 +636,7 @@ class Ui_SourceEditorDialog(object):
 "    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
+"    padding-right: 20px;\n"
 "    border-radius: 3px;\n"
 "    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */\n"
 "    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */\n"
@@ -658,9 +659,9 @@ class Ui_SourceEditorDialog(object):
 "    background-color: #ffffff; /* Matches editable QComboBox:focus background */\n"
 "}\n"
 "\n"
-"/* Non-editable state */\n"
-"QDoubleSpinBox:!edita"
-                        "ble {\n"
+"/* Non-editable state"
+                        " */\n"
+"QDoubleSpinBox:!editable {\n"
 "    background-color: #f0f6ff; /* Matches non-editable QComboBox background */\n"
 "    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */\n"
 "}\n"
@@ -683,10 +684,9 @@ class Ui_SourceEditorDialog(object):
 "    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */\n"
 "    background-color: #f9f9f9; /* Matches QComboBox drop-down background */\n"
 "}\n"
-"\n"
 "/* Hover state for up/down buttons */\n"
-"QDoubleSpinBox::up-button:hover, QDoubl"
-                        "eSpinBox::down-button:hover {\n"
+"QDoubleSpinBox:"
+                        ":up-button:hover, QDoubleSpinBox::down-button:hover {\n"
 "    background-color: #0078d7; /* Matches QComboBox drop-down:hover */\n"
 "}\n"
 "\n"
@@ -696,7 +696,6 @@ class Ui_SourceEditorDialog(object):
 "    height: 12px;\n"
 "    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */\n"
 "}\n"
-"\n"
 "/* Down arrow styling */\n"
 "QDoubleSpinBox::down-arrow {\n"
 "    width: 12px;\n"
@@ -707,18 +706,18 @@ class Ui_SourceEditorDialog(object):
         self.spectralIndexEdit.setMinimum(-999.000000000000000)
         self.spectralIndexEdit.setMaximum(999.000000000000000)
 
-        self.formLayout.setWidget(5, QFormLayout.ItemRole.FieldRole, self.spectralIndexEdit)
+        self.formLayout.setWidget(5, QFormLayout.FieldRole, self.spectralIndexEdit)
 
         self.labelIsActive = QLabel(SourceEditorDialog)
         self.labelIsActive.setObjectName(u"labelIsActive")
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.LabelRole, self.labelIsActive)
+        self.formLayout.setWidget(6, QFormLayout.LabelRole, self.labelIsActive)
 
         self.isActiveCheckBox = QCheckBox(SourceEditorDialog)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
         self.isActiveCheckBox.setChecked(True)
 
-        self.formLayout.setWidget(6, QFormLayout.ItemRole.FieldRole, self.isActiveCheckBox)
+        self.formLayout.setWidget(6, QFormLayout.FieldRole, self.isActiveCheckBox)
 
 
         self.verticalLayout.addLayout(self.formLayout)
@@ -781,6 +780,60 @@ class Ui_SourceEditorDialog(object):
 
         self.fluxTable = QTableView(SourceEditorDialog)
         self.fluxTable.setObjectName(u"fluxTable")
+        self.fluxTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
+"\n"
+"/* Table View */\n"
+"QTableView, QTableWidget {\n"
+"    background-color: #ffffff;\n"
+"    gridline-color: #d3d3d3;\n"
+"    color: #333333;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"    border: 1px solid #d3d3d3; /* External border for table */\n"
+"}\n"
+"\n"
+"QTableView::item:selected, QTableWidget::item:selected {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"QTableView::item:hover, QTableWidget::item:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"/* Header View */\n"
+"QHeaderView {\n"
+"    background-color: #f9f9f9;\n"
+"    border: none; /* No external border to avoid doubling with QTableView */\n"
+"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
+"}\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: #f9f9f9;\n"
+"    color: #333333;\n"
+"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
+"   "
+                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
+"    border-left: none; /* Clean look */\n"
+"    border-top: none; /* Clean look */\n"
+"    padding: 4px;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"}\n"
+"\n"
+"QHeaderView::section:horizontal {\n"
+"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
+"}\n"
+"\n"
+"QHeaderView::section:vertical {\n"
+"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
+"}\n"
+"\n"
+"QHeaderView::section:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}")
         self.fluxTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
         self.fluxTable.setAlternatingRowColors(True)
         self.fluxTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -879,10 +932,9 @@ class Ui_SourceEditorDialog(object):
         self.spectralIndexEdit.setProperty(u"placeholderText", QCoreApplication.translate("SourceEditorDialog", u"Enter spectral index (optional)", None))
         self.labelIsActive.setText(QCoreApplication.translate("SourceEditorDialog", u"Active:", None))
         self.addFluxButton.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;", None))
-        self.addFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Add...", None))
+        self.addFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Add", None))
         self.removeFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Remove", None))
         self.clearFluxButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Clear", None))
-        self.fluxTable.setStyleSheet(QCoreApplication.translate("SourceEditorDialog", u"border: 1px solid #d3d3d3;", None))
         self.labelFluxTable.setText(QCoreApplication.translate("SourceEditorDialog", u"Flux Table (MHz, Jy):", None))
         self.saveButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Cancel", None))
