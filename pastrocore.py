@@ -164,11 +164,11 @@ class PAstroCoreMainWindow(QMainWindow):
     def add_observation(self):
         """Add a new observation to the project via ScheduleManipulator."""
         dialog = AddObservationDialog(self.project, self.manipulator, self)
-        dialog.observation_added.connect(self.on_observation_added)
+        dialog.observation_added.connect(self.handle_observation_added)
         dialog.exec()
 
     @Slot(str, str)
-    def on_observation_added(self, obs_code: str, obs_type: str):
+    def handle_observation_added(self, obs_code: str, obs_type: str):
         """Handle observation added signal."""
         logger.info(f"Observation '{obs_code}' (type: {obs_type}) added")
         self.project_updated.emit()
@@ -662,12 +662,12 @@ class PAstroCoreMainWindow(QMainWindow):
             if tab_container.widget(i).objectName() == "projectInfoTab":
                 tab_container.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
                 break
-        project_tab.project_name_changed.connect(self.on_projectInfoTab_project_name_changed)
+        project_tab.project_name_changed.connect(self.handle_projectInfoTab_project_name_changed)
         # Подключаем сигнал project_updated для обновления вкладки
         self.project_updated.connect(project_tab.update_tab)
 
     @Slot(str)
-    def on_projectInfoTab_project_name_changed(self, name: str):
+    def handle_projectInfoTab_project_name_changed(self, name: str):
         """Handle project name change signal."""
         self.project_updated.emit()
 
@@ -695,7 +695,7 @@ class PAstroCoreMainWindow(QMainWindow):
             tab_container.addTab(observation_tab, f"Observation: {obs_code}")
             tab_container.setCurrentWidget(observation_tab)
             observation_tab.setFocus()
-            observation_tab.observation_updated.connect(self.on_observationTab_observation_updated)
+            observation_tab.observation_updated.connect(self.handle_observationTab_observation_updated)
             # Подключаем сигнал project_updated для обновления вкладки
             self.project_updated.connect(observation_tab.update_tab)
         else:
@@ -703,7 +703,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to open observation tab: {obs_response.get('error', 'Unknown error')}")
 
     @Slot()
-    def on_observationTab_observation_updated(self):
+    def handle_observationTab_observation_updated(self):
         """Handle observation update signal."""
         logger.info("Observation updated")
         self.project_updated.emit()

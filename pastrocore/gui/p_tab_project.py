@@ -54,9 +54,9 @@ class ProjectInfoTab(QWidget):
 
     def setup_connections(self):
         """Connect signals to slots."""
-        self.ui.lineEdit.editingFinished.connect(self.on_project_name_confirmed)
-        self.ui.search.textChanged.connect(self.on_search_text_changed)
-        self.ui.projectInfoTable.doubleClicked.connect(self.on_table_double_click)
+        self.ui.lineEdit.editingFinished.connect(self.handle_project_name_confirmed)
+        self.ui.search.textChanged.connect(self.handle_search_text_changed)
+        self.ui.projectInfoTable.doubleClicked.connect(self.handle_table_double_click)
         self.ui.lineEdit.mouseDoubleClickEvent = self.on_line_edit_double_click
 
     def on_line_edit_double_click(self, event):
@@ -67,14 +67,14 @@ class ProjectInfoTab(QWidget):
         event.accept()
 
     @Slot()
-    def on_project_name_confirmed(self):
+    def handle_project_name_confirmed(self):
         """Handle project name confirmation after editing."""
         if self.ui.lineEdit.isReadOnly():
             return
         new_name = self.ui.lineEdit.text().strip()
         if not new_name:
             QMessageBox.warning(self, "Warning", "Project name cannot be empty.")
-            self.update_tab()  # Revert to previous name
+            self.update_tab()
             return
         try:
             request = {
@@ -89,7 +89,7 @@ class ProjectInfoTab(QWidget):
             else:
                 logger.error(f"Failed to change project name: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to change project name: {response.get('error', 'Unknown error')}")
-                self.update_tab()  # Revert to previous name
+                self.update_tab()
         except Exception as e:
             logger.error(f"Exception while changing project name: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to change project name: {str(e)}")
@@ -97,7 +97,7 @@ class ProjectInfoTab(QWidget):
             self.ui.lineEdit.setReadOnly(True)
 
     @Slot(str)
-    def on_search_text_changed(self, text: str):
+    def handle_search_text_changed(self, text: str):
         """Handle search text change for filtering the table."""
         reg_exp = QRegularExpression(text)
         self.proxy_model.setFilterRegularExpression(reg_exp)
@@ -560,7 +560,7 @@ class ProjectInfoTab(QWidget):
             self.parent_widget.edit_observation(obs_name, obs_code)
 
     @Slot()
-    def on_table_double_click(self, index):
+    def handle_table_double_click(self, index):
         """Handle double-click on table to edit observation."""
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)

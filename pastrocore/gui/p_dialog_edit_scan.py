@@ -100,9 +100,9 @@ class ScanEditorDialog(QDialog):
         else:
             # Set chk_active based on conditions for new scans
             self.ui.chk_active.setChecked(self._check_scan_conditions())
-            logger.info(f"Set chk_active for new scan based on conditions: {self.ui.chk_active.isChecked()}")
+            logger.debug(f"Set chk_active for new scan based on conditions: {self.ui.chk_active.isChecked()}")
 
-        logger.info(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan.name}'} in observation '{self.observation.code}'")
+        logger.debug(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan.name}'} in observation '{self.observation.code}'")
 
     def debug_item_changed(self, item):
         """Debug signal for item changes in the model."""
@@ -113,7 +113,7 @@ class ScanEditorDialog(QDialog):
             name_item = model.item(row, 3) if model == self.telescopes_model else model.item(row, 3)
             name = name_item.data(Qt.UserRole) if name_item else "Unknown"
             check_state = item.checkState()
-            logger.info(f"Item changed: {name}, check_state={check_state}")
+            logger.debug(f"Item changed: {name}, check_state={check_state}")
             target_set = self.selected_telescopes if model == self.telescopes_model else self.selected_frequencies
             if check_state == Qt.Checked:
                 target_set.add(name)
@@ -146,11 +146,11 @@ class ScanEditorDialog(QDialog):
             self.ui.sourceCombo.setCurrentIndex(0)
             self.ui.chk_offsource.setChecked(False)
             self.ui.sourceCombo.setEnabled(True)
-            logger.info(f"Populated {len(sources_response['result'])} sources, selected first: {self.ui.sourceCombo.currentText()}")
+            logger.debug(f"Populated {len(sources_response['result'])} sources, selected first: {self.ui.sourceCombo.currentText()}")
         else:
             self.ui.chk_offsource.setChecked(True)
             self.ui.sourceCombo.setEnabled(False)
-            logger.info("No sources available, set OFF SOURCE to True and disabled sourceCombo")
+            logger.debug("No sources available, set OFF SOURCE to True and disabled sourceCombo")
 
     def _populate_telescopes(self):
         """Populate the telescopes table with available telescopes, all checked by default."""
@@ -189,7 +189,7 @@ class ScanEditorDialog(QDialog):
                 row[3].setData(name, Qt.UserRole)
                 self.telescopes_model.appendRow(row)
                 self.selected_telescopes.add(name)  # Add to selected set
-                logger.info(f"Added telescope: {name}, checkable: True, active: {is_active}, checked: True")
+                logger.debug(f"Added telescope: {name}, checkable: True, active: {is_active}, checked: True")
                 idx += 1
             logger.debug(f"Populated {self.telescopes_model.rowCount()} telescopes")
         else:
