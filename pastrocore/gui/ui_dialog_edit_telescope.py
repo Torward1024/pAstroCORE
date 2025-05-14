@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_telescopeORduXM.ui'
+## Form generated from reading UI file 'dialog_editor_telescopeaNJRCQ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -16,30 +16,38 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QDialog, QDoubleSpinBox, QFormLayout, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QPushButton,
-    QSizePolicy, QSpacerItem, QTableView, QVBoxLayout,
-    QWidget)
+    QDialog, QDoubleSpinBox, QFormLayout, QGridLayout,
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
+    QTableView, QWidget)
 
 class Ui_TelescopeEditorDialog(object):
     def setupUi(self, TelescopeEditorDialog):
         if not TelescopeEditorDialog.objectName():
             TelescopeEditorDialog.setObjectName(u"TelescopeEditorDialog")
-        TelescopeEditorDialog.resize(583, 916)
-        self.verticalLayout = QVBoxLayout(TelescopeEditorDialog)
-        self.verticalLayout.setObjectName(u"verticalLayout")
+        TelescopeEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        TelescopeEditorDialog.resize(464, 568)
+        TelescopeEditorDialog.setModal(True)
+        self.gridLayout_2 = QGridLayout(TelescopeEditorDialog)
+        self.gridLayout_2.setObjectName(u"gridLayout_2")
+        self.tabWidget = QTabWidget(TelescopeEditorDialog)
+        self.tabWidget.setObjectName(u"tabWidget")
+        self.tab = QWidget()
+        self.tab.setObjectName(u"tab")
+        self.gridLayout = QGridLayout(self.tab)
+        self.gridLayout.setObjectName(u"gridLayout")
         self.formLayout = QFormLayout()
         self.formLayout.setObjectName(u"formLayout")
-        self.labelCode = QLabel(TelescopeEditorDialog)
+        self.labelCode = QLabel(self.tab)
         self.labelCode.setObjectName(u"labelCode")
 
         self.formLayout.setWidget(0, QFormLayout.LabelRole, self.labelCode)
 
-        self.codeEdit = QLineEdit(TelescopeEditorDialog)
+        self.codeEdit = QLineEdit(self.tab)
         self.codeEdit.setObjectName(u"codeEdit")
         self.codeEdit.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -62,16 +70,16 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(0, QFormLayout.FieldRole, self.codeEdit)
 
-        self.labelName = QLabel(TelescopeEditorDialog)
+        self.labelName = QLabel(self.tab)
         self.labelName.setObjectName(u"labelName")
 
         self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelName)
 
-        self.nameEdit = QLineEdit(TelescopeEditorDialog)
+        self.nameEdit = QLineEdit(self.tab)
         self.nameEdit.setObjectName(u"nameEdit")
         self.nameEdit.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -94,12 +102,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(1, QFormLayout.FieldRole, self.nameEdit)
 
-        self.labelX = QLabel(TelescopeEditorDialog)
+        self.labelX = QLabel(self.tab)
         self.labelX.setObjectName(u"labelX")
 
         self.formLayout.setWidget(2, QFormLayout.LabelRole, self.labelX)
 
-        self.xEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.xEdit = QDoubleSpinBox(self.tab)
         self.xEdit.setObjectName(u"xEdit")
         self.xEdit.setDecimals(2)
         self.xEdit.setMinimum(-10000000.000000000000000)
@@ -107,12 +115,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(2, QFormLayout.FieldRole, self.xEdit)
 
-        self.labelY = QLabel(TelescopeEditorDialog)
+        self.labelY = QLabel(self.tab)
         self.labelY.setObjectName(u"labelY")
 
         self.formLayout.setWidget(3, QFormLayout.LabelRole, self.labelY)
 
-        self.yEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.yEdit = QDoubleSpinBox(self.tab)
         self.yEdit.setObjectName(u"yEdit")
         self.yEdit.setDecimals(2)
         self.yEdit.setMinimum(-10000000.000000000000000)
@@ -120,12 +128,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(3, QFormLayout.FieldRole, self.yEdit)
 
-        self.labelZ = QLabel(TelescopeEditorDialog)
+        self.labelZ = QLabel(self.tab)
         self.labelZ.setObjectName(u"labelZ")
 
         self.formLayout.setWidget(4, QFormLayout.LabelRole, self.labelZ)
 
-        self.zEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.zEdit = QDoubleSpinBox(self.tab)
         self.zEdit.setObjectName(u"zEdit")
         self.zEdit.setDecimals(2)
         self.zEdit.setMinimum(-10000000.000000000000000)
@@ -133,12 +141,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(4, QFormLayout.FieldRole, self.zEdit)
 
-        self.labelVx = QLabel(TelescopeEditorDialog)
+        self.labelVx = QLabel(self.tab)
         self.labelVx.setObjectName(u"labelVx")
 
         self.formLayout.setWidget(5, QFormLayout.LabelRole, self.labelVx)
 
-        self.vxEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.vxEdit = QDoubleSpinBox(self.tab)
         self.vxEdit.setObjectName(u"vxEdit")
         self.vxEdit.setDecimals(2)
         self.vxEdit.setMinimum(-1000.000000000000000)
@@ -146,12 +154,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(5, QFormLayout.FieldRole, self.vxEdit)
 
-        self.labelVy = QLabel(TelescopeEditorDialog)
+        self.labelVy = QLabel(self.tab)
         self.labelVy.setObjectName(u"labelVy")
 
         self.formLayout.setWidget(6, QFormLayout.LabelRole, self.labelVy)
 
-        self.vyEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.vyEdit = QDoubleSpinBox(self.tab)
         self.vyEdit.setObjectName(u"vyEdit")
         self.vyEdit.setDecimals(2)
         self.vyEdit.setMinimum(-1000.000000000000000)
@@ -159,12 +167,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(6, QFormLayout.FieldRole, self.vyEdit)
 
-        self.labelVz = QLabel(TelescopeEditorDialog)
+        self.labelVz = QLabel(self.tab)
         self.labelVz.setObjectName(u"labelVz")
 
         self.formLayout.setWidget(7, QFormLayout.LabelRole, self.labelVz)
 
-        self.vzEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.vzEdit = QDoubleSpinBox(self.tab)
         self.vzEdit.setObjectName(u"vzEdit")
         self.vzEdit.setDecimals(2)
         self.vzEdit.setMinimum(-1000.000000000000000)
@@ -172,12 +180,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(7, QFormLayout.FieldRole, self.vzEdit)
 
-        self.labelDiameter = QLabel(TelescopeEditorDialog)
+        self.labelDiameter = QLabel(self.tab)
         self.labelDiameter.setObjectName(u"labelDiameter")
 
         self.formLayout.setWidget(8, QFormLayout.LabelRole, self.labelDiameter)
 
-        self.diameterEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.diameterEdit = QDoubleSpinBox(self.tab)
         self.diameterEdit.setObjectName(u"diameterEdit")
         self.diameterEdit.setDecimals(2)
         self.diameterEdit.setMinimum(0.010000000000000)
@@ -186,12 +194,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(8, QFormLayout.FieldRole, self.diameterEdit)
 
-        self.labelSurfaceAccuracy = QLabel(TelescopeEditorDialog)
+        self.labelSurfaceAccuracy = QLabel(self.tab)
         self.labelSurfaceAccuracy.setObjectName(u"labelSurfaceAccuracy")
 
         self.formLayout.setWidget(9, QFormLayout.LabelRole, self.labelSurfaceAccuracy)
 
-        self.surfaceAccuracyEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.surfaceAccuracyEdit = QDoubleSpinBox(self.tab)
         self.surfaceAccuracyEdit.setObjectName(u"surfaceAccuracyEdit")
         self.surfaceAccuracyEdit.setDecimals(2)
         self.surfaceAccuracyEdit.setMinimum(0.000000000000000)
@@ -199,14 +207,14 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(9, QFormLayout.FieldRole, self.surfaceAccuracyEdit)
 
-        self.labelElevationRange = QLabel(TelescopeEditorDialog)
+        self.labelElevationRange = QLabel(self.tab)
         self.labelElevationRange.setObjectName(u"labelElevationRange")
 
         self.formLayout.setWidget(10, QFormLayout.LabelRole, self.labelElevationRange)
 
         self.elevationRangeLayout = QHBoxLayout()
         self.elevationRangeLayout.setObjectName(u"elevationRangeLayout")
-        self.elevationMinEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.elevationMinEdit = QDoubleSpinBox(self.tab)
         self.elevationMinEdit.setObjectName(u"elevationMinEdit")
         self.elevationMinEdit.setDecimals(2)
         self.elevationMinEdit.setMinimum(0.000000000000000)
@@ -214,7 +222,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.elevationRangeLayout.addWidget(self.elevationMinEdit)
 
-        self.elevationMaxEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.elevationMaxEdit = QDoubleSpinBox(self.tab)
         self.elevationMaxEdit.setObjectName(u"elevationMaxEdit")
         self.elevationMaxEdit.setDecimals(2)
         self.elevationMaxEdit.setMinimum(0.000000000000000)
@@ -226,14 +234,14 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setLayout(10, QFormLayout.FieldRole, self.elevationRangeLayout)
 
-        self.labelAzimuthRange = QLabel(TelescopeEditorDialog)
+        self.labelAzimuthRange = QLabel(self.tab)
         self.labelAzimuthRange.setObjectName(u"labelAzimuthRange")
 
         self.formLayout.setWidget(11, QFormLayout.LabelRole, self.labelAzimuthRange)
 
         self.azimuthRangeLayout = QHBoxLayout()
         self.azimuthRangeLayout.setObjectName(u"azimuthRangeLayout")
-        self.azimuthMinEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.azimuthMinEdit = QDoubleSpinBox(self.tab)
         self.azimuthMinEdit.setObjectName(u"azimuthMinEdit")
         self.azimuthMinEdit.setDecimals(2)
         self.azimuthMinEdit.setMinimum(0.000000000000000)
@@ -241,7 +249,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.azimuthRangeLayout.addWidget(self.azimuthMinEdit)
 
-        self.azimuthMaxEdit = QDoubleSpinBox(TelescopeEditorDialog)
+        self.azimuthMaxEdit = QDoubleSpinBox(self.tab)
         self.azimuthMaxEdit.setObjectName(u"azimuthMaxEdit")
         self.azimuthMaxEdit.setDecimals(2)
         self.azimuthMaxEdit.setMinimum(0.000000000000000)
@@ -253,18 +261,23 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setLayout(11, QFormLayout.FieldRole, self.azimuthRangeLayout)
 
-        self.labelMountType = QLabel(TelescopeEditorDialog)
+        self.labelMountType = QLabel(self.tab)
         self.labelMountType.setObjectName(u"labelMountType")
 
         self.formLayout.setWidget(12, QFormLayout.LabelRole, self.labelMountType)
 
-        self.mountTypeCombo = QComboBox(TelescopeEditorDialog)
+        self.mountTypeCombo = QComboBox(self.tab)
+        self.mountTypeCombo.addItem("")
         self.mountTypeCombo.addItem("")
         self.mountTypeCombo.addItem("")
         self.mountTypeCombo.setObjectName(u"mountTypeCombo")
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        font.setPointSize(9)
+        self.mountTypeCombo.setFont(font)
         self.mountTypeCombo.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
-"    font-size: 12pt;\n"
+"    font-size: 9pt;\n"
 "    color: #333333;\n"
 "    padding: 1px;\n"
 "    border-radius: 3px;\n"
@@ -277,8 +290,8 @@ class Ui_TelescopeEditorDialog(object):
 "    border: 1px solid #0078d7; /* \u0413\u0440\u0430\u043d\u0438\u0446\u0430 \u0434\u043b\u044f \u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u0443\u0435\u043c\u043e\u0433\u043e \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f */\n"
 "}\n"
 "\n"
-"QComb"
-                        "oBox:editable:hover {\n"
+"QCombo"
+                        "Box:editable:hover {\n"
 "    border: 1px solid #1a8cff; /* \u0413\u0440\u0430\u043d\u0438\u0446\u0430 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438, \u043a\u0430\u043a \u0443 readOnly=\"false\":hover */\n"
 "}\n"
 "\n"
@@ -351,52 +364,52 @@ class Ui_TelescopeEditorDialog(object):
 
         self.formLayout.setWidget(12, QFormLayout.FieldRole, self.mountTypeCombo)
 
-        self.labelIsActive = QLabel(TelescopeEditorDialog)
+        self.labelIsActive = QLabel(self.tab)
         self.labelIsActive.setObjectName(u"labelIsActive")
 
         self.formLayout.setWidget(13, QFormLayout.LabelRole, self.labelIsActive)
 
-        self.isActiveCheckBox = QCheckBox(TelescopeEditorDialog)
+        self.isActiveCheckBox = QCheckBox(self.tab)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
         self.isActiveCheckBox.setChecked(True)
 
         self.formLayout.setWidget(13, QFormLayout.FieldRole, self.isActiveCheckBox)
 
 
-        self.verticalLayout.addLayout(self.formLayout)
+        self.gridLayout.addLayout(self.formLayout, 0, 0, 1, 1)
 
-        self.labelSefdTable = QLabel(TelescopeEditorDialog)
+        self.labelSefdTable = QLabel(self.tab)
         self.labelSefdTable.setObjectName(u"labelSefdTable")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(10)
-        font.setBold(True)
-        self.labelSefdTable.setFont(font)
+        font1 = QFont()
+        font1.setFamilies([u"Arial"])
+        font1.setPointSize(10)
+        font1.setBold(True)
+        self.labelSefdTable.setFont(font1)
 
-        self.verticalLayout.addWidget(self.labelSefdTable)
+        self.gridLayout.addWidget(self.labelSefdTable, 1, 0, 1, 1)
 
-        self.sefdTable = QTableView(TelescopeEditorDialog)
+        self.sefdTable = QTableView(self.tab)
         self.sefdTable.setObjectName(u"sefdTable")
         self.sefdTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
         self.sefdTable.setAlternatingRowColors(True)
         self.sefdTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.sefdTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
-        self.verticalLayout.addWidget(self.sefdTable)
+        self.gridLayout.addWidget(self.sefdTable, 2, 0, 1, 1)
 
         self.sefdButtonLayout = QHBoxLayout()
         self.sefdButtonLayout.setObjectName(u"sefdButtonLayout")
-        self.addSefdButton = QPushButton(TelescopeEditorDialog)
+        self.addSefdButton = QPushButton(self.tab)
         self.addSefdButton.setObjectName(u"addSefdButton")
 
         self.sefdButtonLayout.addWidget(self.addSefdButton)
 
-        self.removeSefdButton = QPushButton(TelescopeEditorDialog)
+        self.removeSefdButton = QPushButton(self.tab)
         self.removeSefdButton.setObjectName(u"removeSefdButton")
 
         self.sefdButtonLayout.addWidget(self.removeSefdButton)
 
-        self.clearSefdButton = QPushButton(TelescopeEditorDialog)
+        self.clearSefdButton = QPushButton(self.tab)
         self.clearSefdButton.setObjectName(u"clearSefdButton")
 
         self.sefdButtonLayout.addWidget(self.clearSefdButton)
@@ -406,36 +419,41 @@ class Ui_TelescopeEditorDialog(object):
         self.sefdButtonLayout.addItem(self.horizontalSpacerSefd)
 
 
-        self.verticalLayout.addLayout(self.sefdButtonLayout)
+        self.gridLayout.addLayout(self.sefdButtonLayout, 3, 0, 1, 1)
 
-        self.labelSurfaceEfficiencyTable = QLabel(TelescopeEditorDialog)
+        self.tabWidget.addTab(self.tab, "")
+        self.tab_2 = QWidget()
+        self.tab_2.setObjectName(u"tab_2")
+        self.gridLayout_3 = QGridLayout(self.tab_2)
+        self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self.labelSurfaceEfficiencyTable = QLabel(self.tab_2)
         self.labelSurfaceEfficiencyTable.setObjectName(u"labelSurfaceEfficiencyTable")
-        self.labelSurfaceEfficiencyTable.setFont(font)
+        self.labelSurfaceEfficiencyTable.setFont(font1)
 
-        self.verticalLayout.addWidget(self.labelSurfaceEfficiencyTable)
+        self.gridLayout_3.addWidget(self.labelSurfaceEfficiencyTable, 0, 0, 1, 1)
 
-        self.surfaceEfficiencyTable = QTableView(TelescopeEditorDialog)
+        self.surfaceEfficiencyTable = QTableView(self.tab_2)
         self.surfaceEfficiencyTable.setObjectName(u"surfaceEfficiencyTable")
         self.surfaceEfficiencyTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
         self.surfaceEfficiencyTable.setAlternatingRowColors(True)
         self.surfaceEfficiencyTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.surfaceEfficiencyTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
-        self.verticalLayout.addWidget(self.surfaceEfficiencyTable)
+        self.gridLayout_3.addWidget(self.surfaceEfficiencyTable, 1, 0, 1, 1)
 
         self.surfaceEfficiencyButtonLayout = QHBoxLayout()
         self.surfaceEfficiencyButtonLayout.setObjectName(u"surfaceEfficiencyButtonLayout")
-        self.addSurfaceEfficiencyButton = QPushButton(TelescopeEditorDialog)
+        self.addSurfaceEfficiencyButton = QPushButton(self.tab_2)
         self.addSurfaceEfficiencyButton.setObjectName(u"addSurfaceEfficiencyButton")
 
         self.surfaceEfficiencyButtonLayout.addWidget(self.addSurfaceEfficiencyButton)
 
-        self.removeSurfaceEfficiencyButton = QPushButton(TelescopeEditorDialog)
+        self.removeSurfaceEfficiencyButton = QPushButton(self.tab_2)
         self.removeSurfaceEfficiencyButton.setObjectName(u"removeSurfaceEfficiencyButton")
 
         self.surfaceEfficiencyButtonLayout.addWidget(self.removeSurfaceEfficiencyButton)
 
-        self.clearSurfaceEfficiencyButton = QPushButton(TelescopeEditorDialog)
+        self.clearSurfaceEfficiencyButton = QPushButton(self.tab_2)
         self.clearSurfaceEfficiencyButton.setObjectName(u"clearSurfaceEfficiencyButton")
 
         self.surfaceEfficiencyButtonLayout.addWidget(self.clearSurfaceEfficiencyButton)
@@ -445,36 +463,36 @@ class Ui_TelescopeEditorDialog(object):
         self.surfaceEfficiencyButtonLayout.addItem(self.horizontalSpacerSurfaceEfficiency)
 
 
-        self.verticalLayout.addLayout(self.surfaceEfficiencyButtonLayout)
+        self.gridLayout_3.addLayout(self.surfaceEfficiencyButtonLayout, 2, 0, 1, 1)
 
-        self.labelEffectiveAreaTable = QLabel(TelescopeEditorDialog)
+        self.labelEffectiveAreaTable = QLabel(self.tab_2)
         self.labelEffectiveAreaTable.setObjectName(u"labelEffectiveAreaTable")
-        self.labelEffectiveAreaTable.setFont(font)
+        self.labelEffectiveAreaTable.setFont(font1)
 
-        self.verticalLayout.addWidget(self.labelEffectiveAreaTable)
+        self.gridLayout_3.addWidget(self.labelEffectiveAreaTable, 3, 0, 1, 1)
 
-        self.effectiveAreaTable = QTableView(TelescopeEditorDialog)
+        self.effectiveAreaTable = QTableView(self.tab_2)
         self.effectiveAreaTable.setObjectName(u"effectiveAreaTable")
         self.effectiveAreaTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
         self.effectiveAreaTable.setAlternatingRowColors(True)
         self.effectiveAreaTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.effectiveAreaTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
-        self.verticalLayout.addWidget(self.effectiveAreaTable)
+        self.gridLayout_3.addWidget(self.effectiveAreaTable, 4, 0, 1, 1)
 
         self.effectiveAreaButtonLayout = QHBoxLayout()
         self.effectiveAreaButtonLayout.setObjectName(u"effectiveAreaButtonLayout")
-        self.addEffectiveAreaButton = QPushButton(TelescopeEditorDialog)
+        self.addEffectiveAreaButton = QPushButton(self.tab_2)
         self.addEffectiveAreaButton.setObjectName(u"addEffectiveAreaButton")
 
         self.effectiveAreaButtonLayout.addWidget(self.addEffectiveAreaButton)
 
-        self.removeEffectiveAreaButton = QPushButton(TelescopeEditorDialog)
+        self.removeEffectiveAreaButton = QPushButton(self.tab_2)
         self.removeEffectiveAreaButton.setObjectName(u"removeEffectiveAreaButton")
 
         self.effectiveAreaButtonLayout.addWidget(self.removeEffectiveAreaButton)
 
-        self.clearEffectiveAreaButton = QPushButton(TelescopeEditorDialog)
+        self.clearEffectiveAreaButton = QPushButton(self.tab_2)
         self.clearEffectiveAreaButton.setObjectName(u"clearEffectiveAreaButton")
 
         self.effectiveAreaButtonLayout.addWidget(self.clearEffectiveAreaButton)
@@ -484,36 +502,36 @@ class Ui_TelescopeEditorDialog(object):
         self.effectiveAreaButtonLayout.addItem(self.horizontalSpacerEffectiveArea)
 
 
-        self.verticalLayout.addLayout(self.effectiveAreaButtonLayout)
+        self.gridLayout_3.addLayout(self.effectiveAreaButtonLayout, 5, 0, 1, 1)
 
-        self.labelSystemTemperatureTable = QLabel(TelescopeEditorDialog)
+        self.labelSystemTemperatureTable = QLabel(self.tab_2)
         self.labelSystemTemperatureTable.setObjectName(u"labelSystemTemperatureTable")
-        self.labelSystemTemperatureTable.setFont(font)
+        self.labelSystemTemperatureTable.setFont(font1)
 
-        self.verticalLayout.addWidget(self.labelSystemTemperatureTable)
+        self.gridLayout_3.addWidget(self.labelSystemTemperatureTable, 6, 0, 1, 1)
 
-        self.systemTemperatureTable = QTableView(TelescopeEditorDialog)
+        self.systemTemperatureTable = QTableView(self.tab_2)
         self.systemTemperatureTable.setObjectName(u"systemTemperatureTable")
         self.systemTemperatureTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
         self.systemTemperatureTable.setAlternatingRowColors(True)
         self.systemTemperatureTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.systemTemperatureTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
-        self.verticalLayout.addWidget(self.systemTemperatureTable)
+        self.gridLayout_3.addWidget(self.systemTemperatureTable, 7, 0, 1, 1)
 
         self.systemTemperatureButtonLayout = QHBoxLayout()
         self.systemTemperatureButtonLayout.setObjectName(u"systemTemperatureButtonLayout")
-        self.addSystemTemperatureButton = QPushButton(TelescopeEditorDialog)
+        self.addSystemTemperatureButton = QPushButton(self.tab_2)
         self.addSystemTemperatureButton.setObjectName(u"addSystemTemperatureButton")
 
         self.systemTemperatureButtonLayout.addWidget(self.addSystemTemperatureButton)
 
-        self.removeSystemTemperatureButton = QPushButton(TelescopeEditorDialog)
+        self.removeSystemTemperatureButton = QPushButton(self.tab_2)
         self.removeSystemTemperatureButton.setObjectName(u"removeSystemTemperatureButton")
 
         self.systemTemperatureButtonLayout.addWidget(self.removeSystemTemperatureButton)
 
-        self.clearSystemTemperatureButton = QPushButton(TelescopeEditorDialog)
+        self.clearSystemTemperatureButton = QPushButton(self.tab_2)
         self.clearSystemTemperatureButton.setObjectName(u"clearSystemTemperatureButton")
 
         self.systemTemperatureButtonLayout.addWidget(self.clearSystemTemperatureButton)
@@ -523,7 +541,11 @@ class Ui_TelescopeEditorDialog(object):
         self.systemTemperatureButtonLayout.addItem(self.horizontalSpacerSystemTemperature)
 
 
-        self.verticalLayout.addLayout(self.systemTemperatureButtonLayout)
+        self.gridLayout_3.addLayout(self.systemTemperatureButtonLayout, 8, 0, 1, 1)
+
+        self.tabWidget.addTab(self.tab_2, "")
+
+        self.gridLayout_2.addWidget(self.tabWidget, 0, 0, 1, 1)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.setObjectName(u"buttonLayout")
@@ -572,12 +594,15 @@ class Ui_TelescopeEditorDialog(object):
         self.buttonLayout.addWidget(self.cancelButton)
 
 
-        self.verticalLayout.addLayout(self.buttonLayout)
+        self.gridLayout_2.addLayout(self.buttonLayout, 1, 0, 1, 1)
 
 
         self.retranslateUi(TelescopeEditorDialog)
         self.saveButton.clicked.connect(TelescopeEditorDialog.accept)
         self.cancelButton.clicked.connect(TelescopeEditorDialog.reject)
+
+        self.tabWidget.setCurrentIndex(0)
+
 
         QMetaObject.connectSlotsByName(TelescopeEditorDialog)
     # setupUi
@@ -605,8 +630,9 @@ class Ui_TelescopeEditorDialog(object):
         self.azimuthMinEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
         self.azimuthMaxEdit.setSuffix(QCoreApplication.translate("TelescopeEditorDialog", u" deg", None))
         self.labelMountType.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Mount Type:", None))
-        self.mountTypeCombo.setItemText(0, QCoreApplication.translate("TelescopeEditorDialog", u"EQUA", None))
-        self.mountTypeCombo.setItemText(1, QCoreApplication.translate("TelescopeEditorDialog", u"AZIM", None))
+        self.mountTypeCombo.setItemText(0, QCoreApplication.translate("TelescopeEditorDialog", u"EQUATORIAL", None))
+        self.mountTypeCombo.setItemText(1, QCoreApplication.translate("TelescopeEditorDialog", u"AZIMUTHAL", None))
+        self.mountTypeCombo.setItemText(2, QCoreApplication.translate("TelescopeEditorDialog", u"SPACE", None))
 
         self.labelIsActive.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Active:", None))
         self.labelSefdTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"SEFD Table (MHz, Jy):", None))
@@ -617,6 +643,7 @@ class Ui_TelescopeEditorDialog(object):
         self.removeSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove SEFD", None))
         self.clearSefdButton.setStyleSheet(QCoreApplication.translate("TelescopeEditorDialog", u"background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;", None))
         self.clearSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear SEFD Table", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("TelescopeEditorDialog", u"Main Parameters", None))
         self.labelSurfaceEfficiencyTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Surface Efficiency Table (MHz, Efficiency):", None))
         self.surfaceEfficiencyTable.setStyleSheet(QCoreApplication.translate("TelescopeEditorDialog", u"border: 1px solid #d3d3d3;", None))
         self.addSurfaceEfficiencyButton.setStyleSheet(QCoreApplication.translate("TelescopeEditorDialog", u"background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;", None))
@@ -641,6 +668,7 @@ class Ui_TelescopeEditorDialog(object):
         self.removeSystemTemperatureButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove Temperature", None))
         self.clearSystemTemperatureButton.setStyleSheet(QCoreApplication.translate("TelescopeEditorDialog", u"background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;", None))
         self.clearSystemTemperatureButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear Temperature Table", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("TelescopeEditorDialog", u"Sensitivity", None))
         self.saveButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Cancel", None))
     # retranslateUi

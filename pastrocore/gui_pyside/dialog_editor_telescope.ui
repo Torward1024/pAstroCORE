@@ -2,12 +2,15 @@
 <ui version="4.0">
  <class>TelescopeEditorDialog</class>
  <widget class="QDialog" name="TelescopeEditorDialog">
+  <property name="windowModality">
+   <enum>Qt::WindowModality::ApplicationModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>583</width>
-    <height>916</height>
+    <width>464</width>
+    <height>568</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,22 +19,35 @@
   <property name="styleSheet">
    <string>background-color: #ffffff; font-family: Arial;</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <item>
-    <layout class="QFormLayout" name="formLayout">
-     <item row="0" column="0">
-      <widget class="QLabel" name="labelCode">
-       <property name="text">
-        <string>Code:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QLineEdit" name="codeEdit">
-       <property name="styleSheet">
-        <string notr="true">QLineEdit {
+  <property name="modal">
+   <bool>true</bool>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab">
+      <attribute name="title">
+       <string>Main Parameters</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0">
+        <layout class="QFormLayout" name="formLayout">
+         <item row="0" column="0">
+          <widget class="QLabel" name="labelCode">
+           <property name="text">
+            <string>Code:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="codeEdit">
+           <property name="styleSheet">
+            <string notr="true">QLineEdit {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -51,25 +67,25 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     border: 1px solid #005bb5;
     background-color: #ffffff;
 }</string>
-       </property>
-       <property name="placeholderText">
-        <string>Enter telescope code</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="labelName">
-       <property name="text">
-        <string>Name:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QLineEdit" name="nameEdit">
-       <property name="styleSheet">
-        <string notr="true">QLineEdit {
+           </property>
+           <property name="placeholderText">
+            <string>Enter telescope code</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="labelName">
+           <property name="text">
+            <string>Name:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="nameEdit">
+           <property name="styleSheet">
+            <string notr="true">QLineEdit {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -89,283 +105,289 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     border: 1px solid #005bb5;
     background-color: #ffffff;
 }</string>
-       </property>
-       <property name="placeholderText">
-        <string>Enter telescope name</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="labelX">
-       <property name="text">
-        <string>X (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QDoubleSpinBox" name="xEdit">
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>-10000000.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>10000000.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QLabel" name="labelY">
-       <property name="text">
-        <string>Y (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="1">
-      <widget class="QDoubleSpinBox" name="yEdit">
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>-10000000.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>10000000.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0">
-      <widget class="QLabel" name="labelZ">
-       <property name="text">
-        <string>Z (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="1">
-      <widget class="QDoubleSpinBox" name="zEdit">
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>-10000000.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>10000000.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="0">
-      <widget class="QLabel" name="labelVx">
-       <property name="text">
-        <string>Vx (m/s):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="1">
-      <widget class="QDoubleSpinBox" name="vxEdit">
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>-1000.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>1000.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="6" column="0">
-      <widget class="QLabel" name="labelVy">
-       <property name="text">
-        <string>Vy (m/s):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="6" column="1">
-      <widget class="QDoubleSpinBox" name="vyEdit">
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>-1000.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>1000.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="7" column="0">
-      <widget class="QLabel" name="labelVz">
-       <property name="text">
-        <string>Vz (m/s):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="7" column="1">
-      <widget class="QDoubleSpinBox" name="vzEdit">
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>-1000.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>1000.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="0">
-      <widget class="QLabel" name="labelDiameter">
-       <property name="text">
-        <string>Diameter (m):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="8" column="1">
-      <widget class="QDoubleSpinBox" name="diameterEdit">
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>0.010000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>1000.000000000000000</double>
-       </property>
-       <property name="value">
-        <double>1.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="0">
-      <widget class="QLabel" name="labelSurfaceAccuracy">
-       <property name="text">
-        <string>Surface Accuracy (µm):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="9" column="1">
-      <widget class="QDoubleSpinBox" name="surfaceAccuracyEdit">
-       <property name="specialValueText">
-        <string>None</string>
-       </property>
-       <property name="decimals">
-        <number>2</number>
-       </property>
-       <property name="minimum">
-        <double>0.000000000000000</double>
-       </property>
-       <property name="maximum">
-        <double>10000.000000000000000</double>
-       </property>
-      </widget>
-     </item>
-     <item row="10" column="0">
-      <widget class="QLabel" name="labelElevationRange">
-       <property name="text">
-        <string>Elevation Range (deg):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="10" column="1">
-      <layout class="QHBoxLayout" name="elevationRangeLayout">
-       <item>
-        <widget class="QDoubleSpinBox" name="elevationMinEdit">
-         <property name="suffix">
-          <string> deg</string>
-         </property>
-         <property name="decimals">
-          <number>2</number>
-         </property>
-         <property name="minimum">
-          <double>0.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>90.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QDoubleSpinBox" name="elevationMaxEdit">
-         <property name="suffix">
-          <string> deg</string>
-         </property>
-         <property name="decimals">
-          <number>2</number>
-         </property>
-         <property name="minimum">
-          <double>0.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>90.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>90.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item row="11" column="0">
-      <widget class="QLabel" name="labelAzimuthRange">
-       <property name="text">
-        <string>Azimuth Range (deg):</string>
-       </property>
-      </widget>
-     </item>
-     <item row="11" column="1">
-      <layout class="QHBoxLayout" name="azimuthRangeLayout">
-       <item>
-        <widget class="QDoubleSpinBox" name="azimuthMinEdit">
-         <property name="suffix">
-          <string> deg</string>
-         </property>
-         <property name="decimals">
-          <number>2</number>
-         </property>
-         <property name="minimum">
-          <double>0.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>360.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QDoubleSpinBox" name="azimuthMaxEdit">
-         <property name="suffix">
-          <string> deg</string>
-         </property>
-         <property name="decimals">
-          <number>2</number>
-         </property>
-         <property name="minimum">
-          <double>0.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>360.000000000000000</double>
-         </property>
-         <property name="value">
-          <double>360.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item row="12" column="0">
-      <widget class="QLabel" name="labelMountType">
-       <property name="text">
-        <string>Mount Type:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="12" column="1">
-      <widget class="QComboBox" name="mountTypeCombo">
-       <property name="styleSheet">
-        <string notr="true">QComboBox {
+           </property>
+           <property name="placeholderText">
+            <string>Enter telescope name</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="labelX">
+           <property name="text">
+            <string>X (m):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QDoubleSpinBox" name="xEdit">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-10000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>10000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="labelY">
+           <property name="text">
+            <string>Y (m):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QDoubleSpinBox" name="yEdit">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-10000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>10000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="labelZ">
+           <property name="text">
+            <string>Z (m):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QDoubleSpinBox" name="zEdit">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-10000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>10000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="labelVx">
+           <property name="text">
+            <string>Vx (m/s):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QDoubleSpinBox" name="vxEdit">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
+          <widget class="QLabel" name="labelVy">
+           <property name="text">
+            <string>Vy (m/s):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1">
+          <widget class="QDoubleSpinBox" name="vyEdit">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="0">
+          <widget class="QLabel" name="labelVz">
+           <property name="text">
+            <string>Vz (m/s):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="1">
+          <widget class="QDoubleSpinBox" name="vzEdit">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-1000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="0">
+          <widget class="QLabel" name="labelDiameter">
+           <property name="text">
+            <string>Diameter (m):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="1">
+          <widget class="QDoubleSpinBox" name="diameterEdit">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>0.010000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>1.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="9" column="0">
+          <widget class="QLabel" name="labelSurfaceAccuracy">
+           <property name="text">
+            <string>Surface Accuracy (µm):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="9" column="1">
+          <widget class="QDoubleSpinBox" name="surfaceAccuracyEdit">
+           <property name="specialValueText">
+            <string>None</string>
+           </property>
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>0.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>10000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="10" column="0">
+          <widget class="QLabel" name="labelElevationRange">
+           <property name="text">
+            <string>Elevation Range (deg):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="10" column="1">
+          <layout class="QHBoxLayout" name="elevationRangeLayout">
+           <item>
+            <widget class="QDoubleSpinBox" name="elevationMinEdit">
+             <property name="suffix">
+              <string> deg</string>
+             </property>
+             <property name="decimals">
+              <number>2</number>
+             </property>
+             <property name="minimum">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>90.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="elevationMaxEdit">
+             <property name="suffix">
+              <string> deg</string>
+             </property>
+             <property name="decimals">
+              <number>2</number>
+             </property>
+             <property name="minimum">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>90.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>90.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item row="11" column="0">
+          <widget class="QLabel" name="labelAzimuthRange">
+           <property name="text">
+            <string>Azimuth Range (deg):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="11" column="1">
+          <layout class="QHBoxLayout" name="azimuthRangeLayout">
+           <item>
+            <widget class="QDoubleSpinBox" name="azimuthMinEdit">
+             <property name="suffix">
+              <string> deg</string>
+             </property>
+             <property name="decimals">
+              <number>2</number>
+             </property>
+             <property name="minimum">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>360.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="azimuthMaxEdit">
+             <property name="suffix">
+              <string> deg</string>
+             </property>
+             <property name="decimals">
+              <number>2</number>
+             </property>
+             <property name="minimum">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>360.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>360.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item row="12" column="0">
+          <widget class="QLabel" name="labelMountType">
+           <property name="text">
+            <string>Mount Type:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="12" column="1">
+          <widget class="QComboBox" name="mountTypeCombo">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+             <pointsize>9</pointsize>
+            </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">QComboBox {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     padding: 1px;
     border-radius: 3px;
@@ -444,354 +466,372 @@ QComboBox QAbstractItemView::item {
 QComboBox QAbstractItemView::item:hover {
     background-color: #0078d7;
 }</string>
-       </property>
-       <item>
-        <property name="text">
-         <string>EQUA</string>
-        </property>
+           </property>
+           <item>
+            <property name="text">
+             <string>EQUATORIAL</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>AZIMUTHAL</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>SPACE</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="13" column="0">
+          <widget class="QLabel" name="labelIsActive">
+           <property name="text">
+            <string>Active:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="13" column="1">
+          <widget class="QCheckBox" name="isActiveCheckBox">
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
-       <item>
-        <property name="text">
-         <string>AZIM</string>
-        </property>
+       <item row="1" column="0">
+        <widget class="QLabel" name="labelSefdTable">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>10</pointsize>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>SEFD Table (MHz, Jy):</string>
+         </property>
+        </widget>
        </item>
-     <item row="13" column="0">
-      <widget class="QLabel" name="labelIsActive">
-       <property name="text">
-        <string>Active:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="13" column="1">
-      <widget class="QCheckBox" name="isActiveCheckBox">
-       <property name="checked">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <widget class="QLabel" name="labelSefdTable">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>10</pointsize>
-       <bold>true</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>SEFD Table (MHz, Jy):</string>
-     </property>
+       <item row="2" column="0">
+        <widget class="QTableView" name="sefdTable">
+         <property name="styleSheet">
+          <string>border: 1px solid #d3d3d3;</string>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
+         </property>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <layout class="QHBoxLayout" name="sefdButtonLayout">
+         <item>
+          <widget class="QPushButton" name="addSefdButton">
+           <property name="styleSheet">
+            <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Add SEFD</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeSefdButton">
+           <property name="styleSheet">
+            <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Remove SEFD</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="clearSefdButton">
+           <property name="styleSheet">
+            <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Clear SEFD Table</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacerSefd">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_2">
+      <attribute name="title">
+       <string>Sensitivity</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0">
+        <widget class="QLabel" name="labelSurfaceEfficiencyTable">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>10</pointsize>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Surface Efficiency Table (MHz, Efficiency):</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QTableView" name="surfaceEfficiencyTable">
+         <property name="styleSheet">
+          <string>border: 1px solid #d3d3d3;</string>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
+         </property>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <layout class="QHBoxLayout" name="surfaceEfficiencyButtonLayout">
+         <item>
+          <widget class="QPushButton" name="addSurfaceEfficiencyButton">
+           <property name="styleSheet">
+            <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Add Efficiency</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeSurfaceEfficiencyButton">
+           <property name="styleSheet">
+            <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Remove Efficiency</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="clearSurfaceEfficiencyButton">
+           <property name="styleSheet">
+            <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Clear Efficiency Table</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacerSurfaceEfficiency">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="labelEffectiveAreaTable">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>10</pointsize>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Effective Area Table (MHz, m²):</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QTableView" name="effectiveAreaTable">
+         <property name="styleSheet">
+          <string>border: 1px solid #d3d3d3;</string>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
+         </property>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <layout class="QHBoxLayout" name="effectiveAreaButtonLayout">
+         <item>
+          <widget class="QPushButton" name="addEffectiveAreaButton">
+           <property name="styleSheet">
+            <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Add Area</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeEffectiveAreaButton">
+           <property name="styleSheet">
+            <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Remove Area</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="clearEffectiveAreaButton">
+           <property name="styleSheet">
+            <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Clear Area Table</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacerEffectiveArea">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="labelSystemTemperatureTable">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>10</pointsize>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>System Temperature Table (MHz, K):</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <widget class="QTableView" name="systemTemperatureTable">
+         <property name="styleSheet">
+          <string>border: 1px solid #d3d3d3;</string>
+         </property>
+         <property name="editTriggers">
+          <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
+         </property>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0">
+        <layout class="QHBoxLayout" name="systemTemperatureButtonLayout">
+         <item>
+          <widget class="QPushButton" name="addSystemTemperatureButton">
+           <property name="styleSheet">
+            <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Add Temperature</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="removeSystemTemperatureButton">
+           <property name="styleSheet">
+            <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Remove Temperature</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="clearSystemTemperatureButton">
+           <property name="styleSheet">
+            <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
+           </property>
+           <property name="text">
+            <string>Clear Temperature Table</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacerSystemTemperature">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
-   <item>
-    <widget class="QTableView" name="sefdTable">
-     <property name="styleSheet">
-      <string>border: 1px solid #d3d3d3;</string>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
-     </property>
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="sefdButtonLayout">
-     <item>
-      <widget class="QPushButton" name="addSefdButton">
-       <property name="styleSheet">
-        <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Add SEFD</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="removeSefdButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Remove SEFD</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="clearSefdButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Clear SEFD Table</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacerSefd">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <widget class="QLabel" name="labelSurfaceEfficiencyTable">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>10</pointsize>
-       <bold>true</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>Surface Efficiency Table (MHz, Efficiency):</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QTableView" name="surfaceEfficiencyTable">
-     <property name="styleSheet">
-      <string>border: 1px solid #d3d3d3;</string>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
-     </property>
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="surfaceEfficiencyButtonLayout">
-     <item>
-      <widget class="QPushButton" name="addSurfaceEfficiencyButton">
-       <property name="styleSheet">
-        <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Add Efficiency</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="removeSurfaceEfficiencyButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Remove Efficiency</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="clearSurfaceEfficiencyButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Clear Efficiency Table</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacerSurfaceEfficiency">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <widget class="QLabel" name="labelEffectiveAreaTable">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>10</pointsize>
-       <bold>true</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>Effective Area Table (MHz, m²):</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QTableView" name="effectiveAreaTable">
-     <property name="styleSheet">
-      <string>border: 1px solid #d3d3d3;</string>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
-     </property>
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="effectiveAreaButtonLayout">
-     <item>
-      <widget class="QPushButton" name="addEffectiveAreaButton">
-       <property name="styleSheet">
-        <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Add Area</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="removeEffectiveAreaButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Remove Area</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="clearEffectiveAreaButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Clear Area Table</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacerEffectiveArea">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <widget class="QLabel" name="labelSystemTemperatureTable">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>10</pointsize>
-       <bold>true</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>System Temperature Table (MHz, K):</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QTableView" name="systemTemperatureTable">
-     <property name="styleSheet">
-      <string>border: 1px solid #d3d3d3;</string>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::EditKeyPressed</set>
-     </property>
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
-     </property>
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="systemTemperatureButtonLayout">
-     <item>
-      <widget class="QPushButton" name="addSystemTemperatureButton">
-       <property name="styleSheet">
-        <string>background-color: #0078d7; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Add Temperature</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="removeSystemTemperatureButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Remove Temperature</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="clearSystemTemperatureButton">
-       <property name="styleSheet">
-        <string>background-color: #d9534f; color: #ffffff; padding: 6px; border-radius: 3px;</string>
-       </property>
-       <property name="text">
-        <string>Clear Temperature Table</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacerSystemTemperature">
-       <property name="orientation">
-        <enum>Qt::Orientation::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item>
+   <item row="1" column="0">
     <layout class="QHBoxLayout" name="buttonLayout">
      <item>
       <spacer name="horizontalSpacerButtons">

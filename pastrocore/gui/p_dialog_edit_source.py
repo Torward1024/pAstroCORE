@@ -78,8 +78,8 @@ class SourceEditorDialog(QDialog):
     @Slot()
     def add_flux(self):
         """Add a new flux entry to the flux table."""
-        freq_item = QStandardItem("0.00")
-        flux_item = QStandardItem("0.00")
+        freq_item = QStandardItem("1.00")
+        flux_item = QStandardItem("1.00")
         freq_item.setEditable(True)
         flux_item.setEditable(True)
         self.model.appendRow([freq_item, flux_item])

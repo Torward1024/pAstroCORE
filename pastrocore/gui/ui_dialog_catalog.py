@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_catalogxqryjD.ui'
+## Form generated from reading UI file 'dialog_catalogbmfLbP.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -20,14 +20,14 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QDialog, QGridLa
     QSizePolicy, QSpacerItem, QTableView, QWidget)
 
 class Ui_CatalogDialog(object):
-    def setupUi(self, Dialog):
-        if not Dialog.objectName():
-            Dialog.setObjectName(u"Dialog")
-        Dialog.resize(609, 510)
-        Dialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
-        self.gridLayout = QGridLayout(Dialog)
+    def setupUi(self, CatalogDialog):
+        if not CatalogDialog.objectName():
+            CatalogDialog.setObjectName(u"CatalogDialog")
+        CatalogDialog.resize(609, 510)
+        CatalogDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
+        self.gridLayout = QGridLayout(CatalogDialog)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.catalogTable = QTableView(Dialog)
+        self.catalogTable = QTableView(CatalogDialog)
         self.catalogTable.setObjectName(u"catalogTable")
         self.catalogTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.catalogTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -35,7 +35,7 @@ class Ui_CatalogDialog(object):
 
         self.gridLayout.addWidget(self.catalogTable, 0, 0, 1, 4)
 
-        self.search = QLineEdit(Dialog)
+        self.search = QLineEdit(CatalogDialog)
         self.search.setObjectName(u"search")
         self.search.setStyleSheet(u"QLineEdit {\n"
 "    font-family: Arial;\n"
@@ -62,16 +62,16 @@ class Ui_CatalogDialog(object):
 
         self.gridLayout.addWidget(self.search, 1, 1, 1, 1)
 
-        self.lbl_search = QLabel(Dialog)
+        self.lbl_search = QLabel(CatalogDialog)
         self.lbl_search.setObjectName(u"lbl_search")
         font = QFont()
         font.setFamilies([u"Arial"])
-        font.setPointSize(12)
+        font.setPointSize(9)
         self.lbl_search.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_search, 1, 0, 1, 1)
 
-        self.closeButton = QPushButton(Dialog)
+        self.closeButton = QPushButton(CatalogDialog)
         self.closeButton.setObjectName(u"closeButton")
         self.closeButton.setStyleSheet(u"QPushButton {\n"
 "    background-color: #0078d7;\n"
@@ -97,14 +97,14 @@ class Ui_CatalogDialog(object):
         self.gridLayout.addItem(self.horizontalSpacer, 1, 2, 1, 1)
 
 
-        self.retranslateUi(Dialog)
+        self.retranslateUi(CatalogDialog)
 
-        QMetaObject.connectSlotsByName(Dialog)
+        QMetaObject.connectSlotsByName(CatalogDialog)
     # setupUi
 
-    def retranslateUi(self, Dialog):
-        Dialog.setWindowTitle(QCoreApplication.translate("Dialog", u"Dialog", None))
-        self.catalogTable.setStyleSheet(QCoreApplication.translate("Dialog", u"border: 1px solid #d3d3d3;", None))
-        self.lbl_search.setText(QCoreApplication.translate("Dialog", u"Search:", None))
-        self.closeButton.setText(QCoreApplication.translate("Dialog", u"Close", None))
+    def retranslateUi(self, CatalogDialog):
+        CatalogDialog.setWindowTitle(QCoreApplication.translate("CatalogDialog", u"Dialog", None))
+        self.catalogTable.setStyleSheet(QCoreApplication.translate("CatalogDialog", u"border: 1px solid #d3d3d3;", None))
+        self.lbl_search.setText(QCoreApplication.translate("CatalogDialog", u"Search:", None))
+        self.closeButton.setText(QCoreApplication.translate("CatalogDialog", u"Close", None))
     # retranslateUi
