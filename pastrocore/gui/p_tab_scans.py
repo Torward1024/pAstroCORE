@@ -236,6 +236,9 @@ class ScansTab(QWidget):
                             "telescope_names": scan_data["telescope_names"],
                             "frequency_names": scan_data["frequency_names"],
                             "isactive": scan_data["isactive"],
+                            "original_source_name": scan_data["original_source_name"],
+                            "original_telescope_names": scan_data["original_telescope_names"],
+                            "original_frequency_names": scan_data["original_frequency_names"],
                             "observation": self.observation
                         }
                     }
@@ -287,6 +290,9 @@ class ScansTab(QWidget):
                                 "telescope_names": scan_data["telescope_names"],
                                 "frequency_names": scan_data["frequency_names"],
                                 "isactive": scan_data["isactive"],
+                                "original_source_name": scan_data["original_source_name"],
+                                "original_telescope_names": scan_data["original_telescope_names"],
+                                "original_frequency_names": scan_data["original_frequency_names"],
                                 "observation": self.observation
                             }
                         }

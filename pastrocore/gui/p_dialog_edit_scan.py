@@ -415,7 +415,7 @@ class ScanEditorDialog(QDialog):
         """Retrieve scan data from the dialog.
 
         Returns:
-            dict: Dictionary containing scan parameters.
+            dict: Dictionary containing scan parameters, including original names for telescopes, frequencies, and source.
         """
         start_time = Time(self.ui.startTimeEdit.dateTime().toPython())
         start_time = start_time.to_datetime().replace(microsecond=0)
@@ -433,37 +433,27 @@ class ScanEditorDialog(QDialog):
         is_off_source = self.ui.chk_offsource.isChecked()
         source_name = None if is_off_source else self.ui.sourceCombo.currentData()
 
-        # Log telescopes model state
-        logger.debug("Telescopes model state:")
+        # Collect telescope names
         telescope_names = []
         for row in range(self.telescopes_model.rowCount()):
             name_item = self.telescopes_model.item(row, 3)
             check_item = self.telescopes_model.item(row, 1)
-            name = name_item.data(Qt.UserRole) if name_item else "Unknown"
-            check_state = check_item.checkState() if check_item else Qt.Unchecked
-            logger.debug(f"Telescope {name}: check_state={check_state}")
-            if check_state == Qt.Checked:
+            name = name_item.data(Qt.UserRole) if name_item else None
+            if check_item.checkState() == Qt.Checked and name:
                 telescope_names.append(name)
-                logger.info(f"Selected telescope: {name}")
         logger.debug(f"Selected telescopes from model: {telescope_names}")
-        logger.debug(f"Manually tracked selected telescopes: {self.selected_telescopes}")
 
-        # Log frequencies model state
-        logger.debug("Frequencies model state:")
+        # Collect frequency names
         frequency_names = []
         for row in range(self.frequencies_model.rowCount()):
             name_item = self.frequencies_model.item(row, 3)
             check_item = self.frequencies_model.item(row, 1)
-            name = name_item.data(Qt.UserRole) if name_item else "Unknown"
-            check_state = check_item.checkState() if check_item else Qt.Unchecked
-            logger.debug(f"Frequency {name}: check_state={check_state}")
-            if check_state == Qt.Checked:
+            name = name_item.data(Qt.UserRole) if name_item else None
+            if check_item.checkState() == Qt.Checked and name:
                 frequency_names.append(name)
-                logger.info(f"Selected frequency: {name}")
         logger.debug(f"Selected frequencies from model: {frequency_names}")
-        logger.debug(f"Manually tracked selected frequencies: {self.selected_frequencies}")
 
-        # Fallback to selected sets if model is empty
+        # Fallback to selected sets
         if not telescope_names and self.selected_telescopes:
             logger.warning("No telescopes in model, using manually tracked telescopes")
             telescope_names = list(self.selected_telescopes)
@@ -480,17 +470,16 @@ class ScanEditorDialog(QDialog):
             raise ValueError("At least one frequency must be selected")
 
         isactive = self.ui.chk_active.isChecked()
-        # Warn if isactive=True but conditions not met
         conditions_met = self._check_scan_conditions()
         if isactive and not conditions_met:
-            logger.warning("Scan marked as active but conditions not met (less than 2 active telescopes, no active frequency, or inactive source)")
+            logger.warning("Scan marked as active but conditions not met")
             QMessageBox.warning(self, "Warning", 
                                 "Scan is marked as active, but conditions are not met:\n"
                                 "- At least 2 active telescopes required\n"
                                 "- At least 1 active frequency required\n"
                                 "- Source must be active (unless OFF SOURCE)")
-        logger.debug(f"Retrieved isactive from chk_active: {isactive}, conditions_met: {conditions_met}")
 
+        # Set original names to match current selections
         scan_data = {
             "name": self.scan.name if not self.is_new else f"scan_{uuid.uuid4().hex[:32]}",
             "start": start_time,
@@ -500,7 +489,10 @@ class ScanEditorDialog(QDialog):
             "frequency_names": frequency_names,
             "is_off_source": is_off_source,
             "isactive": isactive,
-            "observation": self.observation
+            "observation": self.observation,
+            "original_source_name": source_name,
+            "original_telescope_names": telescope_names.copy(),
+            "original_frequency_names": frequency_names.copy()
         }
         logger.info(f"Collected scan data: {scan_data}")
         return scan_data
