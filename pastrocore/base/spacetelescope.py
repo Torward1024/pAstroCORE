@@ -23,6 +23,7 @@ class SpaceTelescope(Telescope):
     pitch and yaw ranges, and interpolation methods (linear, Chebyshev, or cubic spline) for orbit calculations.
     Provides state vector (position and velocity) retrieval at specific times.
     """
+    type: str
     orbit_file: str
     pitch_range: Tuple[float, float]
     yaw_range: Tuple[float, float]
@@ -30,9 +31,9 @@ class SpaceTelescope(Telescope):
     kepler_elements: dict
     orbit_data: Optional[Dict[str, np.ndarray]]
     interpolation_method: str
-    _interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]]
+    interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]]
 
-    def __init__(self, *, code: str = "TS", name: str = "TEMPSPACETELESCOPE",
+    def __init__(self, *, code: str = "TS", name: str = "TEMPSPACETELESCOPE", type = "SpaceTelescope",
              orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
              sefd_table: Optional[Dict[float, float]] = None,
              pitch_range: Tuple[float, float] = (-90.0, 90.0),
@@ -45,11 +46,11 @@ class SpaceTelescope(Telescope):
              surface_efficiency_table: Optional[Dict[float, float]] = None,
              effective_area_table: Optional[Dict[float, float]] = None,
              system_temperature_table: Optional[Dict[float, float]] = None,
-             _interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]] = None):
+             interpolated_orbit: Optional[Dict[str, Union[Tuple[float, float], np.ndarray]]] = None):
         """Initialize a SpaceTelescope with orbital parameters and optional SEFD properties."""
         if name is None:
             name = f"stlsc_{uuid.uuid4().hex[:32]}"
-        super().__init__(code=code, name=name, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0,
+        super().__init__(code=code, name=name, type=type, x=0.0, y=0.0, z=0.0, vx=0.0, vy=0.0, vz=0.0,
                         diameter=diameter, sefd_table=sefd_table or {}, mount_type="NONE",
                         elevation_range=(0.0, 0.0), azimuth_range=(0.0, 0.0), isactive=isactive,
                         surface_accuracy=surface_accuracy,
@@ -65,7 +66,7 @@ class SpaceTelescope(Telescope):
             "kepler_elements": kepler_elements,
             "orbit_data": orbit_data,
             "interpolation_method": interpolation_method,
-            "_interpolated_orbit": _interpolated_orbit
+            "interpolated_orbit": interpolated_orbit
         })
 
         if orbit_data is not None:
@@ -176,7 +177,7 @@ class SpaceTelescope(Telescope):
             self.orbit_file = orbit_file
             self.use_kep = False
             self.kepler_elements = None
-            self._interpolated_orbit = None
+            self.interpolated_orbit = None
             logger.info(f"Loaded orbit data from '{orbit_file}' with {len(valid_lines)} points")
         
         except FileNotFoundError:
@@ -215,7 +216,7 @@ class SpaceTelescope(Telescope):
             surface_efficiency_table=deepcopy(self.surface_efficiency_table),
             effective_area_table=deepcopy(self.effective_area_table),
             system_temperature_table=deepcopy(self.system_temperature_table),
-            _interpolated_orbit=deepcopy(self._interpolated_orbit)
+            interpolated_orbit=deepcopy(self.interpolated_orbit)
         )
         if copied.kepler_elements:
             copied._validate_kepler_elements(copied.kepler_elements)
@@ -261,7 +262,7 @@ class SpaceTelescope(Telescope):
         if method not in valid_methods:
             raise ValueError(f"Interpolation method must be one of {valid_methods}")
         self.interpolation_method = method
-        self._interpolated_orbit = None
+        self.interpolated_orbit = None
         logger.info(f"Set interpolation method to '{method}'")
 
     def interpolate_orbit(self, start_time: Time, end_time: Time, time_step: float) -> None:
@@ -302,21 +303,21 @@ class SpaceTelescope(Telescope):
             norm_interp_times = 2 * (interp_times - t_start) / (t_end - t_start) - 1
             pos_polynomials = [chebyshev.Chebyshev.fit(norm_times, pos, degree) for pos in filtered_positions.T]
             vel_polynomials = [chebyshev.Chebyshev.fit(norm_times, vel, degree) for vel in filtered_velocities.T]
-            self._interpolated_orbit = {
+            self.interpolated_orbit = {
                 "time_range": (t_start, t_end),
                 "times": interp_times,
                 "positions": np.array([poly(norm_interp_times) for poly in pos_polynomials]).T,
                 "velocities": np.array([poly(norm_interp_times) for poly in vel_polynomials]).T
             }
         elif self.interpolation_method == "cubic_spline":
-            self._interpolated_orbit = {
+            self.interpolated_orbit = {
                 "time_range": (t_start, t_end),
                 "times": interp_times,
                 "positions": np.array([CubicSpline(filtered_times, pos)(interp_times) for pos in filtered_positions.T]).T,
                 "velocities": np.array([CubicSpline(filtered_times, vel)(interp_times) for vel in filtered_velocities.T]).T
             }
         else:  # linear
-            self._interpolated_orbit = {
+            self.interpolated_orbit = {
                 "time_range": (t_start, t_end),
                 "times": interp_times,
                 "positions": np.array([np.interp(interp_times, filtered_times, pos) for pos in filtered_positions.T]).T,
@@ -369,21 +370,21 @@ class SpaceTelescope(Telescope):
             raise ValueError("No orbit data defined")
         j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
         t = (time - j2000_epoch).sec
-        if self._interpolated_orbit and "time_range" in self._interpolated_orbit:
-            t_min, t_max = self._interpolated_orbit["time_range"]
-            interp_times = self._interpolated_orbit["times"]
+        if self.interpolated_orbit and "time_range" in self.interpolated_orbit:
+            t_min, t_max = self.interpolated_orbit["time_range"]
+            interp_times = self.interpolated_orbit["times"]
             if t_min <= t <= t_max:
                 idx = np.searchsorted(interp_times, t)
                 if idx == 0:
-                    pos = self._interpolated_orbit["positions"][0]
-                    vel = self._interpolated_orbit["velocities"][0]
+                    pos = self.interpolated_orbit["positions"][0]
+                    vel = self.interpolated_orbit["velocities"][0]
                 elif idx >= len(interp_times):
-                    pos = self._interpolated_orbit["positions"][-1]
-                    vel = self._interpolated_orbit["velocities"][-1]
+                    pos = self.interpolated_orbit["positions"][-1]
+                    vel = self.interpolated_orbit["velocities"][-1]
                 else:
                     frac = (t - interp_times[idx - 1]) / (interp_times[idx] - interp_times[idx - 1])
-                    pos = (1 - frac) * self._interpolated_orbit["positions"][idx - 1] + frac * self._interpolated_orbit["positions"][idx]
-                    vel = (1 - frac) * self._interpolated_orbit["velocities"][idx - 1] + frac * self._interpolated_orbit["velocities"][idx]
+                    pos = (1 - frac) * self.interpolated_orbit["positions"][idx - 1] + frac * self.interpolated_orbit["positions"][idx]
+                    vel = (1 - frac) * self.interpolated_orbit["velocities"][idx - 1] + frac * self.interpolated_orbit["velocities"][idx]
                 logger.debug(f"Interpolated state vector at {time.isot}: pos={pos}, vel={vel}")
                 return pos, vel
         times = self.orbit_data["times"]
@@ -409,123 +410,7 @@ class SpaceTelescope(Telescope):
         self._validate_kepler_elements(kepler_elements)
         self.set({"kepler_elements": kepler_elements, "_orbit_data": None, "use_kep": True})
         logger.info("Set Keplerian elements")
-
-    def to_dict(self) -> dict:
-        """Convert the SpaceTelescope object to a dictionary for serialization."""
-        data = super().to_dict()
-        orbit_data = self.get_orbit()
-        data.update({
-            "orbit_file": self.orbit_file,
-            "pitch_range": list(self.pitch_range),
-            "yaw_range": list(self.yaw_range),
-            "use_kep": self.use_kep,
-            "kepler_elements": None if self.kepler_elements is None else {
-                "a": self.kepler_elements["a"],
-                "e": self.kepler_elements["e"],
-                "i": self.kepler_elements["i"],
-                "raan": self.kepler_elements["raan"],
-                "argp": self.kepler_elements["argp"],
-                "nu": self.kepler_elements["nu"],
-                "epoch": self.kepler_elements["epoch"].isot,
-                "mu": self.kepler_elements["mu"]
-            },
-            "orbit_data": None if orbit_data is None else {
-                "times": orbit_data["times"].tolist(),
-                "positions": orbit_data["positions"].tolist(),
-                "velocities": orbit_data["velocities"].tolist()
-            },
-            "interpolation_method": self.interpolation_method,
-            "interpolated_orbit": None if self._interpolated_orbit is None else {
-                "time_range": list(self._interpolated_orbit["time_range"]),
-                "times": self._interpolated_orbit["times"].tolist(),
-                "positions": self._interpolated_orbit["positions"].tolist(),
-                "velocities": self._interpolated_orbit["velocities"].tolist()
-            }
-        })
-        return data
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'SpaceTelescope':
-        """Create a SpaceTelescope object from a dictionary."""
-        data = data.copy()
-        # Handle Telescope attributes first
-        for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
-            if table in data and isinstance(data[table], dict):
-                data[table] = {float(k): v for k, v in data[table].items()}
-        if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
-            data["elevation_range"] = tuple(data["elevation_range"])
-        if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
-            data["azimuth_range"] = tuple(data["azimuth_range"])
-        if "mount_type" in data and isinstance(data["mount_type"], str):
-            try:
-                data["mount_type"] = MountType(data["mount_type"].upper())
-            except ValueError:
-                raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
-
-        # Handle SpaceTelescope-specific attributes
-        if "pitch_range" in data and isinstance(data["pitch_range"], (list, tuple)):
-            data["pitch_range"] = tuple(data["pitch_range"])
-        if "yaw_range" in data and isinstance(data["yaw_range"], (list, tuple)):
-            data["yaw_range"] = tuple(data["yaw_range"])
-        if "kepler_elements" in data and data["kepler_elements"] is not None:
-            kepler = data["kepler_elements"]
-            data["kepler_elements"] = {
-                "a": kepler["a"],
-                "e": kepler["e"],
-                "i": kepler["i"],
-                "raan": kepler["raan"],
-                "argp": kepler["argp"],
-                "nu": kepler["nu"],
-                "epoch": Time(kepler["epoch"], scale='utc'),
-                "mu": kepler["mu"]
-            }
-        if "orbit_data" in data and data["orbit_data"] is not None:
-            orbit_data = data["orbit_data"]
-            data["orbit_data"] = {
-                "times": np.array(orbit_data["times"]),
-                "positions": np.array(orbit_data["positions"]),
-                "velocities": np.array(orbit_data["velocities"])
-            }
-        if "interpolated_orbit" in data and data["interpolated_orbit"] is not None:
-            interp_orbit = data["interpolated_orbit"]
-            data["interpolated_orbit"] = {
-                "time_range": tuple(interp_orbit["time_range"]),
-                "times": np.array(interp_orbit["times"]),
-                "positions": np.array(interp_orbit["positions"]),
-                "velocities": np.array(interp_orbit["velocities"])
-            }
-
-        # Set defaults for required fields
-        data.setdefault("name", f"stlsc_{uuid.uuid4().hex[:32]}")
-        data.setdefault("code", data["code"])
-        data.setdefault("type", data["type"])
-        data.setdefault("orbit_file", "dummy_orbit.oem")
-        data.setdefault("diameter", 1.0)
-        data.setdefault("sefd_table", {})
-        data.setdefault("pitch_range", (-90.0, 90.0))
-        data.setdefault("yaw_range", (-180.0, 180.0))
-        data.setdefault("isactive", True)
-        data.setdefault("use_kep", True)
-        data.setdefault("kepler_elements", None)
-        data.setdefault("orbit_data", None)
-        data.setdefault("interpolation_method", "linear")
-        data.setdefault("surface_accuracy", None)
-        data.setdefault("surface_efficiency_table", {})
-        data.setdefault("effective_area_table", {})
-        data.setdefault("system_temperature_table", {})
-        data.setdefault("interpolated_orbit", None)
-        data.setdefault("x", 0.0)
-        data.setdefault("y", 0.0)
-        data.setdefault("z", 0.0)
-        data.setdefault("vx", 0.0)
-        data.setdefault("vy", 0.0)
-        data.setdefault("vz", 0.0)
-        data.setdefault("elevation_range", (0.0, 0.0))
-        data.setdefault("azimuth_range", (0.0, 0.0))
-        data.setdefault("mount_type", MountType.SPACE)
-
-        return cls(**data)
-
+    
     def _solve_kepler(self, initial: float, e: float, tol: float = 1e-8, max_iter: int = 200) -> float:
         """Solve Kepler's equation iteratively to find the eccentric anomaly.
 
@@ -553,3 +438,133 @@ class SpaceTelescope(Telescope):
                 return x
         logger.warning(f"Kepler's equation did not converge for e={e}, initial={initial}")
         return x
+
+    def to_dict(self) -> dict:
+        """Convert the SpaceTelescope object to a dictionary for serialization."""
+        data = super().to_dict()
+        orbit_data = self.get_orbit()
+        for key in ["x", "y", "z", "vx", "vy", "vz"]:
+            data.pop(key, None)
+        data.update({
+            "type": "SpaceTelescope",
+            "orbit_file": self.orbit_file,
+            "pitch_range": list(self.pitch_range),
+            "yaw_range": list(self.yaw_range),
+            "use_kep": self.use_kep,
+            "kepler_elements": None if self.kepler_elements is None else {
+                "a": self.kepler_elements["a"],
+                "e": self.kepler_elements["e"],
+                "i": self.kepler_elements["i"],
+                "raan": self.kepler_elements["raan"],
+                "argp": self.kepler_elements["argp"],
+                "nu": self.kepler_elements["nu"],
+                "epoch": self.kepler_elements["epoch"].isot,
+                "mu": self.kepler_elements["mu"]
+            },
+            "orbit_data": None if orbit_data is None else {
+                "times": orbit_data["times"].tolist(),
+                "positions": orbit_data["positions"].tolist(),
+                "velocities": orbit_data["velocities"].tolist()
+            },
+            "interpolation_method": self.interpolation_method,
+            "interpolated_orbit": None if self.interpolated_orbit is None else {
+                "time_range": list(self.interpolated_orbit["time_range"]),
+                "times": self.interpolated_orbit["times"].tolist(),
+                "positions": self.interpolated_orbit["positions"].tolist(),
+                "velocities": self.interpolated_orbit["velocities"].tolist()
+            }
+        })
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'SpaceTelescope':
+        """Create a SpaceTelescope object from a dictionary."""
+        data = data.copy()
+        
+        # Handle Telescope attributes first
+        for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
+            if table in data and isinstance(data[table], dict):
+                data[table] = {float(k): v for k, v in data[table].items()}
+        
+        # Convert lists to tuples for ranges
+        if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
+            data["elevation_range"] = tuple(data["elevation_range"])
+        if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
+            data["azimuth_range"] = tuple(data["azimuth_range"])
+        if "pitch_range" in data and isinstance(data["pitch_range"], (list, tuple)):
+            data["pitch_range"] = tuple(data["pitch_range"])
+        if "yaw_range" in data and isinstance(data["yaw_range"], (list, tuple)):
+            data["yaw_range"] = tuple(data["yaw_range"])
+        
+        # Handle mount_type
+        if "mount_type" in data and isinstance(data["mount_type"], str):
+            try:
+                data["mount_type"] = MountType(data["mount_type"].upper())
+            except ValueError:
+                raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
+        
+        # Handle Keplerian elements
+        if "kepler_elements" in data and data["kepler_elements"] is not None:
+            kepler = data["kepler_elements"]
+            data["kepler_elements"] = {
+                "a": kepler["a"],
+                "e": kepler["e"],
+                "i": kepler["i"],
+                "raan": kepler["raan"],
+                "argp": kepler["argp"],
+                "nu": kepler["nu"],
+                "epoch": Time(kepler["epoch"], scale='utc'),
+                "mu": kepler["mu"]
+            }
+        
+        # Handle orbit data
+        if "orbit_data" in data and data["orbit_data"] is not None:
+            orbit_data = data["orbit_data"]
+            data["orbit_data"] = {
+                "times": np.array(orbit_data["times"]),
+                "positions": np.array(orbit_data["positions"]),
+                "velocities": np.array(orbit_data["velocities"])
+            }
+        
+        # Handle interpolated orbit
+        if "interpolated_orbit" in data and data["interpolated_orbit"] is not None:
+            interp_orbit = data["interpolated_orbit"]
+            data["interpolated_orbit"] = {
+                "time_range": tuple(interp_orbit["time_range"]),
+                "times": np.array(interp_orbit["times"]),
+                "positions": np.array(interp_orbit["positions"]),
+                "velocities": np.array(interp_orbit["velocities"])
+            }
+        
+        # Define valid parameters for SpaceTelescope.__init__
+        valid_init_params = {
+            "code", "name", "type", "orbit_file", "diameter", "sefd_table", "pitch_range", "yaw_range",
+            "isactive", "use_kep", "kepler_elements", "orbit_data", "interpolation_method",
+            "surface_accuracy", "surface_efficiency_table", "effective_area_table", "system_temperature_table",
+            "interpolated_orbit"
+        }
+        
+        # Filter data to include only valid parameters for __init__
+        init_data = {k: v for k, v in data.items() if k in valid_init_params}
+        
+        # Set defaults for required fields
+        init_data.setdefault("name", f"stlsc_{uuid.uuid4().hex[:32]}")
+        init_data.setdefault("code", data.get("code", "TS"))
+        init_data.setdefault("type", "SpaceTelescope")
+        init_data.setdefault("orbit_file", "dummy_orbit.oem")
+        init_data.setdefault("diameter", 1.0)
+        init_data.setdefault("sefd_table", {})
+        init_data.setdefault("pitch_range", (-90.0, 90.0))
+        init_data.setdefault("yaw_range", (-180.0, 180.0))
+        init_data.setdefault("isactive", True)
+        init_data.setdefault("use_kep", True)
+        init_data.setdefault("kepler_elements", None)
+        init_data.setdefault("orbit_data", None)
+        init_data.setdefault("interpolation_method", "linear")
+        init_data.setdefault("surface_accuracy", None)
+        init_data.setdefault("surface_efficiency_table", {})
+        init_data.setdefault("effective_area_table", {})
+        init_data.setdefault("system_temperature_table", {})
+        init_data.setdefault("interpolated_orbit", None)
+        
+        return cls(**init_data)
