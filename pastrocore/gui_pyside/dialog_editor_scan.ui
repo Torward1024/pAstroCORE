@@ -239,16 +239,23 @@ QTableView, QTableWidget {
     font-family: Arial, sans-serif;
     font-size: 9pt;
     border: 1px solid #d3d3d3; /* External border for table */
+    padding: 0; /* Ensure no default padding */
+}
+
+QTableView::item, QTableWidget::item {
+    padding: 4px; /* Consistent padding for normal state */
 }
 
 QTableView::item:selected, QTableWidget::item:selected {
     background-color: #0078d7;
     color: #ffffff;
+    padding: 4px; /* Consistent padding for selected state */
 }
 
 QTableView::item:hover, QTableWidget::item:hover {
     background-color: #1a8cff;
     color: #ffffff;
+    padding: 4px; /* Explicitly set same padding to avoid shift */
 }
 
 /* Header View */
@@ -281,6 +288,7 @@ QHeaderView::section:vertical {
 QHeaderView::section:hover {
     background-color: #1a8cff;
     color: #ffffff;
+    padding: 4px; /* Explicitly set same padding to avoid shift */
 }</string>
      </property>
     </widget>
