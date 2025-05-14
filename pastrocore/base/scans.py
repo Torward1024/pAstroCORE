@@ -210,6 +210,10 @@ class Scan(BaseEntity):
         if source_name is not None:
             check_type(source_name, str, "Source name")
         params = {"source_name": source_name, "is_off_source": source_name is None}
+        # Update original_source_name if a new source is set
+        if source_name is not None and source_name != self.original_source_name:
+            params["original_source_name"] = source_name
+            logger.debug(f"Updated original_source_name to '{source_name}' for scan '{self.name}'")
         self.set(params)
         if observation:
             self.validate_with_observation(observation)
@@ -218,21 +222,28 @@ class Scan(BaseEntity):
     def set_telescope_names(self, telescope_names: List[str], observation: 'Observation' = None) -> None:
         """Set the telescope names for the scan."""
         check_type(telescope_names, list, "Telescope names")
-        if not self.original_telescope_names:
-            self.set({"original_telescope_names": self.telescope_names.copy()})
+        # Update original_telescope_names to include new names
+        current_original = self.original_telescope_names or []
+        new_telescopes = [name for name in telescope_names if name not in current_original]
+        if new_telescopes:
+            updated_original = current_original + new_telescopes
+            self.set({"original_telescope_names": updated_original})
+            logger.debug(f"Updated original_telescope_names with new telescopes {new_telescopes} for scan '{self.name}'")
         self.set({"telescope_names": telescope_names})
         if observation:
             self.validate_with_observation(observation)
-        logger.info(f"Set scan telescope_names to {telescope_names}")
+        logger.info(f"Set scan telescope_names to {telescope_names} for scan '{self.name}'")
 
     def set_frequency_names(self, frequency_names: List[str], observation: 'Observation' = None) -> None:
         """Set the frequency names for the scan."""
         check_type(frequency_names, list, "Frequency names")
-        # Save original_frequency_names if it's not set or incomplete
-        if (not self.original_frequency_names or 
-            len(self.original_frequency_names) < len(self.frequency_names)):
-            self.set({"original_frequency_names": self.frequency_names.copy()})
-            logger.debug(f"Saved original_frequency_names={self.original_frequency_names} for scan '{self.name}'")
+        # Update original_frequency_names to include new names
+        current_original = self.original_frequency_names or []
+        new_frequencies = [name for name in frequency_names if name not in current_original]
+        if new_frequencies:
+            updated_original = current_original + new_frequencies
+            self.set({"original_frequency_names": updated_original})
+            logger.debug(f"Updated original_frequency_names with new frequencies {new_frequencies} for scan '{self.name}'")
         self.set({"frequency_names": frequency_names})
         if observation:
             self.validate_with_observation(observation)
@@ -410,9 +421,27 @@ class Scans(BaseContainer[Scan]):
         frequency_names: Optional[List[str]] = None,
         is_off_source: Optional[bool] = None,
         isactive: Optional[bool] = None,
-        observation: 'Observation' = None
+        observation: 'Observation' = None,
+        original_source_name: Optional[str] = None,
+        original_telescope_names: Optional[List[str]] = None,
+        original_frequency_names: Optional[List[str]] = None
     ) -> None:
-        """Update an existing Scan object in the collection with new parameters."""
+        """Update an existing Scan object in the collection with new parameters.
+
+        Args:
+            name (str): Name of the scan to update.
+            start (Optional[Time]): New start time.
+            duration (Optional[float]): New duration in seconds.
+            source_name (Optional[str]): New source name.
+            telescope_names (Optional[List[str]]): New list of telescope names.
+            frequency_names (Optional[List[str]]): New list of frequency names.
+            is_off_source (Optional[bool]): Whether the scan is OFF SOURCE.
+            isactive (Optional[bool]): Active status of the scan.
+            observation (Optional[Observation]): Observation for validation.
+            original_source_name (Optional[str]): Original source name to set.
+            original_telescope_names (Optional[List[str]]): Original telescope names to set.
+            original_frequency_names (Optional[List[str]]): Original frequency names to set.
+        """
         from pastrocore.base.observation import Observation
         if name not in self._items:
             logger.error(f"Scan with name '{name}' not found in Scans")
@@ -436,6 +465,12 @@ class Scans(BaseContainer[Scan]):
             check_type(temp_source_name, str, "Source name")
         check_type(temp_telescope_names, list, "Telescope names")
         check_type(temp_frequency_names, list, "Frequency names")
+        if original_source_name is not None:
+            check_type(original_source_name, str, "Original source name")
+        if original_telescope_names is not None:
+            check_type(original_telescope_names, list, "Original telescope names")
+        if original_frequency_names is not None:
+            check_type(original_frequency_names, list, "Original frequency names")
 
         # Create temporary Scan for overlap and validation
         temp_scan = Scan(
@@ -478,6 +513,12 @@ class Scans(BaseContainer[Scan]):
             params["frequency_names"] = frequency_names
         if isactive is not None:
             params["isactive"] = isactive
+        if original_source_name is not None:
+            params["original_source_name"] = original_source_name
+        if original_telescope_names is not None:
+            params["original_telescope_names"] = original_telescope_names
+        if original_frequency_names is not None:
+            params["original_frequency_names"] = original_frequency_names
 
         # Update the scan
         if params:
