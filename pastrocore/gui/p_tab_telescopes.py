@@ -207,7 +207,7 @@ class TelescopesTab(QWidget):
         dialog = TelescopesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
         if dialog.exec() == QDialog.Accepted and dialog.selected_telescope:
             try:
-                telescope = dialog.selected_telescope
+                telescope = dialog.selected_telescope.copy()
                 telescope_code = telescope.code
                 telescope_name = telescope.name
                 # Ensure unique code to avoid conflicts

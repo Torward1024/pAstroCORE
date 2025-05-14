@@ -1,4 +1,5 @@
 # unit_scheduling_2/base/observation.py
+from copy import deepcopy
 from common.base.baseentity import BaseEntity
 from common.utils.validation import check_type, check_non_empty_string
 from common.utils.logging_setup import logger
@@ -139,6 +140,20 @@ class Observation(BaseEntity):
         total_duration = sum(scan.get_duration() for scan in active_scans)
         logger.debug(f"Retrieved total duration {total_duration} seconds for observation '{self.name}'")
         return int(total_duration)
+    
+    def copy(self) -> 'Observation':
+        """Create a deep copy of the Observation object."""
+        return Observation(
+            name=self.name,
+            code=self.code,
+            sources=self.sources.copy(),
+            telescopes=self.telescopes.copy(),
+            frequencies=self.frequencies.copy(),
+            scans=self.scans.copy(),
+            observation_type=self.observation_type,
+            calculated_data=deepcopy(self.calculated_data),
+            isactive=self.isactive
+        )
 
     def validate(self) -> bool:
         """Validate the observation's data for consistency and completeness."""

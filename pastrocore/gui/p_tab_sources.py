@@ -188,7 +188,7 @@ class SourcesTab(QWidget):
         dialog = SourcesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
         if dialog.exec() == QDialog.Accepted and dialog.selected_source:
             try:
-                source = dialog.selected_source
+                source = dialog.selected_source.copy()
                 source_name = source.name
                 request = {
                     "operation": "configure",

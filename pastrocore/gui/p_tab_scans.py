@@ -630,7 +630,15 @@ class ScansTab(QWidget):
                     duration = f"{attrs['duration']:.1f}" if attrs["duration"] else "N/A"
                     source_name = attrs["source_name"] or "None"
                     telescopes = ", ".join(attrs["telescope_names"]) if attrs["telescope_names"] else "None"
-                    frequencies = ", ".join(attrs["frequency_names"]) if attrs["frequency_names"] else "None"
+
+                    # Retrieve frequency values in MHz using scan_obj.get_frequencies
+                    try:
+                        frequencies_obj = scan_obj.get_frequencies(self.observation)
+                        frequency_values = frequencies_obj.get_frequencies()
+                        frequencies = ", ".join(f"{freq:.2f} MHz" for freq in frequency_values) if frequency_values else "None"
+                    except Exception as e:
+                        logger.error(f"Failed to retrieve frequencies for scan '{name}': {str(e)}")
+                        frequencies = "N/A"
 
                     row = [
                         QStandardItem(str(idx)),

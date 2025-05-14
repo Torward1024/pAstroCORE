@@ -1,4 +1,5 @@
 # base/telescope.py
+from copy import deepcopy
 from common.base.baseentity import BaseEntity
 from common.utils.validation import check_type, check_positive
 from common.utils.logging_setup import logger
@@ -280,7 +281,30 @@ class Telescope(BaseEntity):
         self.sefd_table[frequency] = sefd
         logger.debug(f"Calculated SEFD={sefd:.2f} Jy for frequency {frequency} MHz on '{self.code}'")
         return sefd
-
+    
+    def copy(self) -> 'Telescope':
+        """Create a deep copy of the Telescope object."""
+        return Telescope(
+            code=self.code,
+            name=self.name,
+            type=self.type,
+            x=self.x,
+            y=self.y,
+            z=self.z,
+            vx=self.vx,
+            vy=self.vy,
+            vz=self.vz,
+            diameter=self.diameter,
+            sefd_table=deepcopy(self.sefd_table),
+            elevation_range=self.elevation_range,
+            azimuth_range=self.azimuth_range,
+            mount_type=self.mount_type,
+            isactive=self.isactive,
+            surface_accuracy=self.surface_accuracy,
+            surface_efficiency_table=deepcopy(self.surface_efficiency_table),
+            effective_area_table=deepcopy(self.effective_area_table),
+            system_temperature_table=deepcopy(self.system_temperature_table)
+        )
     def _check_sefd(self, frequency: float, sefd: float) -> bool:
         """Check if an SEFD value is a duplicate with a different value.
 

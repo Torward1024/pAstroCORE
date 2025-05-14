@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_space_telescopeIXWoeS.ui'
+## Form generated from reading UI file 'dialog_editor_space_telescopetGDZZG.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -560,7 +560,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "}")
         self.pitchMinEdit.setDecimals(2)
         self.pitchMinEdit.setMinimum(-90.000000000000000)
-        self.pitchMinEdit.setMaximum(90.000000000000000)
+        self.pitchMinEdit.setMaximum(89.000000000000000)
 
         self.pitchRangeLayout.addWidget(self.pitchMinEdit)
 
@@ -639,8 +639,9 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.pitchMaxEdit.setDecimals(2)
-        self.pitchMaxEdit.setMinimum(-90.000000000000000)
+        self.pitchMaxEdit.setMinimum(0.000000000000000)
         self.pitchMaxEdit.setMaximum(90.000000000000000)
+        self.pitchMaxEdit.setValue(90.000000000000000)
 
         self.pitchRangeLayout.addWidget(self.pitchMaxEdit)
 
@@ -730,7 +731,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "}")
         self.yawMinEdit.setDecimals(2)
         self.yawMinEdit.setMinimum(-180.000000000000000)
-        self.yawMinEdit.setMaximum(180.000000000000000)
+        self.yawMinEdit.setMaximum(179.000000000000000)
 
         self.yawRangeLayout.addWidget(self.yawMinEdit)
 
@@ -809,8 +810,9 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.yawMaxEdit.setDecimals(2)
-        self.yawMaxEdit.setMinimum(-180.000000000000000)
+        self.yawMaxEdit.setMinimum(0.000000000000000)
         self.yawMaxEdit.setMaximum(180.000000000000000)
+        self.yawMaxEdit.setValue(90.000000000000000)
 
         self.yawRangeLayout.addWidget(self.yawMaxEdit)
 
@@ -2114,7 +2116,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
         self.useKepCheckBox.toggled.connect(self.orbitFileEdit.setDisabled)
         self.useKepCheckBox.toggled.connect(self.browseOrbitFileButton.setDisabled)
 
-        self.tabWidget.setCurrentIndex(2)
+        self.tabWidget.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(SpaceTelescopeEditorDialog)

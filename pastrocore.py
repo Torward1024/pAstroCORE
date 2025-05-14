@@ -105,7 +105,7 @@ class PAstroCoreMainWindow(QMainWindow):
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
         self.project_updated.connect(self.update_project_explorer)
-        # Подключаем сигнал закрытия вкладок
+
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
         self.project_updated.connect(self.update_all_tabs)
 
@@ -113,7 +113,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Handle closing of tabs, prevent closing of project tab."""
         widget = self.ui.tabContainer.widget(index)
         if widget.objectName() == "projectInfoTab":
-            return  # Не закрываем вкладку проекта
+            return
         self.ui.tabContainer.removeTab(index)
 
     def show_context_menu(self, position: QPoint):
@@ -141,10 +141,12 @@ class PAstroCoreMainWindow(QMainWindow):
         elif item_type == "observations" or item_type == "observation":
             add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
             if item_type == "observation":
+                obs_name = item.data(Qt.UserRole + 1)  # Получаем obs_name
+                obs_code = text  # text — это obs_code
                 remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
                 edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
-                remove_action.triggered.connect(lambda: self.remove_observation(text))
-                edit_action.triggered.connect(lambda: self.edit_observation(text))
+                remove_action.triggered.connect(lambda: self.remove_observation(obs_name, obs_code))
+                edit_action.triggered.connect(lambda: self.edit_observation(obs_name, obs_code))
             else:
                 remove_action = menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "Remove Observations")
                 remove_action.triggered.connect(lambda: self.remove_observations())
@@ -184,7 +186,6 @@ class PAstroCoreMainWindow(QMainWindow):
             return
 
         try:
-            # Найти имя наблюдения по коду
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
@@ -264,7 +265,6 @@ class PAstroCoreMainWindow(QMainWindow):
         logger.debug(f"Opening edit tab for observation with code '{obs_code}'")
         self.open_observation_tab(obs_name, obs_code)
 
-    @Slot()
     def update_project_explorer(self):
         """Update Project Explorer tree using ScheduleInspector."""
         model = QStandardItemModel()
@@ -307,6 +307,7 @@ class PAstroCoreMainWindow(QMainWindow):
                         if code_response["status"]:
                             obs_item = QStandardItem(code_response["result"])  # Отображаем code
                             obs_item.setData("observation", Qt.UserRole)
+                            obs_item.setData(obs_name, Qt.UserRole + 1)  # Сохраняем obs_name
                             observations_item.appendRow(obs_item)
                         else:
                             logger.error(f"Failed to get code for observation with name '{obs_name}': {code_response.get('error', 'Unknown error')}")
@@ -678,10 +679,10 @@ class PAstroCoreMainWindow(QMainWindow):
             if widget.objectName() == f"observationTab_{obs_code}":
                 tab_container.setCurrentIndex(i)
                 widget.setFocus()
-                # Обновляем вкладку наблюдения
+
                 widget.update_tab()
                 return
-        # Получаем наблюдение через Manipulator
+
         obs_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,

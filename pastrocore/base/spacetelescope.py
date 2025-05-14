@@ -1,3 +1,4 @@
+from copy import deepcopy
 from .telescope import Telescope
 from common.utils.logging_setup import logger
 import numpy as np
@@ -194,6 +195,33 @@ class SpaceTelescope(Telescope):
                 "velocities": self.orbit_data["velocities"].copy()
             }
         return None
+    
+    def copy(self) -> 'SpaceTelescope':
+        """Create a deep copy of the SpaceTelescope object, validating orbital parameters."""
+        copied = SpaceTelescope(
+            code=self.code,
+            name=self.name,
+            orbit_file=self.orbit_file,
+            diameter=self.diameter,
+            sefd_table=deepcopy(self.sefd_table),
+            pitch_range=self.pitch_range,
+            yaw_range=self.yaw_range,
+            isactive=self.isactive,
+            use_kep=self.use_kep,
+            kepler_elements=deepcopy(self.kepler_elements),
+            orbit_data=deepcopy(self.orbit_data),
+            interpolation_method=self.interpolation_method,
+            surface_accuracy=self.surface_accuracy,
+            surface_efficiency_table=deepcopy(self.surface_efficiency_table),
+            effective_area_table=deepcopy(self.effective_area_table),
+            system_temperature_table=deepcopy(self.system_temperature_table),
+            _interpolated_orbit=deepcopy(self._interpolated_orbit)
+        )
+        if copied.kepler_elements:
+            copied._validate_kepler_elements(copied.kepler_elements)
+        if copied.orbit_data:
+            copied.set_orbit(copied.orbit_data)  # Validates orbit data
+        return copied
 
     def set_orbit(self, orbit_data: Dict[str, np.ndarray]) -> None:
         """Set orbit data directly with times, positions, and velocities."""

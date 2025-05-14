@@ -194,15 +194,15 @@ class SpaceTelescopeEditorDialog(QDialog):
         self.ui.useKepCheckBox.setChecked(self.telescope.use_kep)
         self.ui.isActiveCheckBox.setChecked(self.telescope.isactive)
         
-        if self.telescope.use_kep and self.telescope.kepler:
-            self.ui.semiMajorAxisEdit.setValue(self.telescope.kepler["semi_major_axis"])
-            self.ui.eccentricityEdit.setValue(self.telescope.kepler["eccentricity"])
-            self.ui.inclinationEdit.setValue(self.telescope.kepler["inclination"])
-            self.ui.raanEdit.setValue(self.telescope.kepler["raan"])
-            self.ui.argpEdit.setValue(self.telescope.kepler["argp"])
-            self.ui.nuEdit.setValue(self.telescope.kepler["nu"])
-            self.ui.epochEdit.setDateTime(self.telescope.kepler["epoch"])
-            self.ui.muEdit.setValue(self.telescope.kepler["mu"])
+        if self.telescope.use_kep and self.telescope.kepler_elements:
+            self.ui.semiMajorAxisEdit.setValue(self.telescope.kepler_elements["semi_major_axis"])
+            self.ui.eccentricityEdit.setValue(self.telescope.kepler_elements["eccentricity"])
+            self.ui.inclinationEdit.setValue(self.telescope.kepler_elements["inclination"])
+            self.ui.raanEdit.setValue(self.telescope.kepler_elements["raan"])
+            self.ui.argpEdit.setValue(self.telescope.kepler_elements["argp"])
+            self.ui.nuEdit.setValue(self.telescope.kepler_elements["nu"])
+            self.ui.epochEdit.setDateTime(self.telescope.kepler_elements["epoch"])
+            self.ui.muEdit.setValue(self.telescope.kepler_elements["mu"])
         
         if self.telescope.sefd_table:
             for freq, sefd in self.telescope.sefd_table.items():

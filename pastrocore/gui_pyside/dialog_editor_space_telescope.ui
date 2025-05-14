@@ -631,7 +631,7 @@ QDoubleSpinBox::down-arrow {
               <double>-90.000000000000000</double>
              </property>
              <property name="maximum">
-              <double>90.000000000000000</double>
+              <double>89.000000000000000</double>
              </property>
             </widget>
            </item>
@@ -716,9 +716,12 @@ QDoubleSpinBox::down-arrow {
               <number>2</number>
              </property>
              <property name="minimum">
-              <double>-90.000000000000000</double>
+              <double>0.000000000000000</double>
              </property>
              <property name="maximum">
+              <double>90.000000000000000</double>
+             </property>
+             <property name="value">
               <double>90.000000000000000</double>
              </property>
             </widget>
@@ -818,7 +821,7 @@ QDoubleSpinBox::down-arrow {
               <double>-180.000000000000000</double>
              </property>
              <property name="maximum">
-              <double>180.000000000000000</double>
+              <double>179.000000000000000</double>
              </property>
             </widget>
            </item>
@@ -903,10 +906,13 @@ QDoubleSpinBox::down-arrow {
               <number>2</number>
              </property>
              <property name="minimum">
-              <double>-180.000000000000000</double>
+              <double>0.000000000000000</double>
              </property>
              <property name="maximum">
               <double>180.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>90.000000000000000</double>
              </property>
             </widget>
            </item>
