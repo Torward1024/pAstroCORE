@@ -142,6 +142,13 @@ class TelescopeEditorDialog(QDialog):
         self.setup_connections()
         if telescope:
             self.load_telescope_data()
+            self.ui.codeEdit.setReadOnly(True)
+            self.ui.nameEdit.setReadOnly(True)
+            logger.debug(f"Editing existing telescope '{telescope.get_code()}' with read-only name and code fields")
+        else:
+            self.ui.codeEdit.setReadOnly(False)
+            self.ui.nameEdit.setReadOnly(False)
+            logger.debug("Creating new telescope with editable name and code fields")
 
     def setup_models(self):
         """Initialize table models."""
