@@ -7,14 +7,7 @@ from common.utils.logging_setup import logger
 
 class SourceEditorDialog(QDialog):
     """Dialog for editing or adding a source."""
-
     def __init__(self, source_obj: Source = None, parent=None):
-        """Initialize the source editor dialog.
-
-        Args:
-            source_obj (Source, optional): Source object to edit. If None, creates a new source.
-            parent (QWidget, optional): Parent widget. Defaults to None.
-        """
         super().__init__(parent)
         self.ui = Ui_SourceEditorDialog()
         self.ui.setupUi(self)
@@ -24,6 +17,11 @@ class SourceEditorDialog(QDialog):
         self.setup_connections()
         if source_obj:
             self.load_source_data(source_obj)
+            self.ui.nameEdit.setReadOnly(True)
+            logger.debug(f"Editing existing source '{source_obj.name}' with read-only name field")
+        else:
+            self.ui.nameEdit.setReadOnly(False)
+            logger.debug("Creating new source with editable name field")
 
     def setup_ui(self):
         """Set up the UI components."""
