@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QDateTime
 from pastrocore.gui.ui_dialog_edit_space_telescope import Ui_SpaceTelescopeEditorDialog
 from astropy.time import Time
 from common.utils.logging_setup import logger
@@ -199,13 +199,31 @@ class SpaceTelescopeEditorDialog(QDialog):
         self.ui.isActiveCheckBox.setChecked(self.telescope.isactive)
         
         if self.telescope.use_kep and self.telescope.kepler_elements:
-            self.ui.semiMajorAxisEdit.setValue(self.telescope.kepler_elements["semi_major_axis"])
-            self.ui.eccentricityEdit.setValue(self.telescope.kepler_elements["eccentricity"])
-            self.ui.inclinationEdit.setValue(self.telescope.kepler_elements["inclination"])
+            self.ui.semiMajorAxisEdit.setValue(self.telescope.kepler_elements["a"])
+            self.ui.eccentricityEdit.setValue(self.telescope.kepler_elements["e"])
+            self.ui.inclinationEdit.setValue(self.telescope.kepler_elements["i"])
             self.ui.raanEdit.setValue(self.telescope.kepler_elements["raan"])
             self.ui.argpEdit.setValue(self.telescope.kepler_elements["argp"])
             self.ui.nuEdit.setValue(self.telescope.kepler_elements["nu"])
-            self.ui.epochEdit.setDateTime(self.telescope.kepler_elements["epoch"])
+
+            # Предполагается, что self.telescope.kepler_elements["epoch"] — это объект astropy.time.Time
+            epoch_time = self.telescope.kepler_elements["epoch"]
+
+            # Преобразование astropy.time.Time в Python datetime
+            epoch_datetime = epoch_time.datetime  # Получаем объект datetime
+
+            # Преобразование datetime в QDateTime
+            qdatetime = QDateTime(
+                epoch_datetime.year,
+                epoch_datetime.month,
+                epoch_datetime.day,
+                epoch_datetime.hour,
+                epoch_datetime.minute,
+                epoch_datetime.second,
+                epoch_datetime.microsecond // 1000
+            )
+
+            self.ui.epochEdit.setDateTime(qdatetime)
             self.ui.muEdit.setValue(self.telescope.kepler_elements["mu"])
         
         if self.telescope.sefd_table:
