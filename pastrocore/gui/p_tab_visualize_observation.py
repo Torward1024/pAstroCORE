@@ -140,7 +140,8 @@ class VisualizeObservationTab(QWidget):
                 "plot_type": plot_type_mapping[plot_type],
                 "show": True,
                 "output_file": None,
-                "freq_name": freq_name
+                "freq_name": freq_name,
+                "time_step": 600  # Добавляем time_step, как в test_m87_space_1_year.py
             }
             request = {
                 "operation": "visualize",
@@ -148,14 +149,31 @@ class VisualizeObservationTab(QWidget):
                 "attributes": attributes
             }
             response = self.manipulator.process_request(request)
-            if response["status"] == "success":
-                logger.info(f"Visualization '{plot_type}' completed for observation '{self.observation.get_observation_code()}'")
-                self.ui.lbl_status.setText(f"Status: Success - {response.get('baselines', response.get('scans', 'Plot displayed'))}")
+            logger.debug(f"Visualization response for '{plot_type}': {response}")
+
+            # Проверяем статус ответа
+            status = response.get("status")
+            if isinstance(status, bool):
+                # Если status - логический, предполагаем, что result содержит данные визуализации
+                if status:
+                    result = response.get("result", {})
+                    logger.info(f"Visualization '{plot_type}' completed for observation '{self.observation.get_observation_code()}'")
+                    self.ui.lbl_status.setText(f"Status: Success - {result.get('baselines', result.get('scans', 'Plot displayed'))}")
+                else:
+                    error_msg = response.get("message", "Unknown error")
+                    logger.error(f"Visualization failed: {error_msg}")
+                    self.ui.lbl_status.setText(f"Status: Error - {error_msg}")
+                    QMessageBox.critical(self, "Error", f"Visualization failed: {error_msg}")
             else:
-                error_msg = response.get("message", "Unknown error")
-                logger.error(f"Visualization failed: {error_msg}")
-                self.ui.lbl_status.setText(f"Status: Error - {error_msg}")
-                QMessageBox.critical(self, "Error", f"Visualization failed: {error_msg}")
+                # Предполагаем, что status - строка ("success", "error", "no data")
+                if status == "success":
+                    logger.info(f"Visualization '{plot_type}' completed for observation '{self.observation.get_observation_code()}'")
+                    self.ui.lbl_status.setText(f"Status: Success - {response.get('baselines', response.get('scans', 'Plot displayed'))}")
+                else:
+                    error_msg = response.get("message", "Unknown error")
+                    logger.error(f"Visualization failed: {error_msg}")
+                    self.ui.lbl_status.setText(f"Status: Error - {error_msg}")
+                    QMessageBox.critical(self, "Error", f"Visualization failed: {error_msg}")
         except Exception as e:
             logger.error(f"Exception during visualization: {str(e)}")
             self.ui.lbl_status.setText(f"Status: Error - {str(e)}")

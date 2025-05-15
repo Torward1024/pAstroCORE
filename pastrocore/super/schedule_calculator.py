@@ -765,6 +765,7 @@ class ScheduleCalculator(Super):
                             pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
                             uuu, vvv, www = uvw_scaled[i, j, time_idx]
                             uv_points[freq].append((pair, float(uuu), float(vvv), float(www)))
+                            logger.debug(f"UV point for {pair} at freq {freq/1e6} MHz, time_idx {time_idx}")
 
         return uv_points
 
