@@ -114,8 +114,7 @@ class CalculationDialog(QDialog):
         self.ui.calcTable.setRowCount(len(calc_types))
         for row, calc_type in enumerate(calc_types):
             checkbox = QCheckBox()
-            if self.calc_type == calc_type:
-                checkbox.setChecked(True)
+            checkbox.setChecked(True)  # Set all checkboxes checked by default
             self.ui.calcTable.setCellWidget(row, 0, checkbox)
             item = QTableWidgetItem(calc_type)
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
