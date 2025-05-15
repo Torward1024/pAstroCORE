@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>tab_visualize_observation</class>
+ <widget class="QWidget" name="tab_visualize_observation">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>479</width>
+    <height>355</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="label_plot_type">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Visualization Type:</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="combo_plot_type">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <item>
+      <property name="text">
+       <string>UV Coverage</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Source Visibility</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Sun Angles</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Az/El or HA/Dec</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Time on Source</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Beam Pattern</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Synthesized Beam</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Baseline Projections</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Mollweide Tracks</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="label_freq">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Frequency (IF):</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="combo_freq">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="btn_visualize">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Visualize</string>
+     </property>
+     <property name="icon">
+      <iconset>
+       <normaloff>:/icons/plot_icon.svg</normaloff>:/icons/plot_icon.svg</iconset>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="lbl_status">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">color: #333333;</string>
+     </property>
+     <property name="text">
+      <string>Status: Ready</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="../gui/rc_icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>

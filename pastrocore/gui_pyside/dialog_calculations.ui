@@ -1,0 +1,440 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CalculationDialog</class>
+ <widget class="QDialog" name="CalculationDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>611</width>
+    <height>585</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Perform Calculations</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <property name="modal">
+   <bool>true</bool>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0" colspan="2">
+    <widget class="QLabel" name="labelCalculations">
+     <property name="text">
+      <string>Calculations:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0" colspan="2">
+    <widget class="QTableWidget" name="calcTable">
+     <property name="styleSheet">
+      <string notr="true">/* QTableWidget styles for pAstroCORE */
+QTableWidget {
+    background-color: #ffffff;
+    gridline-color: #d3d3d3;
+    color: #333333;
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+    border: 1px solid #d3d3d3;
+}
+QTableWidget::item {
+    padding: 4px;
+}
+QTableWidget::item:selected {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 4px;
+}
+QTableWidget::item:hover {
+    background-color: #1a8cff;
+    color: #ffffff;
+    padding: 4px;
+}
+QHeaderView {
+    background-color: #f9f9f9;
+    border: none;
+    border-bottom: 1px solid #d3d3d3;
+}
+QHeaderView::section {
+    background-color: #f9f9f9;
+    color: #333333;
+    border-bottom: none;
+    border-right: none;
+    border-left: none;
+    border-top: none;
+    padding: 4px;
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+}
+QHeaderView::section:horizontal {
+    border-right: 1px solid #d3d3d3;
+}
+QHeaderView::section:vertical {
+    border-bottom: 1px solid #d3d3d3;
+}
+QHeaderView::section:hover {
+    background-color: #1a8cff;
+    color: #ffffff;
+    padding: 4px;
+}</string>
+     </property>
+     <column>
+      <property name="text">
+       <string>Select</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Calculation Type</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Status</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Dependencies</string>
+      </property>
+     </column>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="2">
+    <widget class="QLabel" name="labelTargets">
+     <property name="text">
+      <string>Targets:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="2">
+    <widget class="QListWidget" name="targetList">
+     <property name="styleSheet">
+      <string notr="true">QListWidget {
+    background-color: #ffffff;
+    color: #333333;
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+    border: 1px solid #d3d3d3;
+}
+QListWidget::item {
+    padding: 4px;
+}
+QListWidget::item:selected {
+    background-color: #0078d7;
+    color: #ffffff;
+}
+QListWidget::item:hover {
+    background-color: #1a8cff;
+    color: #ffffff;
+}</string>
+     </property>
+     <property name="selectionMode">
+      <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0" colspan="2">
+    <widget class="QPushButton" name="selectAllButton">
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+     </property>
+     <property name="text">
+      <string>Select All</string>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="2">
+    <widget class="QLabel" name="labelParameters">
+     <property name="text">
+      <string>Parameters:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0" colspan="2">
+    <layout class="QVBoxLayout" name="paramsLayout">
+     <item>
+      <widget class="QDoubleSpinBox" name="timeStepSpin">
+       <property name="styleSheet">
+        <string notr="true">QDoubleSpinBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+    background-color: #f9f9f9;
+    border: 1px solid #d3d3d3;
+}
+QDoubleSpinBox:editable {
+    background-color: #f0f6ff;
+    border: 1px solid #0078d7;
+}
+QDoubleSpinBox:editable:hover {
+    border: 1px solid #1a8cff;
+}
+QDoubleSpinBox:editable:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: padding;
+    width: 20px;
+    border-left: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+    background-color: #0078d7;
+}
+QDoubleSpinBox::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg);
+}
+QDoubleSpinBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg);
+}</string>
+       </property>
+       <property name="minimum">
+        <double>1.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>3600.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>60.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="recalculateCheck">
+       <property name="text">
+        <string>Recalculate</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="limitFreqsCheck">
+       <property name="text">
+        <string>Limit Frequencies</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QListWidget" name="freqList">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QListWidget {
+    background-color: #ffffff;
+    color: #333333;
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+    border: 1px solid #d3d3d3;
+}
+QListWidget::item {
+    padding: 4px;
+}
+QListWidget::item:selected {
+    background-color: #0078d7;
+    color: #ffffff;
+}
+QListWidget::item:hover {
+    background-color: #1a8cff;
+    color: #ffffff;
+}</string>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="7" column="0" colspan="2">
+    <widget class="QCheckBox" name="ignoreDepsCheck">
+     <property name="text">
+      <string>Ignore Dependencies</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0" colspan="2">
+    <layout class="QHBoxLayout" name="buttonLayout">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="calcButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Calculate</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="calcVizButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Calculate and Visualize</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="exportButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Export Script</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cancelButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+       <property name="autoDefault">
+        <bool>true</bool>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>limitFreqsCheck</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>freqList</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>250</x>
+     <y>450</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>250</x>
+     <y>500</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
