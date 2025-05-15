@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowlaKPOF.ui'
+## Form generated from reading UI file 'main_windowWSHGTL.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -79,6 +79,10 @@ class Ui_MainWindow(object):
         icon9 = QIcon()
         icon9.addFile(u":/icons/export_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.actionExport_Observation.setIcon(icon9)
+        self.actionCalculate = QAction(MainWindow)
+        self.actionCalculate.setObjectName(u"actionCalculate")
+        self.actionVisualize = QAction(MainWindow)
+        self.actionVisualize.setObjectName(u"actionVisualize")
         self.mainCentralWidget = QWidget(MainWindow)
         self.mainCentralWidget.setObjectName(u"mainCentralWidget")
         self.mainLayout = QHBoxLayout(self.mainCentralWidget)
@@ -167,6 +171,8 @@ class Ui_MainWindow(object):
         self.menuHelp.setAutoFillBackground(False)
         self.menuWindow = QMenu(self.mainMenuBar)
         self.menuWindow.setObjectName(u"menuWindow")
+        self.menuTools = QMenu(self.mainMenuBar)
+        self.menuTools.setObjectName(u"menuTools")
         MainWindow.setMenuBar(self.mainMenuBar)
         self.mainStatusBar = QStatusBar(MainWindow)
         self.mainStatusBar.setObjectName(u"mainStatusBar")
@@ -198,6 +204,7 @@ class Ui_MainWindow(object):
         MainWindow.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.dockWidget)
 
         self.mainMenuBar.addAction(self.menuFile.menuAction())
+        self.mainMenuBar.addAction(self.menuTools.menuAction())
         self.mainMenuBar.addAction(self.menuOptions.menuAction())
         self.mainMenuBar.addAction(self.menuWindow.menuAction())
         self.mainMenuBar.addAction(self.menuHelp.menuAction())
@@ -215,6 +222,8 @@ class Ui_MainWindow(object):
         self.menuOptions.addAction(self.actionTelescope_Catalog_Manager)
         self.menuHelp.addAction(self.actionAbout)
         self.menuWindow.addAction(self.actionProject_Explorer)
+        self.menuTools.addAction(self.actionCalculate)
+        self.menuTools.addAction(self.actionVisualize)
 
         self.retranslateUi(MainWindow)
         self.actionExit.triggered.connect(MainWindow.close)
@@ -237,12 +246,15 @@ class Ui_MainWindow(object):
         self.actionSave_Project_As.setText(QCoreApplication.translate("MainWindow", u"Save Project As...", None))
         self.actionImport_Observation.setText(QCoreApplication.translate("MainWindow", u"Import Observation", None))
         self.actionExport_Observation.setText(QCoreApplication.translate("MainWindow", u"Export Observation", None))
+        self.actionCalculate.setText(QCoreApplication.translate("MainWindow", u"Calculate", None))
+        self.actionVisualize.setText(QCoreApplication.translate("MainWindow", u"Visualize", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Select item from Project Explorer.", None))
         self.tabContainer.setTabText(self.tabContainer.indexOf(self.tabWelcome), QCoreApplication.translate("MainWindow", u"Welcome", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuOptions.setTitle(QCoreApplication.translate("MainWindow", u"Options", None))
         self.menuHelp.setTitle(QCoreApplication.translate("MainWindow", u"Help", None))
         self.menuWindow.setTitle(QCoreApplication.translate("MainWindow", u"Window", None))
+        self.menuTools.setTitle(QCoreApplication.translate("MainWindow", u"Tools", None))
         self.dockWidget.setWindowTitle(QCoreApplication.translate("MainWindow", u"Project Explorer", None))
         self.projectExplorer.setStyleSheet(QCoreApplication.translate("MainWindow", u"border: 1px solid #d3d3d3; background-color: #ffffff;", None))
     # retranslateUi

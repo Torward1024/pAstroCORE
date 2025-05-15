@@ -10,6 +10,7 @@ from .p_tab_frequencies import FrequenciesTab
 from .p_tab_sources import SourcesTab
 from .p_tab_telescopes import TelescopesTab
 from .p_tab_scans import ScansTab
+from .p_tab_visualize_observation import VisualizeObservationTab
 import pastrocore.gui.rc_icons
 
 class ObservationTab(QWidget):
@@ -36,6 +37,8 @@ class ObservationTab(QWidget):
             frequencies_tab=self.frequencies_tab,
             sources_tab=self.sources_tab
         )
+
+        self.visualize_tab = VisualizeObservationTab(observation, project, manipulator, self)
 
         # Создание вкладок и добавление их в tabWidget
         # Frequencies Tab
@@ -66,6 +69,13 @@ class ObservationTab(QWidget):
         scans_layout.addWidget(self.scans_tab)
         self.ui.tabWidget.addTab(self.tab_scans, "Scans")
 
+        # Visualization Tab
+        self.tab_visualize = QWidget()
+        self.tab_visualize.setObjectName("tab_visualize")
+        visualize_layout = QVBoxLayout(self.tab_visualize)
+        visualize_layout.addWidget(self.visualize_tab)
+        self.ui.tabWidget.addTab(self.tab_visualize, "Visualization")
+
         self.setup_connections()
         self.update_tab()
 
@@ -80,6 +90,7 @@ class ObservationTab(QWidget):
         self.sources_tab.data_updated.connect(self.observation_updated)
         self.telescopes_tab.data_updated.connect(self.observation_updated)
         self.scans_tab.data_updated.connect(self.observation_updated)
+        self.visualize_tab.data_updated.connect(self.observation_updated)
 
     def on_obs_name_edit_double_click(self, event):
         """Enable editing of observation code on double-click."""
@@ -188,6 +199,7 @@ class ObservationTab(QWidget):
                 self.sources_tab.observation = self.observation
                 self.telescopes_tab.observation = self.observation
                 self.scans_tab.observation = self.observation
+                self.visualize_tab.observation = self.observation
 
             # Update observation code (visible to user)
             self.ui.obs_name_edit.setText(self.observation.code)
@@ -235,6 +247,7 @@ class ObservationTab(QWidget):
             self.sources_tab.update()
             self.telescopes_tab.update()
             self.scans_tab.update()
+            self.visualize_tab.update()
 
             logger.info(f"Observation tab updated for code '{obs_code}'")
         except Exception as e:

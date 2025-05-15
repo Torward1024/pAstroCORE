@@ -2,22 +2,19 @@ import sys
 import os
 import json
 from PySide6.QtWidgets import (
-    QMainWindow, QApplication, QFileDialog, QMessageBox, QDialog,
-    QTreeView, QTabWidget, QTabBar, QWidget, QProgressDialog, QMenu, QInputDialog
+    QMainWindow, QApplication, QFileDialog, QMessageBox,
+    QTreeView, QTabBar, QProgressDialog, QMenu
 )
-from PySide6.QtCore import Qt, Signal, Slot, QEvent, QMetaObject, QPoint
+from PySide6.QtCore import Qt, Signal, Slot, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 # Core files
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.base.spacetelescope import SpaceTelescope
-from pastrocore.base.frequencies import IF, Frequencies
 from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
 # UI files
 from pastrocore.gui.ui_main_window import Ui_MainWindow
-from pastrocore.gui.ui_dialog_about import Ui_AboutDialog
-from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
+from pastrocore.gui.p_dialog_calculations import CalculationDialog
 from pastrocore.gui.p_dialog_about import AboutDialog
 from pastrocore.gui.p_dialog_preferences import PreferencesDialog
 from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
@@ -101,13 +98,24 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.actionTelescope_Catalog_Manager.triggered.connect(self.open_telescope_catalog_manager)
         self.ui.actionSource_Catalog_Manager.triggered.connect(self.open_source_catalog_manager)
         self.ui.actionAbout.triggered.connect(self.show_about)
+        self.ui.actionCalculate.triggered.connect(self.open_calculation_dialog)
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
         self.project_updated.connect(self.update_project_explorer)
-
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
         self.project_updated.connect(self.update_all_tabs)
+
+    @Slot()
+    def open_calculation_dialog(self):
+        """Open the calculation dialog."""
+        try:
+            dialog = CalculationDialog(self.manipulator, self.project, parent=self)
+            dialog.exec()
+            logger.info("Calculation dialog opened and closed")
+        except Exception as e:
+            logger.error(f"Failed to open calculation dialog: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
 
     def handle_tab_close(self, index):
         """Handle closing of tabs, prevent closing of project tab."""
@@ -141,8 +149,8 @@ class PAstroCoreMainWindow(QMainWindow):
         elif item_type == "observations" or item_type == "observation":
             add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
             if item_type == "observation":
-                obs_name = item.data(Qt.UserRole + 1)  # Получаем obs_name
-                obs_code = text  # text — это obs_code
+                obs_name = item.data(Qt.UserRole + 1)
+                obs_code = text
                 remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
                 edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
                 remove_action.triggered.connect(lambda: self.remove_observation(obs_name, obs_code))
@@ -207,7 +215,7 @@ class PAstroCoreMainWindow(QMainWindow):
             if response["status"]:
                 logger.info(f"Observation with code '{obs_code}' and name '{obs_name}' removed from project '{self.project.get_name()}'")
                 self.project_updated.emit()
-                # Закрыть вкладку, если она открыта
+
                 tab_container = self.ui.tabContainer
                 for i in range(tab_container.count()):
                     widget = tab_container.widget(i)
@@ -246,7 +254,7 @@ class PAstroCoreMainWindow(QMainWindow):
             if response["status"]:
                 logger.info(f"All observations were removed from project '{self.project.get_name()}'")
                 self.project_updated.emit()
-                # Закрыть вкладки, если они открыты
+
                 tab_container = self.ui.tabContainer
                 for i in range(self.ui.tabContainer.count() - 1, -1, -1):
                     widget = self.ui.tabContainer.widget(i)
