@@ -31,6 +31,8 @@ class CalculationThread(QThread):
                 for calc_type in self.calc_types:
                     for freq in freqs:
                         calc_params = self.params.get(calc_type, {})
+                        # Ensure time_step is always included, as per test_m87_space_1_year.py
+                        calc_params["time_step"] = self.params.get("time_step", 600)  # Default to 600 if not specified
                         if freq:
                             calc_params["freq_name"] = freq
                         # Map dialog calc types to calculator methods
@@ -56,6 +58,7 @@ class CalculationThread(QThread):
                             },
                             "obj": target
                         }
+                        logger.debug(f"Executing calculation request for {calc_type} on {target.name} with params: {calc_params}")
                         result = self.manipulator.process_request(request)
                         if not result.get("status", False):
                             raise ValueError(f"Calculation {calc_type} failed for {target.name}: {result.get('message', 'Unknown error')}")
@@ -304,7 +307,9 @@ class CalculationDialog(QDialog):
                             f.write(f"        'method': '{method}',\n")
                             if freq:
                                 f.write(f"        'freq_name': '{freq}',\n")
-                            f.write(f"        'time_step': {params['time_step']},\n")
+                            # Include time_step for all calculations except beam_pattern
+                            if calc_type != "Beam Pattern":
+                                f.write(f"        'time_step': {params['time_step']},\n")
                             f.write(f"        'recalculate': {params['recalculate']}\n")
                             if calc_type in ["Mollweide Tracks", "Time on Source", "Sun Angles", "Azimuth/Elevation"]:
                                 f.write(f"        'store_key': '{method}'\n")

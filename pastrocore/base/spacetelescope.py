@@ -438,36 +438,60 @@ class SpaceTelescope(Telescope):
     def to_dict(self) -> dict:
         """Convert the SpaceTelescope object to a dictionary for serialization.
 
-        Excludes orbit_data to prevent storing temporary in-memory data.
+        Excludes orbit_data to prevent storing temporary in-memory data. Converts numpy arrays in interpolated_orbit
+        to lists for JSON compatibility. Includes all other annotated attributes, such as orbit_file, kepler_elements,
+        and interpolated_orbit, for proper deserialization.
+
+        Returns:
+            dict: A dictionary containing the serialized data of the SpaceTelescope, JSON-compatible.
+
+        Raises:
+            ValueError: If serialization fails due to invalid data.
         """
-        data = super().to_dict()
-        for key in ["x", "y", "z", "vx", "vy", "vz"]:
-            data.pop(key, None)
-        data.update({
-            "type": "SpaceTelescope",
-            "orbit_file": self.orbit_file,
-            "pitch_range": list(self.pitch_range),
-            "yaw_range": list(self.yaw_range),
-            "use_kep": self.use_kep,
-            "kepler_elements": None if self.kepler_elements is None else {
-                "a": self.kepler_elements["a"],
-                "e": self.kepler_elements["e"],
-                "i": self.kepler_elements["i"],
-                "raan": self.kepler_elements["raan"],
-                "argp": self.kepler_elements["argp"],
-                "nu": self.kepler_elements["nu"],
-                "epoch": self.kepler_elements["epoch"].isot,
-                "mu": self.kepler_elements["mu"]
-            },
-            "interpolation_method": self.interpolation_method,
-            "interpolated_orbit": None if self.interpolated_orbit is None else {
-                "time_range": list(self.interpolated_orbit["time_range"]),
-                "times": self.interpolated_orbit["times"].tolist(),
-                "positions": self.interpolated_orbit["positions"].tolist(),
-                "velocities": self.interpolated_orbit["velocities"].tolist()
+        try:
+            # Получаем базовую сериализацию из родительского класса
+            data = super().to_dict()
+            logger.debug(f"BaseEntity.to_dict returned: {data}")
+
+            # Исключаем orbit_data и координаты/скорости, не актуальные для SpaceTelescope
+            for key in ["x", "y", "z", "vx", "vy", "vz", "orbit_data"]:
+                data.pop(key, None)
+
+            # Формируем словарь с атрибутами SpaceTelescope
+            serialized_data = {
+                "type": "SpaceTelescope",
+                "orbit_file": self.orbit_file,
+                "pitch_range": list(self.pitch_range),
+                "yaw_range": list(self.yaw_range),
+                "use_kep": self.use_kep,
+                "kepler_elements": None if self.kepler_elements is None else {
+                    "a": self.kepler_elements["a"],
+                    "e": self.kepler_elements["e"],
+                    "i": self.kepler_elements["i"],
+                    "raan": self.kepler_elements["raan"],
+                    "argp": self.kepler_elements["argp"],
+                    "nu": self.kepler_elements["nu"],
+                    "epoch": self.kepler_elements["epoch"].isot,
+                    "mu": self.kepler_elements["mu"]
+                },
+                "interpolation_method": self.interpolation_method,
+                "interpolated_orbit": None if self.interpolated_orbit is None else {
+                    "time_range": list(self.interpolated_orbit["time_range"]),
+                    "times": self.interpolated_orbit["times"].tolist(),
+                    "positions": self.interpolated_orbit["positions"].tolist(),
+                    "velocities": self.interpolated_orbit["velocities"].tolist()
+                }
             }
-        })
-        return data
+
+            # Обновляем базовый словарь
+            data.update(serialized_data)
+            logger.debug(f"Serialized SpaceTelescope '{self.code}' to JSON-compatible dict: {data}")
+
+            return data
+
+        except Exception as e:
+            logger.error(f"Failed to serialize SpaceTelescope '{self.code}': {str(e)}")
+            raise ValueError(f"Serialization failed: {str(e)}")
 
     @classmethod
     def from_dict(cls, data: dict) -> 'SpaceTelescope':

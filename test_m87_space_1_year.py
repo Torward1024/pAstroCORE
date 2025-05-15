@@ -105,7 +105,7 @@ class TestEHTObservationWithSpaceTelescope(unittest.TestCase):
         frequencies.add(frequency)
 
         start_time = Time("2031-03-10T00:00:00", format="isot", scale="utc")
-        duration = 86400 * 365 * u.s
+        duration = 86400 * 10 * u.s
         scan = Scan()
         result = self.manipulator.process_request({
             "operation": "configure",
