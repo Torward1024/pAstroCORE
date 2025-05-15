@@ -147,7 +147,7 @@ class ScheduleCalculator(Super):
             position_store_key = attributes.get("position_store_key", "telescope_positions")
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 if not observations:
                     logger.warning(f"no observations in project '{obj.name}'")
                     return {}
@@ -358,7 +358,7 @@ class ScheduleCalculator(Super):
 
             def calculate_positions(obj, attrs):
                 if isinstance(obj, ScheduleProject):
-                    observations = obj.get_observations()
+                    observations = obj.get_items()
                     if not observations:
                         logger.warning(f"no observations in project '{obj.name}'")
                         return {}
@@ -576,7 +576,7 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", f"uv_coverage_{freq_name}")
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 if not observations:
                     logger.warning(f"no observations in project '{obj.name}'")
                     return {}
@@ -784,7 +784,7 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", "sun_angles")
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 if not observations:
                     logger.warning(f"no observations in project '{obj.name}'")
                     return {}
@@ -1020,7 +1020,7 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", "az_el")
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
                     return {}
@@ -1240,7 +1240,7 @@ class ScheduleCalculator(Super):
             visibility_store_key = "source_visibility"
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
                     return {}
@@ -1368,7 +1368,7 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", f"beam_pattern_{freq_name}")
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 if not observations:
                     logger.warning(f"no observations in project '{obj.name}'")
                     return {}
@@ -1425,7 +1425,7 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", f"synthesized_beam_{freq_name}")
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 results = {}
                 for obs in observations:
                     obs_result = self._calculate_synthesized_beam(obs, attributes)
@@ -1520,7 +1520,7 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", f"baseline_projections_{freq_name}")
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 if not observations:
                     logger.warning(f"no observations in project '{obj.name}'")
                     return {}
@@ -1704,7 +1704,7 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", "mollweide_tracks")
 
             if isinstance(obj, ScheduleProject):
-                observations = obj.get_observations()
+                observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
                     return {}

@@ -82,6 +82,13 @@ class TelescopesCatalogDialog(QDialog):
             QMessageBox.warning(self, "Warning", "Telescopes catalog is empty.")
             return
 
+        # Проверка уникальности имени
+        names = [telescope.name for telescope in telescopes if telescope.name]
+        unique_names = set(names)
+        if len(names) != len(unique_names):
+            logger.warning("Duplicate telescope names found in catalog")
+            QMessageBox.warning(self, "Warning", "Catalog contains duplicate telescope names. Selection may be ambiguous.")
+
         for telescope in telescopes:
             items = [
                 QStandardItem(telescope.code or ""),
@@ -135,14 +142,20 @@ class TelescopesCatalogDialog(QDialog):
             return
 
         row = selected[0].row()
-        telescope_code = self.model.item(row, 0).text()
+        telescope_name = self.model.item(row, 1).text()  # Извлекаем name (второй столбец)
         telescopes = self.catalog_manager.telescope_catalog.get_items()
-        for telescope in telescopes:
-            if telescope.code == telescope_code:
-                self.selected_telescope = telescope
-                self.telescope_selected.emit(telescope)
-                self.accept()
-                logger.info(f"Selected telescope '{telescope_code}' for adding to observation")
-                return
-        logger.error(f"Telescope '{telescope_code}' not found in catalog")
-        QMessageBox.critical(self, "Error", f"Telescope '{telescope_code}' not found in catalog.")
+        matching_telescopes = [t for t in telescopes if t.name == telescope_name]
+
+        if not matching_telescopes:
+            logger.error(f"Telescope with name '{telescope_name}' not found in catalog")
+            QMessageBox.critical(self, "Error", f"Telescope '{telescope_name}' not found in catalog.")
+            return
+
+        if len(matching_telescopes) > 1:
+            logger.warning(f"Multiple telescopes with name '{telescope_name}' found in catalog")
+            QMessageBox.warning(self, "Warning", f"Multiple telescopes with name '{telescope_name}' found. Selecting the first one.")
+
+        self.selected_telescope = matching_telescopes[0]
+        self.telescope_selected.emit(self.selected_telescope)
+        self.accept()
+        logger.info(f"Selected telescope '{telescope_name}' for adding to observation")
