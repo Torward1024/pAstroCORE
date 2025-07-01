@@ -280,8 +280,6 @@ class Frequencies(BaseContainer[IF]):
             KeyError: If the name is not found in the collection.
         """
         super().activate_item(name)
-        if hasattr(self, '_parent') and self._parent:
-            self._parent._sync_scans_with_activation("frequencies", name, True)
 
     def deactivate_item(self, name: str) -> None:
         """Deactivate a specific frequency by its name.
@@ -295,8 +293,6 @@ class Frequencies(BaseContainer[IF]):
             KeyError: If the name is not found in the collection.
         """
         super().deactivate_item(name)
-        if hasattr(self, '_parent') and self._parent:
-            self._parent._sync_scans_with_activation("frequencies", name, False)
 
     def set_items(self, items: Dict[str, IF]) -> None:
         """Set or replace all IF objects in the collection.

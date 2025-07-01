@@ -269,7 +269,7 @@ QDoubleSpinBox::down-arrow {
           <double>3600.000000000000000</double>
          </property>
          <property name="value">
-          <double>60.000000000000000</double>
+          <double>600.000000000000000</double>
          </property>
         </widget>
        </item>

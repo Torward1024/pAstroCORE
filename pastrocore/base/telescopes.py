@@ -131,8 +131,6 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             KeyError: If the name is not found in the collection.
         """
         super().activate_item(name)
-        if hasattr(self, '_parent') and self._parent:
-            self._parent._sync_scans_with_activation("telescopes", name, True)
 
     def deactivate_item(self, name: str) -> None:
         """Deactivate a specific telescope by its name.
@@ -146,8 +144,6 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             KeyError: If the name is not found in the collection.
         """
         super().deactivate_item(name)
-        if hasattr(self, '_parent') and self._parent:
-            self._parent._sync_scans_with_activation("telescopes", name, False)
     
     def copy(self) -> 'Telescopes':
         """Create a deep copy of the Telescopes object."""

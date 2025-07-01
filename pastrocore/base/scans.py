@@ -3,11 +3,11 @@ from common.base.baseentity import BaseEntity
 from common.base.basecontainer import BaseContainer
 from common.utils.validation import check_type, check_positive
 from common.utils.logging_setup import logger
-from .frequencies import Frequencies
+from .frequencies import IF, Frequencies
 from .sources import Source
-from .telescopes import Telescopes, SpaceTelescope
+from .telescopes import Telescope, SpaceTelescope, Telescopes
 import numpy as np
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union
 from astropy.time import Time
 import astropy.units as u
 import uuid
@@ -17,54 +17,61 @@ class Scan(BaseEntity):
     name: str
     start: Time
     duration: float
-    source_name: Optional[str]
-    telescope_names: List[str]
-    frequency_names: List[str]
+    source: Optional[Source]
+    telescopes: List[Union[Telescope, SpaceTelescope]]
+    frequencies: List[IF]
     is_off_source: bool
-    original_source_name: Optional[str]
-    original_telescope_names: Optional[List[str]]
-    original_frequency_names: Optional[List[str]]
 
-    def __init__(self, name: str = None, start: Time = None, duration: float = 1.0, source_name: Optional[str] = None,
-                 telescope_names: List[str] = None, frequency_names: List[str] = None,
+    def __init__(self, name: str = None, start: Time = None, duration: float = 1.0, source: Optional[Source] = None,
+                 telescopes: List[Union[Telescope, SpaceTelescope]] = None, frequencies: List[IF] = None,
                  is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None):
-        """Initialize a Scan with name, start time, duration, and names referencing Observation data."""
+        """Initialize a Scan with name, start time, duration, and references to observation entities."""
         if start is None:
             start = Time.now()
         if name is None:
             name = f"scan_{uuid.uuid4().hex[:32]}"
         check_type(start, Time, "Start time")
         check_positive(duration, "Duration")
-        if source_name is not None:
-            check_type(source_name, str, "Source name")
-        if telescope_names is None:
-            telescope_names = []
-        if frequency_names is None:
-            frequency_names = []
+        if source is not None:
+            check_type(source, Source, "Source")
+        if telescopes is None:
+            telescopes = []
+        if frequencies is None:
+            frequencies = []
+        check_type(telescopes, list, "Telescopes")
+        check_type(frequencies, list, "Frequencies")
+        for t in telescopes:
+            check_type(t, (Telescope, SpaceTelescope), "Telescope")
+        for f in frequencies:
+            check_type(f, IF, "Frequency")
         super().__init__(
             name=name,
             start=start,
             duration=duration,
-            source_name=source_name,
-            telescope_names=telescope_names,
-            frequency_names=frequency_names,
-            is_off_source=source_name is None or is_off_source,
-            original_source_name=source_name,  # Set original_source_name
-            original_telescope_names=telescope_names.copy() if telescope_names else None,
-            original_frequency_names=frequency_names.copy() if frequency_names else None,
+            source=source,
+            telescopes=telescopes,
+            frequencies=frequencies,
+            is_off_source=source is None or is_off_source,
             isactive=isactive,
         )
-
-        # Check activity status if observation is provided
         if observation:
             from pastrocore.base.observation import Observation
             check_type(observation, Observation, "Observation")
+            # Ensure source is the reference from observation
+            if source is not None:
+                sources = observation.get_sources()
+                source_from_obs = sources.get(source.name)
+                if source_from_obs:
+                    self.source = source_from_obs
+                    logger.debug(f"Set scan '{name}' source to reference '{source.name}' from observation")
+                else:
+                    logger.error(f"Source '{source.name}' not found in observation sources")
+                    raise ValueError(f"Invalid source '{source.name}' for observation")
             isactive = self._check_activity_status(observation)
             if isactive != self.isactive:
                 self.set({"isactive": isactive})
                 logger.debug(f"Set scan '{name}' isactive={isactive} based on initial validation")
-
-        source_str = "OFF SOURCE" if self.is_off_source else f"source_name={source_name}" if source_name else "no source"
+        source_str = "OFF SOURCE" if self.is_off_source else f"source={source.name if source else None}"
         logger.info(f"Initialized Scan with name={name}, start={self.start.isot}, duration={duration}, {source_str}")
     
     def check_activity_status(self, observation: 'Observation') -> bool:
@@ -78,54 +85,28 @@ class Scan(BaseEntity):
             name=self.name,
             start=self.start,
             duration=self.duration,
-            source_name=self.source_name,
-            telescope_names=self.telescope_names.copy(),
-            frequency_names=self.frequency_names.copy(),
+            source=self.source,
+            telescopes=self.telescopes.copy(),  # Shallow copy, as objects are managed by Observation
+            frequencies=self.frequencies.copy(),  # Shallow copy, as objects are managed by Observation
             is_off_source=self.is_off_source,
             isactive=self.isactive
         )
     
     def _check_activity_status(self, observation: 'Observation') -> bool:
+        """Check if the scan is active based on telescope, frequency, and source availability."""
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
-
         observation_type = observation.get_observation_type()
         min_telescopes = 1 if observation_type == "SINGLE_DISH" else 2
-        logger.debug(f"Checking activity for scan '{self.name}', observation_type={observation_type}, min_telescopes={min_telescopes}")
-
-        # Check if telescope_names or frequency_names are empty
-        if not self.telescope_names:
-            logger.debug(f"Scan '{self.name}' has no telescopes, marking inactive")
-            return False
-        if not self.frequency_names:
-            logger.debug(f"Scan '{self.name}' has no frequencies, marking inactive")
-            return False
-
-        # Check telescope activity
-        telescope_items = observation.get_telescopes().get_items()
-        active_telescopes = [
-            name for name in self.telescope_names
-            if any(t.name == name and t.isactive for t in telescope_items)
-        ]
-        logger.debug(f"Scan '{self.name}' telescope_names={self.telescope_names}, active_telescopes={active_telescopes}")
-
-        # Check frequency activity
-        frequency_items = observation.get_frequencies().get_items()
-        active_frequencies = [
-            name for name in self.frequency_names
-            if any(f.name == name and f.isactive for f in frequency_items)
-        ]
-        logger.debug(f"Scan '{self.name}' frequency_names={self.frequency_names}, active_frequencies={active_frequencies}")
-
-        # Check source activity
+        active_telescopes = [t for t in self.telescopes if t.isactive]
+        active_frequencies = [f for f in self.frequencies if f.isactive]
         source_active = (
             self.is_off_source or
-            self.source_name is None or
-            any(s.name == self.source_name and s.isactive for s in observation.get_sources().get_items())
+            self.source is None or
+            (self.source in observation.get_sources().get_items() and self.source.isactive)
         )
-        logger.debug(f"Scan '{self.name}' source_name={self.source_name}, is_off_source={self.is_off_source}, source_active={source_active}")
-
-        # Determine activity status
+        logger.debug(self.source)
+        logger.debug(observation.get_sources().get_items())
         should_be_active = (
             len(active_telescopes) >= min_telescopes and
             len(active_frequencies) >= 1 and
@@ -159,7 +140,7 @@ class Scan(BaseEntity):
 
     def get_source_name(self) -> Optional[str]:
         """Retrieve the source name."""
-        return self.get("source_name")
+        return self.source.name
 
     def get_telescope_names(self) -> List[str]:
         """Retrieve the list of telescope names."""
@@ -170,28 +151,20 @@ class Scan(BaseEntity):
         return self.get("frequency_names")
 
     def get_source(self, observation: 'Observation') -> Optional[Source]:
-        """Retrieve the source associated with this scan from an Observation."""
-        from pastrocore.base.observation import Observation
-        check_type(observation, Observation, "Observation")
-        if self.source_name is None or self.is_off_source:
-            return None
-        sources = observation.get_sources()
-        return sources.get(self.source_name)
+        """Retrieve the source associated with this scan."""
+        return self.source
 
     def get_telescopes(self, observation: 'Observation') -> Telescopes:
-        """Retrieve the telescopes associated with this scan from an Observation."""
+        """Retrieve the telescopes associated with this scan."""
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
-        all_tels = observation.get_telescopes()
-        selected = {name: t for name in self.telescope_names if (t := all_tels.get(name))}
-        return Telescopes(items=selected)
+        return Telescopes(items={t.name: t for t in self.telescopes})
 
     def get_frequencies(self, observation: 'Observation') -> Frequencies:
+        """Retrieve the frequencies associated with this scan."""
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
-        all_freqs = observation.get_frequencies()
-        selected = {name: f for name in self.frequency_names if (f := all_freqs.get(name))}
-        return Frequencies(items=selected)
+        return Frequencies(items={f.name: f for f in self.frequencies})
 
     def set_start(self, start: Time) -> None:
         """Set the start time of the scan."""
@@ -205,75 +178,80 @@ class Scan(BaseEntity):
         self.set({"duration": duration})
         logger.info(f"Set scan duration to {duration}")
 
-    def set_source_name(self, source_name: str, observation: 'Observation' = None) -> None:
-        """Set the source name for the scan."""
-        if source_name is not None:
-            check_type(source_name, str, "Source name")
-        params = {"source_name": source_name, "is_off_source": source_name is None}
-        # Update original_source_name if a new source is set
-        if source_name is not None and source_name != self.original_source_name:
-            params["original_source_name"] = source_name
-            logger.debug(f"Updated original_source_name to '{source_name}' for scan '{self.name}'")
-        self.set(params)
+    def set_source(self, source: Optional[Source], observation: 'Observation' = None) -> None:
+        """Set the source for the scan."""
+        if source is not None:
+            check_type(source, Source, "Source")
+        if observation:
+            from pastrocore.base.observation import Observation
+            check_type(observation, Observation, "Observation")
+            # Ensure source is the reference from observation
+            if source is not None:
+                sources = observation.get_sources()
+                source_from_obs = sources.get(source.name)
+                if source_from_obs:
+                    source = source_from_obs
+                    logger.debug(f"Set scan '{self.name}' source to reference '{source.name}' from observation")
+                else:
+                    logger.error(f"Source '{source.name}' not found in observation sources")
+                    raise ValueError(f"Invalid source '{source.name}' for observation")
+        self.set({"source": source, "is_off_source": source is None})
         if observation:
             self.validate_with_observation(observation)
-        logger.info(f"Set scan source_name to {'OFF SOURCE' if source_name is None else source_name}")
+        logger.info(f"Set scan source to {'OFF SOURCE' if source is None else source.name}")
 
-    def set_telescope_names(self, telescope_names: List[str], observation: 'Observation' = None) -> None:
-        """Set the telescope names for the scan."""
-        check_type(telescope_names, list, "Telescope names")
-        # Update original_telescope_names to include new names
-        current_original = self.original_telescope_names or []
-        new_telescopes = [name for name in telescope_names if name not in current_original]
-        if new_telescopes:
-            updated_original = current_original + new_telescopes
-            self.set({"original_telescope_names": updated_original})
-            logger.debug(f"Updated original_telescope_names with new telescopes {new_telescopes} for scan '{self.name}'")
-        self.set({"telescope_names": telescope_names})
+    def set_telescopes(self, telescopes: List[Union[Telescope, SpaceTelescope]], observation: 'Observation' = None) -> None:
+        """Set the telescopes for the scan."""
+        check_type(telescopes, list, "Telescopes")
+        for t in telescopes:
+            check_type(t, (Telescope, SpaceTelescope), "Telescope")
+        self.set({"telescopes": telescopes})
         if observation:
             self.validate_with_observation(observation)
-        logger.info(f"Set scan telescope_names to {telescope_names} for scan '{self.name}'")
+        logger.info(f"Set scan telescopes to {[t.name for t in telescopes]} for scan '{self.name}'")
 
-    def set_frequency_names(self, frequency_names: List[str], observation: 'Observation' = None) -> None:
-        """Set the frequency names for the scan."""
-        check_type(frequency_names, list, "Frequency names")
-        # Update original_frequency_names to include new names
-        current_original = self.original_frequency_names or []
-        new_frequencies = [name for name in frequency_names if name not in current_original]
-        if new_frequencies:
-            updated_original = current_original + new_frequencies
-            self.set({"original_frequency_names": updated_original})
-            logger.debug(f"Updated original_frequency_names with new frequencies {new_frequencies} for scan '{self.name}'")
-        self.set({"frequency_names": frequency_names})
+    def set_frequencies(self, frequencies: List[IF], observation: 'Observation' = None) -> None:
+        """Set the frequencies for the scan."""
+        check_type(frequencies, list, "Frequencies")
+        for f in frequencies:
+            check_type(f, IF, "Frequency")
+        self.set({"frequencies": frequencies})
         if observation:
             self.validate_with_observation(observation)
-        logger.info(f"Set scan frequency_names to {frequency_names} for scan '{self.name}'")
+        logger.info(f"Set scan frequencies to {[f.name for f in frequencies]} for scan '{self.name}'")
 
     def validate_with_observation(self, observation: 'Observation') -> bool:
+        """Validate scan attributes against an observation."""
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
-        
-        if not self.telescope_names:
+        if not self.telescopes:
             logger.warning(f"Scan '{self.name}' has no telescopes assigned")
-        if not self.frequency_names:
+        if not self.frequencies:
             logger.warning(f"Scan '{self.name}' has no frequencies assigned")
-        
-        if self.source_name is not None and not observation.get_sources().get(self.source_name):
-            logger.error(f"Invalid source_name {self.source_name} for observation")
-            return False
-        
-        all_tels = observation.get_telescopes()
-        for name in self.telescope_names:
-            if not all_tels.get(name):
-                logger.error(f"Invalid telescope_name {name} for observation")
+        # Check source validity and sync activity status
+        if self.source is not None:
+            sources = observation.get_sources()
+            source_from_obs = sources.get(self.source.name)
+            if source_from_obs is None:
+                logger.error(f"Invalid source {self.source.name if self.source else None} for observation")
                 return False
-        
-        all_freqs = observation.get_frequencies()
-        for name in self.frequency_names:
-            if not all_freqs.get(name):
-                logger.error(f"Invalid frequency_name {name} for observation")
+            # Sync source reference
+            if self.source is not source_from_obs:
+                self.source = source_from_obs
+                logger.debug(f"Synced scan '{self.name}' source '{self.source.name}' with observation reference")
+        # Always sync scan activity status with observation
+        should_be_active = self._check_activity_status(observation)
+        if should_be_active != self.isactive:
+            self.set({"isactive": should_be_active})
+            logger.debug(f"{'Activated' if should_be_active else 'Deactivated'} scan '{self.name}' based on source activity")
+        for telescope in self.telescopes:
+            if telescope not in observation.get_telescopes().get_items():
+                logger.error(f"Invalid telescope {telescope.name} for observation")
                 return False
-                
+        for freq in self.frequencies:
+            if freq not in observation.get_frequencies().get_items():
+                logger.error(f"Invalid frequency {freq.name} for observation")
+                return False
         logger.debug(f"Validated scan '{self.name}' with start={self.start.isot} against observation '{observation.get_observation_code()}'")
         return True
 
@@ -328,30 +306,82 @@ class Scan(BaseEntity):
         """Convert the Scan object to a dictionary, serializing Time as ISO string."""
         data = super().to_dict()
         data["start"] = self.start.isot
+        data["source"] = self.source.name if self.source else None
+        data["telescopes"] = [t.name for t in self.telescopes]
+        data["frequencies"] = [f.name for f in self.frequencies]
         logger.info(f"Converted scan '{self.name}' with start={self.start.isot} to dictionary")
         return data
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'Scan':
-        """Create a Scan object from a dictionary, parsing ISO string to Time."""
+    def from_dict(cls, data: dict, observation: 'Observation' = None) -> 'Scan':
+        """Create a Scan object from a dictionary, parsing ISO string to Time and resolving objects from Observation."""
+        from pastrocore.base.observation import Observation
         data = data.copy()
         start_time = Time(data.pop("start"))
-        original_telescope_names = data.pop("original_telescope_names", None)
-        original_frequency_names = data.pop("original_frequency_names", None)
-        data.pop("type", None)  # Remove 'type' field if present
+        source_name = data.pop("source", None)
+        telescope_names = data.pop("telescopes", [])  # List of telescope names
+        frequency_names = data.pop("frequencies", [])  # List of frequency names
+        is_off_source = data.pop("is_off_source", False)
+        data.pop("type", None)
+
+        # Resolve source
+        source = None
+        if observation and source_name and not is_off_source:
+            sources = observation.get_sources()
+            source = sources.get(source_name)
+            if source:
+                logger.debug(f"Resolved source '{source_name}' for scan")
+            else:
+                logger.error(f"Source '{source_name}' not found in observation sources")
+                raise ValueError(f"Source '{source_name}' not found in observation sources")
+        elif source_name and not observation:
+            logger.error(f"Cannot resolve source '{source_name}' without observation context")
+            raise ValueError(f"Cannot resolve source '{source_name}' without observation context")
+
+        # Resolve telescopes
+        telescopes = []
+        if observation and telescope_names:
+            all_telescopes = observation.get_telescopes()
+            for name in telescope_names:
+                telescope = all_telescopes.get(name)
+                if telescope:
+                    telescopes.append(telescope)
+                    logger.debug(f"Resolved telescope '{name}' for scan")
+                else:
+                    logger.warning(f"Telescope '{name}' not found in observation telescopes")
+        elif telescope_names:
+            logger.warning(f"No observation provided, cannot resolve telescopes: {telescope_names}")
+
+        # Resolve frequencies
+        frequencies = []
+        if observation and frequency_names:
+            all_frequencies = observation.get_frequencies()
+            for name in frequency_names:
+                frequency = all_frequencies.get(name)
+                if frequency:
+                    frequencies.append(frequency)
+                    logger.debug(f"Resolved frequency '{name}' for scan")
+                else:
+                    logger.warning(f"Frequency '{name}' not found in observation frequencies")
+        elif frequency_names:
+            logger.warning(f"No observation provided, cannot resolve frequencies: {frequency_names}")
+
+        # Create Scan instance
         scan = cls(
-            name=data.get("name"),
+            name=data.get("name", f"scan_{uuid.uuid4().hex[:32]}"),
             start=start_time,
-            duration=data.get("duration"),
-            source_name=data.get("source_name"),
-            telescope_names=data.get("telescope_names"),
-            frequency_names=data.get("frequency_names"),
-            is_off_source=data.get("is_off_source"),
-            isactive=data.get("isactive", True)
+            duration=data.get("duration", 1.0),
+            source=source,
+            telescopes=telescopes,
+            frequencies=frequencies,
+            is_off_source=is_off_source,
+            isactive=data.get("isactive", True),
+            observation=observation
         )
-        scan.original_telescope_names = original_telescope_names
-        scan.original_frequency_names = original_frequency_names
-        logger.info(f"Created scan '{scan.name}' with start={scan.start.isot} from dictionary")
+        logger.info(f"Created scan '{scan.name}' with start={scan.start.isot}, "
+                    f"source={'OFF SOURCE' if is_off_source else source_name or 'None'}, "
+                    f"telescopes={[t.name for t in telescopes] if telescopes else []}, "
+                    f"frequencies={[f.name for f in frequencies] if frequencies else []}")
         return scan
 
 
@@ -374,12 +404,10 @@ class Scans(BaseContainer[Scan]):
             if not scan.validate_with_observation(observation):
                 logger.error(f"Scan '{scan.name}' failed validation against observation '{observation.get_observation_code()}'")
                 raise ValueError("Scan validation failed")
-            # Check and update activity status
             should_be_active = scan._check_activity_status(observation)
             if should_be_active != scan.isactive:
                 scan.set({"isactive": should_be_active})
                 logger.debug(f"Set scan '{scan.name}' isactive={should_be_active} during add")
-
         overlap, reason = self._check_overlap(scan)
         if overlap:
             logger.error(f"Scan '{scan.name}' with start={scan.get_start().isot}, duration={scan.get_duration()} {reason}")
@@ -394,17 +422,17 @@ class Scans(BaseContainer[Scan]):
         self._key_cache = list(self._items.keys())
         logger.info(f"Removed scan '{name}' from Scans")
 
-    def create_scan(self, name: str = None, start: Time = None, duration: float = 1.0, source_name: Optional[str] = None,
-                    telescope_names: List[str] = None, frequency_names: List[str] = None,
+    def create_scan(self, name: str = None, start: Time = None, duration: float = 1.0, source: Optional[Source] = None,
+                    telescopes: List[Union[Telescope, SpaceTelescope]] = None, frequencies: List[IF] = None,
                     is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None) -> None:
         """Create and add a new Scan object to the collection."""
         scan = Scan(
             name=name,
             start=start,
             duration=duration,
-            source_name=source_name,
-            telescope_names=telescope_names,
-            frequency_names=frequency_names,
+            source=source,
+            telescopes=telescopes,
+            frequencies=frequencies,
             is_off_source=is_off_source,
             isactive=isactive,
             observation=observation
@@ -416,115 +444,73 @@ class Scans(BaseContainer[Scan]):
         name: str,
         start: Optional[Time] = None,
         duration: Optional[float] = None,
-        source_name: Optional[str] = None,
-        telescope_names: Optional[List[str]] = None,
-        frequency_names: Optional[List[str]] = None,
+        source: Optional[Source] = None,
+        telescopes: Optional[List[Union[Telescope, SpaceTelescope]]] = None,
+        frequencies: Optional[List[IF]] = None,
         is_off_source: Optional[bool] = None,
         isactive: Optional[bool] = None,
-        observation: 'Observation' = None,
-        original_source_name: Optional[str] = None,
-        original_telescope_names: Optional[List[str]] = None,
-        original_frequency_names: Optional[List[str]] = None
+        observation: 'Observation' = None
     ) -> None:
-        """Update an existing Scan object in the collection with new parameters.
-
-        Args:
-            name (str): Name of the scan to update.
-            start (Optional[Time]): New start time.
-            duration (Optional[float]): New duration in seconds.
-            source_name (Optional[str]): New source name.
-            telescope_names (Optional[List[str]]): New list of telescope names.
-            frequency_names (Optional[List[str]]): New list of frequency names.
-            is_off_source (Optional[bool]): Whether the scan is OFF SOURCE.
-            isactive (Optional[bool]): Active status of the scan.
-            observation (Optional[Observation]): Observation for validation.
-            original_source_name (Optional[str]): Original source name to set.
-            original_telescope_names (Optional[List[str]]): Original telescope names to set.
-            original_frequency_names (Optional[List[str]]): Original frequency names to set.
-        """
+        """Update an existing Scan object in the collection with new parameters."""
         from pastrocore.base.observation import Observation
         if name not in self._items:
             logger.error(f"Scan with name '{name}' not found in Scans")
             raise KeyError(f"Scan with name '{name}' not found in Scans")
-
         scan = self._items[name]
-        
-        # Prepare temporary parameters
         temp_start = start if start is not None else scan.start
         temp_duration = duration if duration is not None else scan.duration
-        temp_source_name = source_name if source_name is not None else scan.source_name
-        temp_telescope_names = telescope_names if telescope_names is not None else scan.telescope_names
-        temp_frequency_names = frequency_names if frequency_names is not None else scan.frequency_names
+        temp_source = source if source is not None else scan.source
+        temp_telescopes = telescopes if telescopes is not None else scan.telescopes
+        temp_frequencies = frequencies if frequencies is not None else scan.frequencies
         temp_is_off_source = is_off_source if is_off_source is not None else scan.is_off_source
         temp_isactive = isactive if isactive is not None else scan.isactive
-
-        # Validate types and values
         check_type(temp_start, Time, "Start time")
         check_positive(temp_duration, "Duration")
-        if temp_source_name is not None:
-            check_type(temp_source_name, str, "Source name")
-        check_type(temp_telescope_names, list, "Telescope names")
-        check_type(temp_frequency_names, list, "Frequency names")
-        if original_source_name is not None:
-            check_type(original_source_name, str, "Original source name")
-        if original_telescope_names is not None:
-            check_type(original_telescope_names, list, "Original telescope names")
-        if original_frequency_names is not None:
-            check_type(original_frequency_names, list, "Original frequency names")
-
-        # Create temporary Scan for overlap and validation
+        if temp_source is not None:
+            check_type(temp_source, Source, "Source")
+        check_type(temp_telescopes, list, "Telescopes")
+        check_type(temp_frequencies, list, "Frequencies")
+        for t in temp_telescopes:
+            check_type(t, (Telescope, SpaceTelescope), "Telescope")
+        for f in temp_frequencies:
+            check_type(f, IF, "Frequency")
         temp_scan = Scan(
             name=name,
             start=temp_start,
             duration=temp_duration,
-            source_name=temp_source_name,
-            telescope_names=temp_telescope_names,
-            frequency_names=temp_frequency_names,
+            source=temp_source,
+            telescopes=temp_telescopes,
+            frequencies=temp_frequencies,
             is_off_source=temp_is_off_source,
             isactive=temp_isactive,
             observation=observation
         )
-
-        # Check for overlaps
         overlap, reason = self._check_overlap(temp_scan, exclude_name=name)
         if overlap:
             logger.error(f"Updated scan '{name}' {reason}")
             raise ValueError(f"Scan update conflicts: {reason}")
-
-        # Validate with observation if provided
         if observation:
             check_type(observation, Observation, "Observation")
             if not temp_scan.validate_with_observation(observation):
                 logger.error(f"Updated scan '{name}' failed validation against observation '{observation.get_observation_code()}'")
                 raise ValueError("Scan validation failed")
-        
-        # Prepare parameters to update
         params = {}
         if start is not None:
             params["start"] = start
         if duration is not None:
             params["duration"] = duration
-        if source_name is not None or is_off_source is not None:
-            params["source_name"] = temp_source_name
+        if source is not None or is_off_source is not None:
+            params["source"] = temp_source
             params["is_off_source"] = temp_is_off_source
-        if telescope_names is not None:
-            params["telescope_names"] = telescope_names
-        if frequency_names is not None:
-            params["frequency_names"] = frequency_names
+        if telescopes is not None:
+            params["telescopes"] = telescopes
+        if frequencies is not None:
+            params["frequencies"] = frequencies
         if isactive is not None:
             params["isactive"] = isactive
-        if original_source_name is not None:
-            params["original_source_name"] = original_source_name
-        if original_telescope_names is not None:
-            params["original_telescope_names"] = original_telescope_names
-        if original_frequency_names is not None:
-            params["original_frequency_names"] = original_frequency_names
-
-        # Update the scan
         if params:
             scan.set(params)
             logger.info(f"Updated scan '{name}' in Scans with params: {params}")
-            # Re-check activity status only if isactive was not explicitly set
             if observation and isactive is None:
                 should_be_active = scan._check_activity_status(observation)
                 scan.set({"isactive": should_be_active})
@@ -579,15 +565,16 @@ class Scans(BaseContainer[Scan]):
                 active.append(scan)
                 continue
             check_type(observation, Observation, "Observation")
-            if scan.source_name is not None:
-                source = observation.get_sources().get(scan.source_name)
+            # Check source activity
+            if scan.source is not None:
+                source = observation.get_sources().get(scan.source.name)
                 if source and not source.isactive:
                     continue
-            all_tels = observation.get_telescopes()
-            if any(name in all_tels._items and not all_tels.get(name).isactive for name in scan.telescope_names):
+            # Check telescope activity
+            if any(not telescope.isactive for telescope in scan.telescopes):
                 continue
-            all_freqs = observation.get_frequencies()
-            if any(name in all_freqs._items and not all_freqs.get(name).isactive for name in scan.frequency_names):
+            # Check frequency activity
+            if any(not frequency.isactive for frequency in scan.frequencies):
                 continue
             active.append(scan)
         logger.debug(f"Retrieved {len(active)} active scans" + 
@@ -626,6 +613,23 @@ class Scans(BaseContainer[Scan]):
                 return True, reason
         logger.debug(f"No overlap detected for scan '{scan.name}' with start={scan.get_start().isot}")
         return False, ""
+    
+    @classmethod
+    def from_dict(cls, data: dict, observation: 'Observation' = None) -> 'Scans':
+        """Create a Scans object from a dictionary."""
+        from pastrocore.base.observation import Observation
+        items = {}
+        for scan_data in data.get("items", {}).values():
+            scan = Scan.from_dict(scan_data, observation=observation)
+            items[scan.name] = scan
+        scans = cls(
+            name=data.get("name", f"scans_{uuid.uuid4().hex[:32]}"),
+            items=items,
+            isactive=data.get("isactive", True),
+            use_cache=data.get("use_cache", False)
+        )
+        logger.info(f"Created Scans '{scans.name}' with {len(items)} scans from dictionary")
+        return scans
 
     def __repr__(self) -> str:
         """Return a string representation of the Scans object."""

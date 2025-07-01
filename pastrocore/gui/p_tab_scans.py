@@ -50,7 +50,7 @@ class ScansTab(QWidget):
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
         self.ui.table.setColumnWidth(1, 24)
         self.ui.table.setColumnWidth(0, 50)
-        self.ui.table.setColumnHidden(2, True)  # Скрываем столбец "Scan ID"
+        self.ui.table.setColumnHidden(2, True)  # Hide "Scan ID" column
 
         # Connect signals
         self.ui.search.textChanged.connect(self.on_search_changed)
@@ -232,13 +232,11 @@ class ScansTab(QWidget):
                             "name": scan_data["name"],
                             "start": scan_data["start"],
                             "duration": scan_data["duration"],
-                            "source_name": scan_data["source_name"],
-                            "telescope_names": scan_data["telescope_names"],
-                            "frequency_names": scan_data["frequency_names"],
+                            "source": scan_data["source"],
+                            "telescopes": scan_data["telescopes"],
+                            "frequencies": scan_data["frequencies"],
+                            "is_off_source": scan_data["is_off_source"],
                             "isactive": scan_data["isactive"],
-                            "original_source_name": scan_data["original_source_name"],
-                            "original_telescope_names": scan_data["original_telescope_names"],
-                            "original_frequency_names": scan_data["original_frequency_names"],
                             "observation": self.observation
                         }
                     }
@@ -286,13 +284,11 @@ class ScansTab(QWidget):
                                 "name": scan_name,
                                 "start": scan_data["start"],
                                 "duration": scan_data["duration"],
-                                "source_name": scan_data["source_name"],
-                                "telescope_names": scan_data["telescope_names"],
-                                "frequency_names": scan_data["frequency_names"],
+                                "source": scan_data["source"],
+                                "telescopes": scan_data["telescopes"],
+                                "frequencies": scan_data["frequencies"],
+                                "is_off_source": scan_data["is_off_source"],
                                 "isactive": scan_data["isactive"],
-                                "original_source_name": scan_data["original_source_name"],
-                                "original_telescope_names": scan_data["original_telescope_names"],
-                                "original_frequency_names": scan_data["original_frequency_names"],
                                 "observation": self.observation
                             }
                         }
@@ -549,43 +545,40 @@ class ScansTab(QWidget):
             logger.error(f"Unknown sender for data_updated signal: {sender}")
             return
 
-        # Handle specific operations
+        # Update scans based on activity changes
         if operation in ("activate", "deactivate", "edit") and entity_name and is_active is not None:
-            self.observation._sync_scans_with_activation(entity_type, entity_name, is_active)
-        elif operation in ("add", "remove") and entity_name:
-            self.observation._update_scan_names(entity_type, entity_name, operation)
-        elif operation in ("activate_all", "deactivate_all", "clear", "drop_active", "drop_inactive"):
-            # Handle bulk operations efficiently
-            items_response = self.manipulator.process_request({
+            scans_response = self.manipulator.process_request({
                 "operation": "inspect",
-                "obj": self.observation.get(entity_type),
+                "obj": self.observation.get_scans(),
                 "attributes": {"get_all": None}
             })
-            if not items_response["status"] or not isinstance(items_response["result"], dict):
-                logger.warning(f"No {entity_type} found for bulk operation '{operation}'")
-                return
-
-            items = items_response["result"]
-            if operation == "activate_all":
-                for name in items:
-                    self.observation._sync_scans_with_activation(entity_type, name, True)
-            elif operation == "deactivate_all":
-                for name in items:
-                    self.observation._sync_scans_with_activation(entity_type, name, False)
-            elif operation in ("clear", "drop_active", "drop_inactive"):
-                for name, item in items.items():
-                    # Check activity status for drop_active/drop_inactive
+            if scans_response["status"] and isinstance(scans_response["result"], dict):
+                for scan_name, scan_obj in scans_response["result"].items():
+                    should_be_active = scan_obj.check_activity_status(self.observation)
                     is_active_response = self.manipulator.process_request({
                         "operation": "inspect",
-                        "obj": item,
+                        "obj": scan_obj,
                         "attributes": {"get": "isactive"}
                     })
-                    item_active = is_active_response["status"] and bool(is_active_response["result"])
-                    if (operation == "clear" or
-                        (operation == "drop_active" and item_active) or
-                        (operation == "drop_inactive" and not item_active)):
-                        self.observation._update_scan_names(entity_type, name, "remove")
-
+                    current_active = is_active_response["status"] and bool(is_active_response["result"])
+                    if should_be_active != current_active:
+                        request = {
+                            "operation": "configure",
+                            "obj": self.observation.get_scans(),
+                            "attributes": {
+                                "set_scan": {
+                                    "name": scan_name,
+                                    "isactive": should_be_active,
+                                    "observation": self.observation
+                                }
+                            }
+                        }
+                        response = self.manipulator.process_request(request)
+                        if response["status"]:
+                            logger.debug(f"Updated scan '{scan_name}' isactive to {should_be_active}")
+                        else:
+                            logger.error(f"Failed to update scan '{scan_name}' isactive: {response.get('error', 'Unknown error')}")
+        
         self.update()
         self.data_updated.emit()
         logger.info(f"Completed handling data_updated for {entity_type}, operation={operation}")
@@ -624,7 +617,7 @@ class ScansTab(QWidget):
                         "operation": "inspect",
                         "obj": scan_obj,
                         "attributes": {
-                            "get": ["start", "duration", "source_name", "telescope_names", "frequency_names"]
+                            "get": ["start", "duration", "source", "telescopes", "frequencies", "is_off_source"]
                         }
                     })
                     if not attrs_response["status"]:
@@ -634,17 +627,11 @@ class ScansTab(QWidget):
                     attrs = attrs_response["result"]
                     start_time = attrs["start"].strftime("%d.%m.%Y %H:%M:%S") if attrs["start"] else "N/A"
                     duration = f"{attrs['duration']:.1f}" if attrs["duration"] else "N/A"
-                    source_name = attrs["source_name"] or "None"
-                    telescopes = ", ".join(attrs["telescope_names"]) if attrs["telescope_names"] else "None"
+                    source_name = "OFF SOURCE" if attrs["is_off_source"] else (attrs["source"].name if attrs["source"] else "None")
+                    telescopes = ", ".join(t.name for t in attrs["telescopes"]) if attrs["telescopes"] else "None"
 
-                    # Retrieve frequency values in MHz using scan_obj.get_frequencies
-                    try:
-                        frequencies_obj = scan_obj.get_frequencies(self.observation)
-                        frequency_values = frequencies_obj.get_frequencies()
-                        frequencies = ", ".join(f"{freq:.2f} MHz" for freq in frequency_values) if frequency_values else "None"
-                    except Exception as e:
-                        logger.error(f"Failed to retrieve frequencies for scan '{name}': {str(e)}")
-                        frequencies = "N/A"
+                    # Retrieve frequency values in MHz
+                    frequencies = ", ".join(f"{f.frequency:.2f} MHz" for f in attrs["frequencies"]) if attrs["frequencies"] else "None"
 
                     row = [
                         QStandardItem(str(idx)),
@@ -663,3 +650,4 @@ class ScansTab(QWidget):
                     idx += 1
 
         self.ui.table.resizeColumnsToContents()
+        logger.debug(f"Updated scans table with {self.model.rowCount()} scans for observation '{self.observation.code}'")
