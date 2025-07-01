@@ -371,7 +371,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.manipulator = ScheduleManipulator(self.project)
         logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
         self.current_project_path = None
-        # Очищаем все вкладки, включая вкладку проекта
+        
         for i in range(self.ui.tabContainer.count() - 1, -1, -1):
             self.ui.tabContainer.removeTab(i)
         self.open_project_info_tab()

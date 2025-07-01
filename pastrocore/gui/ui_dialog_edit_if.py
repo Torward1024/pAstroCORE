@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifFWneLy.ui'
+## Form generated from reading UI file 'dialog_editor_ifcacRnv.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.8.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -25,7 +25,7 @@ class Ui_IFEditorDialog(object):
         if not IFEditorDialog.objectName():
             IFEditorDialog.setObjectName(u"IFEditorDialog")
         IFEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        IFEditorDialog.resize(436, 245)
+        IFEditorDialog.resize(431, 245)
         IFEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(IFEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -34,7 +34,7 @@ class Ui_IFEditorDialog(object):
         self.labelFrequency = QLabel(IFEditorDialog)
         self.labelFrequency.setObjectName(u"labelFrequency")
 
-        self.formLayout.setWidget(0, QFormLayout.ItemRole.LabelRole, self.labelFrequency)
+        self.formLayout.setWidget(0, QFormLayout.LabelRole, self.labelFrequency)
 
         self.frequencyEdit = QDoubleSpinBox(IFEditorDialog)
         self.frequencyEdit.setObjectName(u"frequencyEdit")
@@ -115,12 +115,12 @@ class Ui_IFEditorDialog(object):
         self.frequencyEdit.setMaximum(1000000.000000000000000)
         self.frequencyEdit.setValue(1000.000000000000000)
 
-        self.formLayout.setWidget(0, QFormLayout.ItemRole.FieldRole, self.frequencyEdit)
+        self.formLayout.setWidget(0, QFormLayout.FieldRole, self.frequencyEdit)
 
         self.labelWavelength = QLabel(IFEditorDialog)
         self.labelWavelength.setObjectName(u"labelWavelength")
 
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.LabelRole, self.labelWavelength)
+        self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelWavelength)
 
         self.wavelengthDisplay = QLabel(IFEditorDialog)
         self.wavelengthDisplay.setObjectName(u"wavelengthDisplay")
@@ -137,12 +137,12 @@ class Ui_IFEditorDialog(object):
         self.wavelengthDisplay.setFrameShadow(QFrame.Shadow.Sunken)
         self.wavelengthDisplay.setIndent(1)
 
-        self.formLayout.setWidget(1, QFormLayout.ItemRole.FieldRole, self.wavelengthDisplay)
+        self.formLayout.setWidget(1, QFormLayout.FieldRole, self.wavelengthDisplay)
 
         self.labelBandwidth = QLabel(IFEditorDialog)
         self.labelBandwidth.setObjectName(u"labelBandwidth")
 
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.LabelRole, self.labelBandwidth)
+        self.formLayout.setWidget(2, QFormLayout.LabelRole, self.labelBandwidth)
 
         self.bandwidthEdit = QDoubleSpinBox(IFEditorDialog)
         self.bandwidthEdit.setObjectName(u"bandwidthEdit")
@@ -219,22 +219,22 @@ class Ui_IFEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.bandwidthEdit.setDecimals(3)
-        self.bandwidthEdit.setMinimum(0.001000000000000)
-        self.bandwidthEdit.setMaximum(1000.000000000000000)
+        self.bandwidthEdit.setMinimum(1.000000000000000)
+        self.bandwidthEdit.setMaximum(128000.000000000000000)
         self.bandwidthEdit.setValue(16.000000000000000)
 
-        self.formLayout.setWidget(2, QFormLayout.ItemRole.FieldRole, self.bandwidthEdit)
+        self.formLayout.setWidget(2, QFormLayout.FieldRole, self.bandwidthEdit)
 
         self.labelIsActive = QLabel(IFEditorDialog)
         self.labelIsActive.setObjectName(u"labelIsActive")
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.LabelRole, self.labelIsActive)
+        self.formLayout.setWidget(3, QFormLayout.LabelRole, self.labelIsActive)
 
         self.isActiveCheckBox = QCheckBox(IFEditorDialog)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
         self.isActiveCheckBox.setChecked(True)
 
-        self.formLayout.setWidget(3, QFormLayout.ItemRole.FieldRole, self.isActiveCheckBox)
+        self.formLayout.setWidget(3, QFormLayout.FieldRole, self.isActiveCheckBox)
 
 
         self.verticalLayout.addLayout(self.formLayout)

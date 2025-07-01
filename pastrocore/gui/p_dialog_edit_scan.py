@@ -132,9 +132,9 @@ class ScanEditorDialog(QDialog):
             "attributes": {"get_all": None}
         })
         logger.debug(f"Sources response: {sources_response}")
+        self.ui.sourceCombo.clear()
         if sources_response["status"] and isinstance(sources_response["result"], dict) and sources_response["result"]:
             for name, source in sources_response["result"].items():
-                # Log source activity status
                 is_active_response = self.manipulator.process_request({
                     "operation": "inspect",
                     "obj": source,
@@ -142,7 +142,10 @@ class ScanEditorDialog(QDialog):
                 })
                 is_active = is_active_response["status"] and bool(is_active_response["result"])
                 logger.debug(f"Source {name} isactive: {is_active}")
-                self.ui.sourceCombo.addItem(name, name)
+                self.ui.sourceCombo.addItem(name, source)  # Store Source object as user data
+                if not is_active:
+                    index = self.ui.sourceCombo.findData(source)
+                    self.ui.sourceCombo.model().item(index).setEnabled(False)
             self.ui.sourceCombo.setCurrentIndex(0)
             self.ui.chk_offsource.setChecked(False)
             self.ui.sourceCombo.setEnabled(True)
@@ -171,7 +174,6 @@ class ScanEditorDialog(QDialog):
                 })
                 is_active = is_active_response["status"] and bool(is_active_response["result"])
                 logger.debug(f"Telescope {name} isactive: {is_active}")
-
                 row = [
                     QStandardItem(str(idx)),  # #
                     QStandardItem(),  # Check
@@ -185,8 +187,8 @@ class ScanEditorDialog(QDialog):
                 row[2].setTextAlignment(Qt.AlignCenter)
                 for item in row:
                     item.setEditable(False)
-                row[0].setData(name, Qt.UserRole)
-                row[3].setData(name, Qt.UserRole)
+                row[0].setData(telescope, Qt.UserRole)  # Store Telescope/SpaceTelescope object
+                row[3].setData(telescope, Qt.UserRole)
                 self.telescopes_model.appendRow(row)
                 self.selected_telescopes.add(name)  # Add to selected set
                 logger.debug(f"Added telescope: {name}, checkable: True, active: {is_active}, checked: True")
@@ -213,7 +215,6 @@ class ScanEditorDialog(QDialog):
                     "attributes": {"get": "frequency"}
                 })
                 frequency = freq_response["result"] if freq_response["status"] else "N/A"
-
                 is_active_response = self.manipulator.process_request({
                     "operation": "inspect",
                     "obj": if_obj,
@@ -221,21 +222,18 @@ class ScanEditorDialog(QDialog):
                 })
                 is_active = is_active_response["status"] and bool(is_active_response["result"])
                 logger.debug(f"Frequency {name} isactive: {is_active}")
-
                 bandwidth_response = self.manipulator.process_request({
                     "operation": "inspect",
                     "obj": if_obj,
                     "attributes": {"get": "bandwidth"}
                 })
                 bandwidth = bandwidth_response["result"] if bandwidth_response["status"] else "N/A"
-
                 polarizations_response = self.manipulator.process_request({
                     "operation": "inspect",
                     "obj": if_obj,
                     "attributes": {"get": "polarizations"}
                 })
                 polarizations = ", ".join(polarizations_response["result"]) if polarizations_response["status"] and polarizations_response["result"] else "N/A"
-
                 row = [
                     QStandardItem(str(idx)),  # #
                     QStandardItem(),  # Check
@@ -251,74 +249,60 @@ class ScanEditorDialog(QDialog):
                 row[2].setTextAlignment(Qt.AlignCenter)
                 for item in row:
                     item.setEditable(False)
-                row[0].setData(name, Qt.UserRole)
-                row[3].setData(name, Qt.UserRole)
+                row[0].setData(if_obj, Qt.UserRole)  # Store IF object
+                row[3].setData(if_obj, Qt.UserRole)
                 self.frequencies_model.appendRow(row)
                 self.selected_frequencies.add(name)  # Add to selected set
-                logger.info(f"Added frequency: {name}, checkable: True, active: {is_active}, checked: True")
+                logger.debug(f"Added frequency: {name}, checkable: True, active: {is_active}, checked: True")
                 idx += 1
             logger.debug(f"Populated {self.frequencies_model.rowCount()} frequencies")
         else:
             logger.error(f"Failed to populate frequencies: {frequencies_response.get('error', 'Unknown error')}")
 
     def _check_scan_conditions(self):
-        """Check if scan conditions for activation are met (2 active telescopes, 1 active frequency, active source).
-
-        Returns:
-            bool: True if conditions are met, False otherwise.
-        """
-        # Check telescopes
+        """Check if scan conditions for activation are met (2 active telescopes, 1 active frequency, active source)."""
         active_telescopes = []
         for row in range(self.telescopes_model.rowCount()):
-            name_item = self.telescopes_model.item(row, 3)
+            telescope_item = self.telescopes_model.item(row, 3)
             check_item = self.telescopes_model.item(row, 1)
             active_item = self.telescopes_model.item(row, 2)
-            name = name_item.data(Qt.UserRole) if name_item else None
+            telescope = telescope_item.data(Qt.UserRole) if telescope_item else None
             is_checked = check_item.checkState() == Qt.Checked if check_item else False
             is_active = active_item.toolTip() == "Active" if active_item else False
-            if is_checked and is_active and name:
-                active_telescopes.append(name)
-        logger.debug(f"Active and selected telescopes: {active_telescopes}")
+            if is_checked and is_active and telescope:
+                active_telescopes.append(telescope)
+        logger.debug(f"Active and selected telescopes: {[t.name for t in active_telescopes]}")
 
-        # Check frequencies
         active_frequencies = []
         for row in range(self.frequencies_model.rowCount()):
-            name_item = self.frequencies_model.item(row, 3)
+            frequency_item = self.frequencies_model.item(row, 3)
             check_item = self.frequencies_model.item(row, 1)
             active_item = self.frequencies_model.item(row, 2)
-            name = name_item.data(Qt.UserRole) if name_item else None
+            frequency = frequency_item.data(Qt.UserRole) if frequency_item else None
             is_checked = check_item.checkState() == Qt.Checked if check_item else False
             is_active = active_item.toolTip() == "Active" if active_item else False
-            if is_checked and is_active and name:
-                active_frequencies.append(name)
-        logger.debug(f"Active and selected frequencies: {active_frequencies}")
+            if is_checked and is_active and frequency:
+                active_frequencies.append(frequency)
+        logger.debug(f"Active and selected frequencies: {[f.name for f in active_frequencies]}")
 
-        # Check source
         is_off_source = self.ui.chk_offsource.isChecked()
-        source_name = self.ui.sourceCombo.currentData()
+        source = self.ui.sourceCombo.currentData()
         source_active = True
-        if not is_off_source and source_name:
-            source_response = self.manipulator.process_request({
+        if not is_off_source and source:
+            is_active_response = self.manipulator.process_request({
                 "operation": "inspect",
-                "obj": self.observation.get_sources(),
-                "attributes": {"get": source_name}
+                "obj": source,
+                "attributes": {"get": "isactive"}
             })
-            if source_response["status"]:
-                is_active_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": source_response["result"],
-                    "attributes": {"get": "isactive"}
-                })
-                source_active = is_active_response["status"] and bool(is_active_response["result"])
-        logger.debug(f"Source {source_name} active: {source_active}, is_off_source: {is_off_source}")
+            source_active = is_active_response["status"] and bool(is_active_response["result"])
+        logger.debug(f"Source {source.name if source else None} active: {source_active}, is_off_source: {is_off_source}")
 
-        # Assume VLBI observation requires 2 telescopes
         conditions_met = (
-            len(active_telescopes) >= 2 and
+            len(active_telescopes) >= (1 if self.observation.get_observation_type() == "SINGLE_DISH" else 2) and
             len(active_frequencies) >= 1 and
             (is_off_source or source_active)
         )
-        logger.debug(f"Scan conditions check: telescopes={len(active_telescopes)} (>=2), "
+        logger.debug(f"Scan conditions check: telescopes={len(active_telescopes)} (>= {1 if self.observation.get_observation_type() == 'SINGLE_DISH' else 2}), "
                      f"frequencies={len(active_frequencies)} (>=1), "
                      f"source_active={source_active or is_off_source}, "
                      f"conditions_met={conditions_met}")
@@ -340,83 +324,68 @@ class ScanEditorDialog(QDialog):
         self.ui.durationEdit.setText(str(int(self.scan.duration)))
         logger.info(f"Set duration: {int(self.scan.duration)}")
 
-        source_name = self.scan.source_name
         self.ui.chk_offsource.setChecked(self.scan.is_off_source)
         if self.scan.is_off_source:
             self.ui.sourceCombo.setEnabled(False)
-            self.ui.sourceCombo.setCurrentIndex(self.ui.sourceCombo.findData(None))
+            self.ui.sourceCombo.setCurrentIndex(-1)
             logger.info(f"Set OFF SOURCE to True, sourceCombo disabled")
-        elif source_name:
-            index = self.ui.sourceCombo.findData(source_name)
+        elif self.scan.source:
+            index = self.ui.sourceCombo.findData(self.scan.source)
             if index >= 0:
                 self.ui.sourceCombo.setCurrentIndex(index)
                 self.ui.sourceCombo.setEnabled(True)
-                logger.info(f"Set source: {source_name}")
+                logger.info(f"Set source: {self.scan.source.name}")
             else:
-                logger.warning(f"Source '{source_name}' not found in combo box")
+                logger.warning(f"Source '{self.scan.source.name}' not found in combo box")
                 self.ui.sourceCombo.setCurrentIndex(0)
                 self.ui.sourceCombo.setEnabled(True)
 
-        # Set chk_active based on conditions
         self.ui.chk_active.setChecked(self._check_scan_conditions())
         logger.info(f"Set active status based on conditions: {self.ui.chk_active.isChecked()} (original scan.isactive: {self.scan.isactive})")
 
-        # Load telescopes
-        logger.debug(f"Loading telescopes for scan: {self.scan.telescope_names}")
-        self.selected_telescopes.clear()  # Clear before loading
+        self.selected_telescopes.clear()
         for row in range(self.telescopes_model.rowCount()):
-            item = self.telescopes_model.item(row, 3)  # Name column
-            name = item.data(Qt.UserRole) if item else None
+            item = self.telescopes_model.item(row, 3)
+            telescope = item.data(Qt.UserRole) if item else None
             check_item = self.telescopes_model.item(row, 1)
-            if name in self.scan.telescope_names:
+            if telescope in self.scan.telescopes:
                 check_item.setCheckState(Qt.Checked)
-                self.selected_telescopes.add(name)
-                logger.info(f"Checked telescope: {name}, check_state: {check_item.checkState()}")
+                self.selected_telescopes.add(telescope.name)
+                logger.info(f"Checked telescope: {telescope.name}, check_state: {check_item.checkState()}")
             else:
                 check_item.setCheckState(Qt.Unchecked)
-                logger.info(f"Unchecked telescope: {name}, check_state: {check_item.checkState()}")
+                logger.info(f"Unchecked telescope: {telescope.name if telescope else None}, check_state: {check_item.checkState()}")
             self.telescopes_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
         self.ui.tab_telescopes.viewport().update()
 
-        # Load frequencies
-        logger.debug(f"Loading frequencies for scan: {self.scan.frequency_names}")
-        self.selected_frequencies.clear()  # Clear before loading
+        self.selected_frequencies.clear()
         for row in range(self.frequencies_model.rowCount()):
-            item = self.frequencies_model.item(row, 3)  # Frequency column
-            name = item.data(Qt.UserRole) if item else None
+            item = self.frequencies_model.item(row, 3)
+            frequency = item.data(Qt.UserRole) if item else None
             check_item = self.frequencies_model.item(row, 1)
-            if name in self.scan.frequency_names:
+            if frequency in self.scan.frequencies:
                 check_item.setCheckState(Qt.Checked)
-                self.selected_frequencies.add(name)
-                logger.debug(f"Checked frequency: {name}, check_state: {check_item.checkState()}")
+                self.selected_frequencies.add(frequency.name)
+                logger.debug(f"Checked frequency: {frequency.name}, check_state: {check_item.checkState()}")
             else:
                 check_item.setCheckState(Qt.Unchecked)
-                logger.debug(f"Unchecked frequency: {name}, check_state: {check_item.checkState()}")
+                logger.debug(f"Unchecked frequency: {frequency.name if frequency else None}, check_state: {check_item.checkState()}")
             self.frequencies_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
         self.ui.tab_frequencies.viewport().update()
 
     @Slot(int)
     def on_offsource_changed(self, state):
-        """Handle OFF SOURCE checkbox state change.
-
-        Args:
-            state (int): The new state of the checkbox (Qt.Checked or Qt.Unchecked).
-        """
+        """Handle OFF SOURCE checkbox state change."""
         is_off_source = bool(state)
         self.ui.sourceCombo.setEnabled(not is_off_source)
         if is_off_source:
-            self.ui.sourceCombo.setCurrentIndex(-1)  # Reset to no selection
+            self.ui.sourceCombo.setCurrentIndex(-1)
         logger.debug(f"OFF SOURCE changed to: {is_off_source}, sourceCombo enabled: {self.ui.sourceCombo.isEnabled()}, selected: {self.ui.sourceCombo.currentText()}")
-        # Update chk_active when offsource changes
         self.ui.chk_active.setChecked(self._check_scan_conditions())
         logger.debug(f"Updated chk_active after offsource change: {self.ui.chk_active.isChecked()}")
 
     def get_scan_data(self):
-        """Retrieve scan data from the dialog.
-
-        Returns:
-            dict: Dictionary containing scan parameters, including original names for telescopes, frequencies, and source.
-        """
+        """Retrieve scan data from the dialog."""
         start_time = Time(self.ui.startTimeEdit.dateTime().toPython())
         start_time = start_time.to_datetime().replace(microsecond=0)
         start_time = Time(start_time)
@@ -431,41 +400,30 @@ class ScanEditorDialog(QDialog):
             raise ValueError("Duration must be a positive number")
 
         is_off_source = self.ui.chk_offsource.isChecked()
-        source_name = None if is_off_source else self.ui.sourceCombo.currentData()
+        source = None if is_off_source else self.ui.sourceCombo.currentData()
 
-        # Collect telescope names
-        telescope_names = []
+        telescopes = []
         for row in range(self.telescopes_model.rowCount()):
-            name_item = self.telescopes_model.item(row, 3)
+            telescope_item = self.telescopes_model.item(row, 3)
             check_item = self.telescopes_model.item(row, 1)
-            name = name_item.data(Qt.UserRole) if name_item else None
-            if check_item.checkState() == Qt.Checked and name:
-                telescope_names.append(name)
-        logger.debug(f"Selected telescopes from model: {telescope_names}")
+            telescope = telescope_item.data(Qt.UserRole) if telescope_item else None
+            if check_item.checkState() == Qt.Checked and telescope:
+                telescopes.append(telescope)
+        logger.debug(f"Selected telescopes from model: {[t.name for t in telescopes]}")
 
-        # Collect frequency names
-        frequency_names = []
+        frequencies = []
         for row in range(self.frequencies_model.rowCount()):
-            name_item = self.frequencies_model.item(row, 3)
+            frequency_item = self.frequencies_model.item(row, 3)
             check_item = self.frequencies_model.item(row, 1)
-            name = name_item.data(Qt.UserRole) if name_item else None
-            if check_item.checkState() == Qt.Checked and name:
-                frequency_names.append(name)
-        logger.debug(f"Selected frequencies from model: {frequency_names}")
+            frequency = frequency_item.data(Qt.UserRole) if frequency_item else None
+            if check_item.checkState() == Qt.Checked and frequency:
+                frequencies.append(frequency)
+        logger.debug(f"Selected frequencies from model: {[f.name for f in frequencies]}")
 
-        # Fallback to selected sets
-        if not telescope_names and self.selected_telescopes:
-            logger.warning("No telescopes in model, using manually tracked telescopes")
-            telescope_names = list(self.selected_telescopes)
-        if not frequency_names and self.selected_frequencies:
-            logger.warning("No frequencies in model, using manually tracked frequencies")
-            frequency_names = list(self.selected_frequencies)
-
-        # Validate selections
-        if not telescope_names:
+        if not telescopes:
             logger.error("No telescopes selected")
             raise ValueError("At least one telescope must be selected")
-        if not frequency_names:
+        if not frequencies:
             logger.error("No frequencies selected")
             raise ValueError("At least one frequency must be selected")
 
@@ -473,28 +431,26 @@ class ScanEditorDialog(QDialog):
         conditions_met = self._check_scan_conditions()
         if isactive and not conditions_met:
             logger.warning("Scan marked as active but conditions not met")
-            QMessageBox.warning(self, "Warning", 
+            QMessageBox.warning(self, "Warning",
                                 "Scan is marked as active, but conditions are not met:\n"
-                                "- At least 2 active telescopes required\n"
+                                f"- At least {1 if self.observation.get_observation_type() == 'SINGLE_DISH' else 2} active telescopes required\n"
                                 "- At least 1 active frequency required\n"
                                 "- Source must be active (unless OFF SOURCE)")
 
-        # Set original names to match current selections
         scan_data = {
             "name": self.scan.name if not self.is_new else f"scan_{uuid.uuid4().hex[:32]}",
             "start": start_time,
             "duration": duration,
-            "source_name": source_name,
-            "telescope_names": telescope_names,
-            "frequency_names": frequency_names,
+            "source": source,
+            "telescopes": telescopes,
+            "frequencies": frequencies,
             "is_off_source": is_off_source,
             "isactive": isactive,
-            "observation": self.observation,
-            "original_source_name": source_name,
-            "original_telescope_names": telescope_names.copy(),
-            "original_frequency_names": frequency_names.copy()
+            "observation": self.observation
         }
-        logger.info(f"Collected scan data: {scan_data}")
+        logger.info(f"Collected scan data: name={scan_data['name']}, start={start_time.isot}, "
+                    f"source={'OFF SOURCE' if is_off_source else source.name if source else None}, "
+                    f"telescopes={[t.name for t in telescopes]}, frequencies={[f.name for f in frequencies]}")
         return scan_data
 
     @Slot()

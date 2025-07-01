@@ -160,39 +160,32 @@ class Observation(BaseEntity):
         if not self.name:
             logger.error("Observation code must be a non-empty string")
             return False
-
-        observation_type = self.get("observation_type")
-        if observation_type not in ["VLBI", "SINGLE_DISH"]:
-            logger.warning(f"Invalid observation type: {observation_type}. Must be 'VLBI' or 'SINGLE_DISH'")
+        if self.observation_type not in ["VLBI", "SINGLE_DISH"]:
+            logger.warning(f"Invalid observation type: {self.observation_type}")
             return False
-
         if not self.sources.get_active_items():
             logger.warning("No active sources defined in observation")
             return True
-
         if not self.telescopes.get_active_items():
             logger.warning("No active telescopes defined in observation")
             return False
-
         if not self.frequencies.get_active_items():
             logger.warning("No active frequencies defined in observation")
             return True
-
         if not self.scans.get_active_scans(self):
             logger.warning("No active scans defined in observation")
             return True
-
         active_scans = sorted(self.scans.get_active_scans(self), key=lambda x: x.get_start())
         telescope_scans = {}
         for scan in active_scans:
             scan_start = scan.get_start()
             scan_end = scan_start + scan.get_duration() * u.s
-
             if not scan.check_telescope_availability(self):
                 logger.error(f"Telescope availability check failed for scan starting at {scan_start.isot}")
                 return False
-
-            for telescope in scan.get_telescopes(self).get_active_items():
+            for telescope in scan.telescopes:
+                if not telescope.isactive:
+                    continue
                 tel_code = telescope.get_code()
                 if tel_code not in telescope_scans:
                     telescope_scans[tel_code] = []
@@ -202,160 +195,8 @@ class Observation(BaseEntity):
                                      f"[{prev_start.isot}, {prev_end.isot}] vs [{scan_start.isot}, {scan_end.isot}]")
                         return False
                 telescope_scans[tel_code].append((scan_start, scan_end))
-
         logger.info(f"Observation '{self.name}' validated successfully")
         return True
-
-    def _update_scan_names(self, entity_type: str, name: str, operation: str) -> None:
-        """Update scan names after an entity is removed or added.
-
-        Args:
-            entity_type (str): Type of entity ('sources', 'telescopes', 'frequencies').
-            name (str): Name of the entity (source name, telescope code, or frequency name).
-            operation (str): Operation type ('remove' or 'add').
-        """
-        entity_map = {
-            "sources": "source_name",
-            "telescopes": "telescope_names",
-            "frequencies": "frequency_names"
-        }
-        original_map = {
-            "sources": "original_source_name",
-            "telescopes": "original_telescope_names",
-            "frequencies": "original_frequency_names"
-        }
-        if entity_type not in entity_map:
-            logger.error(f"Invalid entity type: {entity_type}")
-            raise ValueError(f"Invalid entity type: {entity_type}")
-        attr = entity_map[entity_type]
-        original_attr = original_map[entity_type]
-
-        for scan in self.scans.get_items():
-            params = {}
-            current_names = getattr(scan, attr, []) if entity_type != "sources" else getattr(scan, attr)
-            original_names = getattr(scan, original_attr, []) if entity_type != "sources" else getattr(scan, original_attr)
-
-            if entity_type == "sources":
-                if operation == "remove" and current_names == name:
-                    params.update({
-                        "source_name": "OFF_SOURCE",
-                        "is_off_source": True,
-                        original_attr: current_names
-                    })
-                    logger.debug(f"Reset source name to OFF_SOURCE for scan '{scan.name}' in observation '{self.name}'")
-                elif operation == "add" and original_names == name:
-                    params.update({
-                        "source_name": name,
-                        "is_off_source": False,
-                        original_attr: None
-                    })
-                    logger.debug(f"Restored source name '{name}' for scan '{scan.name}' in '{self.name}'")
-            else:
-                all_entities = {item.name for item in self.get(entity_type).get_items()}
-                if operation == "remove" and name in current_names:
-                    updated_names = [n for n in current_names if n != name]
-                    if not getattr(scan, original_attr, None):
-                        params[original_attr] = current_names[:]
-                    params[attr] = updated_names
-                    logger.debug(f"Removed {entity_type} name '{name}' from scan '{scan.name}' in '{self.name}', "
-                                f"updated_names={updated_names}, original_names={params.get(original_attr, [])}")
-                elif operation == "add" and name in (original_names or []) and name in all_entities:
-                    updated_names = current_names[:] if current_names else []
-                    if name not in updated_names:
-                        updated_names.append(name)
-                        updated_names.sort()
-                    params[attr] = updated_names
-                    logger.debug(f"Restored {entity_type} name '{name}' to scan '{scan.name}' in '{self.name}', "
-                                f"updated_names={updated_names}")
-
-            if params:
-                scan.set(params)
-                should_be_active = scan._check_activity_status(self)
-                scan.set({"isactive": should_be_active})
-                logger.debug(f"Scan '{scan.name}' {'activated' if should_be_active else 'deactivated'} "
-                            f"due to {entity_type} {operation}")
-                logger.info(f"Updated scan '{scan.name}' in observation '{self.name}' with params: {params}")
-
-                if entity_type == "telescopes" and not scan.telescope_names:
-                    scan.set({"isactive": False})
-                    logger.debug(f"Deactivated scan '{scan.name}' because telescope_names is empty")
-                elif entity_type == "frequencies" and not scan.frequency_names:
-                    scan.set({"isactive": False})
-                    logger.debug(f"Deactivated scan '{scan.name}' because frequency_names is empty")
-
-    def _sync_scans_with_activation(self, entity_type: str, name: str, is_active: bool) -> None:
-        """Synchronize scan attributes and activity with entity activation/deactivation."""
-        entity_map = {
-            "sources": "source_name",
-            "telescopes": "telescope_names",
-            "frequencies": "frequency_names"
-        }
-        original_map = {
-            "sources": "original_source_name",
-            "telescopes": "original_telescope_names",
-            "frequencies": "original_frequency_names"
-        }
-        if entity_type not in entity_map:
-            logger.error(f"Invalid entity type: {entity_type}")
-            raise ValueError(f"Invalid entity type: {entity_type}")
-        attr = entity_map[entity_type]
-        original_attr = original_map[entity_type]
-
-        for scan in self.scans.get_items():
-            params = {}
-            current_names = getattr(scan, attr, []) if entity_type != "sources" else getattr(scan, attr)
-            original_names = getattr(scan, original_attr, []) if entity_type != "sources" else getattr(scan, original_attr)
-            
-            logger.debug(f"Syncing scan '{scan.name}' for {entity_type} '{name}', is_active={is_active}, "
-                        f"current_names={current_names}, original_names={original_names}")
-
-            if entity_type == "sources":
-                if not is_active and current_names == name and not scan.is_off_source:
-                    params.update({
-                        "source_name": "OFF_SOURCE",
-                        "is_off_source": True,
-                        original_attr: name
-                    })
-                    logger.debug(f"Scan '{scan.name}' source '{name}' deactivated, set to OFF_SOURCE")
-                elif is_active and original_names == name:
-                    params.update({
-                        "source_name": name,
-                        "is_off_source": False,
-                        original_attr: None
-                    })
-                    logger.debug(f"Restored source '{name}' for scan '{scan.name}'")
-            elif entity_type in ("telescopes", "frequencies"):
-                if not is_active and name in current_names:
-                    updated_names = [n for n in current_names if n != name]
-                    if not original_names and current_names:
-                        params[original_attr] = current_names[:]
-                        logger.debug(f"Saved {original_attr}={current_names} for scan '{scan.name}'")
-                    params[attr] = updated_names
-                    logger.debug(f"Removed inactive {entity_type} '{name}' from scan '{scan.name}', "
-                                f"updated_names={updated_names}, original_names={params.get(original_attr, original_names)}")
-                elif is_active and original_names:
-                    all_active_entities = {f.name for f in self.get(entity_type).get_active_items()}
-                    logger.debug(f"Restoring {entity_type} for scan '{scan.name}', all_active_entities={all_active_entities}")
-                    # Start with current active names
-                    updated_names = [n for n in current_names if n in all_active_entities]
-                    # Add all original names that are now active and not already included
-                    for orig_name in original_names:
-                        if orig_name in all_active_entities and orig_name not in updated_names:
-                            updated_names.append(orig_name)
-                            logger.debug(f"Restored {entity_type} name '{orig_name}' to scan '{scan.name}'")
-                    updated_names.sort()
-                    if updated_names != current_names:
-                        params[attr] = updated_names
-                        logger.debug(f"Updated {entity_type} names for scan '{scan.name}', updated_names={updated_names}")
-
-            if params:
-                scan.set(params)
-                logger.debug(f"Applied params to scan '{scan.name}': {params}")
-                should_be_active = scan._check_activity_status(self)
-                scan.set({"isactive": should_be_active})
-                logger.debug(f"Scan '{scan.name}' {'activated' if should_be_active else 'deactivated'} "
-                            f"due to {entity_type} change")
-                logger.info(f"Updated scan '{scan.name}' in observation '{self.name}' with params: {params}")
                 
     def to_dict(self) -> dict:
         """Convert the Observation object to a dictionary for serialization."""
@@ -387,18 +228,22 @@ class Observation(BaseEntity):
             "sources": Sources.from_dict(data["sources"]),
             "telescopes": Telescopes.from_dict(data["telescopes"]),
             "frequencies": Frequencies.from_dict(data["frequencies"]),
-            "scans": Scans.from_dict(data["scans"]),
             "calculated_data": data.get("calculated_data", {}),
             "isactive": data.get("isactive", True),
         }
+        # Create Observation without scans first
         obs = cls(**kwargs)
-        # Check and update scan activity status after deserialization
+        # Deserialize scans with the observation instance
+        kwargs["scans"] = Scans.from_dict(data["scans"], observation=obs)
+        # Update the observation with scans
+        obs.set({"scans": kwargs["scans"]})
+        # Validate and update scan activity status
         for scan in obs.scans.get_items():
-            should_be_active = scan._check_activity_status(obs)
+            should_be_active = scan.check_activity_status(obs)
             if should_be_active != scan.isactive:
                 scan.set({"isactive": should_be_active})
                 logger.debug(f"Updated scan '{scan.name}' isactive={should_be_active} after deserialization")
-        logger.info(f"Created observation '{data['name']}' from dictionary")
+        logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans")
         return obs
 
     def __repr__(self) -> str:

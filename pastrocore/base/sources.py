@@ -375,8 +375,6 @@ class Sources(BaseContainer[Source]):
             KeyError: If the name is not found in the collection.
         """
         super().activate_item(name)
-        if hasattr(self, '_parent') and self._parent:
-            self._parent._sync_scans_with_activation("sources", name, True)
 
     def deactivate_item(self, name: str) -> None:
         """Deactivate a specific source by its name.
@@ -390,8 +388,6 @@ class Sources(BaseContainer[Source]):
             KeyError: If the name is not found in the collection.
         """
         super().deactivate_item(name)
-        if hasattr(self, '_parent') and self._parent:
-            self._parent._sync_scans_with_activation("sources", name, False)
     
     def copy(self) -> 'Sources':
         """Create a deep copy of the Sources object."""
