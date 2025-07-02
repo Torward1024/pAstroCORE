@@ -221,38 +221,72 @@ class Scan(BaseEntity):
         logger.info(f"Set scan frequencies to {[f.name for f in frequencies]} for scan '{self.name}'")
 
     def validate_with_observation(self, observation: 'Observation') -> bool:
-        """Validate scan attributes against an observation."""
+        """Validate scan attributes against an observation.
+
+        Ensures that telescopes and frequencies exist in the observation. For off-source scans,
+        allows source to be None. Updates activity status based on observation context.
+
+        Args:
+            observation (Observation): The observation to validate against.
+
+        Returns:
+            bool: True if the scan is valid or can be made valid (e.g., off-source), False if critical validation fails.
+
+        Raises:
+            TypeError: If observation is not of type Observation.
+        """
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
-        if not self.telescopes:
-            logger.warning(f"Scan '{self.name}' has no telescopes assigned")
-        if not self.frequencies:
-            logger.warning(f"Scan '{self.name}' has no frequencies assigned")
-        # Check source validity and sync activity status
-        if self.source is not None:
+        
+        # Check source validity
+        if self.source is not None and not self.is_off_source:
             sources = observation.get_sources()
             source_from_obs = sources.get(self.source.name)
             if source_from_obs is None:
-                logger.error(f"Invalid source {self.source.name if self.source else None} for observation")
-                return False
-            # Sync source reference
-            if self.source is not source_from_obs:
-                self.source = source_from_obs
-                logger.debug(f"Synced scan '{self.name}' source '{self.source.name}' with observation reference")
-        # Always sync scan activity status with observation
+                logger.warning(f"Source '{self.source.name}' not found in observation, setting scan '{self.name}' to off-source")
+                self.set({"source": None, "is_off_source": True, "isactive": False})
+            else:
+                # Sync source reference
+                if self.source is not source_from_obs:
+                    self.source = source_from_obs
+                    logger.debug(f"Synced scan '{self.name}' source '{self.source.name}' with observation reference")
+        
+        # Validate telescopes
+        valid_telescopes = []
+        observation_telescopes = observation.get_telescopes()
+        for telescope in self.telescopes:
+            telescope_from_obs = observation_telescopes.get(telescope.name)
+            if telescope_from_obs:
+                valid_telescopes.append(telescope_from_obs)
+            else:
+                logger.warning(f"Telescope '{telescope.name}' not found in observation, removed from scan '{self.name}'")
+        self.set({"telescopes": valid_telescopes})
+        
+        # Validate frequencies
+        valid_frequencies = []
+        observation_frequencies = observation.get_frequencies()
+        for freq in self.frequencies:
+            frequency_from_obs = observation_frequencies.get(freq.name)
+            if frequency_from_obs:
+                valid_frequencies.append(frequency_from_obs)
+            else:
+                logger.warning(f"Frequency '{freq.name}' not found in observation, removed from scan '{self.name}'")
+        self.set({"frequencies": valid_frequencies})
+        
+        # Log warnings if no telescopes or frequencies
+        if not valid_telescopes:
+            logger.warning(f"Scan '{self.name}' has no valid telescopes assigned")
+        if not valid_frequencies:
+            logger.warning(f"Scan '{self.name}' has no valid frequencies assigned")
+        
+        # Update activity status
         should_be_active = self._check_activity_status(observation)
         if should_be_active != self.isactive:
             self.set({"isactive": should_be_active})
-            logger.debug(f"{'Activated' if should_be_active else 'Deactivated'} scan '{self.name}' based on source activity")
-        for telescope in self.telescopes:
-            if telescope not in observation.get_telescopes().get_items():
-                logger.error(f"Invalid telescope {telescope.name} for observation")
-                return False
-        for freq in self.frequencies:
-            if freq not in observation.get_frequencies().get_items():
-                logger.error(f"Invalid frequency {freq.name} for observation")
-                return False
-        logger.debug(f"Validated scan '{self.name}' with start={self.start.isot} against observation '{observation.get_observation_code()}'")
+            logger.debug(f"{'Activated' if should_be_active else 'Deactivated'} scan '{self.name}' based on validation")
+        
+        logger.debug(f"Validated scan '{self.name}' with start={self.start.isot} against observation '{observation.get_observation_code()}', "
+                    f"is_off_source={self.is_off_source}, isactive={self.isactive}")
         return True
     
     def sync_with_observation(self, observation: 'Observation') -> bool:
@@ -265,8 +299,9 @@ class Scan(BaseEntity):
         Args:
             observation (Observation): The observation to synchronize with.
 
+
         Returns:
-            bool: True if synchronization is successful, False if validation fails.
+            bool: True if synchronization is successful, False if critical validation fails.
 
         Raises:
             TypeError: If observation is not of type Observation.
@@ -276,7 +311,7 @@ class Scan(BaseEntity):
         logger.debug(f"Starting synchronization for scan '{self.name}' with observation '{observation.get_observation_code()}'")
 
         # Synchronize source
-        if self.source is not None:
+        if self.source is not None and not self.is_off_source:
             sources = observation.get_sources()
             source_from_obs = sources.get(self.source.name)
             if source_from_obs:
@@ -315,13 +350,6 @@ class Scan(BaseEntity):
         if not is_valid:
             logger.error(f"Synchronization failed for scan '{self.name}': validation against observation '{observation.get_observation_code()}' failed")
             return False
-
-        # Update activity status only if source was found (otherwise already set to False)
-        if self.source is not None or self.is_off_source:
-            should_be_active = self._check_activity_status(observation)
-            if should_be_active != self.isactive:
-                self.set({"isactive": should_be_active})
-                logger.debug(f"Updated scan '{self.name}' isactive to {should_be_active} after synchronization")
 
         logger.info(f"Successfully synchronized scan '{self.name}' with observation '{observation.get_observation_code()}', "
                     f"is_off_source={self.is_off_source}, isactive={self.isactive}, "
