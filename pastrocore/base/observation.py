@@ -237,12 +237,8 @@ class Observation(BaseEntity):
         kwargs["scans"] = Scans.from_dict(data["scans"], observation=obs)
         # Update the observation with scans
         obs.set({"scans": kwargs["scans"]})
-        # Validate and update scan activity status
-        for scan in obs.scans.get_items():
-            should_be_active = scan.check_activity_status(obs)
-            if should_be_active != scan.isactive:
-                scan.set({"isactive": should_be_active})
-                logger.debug(f"Updated scan '{scan.name}' isactive={should_be_active} after deserialization")
+        # Synchronize all scans to ensure source references and activity status are consistent
+        obs.scans.activate_all(obs)
         logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans")
         return obs
 

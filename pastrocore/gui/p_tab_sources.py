@@ -301,13 +301,9 @@ class SourcesTab(QWidget):
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_sources(),
-                "attributes": {
-                    "set_source": {
-                        "name": source_name,
-                        "isactive": True
-                    }
+                "attributes": {"activate_item": source_name}
                 }
-            }
+            
             response = self.manipulator.process_request(request)
             if response["status"]:
                 logger.info(f"Source '{source_name}' activated in observation '{self.observation.code}'")
@@ -337,13 +333,9 @@ class SourcesTab(QWidget):
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_sources(),
-                "attributes": {
-                    "set_source": {
-                        "name": source_name,
-                        "isactive": False
-                    }
+                "attributes": {"deactivate_item": source_name}
                 }
-            }
+            
             response = self.manipulator.process_request(request)
             if response["status"]:
                 logger.info(f"Source '{source_name}' deactivated in observation '{self.observation.code}'")
