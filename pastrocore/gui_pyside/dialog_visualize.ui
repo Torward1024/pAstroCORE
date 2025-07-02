@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>VisualizationDialog</class>
+ <widget class="QDialog" name="VisualizationDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>752</width>
+    <height>567</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Visualize Observation</string>
+  </property>
+  <property name="styleSheet">
+   <string>background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Observation:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="comboBoxObservation"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="labelVisualizationType">
+       <property name="font">
+        <font>
+         <family>Arial</family>
+         <pointsize>9</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Visualization Type:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="comboBoxVisualizationType">
+       <property name="font">
+        <font>
+         <family>Arial</family>
+         <pointsize>9</pointsize>
+        </font>
+       </property>
+       <item>
+        <property name="text">
+         <string>UV Coverage</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Source Visibility</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Sun Angles</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Az/El or HA/Dec</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Time on Source</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Beam Pattern</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Synthesized Beam</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Baseline Projections</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Mollweide Tracks</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="labelFrequency">
+       <property name="font">
+        <font>
+         <family>Arial</family>
+         <pointsize>9</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string>Frequency (IF):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QComboBox" name="comboBoxFrequency">
+       <property name="font">
+        <font>
+         <family>Arial</family>
+         <pointsize>9</pointsize>
+        </font>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QPushButton" name="pushButtonVisualize">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>View</string>
+     </property>
+     <property name="icon">
+      <iconset>
+       <normaloff>:/icons/plot_icon.svg</normaloff>:/icons/plot_icon.svg</iconset>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QPushButton" name="closeButton">
+     <property name="text">
+      <string>Close</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="../gui/rc_icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>

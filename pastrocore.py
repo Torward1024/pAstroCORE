@@ -10,6 +10,7 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 # Core files
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
+from pastrocore.super.schedule_visualizer import ScheduleVisualizer
 from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
 # UI files
@@ -22,6 +23,7 @@ from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
 from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
+from pastrocore.gui.p_dialog_visualize import VisualizationDialog
 from common.utils.logging_setup import logger
 import pastrocore.gui.rc_icons
 
@@ -99,6 +101,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.actionSource_Catalog_Manager.triggered.connect(self.open_source_catalog_manager)
         self.ui.actionAbout.triggered.connect(self.show_about)
         self.ui.actionCalculate.triggered.connect(self.open_calculation_dialog)
+        self.ui.actionVisualize.triggered.connect(self.open_visualization_dialog)
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
@@ -116,6 +119,17 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Failed to open calculation dialog: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
+    
+    @Slot()
+    def open_visualization_dialog(self):
+        """Open the visualization dialog for the current project."""
+        try:
+            dialog = VisualizationDialog(self.project, self.manipulator, parent=self)
+            dialog.exec()
+            logger.info("Visualization dialog opened and closed")
+        except Exception as e:
+            logger.error(f"Failed to open visualization dialog: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to open visualization dialog: {str(e)}")
 
     def handle_tab_close(self, index):
         """Handle closing of tabs, prevent closing of project tab."""
