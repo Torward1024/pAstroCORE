@@ -1,6 +1,6 @@
 # base/basecontainer.py
 from abc import ABC
-from typing import Dict, TypeVar, Generic, Any, List, Iterator, Union, get_type_hints, get_args, get_origin
+from typing import Dict, TypeVar, Generic, Any, Optional, List, Iterator, Union, get_type_hints, get_args, get_origin
 from common.base.baseentity import BaseEntity
 from common.utils.logging_setup import logger
 
@@ -168,30 +168,28 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
 
         Args:
             name (str): The name of the item to remove.
-
-        Raises:
-            KeyError: If the name is not found in the container.
         """
         if name not in self._items:
-            raise KeyError(f"Name '{name}' not found in {self.__class__.__name__}")
+            logger.warning(f"Name '{name}' not found in {self.__class__.__name__}")
         del self._items[name]
         self._invalidate_cache()
         logger.info(f"Removed item with name '{name}' from {self.__class__.__name__}")
 
-    def get(self, name: str) -> T:
+    def get(self, name: str) -> Optional[T]:
         """Retrieve an item from the container by its name.
 
         Args:
             name (str): The name of the item to retrieve.
 
         Returns:
-            T: The item associated with the specified name.
+            Optional[T]: The item associated with the specified name, or None if not found.
 
-        Raises:
-            KeyError: If the name is not found in the container.
+        Notes:
+            - Logs a warning if the item is not found, rather than raising an exception.
         """
         if name not in self._items:
-            raise KeyError(f"Name '{name}' not found in {self.__class__.__name__}")
+            logger.warning(f"Name '{name}' not found in {self.__class__.__name__}")
+            return None
         return self._items[name]
 
     def get_all(self) -> Dict[str, T]:
@@ -334,9 +332,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
 
         Args:
             name (str): The name of the item to activate.
-
-        Raises:
-            KeyError: If the name is not found in the container.
         """
         self.get(name).activate()
         self._invalidate_cache()
@@ -399,9 +394,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
 
         Args:
             name (str): The name of the item to deactivate.
-
-        Raises:
-            KeyError: If the name is not found in the container.
         """
         self.get(name).deactivate()
         self._invalidate_cache()
@@ -600,20 +592,21 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """
         return iter(self._items.values())
     
-    def __getitem__(self, key: str) -> T:
+    def __getitem__(self, key: str) -> Optional[T]:
         """Retrieve an item from the container by its name using square brackets.
 
         Args:
             key (str): The name of the item to retrieve.
 
         Returns:
-            T: The item associated with the specified name.
+            Optional[T]: The item associated with the specified name, or None if not found.
 
-        Raises:
-            KeyError: If the name is not found in the container.
+        Notes:
+            - Logs a warning if the item is not found, rather than raising an exception.
         """
         if key not in self._items:
-            raise KeyError(f"Item '{key}' not found in {self.__class__.__name__}")
+            logger.warning(f"Name '{key}' not found in {self.__class__.__name__}")
+            return None
         return self._items[key]
 
     def __setitem__(self, key: str, item: T) -> None:
@@ -638,9 +631,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
 
         Args:
             name (str): The name of the item to remove.
-
-        Raises:
-            KeyError: If the name is not found in the container.
         """
         self.remove(name)
 
