@@ -314,7 +314,10 @@ class Scan(BaseEntity):
 
     @classmethod
     def from_dict(cls, data: dict, observation: 'Observation' = None) -> 'Scan':
-        """Create a Scan object from a dictionary, parsing ISO string to Time and resolving objects from Observation."""
+        """Create a Scan object from a dictionary, parsing ISO string to Time and resolving objects from Observation.
+
+        Ensures the source reference is synchronized with the observation and activity status is validated.
+        """
         from pastrocore.base.observation import Observation
         data = data.copy()
         start_time = Time(data.pop("start"))
@@ -327,10 +330,11 @@ class Scan(BaseEntity):
         # Resolve source
         source = None
         if observation and source_name and not is_off_source:
+            check_type(observation, Observation, "Observation")
             sources = observation.get_sources()
             source = sources.get(source_name)
             if source:
-                logger.debug(f"Resolved source '{source_name}' for scan")
+                logger.debug(f"Resolved source '{source_name}' for scan from observation, isactive={source.isactive}")
             else:
                 logger.error(f"Source '{source_name}' not found in observation sources")
                 raise ValueError(f"Source '{source_name}' not found in observation sources")
@@ -378,12 +382,16 @@ class Scan(BaseEntity):
             isactive=data.get("isactive", True),
             observation=observation
         )
+        # Validate scan with observation to sync source reference and activity status
+        if observation:
+            scan.validate_with_observation(observation)
+            logger.debug(f"After validation: scan '{scan.name}' source={source_name}, "
+                        f"isactive={scan.isactive}, source_isactive={scan.source.isactive if scan.source else None}")
         logger.info(f"Created scan '{scan.name}' with start={scan.start.isot}, "
                     f"source={'OFF SOURCE' if is_off_source else source_name or 'None'}, "
                     f"telescopes={[t.name for t in telescopes] if telescopes else []}, "
                     f"frequencies={[f.name for f in frequencies] if frequencies else []}")
         return scan
-
 
 class Scans(BaseContainer[Scan]):
     """Base class representing a collection of Scan objects."""
