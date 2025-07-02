@@ -532,7 +532,16 @@ class ScansTab(QWidget):
     
     @Slot(str, bool, str)
     def handle_data_updated(self, entity_name: str, is_active: bool, operation: str):
-        """Handle data_updated signal for all entity types and operations."""
+        """Handle data_updated signal for entity changes by synchronizing all scans.
+
+        Synchronizes each scan in the observation with the current observation state
+        using the synchronize_with_observation method, then updates the table.
+
+        Args:
+            entity_name (str): Name of the entity that was updated.
+            is_active (bool): Activity status of the updated entity.
+            operation (str): Type of operation performed (e.g., 'activate', 'deactivate', 'edit').
+        """
         logger.debug(f"Handling data_updated: entity_name={entity_name}, is_active={is_active}, operation={operation}")
         entity_type_map = {
             SourcesTab: "sources",
@@ -545,43 +554,32 @@ class ScansTab(QWidget):
             logger.error(f"Unknown sender for data_updated signal: {sender}")
             return
 
-        # Update scans based on activity changes
-        if operation in ("activate", "deactivate", "edit") and entity_name and is_active is not None:
-            scans_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_scans(),
-                "attributes": {"get_all": None}
-            })
-            if scans_response["status"] and isinstance(scans_response["result"], dict):
-                for scan_name, scan_obj in scans_response["result"].items():
-                    should_be_active = scan_obj.check_activity_status(self.observation)
-                    is_active_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": scan_obj,
-                        "attributes": {"get": "isactive"}
-                    })
-                    current_active = is_active_response["status"] and bool(is_active_response["result"])
-                    if should_be_active != current_active:
-                        request = {
-                            "operation": "configure",
-                            "obj": self.observation.get_scans(),
-                            "attributes": {
-                                "set_scan": {
-                                    "name": scan_name,
-                                    "isactive": should_be_active,
-                                    "observation": self.observation
-                                }
-                            }
-                        }
-                        response = self.manipulator.process_request(request)
-                        if response["status"]:
-                            logger.debug(f"Updated scan '{scan_name}' isactive to {should_be_active}")
-                        else:
-                            logger.error(f"Failed to update scan '{scan_name}' isactive: {response.get('error', 'Unknown error')}")
-        
+        # Synchronize all scans with the observation
+        scans_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation.get_scans(),
+            "attributes": {"get_all": None}
+        })
+        if scans_response["status"] and isinstance(scans_response["result"], dict):
+            for scan_name, scan_obj in scans_response["result"].items():
+                sync_response = self.manipulator.process_request({
+                    "operation": "configure",
+                    "obj": scan_obj,
+                    "attributes": {"sync_with_observation": {"observation": self.observation, "strict": False}}
+                })
+                if sync_response["status"]:
+                    logger.debug(f"Synchronized scan '{scan_name}' with observation '{self.observation.code}'")
+                else:
+                    logger.error(f"Failed to synchronize scan '{scan_name}': {sync_response.get('error', 'Unknown error')}")
+                    QMessageBox.warning(
+                        self,
+                        "Synchronization Warning",
+                        f"Failed to synchronize scan '{scan_name}': {sync_response.get('error', 'Unknown error')}"
+                    )
+
         self.update()
         self.data_updated.emit()
-        logger.info(f"Completed handling data_updated for {entity_type}, operation={operation}")
+        logger.info(f"Completed handling data_updated for {entity_type}, operation={operation}, synchronized {len(scans_response['result'])} scans")
 
     @Slot()
     def update(self):
