@@ -254,6 +254,80 @@ class Scan(BaseEntity):
                 return False
         logger.debug(f"Validated scan '{self.name}' with start={self.start.isot} against observation '{observation.get_observation_code()}'")
         return True
+    
+    def sync_with_observation(self, observation: 'Observation') -> bool:
+        """Synchronize scan attributes with the provided observation.
+
+        Updates source, telescopes, and frequencies to match references in the observation,
+        validates the scan, and updates its activity status. If the source is not found,
+        sets the scan to off-source and deactivates it.
+
+        Args:
+            observation (Observation): The observation to synchronize with.
+
+        Returns:
+            bool: True if synchronization is successful, False if validation fails.
+
+        Raises:
+            TypeError: If observation is not of type Observation.
+        """
+        from pastrocore.base.observation import Observation
+        check_type(observation, Observation, "Observation")
+        logger.debug(f"Starting synchronization for scan '{self.name}' with observation '{observation.get_observation_code()}'")
+
+        # Synchronize source
+        if self.source is not None:
+            sources = observation.get_sources()
+            source_from_obs = sources.get(self.source.name)
+            if source_from_obs:
+                self.source = source_from_obs
+                logger.debug(f"Synchronized scan '{self.name}' source to '{self.source.name}' (isactive={self.source.isactive})")
+            else:
+                logger.warning(f"Source '{self.source.name}' not found in observation sources, setting scan '{self.name}' to off-source and deactivating")
+                self.set({"source": None, "is_off_source": True, "isactive": False})
+
+        # Synchronize telescopes
+        observation_telescopes = observation.get_telescopes()
+        valid_telescopes = []
+        for telescope in self.telescopes:
+            telescope_from_obs = observation_telescopes.get(telescope.name)
+            if telescope_from_obs:
+                valid_telescopes.append(telescope_from_obs)
+                logger.debug(f"Synchronized telescope '{telescope.name}' for scan '{self.name}'")
+            else:
+                logger.warning(f"Telescope '{telescope.name}' not found in observation, removing from scan '{self.name}'")
+        self.set({"telescopes": valid_telescopes})
+
+        # Synchronize frequencies
+        observation_frequencies = observation.get_frequencies()
+        valid_frequencies = []
+        for frequency in self.frequencies:
+            frequency_from_obs = observation_frequencies.get(frequency.name)
+            if frequency_from_obs:
+                valid_frequencies.append(frequency_from_obs)
+                logger.debug(f"Synchronized frequency '{frequency.name}' for scan '{self.name}'")
+            else:
+                logger.warning(f"Frequency '{frequency.name}' not found in observation, removing from scan '{self.name}'")
+        self.set({"frequencies": valid_frequencies})
+
+        # Validate and update activity status
+        is_valid = self.validate_with_observation(observation)
+        if not is_valid:
+            logger.error(f"Synchronization failed for scan '{self.name}': validation against observation '{observation.get_observation_code()}' failed")
+            return False
+
+        # Update activity status only if source was found (otherwise already set to False)
+        if self.source is not None or self.is_off_source:
+            should_be_active = self._check_activity_status(observation)
+            if should_be_active != self.isactive:
+                self.set({"isactive": should_be_active})
+                logger.debug(f"Updated scan '{self.name}' isactive to {should_be_active} after synchronization")
+
+        logger.info(f"Successfully synchronized scan '{self.name}' with observation '{observation.get_observation_code()}', "
+                    f"is_off_source={self.is_off_source}, isactive={self.isactive}, "
+                    f"telescopes={[t.name for t in valid_telescopes]}, "
+                    f"frequencies={[f.name for f in valid_frequencies]}")
+        return True
 
     def check_telescope_availability(self, observation: 'Observation', time: Time = None) -> dict[str, bool]:
         """Check telescope availability for this scan at a given time."""
