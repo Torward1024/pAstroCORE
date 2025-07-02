@@ -22,6 +22,7 @@ class CalculationThread(QThread):
         self.freqs = freqs
 
     def run(self):
+        """Execute calculations asynchronously and emit progress signals."""
         try:
             results = {}
             total = len(self.targets) * len(self.calc_types) * (len(self.freqs) if self.freqs else 1)
@@ -47,8 +48,12 @@ class CalculationThread(QThread):
                             "Azimuth/Elevation": "az_el"
                         }
                         method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
-                        # Add store_key for specific methods
-                        if calc_type in ["Mollweide Tracks", "Time on Source", "Sun Angles", "Azimuth/Elevation"]:
+                        # Define frequency-dependent calculations
+                        freq_dependent_calcs = ["UV Coverage", "Beam Pattern", "Synthesized Beam", "Baseline Projections"]
+                        # Set store_key based on whether the calculation is frequency-dependent
+                        if calc_type in freq_dependent_calcs and freq:
+                            calc_params["store_key"] = f"{method}_{freq}"
+                        else:
                             calc_params["store_key"] = method
                         request = {
                             "operation": "calculate",
