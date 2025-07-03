@@ -24,6 +24,11 @@ import numpy as np
 import threading
 import math
 import time
+import re
+import os
+
+from scipy.interpolate import CubicSpline
+from numpy.polynomial import chebyshev
 
 from erfa import ErfaWarning
 import warnings
@@ -79,6 +84,8 @@ class ScheduleCalculator(Super):
         """
         super().__init__(manipulator)
         self._lock = threading.Lock()
+        self._orbit_cache = {}  # Temporary storage for orbit data: {telescope_code: orbit_data}
+        self._orbit_cache_lock = threading.Lock()  # Lock for orbit cache
         logger.info("Initialized Scheduling Calculator")
 
     def _default_result(self) -> Dict[str, Any]:
@@ -361,12 +368,18 @@ class ScheduleCalculator(Super):
 
         Returns:
             Dict[str, Any]: Telescope positions per scan or time range, keyed by index.
+
+        Notes:
+            - If a space telescope's orbit does not cover the requested time range, a warning is logged, and it is excluded.
+            - If an orbit covers only part of the time range, positions are calculated for the available portion.
         """
         try:
+            results = {}
             time_step = attributes.get("time_step")
             start_time = attributes.get("start_time")
             end_time = attributes.get("end_time")
             store_key = attributes.get("store_key", "telescope_positions")
+            excluded_telescopes = []
 
             def calculate_positions(obj, attrs):
                 if isinstance(obj, ScheduleProject):
@@ -412,10 +425,29 @@ class ScheduleCalculator(Super):
                 times = Time(start.mjd + time_values.to(u.d).value, format='mjd')
                 logger.debug(f"Calculating telescope positions for {len(times)} time points from {start.isot} to {end.isot}")
 
-                # Cache orbit interpolations for SpaceTelescopes
-                for tel in active_telescopes:
-                    if isinstance(tel, SpaceTelescope) and time_step and not tel.get("use_kep"):
-                        tel.interpolate_orbit(start, end, time_step)
+                # Load and interpolate orbits for SpaceTelescopes
+                with self._orbit_cache_lock:
+                    for tel in active_telescopes:
+                        if isinstance(tel, SpaceTelescope) and time_step and not tel.get("use_kep"):
+                            orbit_file = tel.get_orbit()
+                            if orbit_file:
+                                try:
+                                    orbit_data = self._load_orbit_data(orbit_file, start, end)
+                                    self._orbit_cache[tel.get_code()] = self._interpolate_orbit(tel, start, end, time_step)
+                                except ValueError as e:
+                                    logger.warning(f"Excluding telescope '{tel.get_code()}' due to unavailable orbit data: {str(e)}")
+                                    self._orbit_cache[tel.get_code()] = {}
+                                    excluded_telescopes.append(tel.get_code())
+                            else:
+                                logger.warning(f"No orbit file for telescope '{tel.get_code()}'; excluding from calculations")
+                                self._orbit_cache[tel.get_code()] = {}
+                                excluded_telescopes.append(tel.get_code())
+
+                # Filter out excluded telescopes
+                active_telescopes = [tel for tel in active_telescopes if tel.get_code() not in excluded_telescopes]
+                if not active_telescopes:
+                    logger.warning(f"All telescopes excluded for observation '{obj.get_observation_code()}'")
+                    return {}
 
                 results = {}
                 if use_scans and time_step:
@@ -425,53 +457,48 @@ class ScheduleCalculator(Super):
                         scan_times = times[(scan_start <= times) & (times <= scan_start + scan_duration * u.s)]
                         if not scan_times:
                             continue
-                        scan_positions = self._process_scan_positions(scan, obj, time_step)  # Pass observation
+                        scan_positions = self._process_scan_positions(scan, obj, time_step)
                         results[scan.name] = scan_positions
                 else:
                     tel_positions = {}
                     for tel in active_telescopes:
-                        if isinstance(tel, Telescope) and not isinstance(tel, SpaceTelescope):
-                            # Vectorized computation for ground telescopes
-                            x, y, z = tel.get_coordinates()
-                            res = tel.get(["vx", "vy", "vz"])
-                            vx, vy, vz = res["vx"], res["vy"], res["vz"]
-                            dt = (times - Time("2000-01-01T12:00:00")).sec
-                            itrs_coords = CartesianRepresentation(
-                                x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m
-                            )
-                            itrs = ITRS(itrs_coords, obstime=times)
-                            gcrs = itrs.transform_to(GCRS(obstime=times))
-                            positions = np.vstack([
-                                gcrs.cartesian.x.value,
-                                gcrs.cartesian.y.value,
-                                gcrs.cartesian.z.value
-                            ]).T  # shape: (n_times, 3)
-                        else:
-                            # Use cached orbit for SpaceTelescope
-                            positions = np.array([self._compute_telescope_position(tel, t) for t in times])
+                        positions = []
+                        for t in times:
+                            try:
+                                pos = self._compute_telescope_position(tel, t)
+                                positions.append(pos)
+                            except ValueError as e:
+                                logger.warning(f"Position calculation failed for telescope '{tel.get_code()}' at {t.isot}: {str(e)}")
+                                positions.append([None, None, None])
                         tel_positions[tel.get_code()] = {
                             "times": [t.isot for t in times],
-                            "positions": positions.tolist()  # Convert to list for visualizer compatibility
+                            "positions": [p if p is not None else [None, None, None] for p in positions]
                         }
                     results[0] = {"telescope_positions": tel_positions}
 
+                # Clear orbit cache after calculations
+                with self._orbit_cache_lock:
+                    self._orbit_cache.clear()
+                    logger.info("Cleared orbit cache after telescope position calculations")
+
+                if excluded_telescopes:
+                    logger.info(f"Excluded {len(excluded_telescopes)} telescopes due to unavailable orbit data: {', '.join(excluded_telescopes)}")
                 logger.debug(f"Calculated telescope positions for {len(results)} entries in '{obj.get_observation_code()}'")
                 return results
 
             metadata = {"time_step": time_step, "start_time": start_time, "end_time": end_time}
             return self._get_cached_or_calculate(obj, store_key, calculate_positions, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate telescope positions: {str(e)}")
-            return {}
+            logger.warning(f"Partial failure in calculating telescope positions: {str(e)}. Returning available data.")
+            return results
 
     def _process_scan_positions(self, scan: Scan, observation: Observation, time_step: Optional[float]) -> Dict[str, Any]:
         """Process telescope positions for a single scan.
 
         Args:
             scan (Scan): The scan to process.
-            telescopes (Telescopes): Collection of telescopes involved in the scan.
-            time_step (Optional[float]): Time interval for position sampling (seconds). If None, uses mean time.
-            observation (Observation): Parent observation for context.
+            observation (Observation): Parent observation.
+            time_step (Optional[float]): Time interval for position sampling (seconds).
 
         Returns:
             Dict[str, Any]: Positions for active telescopes, with times if time_step is provided.
@@ -488,37 +515,24 @@ class ScheduleCalculator(Super):
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
-            positions = {tel.get_code(): self._compute_telescope_position(tel, mean_time) for tel in active_telescopes}
-            # Convert to numpy array for consistency
-            pos_array = np.array(list(positions.values()))  # shape: (n_telescopes, 3)
+            positions = {}
+            for tel in active_telescopes:
+                pos = self._compute_telescope_position(tel, mean_time)
+                positions[tel.get_code()] = pos
+            pos_array = np.array(list(positions.values()), dtype=float)  # Преобразуем в массив float
             return {"telescope_positions": {tel.get_code(): pos_array[i].tolist() for i, tel in enumerate(active_telescopes)}}
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
             result = {}
             for tel in active_telescopes:
-                if isinstance(tel, Telescope) and not isinstance(tel, SpaceTelescope):
-                    # Vectorized computation for ground telescopes
-                    x, y, z = tel.get_coordinates()
-                    res = tel.get(["vx", "vy", "vz"])
-                    vx, vy, vz = res["vx"], res["vy"], res["vz"]
-                    dt = (times - Time("2000-01-01T12:00:00")).sec
-                    itrs_coords = CartesianRepresentation(
-                        x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m
-                    )
-                    itrs = ITRS(itrs_coords, obstime=times)
-                    gcrs = itrs.transform_to(GCRS(obstime=times))
-                    positions = np.vstack([
-                        gcrs.cartesian.x.value,
-                        gcrs.cartesian.y.value,
-                        gcrs.cartesian.z.value
-                    ]).T  # shape: (n_times, 3)
-                else:
-                    # Use cached orbit for SpaceTelescope
-                    positions = np.array([self._compute_telescope_position(tel, t) for t in times])
+                positions = []
+                for t in times:
+                    pos = self._compute_telescope_position(tel, t)
+                    positions.append(pos)
                 result[tel.get_code()] = {
                     "times": times.isot.tolist(),
-                    "positions": positions.tolist()  # Convert to list for visualizer compatibility
+                    "positions": np.array(positions, dtype=float).tolist()  # Преобразуем в массив float
                 }
             return {"telescope_positions": result}
 
@@ -530,24 +544,58 @@ class ScheduleCalculator(Super):
             time (Time): The time of calculation.
 
         Returns:
-            Tuple[float, float, float]: GCRS coordinates (x, y, z) in meters.
-
-        Raises:
-            ValueError: If telescope type is unsupported.
+            Tuple[float, float, float]: GCRS coordinates (x, y, z) in meters, or (np.nan, np.nan, np.nan) if computation fails.
         """
-        if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope):
-            x, y, z = telescope.get_coordinates()
-            res = telescope.get(["vx", "vy", "vz"])
-            vx, vy, vz = res["vx"], res["vy"], res["vz"]
-            dt = (time - Time("2000-01-01T12:00:00")).sec
-            itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
-            itrs = ITRS(itrs_coords, obstime=time)
-            gcrs = itrs.transform_to(GCRS(obstime=time))
-            return (gcrs.cartesian.x.value, gcrs.cartesian.y.value, gcrs.cartesian.z.value)
-        elif isinstance(telescope, SpaceTelescope):
-            pos, _ = telescope.get_state_vector(time)
-            return tuple(float(p) for p in pos)
-        raise ValueError(f"Unsupported telescope type: {type(telescope)}")
+        try:
+            if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope):
+                x, y, z = telescope.get_coordinates()
+                res = telescope.get(["vx", "vy", "vz"])
+                vx, vy, vz = res["vx"], res["vy"], res["vz"]
+                dt = (time - Time("2000-01-01T12:00:00")).sec
+                itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
+                itrs = ITRS(itrs_coords, obstime=time)
+                gcrs = itrs.transform_to(GCRS(obstime=time))
+                pos = (gcrs.cartesian.x.value, gcrs.cartesian.y.value, gcrs.cartesian.z.value)
+                if any(np.isnan(pos)):
+                    logger.warning(f"Computed NaN position for ground telescope '{telescope.get_code()}' at {time.isot}")
+                return pos
+            elif isinstance(telescope, SpaceTelescope):
+                if telescope.get("use_kep"):
+                    try:
+                        pos, _ = self._get_state_vector_from_kepler(telescope, time)
+                        pos = tuple(float(p) for p in pos)
+                        if any(np.isnan(pos)):
+                            logger.warning(f"Keplerian position for '{telescope.get_code()}' at {time.isot} contains NaN")
+                        return pos
+                    except ValueError as e:
+                        logger.warning(f"Failed to compute Keplerian position for '{telescope.get_code()}' at {time.isot}: {str(e)}")
+                        return (np.nan, np.nan, np.nan)
+                else:
+                    with self._orbit_cache_lock:
+                        if telescope.get_code() in self._orbit_cache and self._orbit_cache[telescope.get_code()]:
+                            try:
+                                pos, _ = self._get_state_vector_from_cached_orbit(telescope, time, self._orbit_cache[telescope.get_code()])
+                                pos = tuple(float(p) for p in pos)
+                                if any(np.isnan(pos)):
+                                    logger.warning(f"Cached orbit position for '{telescope.get_code()}' at {time.isot} contains NaN")
+                                return pos
+                            except ValueError as e:
+                                logger.warning(f"Failed to compute position from cached orbit for '{telescope.get_code()}' at {time.isot}: {str(e)}")
+                                return (np.nan, np.nan, np.nan)
+                        else:
+                            try:
+                                pos, _ = self._get_state_vector_from_orbit(telescope, time)
+                                pos = tuple(float(p) for p in pos)
+                                if any(np.isnan(pos)):
+                                    logger.warning(f"Orbit file position for '{telescope.get_code()}' at {time.isot} contains NaN")
+                                return pos
+                            except ValueError as e:
+                                logger.warning(f"Failed to compute position from orbit file for '{telescope.get_code()}' at {time.isot}: {str(e)}")
+                                return (np.nan, np.nan, np.nan)
+            raise ValueError(f"Unsupported telescope type: {type(telescope)}")
+        except Exception as e:
+            logger.warning(f"Unexpected error in computing position for '{telescope.get_code()}' at {time.isot}: {str(e)}")
+            return (np.nan, np.nan, np.nan)
     
     @time_execution
     def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -972,10 +1020,8 @@ class ScheduleCalculator(Super):
                 angles[tel.get_code()] = angle
             else:
                 x, y, z = tel.get_coordinates()
-                res = tel.get(["vx", "vy", "vz"])
-                vx = res["vx"]
-                vy = res["vy"]
-                vz = res["vz"]
+                vx, vy, vz = tel.get_velocities()
+                
                 dt = (time - Time("2000-01-01T12:00:00")).sec
                 itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
                 itrs = ITRS(itrs_coords, obstime=time)
@@ -1822,5 +1868,392 @@ class ScheduleCalculator(Super):
         lat = np.clip(dec, -90.0, 90.0)
 
         return lon, lat
-    
 
+    def _load_orbit_data(self, orbit_file: str, start_time: Optional[Time] = None, end_time: Optional[Time] = None) -> Dict[str, np.ndarray]:
+        """Load orbit data from a CCSDS OEM 2.0 styled file, optionally filtering by time range.
+
+        Args:
+            orbit_file (str): Path to the orbit file.
+            start_time (Optional[Time]): Start time for filtering data.
+            end_time (Optional[Time]): End time for filtering data.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary containing times, positions, and velocities. Returns empty dict if no valid data.
+
+        Raises:
+            FileNotFoundError: If orbit file does not exist.
+            ValueError: If file format is invalid or insufficient data points.
+        """
+        if not os.path.isfile(orbit_file):
+            raise FileNotFoundError(f"Orbit file '{orbit_file}' not found")
+        
+        try:
+            with open(orbit_file, 'r') as f:
+                lines = f.readlines()
+            
+            data_lines = [line.strip() for line in lines if line.strip() and not line.startswith('#')]
+            data_section = False
+            valid_lines = []
+            
+            for line in data_lines:
+                if "META_STOP" in line:
+                    data_section = True
+                    continue
+                if not data_section:
+                    continue
+                if "COVARIANCE_START" in line:
+                    break
+                parts = re.split(r'\s+', line.strip())
+                if len(parts) == 7:
+                    valid_lines.append(line)
+            
+            if len(valid_lines) < 2:
+                raise ValueError(f"Orbit file must contain at least 2 data points, got {len(valid_lines)}")
+            
+            time_strs = [re.split(r'\s+', line)[0] for line in valid_lines]
+            j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
+            times = Time(time_strs, format='isot', scale='utc') - j2000_epoch
+            times_sec = times.sec
+            
+            positions = np.zeros((len(valid_lines), 3))
+            velocities = np.zeros((len(valid_lines), 3))
+            for i, line in enumerate(valid_lines):
+                parts = re.split(r'\s+', line)
+                try:
+                    x, y, z = map(float, parts[1:4])  # km -> m
+                    vx, vy, vz = map(float, parts[4:7])  # km/s -> m/s
+                    positions[i] = [x * 1000, y * 1000, z * 1000]
+                    velocities[i] = [vx * 1000, vy * 1000, vz * 1000]
+                except ValueError as e:
+                    logger.warning(f"Invalid data in orbit file '{orbit_file}' at line {i+1}: {str(e)}")
+                    return {}
+            
+            # Check for NaN in loaded data
+            if np.any(np.isnan(positions)) or np.any(np.isnan(velocities)):
+                logger.warning(f"Orbit file '{orbit_file}' contains NaN values")
+                return {}
+            
+            orbit_data = {
+                "times": times_sec,
+                "positions": positions,
+                "velocities": velocities
+            }
+            
+            # Filter by time range if provided
+            if start_time is not None and end_time is not None:
+                t_start = (start_time - j2000_epoch).sec
+                t_end = (end_time - j2000_epoch).sec
+                mask = (orbit_data["times"] >= t_start) & (orbit_data["times"] <= t_end)
+                if not np.any(mask):
+                    logger.warning(f"No orbit data within time range {start_time.isot} to {end_time.isot} for file '{orbit_file}'")
+                    return {}
+                orbit_data = {
+                    "times": orbit_data["times"][mask],
+                    "positions": orbit_data["positions"][mask],
+                    "velocities": orbit_data["velocities"][mask]
+                }
+            
+            logger.info(f"Loaded orbit data from '{orbit_file}' with {len(orbit_data['times'])} points")
+            return orbit_data
+        
+        except FileNotFoundError:
+            logger.error(f"Orbit file '{orbit_file}' not found")
+            raise
+        except ValueError as e:
+            logger.error(f"Error parsing orbit file: {str(e)}")
+            raise
+        except Exception as e:
+            logger.warning(f"Unexpected error loading orbit file '{orbit_file}': {str(e)}")
+            return {}
+
+    def _solve_kepler(self, initial: float, e: float, tol: float = 1e-8, max_iter: int = 200) -> float:
+        """Solve Kepler's equation iteratively to find the eccentric anomaly.
+
+        Args:
+            initial (float): Mean anomaly (radians).
+            e (float): Eccentricity (must be < 1).
+            tol (float): Convergence tolerance.
+            max_iter (int): Maximum iterations.
+
+        Returns:
+            float: Eccentric anomaly (radians).
+        """
+        if e >= 1:
+            raise ValueError("Eccentricity must be < 1 for elliptical orbit")
+        x = initial if e < 0.9 else np.pi
+        for _ in range(max_iter):
+            f = x - e * np.sin(x) - initial
+            df = 1 - e * np.cos(x)
+            dx = -f / df
+            x += dx
+            if abs(dx) < tol:
+                return x
+        logger.warning(f"Kepler's equation did not converge for e={e}, initial={initial}")
+        return x
+
+    def _get_state_vector_from_kepler(self, telescope: SpaceTelescope, time: Time) -> Tuple[np.ndarray, np.ndarray]:
+        """Calculate state vector using Keplerian elements.
+
+        Args:
+            telescope (SpaceTelescope): The space telescope.
+            time (Time): Time for state vector calculation.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: Position and velocity vectors in meters and m/s.
+        """
+        kepler = telescope.get("kepler_elements")
+        if kepler is None:
+            raise ValueError(f"No Keplerian elements defined for telescope '{telescope.get_code()}'")
+        
+        a = kepler["a"]  # semi-major axis (m)
+        e = kepler["e"]  # eccentricity
+        i = np.radians(kepler["i"])  # inclination (deg to rad)
+        raan = np.radians(kepler["raan"])  # RA of ascending node (deg to rad)
+        argp = np.radians(kepler["argp"])  # argument of periapsis (deg to rad)
+        nu0 = np.radians(kepler["nu"])  # true anomaly at epoch (deg to rad)
+        epoch = kepler["epoch"]
+        mu = kepler["mu"]  # gravitational parameter (m^3/s^2)
+        
+        # Mean motion
+        n = np.sqrt(mu / a**3)  # rad/s
+        # Time since epoch
+        dt = (time - epoch).sec
+        # Mean anomaly
+        M = nu0 + n * dt
+        # Solve Kepler's equation for eccentric anomaly
+        E = self._solve_kepler(M, e)
+        # True anomaly
+        cos_nu = (np.cos(E) - e) / (1 - e * np.cos(E))
+        sin_nu = (np.sqrt(1 - e**2) * np.sin(E)) / (1 - e * np.cos(E))
+        nu = np.arctan2(sin_nu, cos_nu)
+        # Distance
+        r = a * (1 - e**2) / (1 + e * np.cos(nu))
+        # Position in orbital plane
+        p = np.array([r * np.cos(nu), r * np.sin(nu), 0.0])
+        # Velocity in orbital plane
+        v = np.array([
+            -np.sqrt(mu / (a * (1 - e**2))) * np.sin(nu),
+            np.sqrt(mu / (a * (1 - e**2))) * (e + np.cos(nu)),
+            0.0
+        ])
+        # Rotation matrices
+        R1 = np.array([
+            [np.cos(raan), -np.sin(raan), 0],
+            [np.sin(raan), np.cos(raan), 0],
+            [0, 0, 1]
+        ])
+        R2 = np.array([
+            [1, 0, 0],
+            [0, np.cos(i), -np.sin(i)],
+            [0, np.sin(i), np.cos(i)]
+        ])
+        R3 = np.array([
+            [np.cos(argp), -np.sin(argp), 0],
+            [np.sin(argp), np.cos(argp), 0],
+            [0, 0, 1]
+        ])
+        R = R1 @ R2 @ R3
+        # Transform to GCRS
+        pos = R @ p
+        vel = R @ v
+        logger.debug(f"Calculated Keplerian state vector for '{telescope.get_code()}' at {time.isot}: pos={pos}, vel={vel}")
+        return pos, vel
+
+    def _interpolate_orbit(self, telescope: SpaceTelescope, start_time: Time, end_time: Time, time_step: float) -> Dict[str, Any]:
+        """Interpolate orbit data for a space telescope over a time range.
+
+        Args:
+            telescope (SpaceTelescope): The space telescope.
+            start_time (Time): Start time of interpolation.
+            end_time (Time): End time of interpolation.
+            time_step (float): Time step for interpolation (seconds).
+
+        Returns:
+            Dict[str, Any]: Interpolated orbit data with times, positions, velocities, and time_range. Returns empty dict if no data.
+
+        Notes:
+            - If orbit data partially covers the time range, interpolates only for the available portion and fills with None.
+            - Ensures no NaN values are included in the output.
+        """
+        if telescope.get("use_kep"):
+            logger.info(f"Skipping interpolation for '{telescope.get_code()}' as use_kep=True")
+            return {}
+        
+        orbit_file = telescope.get_orbit()
+        if not orbit_file:
+            logger.warning(f"No orbit file defined for telescope '{telescope.get_code()}'")
+            return {}
+        
+        try:
+            # Load orbit data
+            orbit_data = self._load_orbit_data(orbit_file, start_time, end_time)
+            if not orbit_data:
+                logger.warning(f"No valid orbit data for '{telescope.get_code()}' in time range {start_time.isot} to {end_time.isot}")
+                return {}
+            times = orbit_data["times"]
+            positions = orbit_data["positions"]
+            velocities = orbit_data["velocities"]
+            
+            # Check for NaN or invalid data
+            if np.any(np.isnan(positions)) or np.any(np.isnan(velocities)):
+                logger.warning(f"Orbit data contains NaN for '{telescope.get_code()}': positions={positions}, velocities={velocities}")
+                return {}
+            
+            j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
+            t_start = (start_time - j2000_epoch).sec
+            t_end = (end_time - j2000_epoch).sec
+            
+            # Check for partial coverage
+            data_start = times[0]
+            data_end = times[-1]
+            if data_start > t_end or data_end < t_start:
+                logger.warning(f"Orbit data for '{telescope.get_code()}' does not cover time range {start_time.isot} to {end_time.isot}")
+                return {}
+            elif data_start > t_start or data_end < t_end:
+                logger.warning(f"Orbit data for '{telescope.get_code()}' partially covers time range: {Time(data_start, format='jd').isot} to {Time(data_end, format='jd').isot}")
+                t_start = max(t_start, data_start)
+                t_end = min(t_end, data_end)
+            
+            # Filter and ensure unique times
+            unique_indices = np.unique(times, return_index=True)[1]
+            filtered_times = times[unique_indices]
+            filtered_positions = positions[unique_indices]
+            filtered_velocities = velocities[unique_indices]
+            
+            if len(filtered_times) < 2:
+                logger.warning(f"Too few points ({len(filtered_times)}) for interpolation for '{telescope.get_code()}'")
+                return {}
+            
+            # Interpolate
+            interp_times = np.arange(t_start, t_end + time_step, time_step)
+            method = telescope.get("interpolation_method") or "chebyshev"
+            
+            # Initialize arrays for full requested time range
+            full_times = np.arange((start_time - j2000_epoch).sec, (end_time - j2000_epoch).sec + time_step, time_step)
+            full_positions = np.full((len(full_times), 3), np.nan, dtype=float)
+            full_velocities = np.full((len(full_times), 3), np.nan, dtype=float)
+            
+            # Find indices for valid interpolation range
+            valid_mask = (full_times >= t_start) & (full_times <= t_end)
+            valid_interp_times = full_times[valid_mask]
+            
+            if not valid_interp_times.size:
+                logger.warning(f"No valid interpolation times for '{telescope.get_code()}'")
+                return {}
+            
+            if method == "chebyshev":
+                degree = min(30, len(filtered_times) - 1)  # Adjust degree based on data points
+                norm_times = 2 * (filtered_times - t_start) / (t_end - t_start) - 1
+                norm_interp_times = 2 * (valid_interp_times - t_start) / (t_end - t_start) - 1
+                pos_polynomials = [chebyshev.Chebyshev.fit(norm_times, pos, degree) for pos in filtered_positions.T]
+                vel_polynomials = [chebyshev.Chebyshev.fit(norm_times, vel, degree) for vel in filtered_velocities.T]
+                full_positions[valid_mask] = np.array([poly(norm_interp_times) for poly in pos_polynomials]).T
+                full_velocities[valid_mask] = np.array([poly(norm_interp_times) for poly in vel_polynomials]).T
+            elif method == "cubic_spline":
+                full_positions[valid_mask] = np.array([CubicSpline(filtered_times, pos)(valid_interp_times) for pos in filtered_positions.T]).T
+                full_velocities[valid_mask] = np.array([CubicSpline(filtered_times, vel)(valid_interp_times) for vel in filtered_velocities.T]).T
+            else:  # linear
+                full_positions[valid_mask] = np.array([np.interp(valid_interp_times, filtered_times, pos) for pos in filtered_positions.T]).T
+                full_velocities[valid_mask] = np.array([np.interp(valid_interp_times, filtered_times, vel) for vel in filtered_velocities.T]).T
+            
+            # Check for NaN in interpolated data
+            if np.any(np.isnan(full_positions)) or np.any(np.isnan(full_velocities)):
+                logger.warning(f"Interpolated data contains NaN for '{telescope.get_code()}': positions={full_positions}, velocities={full_velocities}")
+                return {}
+            
+            interpolated_data = {
+                "times": full_times,
+                "positions": full_positions,
+                "velocities": full_velocities,
+                "time_range": (t_start, t_end)  # Explicitly set time_range
+            }
+            
+            logger.info(f"Interpolated orbit for '{telescope.get_code()}' using {method} with {len(valid_interp_times)} points")
+            return interpolated_data
+        except Exception as e:
+            logger.warning(f"Failed to interpolate orbit for '{telescope.get_code()}': {str(e)}")
+            return {}
+
+    def _get_state_vector_from_orbit(self, telescope: SpaceTelescope, time: Time) -> Tuple[np.ndarray, np.ndarray]:
+        """Calculate state vector from orbit file at a specific time (fallback method).
+
+        Args:
+            telescope (SpaceTelescope): The space telescope.
+            time (Time): Time for state vector calculation.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: Position and velocity vectors in meters and m/s.
+        """
+        logger.warning(f"Fallback to direct orbit file loading for '{telescope.get_code()}' at {time.isot}")
+        orbit_file = telescope.get_orbit()
+        if not orbit_file:
+            raise ValueError(f"No orbit file defined for telescope '{telescope.get_code()}'")
+        orbit_data = self._load_orbit_data(orbit_file)
+        j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
+        t = (time - j2000_epoch).sec
+        times = orbit_data["times"]
+        if t < times[0] or t > times[-1]:
+            logger.warning(f"Time {time.isot} outside orbit data range for '{telescope.get_code()}'")
+            return np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])
+        
+        pos_idx = np.searchsorted(times, t)
+        t1, t2 = times[pos_idx - 1], times[pos_idx]
+        pos1, pos2 = orbit_data["positions"][pos_idx - 1], orbit_data["positions"][pos_idx]
+        vel1, vel2 = orbit_data["velocities"][pos_idx - 1], orbit_data["velocities"][pos_idx]
+        frac = (t - t1) / (t2 - t1)
+        pos = pos1 + (pos2 - pos1) * frac
+        vel = vel1 + (vel2 - vel1) * frac
+        logger.debug(f"Calculated state vector for '{telescope.get_code()}' at {time.isot}: pos={pos}, vel={vel}")
+        return pos, vel
+    
+    def _get_state_vector_from_cached_orbit(self, telescope: SpaceTelescope, time: Time, orbit_data: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
+        """Calculate state vector from cached interpolated orbit data.
+
+        Args:
+            telescope (SpaceTelescope): The space telescope.
+            time (Time): Time for state vector calculation.
+            orbit_data (Dict[str, Any]): Cached interpolated orbit data.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: Position and velocity vectors in meters and m/s.
+
+        Raises:
+            ValueError: If time is outside the cached orbit data range or data is invalid.
+        """
+        j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
+        t = (time - j2000_epoch).sec
+        interp_times = orbit_data.get("times", np.array([]))
+        
+        if not interp_times.size:
+            logger.warning(f"No cached orbit data for '{telescope.get_code()}' at {time.isot}")
+            raise ValueError("No cached orbit data available")
+        
+        # Use time_range if available, otherwise compute from interp_times
+        t_min, t_max = orbit_data.get("time_range", (interp_times[0], interp_times[-1]) if interp_times.size else (float('inf'), float('-inf')))
+        
+        if np.any(np.isnan([t_min, t_max])) or t_min == float('inf') or t_max == float('-inf'):
+            logger.warning(f"Invalid time range for '{telescope.get_code()}': t_min={t_min}, t_max={t_max}")
+            raise ValueError("Invalid time range in cached orbit data")
+        
+        if t < t_min or t > t_max:
+            logger.warning(f"Time {time.isot} outside cached orbit data range [{Time(t_min + j2000_epoch.jd, format='jd').isot}, {Time(t_max + j2000_epoch.jd, format='jd').isot}] for '{telescope.get_code()}'")
+            raise ValueError(f"Time {time.isot} outside orbit data range")
+        
+        idx = np.searchsorted(interp_times, t)
+        if idx == 0:
+            pos = orbit_data["positions"][0]
+            vel = orbit_data["velocities"][0]
+        elif idx >= len(interp_times):
+            pos = orbit_data["positions"][-1]
+            vel = orbit_data["velocities"][-1]
+        else:
+            frac = (t - interp_times[idx - 1]) / (interp_times[idx] - interp_times[idx - 1])
+            pos = (1 - frac) * orbit_data["positions"][idx - 1] + frac * orbit_data["positions"][idx]
+            vel = (1 - frac) * orbit_data["velocities"][idx - 1] + frac * orbit_data["velocities"][idx]
+        
+        if np.any(np.isnan(pos)) or np.any(np.isnan(vel)):
+            logger.warning(f"Interpolated position/velocity contains NaN for '{telescope.get_code()}' at {time.isot}: pos={pos}, vel={vel}")
+            raise ValueError("Invalid interpolated data")
+        
+        logger.debug(f"Interpolated state vector from cache for '{telescope.get_code()}' at {time.isot}: pos={pos}, vel={vel}")
+        return pos, vel

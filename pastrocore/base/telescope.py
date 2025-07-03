@@ -130,6 +130,14 @@ class Telescope(BaseEntity):
         """
         return (self.x, self.y, self.z)
     
+    def get_velocities(self) -> Tuple[float, float, float]:
+        """Return the telescope's ITRF velocities.
+
+        Returns:
+            Tuple[float, float, float]: The (vx, vy, vz) velocities in meters.
+        """
+        return (self.vx, self.vy, self.vz)
+    
     def get_elevation_range(self) -> Tuple[float,float]:
         """Return the telescope's elevation range.
 

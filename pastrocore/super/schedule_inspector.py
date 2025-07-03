@@ -533,7 +533,8 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Observation inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected Observation: code='{obs_obj.get_observation_code()}', result={final_result}")
+        logger.info(f"Inspected Observation: code='{obs_obj.get_observation_code()}'")
+        logger.debug(f"Inspected Observation: code='{obs_obj.get_observation_code()}', result={final_result}")
         return final_result
 
     def _inspect_scheduleproject(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Any:
