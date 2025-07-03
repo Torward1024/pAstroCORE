@@ -202,6 +202,12 @@ QDoubleSpinBox::down-arrow {
          <property name="text">
           <string>Recalculate</string>
          </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+         <property name="tristate">
+          <bool>false</bool>
+         </property>
         </widget>
        </item>
       </layout>
