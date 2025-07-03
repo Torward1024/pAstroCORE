@@ -153,6 +153,12 @@ class ScheduleProject(Project):
         result["observations"] = [obs.to_dict() for obs in self._items.get_items()]
         logger.info(f"Retrieved project configuration for '{self.name}' with {len(self._items)} observations")
         return result
+    
+    def clear_calculated_data(self):
+        """Clear all cached calculation data for this project and its observations."""
+        for obs in self.get_items():
+            obs.clear_calculated_data()
+        logger.debug(f"Cleared calculated data for project '{self.name}' and its observations")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert ScheduleProject to a dictionary for serialization.

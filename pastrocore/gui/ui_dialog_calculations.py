@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_calculationsBaRfXt.ui'
+## Form generated from reading UI file 'dialog_calculationshePBla.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -174,6 +174,8 @@ class Ui_CalculationDialog(object):
 
         self.recalculateCheck = QCheckBox(CalculationDialog)
         self.recalculateCheck.setObjectName(u"recalculateCheck")
+        self.recalculateCheck.setChecked(True)
+        self.recalculateCheck.setTristate(False)
 
         self.gridLayout_2.addWidget(self.recalculateCheck, 1, 0, 1, 2)
 

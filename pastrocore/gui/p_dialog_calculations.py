@@ -25,7 +25,7 @@ class CalculationThread(QThread):
         try:
             results = {}
             freq_dependent_calcs = ["UV Coverage", "Beam Pattern", "Synthesized Beam", "Baseline Projections"]
-            total = sum(len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1 
+            total = sum(len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1
                         for target in self.targets for calc_type in self.calc_types)
             current = 0
             for target in self.targets:
@@ -169,13 +169,27 @@ class CalculationDialog(QDialog):
             "obj": self.project,
             "attributes": {"get_items": None}
         })
+        self.ui.targetList.clear()  # Clear the list to avoid duplicates
         if observations_response["status"]:
+            if not observations_response["result"]:
+                logger.warning("No observations found in the project.")
+                QMessageBox.warning(self, "Warning", "No observations available in the project.")
+                return
             for _, obs in observations_response["result"].items():
                 item = QListWidgetItem(obs.code)
                 item.setData(Qt.UserRole, obs)
-                if obs in self.targets:
-                    item.setSelected(True)
+                item.setSelected(True)  # Select each observation by default
                 self.ui.targetList.addItem(item)
+            # Ensure all items are selected after population
+            self.ui.targetList.selectAll()
+            logger.debug(f"Populated {self.ui.targetList.count()} observations, all selected.")
+            # Verify selection state
+            selected_count = len(self.ui.targetList.selectedItems())
+            if selected_count != self.ui.targetList.count():
+                logger.warning(f"Selection mismatch: {selected_count} selected out of {self.ui.targetList.count()} items.")
+        else:
+            logger.error(f"Failed to retrieve observations: {observations_response.get('message', 'Unknown error')}")
+            QMessageBox.critical(self, "Error", "Failed to load observations. Please check the project data.")
 
     def select_all_targets(self):
         """Select all targets in the list."""
@@ -207,15 +221,27 @@ class CalculationDialog(QDialog):
     def run_calculation(self):
         """Run the selected calculations in a separate thread."""
         selected_calcs = [self.ui.calcTable.item(r, 1).text() for r in range(self.ui.calcTable.rowCount())
-                          if self.ui.calcTable.cellWidget(r, 0).isChecked()]
+                        if self.ui.calcTable.cellWidget(r, 0).isChecked()]
         selected_targets = [self.ui.targetList.item(i).data(Qt.UserRole) for i in range(self.ui.targetList.count())
                             if self.ui.targetList.item(i).isSelected()]
         if not selected_calcs or not selected_targets:
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
             return
+        
+        # Clear cache for all selected targets if recalculate is checked
+        if self.ui.recalculateCheck.isChecked():
+            for target in selected_targets:
+                try:
+                    target.clear_calculated_data()
+                    logger.info(f"Cleared all cached data for '{target.get_observation_code()}'")
+                except AttributeError as e:
+                    logger.error(f"Failed to clear cache for '{target.get_observation_code()}': {str(e)}")
+                    QMessageBox.critical(self, "Error", f"Failed to clear cache for {target.get_observation_code()}: {str(e)}")
+                    return
+
         params = {
             "time_step": self.ui.timeStepSpin.value(),
-            "recalculate": self.ui.recalculateCheck.isChecked()
+            "recalculate": False  # Always pass recalculate=False to calculator
         }
         logger.debug(f"CalculationDialog: params set to {params}")
         calc_params = {calc: params for calc in selected_calcs}

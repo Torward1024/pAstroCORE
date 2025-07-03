@@ -197,6 +197,11 @@ class Observation(BaseEntity):
                 telescope_scans[tel_code].append((scan_start, scan_end))
         logger.info(f"Observation '{self.name}' validated successfully")
         return True
+    
+    def clear_calculated_data(self):
+        """Clear all cached calculation data for this observation."""
+        self.calculated_data.clear()
+        logger.debug(f"Cleared calculated data for observation '{self.get_observation_code()}'")
                 
     def to_dict(self) -> dict:
         """Convert the Observation object to a dictionary for serialization."""
