@@ -111,7 +111,11 @@ class ScanEditorDialog(QDialog):
         if col == 1:  # Check column
             model = item.model()
             name_item = model.item(row, 3) if model == self.telescopes_model else model.item(row, 3)
-            name = name_item.data(Qt.UserRole) if name_item else "Unknown"
+            if name_item and name_item.text():
+                name = name_item.text()
+            else:
+                logger.error(f"Failed to retrieve name for row {row} in {'telescopes' if model == self.telescopes_model else 'frequencies'} model")
+                name = "Unknown"
             check_state = item.checkState()
             logger.debug(f"Item changed: {name}, check_state={check_state}")
             target_set = self.selected_telescopes if model == self.telescopes_model else self.selected_frequencies

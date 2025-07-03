@@ -380,15 +380,45 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def new_project(self):
-        """Create a new project."""
+        """Create a new project, ensuring all old project data is cleared."""
+        # Отключаем все сигналы, связанные со старым проектом
+        try:
+            self.project_updated.disconnect()
+        except Exception as e:
+            logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
+
+        # Очищаем все вкладки
+        for i in range(self.ui.tabContainer.count() - 1, -1, -1):
+            widget = self.ui.tabContainer.widget(i)
+            if widget:
+                # Отключаем все сигналы виджета, если они есть
+                try:
+                    widget.disconnect()
+                except Exception as e:
+                    logger.debug(f"No signals to disconnect for widget {widget.objectName()}: {str(e)}")
+                self.ui.tabContainer.removeTab(i)
+                widget.deleteLater()  # Помечаем виджет для удаления из памяти
+
+        # Создаем новый проект и манипулятор
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
-        logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
         self.current_project_path = None
-        
-        for i in range(self.ui.tabContainer.count() - 1, -1, -1):
-            self.ui.tabContainer.removeTab(i)
+        logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
+
+        # Очищаем projectExplorer
+        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+        if project_explorer:
+            project_explorer.setModel(None)  # Удаляем старую модель
+            self.update_project_explorer()  # Создаем новую модель
+
+        # Открываем вкладку проекта
         self.open_project_info_tab()
+
+        # Восстанавливаем соединения сигналов
+        self.setup_connections()
+        logger.debug("Connections re-established for new project")
+
+        # Обновляем интерфейс
         self.project_updated.emit()
 
     @Slot()

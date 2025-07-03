@@ -204,6 +204,9 @@ QMenu::icon {
    </widget>
   </widget>
   <widget class="QDockWidget" name="dockWidget">
+   <property name="contextMenuPolicy">
+    <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
+   </property>
    <property name="styleSheet">
     <string notr="true">background-color: #ffffff; font-family: Arial;</string>
    </property>
@@ -242,7 +245,8 @@ QMenu::icon {
   </widget>
   <action name="actionNewProject">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentNew"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/new_project.svg</normaloff>:/icons/new_project.svg</iconset>
    </property>
    <property name="text">
     <string>New Project</string>
@@ -250,8 +254,8 @@ QMenu::icon {
   </action>
   <action name="actionOpenProject">
    <property name="icon">
-    <iconset>
-     <normaloff>:/open_project/icon_open.png</normaloff>:/open_project/icon_open.png</iconset>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/open_project_icon.svg</normaloff>:/icons/open_project_icon.svg</iconset>
    </property>
    <property name="text">
     <string>Open Project</string>
@@ -259,13 +263,18 @@ QMenu::icon {
   </action>
   <action name="actionSaveProject">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentSave"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/save_project_icon.svg</normaloff>:/icons/save_project_icon.svg</iconset>
    </property>
    <property name="text">
     <string>Save Project</string>
    </property>
   </action>
   <action name="actionExit">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/exit_icon.svg</normaloff>:/icons/exit_icon.svg</iconset>
+   </property>
    <property name="text">
     <string>Exit</string>
    </property>
@@ -275,7 +284,8 @@ QMenu::icon {
   </action>
   <action name="actionPreferences">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentProperties"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
    </property>
    <property name="text">
     <string>Preferences...</string>
@@ -283,7 +293,8 @@ QMenu::icon {
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::HelpAbout"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/about_icon.svg</normaloff>:/icons/about_icon.svg</iconset>
    </property>
    <property name="text">
     <string>About</string>
@@ -302,7 +313,8 @@ QMenu::icon {
   </action>
   <action name="actionSource_Catalog_Manager">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentPageSetup"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
    </property>
    <property name="text">
     <string>Source Catalog Manager</string>
@@ -310,7 +322,8 @@ QMenu::icon {
   </action>
   <action name="actionTelescope_Catalog_Manager">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentPageSetup"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
    </property>
    <property name="text">
     <string>Telescope Catalog Manager</string>
@@ -318,7 +331,8 @@ QMenu::icon {
   </action>
   <action name="actionSave_Project_As">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::DocumentSaveAs"/>
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/save_project_as_icon.svg</normaloff>:/icons/save_project_as_icon.svg</iconset>
    </property>
    <property name="text">
     <string>Save Project As...</string>
@@ -343,11 +357,19 @@ QMenu::icon {
    </property>
   </action>
   <action name="actionCalculate">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/calculate.svg</normaloff>:/icons/calculate.svg</iconset>
+   </property>
    <property name="text">
     <string>Calculate</string>
    </property>
   </action>
   <action name="actionVisualize">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/visualize.svg</normaloff>:/icons/visualize.svg</iconset>
+   </property>
    <property name="text">
     <string>Visualize</string>
    </property>

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_visualizejpGLhw.ui'
+## Form generated from reading UI file 'dialog_visualizeDYeHRE.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -23,7 +23,18 @@ class Ui_VisualizationDialog(object):
     def setupUi(self, VisualizationDialog):
         if not VisualizationDialog.objectName():
             VisualizationDialog.setObjectName(u"VisualizationDialog")
+        VisualizationDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         VisualizationDialog.resize(686, 595)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(VisualizationDialog.sizePolicy().hasHeightForWidth())
+        VisualizationDialog.setSizePolicy(sizePolicy)
+        icon = QIcon()
+        icon.addFile(u":/icons/visualize.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        VisualizationDialog.setWindowIcon(icon)
+        VisualizationDialog.setSizeGripEnabled(True)
+        VisualizationDialog.setModal(True)
         self.gridLayout_3 = QGridLayout(VisualizationDialog)
         self.gridLayout_3.setObjectName(u"gridLayout_3")
         self.gridLayout_2 = QGridLayout()
@@ -352,9 +363,9 @@ class Ui_VisualizationDialog(object):
 "    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
 "    padding-bottom: 5px;\n"
 "}")
-        icon = QIcon()
-        icon.addFile(u":/icons/plot_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
-        self.pushButtonVisualize.setIcon(icon)
+        icon1 = QIcon()
+        icon1.addFile(u":/icons/plot_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        self.pushButtonVisualize.setIcon(icon1)
 
         self.gridLayout.addWidget(self.pushButtonVisualize, 0, 2, 1, 1)
 
@@ -376,10 +387,16 @@ class Ui_VisualizationDialog(object):
 "    padding-bottom: 5px;\n"
 "}")
 
-        self.gridLayout.addWidget(self.closeButton, 2, 2, 1, 1)
+        self.gridLayout.addWidget(self.closeButton, 3, 2, 1, 1)
 
         self.widget = QWidget(VisualizationDialog)
         self.widget.setObjectName(u"widget")
+        self.widget.setStyleSheet(u"QWidget{\n"
+"    border: 1px solid #005BB5; /* \u0426\u0432\u0435\u0442 \u0433\u0440\u0430\u043d\u0438\u0446\u044b \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d \u0441 \u0438\u043a\u043e\u043d\u043a\u0430\u043c\u0438 */\n"
+"    border-radius: 6px; /* \u0421\u043a\u0440\u0443\u0433\u043b\u0435\u043d\u043d\u044b\u0435 \u0443\u0433\u043b\u044b \u0434\u043b\u044f \u0441\u043e\u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u0433\u043e \u0432\u0438\u0434\u0430 */\n"
+"    background-color: #FFFFFF; /* \u0421\u0432\u0435\u0442\u043b\u044b\u0439 \u0444\u043e\u043d, \u043d\u0435 \u043e\u0442\u0432\u043b\u0435\u043a\u0430\u044e\u0449\u0438\u0439 \u043e\u0442 \u0433\u0440\u0430\u0444\u0438\u043a\u0430 */\n"
+"    padding: 4px; /* \u0412\u043d\u0443\u0442\u0440\u0435\u043d\u043d\u0438\u0439 \u043e\u0442\u0441\u0442\u0443\u043f \u0434\u043b\u044f \u0432\u0438\u0437\u0443\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u043a\u043e\u043c\u0444\u043e\u0440\u0442\u0430 */\n"
+"}")
 
         self.gridLayout.addWidget(self.widget, 1, 0, 1, 3)
 

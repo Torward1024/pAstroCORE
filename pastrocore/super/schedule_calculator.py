@@ -247,20 +247,19 @@ class ScheduleCalculator(Super):
                     pos_array = pos_arrays[tel_code]
                     
                     if isinstance(tel, SpaceTelescope):
-                        itrs = ITRS(CartesianRepresentation(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], unit=u.m), obstime=times)
-                        altaz = source_coord.transform_to(AltAz(obstime=times, location=itrs.earth_location))
-                        pitch = altaz.alt.deg
-                        yaw = altaz.az.deg
-                        pitch_range = tel.get_pitch_range()
-                        yaw_range = tel.get_yaw_range()
-
-                        pitch_lower = np.asarray(float(pitch_range[0]) <= pitch, dtype=bool)
-                        pitch_upper = np.asarray(pitch <= float(pitch_range[1]), dtype=bool)
-                        yaw_lower = np.asarray(float(yaw_range[0]) <= yaw, dtype=bool)
-                        yaw_upper = np.asarray(yaw <= float(yaw_range[1]), dtype=bool)
-                        is_visible = pitch_lower & pitch_upper & yaw_lower & yaw_upper
+                        # itrs = ITRS(CartesianRepresentation(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], unit=u.m), obstime=times)
+                        # altaz = source_coord.transform_to(AltAz(obstime=times, location=itrs.earth_location))
+                        # pitch = altaz.alt.deg
+                        # yaw = altaz.az.deg
+                        # pitch_range = tel.get_pitch_range()
+                        # yaw_range = tel.get_yaw_range()
                         
-                        visibility[i] = is_visible
+                        # pitch_lower = np.asarray(float(pitch_range[0]) <= pitch, dtype=bool)
+                        # pitch_upper = np.asarray(pitch <= float(pitch_range[1]), dtype=bool)
+                        # yaw_lower = np.asarray(float(yaw_range[0]) <= yaw, dtype=bool)
+                        # yaw_upper = np.asarray(yaw <= float(yaw_range[1]), dtype=bool)
+                        # is_visible = pitch_lower & pitch_upper & yaw_lower & yaw_upper
+                        visibility[i] = True # is_visible
                     else:
                         gcrs = GCRS(CartesianRepresentation(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], unit=u.m), obstime=times)
                         itrs = gcrs.transform_to(ITRS(obstime=times))

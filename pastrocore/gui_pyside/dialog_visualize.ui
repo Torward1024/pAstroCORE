@@ -2,6 +2,9 @@
 <ui version="4.0">
  <class>VisualizationDialog</class>
  <widget class="QDialog" name="VisualizationDialog">
+  <property name="windowModality">
+   <enum>Qt::WindowModality::ApplicationModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -10,11 +13,27 @@
     <height>595</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="windowTitle">
    <string>Visualize Observation</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/visualize.svg</normaloff>:/icons/visualize.svg</iconset>
+  </property>
   <property name="styleSheet">
    <string>background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <property name="modal">
+   <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout_3">
    <item row="0" column="0">
@@ -417,7 +436,7 @@ QPushButton:pressed {
          </property>
         </widget>
        </item>
-       <item row="2" column="2">
+       <item row="3" column="2">
         <widget class="QPushButton" name="closeButton">
          <property name="styleSheet">
           <string notr="true">QPushButton {
@@ -442,7 +461,16 @@ QPushButton:pressed {
         </widget>
        </item>
        <item row="1" column="0" colspan="3">
-        <widget class="QWidget" name="widget" native="true"/>
+        <widget class="QWidget" name="widget" native="true">
+         <property name="styleSheet">
+          <string notr="true">QWidget{
+    border: 1px solid #005BB5; /* Цвет границы согласован с иконками */
+    border-radius: 6px; /* Скругленные углы для современного вида */
+    background-color: #FFFFFF; /* Светлый фон, не отвлекающий от графика */
+    padding: 4px; /* Внутренний отступ для визуального комфорта */
+}</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -451,7 +479,7 @@ QPushButton:pressed {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/rc_icons.qrc"/>
+  <include location="../gui/icons/icons.qrc"/>
  </resources>
  <connections/>
 </ui>

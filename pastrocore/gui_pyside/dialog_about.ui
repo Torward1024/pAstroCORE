@@ -16,6 +16,10 @@
   <property name="windowTitle">
    <string>About pAstroCORE</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/about_icon.svg</normaloff>:/icons/about_icon.svg</iconset>
+  </property>
   <property name="layoutDirection">
    <enum>Qt::LayoutDirection::LeftToRight</enum>
   </property>
@@ -148,14 +152,16 @@ QPushButton:pressed {
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>../gui/pAstroCORE_icon.png</pixmap>
+    <pixmap resource="../gui/icons/icons.qrc">:/icons/pAstroCORE_icon.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
    </property>
   </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>closeButton</sender>

@@ -6,12 +6,16 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>273</width>
-    <height>116</height>
+    <width>332</width>
+    <height>123</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Dialog</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/add_observation_icon.svg</normaloff>:/icons/add_observation_icon.svg</iconset>
   </property>
   <property name="styleSheet">
    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
@@ -247,6 +251,8 @@ QPushButton:pressed {
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>

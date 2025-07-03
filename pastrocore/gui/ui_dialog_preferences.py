@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_preferencesNoPKKv.ui'
+## Form generated from reading UI file 'dialog_preferenceszRYExA.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.8.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -22,7 +22,10 @@ class Ui_PreferencesDialog(object):
     def setupUi(self, PreferencesDialog):
         if not PreferencesDialog.objectName():
             PreferencesDialog.setObjectName(u"PreferencesDialog")
-        PreferencesDialog.resize(567, 108)
+        PreferencesDialog.resize(557, 149)
+        icon = QIcon()
+        icon.addFile(u":/icons/preferences.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        PreferencesDialog.setWindowIcon(icon)
         PreferencesDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.gridLayout = QGridLayout(PreferencesDialog)
         self.gridLayout.setObjectName(u"gridLayout")

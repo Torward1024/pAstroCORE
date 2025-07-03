@@ -19,9 +19,9 @@ class MountType(Enum):
 class SpaceTelescope(Telescope):
     """Class representing a space-based telescope with orbital parameters and SEFD properties.
 
-    Inherits from Telescope, setting mount_type to 'NONE'. Adds orbital data (via file, direct data, or Keplerian elements),
+    Inherits from Telescope, setting mount_type to 'NONE'. Supports orbital data via file or Keplerian elements,
     pitch and yaw ranges, and interpolation methods (linear, Chebyshev, or cubic spline) for orbit calculations.
-    Provides state vector (position and velocity) retrieval at specific times.
+    Orbital data is loaded from file on demand to minimize memory usage.
     """
     type: str
     orbit_file: str
@@ -70,17 +70,9 @@ class SpaceTelescope(Telescope):
 
         if use_kep and kepler_elements is not None:
             self._validate_kepler_elements(kepler_elements)
-            self.orbit_data = None
             logger.info(f"Initialized SpaceTelescope '{code}' with Keplerian elements, diameter={diameter} m")
         elif not use_kep and orbit_file and os.path.isfile(orbit_file):
-            try:
-                self.load_orbit(orbit_file)
-                logger.info(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
-            except FileNotFoundError:
-                logger.warning(f"Orbit file '{orbit_file}' not found; initializing without orbit data")
-                self.orbit_data = None
-                self.use_kep = False
-                self.kepler_elements = None
+            logger.info(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
         else:
             logger.warning(f"Initialized SpaceTelescope '{code}' without orbit data or Keplerian elements")
             self.orbit_data = None
@@ -124,12 +116,25 @@ class SpaceTelescope(Telescope):
         if kepler_elements["mu"] <= 0:
             raise ValueError("Gravitational parameter must be positive")
 
-    def load_orbit(self, orbit_file: str) -> None:
-        """Load orbital data from a CSDSS OEM 2.0 styled file."""
-        if not isinstance(orbit_file, str) or not orbit_file.strip():
-            raise TypeError("Orbit file must be a non-empty string")
+    def _load_orbit_data_on_demand(self, start_time: Optional[Time] = None, end_time: Optional[Time] = None) -> Dict[str, np.ndarray]:
+        """Load orbit data from file on demand, optionally filtering by time range.
+
+        Args:
+            start_time (Optional[Time]): Start time for filtering data.
+            end_time (Optional[Time]): End time for filtering data.
+
+        Returns:
+            Dict[str, np.ndarray]: Dictionary containing times, positions, and velocities.
+
+        Raises:
+            FileNotFoundError: If orbit file does not exist.
+            ValueError: If file format is invalid or insufficient data points.
+        """
+        if not self.orbit_file or not os.path.isfile(self.orbit_file):
+            raise FileNotFoundError(f"Orbit file '{self.orbit_file}' not found")
+        
         try:
-            with open(orbit_file, 'r') as f:
+            with open(self.orbit_file, 'r') as f:
                 lines = f.readlines()
             
             data_lines = [line.strip() for line in lines if line.strip() and not line.startswith('#')]
@@ -165,34 +170,85 @@ class SpaceTelescope(Telescope):
                 positions[i] = [x * 1000, y * 1000, z * 1000]
                 velocities[i] = [vx * 1000, vy * 1000, vz * 1000]
             
-            self.orbit_data = {
+            orbit_data = {
                 "times": times_sec,
                 "positions": positions,
                 "velocities": velocities
             }
-            self.orbit_file = orbit_file
-            self.use_kep = False
-            self.kepler_elements = None
-            self.interpolated_orbit = None
-            logger.info(f"Loaded orbit data from '{orbit_file}' with {len(valid_lines)} points")
+            
+            # Filter by time range if provided
+            if start_time is not None and end_time is not None:
+                t_start = (start_time - j2000_epoch).sec
+                t_end = (end_time - j2000_epoch).sec
+                mask = (orbit_data["times"] >= t_start) & (orbit_data["times"] <= t_end)
+                if not np.any(mask):
+                    raise ValueError(f"No orbit data within time range {start_time.isot} to {end_time.isot}")
+                orbit_data = {
+                    "times": orbit_data["times"][mask],
+                    "positions": orbit_data["positions"][mask],
+                    "velocities": orbit_data["velocities"][mask]
+                }
+            
+            logger.info(f"Loaded orbit data from '{self.orbit_file}' with {len(orbit_data['times'])} points")
+            return orbit_data
         
         except FileNotFoundError:
-            logger.error(f"Orbit file '{orbit_file}' not found")
+            logger.error(f"Orbit file '{self.orbit_file}' not found")
             raise
         except ValueError as e:
             logger.error(f"Error parsing orbit file: {str(e)}")
             raise
 
+    def load_orbit(self, orbit_file: str) -> None:
+        """Load orbital data from a CSDSS OEM 2.0 styled file into orbit_data."""
+        if not isinstance(orbit_file, str) or not orbit_file.strip():
+            raise TypeError("Orbit file must be a non-empty string")
+        self.orbit_file = orbit_file
+        self.orbit_data = None  # Reset orbit_data to ensure lazy loading
+        self.use_kep = False
+        self.kepler_elements = None
+        self.interpolated_orbit = None
+        logger.info(f"Set orbit file to '{orbit_file}' for lazy loading")
+
+    def get_pitch_range(self) -> Tuple[float, float]:
+        """Retrieve the pitch range of the telescope.
+
+        Returns:
+            Tuple[float, float]: A tuple containing the minimum and maximum pitch angles in degrees.
+        """
+        logger.debug(f"Retrieving pitch range for SpaceTelescope '{self.code}': {self.pitch_range}")
+        return self.pitch_range
+
+    def get_yaw_range(self) -> Tuple[float, float]:
+        """Retrieve the yaw range of the telescope.
+
+        Returns:
+            Tuple[float, float]: A tuple containing the minimum and maximum yaw angles in degrees.
+        """
+        logger.debug(f"Retrieving yaw range for SpaceTelescope '{self.code}': {self.yaw_range}")
+        return self.yaw_range
+
     def get_orbit(self) -> Optional[Dict[str, np.ndarray]]:
-        """Retrieve the current orbit data."""
+        """Retrieve the current orbit data, loading from file if necessary."""
         if self.orbit_data is not None:
             return {
                 "times": self.orbit_data["times"].copy(),
                 "positions": self.orbit_data["positions"].copy(),
                 "velocities": self.orbit_data["velocities"].copy()
             }
+        if self.orbit_file and not self.use_kep:
+            try:
+                self.orbit_data = self._load_orbit_data_on_demand()
+                return {
+                    "times": self.orbit_data["times"].copy(),
+                    "positions": self.orbit_data["positions"].copy(),
+                    "velocities": self.orbit_data["velocities"].copy()
+                }
+            except (FileNotFoundError, ValueError) as e:
+                logger.warning(f"Failed to load orbit data: {str(e)}")
+                return None
         return None
-    
+
     def copy(self) -> 'SpaceTelescope':
         """Create a deep copy of the SpaceTelescope object, validating orbital parameters."""
         copied = SpaceTelescope(
@@ -206,7 +262,7 @@ class SpaceTelescope(Telescope):
             isactive=self.isactive,
             use_kep=self.use_kep,
             kepler_elements=deepcopy(self.kepler_elements),
-            orbit_data=deepcopy(self.orbit_data),
+            orbit_data=None,  # Do not copy orbit_data to minimize memory
             interpolation_method=self.interpolation_method,
             surface_accuracy=self.surface_accuracy,
             surface_efficiency_table=deepcopy(self.surface_efficiency_table),
@@ -216,8 +272,6 @@ class SpaceTelescope(Telescope):
         )
         if copied.kepler_elements:
             copied._validate_kepler_elements(copied.kepler_elements)
-        if copied.orbit_data:
-            copied.set_orbit(copied.orbit_data)  # Validates orbit data
         return copied
 
     def set_orbit(self, orbit_data: Dict[str, np.ndarray]) -> None:
@@ -266,11 +320,14 @@ class SpaceTelescope(Telescope):
         if self.use_kep:
             logger.info("Using Keplerian elements, skipping interpolation")
             return
-        if self.orbit_data is None:
-            raise ValueError("No orbit data loaded")
-        times = self.orbit_data["times"]
-        positions = self.orbit_data["positions"]
-        velocities = self.orbit_data["velocities"]
+        if not self.orbit_file and not self.orbit_data:
+            raise ValueError("No orbit file or data available")
+        
+        # Load orbit data for the specified time range
+        orbit_data = self.orbit_data if self.orbit_data is not None else self._load_orbit_data_on_demand(start_time, end_time)
+        times = orbit_data["times"]
+        positions = orbit_data["positions"]
+        velocities = orbit_data["velocities"]
         j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
         t_start = (start_time - j2000_epoch).sec
         t_end = (end_time - j2000_epoch).sec
@@ -319,15 +376,11 @@ class SpaceTelescope(Telescope):
                 "positions": np.array([np.interp(interp_times, filtered_times, pos) for pos in filtered_positions.T]).T,
                 "velocities": np.array([np.interp(interp_times, filtered_times, vel) for vel in filtered_velocities.T]).T
             }
+        # Clear orbit_data to free memory
+        if self.orbit_data is not None and self.orbit_file:
+            self.orbit_data = None
+            logger.debug(f"Cleared orbit_data for {self.name} after interpolation")
         logger.info(f"Interpolated orbit using {self.interpolation_method}")
-
-    def get_pitch_range(self) -> Tuple[float, float]:
-        """Retrieve the pitch range."""
-        return self.pitch_range
-    
-    def get_yaw_range(self) -> Tuple[float, float]:
-        """Retrieve the yaw range."""
-        return self.yaw_range
 
     def get_state_vector(self, time: Time) -> Tuple[np.ndarray, np.ndarray]:
         """Retrieve position and velocity vectors at a specific time."""
@@ -335,37 +388,11 @@ class SpaceTelescope(Telescope):
             return self.get_state_vector_from_kepler(time)
         return self.get_state_vector_from_orbit(time)
 
-    def get_state_vector_from_kepler(self, time: Time) -> Tuple[np.ndarray, np.ndarray]:
-        """Calculate state vector from Keplerian elements at a specific time."""
-        if self.kepler_elements is None:
-            raise ValueError("No Keplerian elements set")
-        a, e, i, raan, argp, nu0, epoch, mu = (
-            self.kepler_elements[k] for k in ["a", "e", "i", "raan", "argp", "nu", "epoch", "mu"]
-        )
-        t = (time - epoch).sec
-        M = np.sqrt(mu / a**3) * t + self._solve_kepler(nu0, e)
-        E = self._solve_kepler(M, e)
-        nu = 2 * np.arctan2(np.sqrt(1 + e) * np.sin(E / 2), np.sqrt(1 - e) * np.cos(E / 2))
-        r = a * (1 - e * np.cos(E))
-        p = a * (1 - e**2)
-        h = np.sqrt(mu * p)
-        pos_p = np.array([r * np.cos(nu), r * np.sin(nu), 0])
-        vel_p = np.array([-np.sin(nu), e + np.cos(nu), 0]) * (h / p)
-        R1 = np.array([[np.cos(raan), -np.sin(raan), 0], [np.sin(raan), np.cos(raan), 0], [0, 0, 1]])
-        R2 = np.array([[1, 0, 0], [0, np.cos(i), -np.sin(i)], [0, np.sin(i), np.cos(i)]])
-        R3 = np.array([[np.cos(argp), -np.sin(argp), 0], [np.sin(argp), np.cos(argp), 0], [0, 0, 1]])
-        R = R1 @ R2 @ R3
-        pos = R @ pos_p
-        vel = R @ vel_p
-        logger.debug(f"Calculated position={pos}, velocity={vel} at {time.isot}")
-        return pos, vel
-
     def get_state_vector_from_orbit(self, time: Time) -> Tuple[np.ndarray, np.ndarray]:
-        """Calculate state vector from orbit data or interpolated orbit at a specific time."""
-        if self.orbit_data is None:
-            raise ValueError("No orbit data defined")
+        """Calculate state vector from orbit data or file at a specific time."""
         j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
         t = (time - j2000_epoch).sec
+
         if self.interpolated_orbit and "time_range" in self.interpolated_orbit:
             t_min, t_max = self.interpolated_orbit["time_range"]
             interp_times = self.interpolated_orbit["times"]
@@ -383,17 +410,26 @@ class SpaceTelescope(Telescope):
                     vel = (1 - frac) * self.interpolated_orbit["velocities"][idx - 1] + frac * self.interpolated_orbit["velocities"][idx]
                 logger.debug(f"Interpolated state vector at {time.isot}: pos={pos}, vel={vel}")
                 return pos, vel
-        times = self.orbit_data["times"]
+
+        # Load orbit data for a single point
+        if not self.orbit_file:
+            raise ValueError("No orbit file defined")
+        orbit_data = self._load_orbit_data_on_demand()
+        times = orbit_data["times"]
         if t < times[0] or t > times[-1]:
             logger.warning(f"Time {time.isot} outside orbit data range")
             return np.array([self.x, self.y, self.z]), np.array([self.vx, self.vy, self.vz])
+        
         pos_idx = np.searchsorted(times, t)
         t1, t2 = times[pos_idx - 1], times[pos_idx]
-        pos1, pos2 = self.orbit_data["positions"][pos_idx - 1], self.orbit_data["positions"][pos_idx]
-        vel1, vel2 = self.orbit_data["velocities"][pos_idx - 1], self.orbit_data["velocities"][pos_idx]
+        pos1, pos2 = orbit_data["positions"][pos_idx - 1], orbit_data["positions"][pos_idx]
+        vel1, vel2 = orbit_data["velocities"][pos_idx - 1], orbit_data["velocities"][pos_idx]
         frac = (t - t1) / (t2 - t1)
         pos = pos1 + (pos2 - pos1) * frac
         vel = vel1 + (vel2 - vel1) * frac
+        
+        # Clear orbit_data to free memory
+        self.orbit_data = None
         logger.debug(f"Calculated state vector at {time.isot}: pos={pos}, vel={vel}")
         return pos, vel
 
@@ -406,22 +442,9 @@ class SpaceTelescope(Telescope):
         self._validate_kepler_elements(kepler_elements)
         self.set({"kepler_elements": kepler_elements, "orbit_data": None, "use_kep": True})
         logger.info("Set Keplerian elements")
-    
+
     def _solve_kepler(self, initial: float, e: float, tol: float = 1e-8, max_iter: int = 200) -> float:
-        """Solve Kepler's equation iteratively to find the eccentric anomaly.
-
-        Args:
-            initial (float): Initial guess for mean anomaly (radians).
-            e (float): Orbital eccentricity (must be < 1 for elliptical orbits).
-            tol (float): Convergence tolerance. Defaults to 1e-8.
-            max_iter (int): Maximum number of iterations. Defaults to 200.
-
-        Returns:
-            float: Eccentric anomaly (radians).
-
-        Raises:
-            ValueError: If eccentricity is >= 1 (non-elliptical orbit).
-        """
+        """Solve Kepler's equation iteratively to find the eccentric anomaly."""
         if e >= 1:
             raise ValueError("Eccentricity must be < 1 for elliptical orbit")
         x = initial if e < 0.9 else np.pi
@@ -436,28 +459,13 @@ class SpaceTelescope(Telescope):
         return x
 
     def to_dict(self) -> dict:
-        """Convert the SpaceTelescope object to a dictionary for serialization.
-
-        Excludes orbit_data to prevent storing temporary in-memory data. Converts numpy arrays in interpolated_orbit
-        to lists for JSON compatibility. Includes all other annotated attributes, such as orbit_file, kepler_elements,
-        and interpolated_orbit, for proper deserialization.
-
-        Returns:
-            dict: A dictionary containing the serialized data of the SpaceTelescope, JSON-compatible.
-
-        Raises:
-            ValueError: If serialization fails due to invalid data.
-        """
+        """Convert the SpaceTelescope object to a dictionary for serialization."""
         try:
-            # Получаем базовую сериализацию из родительского класса
             data = super().to_dict()
             logger.debug(f"BaseEntity.to_dict returned: {data}")
-
-            # Исключаем orbit_data и координаты/скорости, не актуальные для SpaceTelescope
             for key in ["x", "y", "z", "vx", "vy", "vz", "orbit_data"]:
                 data.pop(key, None)
 
-            # Формируем словарь с атрибутами SpaceTelescope
             serialized_data = {
                 "type": "SpaceTelescope",
                 "orbit_file": self.orbit_file,
@@ -482,31 +490,21 @@ class SpaceTelescope(Telescope):
                     "velocities": self.interpolated_orbit["velocities"].tolist()
                 }
             }
-
-            # Обновляем базовый словарь
             data.update(serialized_data)
             logger.debug(f"Serialized SpaceTelescope '{self.code}' to JSON-compatible dict: {data}")
-
             return data
-
         except Exception as e:
             logger.error(f"Failed to serialize SpaceTelescope '{self.code}': {str(e)}")
             raise ValueError(f"Serialization failed: {str(e)}")
 
     @classmethod
     def from_dict(cls, data: dict) -> 'SpaceTelescope':
-        """Create a SpaceTelescope object from a dictionary.
-
-        Loads orbit_data from orbit_file if provided, otherwise uses kepler_elements.
-        """
+        """Create a SpaceTelescope object from a dictionary."""
         data = data.copy()
-        
-        # Handle Telescope attributes
         for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
             if table in data and isinstance(data[table], dict):
                 data[table] = {float(k): v for k, v in data[table].items()}
         
-        # Convert lists to tuples for ranges
         if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
             data["elevation_range"] = tuple(data["elevation_range"])
         if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
@@ -516,14 +514,12 @@ class SpaceTelescope(Telescope):
         if "yaw_range" in data and isinstance(data["yaw_range"], (list, tuple)):
             data["yaw_range"] = tuple(data["yaw_range"])
         
-        # Handle mount_type
         if "mount_type" in data and isinstance(data["mount_type"], str):
             try:
                 data["mount_type"] = MountType(data["mount_type"].upper())
             except ValueError:
                 raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
         
-        # Handle Keplerian elements
         if "kepler_elements" in data and data["kepler_elements"] is not None:
             kepler = data["kepler_elements"]
             data["kepler_elements"] = {
@@ -537,7 +533,6 @@ class SpaceTelescope(Telescope):
                 "mu": kepler["mu"]
             }
         
-        # Handle interpolated orbit
         if "interpolated_orbit" in data and data["interpolated_orbit"] is not None:
             interp_orbit = data["interpolated_orbit"]
             data["interpolated_orbit"] = {
@@ -547,7 +542,6 @@ class SpaceTelescope(Telescope):
                 "velocities": np.array(interp_orbit["velocities"])
             }
         
-        # Define valid parameters for SpaceTelescope.__init__
         valid_init_params = {
             "code", "name", "type", "orbit_file", "diameter", "sefd_table", "pitch_range", "yaw_range",
             "isactive", "use_kep", "kepler_elements", "interpolation_method",
@@ -555,10 +549,7 @@ class SpaceTelescope(Telescope):
             "interpolated_orbit"
         }
         
-        # Filter data to include only valid parameters
         init_data = {k: v for k, v in data.items() if k in valid_init_params}
-        
-        # Set defaults for required fields
         init_data.setdefault("name", f"stlsc_{uuid.uuid4().hex[:32]}")
         init_data.setdefault("code", data.get("code", "TS"))
         init_data.setdefault("type", "SpaceTelescope")
@@ -577,16 +568,4 @@ class SpaceTelescope(Telescope):
         init_data.setdefault("system_temperature_table", {})
         init_data.setdefault("interpolated_orbit", None)
         
-        # Create instance
-        instance = cls(**init_data)
-        
-        # Load orbit data from file if provided and exists
-        if not instance.use_kep and instance.orbit_file and os.path.isfile(instance.orbit_file):
-            try:
-                instance.load_orbit(instance.orbit_file)
-                logger.info(f"Loaded orbit data from '{instance.orbit_file}' during deserialization")
-            except FileNotFoundError:
-                logger.warning(f"Orbit file '{instance.orbit_file}' not found during deserialization")
-                instance.orbit_data = None
-        
-        return instance
+        return cls(**init_data)
