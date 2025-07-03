@@ -24,17 +24,17 @@ def setup_logging(log_file: str = "output.log"):
         # Output to both my_log.log and console: <timestamp> - INFO - Test message
     """
     logger = logging.getLogger("")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     # avoid duplicate handlers if already setup
     if not logger.handlers:
         # file handler
         fh = logging.FileHandler(log_file)
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(logging.INFO)
 
         # console handler
         ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
+        ch.setLevel(logging.INFO)
 
         # formatter
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
