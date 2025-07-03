@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_aboutYNOEgk.ui'
+## Form generated from reading UI file 'dialog_aboutWEpfQb.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.8.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -24,6 +24,9 @@ class Ui_AboutDialog(object):
             AboutDialog.setObjectName(u"AboutDialog")
         AboutDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
         AboutDialog.resize(319, 251)
+        icon = QIcon()
+        icon.addFile(u":/icons/about_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        AboutDialog.setWindowIcon(icon)
         AboutDialog.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
         AboutDialog.setModal(True)
         self.labelTitle = QLabel(AboutDialog)
@@ -71,7 +74,7 @@ class Ui_AboutDialog(object):
         self.label_2 = QLabel(AboutDialog)
         self.label_2.setObjectName(u"label_2")
         self.label_2.setGeometry(QRect(10, 10, 121, 123))
-        self.label_2.setPixmap(QPixmap(u"pastrocore/gui/pAstroCORE_icon.png"))
+        self.label_2.setPixmap(QPixmap(u":/icons/pAstroCORE_icon.png"))
         self.label_2.setScaledContents(True)
 
         self.retranslateUi(AboutDialog)
@@ -84,7 +87,7 @@ class Ui_AboutDialog(object):
         AboutDialog.setWindowTitle(QCoreApplication.translate("AboutDialog", u"About pAstroCORE", None))
         AboutDialog.setStyleSheet(QCoreApplication.translate("AboutDialog", u"background-color: #ffffff; font-family: Arial;", None))
         self.labelTitle.setText(QCoreApplication.translate("AboutDialog", u"pAstroCORE", None))
-        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.8с", None))
+        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.8a", None))
         self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for VLBI observation planning and visualization.", None))
         self.label.setText(QCoreApplication.translate("AboutDialog", u"Ballistics Laboratory, Astro Space Center LPI, 2018-2025", None))
         self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))

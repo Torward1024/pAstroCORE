@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
+  </property>
   <property name="styleSheet">
    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
   </property>
@@ -168,6 +172,8 @@ QPushButton:pressed {
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>

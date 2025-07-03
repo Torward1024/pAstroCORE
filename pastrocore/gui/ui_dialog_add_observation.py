@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_add_observationfoSyFk.ui'
+## Form generated from reading UI file 'dialog_add_observationSJpChR.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.8.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,15 +23,24 @@ class Ui_AddObservationDialog(object):
     def setupUi(self, AddObservationDialog):
         if not AddObservationDialog.objectName():
             AddObservationDialog.setObjectName(u"AddObservationDialog")
-        AddObservationDialog.resize(273, 113)
+        AddObservationDialog.resize(332, 123)
+        icon = QIcon()
+        icon.addFile(u":/icons/add_observation_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        AddObservationDialog.setWindowIcon(icon)
         AddObservationDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.gridLayout = QGridLayout(AddObservationDialog)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.lbl_obs_code = QLabel(AddObservationDialog)
-        self.lbl_obs_code.setObjectName(u"lbl_obs_code")
+        self.label = QLabel(AddObservationDialog)
+        self.label.setObjectName(u"label")
         font = QFont()
         font.setFamilies([u"Arial"])
         font.setPointSize(9)
+        self.label.setFont(font)
+
+        self.gridLayout.addWidget(self.label, 1, 0, 1, 1)
+
+        self.lbl_obs_code = QLabel(AddObservationDialog)
+        self.lbl_obs_code.setObjectName(u"lbl_obs_code")
         self.lbl_obs_code.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_obs_code, 0, 0, 1, 1)
@@ -156,34 +165,6 @@ class Ui_AddObservationDialog(object):
 
         self.gridLayout.addWidget(self.okButton, 2, 1, 1, 1)
 
-        self.closeButton = QPushButton(AddObservationDialog)
-        self.closeButton.setObjectName(u"closeButton")
-        self.closeButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-        self.closeButton.setAutoDefault(False)
-        self.closeButton.setFlat(True)
-
-        self.gridLayout.addWidget(self.closeButton, 2, 2, 1, 1)
-
-        self.label = QLabel(AddObservationDialog)
-        self.label.setObjectName(u"label")
-        self.label.setFont(font)
-
-        self.gridLayout.addWidget(self.label, 1, 0, 1, 1)
-
         self.obs_code = QLineEdit(AddObservationDialog)
         self.obs_code.setObjectName(u"obs_code")
         self.obs_code.setFont(font)
@@ -212,6 +193,28 @@ class Ui_AddObservationDialog(object):
 
         self.gridLayout.addWidget(self.obs_code, 0, 1, 1, 2)
 
+        self.closeButton = QPushButton(AddObservationDialog)
+        self.closeButton.setObjectName(u"closeButton")
+        self.closeButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+        self.closeButton.setAutoDefault(False)
+        self.closeButton.setFlat(True)
+
+        self.gridLayout.addWidget(self.closeButton, 2, 2, 1, 1)
+
 
         self.retranslateUi(AddObservationDialog)
 
@@ -220,9 +223,9 @@ class Ui_AddObservationDialog(object):
 
     def retranslateUi(self, AddObservationDialog):
         AddObservationDialog.setWindowTitle(QCoreApplication.translate("AddObservationDialog", u"Dialog", None))
+        self.label.setText(QCoreApplication.translate("AddObservationDialog", u"Observation type:", None))
         self.lbl_obs_code.setText(QCoreApplication.translate("AddObservationDialog", u"Observation code:", None))
         self.combo_obs_type.setCurrentText("")
         self.okButton.setText(QCoreApplication.translate("AddObservationDialog", u"OK", None))
         self.closeButton.setText(QCoreApplication.translate("AddObservationDialog", u"Cancel", None))
-        self.label.setText(QCoreApplication.translate("AddObservationDialog", u"Observation type:", None))
     # retranslateUi

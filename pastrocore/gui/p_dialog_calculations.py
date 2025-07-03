@@ -13,48 +13,64 @@ class CalculationThread(QThread):
     finished = Signal(dict)
     error = Signal(str)
 
-    def __init__(self, manipulator, targets, calc_types, params, freqs=None):
+    def __init__(self, manipulator, targets, calc_types, params):
         super().__init__()
         self.manipulator = manipulator
         self.targets = targets
         self.calc_types = calc_types
         self.params = params
-        self.freqs = freqs
 
     def run(self):
         """Execute calculations asynchronously and emit progress signals."""
         try:
             results = {}
-            total = len(self.targets) * len(self.calc_types) * (len(self.freqs) if self.freqs else 1)
+            freq_dependent_calcs = ["UV Coverage", "Beam Pattern", "Synthesized Beam", "Baseline Projections"]
+            total = sum(len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1 
+                        for target in self.targets for calc_type in self.calc_types)
             current = 0
             for target in self.targets:
-                freqs = self.freqs or [f.name for f in target.frequencies.get_active_items()] if isinstance(target, Observation) else [None]
+                freqs = [f.name for f in target.frequencies.get_active_items()] if isinstance(target, Observation) else [None]
                 for calc_type in self.calc_types:
-                    for freq in freqs:
-                        calc_params = self.params.get(calc_type, {})
-                        # Ensure time_step is always included, as per test_m87_space_1_year.py
-                        calc_params["time_step"] = self.params.get("time_step", 600)  # Default to 600 if not specified
-                        if freq:
-                            calc_params["freq_name"] = freq
-                        # Map dialog calc types to calculator methods
-                        method_map = {
-                            "UV Coverage": "uv_coverage",
-                            "Mollweide Tracks": "mollweide_tracks",
-                            "Baseline Projections": "baseline_projections",
-                            "Beam Pattern": "beam_pattern",
-                            "Synthesized Beam": "synthesized_beam",
-                            "Time on Source": "time_on_source",
-                            "Sun Angles": "sun_angles",
-                            "Azimuth/Elevation": "az_el"
-                        }
-                        method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
-                        # Define frequency-dependent calculations
-                        freq_dependent_calcs = ["UV Coverage", "Beam Pattern", "Synthesized Beam", "Baseline Projections"]
-                        # Set store_key based on whether the calculation is frequency-dependent
-                        if calc_type in freq_dependent_calcs and freq:
-                            calc_params["store_key"] = f"{method}_{freq}"
-                        else:
-                            calc_params["store_key"] = method
+                    calc_params = self.params.get(calc_type, {}).copy()
+                    time_step = calc_params.get("time_step", 600)  # Extract time_step from calc_params
+                    logger.debug(f"Time step for {calc_type} on {target.code} set to '{time_step}'")
+                    # Map dialog calc types to calculator methods
+                    method_map = {
+                        "UV Coverage": "uv_coverage",
+                        "Mollweide Tracks": "mollweide_tracks",
+                        "Baseline Projections": "baseline_projections",
+                        "Beam Pattern": "beam_pattern",
+                        "Synthesized Beam": "synthesized_beam",
+                        "Time on Source": "time_on_source",
+                        "Sun Angles": "sun_angles",
+                        "Azimuth/Elevation": "az_el"
+                    }
+                    method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
+                    # Process frequency-dependent calculations
+                    if calc_type in freq_dependent_calcs:
+                        for freq in freqs:
+                            freq_params = calc_params.copy()
+                            freq_params["freq_name"] = freq
+                            freq_params["store_key"] = f"{method}_{freq}"
+                            freq_params["time_step"] = time_step  # Ensure time_step is included
+                            request = {
+                                "operation": "calculate",
+                                "attributes": {
+                                    "method": method,
+                                    **freq_params
+                                },
+                                "obj": target
+                            }
+                            logger.debug(f"Executing calculation request for {calc_type} on {target.code} at {freq} with params: {freq_params}")
+                            result = self.manipulator.process_request(request)
+                            if not result.get("status", False):
+                                raise ValueError(f"Calculation {calc_type} failed for {target.code} at {freq}: {result.get('message', 'Unknown error')}")
+                            results[f"{target.code}_{calc_type}_{freq}"] = result["result"]
+                            current += 1
+                            self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code} at {freq}")
+                    else:
+                        calc_params["store_key"] = f"{method}"
+                        calc_params["time_step"] = time_step  # Ensure time_step is included
                         request = {
                             "operation": "calculate",
                             "attributes": {
@@ -63,15 +79,16 @@ class CalculationThread(QThread):
                             },
                             "obj": target
                         }
-                        logger.debug(f"Executing calculation request for {calc_type} on {target.name} with params: {calc_params}")
+                        logger.debug(f"Executing calculation request for {calc_type} on {target.code} with params: {calc_params}")
                         result = self.manipulator.process_request(request)
                         if not result.get("status", False):
-                            raise ValueError(f"Calculation {calc_type} failed for {target.name}: {result.get('message', 'Unknown error')}")
-                        results[f"{target.name}_{calc_type}_{freq or 'all'}"] = result["result"]
+                            raise ValueError(f"Calculation {calc_type} failed for {target.code}: {result.get('message', 'Unknown error')}")
+                        results[f"{target.code}_{calc_type}"] = result["result"]
                         current += 1
-                        self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {freq or 'all'} on {target.name}")
+                        self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code}")
             self.finished.emit(results)
         except Exception as e:
+            logger.error(f"Calculation error in thread: {str(e)}")
             self.error.emit(str(e))
 
 class CalculationDialog(QDialog):
@@ -93,7 +110,6 @@ class CalculationDialog(QDialog):
         self.populate_targets()
         self.ui.calcTable.itemChanged.connect(self.handle_calc_selection)
         self.ui.selectAllButton.clicked.connect(self.select_all_targets)
-        self.ui.limitFreqsCheck.toggled.connect(self.update_freq_list)
         self.ui.calcButton.clicked.connect(self.run_calculation)
         self.ui.cancelButton.clicked.connect(self.reject)
 
@@ -142,25 +158,20 @@ class CalculationDialog(QDialog):
                 "Azimuth/Elevation": "az_el"
             }
             method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
-            return "Cached" if self.calculator.has_cached_data(self.project, method) else "Not Calculated"
+            return "Cached" if self.manipulator.calculator.has_cached_data(self.project, method) else "Not Calculated"
         except AttributeError:
             return "Not Calculated"
 
     def populate_targets(self):
-        """Populate the target list with project and observations."""
-        item = QListWidgetItem(self.project.name)
-        item.setData(Qt.UserRole, self.project)
-        if not self.targets or self.project in self.targets:
-            item.setSelected(True)
-        self.ui.targetList.addItem(item)
+        """Populate the target list with project observations using observation code."""
         observations_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
             "attributes": {"get_items": None}
         })
         if observations_response["status"]:
-            for obs_name, obs in observations_response["result"].items():
-                item = QListWidgetItem(obs_name)
+            for _, obs in observations_response["result"].items():
+                item = QListWidgetItem(obs.code)
                 item.setData(Qt.UserRole, obs)
                 if obs in self.targets:
                     item.setSelected(True)
@@ -170,34 +181,9 @@ class CalculationDialog(QDialog):
         """Select all targets in the list."""
         for i in range(self.ui.targetList.count()):
             self.ui.targetList.item(i).setSelected(True)
-        self.update_freq_list()
-
-    def update_freq_list(self):
-        """Update the frequency list based on selected targets."""
-        self.ui.freqList.clear()
-        if not self.ui.limitFreqsCheck.isChecked():
-            return
-        selected_targets = [self.ui.targetList.item(i).data(Qt.UserRole) for i in range(self.ui.targetList.count())
-                            if self.ui.targetList.item(i).isSelected()]
-        freqs = set()
-        for target in selected_targets:
-            if isinstance(target, Observation):
-                freq_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": target,
-                    "attributes": {"get_frequencies": None}
-                })
-                if freq_response["status"]:
-                    freqs.update(f.name for f in freq_response["result"].get_active_items())
-        for freq in sorted(freqs):
-            item = QListWidgetItem(freq)
-            item.setSelected(True)
-            self.ui.freqList.addItem(item)
 
     def handle_calc_selection(self, item):
         """Handle changes in calculation selection, including dependencies."""
-        if self.ui.ignoreDepsCheck.isChecked():
-            return
         row = item.row()
         checkbox = self.ui.calcTable.cellWidget(row, 0)
         calc_type = self.ui.calcTable.item(row, 1).text()
@@ -217,7 +203,6 @@ class CalculationDialog(QDialog):
         selected_calcs = [self.ui.calcTable.item(r, 1).text() for r in range(self.ui.calcTable.rowCount())
                           if self.ui.calcTable.cellWidget(r, 0).isChecked()]
         self.ui.timeStepSpin.setEnabled("Beam Pattern" not in selected_calcs)
-        self.update_freq_list()
 
     def run_calculation(self):
         """Run the selected calculations in a separate thread."""
@@ -232,12 +217,11 @@ class CalculationDialog(QDialog):
             "time_step": self.ui.timeStepSpin.value(),
             "recalculate": self.ui.recalculateCheck.isChecked()
         }
+        logger.debug(f"CalculationDialog: params set to {params}")
         calc_params = {calc: params for calc in selected_calcs}
-        freqs = [self.ui.freqList.item(i).text() for i in range(self.ui.freqList.count())
-                 if self.ui.freqList.item(i).isSelected()] if self.ui.limitFreqsCheck.isChecked() else None
         self.progress_dialog = QProgressDialog("Calculating...", "Cancel", 0, 100, self)
         self.progress_dialog.setWindowModality(Qt.WindowModal)
-        self.thread = CalculationThread(self.manipulator, selected_targets, selected_calcs, calc_params, freqs)
+        self.thread = CalculationThread(self.manipulator, selected_targets, selected_calcs, calc_params)
         self.thread.progress.connect(self.update_progress)
         self.thread.finished.connect(self.on_calculation_finished)
         self.thread.error.connect(self.on_calculation_error)
@@ -255,11 +239,6 @@ class CalculationDialog(QDialog):
         QMessageBox.information(self, "Info", "Visualization is not implemented yet.")
         self.run_calculation()
 
-    def open_visualization(self, results):
-        """Open visualization dialog with calculation results (placeholder)."""
-        logger.info("Visualization requested but not implemented.")
-        QMessageBox.information(self, "Info", "Visualization is not implemented yet.")
-
     def on_calculation_finished(self, results):
         """Handle calculation completion."""
         self.progress_dialog.close()
@@ -275,5 +254,4 @@ class CalculationDialog(QDialog):
 
     def load_settings(self):
         """Load dialog-specific settings (placeholder)."""
-        # Can load settings like default time_step from settings.pastro
         pass

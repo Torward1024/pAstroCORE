@@ -1,5 +1,14 @@
 <RCC>
   <qresource prefix="/icons">
+    <file>catalog.svg</file>
+    <file>calculate.svg</file>
+    <file>visualize.svg</file>
+    <file>preferences.svg</file>
+    <file>about_icon.svg</file>
+    <file>open_project_icon.svg</file>
+    <file>exit_icon.svg</file>
+    <file>save_project_as_icon.svg</file>
+    <file>new_project.svg</file>
     <file>pAstroCORE_icon.png</file>
     <file>add_observation_icon.svg</file>
     <file>add_icon.svg</file>
@@ -14,8 +23,6 @@
     <file>remove_observation_icon.svg</file>
     <file>edit_observation_icon.svg</file>
     <file>remove_project_icon.svg</file>
-    <file>edit_project_icon.svg</file>
-    <file>save_icon.svg</file>
-    <file>open_icon.svg</file>
+    <file>save_project_icon.svg</file>
   </qresource>
 </RCC>
