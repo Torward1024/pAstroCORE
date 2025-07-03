@@ -1,4 +1,4 @@
-# pastrocore/gui/p_dialog_visualization.py
+# pastrocore/gui/p_dialog_visualize.py
 from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout
 from PySide6.QtCore import Slot
 from .ui_dialog_visualize import Ui_VisualizationDialog
@@ -44,13 +44,11 @@ class VisualizationDialog(QDialog):
                     f"manipulator id={id(self.manipulator)}")
 
         # Set up Matplotlib canvas and toolbar
-        self.figure = plt.Figure(figsize=(8, 5))
-        self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        layout = QVBoxLayout(self.ui.widget)
-        layout.addWidget(self.toolbar)
-        layout.addWidget(self.canvas)
-        logger.debug("Matplotlib canvas and toolbar initialized in VisualizationDialog")
+        self.figure = None  # Will be set during visualization
+        self.canvas = None  # Will be initialized with the first figure
+        self.toolbar = None
+        self.layout = QVBoxLayout(self.ui.widget)
+        logger.debug("Matplotlib canvas and toolbar will be initialized during first visualization")
 
         self.setup_connections()
         self.populate_observations()
@@ -273,11 +271,20 @@ class VisualizationDialog(QDialog):
                 "obj": vis_obj,
                 "attributes": vis_attributes
             })
-            logger.debug(response)
+            logger.debug(f"Visualization response: {response}")
             if response["status"]:
                 logger.info(f"Performed visualization '{vis_type}' for object '{obs_name or 'project'}'")
-                # Clear the current figure
-                self.figure.clear()
+                # Clear existing canvas and toolbar
+                if self.canvas:
+                    self.layout.removeWidget(self.canvas)
+                    self.canvas.deleteLater()
+                    self.canvas = None
+                if self.toolbar:
+                    self.layout.removeWidget(self.toolbar)
+                    self.toolbar.deleteLater()
+                    self.toolbar = None
+
+                # Get the figure
                 figure = None
                 if is_project:
                     # Handle ScheduleProject: extract the first valid figure from results
@@ -295,18 +302,21 @@ class VisualizationDialog(QDialog):
                     # Handle single Observation
                     result = response.get("result", {})
                     figure = result.get("figure")
-                    logger.debug(result)
-                    logger.debug(figure)
+                    logger.debug(f"Visualization result: {result}")
+                    logger.debug(f"Retrieved figure: {figure}")
                     if not figure:
                         logger.error(f"No figure returned for visualization '{vis_type}' of observation '{obs_name}'")
                         QMessageBox.critical(self, "Error", "No figure returned from visualizer")
                         return
 
-                # Embed the figure's axes in the dialog's canvas
-                for ax in figure.axes:
-                    self.figure.add_axes(ax)
+                # Set up new canvas and toolbar with the returned figure
+                self.figure = figure
+                self.canvas = FigureCanvas(self.figure)
+                self.toolbar = NavigationToolbar(self.canvas, self)
+                self.layout.addWidget(self.toolbar)
+                self.layout.addWidget(self.canvas)
                 self.canvas.draw()
-                logger.debug("Matplotlib figure embedded in QWidget")
+                logger.debug("New Matplotlib figure embedded in QWidget")
             else:
                 logger.error(f"Failed to perform visualization '{vis_type}': {response.get('message', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to perform visualization: "
