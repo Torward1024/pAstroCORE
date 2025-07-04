@@ -25,3 +25,7 @@ FileContentIndex/
 __pycache__/
 *.py[cod]
 *$py.class
+
+pastrocore.spec
+build/
+dist/
