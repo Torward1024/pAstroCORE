@@ -1,7 +1,6 @@
-from PySide6.QtWidgets import QDialog, QCheckBox, QTableWidgetItem, QListWidgetItem, QProgressDialog, QMessageBox, QFileDialog
+from PySide6.QtWidgets import QDialog, QListWidgetItem, QProgressDialog, QMessageBox
 from PySide6.QtCore import Qt, QThread, Signal
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.super.schedule_calculator import ScheduleCalculator
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_calculations import Ui_CalculationDialog
@@ -24,7 +23,7 @@ class CalculationThread(QThread):
         """Execute calculations asynchronously and emit progress signals."""
         try:
             results = {}
-            freq_dependent_calcs = ["UV Coverage", "Beam Pattern", "Synthesized Beam", "Baseline Projections"]
+            freq_dependent_calcs = ["Beam Pattern", "Synthesized Beam", "Baseline Projections"]
             total = sum(len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1
                         for target in self.targets for calc_type in self.calc_types)
             current = 0
@@ -32,7 +31,7 @@ class CalculationThread(QThread):
                 freqs = [f.name for f in target.frequencies.get_active_items()] if isinstance(target, Observation) else [None]
                 for calc_type in self.calc_types:
                     calc_params = self.params.get(calc_type, {}).copy()
-                    time_step = calc_params.get("time_step", 600)  # Extract time_step from calc_params
+                    time_step = calc_params.get("time_step", 600)
                     logger.debug(f"Time step for {calc_type} on {target.code} set to '{time_step}'")
                     # Map dialog calc types to calculator methods
                     method_map = {
@@ -52,7 +51,7 @@ class CalculationThread(QThread):
                             freq_params = calc_params.copy()
                             freq_params["freq_name"] = freq
                             freq_params["store_key"] = f"{method}_{freq}"
-                            freq_params["time_step"] = time_step  # Ensure time_step is included
+                            freq_params["time_step"] = time_step
                             request = {
                                 "operation": "calculate",
                                 "attributes": {
@@ -70,7 +69,7 @@ class CalculationThread(QThread):
                             self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code} at {freq}")
                     else:
                         calc_params["store_key"] = f"{method}"
-                        calc_params["time_step"] = time_step  # Ensure time_step is included
+                        calc_params["time_step"] = time_step
                         request = {
                             "operation": "calculate",
                             "attributes": {
@@ -106,15 +105,18 @@ class CalculationDialog(QDialog):
 
     def init_ui(self):
         """Initialize the dialog UI."""
-        self.populate_calc_table()
+        self.populate_calc_list()
         self.populate_targets()
-        self.ui.calcTable.itemChanged.connect(self.handle_calc_selection)
-        self.ui.selectAllButton.clicked.connect(self.select_all_targets)
+        self.ui.calcList.itemChanged.connect(self.handle_calc_selection)
+        self.ui.selectAllCalcButton.clicked.connect(self.select_all_calcs)
+        self.ui.clearAllCalcButton.clicked.connect(self.clear_all_calcs)
+        self.ui.selectAllObsButton.clicked.connect(self.select_all_targets)
+        self.ui.clearAllObsButton.clicked.connect(self.clear_all_targets)
         self.ui.calcButton.clicked.connect(self.run_calculation)
         self.ui.cancelButton.clicked.connect(self.reject)
 
-    def populate_calc_table(self):
-        """Populate the calculation table with available calculations."""
+    def populate_calc_list(self):
+        """Populate the calculation list with available calculations."""
         calc_types = [
             "UV Coverage",
             "Mollweide Tracks",
@@ -126,41 +128,17 @@ class CalculationDialog(QDialog):
             "Azimuth/Elevation"
         ]
         dependencies = {
-            "UV Coverage": ["Time on Source"],
             "Synthesized Beam": ["UV Coverage"],
             "Baseline Projections": ["UV Coverage"]
         }
-        self.ui.calcTable.setRowCount(len(calc_types))
-        for row, calc_type in enumerate(calc_types):
-            checkbox = QCheckBox()
-            checkbox.setChecked(True)  # Set all checkboxes checked by default
-            self.ui.calcTable.setCellWidget(row, 0, checkbox)
-            item = QTableWidgetItem(calc_type)
-            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            self.ui.calcTable.setItem(row, 1, item)
-            status = self.check_calc_status(calc_type)
-            self.ui.calcTable.setItem(row, 2, QTableWidgetItem(status))
-            deps = ", ".join(dependencies.get(calc_type, []))
-            self.ui.calcTable.setItem(row, 3, QTableWidgetItem(deps))
-        self.ui.calcTable.resizeColumnsToContents()
-
-    def check_calc_status(self, calc_type):
-        """Check if calculation results are cached."""
-        try:
-            method_map = {
-                "UV Coverage": "uv_coverage",
-                "Mollweide Tracks": "mollweide_tracks",
-                "Baseline Projections": "baseline_projections",
-                "Beam Pattern": "beam_pattern",
-                "Synthesized Beam": "synthesized_beam",
-                "Time on Source": "time_on_source",
-                "Sun Angles": "sun_angles",
-                "Azimuth/Elevation": "az_el"
-            }
-            method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
-            return "Cached" if self.manipulator.calculator.has_cached_data(self.project, method) else "Not Calculated"
-        except AttributeError:
-            return "Not Calculated"
+        self.ui.calcList.clear()
+        for calc_type in calc_types:
+            item = QListWidgetItem(calc_type)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            item.setData(Qt.UserRole, dependencies.get(calc_type, []))
+            self.ui.calcList.addItem(item)
+        logger.debug(f"Populated {self.ui.calcList.count()} calculations, all checked.")
 
     def populate_targets(self):
         """Populate the target list with project observations using observation code."""
@@ -173,57 +151,72 @@ class CalculationDialog(QDialog):
         if observations_response["status"]:
             if not observations_response["result"]:
                 logger.warning("No observations found in the project.")
-                QMessageBox.warning(self, "Warning", "No observations available in the project.")
                 return
             for _, obs in observations_response["result"].items():
                 item = QListWidgetItem(obs.code)
                 item.setData(Qt.UserRole, obs)
-                item.setSelected(True)  # Select each observation by default
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(Qt.Checked)  # Set all targets checked by default
                 self.ui.targetList.addItem(item)
-            # Ensure all items are selected after population
-            self.ui.targetList.selectAll()
-            logger.debug(f"Populated {self.ui.targetList.count()} observations, all selected.")
-            # Verify selection state
-            selected_count = len(self.ui.targetList.selectedItems())
-            if selected_count != self.ui.targetList.count():
-                logger.warning(f"Selection mismatch: {selected_count} selected out of {self.ui.targetList.count()} items.")
+            logger.debug(f"Populated {self.ui.targetList.count()} observations, all checked.")
         else:
             logger.error(f"Failed to retrieve observations: {observations_response.get('message', 'Unknown error')}")
             QMessageBox.critical(self, "Error", "Failed to load observations. Please check the project data.")
 
+    def select_all_calcs(self):
+        """Select all calculations in the list."""
+        for i in range(self.ui.calcList.count()):
+            self.ui.calcList.item(i).setCheckState(Qt.Checked)
+        logger.debug("All calculations selected.")
+
+    def clear_all_calcs(self):
+        """Clear all calculation selections."""
+        for i in range(self.ui.calcList.count()):
+            self.ui.calcList.item(i).setCheckState(Qt.Unchecked)
+        logger.debug("All calculation selections cleared.")
+
     def select_all_targets(self):
         """Select all targets in the list."""
         for i in range(self.ui.targetList.count()):
-            self.ui.targetList.item(i).setSelected(True)
+            self.ui.targetList.item(i).setCheckState(Qt.Checked)
+        logger.debug("All targets selected.")
+
+    def clear_all_targets(self):
+        """Clear all target selections."""
+        for i in range(self.ui.targetList.count()):
+            self.ui.targetList.item(i).setCheckState(Qt.Unchecked)
+        logger.debug("All target selections cleared.")
 
     def handle_calc_selection(self, item):
         """Handle changes in calculation selection, including dependencies."""
-        row = item.row()
-        checkbox = self.ui.calcTable.cellWidget(row, 0)
-        calc_type = self.ui.calcTable.item(row, 1).text()
-        dependencies = self.ui.calcTable.item(row, 3).text().split(", ") if self.ui.calcTable.item(row, 3).text() else []
-        if checkbox.isChecked() and dependencies:
-            for dep in dependencies:
-                if not dep:
-                    continue
-                for r in range(self.ui.calcTable.rowCount()):
-                    if self.ui.calcTable.item(r, 1).text() == dep:
-                        self.ui.calcTable.cellWidget(r, 0).setChecked(True)
-                        break
+        if item.checkState() != Qt.Checked:
+            return
+        dependencies = item.data(Qt.UserRole)
+        if not dependencies:
+            return
+        calc_type = item.text()
+        logger.debug(f"Handling dependencies for {calc_type}: {dependencies}")
+        for dep in dependencies:
+            for i in range(self.ui.calcList.count()):
+                if self.ui.calcList.item(i).text() == dep:
+                    self.ui.calcList.item(i).setCheckState(Qt.Checked)
+                    logger.debug(f"Enabled dependency: {dep}")
+                    break
         self.update_params_ui()
 
     def update_params_ui(self):
         """Update the parameters UI based on selected calculations."""
-        selected_calcs = [self.ui.calcTable.item(r, 1).text() for r in range(self.ui.calcTable.rowCount())
-                          if self.ui.calcTable.cellWidget(r, 0).isChecked()]
+        selected_calcs = [self.ui.calcList.item(i).text() for i in range(self.ui.calcList.count())
+                          if self.ui.calcList.item(i).checkState() == Qt.Checked]
         self.ui.timeStepSpin.setEnabled("Beam Pattern" not in selected_calcs)
+        logger.debug(f"Updated params UI, timeStepSpin enabled: {'Beam Pattern' not in selected_calcs}")
 
     def run_calculation(self):
         """Run the selected calculations in a separate thread."""
-        selected_calcs = [self.ui.calcTable.item(r, 1).text() for r in range(self.ui.calcTable.rowCount())
-                        if self.ui.calcTable.cellWidget(r, 0).isChecked()]
+        selected_calcs = [self.ui.calcList.item(i).text() for i in range(self.ui.calcList.count())
+                          if self.ui.calcList.item(i).checkState() == Qt.Checked]
         selected_targets = [self.ui.targetList.item(i).data(Qt.UserRole) for i in range(self.ui.targetList.count())
-                            if self.ui.targetList.item(i).isSelected()]
+                            if self.ui.targetList.item(i).checkState() == Qt.Checked]
         if not selected_calcs or not selected_targets:
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
             return
