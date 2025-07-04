@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>686</width>
-    <height>595</height>
+    <width>1022</width>
+    <height>713</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -131,6 +131,19 @@ QComboBox QAbstractItemView::item {
 QComboBox QAbstractItemView::item:hover {
     background-color: #0078d7;
 }</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="labelVisualizationType">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+             <pointsize>9</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>Visualization Type:</string>
            </property>
           </widget>
          </item>
@@ -270,123 +283,6 @@ QComboBox QAbstractItemView::item:hover {
            </item>
           </widget>
          </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="labelFrequency">
-           <property name="font">
-            <font>
-             <family>Arial</family>
-             <pointsize>9</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Frequency (IF):</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QComboBox" name="comboBoxFrequency">
-           <property name="font">
-            <font>
-             <family>Arial</family>
-             <pointsize>9</pointsize>
-            </font>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">QComboBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
-    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
-}
-
-QComboBox:editable {
-    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
-    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
-}
-
-QComboBox:editable:hover {
-    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
-}
-
-QComboBox:editable:focus {
-    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
-    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
-}
-
-QComboBox:!editable {
-    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
-    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
-}
-
-QComboBox:!editable:hover {
-    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
-}
-
-QComboBox:!editable:focus {
-    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
-    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
-}
-
-/* Стилизация кнопки со стрелкой */
-QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: right;
-    width: 20px;
-    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
-    border-top-right-radius: 3px;
-    border-bottom-right-radius: 3px;
-    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
-}
-
-QComboBox::drop-down:hover {
-    background-color: #0078d7; /* Лёгкое выделение при наведении */
-}
-
-QComboBox::down-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/down_arrow_icon.svg);
-}
-
-/* Стилизация выпадающего списка */
-QComboBox QAbstractItemView {
-    font-family: Arial;
-    font-size: 12pt;
-    color: #333333;
-    background-color: #ffffff;
-    border: 1px solid #d3d3d3;
-    selection-background-color: #0078d7;
-    selection-color: #ffffff;
-    padding: 1px;
-}
-
-QComboBox QAbstractItemView::item {
-    padding: 4px;
-    min-height: 20px;
-}
-
-QComboBox QAbstractItemView::item:hover {
-    background-color: #0078d7;
-}</string>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="labelVisualizationType">
-           <property name="font">
-            <font>
-             <family>Arial</family>
-             <pointsize>9</pointsize>
-            </font>
-           </property>
-           <property name="text">
-            <string>Visualization Type:</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </item>
        <item row="0" column="1">
@@ -429,10 +325,6 @@ QPushButton:pressed {
          </property>
          <property name="text">
           <string>View</string>
-         </property>
-         <property name="icon">
-          <iconset>
-           <normaloff>:/icons/plot_icon.svg</normaloff>:/icons/plot_icon.svg</iconset>
          </property>
         </widget>
        </item>
