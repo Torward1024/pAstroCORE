@@ -247,19 +247,17 @@ class ScheduleVisualizer(Super):
         """Plot UV coverage for an Observation."""
         with self._lock:
             logger.debug(f"Plotting UV coverage for {obj.get_observation_code()}")
-            freq_name = attributes.get("freq_name")
-            store_key = attributes.get("store_key", f"uv_coverage_{freq_name}")
+            store_key = attributes.get("store_key", f"uv_coverage")
             data = obj.get_calculated_data_by_key(store_key)
             if not data:
                 logger.error(f"No UV coverage data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            frequency = obj.get_frequencies().get(freq_name).get("frequency") * 1e6
             data = data.get("data", {})
             
             baselines = {}
             for scan_data in data.values():
-                uv_points = scan_data.get("uv_points", {}).get(frequency, {})
+                uv_points = scan_data.get("uv_points", {})
                 for time_idx, points in uv_points.items():
                     for baseline, (u, v, _) in points.items():
                         try:
@@ -279,7 +277,7 @@ class ScheduleVisualizer(Super):
 
             ax.set_xlabel('u (wavelengths)')
             ax.set_ylabel('v (wavelengths)')
-            ax.set_title(f"UV Coverage at {frequency/1e6:.1f} MHz")
+            ax.set_title(f"UV Coverage")
             ax.grid(True)
             ax.legend()
             ax.invert_xaxis()

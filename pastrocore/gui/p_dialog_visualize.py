@@ -150,7 +150,7 @@ class VisualizationDialog(QDialog):
             "baseline_projections": "Baseline Projections",
             "mollweide_tracks": "Mollweide Tracks"
         }
-        freq_dependent_plots = ["uv_coverage", "beam_pattern", "synthesized_beam", "baseline_projections"]
+        freq_dependent_plots = ["beam_pattern", "synthesized_beam", "baseline_projections"]
         available_visualizations = []
 
         for calc_key, calc_value in visualization_map.items():
