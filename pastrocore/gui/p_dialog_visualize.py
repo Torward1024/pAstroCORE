@@ -1,6 +1,6 @@
 # pastrocore/gui/p_dialog_visualize.py
 from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot, Qt
 from .ui_dialog_visualize import Ui_VisualizationDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
@@ -8,16 +8,14 @@ from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import matplotlib.pyplot as plt
-from typing import Dict, Any
 
 class VisualizationDialog(QDialog):
     """Dialog for visualizing observation parameters using ScheduleVisualizer through ScheduleManipulator.
 
-    This dialog allows users to select an observation from the current project,
-    choose a visualization type based on available calculated data, and select
-    a frequency (IF) for visualization. It embeds Matplotlib figures into a QWidget
-    for interactive visualization.
+    This dialog allows users to select an observation from the current project and
+    choose a visualization type based on available calculated data. It embeds Matplotlib
+    figures into a QWidget for interactive visualization. Frequency selection is disabled,
+    and frequency-dependent visualizations use the first available frequency.
 
     Attributes:
         ui (Ui_VisualizationDialog): The UI instance for the dialog.
@@ -42,6 +40,8 @@ class VisualizationDialog(QDialog):
         self.manipulator = manipulator
         logger.debug(f"VisualizationDialog initialized with project id={id(self.project)}, "
                     f"manipulator id={id(self.manipulator)}")
+        
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
 
         # Set up Matplotlib canvas and toolbar
         self.figure = None  # Will be set during visualization
@@ -97,12 +97,11 @@ class VisualizationDialog(QDialog):
 
     @Slot()
     def update_visualization_types(self):
-        """Update visualization types and frequencies based on calculated data of the selected observation."""
+        """Update visualization types based on calculated data of the selected observation."""
         self.ui.comboBoxVisualizationType.clear()
-        self.ui.comboBoxFrequency.clear()
         current_obs_name = self.ui.comboBoxObservation.currentData()
         if not current_obs_name:
-            logger.debug("No observation selected, clearing visualization types and frequencies")
+            logger.debug("No observation selected, clearing visualization types")
             self.ui.pushButtonVisualize.setEnabled(False)
             return
 
@@ -150,7 +149,7 @@ class VisualizationDialog(QDialog):
             "baseline_projections": "Baseline Projections",
             "mollweide_tracks": "Mollweide Tracks"
         }
-        freq_dependent_plots = ["beam_pattern", "synthesized_beam", "baseline_projections"]
+        freq_dependent_plots = ["beam_pattern", "synthesized_beam"]
         available_visualizations = []
 
         for calc_key, calc_value in visualization_map.items():
@@ -166,51 +165,11 @@ class VisualizationDialog(QDialog):
         logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
         self.ui.pushButtonVisualize.setEnabled(bool(available_visualizations))
 
-        # Populate frequencies
-        freq_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": observation,
-            "attributes": {"get_frequencies": None}
-        })
-        if not freq_response["status"]:
-            logger.error(f"Failed to retrieve frequencies: {freq_response.get('error', 'Unknown error')}")
-            self.ui.pushButtonVisualize.setEnabled(False)
-            return
-
-        frequencies = freq_response["result"].get_active_items()
-        logger.debug(f"Retrieved {len(frequencies)} frequencies: {[f.get('name') for f in frequencies]}")
-        available_frequencies = set()
-
-        for freq in frequencies:
-            freq_name = freq.get("name").strip()
-            for plot_type in freq_dependent_plots:
-                store_key = f"{plot_type}_{freq_name}"
-                if store_key in calc_data:
-                    available_frequencies.add(freq_name)
-                    self.ui.comboBoxFrequency.addItem(f"{freq.get('frequency')} MHz", freq)
-                    break
-
-        if not available_frequencies:
-            logger.debug("No frequencies found via store_key, attempting to extract from calc_data keys")
-            for key in calc_data.keys():
-                for plot_type in freq_dependent_plots:
-                    if key.startswith(f"{plot_type}_freq_"):
-                        freq_name = key[len(plot_type) + 1:]
-                        available_frequencies.add(freq_name)
-                        for freq in frequencies:
-                            if freq.get("name").strip() == freq_name:
-                                self.ui.comboBoxFrequency.addItem(f"{freq.get('frequency')} MHz", freq)
-                                break
-
-        logger.info(f"Populated {len(available_frequencies)} frequencies for observation '{current_obs_name}'")
-        self.ui.pushButtonVisualize.setEnabled(bool(available_frequencies))
-
     @Slot()
     def perform_visualization(self):
         """Perform the selected visualization and embed it in the QWidget."""
         obs_name = self.ui.comboBoxObservation.currentData()
         vis_type = self.ui.comboBoxVisualizationType.currentText()
-        frequency = self.ui.comboBoxFrequency.currentData()
 
         if not obs_name or not vis_type:
             logger.warning("No observation or visualization type selected")
@@ -259,8 +218,45 @@ class VisualizationDialog(QDialog):
             "show": False,  # Prevent displaying in a separate window
             "return_figure": True  # Request the figure object
         }
-        if frequency:
-            vis_attributes["freq_name"] = frequency.get("name")
+
+        # For frequency-dependent visualizations, select the first available frequency
+        if vis_type in ["Beam Pattern", "Synthesized Beam"]:
+            freq_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": vis_obj,
+                "attributes": {"get_frequencies": None}
+            })
+            if not freq_response["status"]:
+                logger.error(f"Failed to retrieve frequencies: {freq_response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to load frequencies: "
+                                                    f"{freq_response.get('error', 'Unknown error')}")
+                return
+
+            frequencies = freq_response["result"].get_active_items()
+            calc_data = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": vis_obj,
+                "attributes": {"get_calculated_data": None}
+            })["result"]
+
+            freq_name = None
+            for freq in frequencies:
+                store_key = f"{vis_key}_{freq.get('name').strip()}"
+                if store_key in calc_data:
+                    freq_name = freq.get("name").strip()
+                    break
+            if not freq_name:
+                for key in calc_data.keys():
+                    if key.startswith(f"{vis_key}_freq_"):
+                        freq_name = key[len(vis_key) + 1:]
+                        break
+            if freq_name:
+                vis_attributes["freq_name"] = freq_name
+                logger.debug(f"Selected frequency '{freq_name}' for visualization '{vis_type}'")
+            else:
+                logger.error(f"No valid frequency found for visualization '{vis_type}'")
+                QMessageBox.critical(self, "Error", f"No valid frequency found for {vis_type}")
+                return
 
         try:
             self.ui.pushButtonVisualize.setEnabled(False)
