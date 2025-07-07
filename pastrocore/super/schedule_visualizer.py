@@ -535,31 +535,37 @@ class ScheduleVisualizer(Super):
             return {}
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot baseline projections for an Observation using scatter points."""
+        """Plot baseline projections for an Observation using scatter points.
+
+        Args:
+            obj: Observation object containing the baseline projections data.
+            attributes: Dictionary with visualization parameters, including 'store_key'.
+            fig: Matplotlib figure object for plotting.
+
+        Returns:
+            Dict containing metadata about the plotted data (e.g., number of scans, baselines, and projections).
+        """
         with self._lock:
             logger.debug(f"Plotting baseline projections for {obj.get_observation_code()}")
-            freq_name = attributes.get("freq_name")
-            store_key = attributes.get("store_key", f"baseline_projections_{freq_name}")
+            store_key = attributes.get("store_key", "baseline_projections")
             data = obj.get_calculated_data_by_key(store_key)
             if not data:
                 logger.error(f"No baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            frequency = obj.get_frequencies().get(freq_name).get("frequency") * 1e6
-            logger.debug(f"Processing frequency: {frequency/1e6} MHz for {obj.get_observation_code()}")
             data = data.get("data", {})
             plotted_pairs = set()
             valid_projections = 0
-
             pair_data = {}
+
             for scan_idx, scan_data in data.items():
                 times_mjd = [Time(t).mjd for t in scan_data.get("times", []) if t]
                 if not times_mjd:
                     logger.debug(f"No valid times for scan {scan_idx} in {obj.get_observation_code()}")
                     continue
-                projections = scan_data.get("projections", {}).get(frequency, {})
+                projections = scan_data.get("projections", {})
                 if not projections:
-                    logger.debug(f"No projection data for frequency {frequency/1e6} MHz in scan {scan_idx}")
+                    logger.debug(f"No projection data for scan {scan_idx} in {obj.get_observation_code()}")
                     continue
 
                 for time_idx, proj_dict in projections.items():
@@ -573,7 +579,7 @@ class ScheduleVisualizer(Super):
                         if pair not in pair_data:
                             pair_data[pair] = {"times": [], "bl": []}
                         pair_data[pair]["times"].append(times_mjd[time_idx])
-                        pair_data[pair]["bl"].append(bl)
+                        pair_data[pair]["bl"].append(float(bl))  # Ensure float for plotting
                         valid_projections += 1
 
             if not pair_data:
@@ -594,8 +600,8 @@ class ScheduleVisualizer(Super):
                 plotted_pairs.add(pair)
 
             ax.set_xlabel("Time (MJD)")
-            ax.set_ylabel("Baseline Length (wavelengths)")
-            ax.set_title(f"Baseline Projections at {frequency/1e6:.1f} MHz")
+            ax.set_ylabel("Baseline Length (meters)")
+            ax.set_title("Baseline Projections")
             ax.legend()
             ax.grid(True)
             return {"scans": len(data), "baselines": len(plotted_pairs), "projections": valid_projections}

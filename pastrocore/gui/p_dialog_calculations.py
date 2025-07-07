@@ -23,7 +23,7 @@ class CalculationThread(QThread):
         """Execute calculations asynchronously and emit progress signals."""
         try:
             results = {}
-            freq_dependent_calcs = ["Beam Pattern", "Synthesized Beam", "Baseline Projections"]
+            freq_dependent_calcs = ["Beam Pattern", "Synthesized Beam"]
             total = sum(len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1
                         for target in self.targets for calc_type in self.calc_types)
             current = 0
@@ -38,8 +38,6 @@ class CalculationThread(QThread):
                         "UV Coverage": "uv_coverage",
                         "Mollweide Tracks": "mollweide_tracks",
                         "Baseline Projections": "baseline_projections",
-                        "Beam Pattern": "beam_pattern",
-                        "Synthesized Beam": "synthesized_beam",
                         "Time on Source": "time_on_source",
                         "Sun Angles": "sun_angles",
                         "Azimuth/Elevation": "az_el"
@@ -121,8 +119,6 @@ class CalculationDialog(QDialog):
             "UV Coverage",
             "Mollweide Tracks",
             "Baseline Projections",
-            "Beam Pattern",
-            "Synthesized Beam",
             "Time on Source",
             "Sun Angles",
             "Azimuth/Elevation"
