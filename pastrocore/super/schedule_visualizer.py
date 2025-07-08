@@ -8,7 +8,6 @@ from pastrocore.base.scans import Scan, Scans
 from pastrocore.base.frequencies import IF, Frequencies
 from common.utils.logging_setup import logger
 from typing import Dict, Any, Callable, Union
-from concurrent.futures import ThreadPoolExecutor
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.time import Time
@@ -17,6 +16,7 @@ import os
 import seaborn as sns
 import astropy.units as u
 from matplotlib.colors import LinearSegmentedColormap
+import xarray as xr
 import warnings
 from erfa import ErfaWarning
 
@@ -244,137 +244,168 @@ class ScheduleVisualizer(Super):
         return plot_func(obj, attributes, fig=fig)
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot UV coverage for an Observation."""
+        """Plot UV coverage for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting UV coverage for {obj.get_observation_code()}")
-            store_key = attributes.get("store_key", f"uv_coverage")
+            store_key = attributes.get("store_key", "uv_coverage")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No UV coverage data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid UV coverage data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
-            
-            baselines = {}
-            for scan_data in data.values():
-                uv_points = scan_data.get("uv_points", {})
-                for time_idx, points in uv_points.items():
-                    for baseline, (u, v, _) in points.items():
-                        try:
-                            if baseline not in baselines:
-                                baselines[baseline] = {"u": [], "v": []}
-                            baselines[baseline]["u"].append(float(u))
-                            baselines[baseline]["v"].append(float(v))
-                        except (ValueError, TypeError) as e:
-                            logger.error(f"Invalid UV point format for baseline {baseline}: {(u, v)}, error: {str(e)}")
-                            return {}
+            dataset = data["data"]
+            if "uvw" not in dataset or "pair" not in dataset.dims or "scan" not in dataset.dims:
+                logger.error(f"Invalid UV coverage dataset structure for {obj.get_observation_code()}")
+                return {}
 
             ax = fig.add_subplot(111)
-            for i, (baseline, coords) in enumerate(baselines.items()):
-                color = self.moderate2_colors[i % len(self.moderate2_colors)]
-                ax.scatter(coords["u"], coords["v"], s=1, c=[color], label=f"{baseline}")
-                ax.scatter([-u for u in coords["u"]], [-v for v in coords["v"]], s=1, c=[color])
+            plotted_pairs = set()
+            valid_points = 0
 
-            ax.set_xlabel('u (wavelengths)')
-            ax.set_ylabel('v (wavelengths)')
-            ax.set_title(f"UV Coverage")
+            for scan in dataset["scan"].values:
+                scan_data = dataset.sel(scan=scan)
+                for pair in scan_data["pair"].values:
+                    u = scan_data["uvw"].sel(component="u", pair=pair).values
+                    v = scan_data["uvw"].sel(component="v", pair=pair).values
+                    valid_mask = ~np.isnan(u) & ~np.isnan(v)
+                    if not np.any(valid_mask):
+                        logger.debug(f"No valid UV points for pair {pair} in scan {scan}")
+                        continue
+                    u_valid = u[valid_mask]
+                    v_valid = v[valid_mask]
+                    color_idx = len(plotted_pairs) % len(self.moderate2_colors)
+                    ax.scatter(u_valid, v_valid, s=1, c=[self.moderate2_colors[color_idx]], label=f"{pair}" if pair not in plotted_pairs else None)
+                    ax.scatter(-u_valid, -v_valid, s=1, c=[self.moderate2_colors[color_idx]])
+                    plotted_pairs.add(pair)
+                    valid_points += len(u_valid)
+
+            if not plotted_pairs:
+                logger.warning(f"No valid UV points to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
+            ax.set_xlabel("u (wavelengths)")
+            ax.set_ylabel("v (wavelengths)")
+            ax.set_title(f"UV Coverage for {obj.get_observation_code()}")
             ax.grid(True)
             ax.legend()
             ax.invert_xaxis()
-            return {"baselines": len(baselines)}
+            return {"scans": len(dataset["scan"]), "baselines": len(plotted_pairs), "points": valid_points}
 
     def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot source visibility over time for an Observation."""
+        """Plot source visibility over time for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting source visibility for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "source_visibility")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No source visibility data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid source visibility data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
+            dataset = data["data"]
+            if "visibility" not in dataset or "telescope" not in dataset.dims or "scan" not in dataset.dims:
+                logger.error(f"Invalid source visibility dataset structure for {obj.get_observation_code()}")
+                return {}
+
             ax = fig.add_subplot(111)
-            for scan_idx, scan_data in data.items():
-                times = [Time(t).mjd for t in scan_data.get("times", []) if t]
-                visibility = scan_data.get("visibility", {})
-                source = scan_data.get("source")
-                for i, (tel_code, vis) in enumerate(visibility.items()):
-                    valid_pairs = [(t, float(v)) for t, v in zip(times, vis) if v is not None]
-                    if valid_pairs:
-                        times_mjd, vis_valid = zip(*valid_pairs)
-                        ax.plot(times_mjd, vis_valid, label=f"{tel_code}", marker='o' if not attributes.get("time_step") else None,
-                                color=self.moderate2_colors[i % len(self.moderate2_colors)])
-            
+            source_name = dataset.attrs.get("source", "Unknown")
+            valid_points = 0
+
+            for scan in dataset["scan"].values:
+                scan_data = dataset.sel(scan=scan)
+                times = scan_data["time"].values
+                times_mjd = [Time(t).mjd for t in times if t]
+                for tel in scan_data["telescope"].values:
+                    vis = scan_data["visibility"].sel(telescope=tel).values
+                    valid_mask = ~np.isnan(vis)
+                    if not np.any(valid_mask):
+                        logger.debug(f"No valid visibility data for telescope {tel} in scan {scan}")
+                        continue
+                    times_valid = np.array(times_mjd)[valid_mask]
+                    vis_valid = vis[valid_mask]
+                    color_idx = len(ax.get_lines()) % len(self.moderate2_colors)
+                    ax.plot(times_valid, vis_valid, label=f"{tel}", marker='o' if not attributes.get("time_step") else None,
+                            color=self.moderate2_colors[color_idx])
+                    valid_points += len(vis_valid)
+
+            if valid_points == 0:
+                logger.warning(f"No valid visibility data to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Visible (1 = Yes, 0 = No)")
-            ax.set_title(f"Source Visibility for {source}")
+            ax.set_title(f"Source Visibility for {source_name}")
             ax.legend()
             ax.grid(True)
-            return {"scans": len(data)}
+            return {"scans": len(dataset["scan"]), "points": valid_points}
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot angles to the Sun for an Observation."""
+        """Plot angles to the Sun for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting sun angles for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "sun_angles")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No sun angles data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid sun angles data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
+            dataset = data["data"]
+            if "angles" not in dataset or "telescope" not in dataset.dims or "scan" not in dataset.dims:
+                logger.error(f"Invalid sun angles dataset structure for {obj.get_observation_code()}")
+                return {}
+
             ax = fig.add_subplot(111)
-            for scan_idx, scan_data in data.items():
-                times = [Time(t) for t in scan_data.get("times", []) if t]
-                angles = scan_data.get("sun_angles", {})
-                source = scan_data.get("source")
-                for i, (tel_code, angle_list) in enumerate(angles.items()):
-                    valid_pairs = [(t.mjd, float(a)) for t, a in zip(times, angle_list) if a is not None]
-                    if valid_pairs:
-                        times_mjd, angles_sorted = zip(*sorted(valid_pairs))
-                        ax.plot(times_mjd, angles_sorted, label=f"{tel_code}", color=self.moderate2_colors[i % len(self.moderate2_colors)])
-            
+            source_name = dataset.attrs.get("source", "Unknown")
+            valid_points = 0
+
+            for scan in dataset["scan"].values:
+                scan_data = dataset.sel(scan=scan)
+                times = scan_data["time"].values
+                times_mjd = [Time(t).mjd for t in times if t]
+                for tel in scan_data["telescope"].values:
+                    angles = scan_data["angles"].sel(telescope=tel).values
+                    valid_mask = ~np.isnan(angles)
+                    if not np.any(valid_mask):
+                        logger.debug(f"No valid sun angles for telescope {tel} in scan {scan}")
+                        continue
+                    times_valid = np.array(times_mjd)[valid_mask]
+                    angles_valid = angles[valid_mask]
+                    color_idx = len(ax.get_lines()) % len(self.moderate2_colors)
+                    ax.plot(times_valid, angles_valid, label=f"{tel}", color=self.moderate2_colors[color_idx])
+                    valid_points += len(angles_valid)
+
+            if valid_points == 0:
+                logger.warning(f"No valid sun angles data to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Angle to Sun (degrees)")
-            ax.set_title(f"Sun Angles for Source {source}")
+            ax.set_title(f"Sun Angles for Source {source_name}")
             ax.legend()
             ax.grid(True)
-            return {"scans": len(data)}
+            return {"scans": len(dataset["scan"]), "points": valid_points}
 
     def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot Azimuth/Elevation or Hour Angle/Declination for an Observation."""
+        """Plot Azimuth/Elevation or Hour Angle/Declination for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting Az/El for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "az_el")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No Az/El data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid Az/El data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
-            source = None
-            all_telescopes = {}
-            for scan_idx, scan_data in data.items():
-                times = [Time(t) for t in scan_data.get("times", []) if t]
-                az_el = scan_data.get("az_el", {})
-                source = scan_data.get("source")
-                for tel_code, coords in az_el.items():
-                    if tel_code not in all_telescopes:
-                        all_telescopes[tel_code] = {"times": [], "az": [], "el": [], "coord_type": coords.get("coord_type", "AzEl")}
-                    valid_az = [(t.mjd, float(c)) for t, c in zip(times, coords["coord1"]) if c is not None]
-                    valid_el = [(t.mjd, float(c)) for t, c in zip(times, coords["coord2"]) if c is not None]
-                    if valid_az and valid_el:
-                        times_az, az = zip(*sorted(valid_az))
-                        times_el, el = zip(*sorted(valid_el))
-                        all_telescopes[tel_code]["times"].extend(times_az)
-                        all_telescopes[tel_code]["az"].extend(az)
-                        all_telescopes[tel_code]["el"].extend(el)
-
-            n_tels = len(all_telescopes)
-            if n_tels == 0:
-                logger.warning(f"No valid Az/El data for {obj.get_observation_code()}")
+            dataset = data["data"]
+            if "coord1" not in dataset or "coord2" not in dataset or "telescope" not in dataset.dims:
+                logger.error(f"Invalid Az/El dataset structure for {obj.get_observation_code()}")
                 return {}
+
+            source_name = dataset.attrs.get("source", "Unknown")
+            coord_type = dataset.attrs.get("coord_type", "AzEl")
+            n_tels = len(dataset["telescope"])
+            valid_points = 0
 
             if n_tels == 1:
                 ax = fig.add_subplot(111)
@@ -382,62 +413,84 @@ class ScheduleVisualizer(Super):
             else:
                 axes = fig.subplots(n_tels, 1, sharex=False, sharey=False)
 
-            for i, (tel_code, data) in enumerate(all_telescopes.items()):
-                ax = axes[i]
+            for i, tel in enumerate(dataset["telescope"].values):
+                ax = axes[i] if n_tels > 1 else axes[0]
+                times = dataset["time"].values
+                times_mjd = [Time(t).mjd for t in times if t]
+                coord1 = dataset["coord1"].sel(telescope=tel).values
+                coord2 = dataset["coord2"].sel(telescope=tel).values
+                valid_mask = ~np.isnan(coord1) & ~np.isnan(coord2)
+                if not np.any(valid_mask):
+                    logger.debug(f"No valid Az/El data for telescope {tel}")
+                    continue
+                times_valid = np.array(times_mjd)[valid_mask]
+                coord1_valid = coord1[valid_mask]
+                coord2_valid = coord2[valid_mask]
                 color = self.moderate2_colors[i % len(self.moderate2_colors)]
-                coord_type = data["coord_type"]
-                ax.plot(data["times"], data["az"], label=f"{coord_type[:2]}", color=color)
-                ax.plot(data["times"], data["el"], label=f"{coord_type[2:]}", linestyle='--', color=color)
-                ax.set_xlabel("Time, (MJD)")
-                ax.set_ylabel("Angle, (deg)")
-                ax.set_title(f"Telescope: {tel_code}")
+                ax.plot(times_valid, coord1_valid, label=f"{coord_type[:2]}", color=color)
+                ax.plot(times_valid, coord2_valid, label=f"{coord_type[2:]}", linestyle='--', color=color)
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel("Angle (degrees)")
+                ax.set_title(f"Telescope: {tel}")
                 ax.legend(loc='upper right')
                 ax.grid(True)
+                valid_points += len(coord1_valid)
 
-            fig.suptitle(f"Az/El or HA/Dec for {source}", y=1.02)
-            return {"scans": len(data)}
+            if valid_points == 0:
+                logger.warning(f"No valid Az/El data to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
+            fig.suptitle(f"{coord_type} for {source_name}", y=1.02)
+            return {"scans": len(dataset["scan"]) if "scan" in dataset.dims else 1, "telescopes": n_tels, "points": valid_points}
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot time on source for an Observation."""
+        """Plot time on source for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting time on source for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "time_on_source")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No time on source data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid time on source data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
-            telescopes = set()
-            all_blocks = {}
-            source_name = None
-            for source, source_data in data.items():
-                source_name = source
-                for tel, blocks in source_data["telescopes"].items():
-                    telescopes.add(tel)
-                    if tel not in all_blocks:
-                        all_blocks[tel] = []
-                    all_blocks[tel].extend(blocks)
+            dataset = data["data"]
+            if "duration" not in dataset or "telescope" not in dataset.dims or "scan" not in dataset.dims:
+                logger.error(f"Invalid time on source dataset structure for {obj.get_observation_code()}")
+                return {}
 
-            telescopes = sorted(telescopes)
+            telescopes = dataset["telescope"].values
             ax = fig.add_subplot(111)
+            source_name = dataset.attrs.get("source", "Unknown")
+            all_times = [[] for _ in telescopes]
+            valid_blocks = 0
 
-            for i, tel in enumerate(telescopes):
-                for block in all_blocks.get(tel, []):
-                    start = Time(block["start"]).mjd
-                    end = Time(block["start"]) + block["duration"] * u.s
-                    end = end.mjd
-                    ax.fill_between([start, end], [i, i], [i + 1, i + 1], color=self.moderate2_colors[i % len(self.moderate2_colors)], alpha=0.5)
+            for scan in dataset["scan"].values:
+                scan_data = dataset.sel(scan=scan)
+                start_times = scan_data["time"].values
+                durations = scan_data["duration"].values
+                for i, tel in enumerate(telescopes):
+                    vis = scan_data["visibility"].sel(telescope=tel).values
+                    valid_mask = (vis == 1) & ~np.isnan(durations)
+                    if not np.any(valid_mask):
+                        continue
+                    for t, d in zip(start_times[valid_mask], durations[valid_mask]):
+                        start_mjd = Time(t).mjd
+                        end_mjd = (Time(t) + d * u.s).mjd
+                        all_times[i].append((start_mjd, end_mjd))
+                        ax.fill_between([start_mjd, end_mjd], [i, i], [i + 1, i + 1], 
+                                        color=self.moderate2_colors[i % len(self.moderate2_colors)], alpha=0.5)
+                        valid_blocks += 1
 
-            all_times = [[] for _ in range(len(telescopes))]
-            for i, tel in enumerate(telescopes):
-                for block in all_blocks.get(tel, []):
-                    all_times[i].append((Time(block["start"]).mjd, (Time(block["start"]) + block["duration"] * u.s).mjd))
-            
+            if valid_blocks == 0:
+                logger.warning(f"No valid time on source data to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
             intersections = []
             for t in sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end))):
                 active = [sum(1 for start, end in tel_times if start <= t <= end) for tel_times in all_times]
-                if all(a == 1 for a in active):
+                if all(a >= 1 for a in active):
                     intersections.append(t)
             
             for i in range(0, len(intersections), 2):
@@ -446,192 +499,213 @@ class ScheduleVisualizer(Super):
                     ax.fill_between([start, end], [-1, -1], [0, 0], color=self.intersection_color, alpha=0.7)
 
             ax.set_yticks(np.arange(-1, len(telescopes)))
-            ax.set_yticklabels(["Total Intersection"] + telescopes)
+            ax.set_yticklabels(["Total Intersection"] + list(telescopes))
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Telescope")
             ax.set_title(f"Time on Source ({source_name})")
             ax.grid(True, axis="x")
-            return {"telescopes": len(telescopes)}
+            return {"telescopes": len(telescopes), "blocks": valid_blocks}
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot beam patterns for an Observation."""
+        """Plot beam patterns for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting beam pattern for {obj.get_observation_code()}")
             freq_name = attributes.get("freq_name")
             store_key = attributes.get("store_key", f"beam_pattern_{freq_name}")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No beam pattern data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid beam pattern data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
-            n_tels = len(data)
+            dataset = data["data"]
+            if "pattern" not in dataset or "telescope" not in dataset.dims or "theta" not in dataset.dims:
+                logger.error(f"Invalid beam pattern dataset structure for {obj.get_observation_code()}")
+                return {}
+
+            n_tels = len(dataset["telescope"])
             if n_tels == 1:
                 ax = fig.add_subplot(111)
                 axes = [ax]
             else:
                 axes = fig.subplots(n_tels, 1, sharex=False, sharey=False)
 
-            for i, (tel_code, beam_data) in enumerate(data.items()):
-                theta = np.array(beam_data["theta"])
-                pattern = beam_data["pattern"]
-                ax = axes[i]
-                ax.plot(theta, pattern, label=tel_code, color=self.moderate2_colors[i % len(self.moderate2_colors)])
-                
+            valid_tels = 0
+            for i, tel in enumerate(dataset["telescope"].values):
+                ax = axes[i] if n_tels > 1 else axes[0]
+                theta = dataset["theta"].values
+                pattern = dataset["pattern"].sel(telescope=tel).values
+                if np.all(np.isnan(pattern)):
+                    logger.debug(f"No valid beam pattern data for telescope {tel}")
+                    continue
+                ax.plot(theta, pattern, label=tel, color=self.moderate2_colors[i % len(self.moderate2_colors)])
                 theta_range = np.max(np.abs(theta)) * 0.05
                 ax.set_xlim(-theta_range, theta_range)
-                
-                ax.set_title(f"Beam Pattern for {tel_code}")
+                ax.set_title(f"Beam Pattern for {tel}")
                 ax.grid(True)
+                valid_tels += 1
 
-            fig.text(0.04, 0.5, "Normalized Peak Flux, (Jy)", va='center', rotation='vertical')
-            axes[-1].set_xlabel("Theta (radians)")
-            return {"telescopes": len(data)}
+            if valid_tels == 0:
+                logger.warning(f"No valid beam pattern data to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
+            fig.text(0.04, 0.5, "Normalized Peak Flux (Jy)", va='center', rotation='vertical')
+            axes[-1].set_xlabel("Theta (degrees)")
+            return {"telescopes": valid_tels}
 
     def _plot_synthesized_beam(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot the synthesized beam for an Observation."""
+        """Plot the synthesized beam for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting synthesized beam for {obj.get_observation_code()}")
             freq_name = attributes.get("freq_name")
             store_key = attributes.get("store_key", f"synthesized_beam_{freq_name}")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No synthesized beam data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid synthesized beam data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
-            scan_data = data.get(0, {})
-            theta_u = np.array(scan_data.get("theta_u", []))
-            theta_v = np.array(scan_data.get("theta_v", []))
-            beam_2d = scan_data.get("beam_2d", np.zeros((len(theta_v), len(theta_u))))
-
-            if len(theta_u) == 0 or len(theta_v) == 0:
-                logger.error(f"Missing or empty data for 'theta_u' or 'theta_v' in {obj.get_observation_code()}")
+            dataset = data["data"]
+            if "beam_2d" not in dataset or "theta_u" not in dataset.dims or "theta_v" not in dataset.dims:
+                logger.error(f"Invalid synthesized beam dataset structure for {obj.get_observation_code()}")
                 return {}
 
-            theta_u_muas = theta_u * 3.6e9
+            scan = dataset["scan"].values[0] if "scan" in dataset.dims else None
+            scan_data = dataset.sel(scan=scan) if scan is not None else dataset
+            theta_u = scan_data["theta_u"].values
+            theta_v = scan_data["theta_v"].values
+            beam_2d = scan_data["beam_2d"].values
+
+            if len(theta_u) == 0 or len(theta_v) == 0 or np.all(np.isnan(beam_2d)):
+                logger.error(f"Missing or invalid data for 'theta_u', 'theta_v', or 'beam_2d' in {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
+            theta_u_muas = theta_u * 3.6e9  # Convert degrees to microarcseconds
             theta_v_muas = theta_v * 3.6e9
 
             ax = fig.add_subplot(111)
-
             im = ax.imshow(beam_2d, extent=[min(theta_u_muas), max(theta_u_muas), min(theta_v_muas), max(theta_v_muas)], 
                            cmap=self.redpurple_cmap, aspect='equal')
 
             u_range = max(theta_u_muas) - min(theta_u_muas)
             v_range = max(theta_v_muas) - min(theta_v_muas)
             max_range = max(u_range, v_range) * 1.1
-            
             u_center = (max(theta_u_muas) + min(theta_u_muas)) / 2
             v_center = (max(theta_v_muas) + min(theta_v_muas)) / 2
-            
             ax.set_xlim(u_center - max_range / 2, u_center + max_range / 2)
             ax.set_ylim(v_center - max_range / 2, v_center + max_range / 2)
 
-            fig.colorbar(im, label='Normalized Peak Flux, (Jy)', ax=ax)
-            ax.set_xlabel("Relative Right Ascension, (μas)")
-            ax.set_ylabel("Relative Declination, (μas)")
-            ax.set_title(f"Synthesized Beam at {obj.get_frequencies().get(freq_name).get('frequency')} MHz")
+            fig.colorbar(im, label='Normalized Peak Flux (Jy)', ax=ax)
+            ax.set_xlabel("Relative Right Ascension (μas)")
+            ax.set_ylabel("Relative Declination (μas)")
+            frequency = dataset.attrs.get("frequency", "Unknown")
+            ax.set_title(f"Synthesized Beam at {frequency} MHz")
             
-            return {}
+            return {"scans": len(dataset["scan"]) if "scan" in dataset.dims else 1}
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot baseline projections for an Observation using scatter points.
-
-        Args:
-            obj: Observation object containing the baseline projections data.
-            attributes: Dictionary with visualization parameters, including 'store_key'.
-            fig: Matplotlib figure object for plotting.
-
-        Returns:
-            Dict containing metadata about the plotted data (e.g., number of scans, baselines, and projections).
-        """
+        """Plot baseline projections for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting baseline projections for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "baseline_projections")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
-            plotted_pairs = set()
-            valid_projections = 0
-            pair_data = {}
-
-            for scan_idx, scan_data in data.items():
-                times_mjd = [Time(t).mjd for t in scan_data.get("times", []) if t]
-                if not times_mjd:
-                    logger.debug(f"No valid times for scan {scan_idx} in {obj.get_observation_code()}")
-                    continue
-                projections = scan_data.get("projections", {})
-                if not projections:
-                    logger.debug(f"No projection data for scan {scan_idx} in {obj.get_observation_code()}")
-                    continue
-
-                for time_idx, proj_dict in projections.items():
-                    if time_idx >= len(times_mjd):
-                        logger.warning(f"Time index {time_idx} exceeds available times ({len(times_mjd)}) in scan {scan_idx}")
-                        continue
-                    for pair, bl in proj_dict.items():
-                        if bl is None or np.isnan(bl):
-                            logger.debug(f"Skipping invalid baseline for pair {pair} at time_idx {time_idx}: {bl}")
-                            continue
-                        if pair not in pair_data:
-                            pair_data[pair] = {"times": [], "bl": []}
-                        pair_data[pair]["times"].append(times_mjd[time_idx])
-                        pair_data[pair]["bl"].append(float(bl))  # Ensure float for plotting
-                        valid_projections += 1
-
-            if not pair_data:
-                logger.warning(f"No valid projection data to plot for {obj.get_observation_code()}. Scans processed: {len(data)}")
+            dataset = data["data"]
+            if "projections" not in dataset or "pair" not in dataset.dims or "scan" not in dataset.dims:
+                logger.error(f"Invalid baseline projections dataset structure for {obj.get_observation_code()}")
                 return {}
 
             ax = fig.add_subplot(111)
-            for i, (pair, data) in enumerate(pair_data.items()):
-                color_idx = i % len(self.moderate2_colors)
-                ax.scatter(
-                    data["times"],
-                    data["bl"],
-                    label=pair if pair not in plotted_pairs else None,
-                    color=self.moderate2_colors[color_idx],
-                    s=10,
-                    alpha=0.7
-                )
-                plotted_pairs.add(pair)
+            plotted_pairs = set()
+            valid_projections = 0
+
+            for scan in dataset["scan"].values:
+                scan_data = dataset.sel(scan=scan)
+                times_mjd = [Time(t).mjd for t in scan_data["time"].values if t]
+                for pair in scan_data["pair"].values:
+                    proj = scan_data["projections"].sel(pair=pair).values
+                    valid_mask = ~np.isnan(proj)
+                    if not np.any(valid_mask):
+                        logger.debug(f"No valid projections for pair {pair} in scan {scan}")
+                        continue
+                    times_valid = np.array(times_mjd)[valid_mask]
+                    proj_valid = proj[valid_mask]
+                    color_idx = len(plotted_pairs) % len(self.moderate2_colors)
+                    ax.scatter(
+                        times_valid,
+                        proj_valid,
+                        label=pair if pair not in plotted_pairs else None,
+                        color=self.moderate2_colors[color_idx],
+                        s=10,
+                        alpha=0.7
+                    )
+                    plotted_pairs.add(pair)
+                    valid_projections += len(proj_valid)
+
+            if not plotted_pairs:
+                logger.warning(f"No valid projection data to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
 
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Baseline Length (meters)")
-            ax.set_title("Baseline Projections")
+            ax.set_title(f"Baseline Projections for {obj.get_observation_code()}")
             ax.legend()
             ax.grid(True)
-            return {"scans": len(data), "baselines": len(plotted_pairs), "projections": valid_projections}
+            return {"scans": len(dataset["scan"]), "baselines": len(plotted_pairs), "projections": valid_projections}
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot Mollweide tracks for an Observation."""
+        """Plot Mollweide tracks for an Observation using xarray.Dataset."""
         with self._lock:
             logger.debug(f"Plotting Mollweide tracks for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "mollweide_tracks")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No Mollweide tracks data found for '{store_key}' in {obj.get_observation_code()}")
+            if not data or "data" not in data or not isinstance(data["data"], xr.Dataset):
+                logger.error(f"No valid Mollweide tracks data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
+            dataset = data["data"]
+            if "lon" not in dataset or "lat" not in dataset or "telescope" not in dataset.dims:
+                logger.error(f"Invalid Mollweide tracks dataset structure for {obj.get_observation_code()}")
+                return {}
+
             ax = fig.add_subplot(111, projection="mollweide")
-            for scan_idx, scan_data in data.items():
-                tracks = scan_data.get("telescope_tracks", {})
-                for i, (tel_code, track) in enumerate(tracks.items()):
-                    ax.scatter(np.radians(track["lon"]), np.radians(track["lat"]), 
-                               c=[self.moderate2_colors[i % len(self.moderate2_colors)]], label=tel_code, s=0.1, zorder=1)
-                    
-                source = scan_data["source"]
-                ax.scatter(np.radians(source["lon"]), np.radians(source["lat"]), c='red', marker='o', 
-                           label=f"Source: {source['name']}", s=10, zorder=2)
-            
-            ax.set_title("Mollweide Tracks")
+            valid_points = 0
+            source_name = dataset.attrs.get("source", "Unknown")
+
+            for scan in dataset["scan"].values if "scan" in dataset.dims else [None]:
+                scan_data = dataset.sel(scan=scan) if scan is not None else dataset
+                for i, tel in enumerate(scan_data["telescope"].values):
+                    lon = scan_data["lon"].sel(telescope=tel).values
+                    lat = scan_data["lat"].sel(telescope=tel).values
+                    valid_mask = ~np.isnan(lon) & ~np.isnan(lat)
+                    if not np.any(valid_mask):
+                        logger.debug(f"No valid Mollweide tracks for telescope {tel} in scan {scan}")
+                        continue
+                    lon_rad = np.radians(lon[valid_mask])
+                    lat_rad = np.radians(lat[valid_mask])
+                    ax.scatter(lon_rad, lat_rad, c=[self.moderate2_colors[i % len(self.moderate2_colors)]], 
+                               label=tel, s=0.1, zorder=1)
+                    valid_points += len(lon_rad)
+
+                source_lon = scan_data["source_lon"].values
+                source_lat = scan_data["source_lat"].values
+                if not np.isnan(source_lon) and not np.isnan(source_lat):
+                    ax.scatter(np.radians(source_lon), np.radians(source_lat), c='red', marker='o', 
+                               label=f"Source: {source_name}", s=10, zorder=2)
+
+            if valid_points == 0:
+                logger.warning(f"No valid Mollweide tracks data to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
+            ax.set_title(f"Mollweide Tracks for {obj.get_observation_code()}")
             ax.grid(True)
             ax.legend(loc='upper right', bbox_to_anchor=(1.15, 1))
-            return {"scans": len(data)}
+            return {"scans": len(dataset["scan"]) if "scan" in dataset.dims else 1, "points": valid_points}
 
     def _visualize_telescopes(self, obj: Union[Telescope, SpaceTelescope, Telescopes], attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Visualize Telescope-related objects."""
@@ -647,9 +721,9 @@ class ScheduleVisualizer(Super):
                 ax = fig.add_subplot(111, projection='3d')
                 for i in range(len(tels)):
                     ax.scatter(x[i], y[i], z[i], c=[self.moderate2_colors[i % len(self.moderate2_colors)]], label=tels[i].get_code())
-                ax.set_xlabel("X, (m)")
-                ax.set_ylabel("Y, (m)")
-                ax.set_zlabel("Z, (m)")
+                ax.set_xlabel("X (m)")
+                ax.set_ylabel("Y (m)")
+                ax.set_zlabel("Z (m)")
                 ax.set_title("Telescope Positions")
                 ax.legend()
                 return {"telescopes": len(tels)}
@@ -671,8 +745,8 @@ class ScheduleVisualizer(Super):
                 ax = fig.add_subplot(111)
                 for i in range(len(sources)):
                     ax.scatter(ra[i], dec[i], c=[self.moderate2_colors[i % len(self.moderate2_colors)]], label=f"Source {i}")
-                ax.set_xlabel("Relative Right Ascension, (deg)")
-                ax.set_ylabel("Relative Declination, (deg)")
+                ax.set_xlabel("Relative Right Ascension (deg)")
+                ax.set_ylabel("Relative Declination (deg)")
                 ax.set_title("Source(s) Sky Position")
                 ax.grid(True)
                 ax.legend()
@@ -697,7 +771,7 @@ class ScheduleVisualizer(Super):
                 for i, (start, end) in enumerate(zip(starts, ends)):
                     ax.plot([Time(start).mjd, Time(end).mjd], [i, i], label=f"Scan {i}", 
                             color=self.moderate2_colors[i % len(self.moderate2_colors)])
-                ax.set_xlabel("Time, (MJD)")
+                ax.set_xlabel("Time (MJD)")
                 ax.set_ylabel("Scan Index")
                 ax.set_title("Scan Timeline")
                 ax.grid(True)
@@ -721,8 +795,8 @@ class ScheduleVisualizer(Super):
                 for i in range(len(frequencies)):
                     ax.bar(frequencies[i], bandwidths[i], width=0.1, align='center', 
                            color=self.moderate2_colors[i % len(self.moderate2_colors)])
-                ax.set_xlabel("Frequency, (MHz)")
-                ax.set_ylabel("Bandwidth, (MHz)")
+                ax.set_xlabel("Frequency (MHz)")
+                ax.set_ylabel("Bandwidth (MHz)")
                 ax.set_title("Frequency Spectrum")
                 ax.grid(True)
                 return {"frequencies": len(frequencies)}
