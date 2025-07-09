@@ -88,14 +88,6 @@ class ScheduleCalculator(Super):
         self._orbit_cache = {}  # Temporary storage for orbit data: {telescope_code: orbit_data}
         self._orbit_cache_lock = threading.Lock()  # Lock for orbit cache
         logger.info("Initialized Scheduling Calculator")
-
-    def _default_result(self) -> Dict[str, Any]:
-        """Return the default result when calculation is not applied.
-
-        Returns:
-            Dict[str, Any]: An empty dictionary.
-        """
-        return {}
     
     def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> xr.Dataset:
         """Retrieve cached data or perform calculation and cache the result as xarray.Dataset.
