@@ -758,38 +758,42 @@ class ScheduleCalculator(Super):
         # Compute baselines
         n_tels = len(telescopes)
         n_times = len(times)
-        baselines = np.zeros((n_tels, n_tels, n_times, 3))
-        for i in range(n_tels):
-            for j in range(i + 1, n_tels):
-                baselines[i, j] = gcrs_positions[i] - gcrs_positions[j]
-                baselines[j, i] = -baselines[i, j]
-
-        # Compute UVW coordinates in meters
-        X, Y, Z = baselines[:, :, :, 0], baselines[:, :, :, 1], baselines[:, :, :, 2]
-        uu = -np.sin(ra) * X + np.cos(ra) * Y
-        vv = -np.cos(ra) * np.sin(dec) * X - np.sin(ra) * np.sin(dec) * Y + np.cos(dec) * Z
-        ww = np.cos(ra) * np.cos(dec) * X + np.sin(ra) * np.cos(dec) * Y + np.sin(dec) * Z
-
-        # Apply visibility mask
-        vis_mask = visibility[:, None, :] & visibility[None, :, :]  # shape: (n_tels, n_tels, n_times)
-
-        # Prepare output
-        uvw = np.stack([uu, vv, ww], axis=-1)  # shape: (n_tels, n_tels, n_times, 3)
-        tel_codes = [tel.get_code() for tel in telescopes]
-        baseline_pairs = [f"{tel_codes[i]}-{tel_codes[j]}" for i in range(n_tels) for j in range(i + 1, n_tels)]
-        
-        # Vectorized collection of UV points
         i_indices = np.array([i for i in range(n_tels) for j in range(i + 1, n_tels)])  # shape: (n_pairs,)
         j_indices = np.array([j for i in range(n_tels) for j in range(i + 1, n_tels)])  # shape: (n_pairs,)
+        tel_codes = [tel.get_code() for tel in telescopes]
+        baseline_pairs = [f"{tel_codes[i]}-{tel_codes[j]}" for i, j in zip(i_indices, j_indices)]
+
+        # Vectorized baseline computation
+        baselines = gcrs_positions[i_indices, :, :] - gcrs_positions[j_indices, :, :]  # shape: (n_pairs, n_times, 3)
+        X, Y, Z = baselines[:, :, 0], baselines[:, :, 1], baselines[:, :, 2]  # shape: (n_pairs, n_times)
+
+        # Vectorized UVW computation in meters
+        uu = -np.sin(ra) * X + np.cos(ra) * Y  # shape: (n_pairs, n_times)
+        vv = -np.cos(ra) * np.sin(dec) * X - np.sin(ra) * np.sin(dec) * Y + np.cos(dec) * Z
+        ww = np.cos(ra) * np.cos(dec) * X + np.sin(ra) * np.cos(dec) * Y + np.sin(dec) * Z
+        uvw = np.stack([uu, vv, ww], axis=-1)  # shape: (n_pairs, n_times, 3)
+
+        # Apply visibility mask
+        vis_mask = visibility[i_indices, None, :] & visibility[j_indices, None, :]  # shape: (n_pairs, 1, n_times)
+        vis_mask = vis_mask.squeeze(axis=1)  # shape: (n_pairs, n_times)
+
+        # Collect valid UVW points
+        valid_mask = vis_mask & ~np.any(np.isnan(uvw), axis=-1)  # shape: (n_pairs, n_times)
+        valid_indices = np.where(valid_mask)  # tuple of (pair_indices, time_indices)
+        valid_pairs = [baseline_pairs[pair_idx] for pair_idx in valid_indices[0]]
+        valid_times = valid_indices[1]
+        valid_uvw = uvw[valid_indices[0], valid_indices[1]]  # shape: (n_valid, 3)
+
+        # Distribute points to time indices
         for time_idx in range(n_times):
-            valid_mask = vis_mask[i_indices, j_indices, time_idx]  # shape: (n_pairs,)
-            valid_indices = np.where(valid_mask)[0]  # indices of valid pairs
-            valid_pairs = [baseline_pairs[idx] for idx in valid_indices]
-            valid_uvw = uvw[i_indices[valid_indices], j_indices[valid_indices], time_idx]  # shape: (n_valid_pairs, 3)
-            for pair, (uuu, vvv, www) in zip(valid_pairs, valid_uvw):
-                if not np.any(np.isnan([uuu, vvv, www])):
-                    uv_points[time_idx].append((pair, float(uuu), float(vvv), float(www)))
-                    logger.debug(f"UV point for {pair} at time_idx {time_idx}: u={uuu}, v={vvv}, w={www}")
+            time_mask = valid_times == time_idx
+            time_pairs = [valid_pairs[i] for i in np.where(time_mask)[0]]
+            time_uvw = valid_uvw[time_mask]  # shape: (n_valid_at_time, 3)
+            uv_points[time_idx] = [(pair, float(u), float(v), float(w)) for pair, (u, v, w) in zip(time_pairs, time_uvw)]
+
+        for time_idx, points in enumerate(uv_points):
+            if points:
+                logger.debug(f"Computed {len(points)} UV points at time index {time_idx} for source '{source.name}'")
 
         return uv_points
 
@@ -865,10 +869,6 @@ class ScheduleCalculator(Super):
 
         Returns:
             xr.Dataset: Sun angles with dimensions [telescope, time] for all active telescopes, or empty dataset if no source or telescopes.
-
-        Notes:
-            - Computes angular separation between source and Sun for both ground and space telescopes using vectorized operations.
-            - Returns empty dataset with warning if no source, telescopes, or valid position data are available.
         """
         start_time = scan.get_start()
         duration = scan.get_duration()
@@ -895,7 +895,7 @@ class ScheduleCalculator(Super):
         # Set up time array
         if time_step is None:
             times = Time(start_time + (duration / 2) * u.s)
-            times = times.reshape(-1)  # Ensure 1D array for consistency
+            times = times.reshape(-1)
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
@@ -908,9 +908,27 @@ class ScheduleCalculator(Super):
         # Initialize angles array
         angles = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
 
+        # Compute Sun position
+        sun_gcrs = get_sun(times)
+        sun_pos = np.array([
+            sun_gcrs.cartesian.x.to(u.m).value,
+            sun_gcrs.cartesian.y.to(u.m).value,
+            sun_gcrs.cartesian.z.to(u.m).value
+        ]).T  # shape: (n_times, 3)
+
+        # Compute source direction
+        source_icrs = source_coord.icrs
+        source_dir = np.array([
+            source_icrs.cartesian.x.value,
+            source_icrs.cartesian.y.value,
+            source_icrs.cartesian.z.value
+        ])
+        source_dir /= np.linalg.norm(source_dir)  # normalize
+
         # Process ground telescopes
-        if ground_tels and source_coord:
+        if ground_tels:
             ground_codes = [tel.get_code() for tel in ground_tels]
+            ground_indices = [telescope_codes.index(code) for code in ground_codes]
             x = np.array([tel.get_coordinates()[0] for tel in ground_tels])
             y = np.array([tel.get_coordinates()[1] for tel in ground_tels])
             z = np.array([tel.get_coordinates()[2] for tel in ground_tels])
@@ -926,58 +944,34 @@ class ScheduleCalculator(Super):
             )
             itrs = ITRS(itrs_coords, obstime=times)
             locations = itrs.earth_location
-
-            # Transform source and Sun to AltAz
             altaz_frame = AltAz(obstime=times, location=locations)
             source_altaz = source_coord.transform_to(altaz_frame)
-            sun_gcrs = get_sun(times)
             sun_altaz = sun_gcrs.transform_to(altaz_frame)
-
-            # Compute separations
             separations = source_altaz.separation(sun_altaz).deg
             separations = np.where((source_altaz.alt.deg < 0) | (sun_altaz.alt.deg < 0), np.nan, separations)
-
-            # Assign results
-            for idx, tel_code in enumerate(ground_codes):
-                tel_idx = telescope_codes.index(tel_code)
+            for idx, tel_idx in enumerate(ground_indices):
                 angles[tel_idx] = separations[idx]
 
         # Process space telescopes
-        if space_tels and source_coord:
-            sun_gcrs = get_sun(times)
-            sun_pos = np.array([
-                sun_gcrs.cartesian.x.to(u.m).value,
-                sun_gcrs.cartesian.y.to(u.m).value,
-                sun_gcrs.cartesian.z.to(u.m).value
-            ]).T  # shape: (n_times, 3)
-
-            source_icrs = source_coord.icrs
-            source_dir = np.array([
-                source_icrs.cartesian.x.value,
-                source_icrs.cartesian.y.value,
-                source_icrs.cartesian.z.value
-            ])
-            source_dir /= np.linalg.norm(source_dir)  # normalize
-
-            for tel in space_tels:
-                tel_code = tel.get_code()
-                tel_idx = telescope_codes.index(tel_code)
-                pos_data = position_data.sel(telescope=tel_code, scan=scan_name, drop=True) if "telescope" in position_data.dims else None
-                if pos_data is None or "positions" not in pos_data:
-                    logger.warning(f"No or mismatched position data for telescope '{tel_code}' in scan {scan_name}")
-                    continue
-
-                positions = pos_data["positions"].values  # shape: (n_times, 3)
-                if positions.shape[0] != len(times):
-                    logger.warning(f"Mismatched position data length for telescope '{tel_code}' in scan {scan_name}")
-                    continue
-
-                # Vectorized computation
-                vec_to_sun = sun_pos - positions  # shape: (n_times, 3)
-                vec_to_sun /= np.linalg.norm(vec_to_sun, axis=1)[:, None]  # normalize each vector
-                cos_angles = np.clip(np.dot(vec_to_sun, source_dir), -1.0, 1.0)
-                tel_angles = np.degrees(np.arccos(cos_angles))
-                angles[tel_idx] = tel_angles
+        if space_tels:
+            space_codes = [tel.get_code() for tel in space_tels]
+            space_indices = [telescope_codes.index(code) for code in space_codes]
+            positions = position_data.sel(telescope=space_codes, scan=scan_name).get("positions", xr.DataArray()).values  # shape: (n_space_tels, n_times, 3)
+            if positions.shape[0] != len(space_codes) or positions.shape[1] != len(times):
+                logger.warning(f"Mismatched position data for space telescopes in scan {scan_name}: expected shape ({len(space_codes)}, {len(times)}, 3), got {positions.shape}")
+                positions = np.full((len(space_codes), len(times), 3), np.nan)
+            valid_mask = np.all(np.isfinite(positions), axis=-1)  # shape: (n_space_tels, n_times)
+            vec_to_sun = sun_pos[None, :, :] - positions  # shape: (n_space_tels, n_times, 3)
+            norm_vec_to_sun = vec_to_sun / np.linalg.norm(vec_to_sun, axis=-1, keepdims=True)  # normalize
+            cos_angles = np.einsum('ijk,k->ij', norm_vec_to_sun, source_dir)  # shape: (n_space_tels, n_times)
+            cos_angles = np.clip(cos_angles, -1.0, 1.0)
+            tel_angles = np.degrees(np.arccos(cos_angles))  # shape: (n_space_tels, n_times)
+            tel_angles[~valid_mask] = np.nan
+            for idx, tel_idx in enumerate(space_indices):
+                angles[tel_idx] = tel_angles[idx]
+            if np.any(~valid_mask):
+                invalid_tel_times = [(space_codes[i], times[j].isot) for i, j in np.where(~valid_mask)]
+                logger.debug(f"Invalid positions for {len(invalid_tel_times)} space telescope-time pairs in scan {scan_name}: {invalid_tel_times}")
 
         # Check for valid data
         if not np.any(np.isfinite(angles)):
@@ -1356,7 +1350,6 @@ class ScheduleCalculator(Super):
             attrs={"unit": "seconds"}
         )
 
-    @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> xr.Dataset:
         """Calculate beam pattern for single-dish observations.
 
@@ -1394,18 +1387,15 @@ class ScheduleCalculator(Super):
                 c = 299792458
                 wavelength = c / frequency
                 theta = np.linspace(-np.pi/2, np.pi/2, 5000)
-                patterns = []
-                tel_codes = []
-                for tel in telescopes:
-                    if isinstance(tel, SpaceTelescope):
-                        continue
-                    D = tel.get("diameter")
-                    x = (np.pi * D / wavelength) * np.sin(theta)
-                    pattern = (2 * j1(x) / x) ** 2
-                    pattern = np.where(np.isnan(pattern), 1.0, pattern)
-                    patterns.append(pattern)
-                    tel_codes.append(tel.get_code())
-                patterns = np.array(patterns)
+                ground_tels = [tel for tel in telescopes if not isinstance(tel, SpaceTelescope)]
+                if not ground_tels:
+                    logger.warning(f"No ground telescopes available for beam pattern calculation in '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+                tel_codes = [tel.get_code() for tel in ground_tels]
+                diameters = np.array([tel.get("diameter") for tel in ground_tels])  # shape: (n_tels,)
+                x = (np.pi * diameters[:, None] / wavelength) * np.sin(theta)  # shape: (n_tels, n_theta)
+                patterns = (2 * j1(x) / x) ** 2  # shape: (n_tels, n_theta)
+                patterns = np.where(np.isnan(patterns), 1.0, patterns)
                 return xr.Dataset(
                     data_vars={"pattern": (["telescope", "theta"], patterns)},
                     coords={
@@ -1690,34 +1680,41 @@ class ScheduleCalculator(Super):
             return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source.name})
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        visibility = scan_visibility.values
-        positions = scan_positions.values
+        visibility = scan_visibility.values  # shape: (n_telescopes, n_times)
+        positions = scan_positions.values  # shape: (n_telescopes, n_times, 3)
         if positions.shape[1] != len(times):
             logger.error(f"Mismatched position data length for scan {scan_name}: expected {len(times)}, got {positions.shape[1]}")
             return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source.name})
 
-        baseline_pairs = [f"{tel_codes[i]}-{tel_codes[j]}" for i in range(len(tel_codes)) for j in range(i + 1, len(tel_codes))]
-        projections = np.zeros((len(baseline_pairs), len(times)), dtype=float)
+        # Compute baseline pairs
+        n_tels = len(tel_codes)
+        i_indices = np.array([i for i in range(n_tels) for j in range(i + 1, n_tels)])  # shape: (n_pairs,)
+        j_indices = np.array([j for i in range(n_tels) for j in range(i + 1, n_tels)])  # shape: (n_pairs,)
+        baseline_pairs = [f"{tel_codes[i]}-{tel_codes[j]}" for i, j in zip(i_indices, j_indices)]
 
+        # Vectorized baseline computation
+        baselines = positions[i_indices, :, :] - positions[j_indices, :, :]  # shape: (n_pairs, n_times, 3)
+
+        # Compute source direction
         source_dir = np.array([
             source_coord.cartesian.x.value,
             source_coord.cartesian.y.value,
             source_coord.cartesian.z.value
         ])
-        source_dir /= np.linalg.norm(source_dir)
-        for time_idx, t in enumerate(times):
-            visible_tels = [tel_codes[i] for i in range(len(tel_codes)) if visibility[i, time_idx]]
-            if len(visible_tels) < 2:
-                logger.debug(f"Insufficient visible telescopes at time {t.isot} in scan {scan_name}")
-                continue
-            pos_dict = {tel_code: positions[tel_codes.index(tel_code), time_idx] for tel_code in visible_tels}
-            for pair_idx, pair in enumerate(baseline_pairs):
-                tel1, tel2 = pair.split("-")
-                if tel1 not in pos_dict or tel2 not in pos_dict:
-                    continue
-                baseline = pos_dict[tel1] - pos_dict[tel2]
-                projection = np.abs(np.dot(baseline, source_dir))
-                projections[pair_idx, time_idx] = projection
+        source_dir /= np.linalg.norm(source_dir)  # Normalize
+
+        # Vectorized projection computation
+        projections = np.abs(np.einsum('ijt,t->ij', baselines, source_dir))  # shape: (n_pairs, n_times)
+
+        # Apply visibility mask
+        vis_mask = visibility[i_indices, None, :] & visibility[j_indices, None, :]  # shape: (n_pairs, 1, n_times)
+        vis_mask = vis_mask.squeeze(axis=1)  # shape: (n_pairs, n_times)
+        projections[~vis_mask] = np.nan  # Set invisible baselines to NaN
+
+        # Log invalid projections
+        invalid_count = np.sum(~vis_mask)
+        if invalid_count > 0:
+            logger.debug(f"{invalid_count} baseline-time pairs have no visibility in scan {scan_name}")
 
         return xr.Dataset(
             data_vars={"projections": (["baseline", "time"], projections)},
@@ -1740,10 +1737,7 @@ class ScheduleCalculator(Super):
 
         Returns:
             xr.Dataset: Mollweide tracks with dimensions [scan, telescope, time] for telescope tracks and [scan] for source position.
-
-        Notes:
-            - Depends on precomputed telescope positions stored under "telescope_positions".
-            - Tracks are computed in longitude and latitude (radians) for Mollweide projection.
+            Returns empty dataset if no valid data is computed.
         """
         try:
             time_step = attributes.get("time_step")
@@ -1764,10 +1758,15 @@ class ScheduleCalculator(Super):
                     }
                     for future in futures:
                         obs_code = futures[future]
-                        ds = future.result()
-                        if ds and ds.data_vars:  # Check if dataset is non-empty
-                            ds = ds.assign_coords({"observation": obs_code})
-                            datasets.append(ds)
+                        try:
+                            ds = future.result()
+                            if ds and ds.data_vars:  # Check if dataset is non-empty
+                                ds = ds.assign_coords({"observation": obs_code})
+                                datasets.append(ds)
+                            else:
+                                logger.warning(f"No valid Mollweide tracks for observation '{obs_code}'")
+                        except Exception as e:
+                            logger.error(f"Error processing observation '{obs_code}': {str(e)}")
                 logger.info(f"Calculated Mollweide tracks for {len(datasets)} observations in project '{obj.name}'")
                 return xr.concat(datasets, dim="observation") if datasets else xr.Dataset()
 
@@ -1790,10 +1789,17 @@ class ScheduleCalculator(Super):
                     }
                     for future in futures:
                         scan_name = futures[future]
-                        ds = future.result()
-                        if ds and ds.data_vars:  # Check if dataset is non-empty
-                            datasets.append(ds)
-                return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+                        try:
+                            ds = future.result()
+                            if ds and ds.data_vars:  # Check if dataset contains valid data
+                                datasets.append(ds)
+                            else:
+                                logger.warning(f"No valid Mollweide tracks for scan '{scan_name}'")
+                        except Exception as e:
+                            logger.error(f"Error processing scan '{scan_name}': {str(e)}")
+                result = xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+                logger.debug(f"Combined {len(datasets)} datasets for observation '{obj.get_observation_code()}'")
+                return result
 
             metadata = {
                 "time_step": time_step,
@@ -1816,7 +1822,9 @@ class ScheduleCalculator(Super):
 
         Returns:
             xr.Dataset: Mollweide tracks with dimensions [telescope, time] for telescope tracks and [scan] for source position.
+            Returns empty dataset with coordinates if computation fails.
         """
+        logger.debug(f"Processing Mollweide tracks for scan {scan.name}")
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = scan.get_source(observation)
@@ -1828,26 +1836,41 @@ class ScheduleCalculator(Super):
             logger.error(f"No source specified for scan {scan_name}")
             return xr.Dataset(coords={"scan": [scan_name], "source": None})
 
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
+        logger.debug(f"Source: {source.name}, RA={source.ra_degrees}, Dec={source.dec_degrees}")
+        try:
+            source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
+            logger.debug(f"Created SkyCoord: frame={source_coord.frame.name}, ra={source_coord.ra.deg}, dec={source_coord.dec.deg}")
+        except Exception as e:
+            logger.error(f"Failed to create SkyCoord for scan {scan_name}: {str(e)}")
+            return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
+
         if not np.isfinite(source_coord.ra.deg) or not np.isfinite(source_coord.dec.deg):
             logger.error(f"Invalid source coordinates for scan {scan_name}: RA={source.ra_degrees}, Dec={source.dec_degrees}")
             return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
 
         # Compute source coordinates in radians
+        logger.debug("Computing Mollweide coordinates for source")
         source_lon, source_lat = self._compute_mollweide_coords(source_coord)
+        logger.debug(f"Source Mollweide coords: lon={source_lon}, lat={source_lat}")
+        if not np.isfinite(source_lon) or not np.isfinite(source_lat):
+            logger.warning(f"Non-finite Mollweide coordinates for source in scan {scan_name}: lon={source_lon}, lat={source_lat}")
+            source_lon, source_lat = np.nan, np.nan
         source_lon = np.radians(source_lon)
         source_lat = np.radians(source_lat)
 
+        # Initialize dataset for source coordinates
+        dataset = xr.Dataset(
+            data_vars={
+                "source_lon": (["scan"], [source_lon]),
+                "source_lat": (["scan"], [source_lat])
+            },
+            coords={"scan": [scan_name], "source": source.name},
+            attrs={"unit": "radians"}
+        )
+
         if not active_telescopes:
             logger.warning(f"No active telescopes for scan {scan_name}")
-            return xr.Dataset(
-                data_vars={
-                    "source_lon": (["scan"], [source_lon]),
-                    "source_lat": (["scan"], [source_lat])
-                },
-                coords={"scan": [scan_name], "source": source.name},
-                attrs={"unit": "radians"}
-            )
+            return dataset
 
         # Define time array
         if time_step is None:
@@ -1856,66 +1879,78 @@ class ScheduleCalculator(Super):
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+        logger.debug(f"Time array created: {len(times)} points from {times[0].isot} to {times[-1].isot}")
 
         # Extract positions for the scan
         scan_positions = position_data.sel(scan=scan_name).get("positions", xr.DataArray())
         if not scan_positions.size:
             logger.error(f"No position data for scan {scan_name}")
-            return xr.Dataset(
-                data_vars={
-                    "source_lon": (["scan"], [source_lon]),
-                    "source_lat": (["scan"], [source_lat])
-                },
-                coords={"scan": [scan_name], "source": source.name},
-                attrs={"unit": "radians"}
-            )
+            return dataset
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        positions = scan_positions.values
+        positions = scan_positions.values  # shape: (n_telescopes, n_times, 3)
+        logger.debug(f"Positions shape: {positions.shape}, expected times: {len(times)}")
         if positions.shape[1] != len(times):
             logger.error(f"Mismatched position data length for scan {scan_name}: expected {len(times)}, got {positions.shape[1]}")
-            return xr.Dataset(
-                data_vars={
-                    "source_lon": (["scan"], [source_lon]),
-                    "source_lat": (["scan"], [source_lat])
-                },
-                coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source.name},
-                attrs={"unit": "radians"}
-            )
+            return dataset
 
-        telescope_lon = np.zeros((len(active_telescopes), len(times)), dtype=float)
-        telescope_lat = np.zeros((len(active_telescopes), len(times)), dtype=float)
+        # Vectorized computation of Mollweide coordinates for telescopes
+        telescope_lon = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
+        telescope_lat = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
 
-        for tel_idx, tel in enumerate(active_telescopes):
-            tel_code = tel.get_code()
-            pos_array = positions[tel_idx]
-            if not np.all(np.isfinite(pos_array)):
-                logger.warning(f"Invalid position data for telescope '{tel_code}' in scan {scan_name}")
-                continue
-            for t_idx, t in enumerate(times):
-                pos = pos_array[t_idx]
-                if not np.all(np.isfinite(pos)):
-                    logger.debug(f"Invalid position for telescope '{tel_code}' at time {t.isot}")
-                    continue
-                lon, lat = self._compute_mollweide_coords_from_position(pos, t)
-                telescope_lon[tel_idx, t_idx] = np.radians(lon)
-                telescope_lat[tel_idx, t_idx] = np.radians(lat)
+        # Check for valid positions
+        valid_mask = np.all(np.isfinite(positions), axis=-1)  # shape: (n_telescopes, n_times)
+        logger.debug(f"Valid positions mask: {np.sum(valid_mask)} valid points")
+        if not np.any(valid_mask):
+            logger.warning(f"No valid position data for any telescope in scan {scan_name}")
+            return dataset
 
-        return xr.Dataset(
-            data_vars={
-                "source_lon": (["scan"], [source_lon]),
-                "source_lat": (["scan"], [source_lat]),
+        # Compute Mollweide coordinates for all positions at once
+        try:
+            with np.errstate(invalid='ignore'):
+                x, y, z = positions[:, :, 0], positions[:, :, 1], positions[:, :, 2]
+                r = np.sqrt(x**2 + y**2 + z**2)
+                ra_rad = np.arctan2(y, x)
+                dec_rad = np.arcsin(np.clip(z / r, -1.0, 1.0))
+                lon = np.degrees(ra_rad)
+                lon = np.where(lon > 180.0, lon - 360.0, lon)
+                lat = np.degrees(dec_rad)
+                lat = np.clip(lat, -90.0, 90.0)
+                logger.debug(f"Computed telescope Mollweide coords: lon shape={lon.shape}, lat shape={lat.shape}")
+
+                # Apply valid mask and convert to radians
+                if np.any(valid_mask):
+                    telescope_lon[valid_mask] = np.radians(lon[valid_mask])
+                    telescope_lat[valid_mask] = np.radians(lat[valid_mask])
+                else:
+                    logger.warning(f"No valid coordinates computed after applying valid_mask in scan {scan_name}")
+
+                # Log invalid positions
+                invalid_tel_times = [(tel_codes[i], times[j].isot) for i, j in np.where(~valid_mask)]
+                if invalid_tel_times:
+                    logger.debug(f"Invalid positions for {len(invalid_tel_times)} telescope-time pairs in scan {scan_name}: {invalid_tel_times}")
+
+            # Check if any valid coordinates were computed
+            if not np.any(np.isfinite(telescope_lon)) and not np.any(np.isfinite(telescope_lat)):
+                logger.warning(f"No valid Mollweide coordinates computed for telescopes in scan {scan_name}")
+                return dataset
+
+            # Update dataset with telescope coordinates
+            dataset = dataset.assign({
                 "telescope_lon": (["telescope", "time"], telescope_lon),
                 "telescope_lat": (["telescope", "time"], telescope_lat)
-            },
-            coords={
-                "scan": [scan_name],
+            })
+            dataset = dataset.assign_coords({
                 "telescope": tel_codes,
-                "time": [t.iso for t in times],
-                "source": source.name
-            },
-            attrs={"unit": "radians"}
-        )
+                "time": [t.iso for t in times]
+            })
+
+            logger.debug(f"Completed Mollweide tracks for scan {scan_name}: {len(tel_codes)} telescopes, {len(times)} time points")
+            return dataset
+
+        except Exception as e:
+            logger.error(f"Exception in computing Mollweide tracks for scan {scan_name}: {str(e)}")
+            return dataset
     
     def _compute_mollweide_coords_from_position(self, position: Tuple[float, float, float], time: Time) -> Tuple[float, float]:
         """Compute Mollweide coordinates from GCRS position in J2000.
@@ -1926,21 +1961,29 @@ class ScheduleCalculator(Super):
 
         Returns:
             Tuple[float, float]: RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
+            Returns (np.nan, np.nan) if position is invalid.
         """
-        x, y, z = position
-        r = np.sqrt(x**2 + y**2 + z**2)
-        ra_rad = np.arctan2(y, x)  # RA
-        dec_rad = np.arcsin(z / r)  # Dec
-        
-        ra = np.degrees(ra_rad)  # 0° to 360°
-        dec = np.degrees(dec_rad)  # -90° to 90°
-
-        lon = ra
-        if lon > 180.0:
-            lon -= 360.0
-        lat = np.clip(dec, -90.0, 90.0)
-
-        return lon, lat
+        logger.debug(f"Computing Mollweide coords from position: {position}")
+        try:
+            x, y, z = position
+            if not all(np.isfinite([x, y, z])):
+                logger.warning(f"Invalid position: x={x}, y={y}, z={z}")
+                return np.nan, np.nan
+            r = np.sqrt(x**2 + y**2 + z**2)
+            if not np.isfinite(r) or r == 0:
+                logger.warning(f"Invalid radius: r={r}")
+                return np.nan, np.nan
+            ra_rad = np.arctan2(y, x)
+            dec_rad = np.arcsin(np.clip(z / r, -1.0, 1.0))
+            ra = np.degrees(ra_rad)
+            dec = np.degrees(dec_rad)
+            lon = ra if ra <= 180.0 else ra - 360.0
+            lat = np.clip(dec, -90.0, 90.0)
+            logger.debug(f"Computed coords: lon={lon}, lat={lat}")
+            return lon, lat
+        except Exception as e:
+            logger.error(f"Exception in _compute_mollweide_coords_from_position: {str(e)}")
+            return np.nan, np.nan
 
     def _compute_mollweide_coords(self, coord: SkyCoord) -> Tuple[float, float]:
         """Compute coordinates for Mollweide projection in J2000.
@@ -1950,16 +1993,23 @@ class ScheduleCalculator(Super):
 
         Returns:
             Tuple[float, float]: RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
+            Returns (np.nan, np.nan) if coordinates are invalid.
         """
-        ra = coord.ra.deg  # 0° to 360°
-        dec = coord.dec.deg
-
-        lon = ra
-        if lon > 180.0:
-            lon -= 360.0
-        lat = np.clip(dec, -90.0, 90.0)
-
-        return lon, lat
+        logger.debug(f"Entering _compute_mollweide_coords with coord: {coord}")
+        try:
+            ra = coord.ra.deg  # 0° to 360°
+            dec = coord.dec.deg
+            logger.debug(f"Extracted RA={ra}, Dec={dec}")
+            if not np.isfinite(ra) or not np.isfinite(dec):
+                logger.warning(f"Invalid coordinates in SkyCoord: RA={ra}, Dec={dec}")
+                return np.nan, np.nan
+            lon = ra if ra <= 180.0 else ra - 360.0  # Map RA to [-180, 180]
+            lat = np.clip(dec, -90.0, 90.0)  # Ensure Dec is in [-90, 90]
+            logger.debug(f"Computed Mollweide coords: lon={lon}, lat={lat}")
+            return lon, lat
+        except Exception as e:
+            logger.error(f"Exception in _compute_mollweide_coords: {str(e)}")
+            return np.nan, np.nan
 
     def _load_orbit_data(self, orbit_file: str, start_time: Optional[Time] = None, end_time: Optional[Time] = None) -> Dict[str, np.ndarray]:
         """Load orbit data from a CCSDS OEM 2.0 styled file, optionally filtering by time range.
