@@ -1894,7 +1894,7 @@ class ScheduleCalculator(Super):
             logger.error(f"Mismatched position data length for scan {scan_name}: expected {len(times)}, got {positions.shape[1]}")
             return dataset
 
-        # Vectorized computation of Mollweide coordinates for telescopes
+        # Initialize arrays for telescope coordinates
         telescope_lon = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
         telescope_lat = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
 
@@ -1905,11 +1905,13 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid position data for any telescope in scan {scan_name}")
             return dataset
 
-        # Compute Mollweide coordinates for all positions at once
+        # Vectorized computation of Mollweide coordinates
         try:
             with np.errstate(invalid='ignore'):
                 x, y, z = positions[:, :, 0], positions[:, :, 1], positions[:, :, 2]
                 r = np.sqrt(x**2 + y**2 + z**2)
+                # Avoid division by zero
+                r = np.where(r == 0, np.nan, r)
                 ra_rad = np.arctan2(y, x)
                 dec_rad = np.arcsin(np.clip(z / r, -1.0, 1.0))
                 lon = np.degrees(ra_rad)
@@ -1919,38 +1921,58 @@ class ScheduleCalculator(Super):
                 logger.debug(f"Computed telescope Mollweide coords: lon shape={lon.shape}, lat shape={lat.shape}")
 
                 # Apply valid mask and convert to radians
-                if np.any(valid_mask):
-                    telescope_lon[valid_mask] = np.radians(lon[valid_mask])
-                    telescope_lat[valid_mask] = np.radians(lat[valid_mask])
-                else:
-                    logger.warning(f"No valid coordinates computed after applying valid_mask in scan {scan_name}")
+                telescope_lon[valid_mask] = np.radians(lon[valid_mask])
+                telescope_lat[valid_mask] = np.radians(lat[valid_mask])
+
+                # Check for NaN or invalid coordinates
+                if not np.any(np.isfinite(telescope_lon)) or not np.any(np.isfinite(telescope_lat)):
+                    logger.warning(f"No valid Mollweide coordinates computed after vectorization for scan {scan_name}")
+                    # Fallback to sequential processing
+                    logger.info(f"Falling back to sequential Mollweide computation for scan {scan_name}")
+                    for tel_idx, tel in enumerate(active_telescopes):
+                        for time_idx, t in enumerate(times):
+                            pos = positions[tel_idx, time_idx]
+                            if np.all(np.isfinite(pos)):
+                                lon, lat = self._compute_mollweide_coords_from_position(pos, t)
+                                if np.isfinite(lon) and np.isfinite(lat):
+                                    telescope_lon[tel_idx, time_idx] = np.radians(lon)
+                                    telescope_lat[tel_idx, time_idx] = np.radians(lat)
 
                 # Log invalid positions
                 invalid_tel_times = [(tel_codes[i], times[j].isot) for i, j in np.where(~valid_mask)]
                 if invalid_tel_times:
-                    logger.debug(f"Invalid positions for {len(invalid_tel_times)} telescope-time pairs in scan {scan_name}: {invalid_tel_times}")
-
-            # Check if any valid coordinates were computed
-            if not np.any(np.isfinite(telescope_lon)) and not np.any(np.isfinite(telescope_lat)):
-                logger.warning(f"No valid Mollweide coordinates computed for telescopes in scan {scan_name}")
-                return dataset
-
-            # Update dataset with telescope coordinates
-            dataset = dataset.assign({
-                "telescope_lon": (["telescope", "time"], telescope_lon),
-                "telescope_lat": (["telescope", "time"], telescope_lat)
-            })
-            dataset = dataset.assign_coords({
-                "telescope": tel_codes,
-                "time": [t.iso for t in times]
-            })
-
-            logger.debug(f"Completed Mollweide tracks for scan {scan_name}: {len(tel_codes)} telescopes, {len(times)} time points")
-            return dataset
+                    logger.debug(f"Invalid positions for {len(invalid_tel_times)} telescope-time pairs in scan {scan_name}")
 
         except Exception as e:
-            logger.error(f"Exception in computing Mollweide tracks for scan {scan_name}: {str(e)}")
+            logger.error(f"Vectorized Mollweide computation failed for scan {scan_name}: {str(e)}")
+            # Fallback to sequential processing
+            logger.info(f"Falling back to sequential Mollweide computation for scan {scan_name}")
+            for tel_idx, tel in enumerate(active_telescopes):
+                for time_idx, t in enumerate(times):
+                    pos = positions[tel_idx, time_idx]
+                    if np.all(np.isfinite(pos)):
+                        lon, lat = self._compute_mollweide_coords_from_position(pos, t)
+                        if np.isfinite(lon) and np.isfinite(lat):
+                            telescope_lon[tel_idx, time_idx] = np.radians(lon)
+                            telescope_lat[tel_idx, time_idx] = np.radians(lat)
+
+        # Check if any valid coordinates were computed
+        if not np.any(np.isfinite(telescope_lon)) and not np.any(np.isfinite(telescope_lat)):
+            logger.warning(f"No valid Mollweide coordinates computed for telescopes in scan {scan_name}")
             return dataset
+
+        # Update dataset with telescope coordinates
+        dataset = dataset.assign({
+            "telescope_lon": (["telescope", "time"], telescope_lon),
+            "telescope_lat": (["telescope", "time"], telescope_lat)
+        })
+        dataset = dataset.assign_coords({
+            "telescope": tel_codes,
+            "time": [t.iso for t in times]
+        })
+
+        logger.debug(f"Completed Mollweide tracks for scan {scan_name}: {len(tel_codes)} telescopes, {len(times)} time points")
+        return dataset
     
     def _compute_mollweide_coords_from_position(self, position: Tuple[float, float, float], time: Time) -> Tuple[float, float]:
         """Compute Mollweide coordinates from GCRS position in J2000.
