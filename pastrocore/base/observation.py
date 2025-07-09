@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any
 import astropy.units as u
 import numpy as np
 import uuid
+import xarray as xr
 
 class Observation(BaseEntity):
     """Base class representing an astronomical observation with sources, telescopes, frequencies, and scans.
@@ -99,23 +100,29 @@ class Observation(BaseEntity):
         """Retrieve all calculated data."""
         return self.get("calculated_data")
 
-    def get_calculated_data_by_key(self, key: str) -> Any:
-        """Retrieve calculated data for a specific key."""
-        check_non_empty_string(key, "Key")
+    def get_calculated_data_by_key(self, key: str) -> Optional[xr.Dataset]:
+        """Retrieve calculated data by key.
+
+        Args:
+            key (str): The key to retrieve data for.
+
+        Returns:
+            Optional[xr.Dataset]: The calculated data, or None if not found.
+        """
         data = self.calculated_data.get(key)
         if data is not None:
-            logger.debug(f"Retrieved calculated data '{key}' for observation '{self.name}'")
-        else:
-            logger.debug(f"No calculated data found for key '{key}' in observation '{self.name}'")
+            logger.debug(f"Retrieved calculated data for key '{key}' from observation '{self.get_observation_code()}'")
         return data
 
-    def set_calculated_data_by_key(self, key: str, data: Any) -> None:
-        """Set calculated data for a specific key."""
-        check_non_empty_string(key, "Key")
-        new_data = self.calculated_data.copy()
-        new_data[key] = data
-        self.set({"calculated_data": new_data})
-        logger.info(f"Stored calculated data '{key}' for observation '{self.name}'")
+    def set_calculated_data_by_key(self, key: str, data: xr.Dataset) -> None:
+        """Set calculated data for a specific key.
+
+        Args:
+            key (str): The key to store the data under.
+            data (xr.Dataset): The calculated data as an xarray Dataset.
+        """
+        self.calculated_data[key] = data
+        logger.debug(f"Stored calculated data for key '{key}' in observation '{self.get_observation_code()}'")
 
     def get_start_datetime(self) -> Optional[Time]:
         """Retrieve the earliest start time of active scans."""
