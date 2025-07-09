@@ -320,7 +320,7 @@ QMenu::icon {
      <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
    </property>
    <property name="text">
-    <string>Source Catalog Manager</string>
+    <string>Source Catalog Browser</string>
    </property>
   </action>
   <action name="actionTelescope_Catalog_Manager">
@@ -329,7 +329,7 @@ QMenu::icon {
      <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
    </property>
    <property name="text">
-    <string>Telescope Catalog Manager</string>
+    <string>Telescope Catalog Browser</string>
    </property>
   </action>
   <action name="actionSave_Project_As">

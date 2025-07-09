@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_catalogTKYoBm.ui'
+## Form generated from reading UI file 'dialog_catalogddaJXt.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -23,11 +23,18 @@ class Ui_CatalogDialog(object):
     def setupUi(self, CatalogDialog):
         if not CatalogDialog.objectName():
             CatalogDialog.setObjectName(u"CatalogDialog")
-        CatalogDialog.resize(609, 510)
+        CatalogDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        CatalogDialog.resize(741, 550)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(CatalogDialog.sizePolicy().hasHeightForWidth())
+        CatalogDialog.setSizePolicy(sizePolicy)
         icon = QIcon()
         icon.addFile(u":/icons/catalog.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         CatalogDialog.setWindowIcon(icon)
         CatalogDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
+        CatalogDialog.setModal(True)
         self.gridLayout = QGridLayout(CatalogDialog)
         self.gridLayout.setObjectName(u"gridLayout")
         self.catalogTable = QTableView(CatalogDialog)
