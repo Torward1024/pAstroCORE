@@ -854,14 +854,14 @@ class ScheduleCalculator(Super):
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
-            time_step (Optional[float]): Sampling interval (seconds).
+            time_step (Optional[float]): Sampling interval (seconds). If None, uses mean time.
             position_data (xr.Dataset): Precomputed telescope positions.
 
         Returns:
             xr.Dataset: Sun angles with dimensions [telescope, time] for all active telescopes, or empty dataset if no source or telescopes.
 
         Notes:
-            - Computes angular separation between source and Sun for both ground and space telescopes.
+            - Computes angular separation between source and Sun for both ground and space telescopes using vectorized operations.
             - Returns empty dataset with warning if no source, telescopes, or valid position data are available.
         """
         start_time = scan.get_start()
@@ -889,20 +889,89 @@ class ScheduleCalculator(Super):
         # Set up time array
         if time_step is None:
             times = Time(start_time + (duration / 2) * u.s)
-            times = times.reshape(-1)
+            times = times.reshape(-1)  # Ensure 1D array for consistency
         else:
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
-        # Initialize angles array for all active telescopes
-        angles = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
+        # Split telescopes into ground and space
+        ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
+        space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope)]
         telescope_codes = [tel.get_code() for tel in active_telescopes]
 
-        # Process all telescopes using _compute_sun_angle for each time point
-        for t_idx, time in enumerate(times):
-            sun_angles = self._compute_sun_angle(source_coord, time, active_telescopes)
-            for tel_idx, tel_code in enumerate(telescope_codes):
-                angles[tel_idx, t_idx] = sun_angles.get(tel_code, np.nan)
+        # Initialize angles array
+        angles = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
+
+        # Process ground telescopes
+        if ground_tels and source_coord:
+            ground_codes = [tel.get_code() for tel in ground_tels]
+            x = np.array([tel.get_coordinates()[0] for tel in ground_tels])
+            y = np.array([tel.get_coordinates()[1] for tel in ground_tels])
+            z = np.array([tel.get_coordinates()[2] for tel in ground_tels])
+            vx = np.array([tel.get(["vx", "vy", "vz"])["vx"] for tel in ground_tels])
+            vy = np.array([tel.get(["vx", "vy", "vz"])["vy"] for tel in ground_tels])
+            vz = np.array([tel.get(["vx", "vy", "vz"])["vz"] for tel in ground_tels])
+            dt = (times - Time("2000-01-01T12:00:00")).sec
+            itrs_coords = CartesianRepresentation(
+                x[:, None] + vx[:, None] * dt,
+                y[:, None] + vy[:, None] * dt,
+                z[:, None] + vz[:, None] * dt,
+                unit=u.m
+            )
+            itrs = ITRS(itrs_coords, obstime=times)
+            locations = itrs.earth_location
+
+            # Transform source and Sun to AltAz
+            altaz_frame = AltAz(obstime=times, location=locations)
+            source_altaz = source_coord.transform_to(altaz_frame)
+            sun_gcrs = get_sun(times)
+            sun_altaz = sun_gcrs.transform_to(altaz_frame)
+
+            # Compute separations
+            separations = source_altaz.separation(sun_altaz).deg
+            separations = np.where((source_altaz.alt.deg < 0) | (sun_altaz.alt.deg < 0), np.nan, separations)
+
+            # Assign results
+            for idx, tel_code in enumerate(ground_codes):
+                tel_idx = telescope_codes.index(tel_code)
+                angles[tel_idx] = separations[idx]
+
+        # Process space telescopes
+        if space_tels and source_coord:
+            sun_gcrs = get_sun(times)
+            sun_pos = np.array([
+                sun_gcrs.cartesian.x.to(u.m).value,
+                sun_gcrs.cartesian.y.to(u.m).value,
+                sun_gcrs.cartesian.z.to(u.m).value
+            ]).T  # shape: (n_times, 3)
+
+            source_icrs = source_coord.icrs
+            source_dir = np.array([
+                source_icrs.cartesian.x.value,
+                source_icrs.cartesian.y.value,
+                source_icrs.cartesian.z.value
+            ])
+            source_dir /= np.linalg.norm(source_dir)  # normalize
+
+            for tel in space_tels:
+                tel_code = tel.get_code()
+                tel_idx = telescope_codes.index(tel_code)
+                pos_data = position_data.sel(telescope=tel_code, scan=scan_name, drop=True) if "telescope" in position_data.dims else None
+                if pos_data is None or "positions" not in pos_data:
+                    logger.warning(f"No or mismatched position data for telescope '{tel_code}' in scan {scan_name}")
+                    continue
+
+                positions = pos_data["positions"].values  # shape: (n_times, 3)
+                if positions.shape[0] != len(times):
+                    logger.warning(f"Mismatched position data length for telescope '{tel_code}' in scan {scan_name}")
+                    continue
+
+                # Vectorized computation
+                vec_to_sun = sun_pos - positions  # shape: (n_times, 3)
+                vec_to_sun /= np.linalg.norm(vec_to_sun, axis=1)[:, None]  # normalize each vector
+                cos_angles = np.clip(np.dot(vec_to_sun, source_dir), -1.0, 1.0)
+                tel_angles = np.degrees(np.arccos(cos_angles))
+                angles[tel_idx] = tel_angles
 
         # Check for valid data
         if not np.any(np.isfinite(angles)):
@@ -1654,53 +1723,6 @@ class ScheduleCalculator(Super):
             },
             attrs={"unit": "meters"}
         )
-        
-    def _compute_projections_from_uv(self, uv_points: Dict[int, Dict[str, Tuple[float, float, float]]], telescopes: List[Telescope | SpaceTelescope]) -> Dict[str, float]:
-        """Compute baseline projection BL = sqrt(u² + v²) from pre-calculated (u,v) data in meters.
-
-        Args:
-            uv_points (Dict[int, Dict[str, Tuple[float, float, float]]]): UV data organized by time index.
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
-
-        Returns:
-            Dict[str, float]: Baseline length per telescope pair in meters for the first time index.
-        """
-        projections = {}
-        # Use the first time index (e.g., time_idx=0) for single-time calculations
-        uv_dict = uv_points.get(0, {})
-        for pair, (uuu, vvv, _) in uv_dict.items():
-            bl = np.sqrt(uuu * uuu + vvv * vvv)  # BL = sqrt(u² + v²) in meters
-            projections[pair] = float(bl)
-        return projections
-
-    def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, float]:
-        """Fallback method to compute BL = sqrt(u² + v²) at a given time if UV data is unavailable.
-
-        Args:
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
-            time (Time): Time of calculation.
-            frequency (float): Frequency in Hz.
-            source_coord (Optional[SkyCoord]): Source coordinates (unused in this fallback).
-
-        Returns:
-            Dict[str, float]: Baseline projections per telescope pair.
-        """
-        logger.warning(f"Fallback to direct computation of baseline projections at {time.isot}")
-        positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
-        c = 299792458  # m/s
-        wavelength = c / frequency
-        projections = {}
-        
-        for i, pos1 in enumerate(positions):
-            for j, pos2 in enumerate(positions[i + 1:], i + 1):
-                baseline = np.array(pos1) - np.array(pos2)
-                uu = baseline[0] / wavelength
-                vv = baseline[1] / wavelength
-                bl = math.sqrt(uu * uu + vv * vv)  # BL = sqrt(u² + v²)
-                pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                projections[pair] = bl
-        
-        return projections
 
     @time_execution
     def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> xr.Dataset:
