@@ -138,7 +138,7 @@ class ScheduleCalculator(Super):
 
         Notes:
             - Depends on precomputed telescope positions.
-            - Uses parallel processing for multiple scans.
+            - Uses parallel processing for multiple scans when beneficial.
         """
         try:
             time_step = attributes.get("time_step")
@@ -151,16 +151,16 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                # Use ThreadPoolExecutor only if there are enough observations
+                max_workers = min(len(observations), 4) if len(observations) > 4 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._calculate_source_visibility, obs, attributes): obs.get_observation_code()
+                    futures = [
+                        executor.submit(self._calculate_source_visibility, obs, attributes)
                         for obs in observations
-                    }
+                    ] if max_workers > 1 else [self._calculate_source_visibility(obs, attributes) for obs in observations]
                     for future in futures:
-                        obs_code = futures[future]
-                        ds = future.result()
-                        ds = ds.assign_coords({"observation": obs_code})
+                        ds = future.result() if max_workers > 1 else future
+                        ds = ds.assign_coords({"observation": obs.get_observation_code()})
                         datasets.append(ds)
                 logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.name}'")
                 return xr.concat(datasets, dim="observation") if datasets else xr.Dataset()
@@ -172,16 +172,25 @@ class ScheduleCalculator(Super):
                 if not position_data.data_vars:
                     logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return xr.Dataset()
+
+                # Validate position data dimensions
+                for scan in scans:
+                    scan_name = scan.name
+                    scan_positions = position_data.sel(scan=scan_name).get("positions", xr.DataArray())
+                    if time_step and scan_positions.sizes.get("time", 0) != int(scan.get_duration() / time_step):
+                        logger.warning(f"Mismatched position data length for scan {scan_name}")
+                        return xr.Dataset()
+
                 datasets = []
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                # Use ThreadPoolExecutor only if there are enough scans
+                max_workers = min(len(scans), 4) if len(scans) > 4 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._process_source_visibility, scan, obj, time_step, position_data): scan.name
+                    futures = [
+                        executor.submit(self._process_source_visibility, scan, obj, time_step, position_data)
                         for scan in scans
-                    }
+                    ] if max_workers > 1 else [self._process_source_visibility(scan, obj, time_step, position_data) for scan in scans]
                     for future in futures:
-                        scan_name = futures[future]
-                        ds = future.result()
+                        ds = future.result() if max_workers > 1 else future
                         datasets.append(ds)
                 return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
 
@@ -293,7 +302,6 @@ class ScheduleCalculator(Super):
                     "source": source.name if source else None
                 }
             )
-    
 
     def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
         """Compute visibility of a source for telescopes at a given time using precomputed positions.

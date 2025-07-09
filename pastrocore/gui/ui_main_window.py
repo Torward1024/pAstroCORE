@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowuYbQhO.ui'
+## Form generated from reading UI file 'main_windowpWAuKJ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -203,6 +203,7 @@ class Ui_MainWindow(object):
         self.dockWidget.setObjectName(u"dockWidget")
         self.dockWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         self.dockWidget.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
+        self.dockWidget.setFloating(False)
         self.dockWidgetContents = QWidget()
         self.dockWidgetContents.setObjectName(u"dockWidgetContents")
         self.horizontalLayout = QHBoxLayout(self.dockWidgetContents)
