@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windoweRXbKW.ui'
+## Form generated from reading UI file 'main_windowNEdpsJ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -258,8 +258,8 @@ class Ui_MainWindow(object):
         self.actionPreferences.setText(QCoreApplication.translate("MainWindow", u"Preferences...", None))
         self.actionAbout.setText(QCoreApplication.translate("MainWindow", u"About", None))
         self.actionProject_Explorer.setText(QCoreApplication.translate("MainWindow", u"Project Explorer", None))
-        self.actionSource_Catalog_Manager.setText(QCoreApplication.translate("MainWindow", u"Source Catalog Manager", None))
-        self.actionTelescope_Catalog_Manager.setText(QCoreApplication.translate("MainWindow", u"Telescope Catalog Manager", None))
+        self.actionSource_Catalog_Manager.setText(QCoreApplication.translate("MainWindow", u"Source Catalog Browser", None))
+        self.actionTelescope_Catalog_Manager.setText(QCoreApplication.translate("MainWindow", u"Telescope Catalog Browser", None))
         self.actionSave_Project_As.setText(QCoreApplication.translate("MainWindow", u"Save Project As...", None))
         self.actionImport_Observation.setText(QCoreApplication.translate("MainWindow", u"Import Observation", None))
         self.actionExport_Observation.setText(QCoreApplication.translate("MainWindow", u"Export Observation", None))
