@@ -68,25 +68,33 @@ class PAstroCoreMainWindow(QMainWindow):
             return CatalogManager()
 
     def setup_ui(self):
+        """Setup the UI components and their initial states."""
         self.update_project_explorer()
-        # Удаляем вкладку Welcome, если она есть
+        # Remove Welcome tab if it exists
         for i in range(self.ui.tabContainer.count()):
             if self.ui.tabContainer.widget(i).objectName() == "tabWelcome":
                 self.ui.tabContainer.removeTab(i)
                 break
-        # Открываем вкладку проекта сразу
+        # Open project info tab immediately
         self.open_project_info_tab()
-        # Делаем вкладки закрываемыми
+        # Make tabs closable
         self.ui.tabContainer.setTabsClosable(True)
-        # Убираем кнопку закрытия для вкладки проекта
+        # Remove close button for project tab
         for i in range(self.ui.tabContainer.count()):
             if self.ui.tabContainer.widget(i).objectName() == "projectInfoTab":
                 self.ui.tabContainer.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
-        # Включаем контекстное меню для projectExplorer
+        # Enable context menu for projectExplorer
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.setContextMenuPolicy(Qt.CustomContextMenu)
             project_explorer.customContextMenuRequested.connect(self.show_context_menu)
+        # Connect dockWidget visibility changes to sync with menu action
+        self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
+        # Initialize actionProject_Explorer state
+        self.ui.actionProject_Explorer.setChecked(self.ui.dockWidget.isVisible())
+        # Connect actionProject_Explorer toggled signal to toggle dockWidget visibility
+        self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
+        self.ui.dockWidget.setVisible(True)
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -768,6 +776,12 @@ class PAstroCoreMainWindow(QMainWindow):
             if hasattr(widget, 'update_tab'):
                 widget.update_tab()
         logger.info("All tabs updated")
+    
+    @Slot(bool)
+    def sync_project_explorer_action(self, visible: bool):
+        """Synchronize the Project Explorer menu action with dockWidget visibility."""
+        self.ui.actionProject_Explorer.setChecked(visible)
+        logger.debug(f"Project Explorer action synchronized: checked={visible}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
