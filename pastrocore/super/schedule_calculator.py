@@ -920,66 +920,6 @@ class ScheduleCalculator(Super):
             attrs={"unit": "degrees"}
         )
 
-    def _compute_sun_angle(self, source_coord: SkyCoord, time: Time, telescopes: List[Telescope | SpaceTelescope]) -> Dict[str, float]:
-        """Compute angle between the direction from telescope to source and to Sun for each telescope at a given time.
-
-        Args:
-            source_coord (SkyCoord): Source coordinates.
-            time (Time): Time of calculation.
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
-
-        Returns:
-            Dict[str, float]: Angular separation (degrees) per telescope code.
-        """
-        sun_gcrs = get_sun(time)
-        angles = {}
-
-        for tel in telescopes:
-            if isinstance(tel, SpaceTelescope):
-
-                tel_pos, _ = tel.get_state_vector(time)
-                tel_pos = np.array(tel_pos)
-
-                sun_pos = np.array([sun_gcrs.cartesian.x.to(u.m).value,
-                                    sun_gcrs.cartesian.y.to(u.m).value,
-                                    sun_gcrs.cartesian.z.to(u.m).value])
-
-                source_icrs = source_coord.icrs
-                source_dir = np.array([source_icrs.cartesian.x.value,
-                                    source_icrs.cartesian.y.value,
-                                    source_icrs.cartesian.z.value])
-                source_dir /= np.linalg.norm(source_dir)
-
-                vec_to_sun = sun_pos - tel_pos
-                vec_to_sun /= np.linalg.norm(vec_to_sun)
-
-                vec_to_source = source_dir
-
-                cos_angle = np.clip(np.dot(vec_to_source, vec_to_sun), -1.0, 1.0)
-                angle = np.degrees(np.arccos(cos_angle))
-
-                angles[tel.get_code()] = angle
-            else:
-                x, y, z = tel.get_coordinates()
-                vx, vy, vz = tel.get_velocities()
-                
-                dt = (time - Time("2000-01-01T12:00:00")).sec
-                itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
-                itrs = ITRS(itrs_coords, obstime=time)
-                location = itrs.earth_location
-                
-                altaz_frame = AltAz(obstime=time, location=location)
-                source_altaz = source_coord.transform_to(altaz_frame)
-                sun_altaz = sun_gcrs.transform_to(altaz_frame)
-
-                if source_altaz.alt.deg < 0 or sun_altaz.alt.deg < 0:
-                    angle = float('nan')
-                else:
-                    angle = source_altaz.separation(sun_altaz).deg
-                angles[tel.get_code()] = angle
-
-        return angles
-
     @time_execution
     def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> xr.Dataset:
         """Calculate Az/El or HA/Dec for ground telescopes across all scans.
@@ -1149,53 +1089,6 @@ class ScheduleCalculator(Super):
                 "source": source.name if source else None
             }
         )
-
-    def _compute_az_el_at_time(self, source_coord: SkyCoord, telescopes: List[Telescope], time: Time) -> Dict[str, Tuple[float, float]]:
-        """Compute Az/El or HA/Dec for ground telescopes at a given time, depending on mount type.
-
-        Args:
-            source_coord (SkyCoord): Source coordinates.
-            telescopes (List[Telescope]): List of ground telescopes.
-            time (Time): Time of calculation.
-
-        Returns:
-            Dict[str, Tuple[float, float]]: Coordinates per telescope code (Az/El or HA/Dec).
-        """
-        az_el = {}
-        for tel in telescopes:
-            x, y, z = tel.get_coordinates()
-            res = tel.get(["vx", "vy", "vz"])
-            vx = res["vx"]
-            vy = res["vy"]
-            vz = res["vz"]
-            dt = (time - Time("2000-01-01T12:00:00")).sec
-            itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
-            itrs = ITRS(itrs_coords, obstime=time)
-            location = itrs.earth_location
-            mount_type = tel.get("mount_type")
-           
-            if mount_type.value == "AZIM":
-                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
-                az, el = altaz.az.deg, altaz.alt.deg
-                el_range = tel.get_elevation_range()
-                az_range = tel.get_azimuth_range()
-                if not (el_range[0] <= el <= el_range[1] and az_range[0] <= az <= az_range[1]):
-                    az_el[tel.get_code()] = (None, None)
-                else:
-                    az_el[tel.get_code()] = (az, el)
-            elif mount_type.value == "EQUA":
-                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
-                ha, dec = hadec.ha.deg, hadec.dec.deg
-                ha_range = tel.get_azimuth_range()
-                dec_range = tel.get_elevation_range()
-                if not (ha_range[0] <= ha <= ha_range[1] and dec_range[0] <= dec <= dec_range[1]):
-                    az_el[tel.get_code()] = (None, None)
-                else:
-                    az_el[tel.get_code()] = (ha, dec)
-            else:
-                logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel.get_code()}'")
-                az_el[tel.get_code()] = (0.0, 0.0)
-        return az_el
 
     @time_execution
     def _calculate_time_on_source(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> xr.Dataset:
