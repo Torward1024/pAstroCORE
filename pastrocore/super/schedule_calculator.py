@@ -152,17 +152,17 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(observations), 4) if len(observations) > 4 else 1
+                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)  # CPU-bound due to astropy transformations
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = [
                         executor.submit(self._calculate_source_visibility, obs, attributes)
                         for obs in observations
-                    ] if max_workers > 1 else [self._calculate_source_visibility(obs, attributes) for obs in observations]
+                    ]
                     for future in futures:
-                        ds = future.result() if max_workers > 1 else future
+                        ds = future.result()
                         ds = ds.assign_coords({"observation": obs.get_observation_code()})
                         datasets.append(ds)
-                logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.name}' with {max_workers} workers")
                 return xr.concat(datasets, dim="observation") if datasets else xr.Dataset()
 
             def calculate_visibility(obj, attrs):
@@ -182,15 +182,14 @@ class ScheduleCalculator(Super):
                         return xr.Dataset()
 
                 datasets = []
-                # Use ThreadPoolExecutor only if there are enough scans
-                max_workers = min(len(scans), 4) if len(scans) > 4 else 1
+                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)  # CPU-bound due to coordinate transformations
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = [
                         executor.submit(self._process_source_visibility, scan, obj, time_step, position_data)
                         for scan in scans
-                    ] if max_workers > 1 else [self._process_source_visibility(scan, obj, time_step, position_data) for scan in scans]
+                    ]
                     for future in futures:
-                        ds = future.result() if max_workers > 1 else future
+                        ds = future.result()
                         datasets.append(ds)
                 return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
 
@@ -385,7 +384,7 @@ class ScheduleCalculator(Super):
                         logger.warning(f"No observations in project '{obj.name}'")
                         return xr.Dataset()
                     datasets = []
-                    max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                    max_workers = self._get_max_workers(len(observations), is_cpu_bound=False)
                     with ThreadPoolExecutor(max_workers=max_workers) as executor:
                         futures = {
                             executor.submit(self._calculate_telescope_positions, obs, attrs): obs.get_observation_code()
@@ -396,7 +395,7 @@ class ScheduleCalculator(Super):
                             ds = future.result()
                             ds = ds.assign_coords({"observation": obs_code})
                             datasets.append(ds)
-                    logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.name}'")
+                    logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.name}' with '{max_workers}' workers")
                     return xr.concat(datasets, dim="observation") if datasets else xr.Dataset()
 
                 telescopes = obj.get_telescopes()
@@ -613,7 +612,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_uv_coverage, obs, attributes): obs.get_observation_code()
@@ -624,7 +623,7 @@ class ScheduleCalculator(Super):
                         ds = future.result()
                         ds = ds.assign_coords({"observation": obs_code})
                         datasets.append(ds)
-                logger.info(f"Calculated (u,v,w) coverage for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"Calculated (u,v,w) coverage for {len(observations)} observations in project '{obj.name}' with '{max_workers}' workers")
                 return xr.concat(datasets, dim="observation") if datasets else xr.Dataset()
 
             def calculate_uv(obj, attrs):
@@ -637,7 +636,7 @@ class ScheduleCalculator(Super):
                     logger.error(f"Missing visibility or position data for '{obj.get_observation_code()}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._process_uv_coverage, scan, obj, time_step, visibility_data, position_data): scan.name
@@ -815,7 +814,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_sun_angles, obs, attributes): obs.get_observation_code()
@@ -837,7 +836,7 @@ class ScheduleCalculator(Super):
                     logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._process_sun_angles, scan, obj, time_step, position_data): scan.name
@@ -1017,7 +1016,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_az_el, obs, attributes): obs.get_observation_code()
@@ -1039,7 +1038,7 @@ class ScheduleCalculator(Super):
                     logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._process_az_el, scan, obj, time_step, position_data): scan.name
@@ -1457,7 +1456,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_synthesized_beam, obs, attributes): obs.get_observation_code()
@@ -1601,7 +1600,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_baseline_projections, obs, attributes): obs.get_observation_code()
@@ -1625,7 +1624,7 @@ class ScheduleCalculator(Super):
                     logger.error(f"Missing visibility or position data for '{obj.get_observation_code()}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._process_baseline_projections, scan, obj, time_step, visibility_data, position_data): scan.name
@@ -1757,7 +1756,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_mollweide_tracks, obs, attributes): obs.get_observation_code()
@@ -1783,7 +1782,7 @@ class ScheduleCalculator(Super):
                     logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return xr.Dataset()
                 datasets = []
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._process_mollweide_tracks, scan, obj, time_step, position_data): scan.name
@@ -2351,7 +2350,7 @@ class ScheduleCalculator(Super):
         logger.debug(f"Interpolated state vector from cache for '{telescope.get_code()}' at {time.isot}: pos={pos}, vel={vel}")
         return pos, vel
     
-    def _get_max_workers(item_count: int, is_cpu_bound: bool = False) -> int:
+    def _get_max_workers(self, item_count: int, is_cpu_bound: bool = False) -> int:
         """Determine the optimal number of workers for parallel execution.
 
         Args:
