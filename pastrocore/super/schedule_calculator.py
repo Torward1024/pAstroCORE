@@ -23,10 +23,11 @@ import numpy as np
 import xarray as xr
 
 import threading
-import math
 import time
 import re
 import os
+
+import multiprocessing
 
 from scipy.interpolate import CubicSpline
 from numpy.polynomial import chebyshev
@@ -151,7 +152,6 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
                 datasets = []
-                # Use ThreadPoolExecutor only if there are enough observations
                 max_workers = min(len(observations), 4) if len(observations) > 4 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = [
@@ -2350,3 +2350,23 @@ class ScheduleCalculator(Super):
         
         logger.debug(f"Interpolated state vector from cache for '{telescope.get_code()}' at {time.isot}: pos={pos}, vel={vel}")
         return pos, vel
+    
+    def _get_max_workers(item_count: int, is_cpu_bound: bool = False) -> int:
+        """Determine the optimal number of workers for parallel execution.
+
+        Args:
+            item_count (int): Number of items to process (e.g., observations or scans).
+            is_cpu_bound (bool): True if the task is CPU-bound, False if I/O-bound.
+
+        Returns:
+            int: Number of workers to use in ThreadPoolExecutor.
+        """
+        cpu_count = multiprocessing.cpu_count()
+        if item_count <= 1:
+            return 1  # No parallelization for single item
+        if is_cpu_bound:
+            # For CPU-bound tasks, use number of CPU cores
+            return min(item_count, cpu_count)
+        else:
+            # For I/O-bound tasks, use up to 2x CPU cores for better throughput
+            return min(item_count, cpu_count * 2)
