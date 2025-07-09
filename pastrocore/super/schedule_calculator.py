@@ -151,8 +151,10 @@ class ScheduleCalculator(Super):
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
                     return xr.Dataset()
+                # Pre-allocate Dataset for all observations
+                obs_codes = [obs.get_observation_code() for obs in observations]
                 datasets = []
-                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)  # CPU-bound due to astropy transformations
+                max_workers = self._get_max_workers(len(observations), is_cpu_bound=True)
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = [
                         executor.submit(self._calculate_source_visibility, obs, attributes)
@@ -160,38 +162,75 @@ class ScheduleCalculator(Super):
                     ]
                     for future in futures:
                         ds = future.result()
-                        ds = ds.assign_coords({"observation": obs.get_observation_code()})
                         datasets.append(ds)
-                logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.name}' with {max_workers} workers")
-                return xr.concat(datasets, dim="observation") if datasets else xr.Dataset()
+                if not datasets:
+                    return xr.Dataset()
+                return xr.concat(datasets, dim="observation").assign_coords({"observation": obs_codes})
 
             def calculate_visibility(obj, attrs):
                 scans = obj.get_scans().get_active_items()
                 position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": attrs.get("recalculate")}
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
-                if not position_data.data_vars:
+                if "positions" not in position_data:
                     logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return xr.Dataset()
 
-                # Validate position data dimensions
-                for scan in scans:
+                # Pre-allocate Dataset dimensions
+                scan_names = [scan.name for scan in scans]
+                max_telescopes = max(len(scan.get_telescopes(obj).get_active_items()) for scan in scans) if scans else 0
+                max_times = max(int(scan.get_duration() / time_step) if time_step else 1 for scan in scans) if scans else 0
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+
+                # Initialize empty Dataset
+                visibility = np.zeros((len(scans), max_telescopes, max_times), dtype=bool)
+                telescope_coords = []
+                time_coords = []
+                source_names = []
+
+                for scan_idx, scan in enumerate(scans):
                     scan_name = scan.name
                     scan_positions = position_data.sel(scan=scan_name).get("positions", xr.DataArray())
                     if time_step and scan_positions.sizes.get("time", 0) != int(scan.get_duration() / time_step):
                         logger.warning(f"Mismatched position data length for scan {scan_name}")
                         return xr.Dataset()
 
-                datasets = []
-                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)  # CPU-bound due to coordinate transformations
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = [
-                        executor.submit(self._process_source_visibility, scan, obj, time_step, position_data)
-                        for scan in scans
-                    ]
-                    for future in futures:
-                        ds = future.result()
-                        datasets.append(ds)
-                return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+                    ds = self._process_source_visibility(scan, obj, time_step, position_data)
+                    if "visibility" not in ds:
+                        continue
+                    vis = ds["visibility"].values
+                    tels = ds["telescope"].values
+                    times = ds["time"].values
+                    source = ds["source"].item()
+
+                    # Pad visibility array to match max dimensions
+                    pad_tel = max_telescopes - vis.shape[0]
+                    pad_time = max_times - vis.shape[1]
+                    if pad_tel > 0 or pad_time > 0:
+                        vis = np.pad(vis, ((0, pad_tel), (0, pad_time)), mode='constant', constant_values=False)
+                    visibility[scan_idx, :vis.shape[0], :vis.shape[1]] = vis
+                    telescope_coords.append(tels)
+                    time_coords.append(times)
+                    source_names.append(source)
+
+                # Create unified Dataset
+                if not telescope_coords:
+                    return xr.Dataset()
+
+                # Use unique telescopes and times, preserving order
+                all_telescopes = np.unique(np.concatenate(telescope_coords), return_index=False)
+                all_times = np.unique(np.concatenate(time_coords), return_index=False)
+                dataset = xr.Dataset(
+                    data_vars={"visibility": (["scan", "telescope", "time"], visibility)},
+                    coords={
+                        "scan": scan_names,
+                        "telescope": all_telescopes[:max_telescopes],
+                        "time": all_times[:max_times],
+                        "source": (["scan"], source_names)
+                    }
+                )
+                return dataset
 
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items()), "observation_code": obj.get_observation_code()}
             return self._get_cached_or_calculate(obj, store_key, calculate_visibility, attributes, metadata)
@@ -446,16 +485,42 @@ class ScheduleCalculator(Super):
                     logger.warning(f"All telescopes excluded for observation '{obj.get_observation_code()}'")
                     return xr.Dataset()
 
-                datasets = []
                 if use_scans and time_step:
-                    for scan in scans:
+                    scan_names = [scan.name for scan in scans]
+                    max_telescopes = len(active_telescopes)
+                    max_times = max(int(scan.get_duration() / time_step) for scan in scans)
+                    positions = np.full((len(scans), max_telescopes, max_times, 3), np.nan)
+                    telescope_coords = [tel.get_code() for tel in active_telescopes]
+                    time_coords = []
+                    for scan_idx, scan in enumerate(scans):
                         ds = self._process_scan_positions(scan, obj, time_step)
-                        datasets.append(ds)
-                    result = xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+                        if "positions" not in ds:
+                            continue
+                        pos = ds["positions"].values
+                        times = ds["time"].values
+                        time_coords.append(times)
+                        pad_time = max_times - pos.shape[1]
+                        if pad_time > 0:
+                            pos = np.pad(pos, ((0, 0), (0, pad_time), (0, 0)), mode='constant', constant_values=np.nan)
+                        positions[scan_idx, :, :pos.shape[1], :] = pos
+
+                    if not time_coords:
+                        return xr.Dataset()
+
+                    all_times = np.unique(np.concatenate(time_coords), return_index=False)
+                    dataset = xr.Dataset(
+                        data_vars={"positions": (["scan", "telescope", "time", "coord"], positions)},
+                        coords={
+                            "scan": scan_names,
+                            "telescope": telescope_coords,
+                            "time": all_times[:max_times],
+                            "coord": ["x", "y", "z"]
+                        }
+                    )
                 else:
                     positions = np.array([self._compute_telescope_position(tel, t) for tel in active_telescopes for t in times])
                     positions = positions.reshape(len(active_telescopes), len(times), 3)
-                    result = xr.Dataset(
+                    dataset = xr.Dataset(
                         data_vars={"positions": (["telescope", "time", "coord"], positions)},
                         coords={
                             "telescope": [tel.get_code() for tel in active_telescopes],
@@ -470,8 +535,8 @@ class ScheduleCalculator(Super):
 
                 if excluded_telescopes:
                     logger.info(f"Excluded {len(excluded_telescopes)} telescopes due to unavailable orbit data: {', '.join(excluded_telescopes)}")
-                logger.debug(f"Calculated telescope positions for {len(datasets)} entries in '{obj.get_observation_code()}'")
-                return result
+                logger.debug(f"Calculated telescope positions for {len(dataset.scan) if 'scan' in dataset else 1} entries in '{obj.get_observation_code()}'")
+                return dataset
 
             metadata = {"time_step": time_step, "start_time": start_time, "end_time": end_time, "observation_code": obj.get_observation_code()}
             return self._get_cached_or_calculate(obj, store_key, calculate_positions, attributes, metadata)
@@ -632,21 +697,57 @@ class ScheduleCalculator(Super):
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": attrs.get("recalculate", False)}
                 visibility_data = self._calculate_source_visibility(obj, visibility_attrs)
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
-                if not visibility_data.data_vars or not position_data.data_vars:
+                if "visibility" not in visibility_data or "positions" not in position_data:
                     logger.error(f"Missing visibility or position data for '{obj.get_observation_code()}'")
                     return xr.Dataset()
-                datasets = []
-                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._process_uv_coverage, scan, obj, time_step, visibility_data, position_data): scan.name
-                        for scan in scans
+
+                scan_names = [scan.name for scan in scans]
+                max_telescopes = max(len(scan.get_telescopes(obj).get_active_items()) for scan in scans) if scans else 0
+                max_baselines = max((n * (n - 1)) // 2 for n in [len(scan.get_telescopes(obj).get_active_items()) for scan in scans]) if scans else 0
+                max_times = max(int(scan.get_duration() / time_step) if time_step else 1 for scan in scans) if scans else 0
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+
+                uv_points = np.full((len(scans), max_baselines, max_times, 3), np.nan)
+                baseline_coords = []
+                time_coords = []
+                source_names = []
+
+                for scan_idx, scan in enumerate(scans):
+                    scan_name = scan.name
+                    ds = self._process_uv_coverage(scan, obj, time_step, visibility_data, position_data)
+                    if "uv_points" not in ds:
+                        continue
+                    uv = ds["uv_points"].values
+                    baselines = ds["baseline"].values
+                    times = ds["time"].values
+                    source = ds["source"].item()
+                    pad_baseline = max_baselines - uv.shape[0]
+                    pad_time = max_times - uv.shape[1]
+                    if pad_baseline > 0 or pad_time > 0:
+                        uv = np.pad(uv, ((0, pad_baseline), (0, pad_time), (0, 0)), mode='constant', constant_values=np.nan)
+                    uv_points[scan_idx, :uv.shape[0], :uv.shape[1], :] = uv
+                    baseline_coords.append(baselines)
+                    time_coords.append(times)
+                    source_names.append(source)
+
+                if not baseline_coords:
+                    return xr.Dataset()
+
+                all_baselines = np.unique(np.concatenate(baseline_coords), return_index=False)
+                all_times = np.unique(np.concatenate(time_coords), return_index=False)
+                dataset = xr.Dataset(
+                    data_vars={"uv_points": (["scan", "baseline", "time", "coord"], uv_points)},
+                    coords={
+                        "scan": scan_names,
+                        "baseline": all_baselines[:max_baselines],
+                        "time": all_times[:max_times],
+                        "coord": ["u", "v", "w"],
+                        "source": (["scan"], source_names)
                     }
-                    for future in futures:
-                        scan_name = futures[future]
-                        ds = future.result()
-                        datasets.append(ds)
-                return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+                )
+                return dataset
 
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items()), "observation_code": obj.get_observation_code()}
             return self._get_cached_or_calculate(obj, store_key, calculate_uv, attributes, metadata)
@@ -836,21 +937,56 @@ class ScheduleCalculator(Super):
                 scans = obj.get_scans().get_active_items()
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": attrs.get("recalculate", False)}
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
-                if not position_data.data_vars:
+                if "positions" not in position_data:
                     logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return xr.Dataset()
-                datasets = []
-                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._process_sun_angles, scan, obj, time_step, position_data): scan.name
-                        for scan in scans
-                    }
-                    for future in futures:
-                        scan_name = futures[future]
-                        ds = future.result()
-                        datasets.append(ds)
-                return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+
+                scan_names = [scan.name for scan in scans]
+                max_telescopes = max(len(scan.get_telescopes(obj).get_active_items()) for scan in scans) if scans else 0
+                max_times = max(int(scan.get_duration() / time_step) if time_step else 1 for scan in scans) if scans else 0
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+
+                angles = np.full((len(scans), max_telescopes, max_times), np.nan, dtype=float)
+                telescope_coords = []
+                time_coords = []
+                source_names = []
+
+                for scan_idx, scan in enumerate(scans):
+                    scan_name = scan.name
+                    ds = self._process_sun_angles(scan, obj, time_step, position_data)
+                    if "sun_angles" not in ds:
+                        continue
+                    ang = ds["sun_angles"].values
+                    tels = ds["telescope"].values
+                    times = ds["time"].values
+                    source = ds["source"].item()
+                    pad_tel = max_telescopes - ang.shape[0]
+                    pad_time = max_times - ang.shape[1]
+                    if pad_tel > 0 or pad_time > 0:
+                        ang = np.pad(ang, ((0, pad_tel), (0, pad_time)), mode='constant', constant_values=np.nan)
+                    angles[scan_idx, :ang.shape[0], :ang.shape[1]] = ang
+                    telescope_coords.append(tels)
+                    time_coords.append(times)
+                    source_names.append(source)
+
+                if not telescope_coords:
+                    return xr.Dataset()
+
+                all_telescopes = np.unique(np.concatenate(telescope_coords), return_index=False)
+                all_times = np.unique(np.concatenate(time_coords), return_index=False)
+                dataset = xr.Dataset(
+                    data_vars={"sun_angles": (["scan", "telescope", "time"], angles)},
+                    coords={
+                        "scan": scan_names,
+                        "telescope": all_telescopes[:max_telescopes],
+                        "time": all_times[:max_times],
+                        "source": (["scan"], source_names)
+                    },
+                    attrs={"unit": "degrees"}
+                )
+                return dataset
 
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items()), "observation_code": obj.get_observation_code()}
             return self._get_cached_or_calculate(obj, store_key, calculate_sun_angles, attributes, metadata)
@@ -998,7 +1134,7 @@ class ScheduleCalculator(Super):
             attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
 
         Returns:
-            xr.Dataset: Az/El or HA/Dec data with dimensions [scan, telescope, time].
+            xr.Dataset: Az/El or HA/Dec data with dimensions [scan, telescope, time, coord].
         """
         try:
             time_step = attributes.get("time_step")
@@ -1028,21 +1164,57 @@ class ScheduleCalculator(Super):
                 scans = obj.get_scans().get_active_items()
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": attrs.get("recalculate", False)}
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
-                if not position_data.data_vars:
+                if "positions" not in position_data:
                     logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return xr.Dataset()
-                datasets = []
-                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._process_az_el, scan, obj, time_step, position_data): scan.name
-                        for scan in scans
-                    }
-                    for future in futures:
-                        scan_name = futures[future]
-                        ds = future.result()
-                        datasets.append(ds)
-                return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+
+                scan_names = [scan.name for scan in scans]
+                max_telescopes = max(len([t for t in scan.get_telescopes(obj).get_items() if not isinstance(t, SpaceTelescope)]) for scan in scans) if scans else 0
+                max_times = max(int(scan.get_duration() / time_step) if time_step else 1 for scan in scans) if scans else 0
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+
+                coords_data = np.full((len(scans), max_telescopes, max_times, 2), np.nan, dtype=float)
+                telescope_coords = []
+                time_coords = []
+                source_names = []
+
+                for scan_idx, scan in enumerate(scans):
+                    scan_name = scan.name
+                    ds = self._process_az_el(scan, obj, time_step, position_data)
+                    if "coords" not in ds:
+                        continue
+                    coord = ds["coords"].values
+                    tels = ds["telescope"].values
+                    times = ds["time"].values
+                    source = ds["source"].item()
+                    pad_tel = max_telescopes - coord.shape[0]
+                    pad_time = max_times - coord.shape[1]
+                    if pad_tel > 0 or pad_time > 0:
+                        coord = np.pad(coord, ((0, pad_tel), (0, pad_time), (0, 0)), mode='constant', constant_values=np.nan)
+                    coords_data[scan_idx, :coord.shape[0], :coord.shape[1], :] = coord
+                    telescope_coords.append(tels)
+                    time_coords.append(times)
+                    source_names.append(source)
+
+                if not telescope_coords:
+                    return xr.Dataset()
+
+                all_telescopes = np.unique(np.concatenate(telescope_coords), return_index=False)
+                all_times = np.unique(np.concatenate(time_coords), return_index=False)
+                dataset = xr.Dataset(
+                    data_vars={"coords": (["scan", "telescope", "time", "coord"], coords_data)},
+                    coords={
+                        "scan": scan_names,
+                        "telescope": all_telescopes[:max_telescopes],
+                        "time": all_times[:max_times],
+                        "coord": ["az", "el"],
+                        "source": (["scan"], source_names)
+                    },
+                    attrs={"unit": "degrees"}
+                )
+                return dataset
 
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items()), "observation_code": obj.get_observation_code()}
             return self._get_cached_or_calculate(obj, store_key, calculate_az_el, attributes, metadata)
@@ -1350,6 +1522,7 @@ class ScheduleCalculator(Super):
             attrs={"unit": "seconds"}
         )
 
+    @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> xr.Dataset:
         """Calculate beam pattern for single-dish observations.
 
@@ -1372,8 +1545,9 @@ class ScheduleCalculator(Super):
                 datasets = []
                 for obs in observations:
                     ds = self._calculate_beam_pattern(obs, attributes)
-                    ds = ds.assign_coords({"observation": obs.get_observation_code()})
-                    datasets.append(ds)
+                    if "pattern" in ds:
+                        ds = ds.assign_coords({"observation": obs.get_observation_code()})
+                        datasets.append(ds)
                 logger.info(f"Calculated beam pattern for {len(observations)} observations in project '{obj.name}'")
                 return xr.concat(datasets, dim="observation") if datasets else xr.Dataset()
 
@@ -1392,9 +1566,9 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No ground telescopes available for beam pattern calculation in '{obj.get_observation_code()}'")
                     return xr.Dataset()
                 tel_codes = [tel.get_code() for tel in ground_tels]
-                diameters = np.array([tel.get("diameter") for tel in ground_tels])  # shape: (n_tels,)
-                x = (np.pi * diameters[:, None] / wavelength) * np.sin(theta)  # shape: (n_tels, n_theta)
-                patterns = (2 * j1(x) / x) ** 2  # shape: (n_tels, n_theta)
+                diameters = np.array([tel.get("diameter") for tel in ground_tels])
+                x = (np.pi * diameters[:, None] / wavelength) * np.sin(theta)
+                patterns = (2 * j1(x) / x) ** 2
                 patterns = np.where(np.isnan(patterns), 1.0, patterns)
                 return xr.Dataset(
                     data_vars={"pattern": (["telescope", "theta"], patterns)},
@@ -1455,7 +1629,7 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         obs_code = futures[future]
                         ds = future.result()
-                        if ds.data_vars:
+                        if "beam_2d" in ds:
                             ds = ds.assign_coords({"observation": obs_code})
                             datasets.append(ds)
                     logger.info(f"Calculated synthesized beam for {len(observations)} observations in project '{obj.name}'")
@@ -1466,7 +1640,7 @@ class ScheduleCalculator(Super):
                 return xr.Dataset()
 
             def calculate_synthesized_beam(obj, attrs):
-                frequency = obj.get_frequencies().get(freq_name).get("frequency") * 1e6  # Convert MHz to Hz
+                frequency = obj.get_frequencies().get(freq_name).get("frequency") * 1e6
                 if frequency is None or frequency <= 0:
                     logger.error(f"Invalid frequency for freq_name '{freq_name}' in observation '{obj.get_observation_code()}'")
                     return xr.Dataset()
@@ -1478,13 +1652,19 @@ class ScheduleCalculator(Super):
                     "freq_name": freq_name,
                     "recalculate": attrs.get("recalculate", False)
                 })
-                if not uv_data.data_vars:
+                if "uv_points" not in uv_data:
                     logger.warning(f"No UV data available for '{obj.get_observation_code()}'")
                     return xr.Dataset()
 
                 scans = obj.get_scans().get_active_items()
-                datasets = []
-                for scan in scans:
+                grid_size = attrs.get("grid_size", 512)
+                scan_names = [scan.name for scan in scans]
+                beam_2d_data = np.full((len(scans), grid_size, grid_size), np.nan, dtype=float)
+                theta_u_coords = []
+                theta_v_coords = []
+                source_names = []
+
+                for scan_idx, scan in enumerate(scans):
                     scan_name = scan.name
                     source = scan.get_source(obj)
                     if not source:
@@ -1500,7 +1680,7 @@ class ScheduleCalculator(Super):
                     v = scan_uv_data.sel(coord="v").values.flatten()
                     mask = ~np.isnan(u) & ~np.isnan(v)
                     u, v = u[mask], v[mask]
-                    u = np.concatenate([u, -u])  # Add conjugate points for Hermitian symmetry
+                    u = np.concatenate([u, -u])
                     v = np.concatenate([v, -v])
 
                     if not u.size or not v.size:
@@ -1513,20 +1693,19 @@ class ScheduleCalculator(Super):
                         logger.warning(f"Invalid UV range for scan '{scan_name}': u_max={u_max}, v_max={v_max}")
                         continue
 
-                    grid_size = attrs.get("grid_size", 512)  # Allow customization of grid size
                     u_grid = np.linspace(-u_max, u_max, grid_size)
                     v_grid = np.linspace(-v_max, v_max, grid_size)
                     uv_plane = np.zeros((grid_size, grid_size), dtype=complex)
                     u_idx = ((u + u_max) / (2 * u_max) * (grid_size - 1)).astype(int)
                     v_idx = ((v + v_max) / (2 * v_max) * (grid_size - 1)).astype(int)
                     valid = (0 <= u_idx) & (u_idx < grid_size) & (0 <= v_idx) & (v_idx < grid_size)
-                    np.add.at(uv_plane, (v_idx[valid], u_idx[valid]), 1.0)  # Uniform weights
+                    np.add.at(uv_plane, (v_idx[valid], u_idx[valid]), 1.0)
 
                     beam_2d = fftshift(fft2(uv_plane))
                     beam_2d = np.abs(beam_2d)
                     beam_2d /= np.max(beam_2d) if np.max(beam_2d) != 0 else 1.0
 
-                    wavelength = 299792458 / frequency  # Speed of light / frequency (Hz)
+                    wavelength = 299792458 / frequency
                     theta_u_max = wavelength / (2 * u_max)
                     theta_v_max = wavelength / (2 * v_max)
                     theta_u = np.linspace(-theta_u_max, theta_u_max, grid_size)
@@ -1534,23 +1713,30 @@ class ScheduleCalculator(Super):
                     theta_u_deg = np.degrees(theta_u)
                     theta_v_deg = np.degrees(theta_v)
 
-                    ds = xr.Dataset(
-                        data_vars={"beam_2d": (["theta_v", "theta_u"], beam_2d)},
-                        coords={
-                            "scan": [scan_name],
-                            "theta_u": theta_u_deg,
-                            "theta_v": theta_v_deg,
-                            "source": source.name
-                        },
-                        attrs={
-                            "unit": "normalized",
-                            "frequency": frequency / 1e6  # Store frequency in MHz
-                        }
-                    )
-                    datasets.append(ds)
+                    beam_2d_data[scan_idx] = beam_2d
+                    theta_u_coords.append(theta_u_deg)
+                    theta_v_coords.append(theta_v_deg)
+                    source_names.append(source.name)
                     logger.debug(f"Computed synthesized beam for scan '{scan_name}' with {len(u)//2} UV points, source '{source.name}'")
 
-                return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+                if not source_names:
+                    return xr.Dataset()
+
+                # Use the first theta_u, theta_v (assuming consistent grid_size)
+                dataset = xr.Dataset(
+                    data_vars={"beam_2d": (["scan", "theta_v", "theta_u"], beam_2d_data)},
+                    coords={
+                        "scan": scan_names,
+                        "theta_u": theta_u_coords[0] if theta_u_coords else np.linspace(-1, 1, grid_size),
+                        "theta_v": theta_v_coords[0] if theta_v_coords else np.linspace(-1, 1, grid_size),
+                        "source": (["scan"], source_names)
+                    },
+                    attrs={
+                        "unit": "normalized",
+                        "frequency": frequency / 1e6
+                    }
+                )
+                return dataset
 
             metadata = {
                 "freq_name": freq_name,
@@ -1610,21 +1796,57 @@ class ScheduleCalculator(Super):
                 position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": attrs.get("recalculate", False)}
                 visibility_data = self._calculate_source_visibility(obj, visibility_attrs)
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
-                if not visibility_data.data_vars or not position_data.data_vars:
+                if "visibility" not in visibility_data or "positions" not in position_data:
                     logger.error(f"Missing visibility or position data for '{obj.get_observation_code()}'")
                     return xr.Dataset()
-                datasets = []
-                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._process_baseline_projections, scan, obj, time_step, visibility_data, position_data): scan.name
-                        for scan in scans
-                    }
-                    for future in futures:
-                        scan_name = futures[future]
-                        ds = future.result()
-                        datasets.append(ds)
-                return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+
+                scan_names = [scan.name for scan in scans]
+                max_telescopes = max(len(scan.get_telescopes(obj).get_active_items()) for scan in scans) if scans else 0
+                max_baselines = max((n * (n - 1)) // 2 for n in [len(scan.get_telescopes(obj).get_active_items()) for scan in scans]) if scans else 0
+                max_times = max(int(scan.get_duration() / time_step) if time_step else 1 for scan in scans) if scans else 0
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+
+                projections = np.full((len(scans), max_baselines, max_times), np.nan, dtype=float)
+                baseline_coords = []
+                time_coords = []
+                source_names = []
+
+                for scan_idx, scan in enumerate(scans):
+                    scan_name = scan.name
+                    ds = self._process_baseline_projections(scan, obj, time_step, visibility_data, position_data)
+                    if "projections" not in ds:
+                        continue
+                    proj = ds["projections"].values
+                    baselines = ds["baseline"].values
+                    times = ds["time"].values
+                    source = ds["source"].item()
+                    pad_baseline = max_baselines - proj.shape[0]
+                    pad_time = max_times - proj.shape[1]
+                    if pad_baseline > 0 or pad_time > 0:
+                        proj = np.pad(proj, ((0, pad_baseline), (0, pad_time)), mode='constant', constant_values=np.nan)
+                    projections[scan_idx, :proj.shape[0], :proj.shape[1]] = proj
+                    baseline_coords.append(baselines)
+                    time_coords.append(times)
+                    source_names.append(source)
+
+                if not baseline_coords:
+                    return xr.Dataset()
+
+                all_baselines = np.unique(np.concatenate(baseline_coords), return_index=False)
+                all_times = np.unique(np.concatenate(time_coords), return_index=False)
+                dataset = xr.Dataset(
+                    data_vars={"projections": (["scan", "baseline", "time"], projections)},
+                    coords={
+                        "scan": scan_names,
+                        "baseline": all_baselines[:max_baselines],
+                        "time": all_times[:max_times],
+                        "source": (["scan"], source_names)
+                    },
+                    attrs={"unit": "meters"}
+                )
+                return dataset
 
             metadata = {
                 "time_step": time_step,
@@ -1760,7 +1982,7 @@ class ScheduleCalculator(Super):
                         obs_code = futures[future]
                         try:
                             ds = future.result()
-                            if ds and ds.data_vars:  # Check if dataset is non-empty
+                            if ds and ("telescope_lon" in ds or "source_lon" in ds):
                                 ds = ds.assign_coords({"observation": obs_code})
                                 datasets.append(ds)
                             else:
@@ -1777,29 +1999,77 @@ class ScheduleCalculator(Super):
                     return xr.Dataset()
                 position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": attrs.get("recalculate", False)}
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
-                if not position_data.data_vars:
+                if "positions" not in position_data:
                     logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
                     return xr.Dataset()
-                datasets = []
-                max_workers = self._get_max_workers(len(scans), is_cpu_bound=True)
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._process_mollweide_tracks, scan, obj, time_step, position_data): scan.name
-                        for scan in scans
-                    }
-                    for future in futures:
-                        scan_name = futures[future]
-                        try:
-                            ds = future.result()
-                            if ds and ds.data_vars:  # Check if dataset contains valid data
-                                datasets.append(ds)
-                            else:
-                                logger.warning(f"No valid Mollweide tracks for scan '{scan_name}'")
-                        except Exception as e:
-                            logger.error(f"Error processing scan '{scan_name}': {str(e)}")
-                result = xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
-                logger.debug(f"Combined {len(datasets)} datasets for observation '{obj.get_observation_code()}'")
-                return result
+
+                scan_names = [scan.name for scan in scans]
+                max_telescopes = max(len(scan.get_telescopes(obj).get_active_items()) for scan in scans) if scans else 0
+                max_times = max(int(scan.get_duration() / time_step) if time_step else 1 for scan in scans) if scans else 0
+                telescope_lon = np.full((len(scans), max_telescopes, max_times), np.nan, dtype=float)
+                telescope_lat = np.full((len(scans), max_telescopes, max_times), np.nan, dtype=float)
+                source_lon = np.full(len(scans), np.nan, dtype=float)
+                source_lat = np.full(len(scans), np.nan, dtype=float)
+                telescope_coords = []
+                time_coords = []
+                source_names = []
+
+                for scan_idx, scan in enumerate(scans):
+                    scan_name = scan.name
+                    ds = self._process_mollweide_tracks(scan, obj, time_step, position_data)
+                    if "telescope_lon" not in ds and "source_lon" not in ds:
+                        logger.warning(f"No valid data from _process_mollweide_tracks for scan '{scan_name}'")
+                        continue
+                    if "telescope_lon" in ds:
+                        t_lon = ds["telescope_lon"].values
+                        t_lat = ds["telescope_lat"].values
+                        tels = ds["telescope"].values
+                        times = ds["time"].values
+                        pad_tel = max_telescopes - t_lon.shape[0]
+                        pad_time = max_times - t_lon.shape[1]
+                        if pad_tel > 0 or pad_time > 0:
+                            t_lon = np.pad(t_lon, ((0, pad_tel), (0, pad_time)), mode='constant', constant_values=np.nan)
+                            t_lat = np.pad(t_lat, ((0, pad_tel), (0, pad_time)), mode='constant', constant_values=np.nan)
+                        telescope_lon[scan_idx, :t_lon.shape[0], :t_lon.shape[1]] = t_lon
+                        telescope_lat[scan_idx, :t_lat.shape[0], :t_lat.shape[1]] = t_lat
+                        telescope_coords.append(tels)
+                        time_coords.append(times)
+                    if "source_lon" in ds:
+                        source_lon[scan_idx] = ds["source_lon"].values[0]
+                        source_lat[scan_idx] = ds["source_lat"].values[0]
+                        source_names.append(ds["source"].item())
+                    else:
+                        source_names.append(None)
+
+                if not any(source_names):
+                    logger.warning(f"No valid source coordinates computed for observation '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+
+                # Handle empty telescope or time coordinates
+                all_telescopes = []
+                all_times = []
+                if telescope_coords and any(len(coords) > 0 for coords in telescope_coords):
+                    all_telescopes = np.unique(np.concatenate([coords for coords in telescope_coords if len(coords) > 0]))
+                if time_coords and any(len(coords) > 0 for coords in time_coords):
+                    all_times = np.unique(np.concatenate([coords for coords in time_coords if len(coords) > 0]))
+
+                dataset = xr.Dataset(
+                    data_vars={
+                        "telescope_lon": (["scan", "telescope", "time"], telescope_lon),
+                        "telescope_lat": (["scan", "telescope", "time"], telescope_lat),
+                        "source_lon": (["scan"], source_lon),
+                        "source_lat": (["scan"], source_lat)
+                    },
+                    coords={
+                        "scan": scan_names,
+                        "telescope": all_telescopes[:max_telescopes] if len(all_telescopes) > 0 else np.array([], dtype=str),
+                        "time": all_times[:max_times] if len(all_times) > 0 else np.array([], dtype=str),
+                        "source": (["scan"], [name if name is not None else "" for name in source_names])
+                    },
+                    attrs={"unit": "radians"}
+                )
+                logger.debug(f"Created Mollweide dataset for observation '{obj.get_observation_code()}' with {len(scan_names)} scans")
+                return dataset
 
             metadata = {
                 "time_step": time_step,
@@ -1808,7 +2078,7 @@ class ScheduleCalculator(Super):
             }
             return self._get_cached_or_calculate(obj, store_key, calculate_mollweide, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
+            logger.error(f"Failed to calculate Mollweide tracks for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
             return xr.Dataset()
 
     def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: xr.Dataset) -> xr.Dataset:
