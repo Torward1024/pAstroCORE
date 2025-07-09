@@ -1855,7 +1855,7 @@ class ScheduleCalculator(Super):
 
         Notes:
             - Depends on precomputed telescope positions stored under "telescope_positions".
-            - Tracks are computed in longitude and latitude (degrees) for Mollweide projection.
+            - Tracks are computed in longitude and latitude (radians) for Mollweide projection.
         """
         try:
             time_step = attributes.get("time_step")
@@ -1882,19 +1882,49 @@ class ScheduleCalculator(Super):
                             datasets.append(ds)
                 logger.info(f"Calculated Mollweide tracks for {len(datasets)} observations in project '{obj.name}'")
                 return xr.concat(datasets, dim="observation") if datasets else xr.Dataset()
+
+            def calculate_mollweide(obj, attrs):
+                scans = obj.get_scans().get_active_items()
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": attrs.get("recalculate", False)}
+                position_data = self._calculate_telescope_positions(obj, position_attrs)
+                if not position_data.data_vars:
+                    logger.error(f"Failed to obtain telescope positions for '{obj.get_observation_code()}'")
+                    return xr.Dataset()
+                datasets = []
+                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(self._process_mollweide_tracks, scan, obj, time_step, position_data): scan.name
+                        for scan in scans
+                    }
+                    for future in futures:
+                        scan_name = futures[future]
+                        ds = future.result()
+                        if ds and ds.data_vars:  # Check if dataset is non-empty
+                            datasets.append(ds)
+                return xr.concat(datasets, dim="scan") if datasets else xr.Dataset()
+
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()),
+                "observation_code": obj.get_observation_code()
+            }
             return self._get_cached_or_calculate(obj, store_key, calculate_mollweide, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
             return xr.Dataset()
 
-    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, Any]) -> xr.Dataset:
+    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: xr.Dataset) -> xr.Dataset:
         """Process Mollweide tracks for a single scan.
 
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds).
-            position_data (Dict[str, Any]): Precomputed telescope positions.
+            position_data (xr.Dataset): Precomputed telescope positions.
 
         Returns:
             xr.Dataset: Mollweide tracks with dimensions [telescope, time] for telescope tracks and [scan] for source position.
@@ -1915,7 +1945,10 @@ class ScheduleCalculator(Super):
             logger.error(f"Invalid source coordinates for scan {scan_name}: RA={source.ra_degrees}, Dec={source.dec_degrees}")
             return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
 
+        # Compute source coordinates in radians
         source_lon, source_lat = self._compute_mollweide_coords(source_coord)
+        source_lon = np.radians(source_lon)
+        source_lat = np.radians(source_lat)
 
         if not active_telescopes:
             logger.warning(f"No active telescopes for scan {scan_name}")
@@ -1925,7 +1958,7 @@ class ScheduleCalculator(Super):
                     "source_lat": (["scan"], [source_lat])
                 },
                 coords={"scan": [scan_name], "source": source.name},
-                attrs={"unit": "degrees"}
+                attrs={"unit": "radians"}
             )
 
         # Define time array
@@ -1936,7 +1969,9 @@ class ScheduleCalculator(Super):
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
-        if not position_data or scan_name not in position_data:
+        # Extract positions for the scan
+        scan_positions = position_data.sel(scan=scan_name).get("positions", xr.DataArray())
+        if not scan_positions.size:
             logger.error(f"No position data for scan {scan_name}")
             return xr.Dataset(
                 data_vars={
@@ -1944,41 +1979,39 @@ class ScheduleCalculator(Super):
                     "source_lat": (["scan"], [source_lat])
                 },
                 coords={"scan": [scan_name], "source": source.name},
-                attrs={"unit": "degrees"}
+                attrs={"unit": "radians"}
             )
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        telescope_lon = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
-        telescope_lat = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
+        positions = scan_positions.values
+        if positions.shape[1] != len(times):
+            logger.error(f"Mismatched position data length for scan {scan_name}: expected {len(times)}, got {positions.shape[1]}")
+            return xr.Dataset(
+                data_vars={
+                    "source_lon": (["scan"], [source_lon]),
+                    "source_lat": (["scan"], [source_lat])
+                },
+                coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source.name},
+                attrs={"unit": "radians"}
+            )
 
-        tel_positions = position_data.get(scan_name, {}).get("telescope_positions", {})
+        telescope_lon = np.zeros((len(active_telescopes), len(times)), dtype=float)
+        telescope_lat = np.zeros((len(active_telescopes), len(times)), dtype=float)
+
         for tel_idx, tel in enumerate(active_telescopes):
             tel_code = tel.get_code()
-            pos_data = tel_positions.get(tel_code, {})
-            if not pos_data:
-                logger.warning(f"No position data for telescope '{tel_code}' in scan {scan_name}")
+            pos_array = positions[tel_idx]
+            if not np.all(np.isfinite(pos_array)):
+                logger.warning(f"Invalid position data for telescope '{tel_code}' in scan {scan_name}")
                 continue
-
-            if time_step is None:
-                pos = pos_data if isinstance(pos_data, (list, tuple)) else pos_data.get("positions")
-                if not pos or not np.all(np.isfinite(pos)):
-                    logger.warning(f"Invalid position data for telescope '{tel_code}' in scan {scan_name}")
+            for t_idx, t in enumerate(times):
+                pos = pos_array[t_idx]
+                if not np.all(np.isfinite(pos)):
+                    logger.debug(f"Invalid position for telescope '{tel_code}' at time {t.isot}")
                     continue
-                lon, lat = self._compute_mollweide_coords_from_position(pos, times[0])
-                telescope_lon[tel_idx, 0] = lon
-                telescope_lat[tel_idx, 0] = lat
-            else:
-                positions = pos_data.get("positions", [])
-                if len(positions) != len(times):
-                    logger.warning(f"Mismatched position data length for telescope '{tel_code}' in scan {scan_name}: expected {len(times)}, got {len(positions)}")
-                    continue
-                for t_idx, pos in enumerate(positions):
-                    if not np.all(np.isfinite(pos)):
-                        logger.debug(f"Invalid position for telescope '{tel_code}' at time {times[t_idx].isot}")
-                        continue
-                    lon, lat = self._compute_mollweide_coords_from_position(pos, times[t_idx])
-                    telescope_lon[tel_idx, t_idx] = lon
-                    telescope_lat[tel_idx, t_idx] = lat
+                lon, lat = self._compute_mollweide_coords_from_position(pos, t)
+                telescope_lon[tel_idx, t_idx] = np.radians(lon)
+                telescope_lat[tel_idx, t_idx] = np.radians(lat)
 
         return xr.Dataset(
             data_vars={
@@ -1993,7 +2026,7 @@ class ScheduleCalculator(Super):
                 "time": [t.iso for t in times],
                 "source": source.name
             },
-            attrs={"unit": "degrees"}
+            attrs={"unit": "radians"}
         )
     
     def _compute_mollweide_coords_from_position(self, position: Tuple[float, float, float], time: Time) -> Tuple[float, float]:
