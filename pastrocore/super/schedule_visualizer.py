@@ -385,10 +385,11 @@ class ScheduleVisualizer(Super):
                 if "time" not in scan_data.coords or not scan_data.time.size:
                     logger.warning(f"No valid times for scan {scan}")
                     continue
-                source = scan_data.source.values
+                source = scan_data.source.item() if isinstance(scan_data.source, xr.DataArray) else scan_data.source
                 times_mjd = [Time(t).mjd for t in scan_data.time.values]
                 for telescope in scan_data.telescope.values:
-                    angles = scan_data.angles.sel(telescope=telescope).values
+                    # Используем 'sun_angles' вместо 'angles'
+                    angles = scan_data.sun_angles.sel(telescope=telescope).values
                     mask = ~np.isnan(angles)
                     if not mask.any():
                         logger.debug(f"No valid angles for telescope {telescope} in scan {scan}")

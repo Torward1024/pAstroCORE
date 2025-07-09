@@ -849,7 +849,7 @@ class ScheduleCalculator(Super):
             return xr.Dataset()
 
     def _process_sun_angles(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: xr.Dataset) -> xr.Dataset:
-        """Process sun angles for a single scan using vectorized computations for ground telescopes only.
+        """Process sun angles for a single scan using vectorized computations for all telescopes.
 
         Args:
             scan (Scan): The scan to process.
@@ -858,12 +858,11 @@ class ScheduleCalculator(Super):
             position_data (xr.Dataset): Precomputed telescope positions.
 
         Returns:
-            xr.Dataset: Sun angles with dimensions [telescope, time] for ground telescopes, or empty dataset if no ground telescopes or source.
+            xr.Dataset: Sun angles with dimensions [telescope, time] for all active telescopes, or empty dataset if no source or telescopes.
 
         Notes:
-            - Computes angular separation between source and Sun for ground telescopes only.
-            - Space telescopes are ignored for sun angle calculations.
-            - Returns empty dataset with warning if no ground telescopes, source, or valid position data are available.
+            - Computes angular separation between source and Sun for both ground and space telescopes.
+            - Returns empty dataset with warning if no source, telescopes, or valid position data are available.
         """
         start_time = scan.get_start()
         duration = scan.get_duration()
@@ -882,13 +881,9 @@ class ScheduleCalculator(Super):
             logger.warning(f"Invalid source coordinates for scan {scan_name}: RA={source.ra_degrees}, Dec={source.dec_degrees}")
             return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
 
-        # Filter ground and space telescopes
-        ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
-        space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope)]
-
-        # Check for ground telescopes
-        if not ground_tels:
-            logger.warning(f"No ground telescopes available for scan {scan_name} in observation '{observation.get_observation_code()}'")
+        # Check for active telescopes
+        if not active_telescopes:
+            logger.warning(f"No active telescopes available for scan {scan_name} in observation '{observation.get_observation_code()}'")
             return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
 
         # Set up time array
@@ -899,54 +894,26 @@ class ScheduleCalculator(Super):
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
-        # Check position data
-        scan_positions = position_data.sel(scan=scan_name).get("positions", xr.DataArray())
-        if not scan_positions.size:
-            logger.warning(f"No position data for scan {scan_name} in observation '{observation.get_observation_code()}'")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
+        # Initialize angles array for all active telescopes
+        angles = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
+        telescope_codes = [tel.get_code() for tel in active_telescopes]
 
-        # Initialize angles array for ground telescopes only
-        angles = np.full((len(ground_tels), len(times)), np.nan, dtype=float)
-        ground_codes = [tel.get_code() for tel in ground_tels]
-        positions = scan_positions.sel(telescope=ground_codes, errors='ignore').values
-        if not positions.size or positions.shape[1] != len(times):
-            logger.warning(f"Invalid or mismatched position data for ground telescopes in scan {scan_name}")
+        # Process all telescopes using _compute_sun_angle for each time point
+        for t_idx, time in enumerate(times):
+            sun_angles = self._compute_sun_angle(source_coord, time, active_telescopes)
+            for tel_idx, tel_code in enumerate(telescope_codes):
+                angles[tel_idx, t_idx] = sun_angles.get(tel_code, np.nan)
+
+        # Check for valid data
+        if not np.any(np.isfinite(angles)):
+            logger.warning(f"No valid sun angles calculated for scan {scan_name}")
             return xr.Dataset(coords={"scan": [scan_name], "source": source.name, "time": [t.iso for t in times]})
-
-        # Process ground telescopes
-        x = np.array([tel.get_coordinates()[0] for tel in ground_tels])
-        y = np.array([tel.get_coordinates()[1] for tel in ground_tels])
-        z = np.array([tel.get_coordinates()[2] for tel in ground_tels])
-        vx = np.array([tel.get(["vx", "vy", "vz"])["vx"] for tel in ground_tels])
-        vy = np.array([tel.get(["vx", "vy", "vz"])["vy"] for tel in ground_tels])
-        vz = np.array([tel.get(["vx", "vy", "vz"])["vz"] for tel in ground_tels])
-        dt = (times - Time("2000-01-01T12:00:00")).sec
-        itrs_coords = CartesianRepresentation(
-            x[:, None] + vx[:, None] * dt,
-            y[:, None] + vy[:, None] * dt,
-            z[:, None] + vz[:, None] * dt,
-            unit=u.m
-        )
-        itrs = ITRS(itrs_coords, obstime=times)
-        locations = itrs.earth_location
-        altaz_frame = AltAz(obstime=times, location=locations)
-        source_altaz = source_coord.transform_to(altaz_frame)
-        sun_gcrs = get_sun(times)
-        sun_altaz = sun_gcrs.transform_to(altaz_frame)
-        separations = source_altaz.separation(sun_altaz).deg
-        separations = np.where((source_altaz.alt.deg < 0) | (sun_altaz.alt.deg < 0), np.nan, separations)
-        for idx, tel_code in enumerate(ground_codes):
-            angles[idx] = separations[idx]
-
-        # Log presence of space telescopes, if any
-        if space_tels:
-            logger.debug(f"Ignoring {len(space_tels)} space telescopes for sun angle calculations in scan {scan_name}")
 
         return xr.Dataset(
             data_vars={"sun_angles": (["telescope", "time"], angles)},
             coords={
                 "scan": [scan_name],
-                "telescope": ground_codes,
+                "telescope": telescope_codes,
                 "time": [t.iso for t in times],
                 "source": source.name
             },
