@@ -211,7 +211,11 @@ class Observation(BaseEntity):
         logger.debug(f"Cleared calculated data for observation '{self.get_observation_code()}'")
                 
     def to_dict(self) -> dict:
-        """Convert the Observation object to a dictionary for serialization."""
+        """Convert the Observation object to a dictionary for serialization.
+
+        Returns:
+            dict: Dictionary representation of the Observation, including serialized xarray.Dataset objects in calculated_data.
+        """
         def convert_quantity(obj):
             if isinstance(obj, u.Quantity):
                 return obj.value.tolist() if obj.isscalar else obj.value.tolist()
@@ -223,16 +227,38 @@ class Observation(BaseEntity):
                 return {k: convert_quantity(v) for k, v in obj.items()}
             elif isinstance(obj, (list, tuple)):
                 return [convert_quantity(item) for item in obj]
+            elif isinstance(obj, xr.Dataset):
+                # Serialize xarray.Dataset to dictionary
+                return obj.to_dict()
             return obj
 
         data = super().to_dict()
-        data["calculated_data"] = convert_quantity(self.calculated_data)
-        logger.info(f"Converted observation '{self.name}' to dictionary")
+        data["calculated_data"] = {key: convert_quantity(value) for key, value in self.calculated_data.items()}
+        logger.info(f"Converted observation '{self.name}' to dictionary with {len(self.calculated_data)} calculated datasets")
         return data
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
-        """Create an Observation object from a dictionary."""
+        """Create an Observation object from a dictionary.
+
+        Args:
+            data (dict): Dictionary containing observation data, including serialized xarray.Dataset objects in calculated_data.
+
+        Returns:
+            Observation: A new Observation instance populated with the provided data.
+        """
+        # Prepare calculated_data by converting dictionary representations to xarray.Dataset
+        calculated_data = {}
+        for key, value in data.get("calculated_data", {}).items():
+            if isinstance(value, dict) and 'data_vars' in value and 'coords' in value:
+                try:
+                    calculated_data[key] = xr.Dataset.from_dict(value)
+                except Exception as e:
+                    logger.warning(f"Failed to deserialize xarray.Dataset for key '{key}' in observation '{data['name']}': {str(e)}")
+            else:
+                logger.warning(f"Invalid calculated_data format for key '{key}' in observation '{data['name']}'")
+                calculated_data[key] = value
+
         kwargs = {
             "name": data["name"],
             "code": data["code"],
@@ -240,7 +266,7 @@ class Observation(BaseEntity):
             "sources": Sources.from_dict(data["sources"]),
             "telescopes": Telescopes.from_dict(data["telescopes"]),
             "frequencies": Frequencies.from_dict(data["frequencies"]),
-            "calculated_data": data.get("calculated_data", {}),
+            "calculated_data": calculated_data,
             "isactive": data.get("isactive", True),
         }
         # Create Observation without scans first
@@ -251,7 +277,7 @@ class Observation(BaseEntity):
         obs.set({"scans": kwargs["scans"]})
         # Synchronize all scans to ensure source references and activity status are consistent
         obs.scans.activate_all(obs)
-        logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans")
+        logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans and {len(calculated_data)} calculated datasets")
         return obs
 
     def __repr__(self) -> str:

@@ -205,7 +205,7 @@ QMenu::icon {
   </widget>
   <widget class="QDockWidget" name="dockWidget">
    <property name="contextMenuPolicy">
-    <enum>Qt::ContextMenuPolicy::NoContextMenu</enum>
+    <enum>Qt::ContextMenuPolicy::PreventContextMenu</enum>
    </property>
    <property name="styleSheet">
     <string notr="true">background-color: #ffffff; font-family: Arial;</string>

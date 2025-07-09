@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowpWAuKJ.ui'
+## Form generated from reading UI file 'main_windoweRXbKW.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -201,7 +201,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.mainStatusBar)
         self.dockWidget = QDockWidget(MainWindow)
         self.dockWidget.setObjectName(u"dockWidget")
-        self.dockWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        self.dockWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
         self.dockWidget.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.dockWidget.setFloating(False)
         self.dockWidgetContents = QWidget()
