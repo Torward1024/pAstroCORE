@@ -764,18 +764,25 @@ class ScheduleCalculator(Super):
         ww = np.cos(ra) * np.cos(dec) * X + np.sin(ra) * np.cos(dec) * Y + np.sin(dec) * Z
 
         # Apply visibility mask
-        vis_mask = visibility[:, None, :] & visibility[None, :, :]  # shape: (n_tels, n_times)
+        vis_mask = visibility[:, None, :] & visibility[None, :, :]  # shape: (n_tels, n_tels, n_times)
 
-        # Collect UV points
+        # Prepare output
         uvw = np.stack([uu, vv, ww], axis=-1)  # shape: (n_tels, n_tels, n_times, 3)
+        tel_codes = [tel.get_code() for tel in telescopes]
+        baseline_pairs = [f"{tel_codes[i]}-{tel_codes[j]}" for i in range(n_tels) for j in range(i + 1, n_tels)]
+        
+        # Vectorized collection of UV points
+        i_indices = np.array([i for i in range(n_tels) for j in range(i + 1, n_tels)])  # shape: (n_pairs,)
+        j_indices = np.array([j for i in range(n_tels) for j in range(i + 1, n_tels)])  # shape: (n_pairs,)
         for time_idx in range(n_times):
-            for i in range(n_tels):
-                for j in range(i + 1, n_tels):
-                    if vis_mask[i, j, time_idx]:
-                        pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                        uuu, vvv, www = uvw[i, j, time_idx]
-                        uv_points[time_idx].append((pair, float(uuu), float(vvv), float(www)))
-                        logger.debug(f"UV point for {pair} at time_idx {time_idx}: u={uuu}, v={vvv}, w={www}")
+            valid_mask = vis_mask[i_indices, j_indices, time_idx]  # shape: (n_pairs,)
+            valid_indices = np.where(valid_mask)[0]  # indices of valid pairs
+            valid_pairs = [baseline_pairs[idx] for idx in valid_indices]
+            valid_uvw = uvw[i_indices[valid_indices], j_indices[valid_indices], time_idx]  # shape: (n_valid_pairs, 3)
+            for pair, (uuu, vvv, www) in zip(valid_pairs, valid_uvw):
+                if not np.any(np.isnan([uuu, vvv, www])):
+                    uv_points[time_idx].append((pair, float(uuu), float(vvv), float(www)))
+                    logger.debug(f"UV point for {pair} at time_idx {time_idx}: u={uuu}, v={vvv}, w={www}")
 
         return uv_points
 
