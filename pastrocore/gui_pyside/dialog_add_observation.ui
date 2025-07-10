@@ -153,7 +153,7 @@ QComboBox::down-arrow {
     height: 12px;
     /* Стандартная стрелка Qt, если нет иконки */
     /* Если есть иконка, раскомментируйте: */
-    /* image: url(:/icons/down_arrow.png); */
+    image: url(:/icons/down_arrow_icon.svg);
 }
 
 /* Стилизация выпадающего списка */

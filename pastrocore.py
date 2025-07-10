@@ -24,8 +24,7 @@ from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from pastrocore.gui.p_dialog_visualize import VisualizationDialog
-from common.utils.logging_setup import logger
-from common.utils.logging_setup import setup_logging
+from common.utils.logging_setup import logger, setup_logging, update_logging_level
 import logging
 import pastrocore.gui.rc_icons
 
@@ -634,15 +633,13 @@ class PAstroCoreMainWindow(QMainWindow):
         """Handle settings updated signal from PreferencesDialog."""
         self.settings = settings
         self.save_settings(self.settings)
-        # Reinitialize CatalogManager with new settings
-        self.catalog_manager = self.initialize_catalog_manager()
-        # Update logger level if changed
+        # Update logger level
         new_log_level_str = self.settings.get("log_level", "INFO")
         new_log_level = getattr(logging, new_log_level_str, logging.INFO)
-        logger.setLevel(new_log_level)
-        for handler in logger.handlers:
-            handler.setLevel(new_log_level)
+        update_logging_level(new_log_level)
         logger.info(f"Logger level updated to {new_log_level_str}")
+        # Reinitialize CatalogManager with new settings
+        self.catalog_manager = self.initialize_catalog_manager()
         logger.info(f"CatalogManager reinitialized with new settings, id={id(self.catalog_manager)}")
 
     @Slot()
