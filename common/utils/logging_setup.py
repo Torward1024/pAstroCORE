@@ -48,5 +48,23 @@ def setup_logging(log_file: str = "output.log", log_level: int = logging.INFO) -
 
     return logger
 
+def update_logging_level(log_level: int) -> None:
+    """Update the logging level for the singleton logger and its handlers.
+
+    Args:
+        log_level (int): New logging level (e.g., logging.DEBUG, logging.INFO).
+
+    Notes:
+        - Updates the level of the singleton logger and all its handlers.
+        - If the logger is not initialized, it will be created with default settings and the specified level.
+    """
+    global logger
+    if logger is None:
+        logger = setup_logging(log_level=log_level)
+    else:
+        logger.setLevel(log_level)
+        for handler in logger.handlers:
+            handler.setLevel(log_level)
+
 # Singleton logger instance with default INFO level
 logger = setup_logging()
