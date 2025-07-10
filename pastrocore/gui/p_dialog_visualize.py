@@ -4,10 +4,10 @@ from PySide6.QtCore import Slot, Qt
 from .ui_dialog_visualize import Ui_VisualizationDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
-from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import xarray
 
 class VisualizationDialog(QDialog):
     """Dialog for visualizing observation parameters using ScheduleVisualizer through ScheduleManipulator.
@@ -164,25 +164,45 @@ class VisualizationDialog(QDialog):
 
         for calc_key, vis_name in visualization_map.items():
             if calc_key in calc_data:
-                # Check if data is valid (not empty, not None, not an empty list/dict)
+                # Check if data is valid
                 data = calc_data[calc_key]
-                if data is not None and (not isinstance(data, (list, dict)) or len(data) > 0):
+                is_valid = False
+                if isinstance(data, xarray.Dataset):
+                    if len(data.data_vars) > 0:
+                        is_valid = True
+                        logger.debug(f"Valid xarray.Dataset for '{vis_name}' with {len(data.data_vars)} data_vars")
+                    else:
+                        logger.debug(f"Empty xarray.Dataset for '{vis_name}' (no data_vars)")
+                elif data is not None and (not isinstance(data, (list, dict)) or len(data) > 0):
+                    is_valid = True
+                    logger.debug(f"Valid non-xarray data for '{vis_name}'")
+                if is_valid:
                     available_visualizations.append(vis_name)
-                    logger.debug(f"Added visualization '{vis_name}' with non-empty data")
             elif calc_key in freq_dependent_plots:
                 # Check frequency-dependent data
                 for data_key in calc_data.keys():
                     if data_key.startswith(f"{calc_key}_freq_"):
                         data = calc_data[data_key]
-                        if data is not None and (not isinstance(data, (list, dict)) or len(data) > 0):
+                        is_valid = False
+                        if isinstance(data, xarray.Dataset):
+                            if len(data.data_vars) > 0:
+                                is_valid = True
+                                logger.debug(f"Valid xarray.Dataset for frequency-dependent '{vis_name}' with {len(data.data_vars)} data_vars")
+                            else:
+                                logger.debug(f"Empty xarray.Dataset for frequency-dependent '{vis_name}' (no data_vars)")
+                        elif data is not None and (not isinstance(data, (list, dict)) or len(data) > 0):
+                            is_valid = True
+                            logger.debug(f"Valid non-xarray data for frequency-dependent '{vis_name}'")
+                        if is_valid:
                             available_visualizations.append(vis_name)
-                            logger.debug(f"Added frequency-dependent visualization '{vis_name}' with non-empty data")
                             break
 
         self.ui.comboBoxVisualizationType.addItems(available_visualizations)
         logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
         self.ui.comboBoxVisualizationType.setEnabled(bool(available_visualizations))
         self.ui.pushButtonVisualize.setEnabled(bool(available_visualizations))
+        if not available_visualizations:
+            logger.debug(f"No valid visualization data found for observation '{current_obs_name}'")
 
     @Slot()
     def perform_visualization(self):
