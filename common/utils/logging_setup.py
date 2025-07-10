@@ -1,51 +1,52 @@
 # utils/logging_setup.py
 import logging
-import os
 
-def setup_logging(log_file: str = "output.log"):
+def setup_logging(log_file: str = "output.log", log_level: int = logging.INFO) -> logging.Logger:
     """Set up and configure logging for the system.
 
     Creates a logger with both file and console handlers, using a consistent format for log messages.
+    Allows specifying the logging level for flexible logging configuration.
 
     Args:
         log_file (str): Path to the log file. Defaults to "output.log".
+        log_level (int): Logging level (e.g., logging.DEBUG, logging.INFO). Defaults to logging.INFO.
 
     Returns:
         logging.Logger: The configured logger instance.
 
     Notes:
-        - Logger level is set to INFO.
         - Log format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s".
         - Handlers are added only if the logger has no existing handlers to avoid duplication.
+        - Valid log levels are defined in the logging module (e.g., logging.DEBUG, logging.INFO, logging.WARNING).
 
     Examples:
-        >>> logger = setup_logging("my_log.log")
-        >>> logger.info("Test message")
-        # Output to both my_log.log and console: <timestamp> - INFO - Test message
+        >>> logger = setup_logging("my_log.log", logging.DEBUG)
+        >>> logger.debug("Debug message")
+        # Output to both my_log.log and console: <timestamp> - root - DEBUG - Debug message
     """
     logger = logging.getLogger("")
-    logger.setLevel(logging.INFO)
+    logger.setLevel(log_level)
 
-    # avoid duplicate handlers if already setup
+    # Avoid duplicate handlers if already set up
     if not logger.handlers:
-        # file handler
+        # File handler
         fh = logging.FileHandler(log_file)
-        fh.setLevel(logging.INFO)
+        fh.setLevel(log_level)
 
-        # console handler
+        # Console handler
         ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
+        ch.setLevel(log_level)
 
-        # formatter
+        # Formatter
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         fh.setFormatter(formatter)
         ch.setFormatter(formatter)
 
-        # add handlers
+        # Add handlers
         logger.addHandler(fh)
         logger.addHandler(ch)
 
     return logger
 
-# singleton logger instance
+# Singleton logger instance with default INFO level
 logger = setup_logging()

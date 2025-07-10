@@ -431,22 +431,42 @@ class ScheduleVisualizer(Super):
                 logger.error(f"No Az/El data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
+            # Check unit attribute
+            if data.attrs.get("unit") != "degrees":
+                logger.warning(f"Unexpected unit '{data.attrs.get('unit')}' in az/el data, expected 'degrees'")
+
             all_telescopes = {}
             for scan in data.scan.values:
                 scan_data = data.sel(scan=scan)
                 if "time" not in scan_data.coords or not scan_data.time.size:
                     logger.warning(f"No valid times for scan {scan}")
                     continue
-                source = scan_data.source.values
+                source = scan_data.source.item() if isinstance(scan_data.source, xr.DataArray) else scan_data.source
                 times_mjd = [Time(t).mjd for t in scan_data.time.values]
                 for telescope in scan_data.telescope.values:
-                    if "coord" not in scan_data.coords:
-                        logger.warning(f"No coord dimension for scan {scan}, telescope {telescope}")
+                    if "coords" not in scan_data.data_vars:
+                        logger.warning(f"No coords data for scan {scan}, telescope {telescope}")
                         continue
                     if telescope not in all_telescopes:
                         all_telescopes[telescope] = {"times": [], "az": [], "el": [], "coord_type": scan_data.attrs.get("coord_type", "AzEl")}
-                    az = scan_data.coords.sel(telescope=telescope, coord="az").values
-                    el = scan_data.coords.sel(telescope=telescope, coord="el").values
+                    
+                    # Select az and el (or coord1 and coord2) from coords data_var
+                    try:
+                        coords_data = scan_data["coords"].sel(telescope=telescope)
+                        if "coord" in coords_data.coords and set(coords_data.coord.values).issubset({"az", "el"}):
+                            az = coords_data.sel(coord="az").values
+                            el = coords_data.sel(coord="el").values
+                        elif "coord" in coords_data.coords and set(coords_data.coord.values).issubset({"coord1", "coord2"}):
+                            az = coords_data.sel(coord="coord1").values
+                            el = coords_data.sel(coord="coord2").values
+                            all_telescopes[telescope]["coord_type"] = "HADec" if all_telescopes[telescope]["coord_type"] == "AzEl" else all_telescopes[telescope]["coord_type"]
+                        else:
+                            logger.warning(f"Invalid coord values for scan {scan}, telescope {telescope}: {coords_data.coord.values}")
+                            continue
+                    except Exception as e:
+                        logger.error(f"Failed to extract az/el for telescope {telescope} in scan {scan}: {str(e)}")
+                        continue
+                    
                     mask = ~np.isnan(az) & ~np.isnan(el)
                     if mask.any():
                         all_telescopes[telescope]["times"].extend(np.array(times_mjd)[mask])
@@ -468,8 +488,9 @@ class ScheduleVisualizer(Super):
                 ax = axes[i] if n_tels > 1 else axes[0]
                 color = self.moderate2_colors[i % len(self.moderate2_colors)]
                 coord_type = tel_data["coord_type"]
-                ax.plot(tel_data["times"], tel_data["az"], label=f"{coord_type[:2]}", color=color)
-                ax.plot(tel_data["times"], tel_data["el"], label=f"{coord_type[2:]}", linestyle="--", color=color)
+                label1, label2 = ("Az", "El") if coord_type == "AzEl" else ("HA", "Dec")
+                ax.plot(tel_data["times"], tel_data["az"], label=label1, color=color)
+                ax.plot(tel_data["times"], tel_data["el"], label=label2, linestyle="--", color=color)
                 ax.set_xlabel("Time (MJD)")
                 ax.set_ylabel("Angle (deg)")
                 ax.set_title(f"Telescope: {tel_code}")
