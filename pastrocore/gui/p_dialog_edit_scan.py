@@ -77,7 +77,6 @@ class ScanEditorDialog(QDialog):
 
         # Initialize UI components
         self.ui.startTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        self.ui.durationEdit.setText("1")
         validator = QIntValidator(1, 999999, self)
         self.ui.durationEdit.setValidator(validator)
 
@@ -94,13 +93,72 @@ class ScanEditorDialog(QDialog):
         self._populate_telescopes()
         self._populate_frequencies()
 
-        # Load scan data if editing
-        if not self.is_new:
-            self._load_scan_data()
+        # Set start time and duration for new scans based on the last scan's end time and duration
+        if self.is_new:
+            scans_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_scans(),
+                "attributes": {"get_all": None}
+            })
+            if scans_response["status"] and isinstance(scans_response["result"], dict) and scans_response["result"]:
+                # Find the last scan by start time + duration
+                latest_end_time = None
+                latest_duration = None
+                for scan_name, scan_obj in scans_response["result"].items():
+                    scan_attrs_response = self.manipulator.process_request({
+                        "operation": "inspect",
+                        "obj": scan_obj,
+                        "attributes": {"get": ["start", "duration"]}
+                    })
+                    if scan_attrs_response["status"]:
+                        scan_start = scan_attrs_response["result"]["start"]
+                        scan_duration = scan_attrs_response["result"]["duration"]
+                        logger.debug(f"Processing scan '{scan_name}': start={scan_start.isot}, duration={scan_duration}")
+                        try:
+                            # Calculate end time using TimeDelta
+                            scan_end = scan_start + (scan_duration * 1.0 / 86400.0)  # Convert seconds to days
+                            logger.debug(f"Calculated end time for scan '{scan_name}': {scan_end.isot}")
+                            if latest_end_time is None or scan_end > latest_end_time:
+                                latest_end_time = scan_end
+                                latest_duration = scan_duration
+                        except Exception as e:
+                            logger.error(f"Error calculating end time for scan '{scan_name}': {str(e)}")
+                            continue
+                if latest_end_time and latest_duration is not None:
+                    # Convert to datetime and set to QDateTime
+                    try:
+                        start_dt = latest_end_time.to_datetime()
+                        start_qdt = QDateTime(start_dt)
+                        self.ui.startTimeEdit.setDateTime(start_qdt)
+                        logger.info(f"Set start time for new scan to end of latest scan: {start_dt}")
+                        # Set duration to match the last scan's duration
+                        self.ui.durationEdit.setText(str(int(latest_duration)))
+                        logger.info(f"Set duration for new scan to match latest scan: {latest_duration}")
+                    except Exception as e:
+                        logger.error(f"Error converting latest end time to QDateTime: {str(e)}")
+                        current_time = QDateTime.currentDateTime()
+                        self.ui.startTimeEdit.setDateTime(current_time)
+                        self.ui.durationEdit.setText("1")
+                        logger.info(f"Fallback to current time and default duration (1s) due to conversion error: {current_time.toString(Qt.ISODate)}")
+                else:
+                    # Fallback to current time and default duration if no valid scans found
+                    current_time = QDateTime.currentDateTime()
+                    self.ui.startTimeEdit.setDateTime(current_time)
+                    self.ui.durationEdit.setText("1")
+                    logger.info(f"No valid scans found, set start time to current time: {current_time.toString(Qt.ISODate)}, duration to default: 1")
+            else:
+                # No scans available, use current time and default duration
+                current_time = QDateTime.currentDateTime()
+                self.ui.startTimeEdit.setDateTime(current_time)
+                self.ui.durationEdit.setText("1")
+                logger.info(f"No scans available, deliberately set start time to current time: {current_time.toString(Qt.ISODate)}, duration to default: 1")
         else:
-            # Set chk_active based on conditions for new scans
-            self.ui.chk_active.setChecked(self._check_scan_conditions())
-            logger.debug(f"Set chk_active for new scan based on conditions: {self.ui.chk_active.isChecked()}")
+            # Load scan data if editing
+            self._load_scan_data()
+
+        # Set chk_active based on conditions
+        self.ui.chk_active.setChecked(self._check_scan_conditions())
+        logger.debug(f"Set chk_active for {'new scan' if self.is_new else f'scan {self.scan.name}'} based on conditions: {self.ui.chk_active.isChecked()}")
 
         logger.debug(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan.name}'} in observation '{self.observation.code}'")
 
