@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_add_observationSJpChR.ui'
+## Form generated from reading UI file 'dialog_add_observationUxjPsN.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -23,11 +23,20 @@ class Ui_AddObservationDialog(object):
     def setupUi(self, AddObservationDialog):
         if not AddObservationDialog.objectName():
             AddObservationDialog.setObjectName(u"AddObservationDialog")
-        AddObservationDialog.resize(332, 123)
+        AddObservationDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        AddObservationDialog.resize(330, 120)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(AddObservationDialog.sizePolicy().hasHeightForWidth())
+        AddObservationDialog.setSizePolicy(sizePolicy)
+        AddObservationDialog.setMinimumSize(QSize(330, 120))
+        AddObservationDialog.setMaximumSize(QSize(330, 120))
         icon = QIcon()
         icon.addFile(u":/icons/add_observation_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         AddObservationDialog.setWindowIcon(icon)
         AddObservationDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
+        AddObservationDialog.setModal(True)
         self.gridLayout = QGridLayout(AddObservationDialog)
         self.gridLayout.setObjectName(u"gridLayout")
         self.label = QLabel(AddObservationDialog)
@@ -48,11 +57,11 @@ class Ui_AddObservationDialog(object):
         self.combo_obs_type = QComboBox(AddObservationDialog)
         self.combo_obs_type.setObjectName(u"combo_obs_type")
         self.combo_obs_type.setEnabled(True)
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(150)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.combo_obs_type.sizePolicy().hasHeightForWidth())
-        self.combo_obs_type.setSizePolicy(sizePolicy)
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        sizePolicy1.setHorizontalStretch(150)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.combo_obs_type.sizePolicy().hasHeightForWidth())
+        self.combo_obs_type.setSizePolicy(sizePolicy1)
         self.combo_obs_type.setMinimumSize(QSize(150, 0))
         self.combo_obs_type.setFont(font)
         self.combo_obs_type.setStyleSheet(u"QComboBox {\n"

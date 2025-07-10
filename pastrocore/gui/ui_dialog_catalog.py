@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_catalogddaJXt.ui'
+## Form generated from reading UI file 'dialog_catalogFOVGOe.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -24,12 +24,14 @@ class Ui_CatalogDialog(object):
         if not CatalogDialog.objectName():
             CatalogDialog.setObjectName(u"CatalogDialog")
         CatalogDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        CatalogDialog.resize(741, 550)
+        CatalogDialog.resize(740, 550)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(CatalogDialog.sizePolicy().hasHeightForWidth())
         CatalogDialog.setSizePolicy(sizePolicy)
+        CatalogDialog.setMinimumSize(QSize(740, 550))
+        CatalogDialog.setMaximumSize(QSize(740, 550))
         icon = QIcon()
         icon.addFile(u":/icons/catalog.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         CatalogDialog.setWindowIcon(icon)
