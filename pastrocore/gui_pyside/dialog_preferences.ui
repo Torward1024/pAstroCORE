@@ -2,13 +2,34 @@
 <ui version="4.0">
  <class>PreferencesDialog</class>
  <widget class="QDialog" name="PreferencesDialog">
+  <property name="windowModality">
+   <enum>Qt::WindowModality::ApplicationModal</enum>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>557</width>
-    <height>149</height>
+    <width>450</width>
+    <height>350</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>450</width>
+    <height>350</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>450</width>
+    <height>350</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Dialog</string>
@@ -20,11 +41,26 @@
   <property name="styleSheet">
    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
   </property>
+  <property name="modal">
+   <bool>true</bool>
+  </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="5">
-    <widget class="QLineEdit" name="telescopesCatalogPath">
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
+   <item row="3" column="0" colspan="5">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab">
+      <attribute name="title">
+       <string>Common</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0" colspan="2">
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="sourcesCatalogPath">
+           <property name="styleSheet">
+            <string notr="true">QLineEdit {
     font-family: Arial;
     font-size: 9pt;
     color: #333333;
@@ -46,26 +82,69 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     border: 1px solid #005bb5;
     background-color: #ffffff;
 }</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lbl_telescopes_catalog_path">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>9</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Telescopes Catalog Path:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="5">
-    <widget class="QLineEdit" name="sourcesCatalogPath">
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="lbl_telescopes_catalog_path">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+             <pointsize>9</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>Telescopes catalog path:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="lbl_sources_catalog_path">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+             <pointsize>9</pointsize>
+            </font>
+           </property>
+           <property name="text">
+            <string>Sources catalog path:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QPushButton" name="openSourcesCatalogButton">
+           <property name="styleSheet">
+            <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+           </property>
+           <property name="text">
+            <string>Open...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+           <property name="flat">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="telescopesCatalogPath">
+           <property name="styleSheet">
+            <string notr="true">QLineEdit {
     font-family: Arial;
     font-size: 9pt;
     color: #333333;
@@ -87,26 +166,13 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     border: 1px solid #005bb5;
     background-color: #ffffff;
 }</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="lbl_sources_catalog_path">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>9</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Sources Catalog Path:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="6" colspan="2">
-    <widget class="QPushButton" name="openSourcesCatalogButton">
-     <property name="styleSheet">
-      <string notr="true">QPushButton {
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QPushButton" name="openTelescopesCatalogButton">
+           <property name="styleSheet">
+            <string notr="true">QPushButton {
     background-color: #0078d7;
     color: #ffffff;
     padding: 6px;
@@ -121,79 +187,124 @@ QPushButton:pressed {
     padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
     padding-bottom: 5px;
 }</string>
-     </property>
-     <property name="text">
-      <string>Open...</string>
-     </property>
-     <property name="autoDefault">
-      <bool>false</bool>
-     </property>
-     <property name="flat">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="6" colspan="2">
-    <widget class="QPushButton" name="openTelescopesCatalogButton">
-     <property name="styleSheet">
-      <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
+           </property>
+           <property name="text">
+            <string>Open...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+           <property name="flat">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_2">
+      <attribute name="title">
+       <string>Calculations</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_4">
+       <item row="0" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QLabel" name="labelTimestep">
+           <property name="text">
+            <string>Time step (s):</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDoubleSpinBox" name="timeStepSpin">
+           <property name="styleSheet">
+            <string notr="true">/* Base style for QDoubleSpinBox */
+QDoubleSpinBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    padding-right: 20px;
     border-radius: 3px;
-    border: none;
+    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
+    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
 }
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
+
+/* Editable state */
+QDoubleSpinBox:editable {
+    background-color: #f0f6ff; /* Matches editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches editable QComboBox border */
 }
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
+
+/* Editable hover state */
+QDoubleSpinBox:editable:hover {
+    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
+}
+
+/* Editable focus state */
+QDoubleSpinBox:editable:focus {
+    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches editable QComboBox:focus background */
+}
+
+/* Non-editable state */
+QDoubleSpinBox:!editable {
+    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
+}
+
+/* Non-editable hover state */
+QDoubleSpinBox:!editable:hover {
+    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
+}
+
+/* Non-editable focus state */
+QDoubleSpinBox:!editable:focus {
+    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
+}
+
+/* Styling for up/down buttons */
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: padding;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
+    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
+}
+/* Hover state for up/down buttons */
+QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
+}
+
+/* Up arrow styling */
+QDoubleSpinBox::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
+}
+/* Down arrow styling */
+QDoubleSpinBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
 }</string>
-     </property>
-     <property name="text">
-      <string>Open...</string>
-     </property>
-     <property name="autoDefault">
-      <bool>false</bool>
-     </property>
-     <property name="flat">
-      <bool>true</bool>
-     </property>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_3">
+      <attribute name="title">
+       <string>Visualisations</string>
+      </attribute>
+     </widget>
     </widget>
    </item>
-   <item row="2" column="6">
-    <widget class="QPushButton" name="okButton">
-     <property name="styleSheet">
-      <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-     </property>
-     <property name="text">
-      <string>OK</string>
-     </property>
-     <property name="autoDefault">
-      <bool>true</bool>
-     </property>
-     <property name="flat">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="7">
+   <item row="5" column="4">
     <widget class="QPushButton" name="cancelButton">
      <property name="styleSheet">
       <string notr="true">QPushButton {
@@ -217,6 +328,36 @@ QPushButton:pressed {
      </property>
      <property name="autoDefault">
       <bool>false</bool>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="3">
+    <widget class="QPushButton" name="okButton">
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+     </property>
+     <property name="text">
+      <string>OK</string>
+     </property>
+     <property name="autoDefault">
+      <bool>true</bool>
      </property>
      <property name="flat">
       <bool>true</bool>

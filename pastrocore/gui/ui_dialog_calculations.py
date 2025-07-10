@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_calculationsKAgmFt.ui'
+## Form generated from reading UI file 'dialog_calculationsmabgXc.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -25,7 +25,14 @@ class Ui_CalculationDialog(object):
         if not CalculationDialog.objectName():
             CalculationDialog.setObjectName(u"CalculationDialog")
         CalculationDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        CalculationDialog.resize(616, 461)
+        CalculationDialog.resize(600, 450)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(CalculationDialog.sizePolicy().hasHeightForWidth())
+        CalculationDialog.setSizePolicy(sizePolicy)
+        CalculationDialog.setMinimumSize(QSize(600, 450))
+        CalculationDialog.setMaximumSize(QSize(600, 450))
         icon = QIcon()
         icon.addFile(u":/icons/calculate.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         CalculationDialog.setWindowIcon(icon)

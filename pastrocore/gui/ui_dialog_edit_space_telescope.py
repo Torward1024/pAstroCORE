@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_space_telescopeQdbUtH.ui'
+## Form generated from reading UI file 'dialog_editor_space_telescopelIeWbJ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -26,7 +26,14 @@ class Ui_SpaceTelescopeEditorDialog(object):
         if not SpaceTelescopeEditorDialog.objectName():
             SpaceTelescopeEditorDialog.setObjectName(u"SpaceTelescopeEditorDialog")
         SpaceTelescopeEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        SpaceTelescopeEditorDialog.resize(434, 488)
+        SpaceTelescopeEditorDialog.resize(440, 485)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(SpaceTelescopeEditorDialog.sizePolicy().hasHeightForWidth())
+        SpaceTelescopeEditorDialog.setSizePolicy(sizePolicy)
+        SpaceTelescopeEditorDialog.setMinimumSize(QSize(440, 485))
+        SpaceTelescopeEditorDialog.setMaximumSize(QSize(440, 485))
         SpaceTelescopeEditorDialog.setModal(True)
         self.gridLayout = QGridLayout(SpaceTelescopeEditorDialog)
         self.gridLayout.setObjectName(u"gridLayout")

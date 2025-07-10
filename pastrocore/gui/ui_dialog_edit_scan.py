@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_scansGfktC.ui'
+## Form generated from reading UI file 'dialog_editor_scanoXRRXr.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -24,29 +24,42 @@ class Ui_ScanEditorDialog(object):
     def setupUi(self, ScanEditorDialog):
         if not ScanEditorDialog.objectName():
             ScanEditorDialog.setObjectName(u"ScanEditorDialog")
-        ScanEditorDialog.resize(433, 518)
+        ScanEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        ScanEditorDialog.resize(560, 420)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(ScanEditorDialog.sizePolicy().hasHeightForWidth())
+        ScanEditorDialog.setSizePolicy(sizePolicy)
+        ScanEditorDialog.setMinimumSize(QSize(560, 420))
+        ScanEditorDialog.setMaximumSize(QSize(560, 420))
         ScanEditorDialog.setModal(True)
         self.gridLayout = QGridLayout(ScanEditorDialog)
         self.gridLayout.setObjectName(u"gridLayout")
+        self.chk_active = QCheckBox(ScanEditorDialog)
+        self.chk_active.setObjectName(u"chk_active")
+
+        self.gridLayout.addWidget(self.chk_active, 7, 1, 1, 1)
+
         self.labelSource = QLabel(ScanEditorDialog)
         self.labelSource.setObjectName(u"labelSource")
 
         self.gridLayout.addWidget(self.labelSource, 1, 0, 1, 1)
-
-        self.labelDuration = QLabel(ScanEditorDialog)
-        self.labelDuration.setObjectName(u"labelDuration")
-
-        self.gridLayout.addWidget(self.labelDuration, 6, 0, 1, 1)
 
         self.lbl_active = QLabel(ScanEditorDialog)
         self.lbl_active.setObjectName(u"lbl_active")
 
         self.gridLayout.addWidget(self.lbl_active, 7, 0, 1, 1)
 
-        self.chk_active = QCheckBox(ScanEditorDialog)
-        self.chk_active.setObjectName(u"chk_active")
+        self.labelDuration = QLabel(ScanEditorDialog)
+        self.labelDuration.setObjectName(u"labelDuration")
 
-        self.gridLayout.addWidget(self.chk_active, 7, 1, 1, 1)
+        self.gridLayout.addWidget(self.labelDuration, 6, 0, 1, 1)
+
+        self.lbl_offsource = QLabel(ScanEditorDialog)
+        self.lbl_offsource.setObjectName(u"lbl_offsource")
+
+        self.gridLayout.addWidget(self.lbl_offsource, 2, 0, 1, 1)
 
         self.startTimeEdit = QDateTimeEdit(ScanEditorDialog)
         self.startTimeEdit.setObjectName(u"startTimeEdit")
@@ -130,6 +143,33 @@ class Ui_ScanEditorDialog(object):
         self.labelStartTime.setObjectName(u"labelStartTime")
 
         self.gridLayout.addWidget(self.labelStartTime, 3, 0, 1, 1)
+
+        self.durationEdit = QLineEdit(ScanEditorDialog)
+        self.durationEdit.setObjectName(u"durationEdit")
+        self.durationEdit.setStyleSheet(u"QLineEdit {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"}\n"
+"QLineEdit[readOnly=\"true\"] {\n"
+"    border: 1px solid #d3d3d3;\n"
+"    background-color: #f9f9f9;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"] {\n"
+"    border: 1px solid #0078d7;\n"
+"    background-color: #f0f6ff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:hover {\n"
+"    border: 1px solid #1a8cff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:focus {\n"
+"    border: 1px solid #005bb5;\n"
+"    background-color: #ffffff;\n"
+"}")
+
+        self.gridLayout.addWidget(self.durationEdit, 6, 1, 1, 3)
 
         self.sourceCombo = QComboBox(ScanEditorDialog)
         self.sourceCombo.setObjectName(u"sourceCombo")
@@ -219,6 +259,66 @@ class Ui_ScanEditorDialog(object):
 
         self.gridLayout.addWidget(self.sourceCombo, 1, 1, 1, 3)
 
+        self.chk_offsource = QCheckBox(ScanEditorDialog)
+        self.chk_offsource.setObjectName(u"chk_offsource")
+
+        self.gridLayout.addWidget(self.chk_offsource, 2, 1, 1, 1)
+
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer)
+
+        self.pushButton = QPushButton(ScanEditorDialog)
+        self.pushButton.setObjectName(u"pushButton")
+        self.pushButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+        self.pushButton.setAutoDefault(False)
+        self.pushButton.setFlat(True)
+
+        self.horizontalLayout.addWidget(self.pushButton)
+
+        self.pushButton_2 = QPushButton(ScanEditorDialog)
+        self.pushButton_2.setObjectName(u"pushButton_2")
+        self.pushButton_2.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+        self.pushButton_2.setAutoDefault(True)
+        self.pushButton_2.setFlat(True)
+
+        self.horizontalLayout.addWidget(self.pushButton_2)
+
+
+        self.gridLayout.addLayout(self.horizontalLayout, 17, 0, 1, 4)
+
+        self.gridLayout_2 = QGridLayout()
+        self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.tab_telescopes = QTableView(ScanEditorDialog)
         self.tab_telescopes.setObjectName(u"tab_telescopes")
         self.tab_telescopes.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
@@ -284,54 +384,12 @@ class Ui_ScanEditorDialog(object):
 "    padding: 4px; /* Explicitly set same padding to avoid shift */\n"
 "}")
 
-        self.gridLayout.addWidget(self.tab_telescopes, 12, 0, 1, 4)
-
-        self.durationEdit = QLineEdit(ScanEditorDialog)
-        self.durationEdit.setObjectName(u"durationEdit")
-        self.durationEdit.setStyleSheet(u"QLineEdit {\n"
-"    font-family: Arial;\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    padding: 1px;\n"
-"    border-radius: 3px;\n"
-"}\n"
-"QLineEdit[readOnly=\"true\"] {\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"] {\n"
-"    border: 1px solid #0078d7;\n"
-"    background-color: #f0f6ff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:hover {\n"
-"    border: 1px solid #1a8cff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:focus {\n"
-"    border: 1px solid #005bb5;\n"
-"    background-color: #ffffff;\n"
-"}")
-
-        self.gridLayout.addWidget(self.durationEdit, 6, 1, 1, 3)
-
-        self.lbl_offsource = QLabel(ScanEditorDialog)
-        self.lbl_offsource.setObjectName(u"lbl_offsource")
-
-        self.gridLayout.addWidget(self.lbl_offsource, 2, 0, 1, 1)
-
-        self.chk_offsource = QCheckBox(ScanEditorDialog)
-        self.chk_offsource.setObjectName(u"chk_offsource")
-
-        self.gridLayout.addWidget(self.chk_offsource, 2, 1, 1, 1)
-
-        self.label_2 = QLabel(ScanEditorDialog)
-        self.label_2.setObjectName(u"label_2")
-
-        self.gridLayout.addWidget(self.label_2, 13, 0, 1, 1)
+        self.gridLayout_2.addWidget(self.tab_telescopes, 1, 0, 1, 1)
 
         self.label = QLabel(ScanEditorDialog)
         self.label.setObjectName(u"label")
 
-        self.gridLayout.addWidget(self.label, 8, 0, 1, 1)
+        self.gridLayout_2.addWidget(self.label, 0, 0, 1, 1)
 
         self.tab_frequencies = QTableView(ScanEditorDialog)
         self.tab_frequencies.setObjectName(u"tab_frequencies")
@@ -390,60 +448,15 @@ class Ui_ScanEditorDialog(object):
 "    color: #ffffff;\n"
 "}")
 
-        self.gridLayout.addWidget(self.tab_frequencies, 14, 0, 1, 4)
+        self.gridLayout_2.addWidget(self.tab_frequencies, 1, 1, 1, 1)
 
-        self.horizontalLayout = QHBoxLayout()
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.label_2 = QLabel(ScanEditorDialog)
+        self.label_2.setObjectName(u"label_2")
 
-        self.horizontalLayout.addItem(self.horizontalSpacer)
-
-        self.pushButton = QPushButton(ScanEditorDialog)
-        self.pushButton.setObjectName(u"pushButton")
-        self.pushButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-        self.pushButton.setAutoDefault(False)
-        self.pushButton.setFlat(True)
-
-        self.horizontalLayout.addWidget(self.pushButton)
-
-        self.pushButton_2 = QPushButton(ScanEditorDialog)
-        self.pushButton_2.setObjectName(u"pushButton_2")
-        self.pushButton_2.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-        self.pushButton_2.setAutoDefault(True)
-        self.pushButton_2.setFlat(True)
-
-        self.horizontalLayout.addWidget(self.pushButton_2)
+        self.gridLayout_2.addWidget(self.label_2, 0, 1, 1, 1)
 
 
-        self.gridLayout.addLayout(self.horizontalLayout, 15, 0, 1, 4)
+        self.gridLayout.addLayout(self.gridLayout_2, 13, 0, 1, 4)
 
 
         self.retranslateUi(ScanEditorDialog)
@@ -454,15 +467,15 @@ class Ui_ScanEditorDialog(object):
     def retranslateUi(self, ScanEditorDialog):
         ScanEditorDialog.setWindowTitle(QCoreApplication.translate("ScanEditorDialog", u"Edit Scan", None))
         ScanEditorDialog.setStyleSheet(QCoreApplication.translate("ScanEditorDialog", u"background-color: #ffffff; font-family: Arial;", None))
-        self.labelSource.setText(QCoreApplication.translate("ScanEditorDialog", u"Source:", None))
-        self.labelDuration.setText(QCoreApplication.translate("ScanEditorDialog", u"Duration (s):", None))
-        self.lbl_active.setText(QCoreApplication.translate("ScanEditorDialog", u"Active:", None))
         self.chk_active.setText("")
-        self.labelStartTime.setText(QCoreApplication.translate("ScanEditorDialog", u"Start Time:", None))
+        self.labelSource.setText(QCoreApplication.translate("ScanEditorDialog", u"Source:", None))
+        self.lbl_active.setText(QCoreApplication.translate("ScanEditorDialog", u"Active:", None))
+        self.labelDuration.setText(QCoreApplication.translate("ScanEditorDialog", u"Duration (s):", None))
         self.lbl_offsource.setText(QCoreApplication.translate("ScanEditorDialog", u"Off source scan:", None))
+        self.labelStartTime.setText(QCoreApplication.translate("ScanEditorDialog", u"Start Time:", None))
         self.chk_offsource.setText("")
-        self.label_2.setText(QCoreApplication.translate("ScanEditorDialog", u"<html><head/><body><p><span style=\" font-weight:700;\">Frequencies:</span></p></body></html>", None))
-        self.label.setText(QCoreApplication.translate("ScanEditorDialog", u"<html><head/><body><p><span style=\" font-weight:700;\">Telescopes:</span></p></body></html>", None))
         self.pushButton.setText(QCoreApplication.translate("ScanEditorDialog", u"\u041e\u041a", None))
         self.pushButton_2.setText(QCoreApplication.translate("ScanEditorDialog", u"Cancel", None))
+        self.label.setText(QCoreApplication.translate("ScanEditorDialog", u"<html><head/><body><p><span style=\" font-weight:700;\">Telescopes:</span></p></body></html>", None))
+        self.label_2.setText(QCoreApplication.translate("ScanEditorDialog", u"<html><head/><body><p><span style=\" font-weight:700;\">Frequencies:</span></p></body></html>", None))
     # retranslateUi

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_edtior_sourcesfyZok.ui'
+## Form generated from reading UI file 'dialog_edtior_sourceYQSNjz.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -26,7 +26,14 @@ class Ui_SourceEditorDialog(object):
         if not SourceEditorDialog.objectName():
             SourceEditorDialog.setObjectName(u"SourceEditorDialog")
         SourceEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        SourceEditorDialog.resize(465, 386)
+        SourceEditorDialog.resize(460, 380)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(SourceEditorDialog.sizePolicy().hasHeightForWidth())
+        SourceEditorDialog.setSizePolicy(sizePolicy)
+        SourceEditorDialog.setMinimumSize(QSize(460, 380))
+        SourceEditorDialog.setMaximumSize(QSize(460, 380))
         SourceEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(SourceEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")

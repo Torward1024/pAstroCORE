@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifcacRnv.ui'
+## Form generated from reading UI file 'dialog_editor_ifuNwtAP.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -25,7 +25,14 @@ class Ui_IFEditorDialog(object):
         if not IFEditorDialog.objectName():
             IFEditorDialog.setObjectName(u"IFEditorDialog")
         IFEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        IFEditorDialog.resize(431, 245)
+        IFEditorDialog.resize(430, 244)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(IFEditorDialog.sizePolicy().hasHeightForWidth())
+        IFEditorDialog.setSizePolicy(sizePolicy)
+        IFEditorDialog.setMinimumSize(QSize(430, 244))
+        IFEditorDialog.setMaximumSize(QSize(430, 244))
         IFEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(IFEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")

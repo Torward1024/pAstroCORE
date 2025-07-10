@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_telescopeRqiEeE.ui'
+## Form generated from reading UI file 'dialog_editor_telescopeANCHqe.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -26,7 +26,14 @@ class Ui_TelescopeEditorDialog(object):
         if not TelescopeEditorDialog.objectName():
             TelescopeEditorDialog.setObjectName(u"TelescopeEditorDialog")
         TelescopeEditorDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        TelescopeEditorDialog.resize(464, 587)
+        TelescopeEditorDialog.resize(460, 590)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(TelescopeEditorDialog.sizePolicy().hasHeightForWidth())
+        TelescopeEditorDialog.setSizePolicy(sizePolicy)
+        TelescopeEditorDialog.setMinimumSize(QSize(460, 590))
+        TelescopeEditorDialog.setMaximumSize(QSize(460, 590))
         TelescopeEditorDialog.setModal(True)
         self.gridLayout_2 = QGridLayout(TelescopeEditorDialog)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
