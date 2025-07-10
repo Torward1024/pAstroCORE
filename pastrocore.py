@@ -173,14 +173,17 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def open_calculation_dialog(self):
-        """Open the calculation dialog."""
+        """Open the calculation dialog with time_step from settings."""
         try:
-            dialog = CalculationDialog(self.manipulator, self.project, parent=self)
+            dialog = CalculationDialog(self.manipulator, self.project, time_step=self.settings.get("time_step", 600), parent=self)
+            dialog.time_step_updated.connect(self.handle_time_step_updated)
             dialog.exec()
             logger.info("Calculation dialog opened and closed")
         except Exception as e:
             logger.error(f"Failed to open calculation dialog: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
+
+    
     
     @Slot()
     def open_visualization_dialog(self):
@@ -199,6 +202,13 @@ class PAstroCoreMainWindow(QMainWindow):
         if widget.objectName() == "projectInfoTab":
             return
         self.ui.tabContainer.removeTab(index)
+
+    @Slot(dict)
+    def handle_time_step_updated(self, time_step: int):
+        """Handle time_step updated signal from CalculationDialog."""
+        self.settings["time_step"] = time_step
+        self.save_settings(self.settings)
+        logger.info(f"time_step updated to {time_step} and saved to settings")
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for Project Explorer."""
@@ -417,7 +427,8 @@ class PAstroCoreMainWindow(QMainWindow):
         default_settings = {
             "sources_catalog_path": os.path.join("catalogs", "sources.dat"),
             "telescopes_catalog_path": os.path.join("catalogs", "telescopes.dat"),
-            "log_level": "INFO"
+            "log_level": "INFO", # default log_level value
+            "time_step": 600  # default time_step value
         }
         if os.path.exists(settings_file):
             try:

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_preferencesBffkLr.ui'
+## Form generated from reading UI file 'dialog_preferencesZaGHFP.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -345,6 +345,9 @@ class Ui_PreferencesDialog(object):
 "    height: 12px;\n"
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
+        self.timeStepSpin.setMinimum(1.000000000000000)
+        self.timeStepSpin.setMaximum(99999999.000000000000000)
+        self.timeStepSpin.setValue(600.000000000000000)
 
         self.horizontalLayout.addWidget(self.timeStepSpin)
 

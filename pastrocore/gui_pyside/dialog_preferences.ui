@@ -385,6 +385,15 @@ QDoubleSpinBox::down-arrow {
     image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
 }</string>
            </property>
+           <property name="minimum">
+            <double>1.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>99999999.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>600.000000000000000</double>
+           </property>
           </widget>
          </item>
         </layout>
