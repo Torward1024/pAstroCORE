@@ -3,5 +3,5 @@
     "ogeneska": "DEBUG",
     "sources_catalog_path": "catalogs\\sources.dat",
     "telescopes_catalog_path": "catalogs\\telescopes.dat",
-    "time_step": 300.0
+    "time_step": 600.0
 }

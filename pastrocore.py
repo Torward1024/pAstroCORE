@@ -700,19 +700,53 @@ class PAstroCoreMainWindow(QMainWindow):
         dialog.settings_updated.connect(self.handle_settings_updated)
         dialog.exec()
 
-    @Slot(dict)
-    def handle_settings_updated(self, settings: dict):
-        """Handle settings updated signal from PreferencesDialog."""
+    @Slot(dict, list)
+    def handle_settings_updated(self, settings: dict, changed_keys: list):
+        """Handle settings updated signal from PreferencesDialog.
+
+        Args:
+            settings (dict): Updated application settings.
+            changed_keys (list): List of keys that have changed in the settings.
+        """
         self.settings = settings
         self.save_settings(self.settings)
-        # Update logger level
-        new_log_level_str = self.settings.get("log_level", "INFO")
-        new_log_level = getattr(logging, new_log_level_str, logging.INFO)
-        update_logging_level(new_log_level)
-        logger.info(f"Logger level updated to {new_log_level_str}")
-        # Reinitialize CatalogManager with new settings
-        self.catalog_manager = self.initialize_catalog_manager()
-        logger.info(f"CatalogManager reinitialized with new settings, id={id(self.catalog_manager)}")
+
+        # Update logger level if changed
+        if "log_level" in changed_keys:
+            new_log_level_str = self.settings.get("log_level", "INFO")
+            new_log_level = getattr(logging, new_log_level_str, logging.INFO)
+            update_logging_level(new_log_level)
+            logger.info(f"Logger level updated to {new_log_level_str}")
+
+        # Reload only the catalogs whose paths have changed
+        if "sources_catalog_path" in changed_keys:
+            sources_path = self.settings.get("sources_catalog_path", os.path.join("catalogs", "sources.dat"))
+            try:
+                self.catalog_manager.source_catalog.clear()  # Clear existing sources
+                if sources_path:  # Only load if path is non-empty
+                    self.catalog_manager.load_source_catalog(sources_path)
+                sources_count = len(self.catalog_manager.source_catalog.get_items())
+                logger.info(f"Sources catalog reloaded with {sources_count} sources from {sources_path}")
+            except Exception as e:
+                logger.error(f"Failed to reload sources catalog from '{sources_path}': {str(e)}")
+                QMessageBox.warning(self, "Warning", f"Failed to reload sources catalog: {str(e)}")
+
+        if "telescopes_catalog_path" in changed_keys:
+            telescopes_path = self.settings.get("telescopes_catalog_path", os.path.join("catalogs", "telescopes.dat"))
+            try:
+                self.catalog_manager.telescope_catalog.clear()  # Clear existing telescopes
+                if telescopes_path:  # Only load if path is non-empty
+                    self.catalog_manager.load_telescope_catalog(telescopes_path)
+                telescopes_count = len(self.catalog_manager.telescope_catalog.get_items())
+                logger.info(f"Telescopes catalog reloaded with {telescopes_count} telescopes from {telescopes_path}")
+            except Exception as e:
+                logger.error(f"Failed to reload telescopes catalog from '{telescopes_path}': {str(e)}")
+                QMessageBox.warning(self, "Warning", f"Failed to reload telescopes catalog: {str(e)}")
+
+        if changed_keys:
+            logger.info(f"Settings updated: {', '.join(changed_keys)}")
+        else:
+            logger.info("No settings changes detected")
 
     @Slot()
     def open_telescope_catalog_manager(self):
