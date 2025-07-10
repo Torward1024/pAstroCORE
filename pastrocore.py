@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QApplication, QFileDialog, QMessageBox,
     QTreeView, QTabBar, QProgressDialog, QMenu
 )
-from PySide6.QtCore import Qt, Signal, Slot, QPoint
+from PySide6.QtCore import Qt, Signal, Slot, QPoint, QTimer
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 # Core files
 from pastrocore.super.schedule_project import ScheduleProject
@@ -41,13 +41,48 @@ class PAstroCoreMainWindow(QMainWindow):
         log_level_str = self.settings.get("log_level", "INFO")
         log_level = getattr(logging, log_level_str, logging.INFO)
         logger = setup_logging(log_file="output.log", log_level=log_level)
+        update_logging_level(log_level)
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
         self.catalog_manager = self.initialize_catalog_manager()
         logger.debug(f"PAstroCoreMainWindow initialized with project id: {id(self.project)}, manipulator id={id(self.manipulator)}, catalog_manager id={id(self.catalog_manager)}")
         self.current_project_path = None
+        self._action_connections = {}
         self.setup_ui()
         self.setup_connections()
+
+    def clear_connections(self):
+        """Disconnect all action signals to prevent duplicates."""
+        for action, connection in self._action_connections.items():
+            try:
+                action.triggered.disconnect(connection)
+                logger.debug(f"Disconnected signal for action {action.objectName()}")
+            except Exception as e:
+                logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
+        self._action_connections.clear()
+
+        # Disconnect project_updated signal
+        try:
+            self.project_updated.disconnect()
+            logger.debug("Disconnected project_updated signal")
+        except Exception as e:
+            logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
+
+        # Disconnect project explorer click handler
+        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+        if project_explorer:
+            try:
+                project_explorer.clicked.disconnect(self.handle_project_explorer_click)
+                logger.debug("Disconnected project explorer clicked signal")
+            except Exception as e:
+                logger.debug(f"No signal to disconnect for project explorer: {str(e)}")
+
+        # Disconnect tab close handler
+        try:
+            self.ui.tabContainer.tabCloseRequested.disconnect(self.handle_tab_close)
+            logger.debug("Disconnected tabCloseRequested signal")
+        except Exception as e:
+            logger.debug(f"No signal to disconnect for tabCloseRequested: {str(e)}")
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
@@ -102,25 +137,39 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.dockWidget.setVisible(True)
 
     def setup_connections(self):
-        """Connect UI signals to slots."""
-        self.ui.actionNewProject.triggered.connect(self.new_project)
-        self.ui.actionOpenProject.triggered.connect(self.open_project)
-        self.ui.actionSaveProject.triggered.connect(self.save_project)
-        self.ui.actionSave_Project_As.triggered.connect(self.save_project_as)
-        self.ui.actionImport_Observation.triggered.connect(self.import_new_observation)
-        self.ui.actionExport_Observation.triggered.connect(self.export_observation)
-        self.ui.actionPreferences.triggered.connect(self.open_preferences)
-        self.ui.actionTelescope_Catalog_Manager.triggered.connect(self.open_telescope_catalog_manager)
-        self.ui.actionSource_Catalog_Manager.triggered.connect(self.open_source_catalog_manager)
-        self.ui.actionAbout.triggered.connect(self.show_about)
-        self.ui.actionCalculate.triggered.connect(self.open_calculation_dialog)
-        self.ui.actionVisualize.triggered.connect(self.open_visualization_dialog)
+        """Connect UI signals to slots, ensuring no duplicates."""
+        # Clear existing connections first
+        self.clear_connections()
+
+        # Connect action signals and store connections
+        actions = [
+            (self.ui.actionNewProject, self.new_project),
+            (self.ui.actionOpenProject, self.open_project),
+            (self.ui.actionSaveProject, self.save_project),
+            (self.ui.actionSave_Project_As, self.save_project_as),
+            (self.ui.actionImport_Observation, self.import_new_observation),
+            (self.ui.actionExport_Observation, self.export_observation),
+            (self.ui.actionPreferences, self.open_preferences),
+            (self.ui.actionTelescope_Catalog_Manager, self.open_telescope_catalog_manager),
+            (self.ui.actionSource_Catalog_Manager, self.open_source_catalog_manager),
+            (self.ui.actionAbout, self.show_about),
+            (self.ui.actionCalculate, self.open_calculation_dialog),
+            (self.ui.actionVisualize, self.open_visualization_dialog),
+        ]
+        for action, slot in actions:
+            connection = action.triggered.connect(slot)
+            self._action_connections[action] = connection
+            logger.debug(f"Connected signal for action {action.objectName()}")
+
+        # Connect project explorer
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
-        self.project_updated.connect(self.update_project_explorer)
+            logger.debug("Connected project explorer clicked signal")
+
+        # Connect tab close signal
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
-        self.project_updated.connect(self.update_all_tabs)
+        logger.debug("Connected tabCloseRequested signal")
 
     @Slot()
     def open_calculation_dialog(self):
@@ -312,8 +361,7 @@ class PAstroCoreMainWindow(QMainWindow):
             "attributes": {"get_name": None}
         })
         project_name = project_name_response["result"] if project_name_response["status"] else "Untitled Project"
-        direct_name = self.project.get_name()
-        logger.debug(f"update_project_explorer: project id={id(self.project)}, name={project_name}, direct_name={direct_name}")
+        logger.debug(f"update_project_explorer: project id={id(self.project)}, name={project_name}, direct_name={self.project.get_name()}")
 
         project_item = QStandardItem(f"Project: {project_name}")
         project_item.setData("project", Qt.UserRole)
@@ -333,17 +381,17 @@ class PAstroCoreMainWindow(QMainWindow):
             if isinstance(result, dict):
                 if result:
                     for obs_name, obs in result.items():
-                        # Запрашиваем код наблюдения через Manipulator
                         code_response = self.manipulator.process_request({
                             "operation": "inspect",
                             "obj": obs,
                             "attributes": {"get_observation_code": None}
                         })
                         if code_response["status"]:
-                            obs_item = QStandardItem(code_response["result"])  # Отображаем code
+                            obs_item = QStandardItem(code_response["result"])
                             obs_item.setData("observation", Qt.UserRole)
-                            obs_item.setData(obs_name, Qt.UserRole + 1)  # Сохраняем obs_name
+                            obs_item.setData(obs_name, Qt.UserRole + 1)
                             observations_item.appendRow(obs_item)
+                            logger.debug(f"Added observation '{code_response['result']}' to Project Explorer")
                         else:
                             logger.error(f"Failed to get code for observation with name '{obs_name}': {code_response.get('error', 'Unknown error')}")
                 else:
@@ -355,10 +403,13 @@ class PAstroCoreMainWindow(QMainWindow):
 
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
-            project_explorer.setModel(None)
+            # Remove redundant setModel(None)
             project_explorer.setModel(model)
             project_explorer.expandAll()
             project_explorer.viewport().update()
+            logger.debug("Project explorer model set and expanded")
+        else:
+            logger.error("Project explorer widget not found")
 
     def load_settings(self) -> dict:
         """Load application settings from settings.pastro file."""
@@ -395,45 +446,55 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def new_project(self):
         """Create a new project, ensuring all old project data is cleared."""
-        # Отключаем все сигналы, связанные со старым проектом
-        try:
-            self.project_updated.disconnect()
-        except Exception as e:
-            logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
+        logger.info("Creating new project, clearing old data")
 
-        # Очищаем все вкладки
+        # Clear all existing connections
+        self.clear_connections()
+
+        # Clear all tabs and their signals
         for i in range(self.ui.tabContainer.count() - 1, -1, -1):
             widget = self.ui.tabContainer.widget(i)
             if widget:
-                # Отключаем все сигналы виджета, если они есть
+                # Disconnect all signals for the widget
                 try:
                     widget.disconnect()
+                    logger.debug(f"Disconnected signals for widget {widget.objectName()}")
                 except Exception as e:
                     logger.debug(f"No signals to disconnect for widget {widget.objectName()}: {str(e)}")
                 self.ui.tabContainer.removeTab(i)
-                widget.deleteLater()  # Помечаем виджет для удаления из памяти
+                # Schedule widget for deletion
+                widget.deleteLater()
+                logger.debug(f"Scheduled deletion for widget {widget.objectName()}")
 
-        # Создаем новый проект и манипулятор
+        # Clear project explorer
+        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+        if project_explorer:
+            project_explorer.setModel(None)
+            logger.debug("Cleared project explorer model")
+
+        # Create new project and manipulator
+        old_project_id = id(self.project)
+        old_manipulator_id = id(self.manipulator)
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
         self.current_project_path = None
         logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
+        logger.debug(f"Old project id: {old_project_id}, old manipulator id={old_manipulator_id}")
 
-        # Очищаем projectExplorer
-        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
-        if project_explorer:
-            project_explorer.setModel(None)  # Удаляем старую модель
-            self.update_project_explorer()  # Создаем новую модель
-
-        # Открываем вкладку проекта
+        # Open project info tab
         self.open_project_info_tab()
 
-        # Восстанавливаем соединения сигналов
+        # Re-establish connections
         self.setup_connections()
-        logger.debug("Connections re-established for new project")
 
-        # Обновляем интерфейс
-        self.project_updated.emit()
+        # Force garbage collection to clean up old objects
+        import gc
+        gc.collect()
+        logger.debug("Garbage collection triggered")
+
+        # Update Project Explorer directly
+        self.update_project_explorer()
+        logger.debug("Project explorer updated synchronously")
 
     @Slot()
     def open_project(self):
