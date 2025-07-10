@@ -66,6 +66,7 @@ class VisualizationDialog(QDialog):
     def populate_observations(self):
         """Populate the observation combo box with available observations from the project."""
         self.ui.comboBoxObservation.clear()
+        self.ui.comboBoxVisualizationType.clear()  # Clear visualization types when repopulating observations
         response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
@@ -86,23 +87,32 @@ class VisualizationDialog(QDialog):
                         logger.error(f"Failed to get code for observation '{obs_name}': "
                                      f"{code_response.get('error', 'Unknown error')}")
                 logger.info(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
+                self.ui.pushButtonVisualize.setEnabled(True)  # Enable button if observations exist
             else:
                 logger.info("No observations found in project")
                 self.ui.pushButtonVisualize.setEnabled(False)
+                self.ui.comboBoxVisualizationType.setEnabled(False)  # Disable visualization combo box
         else:
             logger.error(f"Failed to retrieve observations: {response.get('error', 'Unknown error')}")
             QMessageBox.critical(self, "Error", f"Failed to load observations: "
                                                 f"{response.get('error', 'Unknown error')}")
             self.ui.pushButtonVisualize.setEnabled(False)
+            self.ui.comboBoxVisualizationType.setEnabled(False)  # Disable visualization combo box
 
     @Slot()
     def update_visualization_types(self):
         """Update visualization types based on calculated data of the selected observation."""
         self.ui.comboBoxVisualizationType.clear()
+        self.ui.comboBoxVisualizationType.setEnabled(False)  # Disable by default
+        self.ui.pushButtonVisualize.setEnabled(False)  # Disable by default
+
+        if self.ui.comboBoxObservation.count() == 0:
+            logger.debug("No observations available, visualization types remain empty")
+            return
+
         current_obs_name = self.ui.comboBoxObservation.currentData()
         if not current_obs_name:
             logger.debug("No observation selected, clearing visualization types")
-            self.ui.pushButtonVisualize.setEnabled(False)
             return
 
         # Get the observation object
@@ -152,17 +162,26 @@ class VisualizationDialog(QDialog):
         freq_dependent_plots = ["beam_pattern", "synthesized_beam"]
         available_visualizations = []
 
-        for calc_key, calc_value in visualization_map.items():
+        for calc_key, vis_name in visualization_map.items():
             if calc_key in calc_data:
-                available_visualizations.append(calc_value)
+                # Check if data is valid (not empty, not None, not an empty list/dict)
+                data = calc_data[calc_key]
+                if data is not None and (not isinstance(data, (list, dict)) or len(data) > 0):
+                    available_visualizations.append(vis_name)
+                    logger.debug(f"Added visualization '{vis_name}' with non-empty data")
             elif calc_key in freq_dependent_plots:
+                # Check frequency-dependent data
                 for data_key in calc_data.keys():
                     if data_key.startswith(f"{calc_key}_freq_"):
-                        available_visualizations.append(calc_value)
-                        break
+                        data = calc_data[data_key]
+                        if data is not None and (not isinstance(data, (list, dict)) or len(data) > 0):
+                            available_visualizations.append(vis_name)
+                            logger.debug(f"Added frequency-dependent visualization '{vis_name}' with non-empty data")
+                            break
 
         self.ui.comboBoxVisualizationType.addItems(available_visualizations)
         logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
+        self.ui.comboBoxVisualizationType.setEnabled(bool(available_visualizations))
         self.ui.pushButtonVisualize.setEnabled(bool(available_visualizations))
 
     @Slot()

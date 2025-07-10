@@ -25,6 +25,8 @@ from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from pastrocore.gui.p_dialog_visualize import VisualizationDialog
 from common.utils.logging_setup import logger
+from common.utils.logging_setup import setup_logging
+import logging
 import pastrocore.gui.rc_icons
 
 class PAstroCoreMainWindow(QMainWindow):
@@ -36,6 +38,10 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.settings = self.load_settings()
+        # Initialize logger with level from settings
+        log_level_str = self.settings.get("log_level", "INFO")
+        log_level = getattr(logging, log_level_str, logging.INFO)
+        logger = setup_logging(log_file="output.log", log_level=log_level)
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
         self.catalog_manager = self.initialize_catalog_manager()
@@ -43,7 +49,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.current_project_path = None
         self.setup_ui()
         self.setup_connections()
-
+    
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
         default_sources_path = os.path.join("catalogs", "sources.dat")
@@ -360,7 +366,8 @@ class PAstroCoreMainWindow(QMainWindow):
         settings_file = "settings.pastro"
         default_settings = {
             "sources_catalog_path": os.path.join("catalogs", "sources.dat"),
-            "telescopes_catalog_path": os.path.join("catalogs", "telescopes.dat")
+            "telescopes_catalog_path": os.path.join("catalogs", "telescopes.dat"),
+            "log_level": "INFO"
         }
         if os.path.exists(settings_file):
             try:
@@ -629,6 +636,13 @@ class PAstroCoreMainWindow(QMainWindow):
         self.save_settings(self.settings)
         # Reinitialize CatalogManager with new settings
         self.catalog_manager = self.initialize_catalog_manager()
+        # Update logger level if changed
+        new_log_level_str = self.settings.get("log_level", "INFO")
+        new_log_level = getattr(logging, new_log_level_str, logging.INFO)
+        logger.setLevel(new_log_level)
+        for handler in logger.handlers:
+            handler.setLevel(new_log_level)
+        logger.info(f"Logger level updated to {new_log_level_str}")
         logger.info(f"CatalogManager reinitialized with new settings, id={id(self.catalog_manager)}")
 
     @Slot()

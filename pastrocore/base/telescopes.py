@@ -22,7 +22,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
     Notes:
         - Telescopes are identified by their unique code (`get_code()`), used as the dictionary key.
         - Activation/deactivation triggers synchronization with a parent Observation via `_parent._sync_scans_with_activation`.
-        - The `code` must be a valid string (no spaces or special characters) to ensure compatibility with dictionary keys.
+        - Both `name` and `code` must be unique and valid strings (no spaces or special characters).
         - Transition from index-based to code-based access requires updating dependent code to use telescope codes.
 
     Examples:
@@ -33,7 +33,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         >>> tels.add(Telescope(code="RT32", name="Duplicate"))
         Traceback (most recent call last):
         ...
-        ValueError: Item with name 'RT32' already exists in Telescopes
+        ValueError: Telescope with code 'RT32' already exists in Telescopes
     """
     def __init__(self, items: Optional[Dict[str, Union[Telescope, SpaceTelescope]]] = None,
                  name: str = None, isactive: bool = True, use_cache: bool = False):
@@ -55,28 +55,37 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         logger.info(f"Initialized Telescopes with {len(self._items)} telescopes")
 
     def _validate_item(self, item: Union[Telescope, SpaceTelescope]) -> None:
-        """Validate that the item is a Telescope or SpaceTelescope and has a valid code.
+        """Validate that the item is a Telescope or SpaceTelescope and has a valid and unique name and code.
 
         Args:
             item (Telescope | SpaceTelescope): The telescope to validate.
 
         Raises:
             TypeError: If item is not a Telescope or SpaceTelescope.
-            ValueError: If the telescope's code is empty, invalid, or does not match name.
+            ValueError: If the telescope's name or code is empty, invalid, or not unique.
         """
         check_type(item, (Telescope, SpaceTelescope), "Telescope")
         name = item.name
         code = item.get_code()
+        
+        # Validate name
         if not name or not isinstance(name, str):
             raise ValueError("Telescope name must be a non-empty string")
         if not re.match(r'^[a-zA-Z0-9_-]+$', name):
-            raise ValueError(f"Telescope name '{name}' contains invalid characters...")
+            raise ValueError(f"Telescope name '{name}' contains invalid characters")
+        if name in self._items and self._items[name] is not item:
+            raise ValueError(f"Telescope with name '{name}' already exists")
+
+        # Validate code
         if not code or not isinstance(code, str):
             raise ValueError("Telescope code must be a non-empty string")
         if not re.match(r'^[a-zA-Z0-9_-]+$', code):
-            raise ValueError(f"Telescope code '{code}' contains invalid characters...")
-        if name in self._items and self._items[name] is not item:
-            raise ValueError(f"Telescope with name '{name}' already exists")
+            raise ValueError(f"Telescope code '{code}' contains invalid characters")
+        # Check code uniqueness
+        for existing_item in self._items.values():
+            if existing_item is not item and existing_item.get_code() == code:
+                raise ValueError(f"Telescope with code '{code}' already exists")
+                
         logger.debug(f"Validated telescope with name='{name}', code='{code}'")
 
     def create_telescope(self, code: str = "TEMP", name: str = "Temporary Telescope",
@@ -106,7 +115,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
         Raises:
             TypeError: If inputs are of incorrect type.
-            ValueError: If code is a duplicate, invalid, or other Telescope initialization errors occur.
+            ValueError: If code or name is a duplicate, invalid, or other Telescope initialization errors occur.
         """
         if not re.match(r'^[a-zA-Z0-9_-]+$', code):
             raise ValueError(f"Invalid telescope code '{code}' (use alphanumeric, underscore, or hyphen)")
@@ -156,8 +165,21 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Telescopes':
-        """Create a Telescopes object from a dictionary."""
+        """Create a Telescopes object from a dictionary.
+
+        Ensures that both name and code of telescopes are unique during deserialization.
+
+        Args:
+            data (Dict[str, Any]): Dictionary containing telescope data.
+
+        Returns:
+            Telescopes: A new Telescopes object populated with deserialized telescopes.
+
+        Raises:
+            ValueError: If duplicate name or code is found, or if telescope data is invalid.
+        """
         items = {}
+        codes = set()  # Track codes to ensure uniqueness
         for key, item_data in data.get("items", {}).items():
             try:
                 telescope_type = item_data.get("type", "Telescope")
@@ -168,7 +190,11 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
                 if telescope.name in items:
                     logger.error(f"Duplicate telescope name '{telescope.name}' found for key '{key}'")
                     raise ValueError(f"Telescope with name '{telescope.name}' already exists")
+                if telescope.get_code() in codes:
+                    logger.error(f"Duplicate telescope code '{telescope.get_code()}' found for key '{key}'")
+                    raise ValueError(f"Telescope with code '{telescope.get_code()}' already exists")
                 items[telescope.name] = telescope
+                codes.add(telescope.get_code())
                 logger.debug(f"Deserialized telescope with name='{telescope.name}', code='{telescope.code}' for key='{key}'")
             except Exception as e:
                 logger.error(f"Failed to deserialize telescope for key '{key}': {str(e)}")
