@@ -1,3 +1,4 @@
+# p_dialog_calculations.py
 from PySide6.QtWidgets import QDialog, QListWidgetItem, QProgressDialog, QMessageBox
 from PySide6.QtCore import Qt, QThread, Signal
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -90,7 +91,9 @@ class CalculationThread(QThread):
 
 class CalculationDialog(QDialog):
     """Dialog for configuring and running multiple calculations."""
-    def __init__(self, manipulator, project, targets=None, calc_type=None, parent=None):
+    time_step_updated = Signal(int)  # Новый сигнал для обновления time_step
+
+    def __init__(self, manipulator, project, targets=None, calc_type=None, time_step=600, parent=None):
         super().__init__(parent)
         self.ui = Ui_CalculationDialog()
         self.ui.setupUi(self)
@@ -98,6 +101,7 @@ class CalculationDialog(QDialog):
         self.project = project
         self.targets = targets or []
         self.calc_type = calc_type
+        self.time_step = time_step
         self.init_ui()
         self.load_settings()
 
@@ -143,7 +147,7 @@ class CalculationDialog(QDialog):
             "obj": self.project,
             "attributes": {"get_items": None}
         })
-        self.ui.targetList.clear()  # Clear the list to avoid duplicates
+        self.ui.targetList.clear()
         if observations_response["status"]:
             if not observations_response["result"]:
                 logger.warning("No observations found in the project.")
@@ -152,7 +156,7 @@ class CalculationDialog(QDialog):
                 item = QListWidgetItem(obs.code)
                 item.setData(Qt.UserRole, obs)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(Qt.Checked)  # Set all targets checked by default
+                item.setCheckState(Qt.Checked)
                 self.ui.targetList.addItem(item)
             logger.debug(f"Populated {self.ui.targetList.count()} observations, all checked.")
         else:
@@ -230,7 +234,7 @@ class CalculationDialog(QDialog):
 
         params = {
             "time_step": self.ui.timeStepSpin.value(),
-            "recalculate": False  # Always pass recalculate=False to calculator
+            "recalculate": False
         }
         logger.debug(f"CalculationDialog: params set to {params}")
         calc_params = {calc: params for calc in selected_calcs}
@@ -241,6 +245,11 @@ class CalculationDialog(QDialog):
         self.thread.finished.connect(self.on_calculation_finished)
         self.thread.error.connect(self.on_calculation_error)
         self.thread.start()
+
+        # Emit time_step_updated signal if time_step changed
+        if self.ui.timeStepSpin.value() != self.time_step:
+            self.time_step_updated.emit(self.ui.timeStepSpin.value())
+            logger.debug(f"Emitted time_step_updated signal with value {self.ui.timeStepSpin.value()}")
 
     def update_progress(self, value, message):
         """Update the progress dialog."""
@@ -268,5 +277,6 @@ class CalculationDialog(QDialog):
         self.reject()
 
     def load_settings(self):
-        """Load dialog-specific settings (placeholder)."""
-        pass
+        """Load dialog-specific settings."""
+        self.ui.timeStepSpin.setValue(self.time_step)
+        logger.debug(f"Loaded time_step={self.time_step} into timeStepSpin")

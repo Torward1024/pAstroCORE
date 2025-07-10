@@ -7,7 +7,7 @@ import os
 import logging
 
 class PreferencesDialog(QDialog):
-    """Dialog for configuring application settings, such as catalog paths and logging level."""
+    """Dialog for configuring application settings, such as catalog paths, logging level, and time step."""
     settings_updated = Signal(dict)
 
     def __init__(self, settings: dict, parent=None):
@@ -15,7 +15,7 @@ class PreferencesDialog(QDialog):
 
         Args:
             settings (dict): Current application settings with keys 'sources_catalog_path', 
-                            'telescopes_catalog_path', and 'log_level'.
+                            'telescopes_catalog_path', 'log_level', and 'time_step'.
             parent (QWidget, optional): Parent widget. Defaults to None.
         """
         super().__init__(parent)
@@ -29,6 +29,7 @@ class PreferencesDialog(QDialog):
         """Set up the UI with current settings."""
         self.ui.sourcesCatalogPath.setText(self.settings.get("sources_catalog_path", ""))
         self.ui.telescopesCatalogPath.setText(self.settings.get("telescopes_catalog_path", ""))
+        self.ui.timeStepSpin.setValue(self.settings.get("time_step", 600))  # Устанавливаем time_step
         # Make fields read-only to prevent manual editing
         self.ui.sourcesCatalogPath.setReadOnly(True)
         self.ui.telescopesCatalogPath.setReadOnly(True)
@@ -75,6 +76,7 @@ class PreferencesDialog(QDialog):
         sources_path = self.ui.sourcesCatalogPath.text().strip()
         telescopes_path = self.ui.telescopesCatalogPath.text().strip()
         log_level = self.ui.comboLogging.currentText()
+        time_step = self.ui.timeStepSpin.value()
 
         # Validate file existence
         if sources_path and not os.path.isfile(sources_path):
@@ -89,11 +91,16 @@ class PreferencesDialog(QDialog):
             logger.error(f"Invalid log level selected: {log_level}")
             QMessageBox.critical(self, "Error", "Invalid logging level selected.")
             return
+        if time_step < 1:
+            logger.error(f"Invalid time step value: {time_step}. Must be positive.")
+            QMessageBox.critical(self, "Error", "Time step must be a positive number.")
+            return
 
         # Update settings
         self.settings["sources_catalog_path"] = sources_path
         self.settings["telescopes_catalog_path"] = telescopes_path
-        self.settings["log_level"] = log_level
-        logger.info(f"Settings updated in PreferencesDialog: sources_path={sources_path}, telescopes_path={telescopes_path}, log_level={log_level}")
+        self.settings["ogeneska"] = log_level
+        self.settings["time_step"] = time_step
+        logger.info(f"Settings updated in PreferencesDialog: sources_path={sources_path}, telescopes_path={telescopes_path}, log_level={log_level}, time_step={time_step}")
         self.settings_updated.emit(self.settings)
         self.accept()

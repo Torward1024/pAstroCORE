@@ -1,5 +1,7 @@
 {
     "log_level": "DEBUG",
+    "ogeneska": "DEBUG",
     "sources_catalog_path": "catalogs\\sources.dat",
-    "telescopes_catalog_path": "catalogs\\telescopes.dat"
+    "telescopes_catalog_path": "catalogs\\telescopes.dat",
+    "time_step": 300.0
 }
