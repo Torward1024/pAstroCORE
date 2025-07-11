@@ -7,7 +7,7 @@ from pastrocore.super.schedule_project import ScheduleProject
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import xarray
+import xarray as xr
 
 class VisualizationDialog(QDialog):
     """Dialog for visualizing observation parameters using ScheduleVisualizer through ScheduleManipulator.
@@ -103,8 +103,8 @@ class VisualizationDialog(QDialog):
     def update_visualization_types(self):
         """Update visualization types based on calculated data of the selected observation."""
         self.ui.comboBoxVisualizationType.clear()
-        self.ui.comboBoxVisualizationType.setEnabled(False)  # Disable by default
-        self.ui.pushButtonVisualize.setEnabled(False)  # Disable by default
+        self.ui.comboBoxVisualizationType.setEnabled(False)
+        self.ui.pushButtonVisualize.setEnabled(False)
 
         if self.ui.comboBoxObservation.count() == 0:
             logger.debug("No observations available, visualization types remain empty")
@@ -141,13 +141,12 @@ class VisualizationDialog(QDialog):
             return
 
         calc_data = calc_data_response["result"]
-        logger.debug(f"Calculated data type: {type(calc_data)}, keys: {[str(k) for k in calc_data.keys()]}")
+        logger.debug(f"Calculated data keys available: {[str(k) for k in calc_data.keys()]}")
         if not isinstance(calc_data, dict):
             logger.error(f"calc_data is not a dictionary, got type {type(calc_data)}")
             self.ui.pushButtonVisualize.setEnabled(False)
             return
 
-        # Map calculated data keys to visualization types
         visualization_map = {
             "uv_coverage": "UV Coverage",
             "source_visibility": "Source Visibility",
@@ -164,41 +163,46 @@ class VisualizationDialog(QDialog):
 
         for calc_key, vis_name in visualization_map.items():
             if calc_key in calc_data:
-                # Check if data is valid
                 data = calc_data[calc_key]
                 is_valid = False
-                if isinstance(data, xarray.Dataset):
-                    if len(data.data_vars) > 0:
-                        is_valid = True
-                        logger.debug(f"Valid xarray.Dataset for '{vis_name}' with {len(data.data_vars)} data_vars")
-                    else:
-                        logger.debug(f"Empty xarray.Dataset for '{vis_name}' (no data_vars)")
-                elif data is not None and (not isinstance(data, (list, dict)) or len(data) > 0):
-                    is_valid = True
-                    logger.debug(f"Valid non-xarray data for '{vis_name}'")
+                if isinstance(data, dict):
+                    for scan_name, scan_data in data.items():
+                        if isinstance(scan_data, xr.Dataset) and len(scan_data.data_vars) > 0:
+                            is_valid = True
+                            logger.debug(f"Valid xarray.Dataset for '{vis_name}' in scan '{scan_name}' with data_vars: {list(scan_data.data_vars.keys())}")
+                            break
+                        else:
+                            logger.debug(f"Invalid or empty dataset for '{vis_name}' in scan '{scan_name}': "
+                                        f"type={type(scan_data)}, data_vars={len(scan_data.data_vars) if isinstance(scan_data, xr.Dataset) else 'N/A'}")
+                else:
+                    logger.debug(f"Data for '{vis_name}' is not a dictionary, got type {type(data)}")
                 if is_valid:
                     available_visualizations.append(vis_name)
             elif calc_key in freq_dependent_plots:
-                # Check frequency-dependent data
                 for data_key in calc_data.keys():
-                    if data_key.startswith(f"{calc_key}_freq_"):
+                    if data_key.startswith(f"{calc_key}_"):
                         data = calc_data[data_key]
                         is_valid = False
-                        if isinstance(data, xarray.Dataset):
-                            if len(data.data_vars) > 0:
-                                is_valid = True
-                                logger.debug(f"Valid xarray.Dataset for frequency-dependent '{vis_name}' with {len(data.data_vars)} data_vars")
-                            else:
-                                logger.debug(f"Empty xarray.Dataset for frequency-dependent '{vis_name}' (no data_vars)")
-                        elif data is not None and (not isinstance(data, (list, dict)) or len(data) > 0):
-                            is_valid = True
-                            logger.debug(f"Valid non-xarray data for frequency-dependent '{vis_name}'")
+                        if isinstance(data, dict):
+                            for scan_name, scan_data in data.items():
+                                if isinstance(scan_data, xr.Dataset) and len(scan_data.data_vars) > 0:
+                                    is_valid = True
+                                    logger.debug(f"Valid xarray.Dataset for frequency-dependent '{vis_name}' in scan '{scan_name}' "
+                                                f"with data_vars: {list(scan_data.data_vars.keys())}")
+                                    break
+                                else:
+                                    logger.debug(f"Invalid or empty dataset for frequency-dependent '{vis_name}' in scan '{scan_name}': "
+                                                f"type={type(scan_data)}, data_vars={len(scan_data.data_vars) if isinstance(scan_data, xr.Dataset) else 'N/A'}")
+                        else:
+                            logger.debug(f"Data for frequency-dependent '{vis_name}' is not a dictionary, got type {type(data)}")
                         if is_valid:
                             available_visualizations.append(vis_name)
                             break
+            else:
+                logger.debug(f"No data found for visualization '{vis_name}' (calc_key: {calc_key})")
 
         self.ui.comboBoxVisualizationType.addItems(available_visualizations)
-        logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
+        logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}': {available_visualizations}")
         self.ui.comboBoxVisualizationType.setEnabled(bool(available_visualizations))
         self.ui.pushButtonVisualize.setEnabled(bool(available_visualizations))
         if not available_visualizations:
@@ -254,8 +258,8 @@ class VisualizationDialog(QDialog):
 
         vis_attributes = {
             "plot_type": vis_key,
-            "show": False,  # Prevent displaying in a separate window
-            "return_figure": True  # Request the figure object
+            "show": False,
+            "return_figure": True
         }
 
         # For frequency-dependent visualizations, select the first available frequency
@@ -281,14 +285,24 @@ class VisualizationDialog(QDialog):
             freq_name = None
             for freq in frequencies:
                 store_key = f"{vis_key}_{freq.get('name').strip()}"
-                if store_key in calc_data:
-                    freq_name = freq.get("name").strip()
-                    break
+                if store_key in calc_data and isinstance(calc_data[store_key], dict):
+                    for scan_name, scan_data in calc_data[store_key].items():
+                        if isinstance(scan_data, xr.Dataset) and len(scan_data.data_vars) > 0:
+                            freq_name = freq.get("name").strip()
+                            break
+                    if freq_name:
+                        break
             if not freq_name:
                 for key in calc_data.keys():
-                    if key.startswith(f"{vis_key}_freq_"):
-                        freq_name = key[len(vis_key) + 1:]
-                        break
+                    if key.startswith(f"{vis_key}_"):
+                        data = calc_data[key]
+                        if isinstance(data, dict):
+                            for scan_name, scan_data in data.items():
+                                if isinstance(scan_data, xr.Dataset) and len(scan_data.data_vars) > 0:
+                                    freq_name = key[len(vis_key) + 1:]
+                                    break
+                            if freq_name:
+                                break
             if freq_name:
                 vis_attributes["freq_name"] = freq_name
                 logger.debug(f"Selected frequency '{freq_name}' for visualization '{vis_type}'")
@@ -322,7 +336,6 @@ class VisualizationDialog(QDialog):
                 # Get the figure
                 figure = None
                 if is_project:
-                    # Handle ScheduleProject: extract the first valid figure from results
                     results = response.get("result", {})
                     for obs_code, obs_result in results.items():
                         if obs_result.get("status") and obs_result.get("figure"):
@@ -334,7 +347,6 @@ class VisualizationDialog(QDialog):
                         QMessageBox.critical(self, "Error", "No valid figure returned from project visualization")
                         return
                 else:
-                    # Handle single Observation
                     result = response.get("result", {})
                     figure = result.get("figure")
                     logger.debug(f"Visualization result: {result}")
