@@ -62,43 +62,45 @@ class ScheduleCalculator(Super):
         self._orbit_cache_lock = threading.Lock()  # Lock for orbit cache
         logger.info("Initialized Scheduling Calculator")
     
-    def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Retrieve cached data or perform calculation and cache the result as a dictionary of xarray.Datasets per scan."""
+    def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Retrieve cached data or perform calculation and cache the result as a dictionary of xarray.Datasets per source and scan."""
         recalculate = attributes.get("recalculate", False)
         time_step = attributes.get("time_step")
 
         # Check if cached data exists for the store_key
         existing_data = obj.get_calculated_data_by_key(store_key)
         if existing_data is not None and not recalculate:
-            if isinstance(existing_data, dict) and all(isinstance(ds, xr.Dataset) for ds in existing_data.values()):
-                if all(ds.attrs.get("time_step") == time_step for ds in existing_data.values() if ds.attrs):
-                    logger.info(f"Using cached data for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}'")
-                    return existing_data
+            if isinstance(existing_data, dict) and all(isinstance(source_dict, dict) for source_dict in existing_data.values()):
+                if all(all(isinstance(ds, xr.Dataset) for ds in scan_dict.values()) for source_dict in existing_data.values() for scan_dict in source_dict.values()):
+                    if all(ds.attrs.get("time_step") == time_step for source_dict in existing_data.values() for scan_dict in source_dict.values() for ds in scan_dict.values() if ds.attrs):
+                        logger.info(f"Using cached data for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}'")
+                        return existing_data
+                    else:
+                        logger.info(f"Time step mismatch for '{store_key}', forcing recalculation")
                 else:
-                    logger.info(f"Time step mismatch for '{store_key}', forcing recalculation")
-            else:
-                logger.warning(f"Invalid cache format for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', forcing recalculation")
+                    logger.warning(f"Invalid cache format for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', forcing recalculation")
 
         logger.info(f"Recalculating '{store_key}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}' with recalculate={recalculate}")
         result = calc_func(obj, attributes)
-        if not result or not isinstance(result, dict) or not all(isinstance(ds, xr.Dataset) for ds in result.values()):
+        if not result or not isinstance(result, dict) or not all(isinstance(source_dict, dict) for source_dict in result.values()):
             logger.warning(f"Calculation for '{store_key}' returned invalid or empty result")
             return {}
         
         # Assign metadata to each dataset and cache
         with self._lock:
-            for scan_name, ds in result.items():
-                if ds.data_vars:
-                    ds = ds.assign_attrs(metadata)
-                else:
-                    logger.warning(f"Empty dataset for scan '{scan_name}' in '{store_key}'")
+            for source_name in result:
+                for scan_name, ds in result[source_name].items():
+                    if ds.data_vars:
+                        ds = ds.assign_attrs(metadata)
+                    else:
+                        logger.warning(f"Empty dataset for source '{source_name}', scan '{scan_name}' in '{store_key}'")
             obj.set_calculated_data_by_key(store_key, result)
         
         return result
     
     @time_execution
-    def _calculate_telescope_positions(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate telescope positions for all scans, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_telescope_positions(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate telescope positions for all scans, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "telescope_positions")
@@ -118,9 +120,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
-                    logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
+                        logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.name}'")
+                        return result
 
                 scans = obj.get_scans().get_active_items()
                 if not scans:
@@ -129,9 +134,13 @@ class ScheduleCalculator(Super):
 
                 result = {}
                 for scan in scans:
+                    source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
                     ds = self._process_scan_positions(scan, obj, time_step)
                     if ds and "positions" in ds:
-                        result[scan.name] = ds
+                        result[source_name][scan.name] = ds
                     else:
                         logger.warning(f"No valid position data for scan '{scan.name}' in observation '{obj.get_observation_code()}'")
                 
@@ -285,8 +294,8 @@ class ScheduleCalculator(Super):
             return (np.nan, np.nan, np.nan)
 
     @time_execution
-    def _calculate_source_visibility(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate source visibility for all scans, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_source_visibility(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate source visibility for all scans, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "source_visibility")
@@ -307,9 +316,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
-                    logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
+                        logger.info(f"Calculated source visibility for {len(observations)} observations in project '{obj.name}'")
+                        return result
 
                 scans = obj.get_scans().get_active_items()
                 if not scans:
@@ -324,9 +336,13 @@ class ScheduleCalculator(Super):
 
                 result = {}
                 for scan in scans:
+                    source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
                     ds = self._process_source_visibility(scan, obj, time_step, position_data)
                     if "visibility" in ds:
-                        result[scan.name] = ds
+                        result[source_name][scan.name] = ds
                     else:
                         logger.warning(f"No visibility data for scan '{scan.name}' in observation '{obj.get_observation_code()}'")
                 
@@ -337,9 +353,19 @@ class ScheduleCalculator(Super):
         except Exception as e:
             logger.error(f"Failed to calculate source visibility: {str(e)}")
             return {}
-        
-    def _process_source_visibility(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, xr.Dataset]) -> xr.Dataset:
-        """Process source visibility for a single scan."""
+    
+    def _process_source_visibility(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, Dict[str, xr.Dataset]]) -> xr.Dataset:
+        """Process source visibility for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            observation (Observation): The observation containing the scan.
+            time_step (Optional[float]): Time step in seconds for visibility calculations, or None for single-point calculation.
+            position_data (Dict[str, Dict[str, xr.Dataset]]): Telescope position data with structure {source_name: {scan_name: xr.Dataset}}.
+
+        Returns:
+            xr.Dataset: Dataset containing visibility data for the scan, or an empty dataset with coordinates if calculation fails.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = scan.get_source(observation)
@@ -347,18 +373,20 @@ class ScheduleCalculator(Super):
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
         scan_name = scan.name
+        source_name = source.name if source else "unknown"
 
         logger.debug(f"Processing visibility for scan {scan_name}: {len(active_telescopes)} telescopes")
 
         if not active_telescopes or not source_coord:
             logger.warning(f"No active telescopes or source for scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
-        # Extract position data for the scan
-        scan_positions = position_data.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
+        # Extract position data for the scan and source
+        source_positions = position_data.get(source_name, {})
+        scan_positions = source_positions.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
         if not scan_positions.size:
-            logger.warning(f"No position data for scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+            logger.warning(f"No position data for source '{source_name}' and scan '{scan_name}'")
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
         if time_step is None:
             mean_time = start_time + (duration / 2) * u.s
@@ -374,13 +402,13 @@ class ScheduleCalculator(Super):
                     "scan": [scan_name],
                     "telescope": [tel.get_code() for tel in active_telescopes],
                     "time": [mean_time.iso],
-                    "source": source.name if source else None
+                    "source": source_name
                 }
             )
         else:
             if time_step > duration:
                 logger.error(f"time_step ({time_step}s) exceeds scan duration ({duration}s) for scan {scan_name}; calculation aborted")
-                return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+                return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
             pos_arrays = {tel.get_code(): scan_positions.sel(telescope=tel.get_code()).values
@@ -447,10 +475,10 @@ class ScheduleCalculator(Super):
                     "scan": [scan_name],
                     "telescope": [tel.get_code() for tel in active_telescopes],
                     "time": [t.iso for t in times],
-                    "source": source.name if source else None
+                    "source": source_name
                 }
             )
-
+    
     def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
         """Compute visibility of a source for telescopes at a given time using precomputed positions."""
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
@@ -495,8 +523,8 @@ class ScheduleCalculator(Super):
         return visibility
     
     @time_execution
-    def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate (u,v,w) coverage for all scans, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate (u,v,w) coverage for all scans, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "uv_coverage")
@@ -518,9 +546,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
                         logger.info(f"Calculated (u,v,w) coverage for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                        return result
 
                 scans = obj.get_scans().get_active_items()
                 if not scans:
@@ -537,9 +568,13 @@ class ScheduleCalculator(Super):
 
                 result = {}
                 for scan in scans:
+                    source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
                     ds = self._process_uv_coverage(scan, obj, time_step, visibility_data, position_data)
                     if "uv_points" in ds:
-                        result[scan.name] = ds
+                        result[source_name][scan.name] = ds
                     else:
                         logger.warning(f"No UV coverage data for scan '{scan.name}' in observation '{obj.get_observation_code()}'")
                 
@@ -555,18 +590,30 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to calculate (u,v,w) coverage: {str(e)}")
             return {}
 
-    def _process_uv_coverage(self, scan: Scan, observation: Observation, time_step: Optional[float], visibility_data: Dict[str, xr.Dataset], position_data: Dict[str, xr.Dataset]) -> xr.Dataset:
-        """Process UV coverage for a single scan using vectorized computations in geometric coordinates (meters)."""
+    def _process_uv_coverage(self, scan: Scan, observation: Observation, time_step: Optional[float], visibility_data: Dict[str, Dict[str, xr.Dataset]], position_data: Dict[str, Dict[str, xr.Dataset]]) -> xr.Dataset:
+        """Process UV coverage for a single scan using vectorized computations in geometric coordinates (meters).
+
+        Args:
+            scan (Scan): The scan to process.
+            observation (Observation): The observation containing the scan.
+            time_step (Optional[float]): Time step in seconds for calculations, or None for single-point calculation.
+            visibility_data (Dict[str, Dict[str, xr.Dataset]]): Visibility data with structure {source_name: {scan_name: xr.Dataset}}.
+            position_data (Dict[str, Dict[str, xr.Dataset]]): Telescope position data with structure {source_name: {scan_name: xr.Dataset}}.
+
+        Returns:
+            xr.Dataset: Dataset containing UV coverage data for the scan, or an empty dataset with coordinates if calculation fails.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
         source = scan.get_source(observation)
         scan_name = scan.name
+        source_name = source.name if source else "unknown"
 
         if len(active_telescopes) < 2:
             logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for UV coverage in scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
         if time_step is None:
             times = Time(start_time + (duration / 2) * u.s)
@@ -574,23 +621,27 @@ class ScheduleCalculator(Super):
         else:
             if time_step > duration:
                 logger.error(f"time_step ({time_step}s) exceeds scan duration ({duration}s) for scan {scan_name}; calculation aborted")
-                return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+                return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
-        scan_visibility = visibility_data.get(scan_name, xr.Dataset()).get("visibility", xr.DataArray())
-        scan_positions = position_data.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
+        # Extract visibility and position data for the scan and source
+        source_visibility = visibility_data.get(source_name, {})
+        scan_visibility = source_visibility.get(scan_name, xr.Dataset()).get("visibility", xr.DataArray())
+        source_positions = position_data.get(source_name, {})
+        scan_positions = source_positions.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
+
         if not scan_visibility.size or not scan_positions.size:
-            logger.warning(f"No visibility or position data for scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source.name if source else None})
+            logger.warning(f"No visibility or position data for source '{source_name}' and scan '{scan_name}'")
+            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source_name})
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
         visibility = scan_visibility.values
         positions = scan_positions.values
 
         if positions.shape[1] != len(times):
-            logger.warning(f"Mismatched position data length for scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source.name if source else None})
+            logger.warning(f"Mismatched position data length for scan {scan_name}: expected {len(times)}, got {positions.shape[1]}")
+            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source_name})
 
         uv_points = self._compute_uv_at_time(active_telescopes, times, source, visibility, positions)
         baseline_pairs = [f"{tel_codes[i]}-{tel_codes[j]}" for i in range(len(tel_codes)) for j in range(i + 1, len(tel_codes))]
@@ -607,7 +658,7 @@ class ScheduleCalculator(Super):
                 "baseline": baseline_pairs,
                 "time": [t.iso for t in times],
                 "coord": ["u", "v", "w"],
-                "source": source.name if source else None
+                "source": source_name
             }
         )
 
@@ -680,8 +731,8 @@ class ScheduleCalculator(Super):
         return uv_points
 
     @time_execution
-    def _calculate_sun_angles(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate angular separation between source and Sun for all scans, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_sun_angles(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate angular separation between source and Sun for all scans, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "sun_angles")
@@ -702,9 +753,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
                         logger.info(f"Calculated sun angles for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                        return result
 
                 scans = obj.get_scans().get_active_items()
                 if not scans:
@@ -719,9 +773,13 @@ class ScheduleCalculator(Super):
 
                 result = {}
                 for scan in scans:
+                    source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
                     ds = self._process_sun_angles(scan, obj, time_step, position_data)
                     if "sun_angles" in ds:
-                        result[scan.name] = ds
+                        result[source_name][scan.name] = ds
                     else:
                         logger.warning(f"No sun angles data for scan '{scan.name}' in observation '{obj.get_observation_code()}'")
                 
@@ -736,15 +794,26 @@ class ScheduleCalculator(Super):
         except Exception as e:
             logger.error(f"Failed to calculate sun angles: {str(e)}")
             return {}
+    
+    def _process_sun_angles(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, Dict[str, xr.Dataset]]) -> xr.Dataset:
+        """Process sun angles for a single scan using vectorized computations for all telescopes.
 
-    def _process_sun_angles(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, xr.Dataset]) -> xr.Dataset:
-        """Process sun angles for a single scan using vectorized computations for all telescopes."""
+        Args:
+            scan (Scan): The scan to process.
+            observation (Observation): The observation containing the scan.
+            time_step (Optional[float]): Time step in seconds for calculations, or None for single-point calculation.
+            position_data (Dict[str, Dict[str, xr.Dataset]]): Telescope position data with structure {source_name: {scan_name: xr.Dataset}}.
+
+        Returns:
+            xr.Dataset: Dataset containing sun angles for the scan, or an empty dataset with coordinates if calculation fails.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = scan.get_source(observation)
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
         scan_name = scan.name
+        source_name = source.name if source else "unknown"
 
         if not source:
             logger.warning(f"No source specified for scan {scan_name} in observation '{observation.get_observation_code()}'")
@@ -753,11 +822,11 @@ class ScheduleCalculator(Super):
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
         if not np.isfinite(source_coord.ra.deg) or not np.isfinite(source_coord.dec.deg):
             logger.warning(f"Invalid source coordinates for scan {scan_name}: RA={source.ra_degrees}, Dec={source.dec_degrees}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
         if not active_telescopes:
             logger.warning(f"No active telescopes available for scan {scan_name} in observation '{observation.get_observation_code()}'")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
         if time_step is None:
             times = Time(start_time + (duration / 2) * u.s)
@@ -765,7 +834,7 @@ class ScheduleCalculator(Super):
         else:
             if time_step > duration:
                 logger.error(f"time_step ({time_step}s) exceeds scan duration ({duration}s) for scan {scan_name}; calculation aborted")
-                return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+                return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
@@ -818,10 +887,11 @@ class ScheduleCalculator(Super):
         if space_tels:
             space_codes = [tel.get_code() for tel in space_tels]
             space_indices = [telescope_codes.index(code) for code in space_codes]
-            scan_positions = position_data.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
+            source_positions = position_data.get(source_name, {})
+            scan_positions = source_positions.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
             if not scan_positions.size:
-                logger.warning(f"No position data for scan {scan_name}")
-                return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
+                logger.warning(f"No position data for source '{source_name}' and scan '{scan_name}'")
+                return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
             positions = scan_positions.sel(telescope=space_codes).values
             if positions.shape[0] != len(space_codes) or positions.shape[1] != len(times):
                 logger.warning(f"Mismatched position data for space telescopes in scan {scan_name}: expected shape ({len(space_codes)}, {len(times)}, 3), got {positions.shape}")
@@ -841,7 +911,7 @@ class ScheduleCalculator(Super):
 
         if not np.any(np.isfinite(angles)):
             logger.warning(f"No valid sun angles calculated for scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name, "time": [t.iso for t in times]})
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name, "time": [t.iso for t in times]})
 
         return xr.Dataset(
             data_vars={"sun_angles": (["telescope", "time"], angles)},
@@ -849,14 +919,14 @@ class ScheduleCalculator(Super):
                 "scan": [scan_name],
                 "telescope": telescope_codes,
                 "time": [t.iso for t in times],
-                "source": source.name
+                "source": source_name
             },
             attrs={"unit": "degrees"}
         )
 
     @time_execution
-    def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate azimuth and elevation for all scans, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate azimuth and elevation for all scans, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "az_el")
@@ -877,9 +947,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
-                    logger.info(f"Calculated az/el for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
+                        logger.info(f"Calculated az/el for {len(observations)} observations in project '{obj.name}'")
+                        return result
 
                 scans = obj.get_scans().get_active_items()
                 if not scans:
@@ -898,12 +971,16 @@ class ScheduleCalculator(Super):
                     start_time = scan.get_start()
                     duration = scan.get_duration()
                     source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
                     scan_telescopes = scan.get_telescopes(obj)
                     active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
 
                     if not source or not active_telescopes:
                         logger.warning(f"No source or active telescopes for scan '{scan_name}'")
                         continue
+
+                    if source_name not in result:
+                        result[source_name] = {}
 
                     source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
                     if time_step is None:
@@ -916,7 +993,7 @@ class ScheduleCalculator(Super):
                         time_values = np.arange(0, duration, time_step) * u.s
                         times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
-                    scan_positions = position_data.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
+                    scan_positions = position_data.get(source_name, {}).get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
                     if not scan_positions.size:
                         logger.warning(f"No position data for scan '{scan_name}'")
                         continue
@@ -947,11 +1024,11 @@ class ScheduleCalculator(Super):
                             "scan": [scan_name],
                             "telescope": tel_codes,
                             "time": [t.iso for t in times],
-                            "source": source.name
+                            "source": source_name
                         },
                         attrs={"unit": "degrees"}
                     )
-                    result[scan_name] = ds
+                    result[source_name][scan_name] = ds
                     logger.debug(f"Computed az/el for scan '{scan_name}'")
 
                 return result
@@ -966,98 +1043,90 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to calculate az/el: {str(e)}")
             return {}
 
-    def _process_az_el(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: xr.Dataset) -> xr.Dataset:
-        """Process Az/El or HA/Dec for a single scan."""
+    def _process_az_el(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, Dict[str, xr.Dataset]]) -> xr.Dataset:
+        """Process azimuth and elevation for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            observation (Observation): The observation containing the scan.
+            time_step (Optional[float]): Time step in seconds for calculations, or None for single-point calculation.
+            position_data (Dict[str, Dict[str, xr.Dataset]]): Telescope position data with structure {source_name: {scan_name: xr.Dataset}}.
+
+        Returns:
+            xr.Dataset: Dataset containing az/el data for the scan, or an empty dataset with coordinates if calculation fails.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         source = scan.get_source(observation)
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs') if source else None
         scan_telescopes = scan.get_telescopes(observation)
-        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive and not isinstance(t, SpaceTelescope)]
+        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
         scan_name = scan.name
+        source_name = source.name if source else "unknown"
 
-        if not active_telescopes or not source_coord:
-            logger.warning(f"No ground telescopes or source for scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+        if not source or not active_telescopes:
+            logger.warning(f"No source or active telescopes for scan '{scan_name}'")
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
+        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
         if time_step is None:
             times = Time(start_time + (duration / 2) * u.s)
             times = times.reshape(-1)
         else:
+            if time_step > duration:
+                logger.error(f"time_step ({time_step}s) exceeds scan duration ({duration}s) for scan {scan_name}")
+                return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
+        source_positions = position_data.get(source_name, {})
+        scan_positions = source_positions.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
+        if not scan_positions.size:
+            logger.warning(f"No position data for source '{source_name}' and scan '{scan_name}'")
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
+
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        mount_types = [tel.get("mount_type").value for tel in active_telescopes]
-        az_ranges = [tel.get_azimuth_range() for tel in active_telescopes]
-        el_ranges = [tel.get_elevation_range() for tel in active_telescopes]
-        x = np.array([tel.get_coordinates()[0] for tel in active_telescopes])
-        y = np.array([tel.get_coordinates()[1] for tel in active_telescopes])
-        z = np.array([tel.get_coordinates()[2] for tel in active_telescopes])
-        vx = np.array([tel.get(["vx", "vy", "vz"])["vx"] for tel in active_telescopes])
-        vy = np.array([tel.get(["vx", "vy", "vz"])["vy"] for tel in active_telescopes])
-        vz = np.array([tel.get(["vx", "vy", "vz"])["vz"] for tel in active_telescopes])
-        dt = (times - Time("2000-01-01T12:00:00")).sec
-        itrs_coords = CartesianRepresentation(
-            x[:, None] + vx[:, None] * dt,
-            y[:, None] + vy[:, None] * dt,
-            z[:, None] + vz[:, None] * dt,
-            unit=u.m
-        )
-        itrs = ITRS(itrs_coords, obstime=times)
-        locations = itrs.earth_location
+        positions = scan_positions.values
+        if positions.shape[1] != len(times):
+            logger.warning(f"Mismatched position data length for scan {scan_name}: expected {len(times)}, got {positions.shape[1]}")
+            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source_name})
 
-        coords_data = np.full((len(tel_codes), len(times), 2), np.nan, dtype=float)
-        azim_mask = np.array([mount == "AZIM" for mount in mount_types])
-        if azim_mask.any():
-            azim_indices = np.where(azim_mask)[0]
-            azim_location = locations[azim_indices]
-            az_min = np.array([az_ranges[i][0] for i in azim_indices])[:, None]  # Shape: (n_tel, 1)
-            az_max = np.array([az_ranges[i][1] for i in azim_indices])[:, None]  # Shape: (n_tel, 1)
-            el_min = np.array([el_ranges[i][0] for i in azim_indices])[:, None]  # Shape: (n_tel, 1)
-            el_max = np.array([el_ranges[i][1] for i in azim_indices])[:, None]  # Shape: (n_tel, 1)
-            altaz_frame = AltAz(obstime=times, location=azim_location)
-            source_altaz = source_coord.transform_to(altaz_frame)
-            az = source_altaz.az.deg  # Shape: (n_tel, n_times)
-            el = source_altaz.alt.deg  # Shape: (n_tel, n_times)
-            valid = (az_min <= az) & (az <= az_max) & (el_min <= el) & (el <= el_max)  # Broadcasting works
-            coords_data[azim_indices] = np.where(valid[:, :, None], np.stack([az, el], axis=-1), np.nan)
+        az = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
+        el = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
+        valid_mask = np.all(np.isfinite(positions), axis=-1)
 
-        equa_mask = np.array([mount == "EQUA" for mount in mount_types])
-        if equa_mask.any():
-            equa_indices = np.where(equa_mask)[0]
-            equa_location = locations[equa_indices]
-            ha_min = np.array([az_ranges[i][0] for i in equa_indices])[:, None]  # Shape: (n_tel, 1)
-            ha_max = np.array([az_ranges[i][1] for i in equa_indices])[:, None]  # Shape: (n_tel, 1)
-            dec_min = np.array([el_ranges[i][0] for i in equa_indices])[:, None]  # Shape: (n_tel, 1)
-            dec_max = np.array([el_ranges[i][1] for i in equa_indices])[:, None]  # Shape: (n_tel, 1)
-            hadec_frame = HADec(obstime=times, location=equa_location)
-            source_hadec = source_coord.transform_to(hadec_frame)
-            ha = source_hadec.ha.deg  # Shape: (n_tel, n_times)
-            dec = source_hadec.dec.deg  # Shape: (n_tel, n_times)
-            valid = (ha_min <= ha) & (ha <= ha_max) & (dec_min <= dec) & (dec <= dec_max)  # Broadcasting works
-            coords_data[equa_indices] = np.where(valid[:, :, None], np.stack([ha, dec], axis=-1), np.nan)
+        for tel_idx, tel in enumerate(active_telescopes):
+            if not valid_mask[tel_idx].any():
+                logger.warning(f"No valid position data for telescope '{tel.get_code()}' in scan {scan_name}")
+                continue
+            tel_positions = positions[tel_idx]
+            gcrs = GCRS(CartesianRepresentation(tel_positions[:, 0], tel_positions[:, 1], tel_positions[:, 2], unit=u.m), obstime=times)
+            itrs = gcrs.transform_to(ITRS(obstime=times))
+            locations = itrs.earth_location
+            altaz = source_coord.transform_to(AltAz(obstime=times, location=locations))
+            az[tel_idx] = altaz.az.deg
+            el[tel_idx] = altaz.alt.deg
 
-        for idx, (tel, code) in enumerate(zip(active_telescopes, tel_codes)):
-            if mount_types[idx] not in ["AZIM", "EQUA"]:
-                logger.warning(f"Unsupported mount type {tel.get('mount_type')} for telescope '{code}'")
-                coords_data[idx] = np.full((len(times), 2), np.nan)
+        if not np.any(np.isfinite(az)) or not np.any(np.isfinite(el)):
+            logger.warning(f"No valid az/el data computed for scan {scan_name}")
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name, "time": [t.iso for t in times]})
 
         return xr.Dataset(
-            data_vars={"coords": (["telescope", "time", "coord"], coords_data)},
+            data_vars={
+                "azimuth": (["telescope", "time"], az),
+                "elevation": (["telescope", "time"], el)
+            },
             coords={
                 "scan": [scan_name],
                 "telescope": tel_codes,
                 "time": [t.iso for t in times],
-                "coord": ["coord1", "coord2"],  # Use generic names for flexibility
-                "source": source.name if source else None
+                "source": source_name
             },
             attrs={"unit": "degrees"}
         )
 
     @time_execution
-    def _calculate_time_on_source(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate time on source for all scans, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_time_on_source(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate time on source for all scans, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "time_on_source")
@@ -1078,9 +1147,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
-                    logger.info(f"Calculated time on source for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
+                        logger.info(f"Calculated time on source for {len(observations)} observations in project '{obj.name}'")
+                        return result
 
                 scans = obj.get_scans().get_active_items()
                 if not scans:
@@ -1096,17 +1168,21 @@ class ScheduleCalculator(Super):
                 result = {}
                 for scan in scans:
                     scan_name = scan.name
-                    if scan_name not in visibility_data:
+                    source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
+                    if source_name not in visibility_data or scan_name not in visibility_data[source_name]:
                         logger.warning(f"No visibility data for scan '{scan_name}' in '{obj.get_observation_code()}'")
                         continue
-                    vis_ds = visibility_data[scan_name]
+                    vis_ds = visibility_data[source_name][scan_name]
                     if "visibility" not in vis_ds:
                         logger.warning(f"No visibility array for scan '{scan_name}'")
                         continue
                     visibility = vis_ds["visibility"].values
                     times = vis_ds["time"].values
                     if time_step:
-                        time_on_source = np.sum(visibility, axis=1) * time_step  # Total time visible per telescope
+                        time_on_source = np.sum(visibility, axis=1) * time_step
                     else:
                         time_on_source = np.where(visibility, scan.get_duration(), 0.0)
                     ds = xr.Dataset(
@@ -1114,11 +1190,11 @@ class ScheduleCalculator(Super):
                         coords={
                             "scan": [scan_name],
                             "telescope": vis_ds["telescope"].values,
-                            "source": vis_ds["source"].item()
+                            "source": source_name
                         },
                         attrs={"unit": "seconds"}
                     )
-                    result[scan_name] = ds
+                    result[source_name][scan_name] = ds
                     logger.debug(f"Computed time on source for scan '{scan_name}': {time_on_source} seconds")
                 
                 return result
@@ -1132,7 +1208,7 @@ class ScheduleCalculator(Super):
         except Exception as e:
             logger.error(f"Failed to calculate time on source: {str(e)}")
             return {}
-        
+      
     def _process_time_on_source(self, scan: Scan, observation: Observation, time_step: float, visibility_data: xr.Dataset) -> xr.Dataset:
         """Process time on source for a single scan."""
         start_time = scan.get_start()
@@ -1201,8 +1277,8 @@ class ScheduleCalculator(Super):
         )
 
     @time_execution
-    def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate beam pattern for single-dish observations, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate beam pattern for single-dish observations, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             freq_name = attributes.get("freq_name")
             store_key = attributes.get("store_key", f"beam_pattern_{freq_name}")
@@ -1231,9 +1307,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
                         logger.info(f"Calculated beam pattern for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                        return result
 
                 if obj.get_observation_type() != "SINGLE_DISH":
                     logger.warning(f"Beam pattern calculation is only for SINGLE_DISH, got {obj.get_observation_type()}")
@@ -1261,16 +1340,20 @@ class ScheduleCalculator(Super):
                 patterns = np.where(np.isnan(patterns), 1.0, patterns)
 
                 for scan in scans:
+                    source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
                     ds = xr.Dataset(
                         data_vars={"pattern": (["telescope", "theta"], patterns)},
                         coords={
                             "scan": [scan.name],
                             "telescope": tel_codes,
                             "theta": theta,
-                            "source": scan.get_source(obj).name if scan.get_source(obj) else None
+                            "source": source_name
                         }
                     )
-                    result[scan.name] = ds
+                    result[source_name][scan.name] = ds
                     logger.debug(f"Computed beam pattern for scan '{scan.name}'")
 
                 return result
@@ -1282,8 +1365,8 @@ class ScheduleCalculator(Super):
             return {}
 
     @time_execution
-    def _calculate_synthesized_beam(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate synthesized beam for VLBI observations, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_synthesized_beam(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate synthesized beam for VLBI observations, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             freq_name = attributes.get("freq_name")
             time_step = attributes.get("time_step")
@@ -1313,9 +1396,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
                         logger.info(f"Calculated synthesized beam for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                        return result
 
                 if obj.get_observation_type() != "VLBI":
                     logger.warning(f"Synthesized beam calculation is only for VLBI, got {obj.get_observation_type()}")
@@ -1347,11 +1433,13 @@ class ScheduleCalculator(Super):
                 for scan in scans:
                     scan_name = scan.name
                     source = scan.get_source(obj)
-                    if not source:
-                        logger.warning(f"No source specified for scan '{scan_name}'")
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
+                    if source_name not in uv_data or scan_name not in uv_data[source_name]:
+                        logger.warning(f"No UV points for scan '{scan_name}' in observation '{obj.get_observation_code()}'")
                         continue
-
-                    scan_uv_data = uv_data.get(scan_name, xr.Dataset()).get("uv_points", xr.DataArray())
+                    scan_uv_data = uv_data[source_name].get(scan_name, xr.Dataset()).get("uv_points", xr.DataArray())
                     if not scan_uv_data.size:
                         logger.warning(f"No UV points for scan '{scan_name}' in observation '{obj.get_observation_code()}'")
                         continue
@@ -1399,11 +1487,11 @@ class ScheduleCalculator(Super):
                             "scan": [scan_name],
                             "theta_u": theta_u_deg,
                             "theta_v": theta_v_deg,
-                            "source": source.name
+                            "source": source_name
                         },
                         attrs={"unit": "normalized", "frequency": frequency / 1e6}
                     )
-                    result[scan_name] = ds
+                    result[source_name][scan_name] = ds
                     logger.debug(f"Computed synthesized beam for scan '{scan_name}' with {len(u)//2} UV points")
 
                 return result
@@ -1420,8 +1508,8 @@ class ScheduleCalculator(Super):
             return {}      
 
     @time_execution
-    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate baseline projections for all scans, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate baseline projections for all scans, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "baseline_projections")
@@ -1443,9 +1531,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
                         logger.info(f"Calculated baseline projections for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                        return result
 
                 scans = obj.get_scans().get_active_items()
                 if not scans:
@@ -1462,9 +1553,13 @@ class ScheduleCalculator(Super):
 
                 result = {}
                 for scan in scans:
+                    source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
                     ds = self._process_baseline_projections(scan, obj, time_step, visibility_data, position_data)
                     if "projections" in ds:
-                        result[scan.name] = ds
+                        result[source_name][scan.name] = ds
                     else:
                         logger.warning(f"No baseline projections data for scan '{scan.name}' in observation '{obj.get_observation_code()}'")
                 
@@ -1480,15 +1575,26 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to calculate baseline projections: {str(e)}")
             return {}
 
-    def _process_baseline_projections(self, scan: Scan, observation: Observation, time_step: Optional[float], visibility_data: Dict[str, xr.Dataset], position_data: Dict[str, xr.Dataset]) -> xr.Dataset:
-        """Process baseline projections for a single scan using vectorized computations."""
-        from astropy.coordinates import SkyCoord
+    def _process_baseline_projections(self, scan: Scan, observation: Observation, time_step: Optional[float], visibility_data: Dict[str, Dict[str, xr.Dataset]], position_data: Dict[str, Dict[str, xr.Dataset]]) -> xr.Dataset:
+        """Process baseline projections for a single scan using vectorized computations.
+
+        Args:
+            scan (Scan): The scan to process.
+            observation (Observation): The observation containing the scan.
+            time_step (Optional[float]): Time step in seconds for calculations, or None for single-point calculation.
+            visibility_data (Dict[str, Dict[str, xr.Dataset]]): Visibility data with structure {source_name: {scan_name: xr.Dataset}}.
+            position_data (Dict[str, Dict[str, xr.Dataset]]): Telescope position data with structure {source_name: {scan_name: xr.Dataset}}.
+
+        Returns:
+            xr.Dataset: Dataset containing baseline projections for the scan, or an empty dataset with coordinates if calculation fails.
+        """
         start_time = scan.get_start()
         duration = scan.get_duration()
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
         source = scan.get_source(observation)
         scan_name = scan.name
+        source_name = source.name if source else "unknown"
 
         if not source:
             logger.error(f"No source specified for scan {scan_name}")
@@ -1497,7 +1603,7 @@ class ScheduleCalculator(Super):
 
         if len(active_telescopes) < 2:
             logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for baseline projections in scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
         if time_step is None:
             times = Time(start_time + (duration / 2) * u.s)
@@ -1505,22 +1611,24 @@ class ScheduleCalculator(Super):
         else:
             if time_step > duration:
                 logger.error(f"time_step ({time_step}s) exceeds scan duration ({duration}s) for scan {scan_name}; calculation aborted")
-                return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+                return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
-        scan_visibility = visibility_data.get(scan_name, xr.Dataset()).get("visibility", xr.DataArray())
-        scan_positions = position_data.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
+        source_visibility = visibility_data.get(source_name, {})
+        scan_visibility = source_visibility.get(scan_name, xr.Dataset()).get("visibility", xr.DataArray())
+        source_positions = position_data.get(source_name, {})
+        scan_positions = source_positions.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
         if not scan_visibility.size or not scan_positions.size:
-            logger.error(f"No visibility or position data for scan {scan_name}")
-            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source.name})
+            logger.error(f"No visibility or position data for source '{source_name}' and scan {scan_name}")
+            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source_name})
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
         visibility = scan_visibility.values
         positions = scan_positions.values
         if positions.shape[1] != len(times):
             logger.error(f"Mismatched position data length for scan {scan_name}: expected {len(times)}, got {positions.shape[1]}")
-            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source.name})
+            return xr.Dataset(coords={"scan": [scan_name], "time": [t.iso for t in times], "source": source_name})
 
         n_tels = len(tel_codes)
         i_indices = np.array([i for i in range(n_tels) for j in range(i + 1, n_tels)])
@@ -1549,14 +1657,14 @@ class ScheduleCalculator(Super):
                 "scan": [scan_name],
                 "baseline": baseline_pairs,
                 "time": [t.iso for t in times],
-                "source": source.name
+                "source": source_name
             },
             attrs={"unit": "meters"}
         )
 
     @time_execution
-    def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, xr.Dataset]:
-        """Calculate Mollweide tracks for sources and telescopes across all scans, returning a dictionary of xarray.Datasets per scan."""
+    def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Dict[str, xr.Dataset]]:
+        """Calculate Mollweide tracks for sources and telescopes across all scans, returning a dictionary of xarray.Datasets per source and scan."""
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "mollweide_tracks")
@@ -1577,9 +1685,12 @@ class ScheduleCalculator(Super):
                         ]
                         for future in futures:
                             obs_result = future.result()
-                            result.update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in obs_result.items()})
+                            for source_name, scan_dict in obs_result.items():
+                                if source_name not in result:
+                                    result[source_name] = {}
+                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
                         logger.info(f"Calculated Mollweide tracks for {len(observations)} observations in project '{obj.name}'")
-                    return result
+                        return result
 
                 scans = obj.get_scans().get_active_items()
                 if not scans:
@@ -1594,9 +1705,13 @@ class ScheduleCalculator(Super):
 
                 result = {}
                 for scan in scans:
+                    source = scan.get_source(obj)
+                    source_name = source.name if source else "unknown"
+                    if source_name not in result:
+                        result[source_name] = {}
                     ds = self._process_mollweide_tracks(scan, obj, time_step, position_data)
                     if "telescope_lon" in ds or "source_lon" in ds:
-                        result[scan.name] = ds
+                        result[source_name][scan.name] = ds
                     else:
                         logger.warning(f"No valid Mollweide tracks for scan '{scan.name}' in observation '{obj.get_observation_code()}'")
                 
@@ -1612,8 +1727,18 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to calculate Mollweide tracks for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
             return {}
 
-    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, xr.Dataset]) -> xr.Dataset:
-        """Process Mollweide tracks for a single scan."""
+    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, Dict[str, xr.Dataset]]) -> xr.Dataset:
+        """Process Mollweide tracks for a single scan.
+
+        Args:
+            scan (Scan): The scan to process.
+            observation (Observation): The observation containing the scan.
+            time_step (Optional[float]): Time step in seconds for calculations, or None for single-point calculation.
+            position_data (Dict[str, Dict[str, xr.Dataset]]): Telescope position data with structure {source_name: {scan_name: xr.Dataset}}.
+
+        Returns:
+            xr.Dataset: Dataset containing Mollweide tracks for the scan, or an empty dataset with coordinates if calculation fails.
+        """
         logger.debug(f"Processing Mollweide tracks for scan {scan.name}")
         start_time = scan.get_start()
         duration = scan.get_duration()
@@ -1621,6 +1746,7 @@ class ScheduleCalculator(Super):
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
         scan_name = scan.name
+        source_name = source.name if source else "unknown"
 
         if not source:
             logger.error(f"No source specified for scan {scan_name}")
@@ -1631,11 +1757,11 @@ class ScheduleCalculator(Super):
             logger.debug(f"Created SkyCoord: frame={source_coord.frame.name}, ra={source_coord.ra.deg}, dec={source_coord.dec.deg}")
         except Exception as e:
             logger.error(f"Failed to create SkyCoord for scan {scan_name}: {str(e)}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
         if not np.isfinite(source_coord.ra.deg) or not np.isfinite(source_coord.dec.deg):
             logger.error(f"Invalid source coordinates for scan {scan_name}: RA={source.ra_degrees}, Dec={source.dec_degrees}")
-            return xr.Dataset(coords={"scan": [scan_name], "source": source.name})
+            return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
 
         source_lon, source_lat = self._compute_mollweide_coords(source_coord)
         logger.debug(f"Source Mollweide coords: lon={source_lon}, lat={source_lat}")
@@ -1650,7 +1776,7 @@ class ScheduleCalculator(Super):
                 "source_lon": (["scan"], [source_lon]),
                 "source_lat": (["scan"], [source_lat])
             },
-            coords={"scan": [scan_name], "source": source.name},
+            coords={"scan": [scan_name], "source": source_name},
             attrs={"unit": "radians"}
         )
 
@@ -1664,13 +1790,14 @@ class ScheduleCalculator(Super):
         else:
             if time_step > duration:
                 logger.error(f"time_step ({time_step}s) exceeds scan duration ({duration}s) for scan {scan_name}; calculation aborted")
-                return xr.Dataset(coords={"scan": [scan_name], "source": source.name if source else None})
+                return xr.Dataset(coords={"scan": [scan_name], "source": source_name})
             time_values = np.arange(0, duration, time_step) * u.s
             times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
 
-        scan_positions = position_data.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
+        source_positions = position_data.get(source_name, {})
+        scan_positions = source_positions.get(scan_name, xr.Dataset()).get("positions", xr.DataArray())
         if not scan_positions.size:
-            logger.error(f"No position data for scan {scan_name}")
+            logger.error(f"No position data for source '{source_name}' and scan {scan_name}")
             return dataset
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
