@@ -123,7 +123,7 @@ class ScheduleCalculator(Super):
                             for source_name, scan_dict in obs_result.items():
                                 if source_name not in result:
                                     result[source_name] = {}
-                                result[source_name].update({f"{obs.get_observation_code()}_{scan_name}": ds for scan_name, ds in scan_dict.items()})
+                                result[source_name].update({f"{scan_name}": ds for scan_name, ds in scan_dict.items()})
                         logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.name}'")
                         return result
 
