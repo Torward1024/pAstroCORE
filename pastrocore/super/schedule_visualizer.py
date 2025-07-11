@@ -295,26 +295,38 @@ class ScheduleVisualizer(Super):
             plotted_baselines = set()
             valid_points = 0
 
+            # Collect all baselines across scans to ensure consistent legend
+            all_baselines = set()
             for scan in valid_scans:
                 scan_data = source_data[scan]
-                if "baseline" not in scan_data.coords or "uv_points" not in scan_data.data_vars:
-                    logger.debug(f"Missing baseline or uv_points for scan {scan}")
-                    continue
-                baselines = scan_data.baseline.values
-                for baseline in baselines:
-                    baseline_data = scan_data.sel(baseline=baseline)
-                    u = baseline_data.uv_points.sel(coord="u").values.flatten()
-                    v = baseline_data.uv_points.sel(coord="v").values.flatten()
-                    mask = np.logical_and(~np.isnan(u), ~np.isnan(v))
-                    if not mask.any():
-                        logger.debug(f"No valid UV points for baseline {baseline} in scan {scan}")
+                if "baseline" in scan_data.coords:
+                    all_baselines.update(scan_data.baseline.values)
+
+            # Plot data for each baseline across all scans
+            for baseline in all_baselines:
+                u_values = []
+                v_values = []
+                for scan in valid_scans:
+                    scan_data = source_data[scan]
+                    if "baseline" not in scan_data.coords or "uv_points" not in scan_data.data_vars:
+                        logger.debug(f"Missing baseline or uv_points for scan {scan}")
                         continue
-                    if baseline not in plotted_baselines:
-                        color_idx = len(plotted_baselines) % len(self.moderate2_colors)
-                        ax.scatter(u[mask], v[mask], s=1, c=[self.moderate2_colors[color_idx]], label=f"{baseline} ({source_name}, {scan})")
-                        ax.scatter(-u[mask], -v[mask], s=1, c=[self.moderate2_colors[color_idx]])
-                        plotted_baselines.add(baseline)
-                        valid_points += mask.sum()
+                    if baseline in scan_data.baseline.values:
+                        baseline_data = scan_data.sel(baseline=baseline)
+                        u = baseline_data.uv_points.sel(coord="u").values.flatten()
+                        v = baseline_data.uv_points.sel(coord="v").values.flatten()
+                        mask = np.logical_and(~np.isnan(u), ~np.isnan(v))
+                        if mask.any():
+                            u_values.extend(u[mask])
+                            v_values.extend(v[mask])
+                            valid_points += mask.sum()
+                        else:
+                            logger.debug(f"No valid UV points for baseline {baseline} in scan {scan}")
+                if u_values:
+                    color_idx = len(plotted_baselines) % len(self.moderate2_colors)
+                    ax.scatter(u_values, v_values, s=1, c=[self.moderate2_colors[color_idx]], label=f"{baseline} ({source_name})")
+                    ax.scatter([-u for u in u_values], [-v for v in v_values], s=1, c=[self.moderate2_colors[color_idx]])
+                    plotted_baselines.add(baseline)
 
             if valid_points == 0:
                 logger.warning(f"No valid UV points for source '{source_name}', scans: {', '.join(valid_scans)}")
