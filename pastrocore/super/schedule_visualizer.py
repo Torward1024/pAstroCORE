@@ -11,7 +11,6 @@ from typing import Dict, Any, Callable, Union
 from concurrent.futures import ThreadPoolExecutor
 import matplotlib.pyplot as plt
 import numpy as np
-import xarray as xr
 from astropy.time import Time
 import threading
 import os
@@ -245,344 +244,136 @@ class ScheduleVisualizer(Super):
         return plot_func(obj, attributes, fig=fig)
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot UV coverage for an Observation for specified source and scan(s).
-
-        Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - store_key (str, optional): Key for UV coverage data (default: 'uv_coverage').
-            fig: Matplotlib figure object.
-
-        Returns:
-            Dict containing visualization metadata (baselines, points, source, scans) or empty dict if visualization fails.
-        """
+        """Plot UV coverage for an Observation."""
         with self._lock:
             logger.debug(f"Plotting UV coverage for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
-            store_key = attributes.get("store_key", "uv_coverage")
-
-            if not source_name:
-                logger.error("No 'source_name' specified for UV coverage visualization")
-                return {}
-
+            store_key = attributes.get("store_key", f"uv_coverage")
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid UV coverage data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No UV coverage data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
-                return {}
-
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
-
-            valid_scans = [scan for scan in scans if scan in source_data and isinstance(source_data[scan], xr.Dataset) and source_data[scan].data_vars]
-            if not valid_scans:
-                logger.warning(f"No valid scans for source '{source_name}': {', '.join(scans)}")
-                return {}
+            data = data.get("data", {})
+            
+            baselines = {}
+            for scan_data in data.values():
+                uv_points = scan_data.get("uv_points", {})
+                for time_idx, points in uv_points.items():
+                    for baseline, (u, v, _) in points.items():
+                        try:
+                            if baseline not in baselines:
+                                baselines[baseline] = {"u": [], "v": []}
+                            baselines[baseline]["u"].append(float(u))
+                            baselines[baseline]["v"].append(float(v))
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"Invalid UV point format for baseline {baseline}: {(u, v)}, error: {str(e)}")
+                            return {}
 
             ax = fig.add_subplot(111)
-            plotted_baselines = set()
-            valid_points = 0
+            for i, (baseline, coords) in enumerate(baselines.items()):
+                color = self.moderate2_colors[i % len(self.moderate2_colors)]
+                ax.scatter(coords["u"], coords["v"], s=1, c=[color], label=f"{baseline}")
+                ax.scatter([-u for u in coords["u"]], [-v for v in coords["v"]], s=1, c=[color])
 
-            # Collect all baselines across scans to ensure consistent legend
-            all_baselines = set()
-            for scan in valid_scans:
-                scan_data = source_data[scan]
-                if "baseline" in scan_data.coords:
-                    all_baselines.update(scan_data.baseline.values)
-
-            # Plot data for each baseline across all scans
-            for baseline in all_baselines:
-                u_values = []
-                v_values = []
-                for scan in valid_scans:
-                    scan_data = source_data[scan]
-                    if "baseline" not in scan_data.coords or "uv_points" not in scan_data.data_vars:
-                        logger.debug(f"Missing baseline or uv_points for scan {scan}")
-                        continue
-                    if baseline in scan_data.baseline.values:
-                        baseline_data = scan_data.sel(baseline=baseline)
-                        u = baseline_data.uv_points.sel(coord="u").values.flatten()
-                        v = baseline_data.uv_points.sel(coord="v").values.flatten()
-                        mask = np.logical_and(~np.isnan(u), ~np.isnan(v))
-                        if mask.any():
-                            u_values.extend(u[mask])
-                            v_values.extend(v[mask])
-                            valid_points += mask.sum()
-                        else:
-                            logger.debug(f"No valid UV points for baseline {baseline} in scan {scan}")
-                if u_values:
-                    color_idx = len(plotted_baselines) % len(self.moderate2_colors)
-                    ax.scatter(u_values, v_values, s=1, c=[self.moderate2_colors[color_idx]], label=f"{baseline} ({source_name})")
-                    ax.scatter([-u for u in u_values], [-v for v in v_values], s=1, c=[self.moderate2_colors[color_idx]])
-                    plotted_baselines.add(baseline)
-
-            if valid_points == 0:
-                logger.warning(f"No valid UV points for source '{source_name}', scans: {', '.join(valid_scans)}")
-                return {}
-
-            ax.set_xlabel("u (wavelengths)")
-            ax.set_ylabel("v (wavelengths)")
-            ax.set_title(f"UV Coverage for {obj.get_observation_code()} (Source: {source_name}, Scans: {', '.join(valid_scans)})")
+            ax.set_xlabel('u (wavelengths)')
+            ax.set_ylabel('v (wavelengths)')
+            ax.set_title(f"UV Coverage")
             ax.grid(True)
             ax.legend()
             ax.invert_xaxis()
-            return {"baselines": len(plotted_baselines), "points": valid_points, "source": source_name, "scans": valid_scans}
+            return {"baselines": len(baselines)}
 
     def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot source visibility for an Observation for specified source and scan(s).
-
-        Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - store_key (str, optional): Key for visibility data (default: 'source_visibility').
-                - time_step (bool, optional): Use markers if True.
-            fig: Matplotlib figure object.
-
-        Returns:
-            Dict containing visualization metadata (telescopes, points, source, scans) or empty dict if visualization fails.
-        """
+        """Plot source visibility over time for an Observation."""
         with self._lock:
             logger.debug(f"Plotting source visibility for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
             store_key = attributes.get("store_key", "source_visibility")
-            time_step = attributes.get("time_step", False)
-
-            if not source_name:
-                logger.error("No 'source_name' specified for source visibility visualization")
-                return {}
-
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid source visibility data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No source visibility data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
-                return {}
-
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
-
-            valid_scans = [scan for scan in scans if scan in source_data and isinstance(source_data[scan], xr.Dataset) and source_data[scan].data_vars]
-            if not valid_scans:
-                logger.warning(f"No valid scans for source '{source_name}': {', '.join(scans)}")
-                return {}
-
+            data = data.get("data", {})
             ax = fig.add_subplot(111)
-            plotted_telescopes = set()
-            valid_points = 0
-
-            for scan in valid_scans:
-                scan_data = source_data[scan]
-                if "telescope" not in scan_data.coords or "visibility" not in scan_data.data_vars:
-                    logger.debug(f"Missing telescope or visibility for scan {scan}")
-                    continue
-                times_mjd = np.array([Time(t).mjd for t in scan_data.time.values]) if "time" in scan_data.coords else []
-                for telescope in scan_data.telescope.values:
-                    visibility = scan_data.visibility.sel(telescope=telescope).values.flatten()
-                    mask = ~np.isnan(visibility)
-                    if not mask.any():
-                        logger.debug(f"No valid visibility data for telescope {telescope} in scan {scan}")
-                        continue
-                    if telescope not in plotted_telescopes:
-                        color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
-                        ax.plot(
-                            times_mjd[mask],
-                            visibility[mask],
-                            label=f"{telescope} ({source_name}, {scan})",
-                            marker="o" if time_step else None,
-                            color=self.moderate2_colors[color_idx]
-                        )
-                        plotted_telescopes.add(telescope)
-                        valid_points += mask.sum()
-
-            if valid_points == 0:
-                logger.warning(f"No valid visibility points for source '{source_name}', scans: {', '.join(valid_scans)}")
-                return {}
-
+            for scan_idx, scan_data in data.items():
+                times = [Time(t).mjd for t in scan_data.get("times", []) if t]
+                visibility = scan_data.get("visibility", {})
+                source = scan_data.get("source")
+                for i, (tel_code, vis) in enumerate(visibility.items()):
+                    valid_pairs = [(t, float(v)) for t, v in zip(times, vis) if v is not None]
+                    if valid_pairs:
+                        times_mjd, vis_valid = zip(*valid_pairs)
+                        ax.plot(times_mjd, vis_valid, label=f"{tel_code}", marker='o' if not attributes.get("time_step") else None,
+                                color=self.moderate2_colors[i % len(self.moderate2_colors)])
+            
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Visible (1 = Yes, 0 = No)")
-            ax.set_title(f"Source Visibility for {obj.get_observation_code()} (Source: {source_name}, Scans: {', '.join(valid_scans)})")
+            ax.set_title(f"Source Visibility for {source}")
             ax.legend()
             ax.grid(True)
-            return {"telescopes": len(plotted_telescopes), "points": valid_points, "source": source_name, "scans": valid_scans}
+            return {"scans": len(data)}
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot angles to the Sun for an Observation for specified source and scan(s).
-
-        Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - store_key (str, optional): Key for sun angles data (default: 'sun_angles').
-            fig: Matplotlib figure object.
-
-        Returns:
-            Dict containing visualization metadata (telescopes, points, source, scans) or empty dict if visualization fails.
-        """
+        """Plot angles to the Sun for an Observation."""
         with self._lock:
             logger.debug(f"Plotting sun angles for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
             store_key = attributes.get("store_key", "sun_angles")
-
-            if not source_name:
-                logger.error("No 'source_name' specified for sun angles visualization")
-                return {}
-
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid sun angles data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No sun angles data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
-                return {}
-
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
-
+            data = data.get("data", {})
             ax = fig.add_subplot(111)
-            plotted_telescopes = set()
-            valid_points = 0
-
-            for scan in scans:
-                if scan not in source_data:
-                    logger.warning(f"Scan '{scan}' not found for source '{source_name}'")
-                    continue
-                scan_data = source_data[scan]
-                if not isinstance(scan_data, xr.Dataset) or not scan_data.data_vars:
-                    logger.warning(f"No valid sun angles data for scan '{scan}'")
-                    continue
-                times_mjd = np.array([Time(t).mjd for t in scan_data.time.values]) if "time" in scan_data.coords else []
-                for telescope in scan_data.telescope.values:
-                    angles = scan_data.sun_angles.sel(telescope=telescope).values
-                    mask = ~np.isnan(angles)
-                    if not mask.any():
-                        logger.debug(f"No valid angles for telescope {telescope} in scan {scan}")
-                        continue
-                    if telescope not in plotted_telescopes:
-                        color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
-                        ax.plot(
-                            np.array(times_mjd)[mask],
-                            angles[mask],
-                            label=f"{telescope} ({source_name}, {scan})",
-                            color=self.moderate2_colors[color_idx]
-                        )
-                        plotted_telescopes.add(telescope)
-                        valid_points += mask.sum()
-
-            if valid_points == 0:
-                logger.warning(f"No valid sun angle points for source '{source_name}', scans: {', '.join(scans)}")
-                return {}
-
+            for scan_idx, scan_data in data.items():
+                times = [Time(t) for t in scan_data.get("times", []) if t]
+                angles = scan_data.get("sun_angles", {})
+                source = scan_data.get("source")
+                for i, (tel_code, angle_list) in enumerate(angles.items()):
+                    valid_pairs = [(t.mjd, float(a)) for t, a in zip(times, angle_list) if a is not None]
+                    if valid_pairs:
+                        times_mjd, angles_sorted = zip(*sorted(valid_pairs))
+                        ax.plot(times_mjd, angles_sorted, label=f"{tel_code}", color=self.moderate2_colors[i % len(self.moderate2_colors)])
+            
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Angle to Sun (degrees)")
-            ax.set_title(f"Sun Angles for {obj.get_observation_code()} (Source: {source_name}, Scans: {', '.join(scans)})")
+            ax.set_title(f"Sun Angles for Source {source}")
             ax.legend()
             ax.grid(True)
-            return {"telescopes": len(plotted_telescopes), "points": valid_points, "source": source_name, "scans": scans}
+            return {"scans": len(data)}
 
     def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot Azimuth/Elevation or Hour Angle/Declination for an Observation for specified source and scan(s).
-
-        Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - store_key (str, optional): Key for az/el data (default: 'az_el').
-            fig: Matplotlib figure object.
-
-        Returns:
-            Dict containing visualization metadata (telescopes, source, scans) or empty dict if visualization fails.
-        """
+        """Plot Azimuth/Elevation or Hour Angle/Declination for an Observation."""
         with self._lock:
             logger.debug(f"Plotting Az/El for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
             store_key = attributes.get("store_key", "az_el")
-
-            if not source_name:
-                logger.error("No 'source_name' specified for az/el visualization")
-                return {}
-
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid az/el data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No Az/El data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
-                return {}
-
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
-
-            valid_scans = [scan for scan in scans if scan in source_data and isinstance(source_data[scan], xr.Dataset) and source_data[scan].data_vars]
-            if not valid_scans:
-                logger.warning(f"No valid scans for source '{source_name}': {', '.join(scans)}")
-                return {}
-
+            data = data.get("data", {})
+            source = None
             all_telescopes = {}
-            for scan in valid_scans:
-                scan_data = source_data[scan]
-                times_mjd = np.array([Time(t).mjd for t in scan_data.time.values]) if "time" in scan_data.coords else []
-                for telescope in scan_data.telescope.values:
-                    try:
-                        az = scan_data.azimuth.sel(telescope=telescope).values
-                        el = scan_data.elevation.sel(telescope=telescope).values
-                        coord_type = scan_data.attrs.get("coord_type", "AzEl")
-                    except Exception as e:
-                        logger.error(f"Failed to extract az/el for telescope {telescope} in scan {scan}: {str(e)}")
-                        continue
-                    mask = ~np.isnan(az) & ~np.isnan(el)
-                    if mask.any():
-                        all_telescopes.setdefault(telescope, []).append({
-                            "times": np.array(times_mjd)[mask],
-                            "az": az[mask],
-                            "el": el[mask],
-                            "coord_type": coord_type,
-                            "scan": scan
-                        })
+            for scan_idx, scan_data in data.items():
+                times = [Time(t) for t in scan_data.get("times", []) if t]
+                az_el = scan_data.get("az_el", {})
+                source = scan_data.get("source")
+                for tel_code, coords in az_el.items():
+                    if tel_code not in all_telescopes:
+                        all_telescopes[tel_code] = {"times": [], "az": [], "el": [], "coord_type": coords.get("coord_type", "AzEl")}
+                    valid_az = [(t.mjd, float(c)) for t, c in zip(times, coords["coord1"]) if c is not None]
+                    valid_el = [(t.mjd, float(c)) for t, c in zip(times, coords["coord2"]) if c is not None]
+                    if valid_az and valid_el:
+                        times_az, az = zip(*sorted(valid_az))
+                        times_el, el = zip(*sorted(valid_el))
+                        all_telescopes[tel_code]["times"].extend(times_az)
+                        all_telescopes[tel_code]["az"].extend(az)
+                        all_telescopes[tel_code]["el"].extend(el)
 
             n_tels = len(all_telescopes)
             if n_tels == 0:
-                logger.warning(f"No valid az/el data for source '{source_name}', scans: {', '.join(valid_scans)}")
+                logger.warning(f"No valid Az/El data for {obj.get_observation_code()}")
                 return {}
 
             if n_tels == 1:
@@ -591,485 +382,256 @@ class ScheduleVisualizer(Super):
             else:
                 axes = fig.subplots(n_tels, 1, sharex=False, sharey=False)
 
-            for i, (tel_code, tel_data_list) in enumerate(all_telescopes.items()):
-                ax = axes[i] if n_tels > 1 else axes[0]
+            for i, (tel_code, data) in enumerate(all_telescopes.items()):
+                ax = axes[i]
                 color = self.moderate2_colors[i % len(self.moderate2_colors)]
-                for tel_data in tel_data_list:
-                    coord_type = tel_data["coord_type"]
-                    label1, label2 = ("Az", "El") if coord_type == "AzEl" else ("HA", "Dec")
-                    ax.plot(tel_data["times"], tel_data["az"], label=f"{label1} ({tel_data['scan']})", color=color)
-                    ax.plot(tel_data["times"], tel_data["el"], label=f"{label2} ({tel_data['scan']})", linestyle="--", color=color)
-                ax.set_xlabel("Time (MJD)")
-                ax.set_ylabel("Angle (deg)")
-                ax.set_title(f"Telescope: {tel_code} (Source: {source_name})")
-                ax.legend(loc="upper right")
+                coord_type = data["coord_type"]
+                ax.plot(data["times"], data["az"], label=f"{coord_type[:2]}", color=color)
+                ax.plot(data["times"], data["el"], label=f"{coord_type[2:]}", linestyle='--', color=color)
+                ax.set_xlabel("Time, (MJD)")
+                ax.set_ylabel("Angle, (deg)")
+                ax.set_title(f"Telescope: {tel_code}")
+                ax.legend(loc='upper right')
                 ax.grid(True)
 
-            fig.suptitle(f"Az/El or HA/Dec for {obj.get_observation_code()} (Source: {source_name}, Scans: {', '.join(valid_scans)})", y=1.02)
-            return {"telescopes": n_tels, "source": source_name, "scans": valid_scans}
+            fig.suptitle(f"Az/El or HA/Dec for {source}", y=1.02)
+            return {"scans": len(data)}
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot time on source for an Observation for specified source and scan(s).
-
-        Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - store_key (str, optional): Key for time on source data (default: 'time_on_source').
-            fig: Matplotlib figure object.
-
-        Returns:
-            Dict containing visualization metadata (telescopes, blocks, source, scans) or empty dict if visualization fails.
-        """
+        """Plot time on source for an Observation."""
         with self._lock:
             logger.debug(f"Plotting time on source for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
             store_key = attributes.get("store_key", "time_on_source")
-
-            if not source_name:
-                logger.error("No 'source_name' specified for time on source visualization")
-                return {}
-
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid time on source data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No time on source data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
-                return {}
+            data = data.get("data", {})
+            telescopes = set()
+            all_blocks = {}
+            source_name = None
+            for source, source_data in data.items():
+                source_name = source
+                for tel, blocks in source_data["telescopes"].items():
+                    telescopes.add(tel)
+                    if tel not in all_blocks:
+                        all_blocks[tel] = []
+                    all_blocks[tel].extend(blocks)
 
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
-
-            valid_scans = [scan for scan in scans if scan in source_data and isinstance(source_data[scan], xr.Dataset) and source_data[scan].data_vars]
-            if not valid_scans:
-                logger.warning(f"No valid scans for source '{source_name}': {', '.join(scans)}")
-                return {}
-
+            telescopes = sorted(telescopes)
             ax = fig.add_subplot(111)
-            all_times = {}
-            valid_blocks = 0
 
-            for scan in valid_scans:
-                scan_data = source_data[scan]
-                telescopes = scan_data.telescope.values
-                time_on_source = scan_data.time_on_source.values
-                scan_obj = obj.get_scans().get_by_name(scan)
-                start_mjd = Time(scan_obj.get_start()).mjd
-                duration = scan_obj.get_duration()
-                for tel_idx, telescope in enumerate(telescopes):
-                    if time_on_source[tel_idx] > 0:
-                        end_mjd = start_mjd + (time_on_source[tel_idx] / 86400.0)
-                        ax.fill_between(
-                            [start_mjd, end_mjd],
-                            [tel_idx, tel_idx],
-                            [tel_idx + 1, tel_idx + 1],
-                            color=self.moderate2_colors[tel_idx % len(self.moderate2_colors)],
-                            alpha=0.5
-                        )
-                        all_times.setdefault(telescope, []).append((start_mjd, end_mjd))
-                        valid_blocks += 1
+            for i, tel in enumerate(telescopes):
+                for block in all_blocks.get(tel, []):
+                    start = Time(block["start"]).mjd
+                    end = Time(block["start"]) + block["duration"] * u.s
+                    end = end.mjd
+                    ax.fill_between([start, end], [i, i], [i + 1, i + 1], color=self.moderate2_colors[i % len(self.moderate2_colors)], alpha=0.5)
 
-            if valid_blocks == 0:
-                logger.warning(f"No valid time on source data for source '{source_name}', scans: {', '.join(valid_scans)}")
-                return {"telescopes": len(all_times), "blocks": 0, "source": source_name, "scans": valid_scans}
-
-            # Compute intersections
+            all_times = [[] for _ in range(len(telescopes))]
+            for i, tel in enumerate(telescopes):
+                for block in all_blocks.get(tel, []):
+                    all_times[i].append((Time(block["start"]).mjd, (Time(block["start"]) + block["duration"] * u.s).mjd))
+            
             intersections = []
-            time_points = sorted(set(t for tel_times in all_times.values() for start, end in tel_times for t in (start, end)))
-            for t in time_points:
-                active = [sum(1 for start, end in tel_times if start <= t <= end) for tel_times in all_times.values()]
-                if all(a >= 1 for a in active):
+            for t in sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end))):
+                active = [sum(1 for start, end in tel_times if start <= t <= end) for tel_times in all_times]
+                if all(a == 1 for a in active):
                     intersections.append(t)
-
+            
             for i in range(0, len(intersections), 2):
                 if i + 1 < len(intersections):
                     start, end = intersections[i], intersections[i + 1]
                     ax.fill_between([start, end], [-1, -1], [0, 0], color=self.intersection_color, alpha=0.7)
 
-            ax.set_yticks(np.arange(-1, len(all_times)))
-            ax.set_yticklabels(["Total Intersection"] + list(all_times.keys()))
+            ax.set_yticks(np.arange(-1, len(telescopes)))
+            ax.set_yticklabels(["Total Intersection"] + telescopes)
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Telescope")
-            ax.set_title(f"Time on Source for {obj.get_observation_code()} (Source: {source_name}, Scans: {', '.join(valid_scans)})")
+            ax.set_title(f"Time on Source ({source_name})")
             ax.grid(True, axis="x")
-
-            if "visibility_blocks" in source_data.get(valid_scans[0], xr.Dataset()).data_vars:
-                logger.warning(f"Detected visibility_blocks in scan {valid_scans[0]}, but not used in current visualization")
-
-            return {"telescopes": len(all_times), "blocks": valid_blocks, "source": source_name, "scans": valid_scans}
+            return {"telescopes": len(telescopes)}
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot beam patterns for an Observation for specified source and scan(s).
-
-        Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - freq_name (str): Frequency name for beam pattern.
-                - store_key (str, optional): Key for beam pattern data (default: 'beam_pattern_{freq_name}').
-            fig: Matplotlib figure object.
-
-        Returns:
-            Dict containing visualization metadata (telescopes, source, scans) or empty dict if visualization fails.
-        """
+        """Plot beam patterns for an Observation."""
         with self._lock:
             logger.debug(f"Plotting beam pattern for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
             freq_name = attributes.get("freq_name")
             store_key = attributes.get("store_key", f"beam_pattern_{freq_name}")
-
-            if not source_name:
-                logger.error("No 'source_name' specified for beam pattern visualization")
-                return {}
-            if not freq_name:
-                logger.error("No 'freq_name' specified for beam pattern visualization")
-                return {}
-
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid beam pattern data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No beam pattern data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
-                return {}
-
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
-
-            valid_scans = [scan for scan in scans if scan in source_data and isinstance(source_data[scan], xr.Dataset) and source_data[scan].data_vars]
-            if not valid_scans:
-                logger.warning(f"No valid scans for source '{source_name}': {', '.join(scans)}")
-                return {}
-
-            n_tels = len(set(source_data[valid_scans[0]].telescope.values))
+            data = data.get("data", {})
+            n_tels = len(data)
             if n_tels == 1:
                 ax = fig.add_subplot(111)
                 axes = [ax]
             else:
                 axes = fig.subplots(n_tels, 1, sharex=False, sharey=False)
 
-            valid_tels = 0
-            for i, telescope in enumerate(set(source_data[valid_scans[0]].telescope.values)):
-                ax = axes[i] if n_tels > 1 else axes[0]
-                color = self.moderate2_colors[i % len(self.moderate2_colors)]
-                for scan in valid_scans:
-                    scan_data = source_data[scan]
-                    tel_data = scan_data.sel(telescope=telescope)
-                    if "theta" not in tel_data.coords or "pattern" not in tel_data.data_vars:
-                        logger.debug(f"Missing theta or pattern for telescope {telescope} in scan {scan}")
-                        continue
-                    theta = tel_data.theta.values
-                    pattern = tel_data.pattern.values
-                    if not np.all(np.isfinite(theta)) or not np.all(np.isfinite(pattern)):
-                        logger.debug(f"Invalid beam pattern data for telescope {telescope} in scan {scan}")
-                        continue
-                    ax.plot(theta, pattern, label=f"{telescope} ({scan})", color=color)
-                    valid_tels += 1
-                if valid_tels > 0:
-                    theta_range = np.max(np.abs(theta)) * 0.05
-                    ax.set_xlim(-theta_range, theta_range)
-                    ax.set_title(f"Beam Pattern for {telescope} (Source: {source_name})")
-                    ax.grid(True)
+            for i, (tel_code, beam_data) in enumerate(data.items()):
+                theta = np.array(beam_data["theta"])
+                pattern = beam_data["pattern"]
+                ax = axes[i]
+                ax.plot(theta, pattern, label=tel_code, color=self.moderate2_colors[i % len(self.moderate2_colors)])
+                
+                theta_range = np.max(np.abs(theta)) * 0.05
+                ax.set_xlim(-theta_range, theta_range)
+                
+                ax.set_title(f"Beam Pattern for {tel_code}")
+                ax.grid(True)
 
-            if valid_tels == 0:
-                logger.warning(f"No valid beam pattern data for source '{source_name}', scans: {', '.join(valid_scans)}")
-                return {}
-
-            fig.text(0.04, 0.5, "Normalized Peak Flux (Jy)", va="center", rotation="vertical")
+            fig.text(0.04, 0.5, "Normalized Peak Flux, (Jy)", va='center', rotation='vertical')
             axes[-1].set_xlabel("Theta (radians)")
-            fig.suptitle(f"Beam Patterns for {obj.get_observation_code()} (Source: {source_name}, Scans: {', '.join(valid_scans)})", y=1.02)
-            return {"telescopes": valid_tels, "source": source_name, "scans": valid_scans}
+            return {"telescopes": len(data)}
 
     def _plot_synthesized_beam(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot the synthesized beam for an Observation for specified source and scan(s).
-
-        Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - freq_name (str): Frequency name for synthesized beam.
-                - store_key (str, optional): Key for synthesized beam data (default: 'synthesized_beam_{freq_name}').
-            fig: Matplotlib figure object.
-
-        Returns:
-            Dict containing visualization metadata (source, scans) or empty dict if visualization fails.
-        """
+        """Plot the synthesized beam for an Observation."""
         with self._lock:
             logger.debug(f"Plotting synthesized beam for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
             freq_name = attributes.get("freq_name")
             store_key = attributes.get("store_key", f"synthesized_beam_{freq_name}")
-
-            if not source_name:
-                logger.error("No 'source_name' specified for synthesized beam visualization")
-                return {}
-            if not freq_name:
-                logger.error("No 'freq_name' specified for synthesized beam visualization")
-                return {}
-
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid synthesized beam data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No synthesized beam data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
+            data = data.get("data", {})
+            scan_data = data.get(0, {})
+            theta_u = np.array(scan_data.get("theta_u", []))
+            theta_v = np.array(scan_data.get("theta_v", []))
+            beam_2d = scan_data.get("beam_2d", np.zeros((len(theta_v), len(theta_u))))
+
+            if len(theta_u) == 0 or len(theta_v) == 0:
+                logger.error(f"Missing or empty data for 'theta_u' or 'theta_v' in {obj.get_observation_code()}")
                 return {}
 
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
+            theta_u_muas = theta_u * 3.6e9
+            theta_v_muas = theta_v * 3.6e9
 
-            valid_scans = [scan for scan in scans if scan in source_data and isinstance(source_data[scan], xr.Dataset) and source_data[scan].data_vars]
-            if not valid_scans:
-                logger.warning(f"No valid scans for source '{source_name}': {', '.join(scans)}")
-                return {}
+            ax = fig.add_subplot(111)
 
-            n_scans = len(valid_scans)
-            if n_scans == 1:
-                ax = fig.add_subplot(111)
-                axes = [ax]
-            else:
-                axes = fig.subplots(n_scans, 1, sharex=False, sharey=False)
+            im = ax.imshow(beam_2d, extent=[min(theta_u_muas), max(theta_u_muas), min(theta_v_muas), max(theta_v_muas)], 
+                           cmap=self.redpurple_cmap, aspect='equal')
 
-            for i, scan in enumerate(valid_scans):
-                ax = axes[i] if n_scans > 1 else axes[0]
-                scan_data = source_data[scan]
-                theta_u = scan_data.theta_u.values
-                theta_v = scan_data.theta_v.values
-                beam_2d = scan_data.beam_2d.values
-                if theta_u.size == 0 or theta_v.size == 0 or beam_2d.size == 0:
-                    logger.error(f"Missing or empty data for theta_u, theta_v, or beam_2d in scan {scan}")
-                    continue
-                theta_u_muas = theta_u * 3.6e9
-                theta_v_muas = theta_v * 3.6e9
-                im = ax.imshow(
-                    beam_2d,
-                    extent=[min(theta_u_muas), max(theta_u_muas), min(theta_v_muas), max(theta_v_muas)],
-                    cmap=self.redpurple_cmap,
-                    aspect="equal"
-                )
-                u_range = max(theta_u_muas) - min(theta_u_muas)
-                v_range = max(theta_v_muas) - min(theta_v_muas)
-                max_range = max(u_range, v_range) * 1.1
-                u_center = (max(theta_u_muas) + min(theta_u_muas)) / 2
-                v_center = (max(theta_v_muas) + min(theta_v_muas)) / 2
-                ax.set_xlim(u_center - max_range / 2, u_center + max_range / 2)
-                ax.set_ylim(v_center - max_range / 2, v_center + max_range / 2)
-                fig.colorbar(im, label="Normalized Peak Flux (Jy)", ax=ax)
-                ax.set_xlabel("Relative Right Ascension (μas)")
-                ax.set_ylabel("Relative Declination (μas)")
-                ax.set_title(f"Synthesized Beam at {obj.get_frequencies().get(freq_name).get('frequency')} MHz (Scan: {scan})")
+            u_range = max(theta_u_muas) - min(theta_u_muas)
+            v_range = max(theta_v_muas) - min(theta_v_muas)
+            max_range = max(u_range, v_range) * 1.1
+            
+            u_center = (max(theta_u_muas) + min(theta_u_muas)) / 2
+            v_center = (max(theta_v_muas) + min(theta_v_muas)) / 2
+            
+            ax.set_xlim(u_center - max_range / 2, u_center + max_range / 2)
+            ax.set_ylim(v_center - max_range / 2, v_center + max_range / 2)
 
-            fig.suptitle(f"Synthesized Beam for {obj.get_observation_code()} (Source: {source_name})", y=1.02)
-            return {"source": source_name, "scans": valid_scans}
+            fig.colorbar(im, label='Normalized Peak Flux, (Jy)', ax=ax)
+            ax.set_xlabel("Relative Right Ascension, (μas)")
+            ax.set_ylabel("Relative Declination, (μas)")
+            ax.set_title(f"Synthesized Beam at {obj.get_frequencies().get(freq_name).get('frequency')} MHz")
+            
+            return {}
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot baseline projections for an Observation for specified source and scan(s).
+        """Plot baseline projections for an Observation using scatter points.
 
         Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - store_key (str, optional): Key for baseline projections data (default: 'baseline_projections').
-            fig: Matplotlib figure object.
+            obj: Observation object containing the baseline projections data.
+            attributes: Dictionary with visualization parameters, including 'store_key'.
+            fig: Matplotlib figure object for plotting.
 
         Returns:
-            Dict containing visualization metadata (baselines, projections, source, scans) or empty dict if visualization fails.
+            Dict containing metadata about the plotted data (e.g., number of scans, baselines, and projections).
         """
         with self._lock:
             logger.debug(f"Plotting baseline projections for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
             store_key = attributes.get("store_key", "baseline_projections")
-
-            if not source_name:
-                logger.error("No 'source_name' specified for baseline projections visualization")
-                return {}
-
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid baseline projections data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
-                return {}
+            data = data.get("data", {})
+            plotted_pairs = set()
+            valid_projections = 0
+            pair_data = {}
 
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
+            for scan_idx, scan_data in data.items():
+                times_mjd = [Time(t).mjd for t in scan_data.get("times", []) if t]
+                if not times_mjd:
+                    logger.debug(f"No valid times for scan {scan_idx} in {obj.get_observation_code()}")
+                    continue
+                projections = scan_data.get("projections", {})
+                if not projections:
+                    logger.debug(f"No projection data for scan {scan_idx} in {obj.get_observation_code()}")
+                    continue
 
-            valid_scans = [scan for scan in scans if scan in source_data and isinstance(source_data[scan], xr.Dataset) and source_data[scan].data_vars]
-            if not valid_scans:
-                logger.warning(f"No valid scans for source '{source_name}': {', '.join(scans)}")
+                for time_idx, proj_dict in projections.items():
+                    if time_idx >= len(times_mjd):
+                        logger.warning(f"Time index {time_idx} exceeds available times ({len(times_mjd)}) in scan {scan_idx}")
+                        continue
+                    for pair, bl in proj_dict.items():
+                        if bl is None or np.isnan(bl):
+                            logger.debug(f"Skipping invalid baseline for pair {pair} at time_idx {time_idx}: {bl}")
+                            continue
+                        if pair not in pair_data:
+                            pair_data[pair] = {"times": [], "bl": []}
+                        pair_data[pair]["times"].append(times_mjd[time_idx])
+                        pair_data[pair]["bl"].append(float(bl))  # Ensure float for plotting
+                        valid_projections += 1
+
+            if not pair_data:
+                logger.warning(f"No valid projection data to plot for {obj.get_observation_code()}. Scans processed: {len(data)}")
                 return {}
 
             ax = fig.add_subplot(111)
-            plotted_pairs = set()
-            valid_projections = 0
-
-            for scan in valid_scans:
-                scan_data = source_data[scan]
-                times_mjd = np.array([Time(t).mjd for t in scan_data.time.values]) if "time" in scan_data.coords else []
-                for baseline in scan_data.baseline.values:
-                    projections = scan_data.projections.sel(baseline=baseline).values
-                    mask = ~np.isnan(projections)
-                    if not mask.any():
-                        logger.debug(f"No valid projections for baseline {baseline} in scan {scan}")
-                        continue
-                    if baseline not in plotted_pairs:
-                        color_idx = len(plotted_pairs) % len(self.moderate2_colors)
-                        ax.scatter(
-                            np.array(times_mjd)[mask],
-                            projections[mask],
-                            label=f"{baseline} ({source_name}, {scan})",
-                            color=self.moderate2_colors[color_idx],
-                            s=10,
-                            alpha=0.7
-                        )
-                        plotted_pairs.add(baseline)
-                        valid_projections += mask.sum()
-
-            if valid_projections == 0:
-                logger.warning(f"No valid baseline projections for source '{source_name}', scans: {', '.join(valid_scans)}")
-                return {}
+            for i, (pair, data) in enumerate(pair_data.items()):
+                color_idx = i % len(self.moderate2_colors)
+                ax.scatter(
+                    data["times"],
+                    data["bl"],
+                    label=pair if pair not in plotted_pairs else None,
+                    color=self.moderate2_colors[color_idx],
+                    s=10,
+                    alpha=0.7
+                )
+                plotted_pairs.add(pair)
 
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Baseline Length (meters)")
-            ax.set_title(f"Baseline Projections for {obj.get_observation_code()} (Source: {source_name}, Scans: {', '.join(valid_scans)})")
+            ax.set_title("Baseline Projections")
             ax.legend()
             ax.grid(True)
-            return {"baselines": len(plotted_pairs), "projections": valid_projections, "source": source_name, "scans": valid_scans}
+            return {"scans": len(data), "baselines": len(plotted_pairs), "projections": valid_projections}
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot Mollweide tracks for an Observation for specified source and scan(s).
-
-        Args:
-            obj: The Observation object to visualize.
-            attributes: Dictionary containing visualization parameters, including:
-                - source_name (str): Name of the source to visualize.
-                - scan_name (str, optional): Specific scan to visualize.
-                - scans (List[str], optional): List of scan names to visualize.
-                - store_key (str, optional): Key for Mollweide tracks data (default: 'mollweide_tracks').
-            fig: Matplotlib figure object.
-
-        Returns:
-            Dict containing visualization metadata (telescopes, points, source, scans) or empty dict if visualization fails.
-        """
+        """Plot Mollweide tracks for an Observation."""
         with self._lock:
             logger.debug(f"Plotting Mollweide tracks for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name")
-            scan_name = attributes.get("scan_name")
-            scans = attributes.get("scans")
             store_key = attributes.get("store_key", "mollweide_tracks")
-
-            if not source_name:
-                logger.error("No 'source_name' specified for Mollweide tracks visualization")
-                return {}
-
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict) or source_name not in data:
-                logger.error(f"No valid Mollweide tracks data for source '{source_name}' in '{store_key}' for {obj.get_observation_code()}")
+            if not data:
+                logger.error(f"No Mollweide tracks data found for '{store_key}' in {obj.get_observation_code()}")
                 return {}
 
-            source_data = data[source_name]
-            if not source_data or not isinstance(source_data, dict):
-                logger.error(f"No scan data for source '{source_name}' in '{store_key}'")
-                return {}
-
-            # Determine scans to visualize
-            if scan_name:
-                scans = [scan_name]
-            elif not scans:
-                scans = list(source_data.keys())
-
-            valid_scans = [scan for scan in scans if scan in source_data and isinstance(source_data[scan], xr.Dataset) and source_data[scan].data_vars]
-            if not valid_scans:
-                logger.warning(f"No valid scans for source '{source_name}': {', '.join(scans)}")
-                return {}
-
+            data = data.get("data", {})
             ax = fig.add_subplot(111, projection="mollweide")
-            plotted_telescopes = set()
-            valid_points = 0
-
-            # Plot source position from the first valid scan
-            scan_data = source_data[valid_scans[0]]
-            source_lon = scan_data.source_lon.values
-            source_lat = scan_data.source_lat.values
-            if not np.isnan(source_lon) and not np.isnan(source_lat):
-                ax.scatter(
-                    source_lon,
-                    source_lat,
-                    c="red",
-                    marker="o",
-                    label=f"Source: {source_name}",
-                    s=10,
-                    zorder=2
-                )
-
-            for scan in valid_scans:
-                scan_data = source_data[scan]
-                for telescope in scan_data.telescope.values:
-                    lon = scan_data.telescope_lon.sel(telescope=telescope).values
-                    lat = scan_data.telescope_lat.sel(telescope=telescope).values
-                    mask = ~np.isnan(lon) & ~np.isnan(lat)
-                    if not mask.any():
-                        logger.debug(f"No valid track data for telescope {telescope} in scan {scan}")
-                        continue
-                    if telescope not in plotted_telescopes:
-                        color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
-                        ax.scatter(
-                            lon[mask],
-                            lat[mask],
-                            c=[self.moderate2_colors[color_idx]],
-                            label=f"{telescope} ({scan})",
-                            s=0.1,
-                            zorder=1
-                        )
-                        plotted_telescopes.add(telescope)
-                        valid_points += mask.sum()
-
-            if valid_points == 0:
-                logger.warning(f"No valid Mollweide track points for source '{source_name}', scans: {', '.join(valid_scans)}")
-                return {}
-
-            ax.set_title(f"Mollweide Tracks for {obj.get_observation_code()} (Source: {source_name}, Scans: {', '.join(valid_scans)})")
+            for scan_idx, scan_data in data.items():
+                tracks = scan_data.get("telescope_tracks", {})
+                for i, (tel_code, track) in enumerate(tracks.items()):
+                    ax.scatter(np.radians(track["lon"]), np.radians(track["lat"]), 
+                               c=[self.moderate2_colors[i % len(self.moderate2_colors)]], label=tel_code, s=0.1, zorder=1)
+                    
+                source = scan_data["source"]
+                ax.scatter(np.radians(source["lon"]), np.radians(source["lat"]), c='red', marker='o', 
+                           label=f"Source: {source['name']}", s=10, zorder=2)
+            
+            ax.set_title("Mollweide Tracks")
             ax.grid(True)
-            ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
-            return {"telescopes": len(plotted_telescopes), "points": valid_points, "source": source_name, "scans": valid_scans}
+            ax.legend(loc='upper right', bbox_to_anchor=(1.15, 1))
+            return {"scans": len(data)}
 
     def _visualize_telescopes(self, obj: Union[Telescope, SpaceTelescope, Telescopes], attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Visualize Telescope-related objects."""
