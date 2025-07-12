@@ -12,7 +12,6 @@ from typing import Optional, Dict, Any
 import astropy.units as u
 import numpy as np
 import uuid
-import xarray as xr
 
 class Observation(BaseEntity):
     """Base class representing an astronomical observation with sources, telescopes, frequencies, and scans.
@@ -100,59 +99,23 @@ class Observation(BaseEntity):
         """Retrieve all calculated data."""
         return self.get("calculated_data")
 
-    def get_calculated_data_by_key(self, key: str) -> Optional[Dict[str, Dict[str, xr.Dataset]]]:
-        """Retrieve calculated data by key.
-
-        Args:
-            key (str): The key to retrieve data for.
-
-        Returns:
-            Optional[Dict[str, Dict[str, xr.Dataset]]]: Dictionary of calculated data with source names as keys,
-                mapping to dictionaries of scan names and xarray Datasets, or None if not found or invalid.
-        """
+    def get_calculated_data_by_key(self, key: str) -> Any:
+        """Retrieve calculated data for a specific key."""
+        check_non_empty_string(key, "Key")
         data = self.calculated_data.get(key)
         if data is not None:
-            if not isinstance(data, dict):
-                logger.warning(f"Expected dictionary for key '{key}' in observation '{self.get_observation_code()}', got {type(data)}")
-                return None
-            for source_name, source_data in data.items():
-                if not isinstance(source_data, dict):
-                    logger.warning(f"Expected dictionary for source '{source_name}' in key '{key}', got {type(source_data)}")
-                    return None
-                for scan_name, scan_data in source_data.items():
-                    if not isinstance(scan_data, xr.Dataset):
-                        logger.warning(f"Expected xarray.Dataset for scan '{scan_name}' in source '{source_name}' for key '{key}', got {type(scan_data)}")
-                        return None
-            logger.debug(f"Retrieved calculated data for key '{key}' from observation '{self.get_observation_code()}' with {len(data)} sources")
-            return data
-        logger.debug(f"No calculated data found for key '{key}' in observation '{self.get_observation_code()}'")
-        return None
+            logger.debug(f"Retrieved calculated data '{key}' for observation '{self.name}'")
+        else:
+            logger.debug(f"No calculated data found for key '{key}' in observation '{self.name}'")
+        return data
 
-    def set_calculated_data_by_key(self, key: str, data: Dict[str, Dict[str, xr.Dataset]]) -> None:
-        """Set calculated data for a specific key.
-
-        Args:
-            key (str): The key to store the data under.
-            data (Dict[str, Dict[str, xr.Dataset]]): Dictionary with source names as keys, mapping to dictionaries
-                of scan names and xarray Datasets.
-
-        Raises:
-            ValueError: If the data structure is invalid or contains non-xarray.Dataset values.
-        """
-        check_non_empty_string(key, "key")
-        if not isinstance(data, dict):
-            logger.error(f"Expected dictionary for key '{key}' in observation '{self.get_observation_code()}', got {type(data)}")
-            raise ValueError(f"Data must be a dictionary, got {type(data)}")
-        for source_name, source_data in data.items():
-            if not isinstance(source_data, dict):
-                logger.error(f"Expected dictionary for source '{source_name}' in key '{key}', got {type(source_data)}")
-                raise ValueError(f"Data for source '{source_name}' must be a dictionary, got {type(source_data)}")
-            for scan_name, scan_data in source_data.items():
-                if not isinstance(scan_data, xr.Dataset):
-                    logger.error(f"Expected xarray.Dataset for scan '{scan_name}' in source '{source_name}' for key '{key}', got {type(scan_data)}")
-                    raise ValueError(f"Data for scan '{scan_name}' in source '{source_name}' must be an xarray.Dataset, got {type(scan_data)}")
-        self.calculated_data[key] = data
-        logger.debug(f"Stored calculated data for key '{key}' with {len(data)} sources in observation '{self.get_observation_code()}'")
+    def set_calculated_data_by_key(self, key: str, data: Any) -> None:
+        """Set calculated data for a specific key."""
+        check_non_empty_string(key, "Key")
+        new_data = self.calculated_data.copy()
+        new_data[key] = data
+        self.set({"calculated_data": new_data})
+        logger.info(f"Stored calculated data '{key}' for observation '{self.name}'")
 
     def get_start_datetime(self) -> Optional[Time]:
         """Retrieve the earliest start time of active scans."""
@@ -241,11 +204,7 @@ class Observation(BaseEntity):
         logger.debug(f"Cleared calculated data for observation '{self.get_observation_code()}'")
                 
     def to_dict(self) -> dict:
-        """Convert the Observation object to a dictionary for serialization.
-
-        Returns:
-            dict: Dictionary representation of the Observation, including serialized xarray.Dataset objects in calculated_data.
-        """
+        """Convert the Observation object to a dictionary for serialization."""
         def convert_quantity(obj):
             if isinstance(obj, u.Quantity):
                 return obj.value.tolist() if obj.isscalar else obj.value.tolist()
@@ -254,55 +213,19 @@ class Observation(BaseEntity):
             elif isinstance(obj, bool):
                 return bool(obj)
             elif isinstance(obj, dict):
-                # Handle dictionary of source_name -> scan_name -> xarray.Dataset
                 return {k: convert_quantity(v) for k, v in obj.items()}
             elif isinstance(obj, (list, tuple)):
                 return [convert_quantity(item) for item in obj]
-            elif isinstance(obj, xr.Dataset):
-                # Serialize xarray.Dataset to dictionary
-                return obj.to_dict()
             return obj
 
         data = super().to_dict()
-        data["calculated_data"] = {key: convert_quantity(value) for key, value in self.calculated_data.items()}
-        logger.info(f"Converted observation '{self.name}' to dictionary with {len(self.calculated_data)} calculated datasets")
+        data["calculated_data"] = convert_quantity(self.calculated_data)
+        logger.info(f"Converted observation '{self.name}' to dictionary")
         return data
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
-        """Create an Observation object from a dictionary.
-
-        Args:
-            data (dict): Dictionary containing observation data, including serialized xarray.Dataset objects in calculated_data.
-
-        Returns:
-            Observation: A new Observation instance populated with the provided data.
-        """
-        calculated_data = {}
-        for key, value in data.get("calculated_data", {}).items():
-            if not isinstance(value, dict):
-                logger.warning(f"Expected dictionary for key '{key}' in observation '{data['name']}', got {type(value)}")
-                continue
-            source_data = {}
-            for source_name, source_value in value.items():
-                if not isinstance(source_value, dict):
-                    logger.warning(f"Expected dictionary for source '{source_name}' in key '{key}' in observation '{data['name']}', got {type(source_value)}")
-                    continue
-                scan_data = {}
-                for scan_name, scan_value in source_value.items():
-                    if isinstance(scan_value, dict) and 'data_vars' in scan_value and 'coords' in scan_value:
-                        try:
-                            scan_data[scan_name] = xr.Dataset.from_dict(scan_value)
-                        except Exception as e:
-                            logger.warning(f"Failed to deserialize xarray.Dataset for key '{key}', source '{source_name}', scan '{scan_name}' in observation '{data['name']}': {str(e)}")
-                            continue
-                    else:
-                        logger.warning(f"Invalid calculated_data format for key '{key}', source '{source_name}', scan '{scan_name}' in observation '{data['name']}'")
-                if scan_data:
-                    source_data[source_name] = scan_data
-            if source_data:
-                calculated_data[key] = source_data
-
+        """Create an Observation object from a dictionary."""
         kwargs = {
             "name": data["name"],
             "code": data["code"],
@@ -310,14 +233,18 @@ class Observation(BaseEntity):
             "sources": Sources.from_dict(data["sources"]),
             "telescopes": Telescopes.from_dict(data["telescopes"]),
             "frequencies": Frequencies.from_dict(data["frequencies"]),
-            "calculated_data": calculated_data,
+            "calculated_data": data.get("calculated_data", {}),
             "isactive": data.get("isactive", True),
         }
+        # Create Observation without scans first
         obs = cls(**kwargs)
+        # Deserialize scans with the observation instance
         kwargs["scans"] = Scans.from_dict(data["scans"], observation=obs)
+        # Update the observation with scans
         obs.set({"scans": kwargs["scans"]})
+        # Synchronize all scans to ensure source references and activity status are consistent
         obs.scans.activate_all(obs)
-        logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans and {len(calculated_data)} calculated datasets")
+        logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans")
         return obs
 
     def __repr__(self) -> str:
