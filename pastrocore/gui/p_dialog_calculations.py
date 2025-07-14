@@ -19,6 +19,16 @@ class CalculationThread(QThread):
         self.targets = targets
         self.calc_types = calc_types
         self.params = params
+        logger.debug(f"CalculationThread initialized with calc_types: {self.calc_types}")
+        # Validate calc_types
+        valid_calcs = [
+            "UV Coverage", "Mollweide Tracks", "Baseline Projections",
+            "Time on Source", "Sun Angles", "Azimuth/Elevation"
+        ]
+        invalid_calcs = [calc for calc in calc_types if calc not in valid_calcs]
+        if invalid_calcs:
+            logger.error(f"Invalid calculation types provided: {invalid_calcs}")
+            raise ValueError(f"Invalid calculation types: {invalid_calcs}")
 
     def run(self):
         """Execute calculations asynchronously and emit progress signals."""
@@ -110,12 +120,17 @@ class CalculationDialog(QDialog):
         self.populate_calc_list()
         self.populate_targets()
         self.ui.calcList.itemChanged.connect(self.handle_calc_selection)
+        self.ui.calcList.itemChanged.connect(self.log_calc_selection)  # Новый обработчик для отладки
         self.ui.selectAllCalcButton.clicked.connect(self.select_all_calcs)
         self.ui.clearAllCalcButton.clicked.connect(self.clear_all_calcs)
         self.ui.selectAllObsButton.clicked.connect(self.select_all_targets)
         self.ui.clearAllObsButton.clicked.connect(self.clear_all_targets)
         self.ui.calcButton.clicked.connect(self.run_calculation)
         self.ui.cancelButton.clicked.connect(self.reject)
+
+    def log_calc_selection(self, item):
+        """Log changes in calculation selection for debugging."""
+        logger.debug(f"Calculation {item.text()} check state changed to: {item.checkState()}")
 
     def populate_calc_list(self):
         """Populate the calculation list with available calculations."""
@@ -214,13 +229,16 @@ class CalculationDialog(QDialog):
     def run_calculation(self):
         """Run the selected calculations in a separate thread."""
         selected_calcs = [self.ui.calcList.item(i).text() for i in range(self.ui.calcList.count())
-                          if self.ui.calcList.item(i).checkState() == Qt.Checked]
+                        if self.ui.calcList.item(i).checkState() == Qt.Checked]
         selected_targets = [self.ui.targetList.item(i).data(Qt.UserRole) for i in range(self.ui.targetList.count())
                             if self.ui.targetList.item(i).checkState() == Qt.Checked]
+        logger.debug(f"Selected calculations: {selected_calcs}")
+        logger.debug(f"Selected targets: {[target.code for target in selected_targets]}")
+        
         if not selected_calcs or not selected_targets:
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
             return
-        
+
         # Clear cache for all selected targets if recalculate is checked
         if self.ui.recalculateCheck.isChecked():
             for target in selected_targets:
@@ -237,7 +255,7 @@ class CalculationDialog(QDialog):
             "recalculate": False
         }
         logger.debug(f"CalculationDialog: params set to {params}")
-        calc_params = {calc: params for calc in selected_calcs}
+        calc_params = {calc: params.copy() for calc in selected_calcs}  # Копируем параметры для каждого расчета
         self.progress_dialog = QProgressDialog("Calculating...", "Cancel", 0, 100, self)
         self.progress_dialog.setWindowModality(Qt.WindowModal)
         self.thread = CalculationThread(self.manipulator, selected_targets, selected_calcs, calc_params)
