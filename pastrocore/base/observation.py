@@ -204,28 +204,77 @@ class Observation(BaseEntity):
         logger.debug(f"Cleared calculated data for observation '{self.get_observation_code()}'")
                 
     def to_dict(self) -> dict:
-        """Convert the Observation object to a dictionary for serialization."""
-        def convert_quantity(obj):
-            if isinstance(obj, u.Quantity):
-                return obj.value.tolist() if obj.isscalar else obj.value.tolist()
-            elif isinstance(obj, np.ndarray):
-                return obj.tolist()
-            elif isinstance(obj, bool):
-                return bool(obj)
-            elif isinstance(obj, dict):
-                return {k: convert_quantity(v) for k, v in obj.items()}
-            elif isinstance(obj, (list, tuple)):
-                return [convert_quantity(item) for item in obj]
-            return obj
+        """Convert the Observation object to a dictionary for serialization.
 
-        data = super().to_dict()
-        data["calculated_data"] = convert_quantity(self.calculated_data)
-        logger.info(f"Converted observation '{self.name}' to dictionary")
-        return data
+        Handles special serialization for astropy.time.Time arrays in calculated_data['times'],
+        numpy.ndarray in calculated_data['telescope_positions'], and boolean arrays in 
+        calculated_data['source_visibility'], ensuring all data is JSON-serializable.
+
+        Raises:
+            TypeError: If an object in calculated_data cannot be serialized to JSON.
+        """
+        def convert_quantity(obj):
+            try:
+                if isinstance(obj, u.Quantity):
+                    return obj.value.tolist() if hasattr(obj.value, 'tolist') else float(obj.value)
+                elif isinstance(obj, np.ndarray):
+                    # Handle numpy arrays, including object arrays and nested arrays
+                    if obj.dtype == np.object_ or np.issubdtype(obj.dtype, np.ndarray):
+                        return [convert_quantity(item) for item in obj]
+                    return obj.tolist()
+                elif isinstance(obj, Time):
+                    # Handle astropy.time.Time, which may be a single time or array
+                    return obj.isot if obj.isscalar else obj.isot.tolist()
+                elif isinstance(obj, (bool, int, float, str)):
+                    return obj
+                elif isinstance(obj, dict):
+                    return {k: convert_quantity(v) for k, v in obj.items()}
+                elif isinstance(obj, (list, tuple)):
+                    return [convert_quantity(item) for item in obj]
+                elif hasattr(obj, 'tolist'):
+                    return obj.tolist()
+                else:
+                    logger.error(f"Cannot serialize object of type {type(obj)}: {obj}")
+                    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+            except Exception as e:
+                logger.error(f"Serialization error for object {obj}: {str(e)}")
+                raise
+
+        try:
+            logger.debug(f"Serializing calculated_data: {self.calculated_data}")
+            data = super().to_dict()
+            data["calculated_data"] = convert_quantity(self.calculated_data)
+            logger.info(f"Converted observation '{self.name}' to dictionary")
+            return data
+        except Exception as e:
+            logger.error(f"Failed to serialize observation '{self.name}': {str(e)}")
+            raise
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
-        """Create an Observation object from a dictionary."""
+        """Create an Observation object from a dictionary.
+
+        Restores astropy.time.Time arrays in calculated_data['times'] from ISO strings,
+        while other data types are deserialized appropriately.
+        """
+        def restore_quantity(obj):
+            if isinstance(obj, dict):
+                if "times" in obj:
+                    restored_times = {}
+                    for source_name, scans in obj["times"].items():
+                        restored_scans = {}
+                        for scan_name, times in scans.items():
+                            if isinstance(times, (list, tuple)):
+                                restored_scans[scan_name] = Time(times)
+                            else:
+                                restored_scans[scan_name] = times
+                        restored_times[source_name] = restored_scans
+                    obj["times"] = restored_times
+                return {k: restore_quantity(v) for k, v in obj.items()}
+            elif isinstance(obj, (list, tuple)):
+                return [restore_quantity(item) for item in obj]
+            return obj
+
         kwargs = {
             "name": data["name"],
             "code": data["code"],
@@ -233,7 +282,7 @@ class Observation(BaseEntity):
             "sources": Sources.from_dict(data["sources"]),
             "telescopes": Telescopes.from_dict(data["telescopes"]),
             "frequencies": Frequencies.from_dict(data["frequencies"]),
-            "calculated_data": data.get("calculated_data", {}),
+            "calculated_data": restore_quantity(data.get("calculated_data", {})),
             "isactive": data.get("isactive", True),
         }
         # Create Observation without scans first
