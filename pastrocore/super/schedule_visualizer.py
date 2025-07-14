@@ -244,44 +244,117 @@ class ScheduleVisualizer(Super):
         return plot_func(obj, attributes, fig=fig)
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot UV coverage for an Observation."""
+        """Plot UV coverage for an Observation with flexible filtering.
+
+        Args:
+            obj: Observation object containing the UV coverage data.
+            attributes: Dictionary with visualization parameters, including:
+                - store_key: Key for UV coverage data (default: "uv_coverage").
+                - times_key: Key for time data (default: "times").
+                - baselines: List of baseline pairs to include (e.g., ["AT-MP", "MP-PK"]).
+                - sources: List of source names to include.
+                - scans: List of scan names to include.
+                - time_range: Tuple of (start, end) in MJD for time filtering.
+            fig: Matplotlib figure object for plotting.
+
+        Returns:
+            Dict containing metadata about the plotted data (e.g., number of baselines, points).
+        """
         with self._lock:
             logger.debug(f"Plotting UV coverage for {obj.get_observation_code()}")
-            store_key = attributes.get("store_key", f"uv_coverage")
-            data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No UV coverage data found for '{store_key}' in {obj.get_observation_code()}")
+            store_key = attributes.get("store_key", "uv_coverage")
+            times_key = attributes.get("times_key", "times")
+            baselines = attributes.get("baselines", None)
+            sources = attributes.get("sources", None)
+            scans = attributes.get("scans", None)
+            time_range = attributes.get("time_range", None)
+
+            # Retrieve UV coverage and time data
+            uv_data = obj.get_calculated_data_by_key(store_key)
+            times_data = obj.get_calculated_data_by_key(times_key)
+            if not uv_data or not times_data:
+                logger.error(f"Missing data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
                 return {}
 
-            data = data.get("data", {})
-            
-            baselines = {}
-            for scan_data in data.values():
-                uv_points = scan_data.get("uv_points", {})
-                for time_idx, points in uv_points.items():
-                    for baseline, (u, v, _) in points.items():
-                        try:
-                            if baseline not in baselines:
-                                baselines[baseline] = {"u": [], "v": []}
-                            baselines[baseline]["u"].append(float(u))
-                            baselines[baseline]["v"].append(float(v))
-                        except (ValueError, TypeError) as e:
-                            logger.error(f"Invalid UV point format for baseline {baseline}: {(u, v)}, error: {str(e)}")
-                            return {}
+            uv_data = uv_data.get("data", {})
+            times_data = times_data.get("data", {})
+            if not uv_data or not times_data:
+                logger.error(f"Empty data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
+                return {}
 
+            # Default to first source if none specified
+            if not sources:
+                sources = [list(uv_data.keys())[0]] if uv_data else []
+                logger.debug(f"No sources specified, defaulting to first source: {sources}")
+
+            result = {"baselines": 0, "points": 0}
+            plotted_pairs = set()
             ax = fig.add_subplot(111)
-            for i, (baseline, coords) in enumerate(baselines.items()):
-                color = self.moderate2_colors[i % len(self.moderate2_colors)]
-                ax.scatter(coords["u"], coords["v"], s=1, c=[color], label=f"{baseline}")
-                ax.scatter([-u for u in coords["u"]], [-v for v in coords["v"]], s=1, c=[color])
 
-            ax.set_xlabel('u (wavelengths)')
-            ax.set_ylabel('v (wavelengths)')
-            ax.set_title(f"UV Coverage")
+            for source in sources:
+                if source not in uv_data or source not in times_data:
+                    logger.warning(f"Source {source} not found in UV or times data")
+                    continue
+                source_uv = uv_data[source]
+                source_times = times_data[source]
+
+                # Filter scans (use all if none specified)
+                scan_list = scans if scans else source_uv.keys()
+                for scan in scan_list:
+                    if scan not in source_uv or scan not in source_times:
+                        logger.debug(f"Scan {scan} not found for source {source}")
+                        continue
+
+                    times = [t.mjd for t in source_times[scan] if t]
+                    uv_points = source_uv[scan]
+
+                    # Apply time range filter if specified
+                    if time_range:
+                        start_mjd, end_mjd = time_range
+                        valid_indices = [i for i, t in enumerate(times) if start_mjd <= t <= end_mjd]
+                        times = [times[i] for i in valid_indices]
+                        for tel_code in uv_points:
+                            uv_points[tel_code] = [uv_points[tel_code][i] for i in valid_indices]
+                        if not times:
+                            logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
+                            continue
+
+                    for tel_code in uv_points:
+                        # Filter baselines if specified
+                        if baselines and tel_code not in baselines:
+                            continue
+                        if tel_code in plotted_pairs:
+                            continue
+
+                        try:
+                            u, v, _ = zip(*[pt for pt in uv_points[tel_code] if pt is not None and not np.any(np.isnan(pt))])
+                            u, v = np.array(u), np.array(v)
+                            if len(u) == 0:
+                                logger.debug(f"No valid UV points for {tel_code} in scan {scan}, source {source}")
+                                continue
+
+                            color_idx = len(plotted_pairs) % len(self.moderate2_colors)
+                            ax.scatter(u, v, s=1, c=[self.moderate2_colors[color_idx]], label=f"{tel_code}")
+                            ax.scatter(-u, -v, s=1, c=[self.moderate2_colors[color_idx]])
+                            plotted_pairs.add(tel_code)
+                            result["points"] += len(u)
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"Invalid UV point format for {tel_code} in scan {scan}: {str(e)}")
+                            continue
+
+            if not plotted_pairs:
+                logger.warning(f"No valid UV data to plot for {obj.get_observation_code()}")
+                plt.close(fig)
+                return {}
+
+            result["baselines"] = len(plotted_pairs)
+            ax.set_xlabel("u (wavelengths)")
+            ax.set_ylabel("v (wavelengths)")
+            ax.set_title(f"UV Coverage for {', '.join(sources)}")
             ax.grid(True)
             ax.legend()
             ax.invert_xaxis()
-            return {"baselines": len(baselines)}
+            return result
 
     def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Plot source visibility over time for an Observation."""
