@@ -1030,23 +1030,43 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_sun_angles(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """calculate angular separation between source and Sun for all scans.
+        """Calculate angular separation between source and Sun for all active scans in geometric coordinates.
 
-        args:
-            obj (Observation | ScheduleProject): the object to calculate sun angles for.
-            attributes (Dict[str, Any]): parameters including "time_step" and "store_key".
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate sun angles for.
+            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", "recalculate",
+                                        "position_store_key", "visibility_store_key".
 
-        returns:
-            Dict[str, Any]: sun angles per scan, keyed by scan index or observation code.
+        Returns:
+            Dict[str, Any]: Sun angles per source, scan, and telescope, formatted as:
+                {
+                    "metadata": {"time_step": float, "scan_count": int, "position_store_key": str, "visibility_store_key": str},
+                    "data": {
+                        source_name: {
+                            scan_name: {
+                                telescope_code: np.array([angle1, angle2, ...])  # angles in degrees
+                            }
+                        }
+                    }
+                }
+
+        Notes:
+            - Depends on precomputed time arrays, telescope positions, and source visibility.
+            - Invokes _calculate_time_arrays, _calculate_telescope_positions, and _calculate_source_visibility if needed.
+            - Uses vectorized computations for efficiency.
+            - Results are cached in obj.calculated_data under the specified store_key.
         """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "sun_angles")
+            position_store_key = attributes.get("position_store_key", "telescope_positions")
+            visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
+            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_items()
                 if not observations:
-                    logger.warning(f"no observations in project '{obj.name}'")
+                    logger.warning(f"No observations in project '{obj.name}'")
                     return {}
                 results = {}
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
@@ -1058,147 +1078,149 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         obs_code = futures[future]
                         results[obs_code] = future.result()
-                logger.info(f"calculated sun angles for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"Calculated sun angles for {len(observations)} observations in project '{obj.name}'")
                 return results
 
-            def calculate_sun_angles(obj, attrs):
+            def calculate_sun_angles(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
                 scans = obj.get_scans().get_active_items()
-                position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": attrs.get("recalculate", False)}
-                position_data = self._calculate_telescope_positions(obj, position_attrs)
-                if not position_data:
-                    logger.error(f"failed to obtain telescope positions for '{obj.get_observation_code()}'")
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
                     return {}
+
+                # Retrieve or calculate dependencies
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+
+                time_data = self._calculate_time_arrays(obj, time_attrs)
+                position_data = self._calculate_telescope_positions(obj, position_attrs)
+                visibility_data = self._calculate_source_visibility(obj, visibility_attrs)
+
+                if not (time_data and position_data and visibility_data):
+                    logger.error(f"Missing required data (times, positions, or visibility) for '{obj.get_observation_code()}'")
+                    return {}
+
                 results = {}
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_sun_angles, scan, obj, time_step, position_data): scan.name
+                        executor.submit(
+                            self._process_sun_angles,
+                            scan,
+                            obj,
+                            time_step,
+                            time_data,
+                            position_data,
+                            visibility_data
+                        ): scan.name
                         for scan in scans
                     }
                     for future in futures:
                         scan_name = futures[future]
-                        results[scan_name] = future.result()
+                        scan_result = future.result()
+                        source_name = scan_result.get("source")
+                        if source_name and scan_result.get("angles"):
+                            if source_name not in results:
+                                results[source_name] = {}
+                            results[source_name][scan_name] = scan_result["angles"]
+                if not results:
+                    logger.warning(f"No sun angles computed for observation '{obj.get_observation_code()}'")
                 return results
 
-            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()),
+                "position_store_key": position_store_key,
+                "visibility_store_key": visibility_store_key
+            }
             return self._get_cached_or_calculate(obj, store_key, calculate_sun_angles, attributes, metadata)
         except Exception as e:
-            logger.error(f"failed to calculate sun angles: {str(e)}")
+            logger.error(f"Failed to calculate sun angles: {str(e)}")
             return {}
 
-    def _process_sun_angles(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_sun_angles(
+        self,
+        scan: Scan,
+        observation: Observation,
+        time_step: Optional[float],
+        time_data: Dict[str, Any],
+        position_data: Dict[str, Any],
+        visibility_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Process sun angles for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
-            sources (Sources): Collection of sources.
-            telescopes (Telescopes): Collection of telescopes.
-            time_step (Optional[float]): Sampling interval (seconds). If None, uses mean time.
+            observation (Observation): Parent observation.
+            time_step (Optional[float]): Sampling interval (seconds).
+            time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
             position_data (Dict[str, Any]): Precomputed telescope positions.
+            visibility_data (Dict[str, Any]): Precomputed source visibility data.
 
         Returns:
-            Dict[str, Any]: Sun angles per telescope, with times if sampled.
+            Dict[str, Any]: Sun angles in degrees, formatted as:
+                {
+                    "source": source_name,
+                    "angles": {telescope_code: np.array([angle1, angle2, ...])}
+                }
         """
-        start_time = scan.get_start()
-        duration = scan.get_duration()
         source = scan.get_source(observation)
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs') if source else None
+        if not source or not source.isactive:
+            logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
+            return {"source": None, "angles": {}}
+
+        scan_name = scan.name
+        source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
-        scan_name = scan.name
 
-        # Define time array
-        if time_step is None:
-            times = Time(start_time + (duration / 2) * u.s)
-            times = times.reshape(-1)  # Ensure 1D array for consistency
+        if not active_telescopes:
+            logger.warning(f"No active telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            return {"source": source_name, "angles": {}}
+
+        # Get times for the scan
+        scan_times = time_data.get(source_name, {}).get(scan_name, None)
+        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+            logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "angles": {}}
+
+        # Get telescope positions and visibility
+        scan_positions = position_data.get(scan_name, {})
+        scan_visibility = visibility_data.get(source_name, {}).get(scan_name, {})
+        if not (scan_positions and scan_visibility):
+            logger.warning(f"No position or visibility data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            return {"source": source_name, "angles": {}}
+
+        # Prepare source and sun coordinates
+        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
+        sun_coord = get_sun(scan_times)
+
+        angles = {}
+        # Process telescopes
+        tel_codes = [tel.get_code() for tel in active_telescopes]
+        visibility = np.array([scan_visibility.get(code, [False] * len(scan_times)) for code in tel_codes], dtype=bool)  # shape: (n_tels, n_times)
+        positions = np.array([scan_positions.get(code, np.full((len(scan_times), 3), np.nan)) for code in tel_codes])  # shape: (n_tels, n_times, 3)
+
+        if positions.shape[1] != len(scan_times):
+            logger.warning(f"Mismatched position data length for scan '{scan_name}': {positions.shape[1]} positions vs {len(scan_times)} times")
+            return {"source": source_name, "angles": {}}
+
+        # Vectorized angular separation calculation
+        separations = source_coord.separation(sun_coord).deg  # shape: (n_times,)
+        for i, tel_code in enumerate(tel_codes):
+            tel_angles = np.full_like(separations, np.nan)  # Initialize with NaN
+            tel_angles[visibility[i]] = separations[visibility[i]]  # Set angles where source is visible
+            if np.any(~np.isnan(tel_angles)):
+                angles[tel_code] = tel_angles
+            else:
+                logger.debug(f"No valid sun angles for telescope '{tel_code}' in scan '{scan_name}'")
+
+        if not angles:
+            logger.warning(f"No valid sun angles computed for scan '{scan_name}'")
         else:
-            time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+            logger.debug(f"Computed sun angles for {len(angles)} telescopes in scan '{scan_name}'")
 
-        # Split telescopes into ground and space
-        ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
-        space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope)]
-
-        # Initialize angles array
-        angles = np.full((len(active_telescopes), len(times)), np.nan, dtype=float)
-        scan_positions = position_data.get(scan_name, {}).get("telescope_positions", {})
-
-        # Process ground telescopes
-        if ground_tels and source_coord:
-            # Vectorized computation of ITRS coordinates
-            ground_codes = [tel.get_code() for tel in ground_tels]
-            x = np.array([tel.get_coordinates()[0] for tel in ground_tels])
-            y = np.array([tel.get_coordinates()[1] for tel in ground_tels])
-            z = np.array([tel.get_coordinates()[2] for tel in ground_tels])
-            vx = np.array([tel.get(["vx", "vy", "vz"])["vx"] for tel in ground_tels])
-            vy = np.array([tel.get(["vx", "vy", "vz"])["vy"] for tel in ground_tels])
-            vz = np.array([tel.get(["vx", "vy", "vz"])["vz"] for tel in ground_tels])
-            dt = (times - Time("2000-01-01T12:00:00")).sec
-            itrs_coords = CartesianRepresentation(
-                x[:, None] + vx[:, None] * dt,
-                y[:, None] + vy[:, None] * dt,
-                z[:, None] + vz[:, None] * dt,
-                unit=u.m
-            )
-            itrs = ITRS(itrs_coords, obstime=times)
-            locations = itrs.earth_location
-
-            # Transform source and Sun to AltAz
-            altaz_frame = AltAz(obstime=times, location=locations)
-            source_altaz = source_coord.transform_to(altaz_frame)
-            sun_gcrs = get_sun(times)
-            sun_altaz = sun_gcrs.transform_to(altaz_frame)
-
-            # Compute separations
-            separations = source_altaz.separation(sun_altaz).deg
-            separations = np.where((source_altaz.alt.deg < 0) | (sun_altaz.alt.deg < 0), np.nan, separations)
-
-            # Assign results
-            for idx, tel_code in enumerate(ground_codes):
-                tel_idx = [tel.get_code() for tel in active_telescopes].index(tel_code)
-                angles[tel_idx] = separations[idx]
-
-        # Process space telescopes
-        if space_tels and source_coord:
-            sun_gcrs = get_sun(times)
-            sun_pos = np.array([
-                sun_gcrs.cartesian.x.to(u.m).value,
-                sun_gcrs.cartesian.y.to(u.m).value,
-                sun_gcrs.cartesian.z.to(u.m).value
-            ]).T  # shape: (n_times, 3)
-
-            source_icrs = source_coord.icrs
-            source_dir = np.array([
-                source_icrs.cartesian.x.value,
-                source_icrs.cartesian.y.value,
-                source_icrs.cartesian.z.value
-            ])
-            source_dir /= np.linalg.norm(source_dir)  # normalize
-
-            for tel in space_tels:
-                tel_code = tel.get_code()
-                tel_idx = [tel.get_code() for tel in active_telescopes].index(tel_code)
-                pos_data = scan_positions.get(tel_code, {})
-                positions = np.array(pos_data.get("positions", [])) if "positions" in pos_data else None
-                if positions is None or len(positions) != len(times):
-                    logger.warning(f"No or mismatched position data for telescope '{tel_code}' in scan {scan_name}")
-                    continue
-
-                # Vectorized computation
-                vec_to_sun = sun_pos - positions  # shape: (n_times, 3)
-                vec_to_sun /= np.linalg.norm(vec_to_sun, axis=1)[:, None]  # normalize each vector
-                cos_angles = np.clip(np.dot(vec_to_sun, source_dir), -1.0, 1.0)
-                tel_angles = np.degrees(np.arccos(cos_angles))
-                angles[tel_idx] = tel_angles
-
-        # Convert angles to dictionary for visualizer compatibility
-        angles_dict = {tel.get_code(): angles[i].tolist() for i, tel in enumerate(active_telescopes)}
-
-        # Format output
-        result = {"source": source.name if source else None, "sun_angles": angles_dict}
-        if time_step is not None:
-            result["times"] = times.isot.tolist()
-        return result
+        return {"source": source_name, "angles": angles}
 
     def _compute_sun_angle(self, source_coord: SkyCoord, time: Time, telescopes: List[Telescope | SpaceTelescope]) -> Dict[str, float]:
         """Compute angle between the direction from telescope to source and to Sun for each telescope at a given time.
@@ -1262,18 +1284,39 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate Az/El or HA/Dec for ground telescopes across all scans.
+        """Calculate azimuth/elevation or hour angle/declination for ground telescopes in active scans.
 
         Args:
-            obj (Observation | ScheduleProject): The object to calculate coordinates for.
-            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
+            obj (Observation | ScheduleProject): The object to calculate angles for.
+            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", "position_store_key",
+                                        "visibility_store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Az/El or HA/Dec data per scan.
+            Dict[str, Any]: Az/El or HA/Dec angles per source, scan, and telescope, formatted as:
+                {
+                    "metadata": {"time_step": float, "scan_count": int, "position_store_key": str, "visibility_store_key": str},
+                    "data": {
+                        source_name: {
+                            scan_name: {
+                                telescope_code: np.array([[az/ha, el/dec], ...])
+                            }
+                        }
+                    }
+                }
+
+        Notes:
+            - Uses precomputed time arrays, telescope positions, and source visibility from calculated_data.
+            - Computes angles for ground telescopes only (AZIM or EQUA mounts).
+            - Space telescopes are excluded as they use pitch/yaw.
+            - Stores results in calculated_data under 'az_el' key.
+            - Vectorized computations are used for efficiency.
         """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "az_el")
+            position_store_key = attributes.get("position_store_key", "telescope_positions")
+            visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
+            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_items()
@@ -1290,144 +1333,190 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         obs_code = futures[future]
                         results[obs_code] = future.result()
-                logger.info(f"Calculated Az/El or HA/Dec for {len(observations)} observations in project '{obj.name}'")
+                logger.info(f"Calculated az/el or ha/dec for {len(observations)} observations in project '{obj.name}'")
                 return results
 
-            def calculate_az_el(obj, attrs):
+            def calculate_az_el(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
                 scans = obj.get_scans().get_active_items()
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return {}
+
+                # Retrieve or calculate dependencies
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+
+                time_data = self._calculate_time_arrays(obj, time_attrs)
+                position_data = self._calculate_telescope_positions(obj, position_attrs)
+                visibility_data = self._calculate_source_visibility(obj, visibility_attrs)
+
+                if not (time_data and position_data and visibility_data):
+                    logger.error(f"Missing required data (times, positions, or visibility) for '{obj.get_observation_code()}'")
+                    return {}
+
                 results = {}
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_az_el, scan, obj, time_step): scan.name
+                        executor.submit(self._process_az_el, scan, obj, time_step, time_data, position_data, visibility_data): scan.name
                         for scan in scans
                     }
                     for future in futures:
                         scan_name = futures[future]
-                        results[scan_name] = future.result()
+                        scan_result = future.result()
+                        source_name = scan_result.get("source")
+                        if source_name and scan_result.get("angles"):
+                            if source_name not in results:
+                                results[source_name] = {}
+                            results[source_name][scan_name] = scan_result["angles"]
+                if not results:
+                    logger.warning(f"No az/el or ha/dec data computed for observation '{obj.get_observation_code()}'")
                 return results
 
-            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()),
+                "position_store_key": position_store_key,
+                "visibility_store_key": visibility_store_key
+            }
             return self._get_cached_or_calculate(obj, store_key, calculate_az_el, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate Az/El or HA/Dec: {str(e)}")
+            logger.error(f"Failed to calculate az/el or ha/dec: {str(e)}")
             return {}
 
-    def _process_az_el(self, scan: Scan, observation: Observation, time_step: Optional[float]) -> Dict[str, Any]:
-        """Process Az/El or HA/Dec for a single scan using vectorized computations.
+    def _process_az_el(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any], visibility_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process az/el or ha/dec angles for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
-            sources (Sources): Collection of sources.
-            telescopes (Telescopes): Collection of telescopes.
+            observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds). If None, uses mean time.
+            time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
+            position_data (Dict[str, Any]): Precomputed telescope positions from _calculate_telescope_positions.
+            visibility_data (Dict[str, Any]): Precomputed visibility data from _calculate_source_visibility.
 
         Returns:
-            Dict[str, Any]: Coordinate data per telescope, with times if sampled.
+            Dict[str, Any]: Angles data for the scan, formatted as:
+                {
+                    "source": source_name,
+                    "angles": {telescope_code: np.array([[az/ha, el/dec], ...])}
+                }
+
+        Notes:
+            - Computes az/el for AZIM mounts and ha/dec for EQUA mounts.
+            - Applies visibility mask to set angles to NaN for non-visible times.
+            - Excludes space telescopes as they use pitch/yaw.
         """
-        start_time = scan.get_start()
-        duration = scan.get_duration()
         source = scan.get_source(observation)
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs') if source else None
-        scan_telescopes = scan.get_telescopes(observation)
-        active_ground_tels = [tel for tel in scan_telescopes.get_items() if tel.isactive and not isinstance(tel, SpaceTelescope)]
+        if not source or not source.isactive:
+            logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
+            return {"source": None, "angles": {}}
+
         scan_name = scan.name
+        source_name = source.name
+        scan_telescopes = scan.get_telescopes(observation)
+        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive and not isinstance(t, SpaceTelescope)]
+        if not active_telescopes:
+            logger.warning(f"No active ground telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            return {"source": source_name, "angles": {}}
 
-        if not active_ground_tels or not source_coord:
-            logger.warning(f"No active ground telescopes or source for scan {scan_name} starting at {start_time.isot}")
-            return {"source": source.name if source else None, "az_el": {}}
+        # Get times for the scan
+        scan_times = time_data.get(source_name, {}).get(scan_name, None)
+        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+            logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "angles": {}}
 
-        # Define time array
-        if time_step is None:
-            times = Time(start_time + (duration / 2) * u.s)
-            times = times.reshape(-1)  # Ensure 1D array for consistency
-        else:
-            time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+        # Get visibility and position data
+        scan_visibility = visibility_data.get(source_name, {}).get(scan_name, {})
+        scan_positions = position_data.get(scan_name, {})
+        if not (scan_visibility and scan_positions):
+            logger.warning(f"No visibility or position data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            return {"source": source_name, "angles": {}}
 
-        # Collect telescope properties
-        tel_codes = [tel.get_code() for tel in active_ground_tels]
-        mount_types = [tel.get("mount_type").value for tel in active_ground_tels]
-        x = np.array([tel.get_coordinates()[0] for tel in active_ground_tels])
-        y = np.array([tel.get_coordinates()[1] for tel in active_ground_tels])
-        z = np.array([tel.get_coordinates()[2] for tel in active_ground_tels])
-        vx = np.array([tel.get(["vx", "vy", "vz"])["vx"] for tel in active_ground_tels])
-        vy = np.array([tel.get(["vx", "vy", "vz"])["vy"] for tel in active_ground_tels])
-        vz = np.array([tel.get(["vx", "vy", "vz"])["vz"] for tel in active_ground_tels])
-        az_ranges = np.array([tel.get_azimuth_range() for tel in active_ground_tels])  # [min, max]
-        el_ranges = np.array([tel.get_elevation_range() for tel in active_ground_tels])  # [min, max]
+        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
+        angles = {}
 
-        # Compute ITRS coordinates
-        dt = (times - Time("2000-01-01T12:00:00")).sec
-        itrs_coords = CartesianRepresentation(
-            x[:, None] + vx[:, None] * dt,
-            y[:, None] + vy[:, None] * dt,
-            z[:, None] + vz[:, None] * dt,
-            unit=u.m
-        )
-        itrs = ITRS(itrs_coords, obstime=times)
-        locations = itrs.earth_location
+        # Prepare arrays for ground telescopes
+        tel_codes = [tel.get_code() for tel in active_telescopes]
+        mount_types = [tel.get("mount_type").value for tel in active_telescopes]
+        visibility = np.array([scan_visibility.get(code, [False] * len(scan_times)) for code in tel_codes], dtype=bool)  # shape: (n_tels, n_times)
+        positions = np.array([scan_positions.get(code, np.full((len(scan_times), 3), np.nan)) for code in tel_codes])  # shape: (n_tels, n_times, 3)
 
-        # Initialize result
-        az_el = {code: {"coord1": [], "coord2": [], "coord_type": "AzEl" if mount == "AZIM" else "HADec"}
-                for code, mount in zip(tel_codes, mount_types)}
+        if positions.shape[1] != len(scan_times):
+            logger.warning(f"Mismatched position data length for scan '{scan_name}': {positions.shape[1]} positions vs {len(scan_times)} times")
+            return {"source": source_name, "angles": {}}
 
         # Process AZIM mounts
-        azim_mask = np.array([mount == "AZIM" for mount in mount_types])
-        if azim_mask.any():
-            azim_indices = np.where(azim_mask)[0]
-            for idx in azim_indices:
-                tel_code = tel_codes[idx]
-                azim_location = locations[idx]
-                altaz_frame = AltAz(obstime=times, location=azim_location)
-                source_altaz = source_coord.transform_to(altaz_frame)
-                az = source_altaz.az.deg
-                el = source_altaz.alt.deg
+        azim_indices = [i for i, mt in enumerate(mount_types) if mt == "AZIM"]
+        if azim_indices:
+            azim_codes = [tel_codes[i] for i in azim_indices]
+            azim_positions = positions[azim_indices]  # shape: (n_azim_tels, n_times, 3)
+            azim_visibility = visibility[azim_indices]  # shape: (n_azim_tels, n_times)
 
-                # Check ranges
-                az_min, az_max = az_ranges[idx]
-                el_min, el_max = el_ranges[idx]
-                valid = (az_min <= az) & (az <= az_max) & (el_min <= el) & (el <= el_max)
+            # Vectorized coordinate transformation
+            gcrs_coords = CartesianRepresentation(
+                x=azim_positions[:, :, 0] * u.m,
+                y=azim_positions[:, :, 1] * u.m,
+                z=azim_positions[:, :, 2] * u.m
+            )
+            gcrs = GCRS(gcrs_coords, obstime=scan_times)
+            itrs = gcrs.transform_to(ITRS(obstime=scan_times))
+            locations = itrs.earth_location
+            altaz = source_coord.transform_to(AltAz(obstime=scan_times, location=locations))
+            az = altaz.az.deg  # shape: (n_tels, n_times)
+            el = altaz.alt.deg  # shape: (n_tels, n_times)
 
-                # Assign results
-                coords = np.where(valid[:, None], np.vstack([az, el]).T, np.array([None, None]))
-                az_el[tel_code]["coord1"] = coords[:, 0].tolist()
-                az_el[tel_code]["coord2"] = coords[:, 1].tolist()
+            # Apply visibility mask
+            az[~azim_visibility] = np.nan
+            el[~azim_visibility] = np.nan
+
+            # Store results
+            for i, code in enumerate(azim_codes):
+                angles[code] = np.stack([az[i], el[i]], axis=-1)  # shape: (n_times, 2)
 
         # Process EQUA mounts
-        equa_mask = np.array([mount == "EQUA" for mount in mount_types])
-        if equa_mask.any():
-            equa_indices = np.where(equa_mask)[0]
-            for idx in equa_indices:
-                tel_code = tel_codes[idx]
-                equa_location = locations[idx]
-                hadec_frame = HADec(obstime=times, location=equa_location)
-                source_hadec = source_coord.transform_to(hadec_frame)
-                ha = source_hadec.ha.deg
-                dec = source_hadec.dec.deg
+        equa_indices = [i for i, mt in enumerate(mount_types) if mt == "EQUA"]
+        if equa_indices:
+            equa_codes = [tel_codes[i] for i in equa_indices]
+            equa_positions = positions[equa_indices]  # shape: (n_equa_tels, n_times, 3)
+            equa_visibility = visibility[equa_indices]  # shape: (n_equa_tels, n_times)
 
-                # Check ranges
-                ha_min, ha_max = az_ranges[idx]  # HA uses azimuth range
-                dec_min, dec_max = el_ranges[idx]  # Dec uses elevation range
-                valid = (ha_min <= ha) & (ha <= ha_max) & (dec_min <= dec) & (dec <= dec_max)
+            # Vectorized coordinate transformation
+            gcrs_coords = CartesianRepresentation(
+                x=equa_positions[:, :, 0] * u.m,
+                y=equa_positions[:, :, 1] * u.m,
+                z=equa_positions[:, :, 2] * u.m
+            )
+            gcrs = GCRS(gcrs_coords, obstime=scan_times)
+            itrs = gcrs.transform_to(ITRS(obstime=scan_times))
+            locations = itrs.earth_location
+            hadec = source_coord.transform_to(HADec(obstime=scan_times, location=locations))
+            ha = hadec.ha.deg   # shape: (n_tels, n_times)
+            dec = hadec.dec.deg # shape: (n_tels, n_times)
 
-                # Assign results
-                coords = np.where(valid[:, None], np.vstack([ha, dec]).T, np.array([None, None]))
-                az_el[tel_code]["coord1"] = coords[:, 0].tolist()
-                az_el[tel_code]["coord2"] = coords[:, 1].tolist()
+            # Apply visibility mask
+            ha[~equa_visibility] = np.nan
+            dec[~equa_visibility] = np.nan
+
+            # Store results
+            for i, code in enumerate(equa_codes):
+                angles[code] = np.stack([ha[i], dec[i]], axis=-1)  # shape: (n_times, 2)
 
         # Handle unsupported mount types
-        for tel, code in zip(active_ground_tels, tel_codes):
-            if mount_types[tel_codes.index(code)] not in ["AZIM", "EQUA"]:
-                logger.warning(f"Unsupported mount type {tel.get('mount_type')} for telescope '{code}'")
-                az_el[code]["coord1"] = [0.0] * len(times)
-                az_el[code]["coord2"] = [0.0] * len(times)
+        for i, tel in enumerate(active_telescopes):
+            if mount_types[i] not in ["AZIM", "EQUA"]:
+                logger.warning(f"Unsupported mount type '{mount_types[i]}' for telescope '{tel.get_code()}' in scan '{scan_name}'")
+                angles[tel.get_code()] = np.full((len(scan_times), 2), np.nan)
 
-        # Format output
-        result = {"source": source.name if source else None, "az_el": az_el}
-        if time_step is not None:
-            result["times"] = times.isot.tolist()
-        return result
+        # Check for valid angle data
+        valid_angle_count = sum(np.any(~np.isnan(angles[code]), axis=0)[0] for code in angles)
+        if valid_angle_count == 0:
+            logger.warning(f"No valid az/el or ha/dec angles computed for scan '{scan_name}'")
+            return {"source": source_name, "angles": {}}
+
+        logger.debug(f"Computed az/el or ha/dec for {valid_angle_count} telescopes in scan '{scan_name}'")
+        return {"source": source_name, "angles": angles}
 
     def _compute_az_el_at_time(self, source_coord: SkyCoord, telescopes: List[Telescope], time: Time) -> Dict[str, Tuple[float, float]]:
         """Compute Az/El or HA/Dec for ground telescopes at a given time, depending on mount type.
@@ -1478,189 +1567,311 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_time_on_source(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate total time on source for all scans.
+        """Calculate time-on-source blocks for all active scans in the observation or project.
 
         Args:
-            obj (Observation | ScheduleProject): The object to calculate time for.
-            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
+            obj (Observation | ScheduleProject): The object to calculate time on source for.
+            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Time on source per source and telescope.
+            Dict[str, Any]: Time-on-source blocks per source, scan, and telescope, formatted as:
+                {
+                    "metadata": {"time_step": float, "scan_count": int, "visibility_store_key": str},
+                    "data": {
+                        source_name: {
+                            scan_name: {
+                                telescope_code: np.array([[start_mjd, end_mjd, duration], ...])  # times in MJD, duration in seconds
+                            }
+                        }
+                    }
+                }
+
+        Notes:
+            - Depends on precomputed time arrays and source visibility from calculated_data.
+            - Uses vectorized computations for efficiency.
+            - Stores results in calculated_data under the specified store_key.
         """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "time_on_source")
-            visibility_store_key = "source_visibility"
+            visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
+            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
-                    return {}
-                results = {}
-                for obs in observations:
-                    obs_result = self._calculate_time_on_source(obs, attributes)
-                    results[obs.get_observation_code()] = obs_result
+                    return {"metadata": {}, "data": {}}
+                results = {"metadata": {"time_step": time_step, "scan_count": len(observations), "visibility_store_key": visibility_store_key}, "data": {}}
+                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(self._calculate_time_on_source, obs, attributes): obs.get_observation_code()
+                        for obs in observations
+                    }
+                    for future in futures:
+                        obs_code = futures[future]
+                        obs_result = future.result()
+                        if obs_result and "data" in obs_result:
+                            results["data"][obs_code] = obs_result["data"]
                 logger.info(f"Calculated time on source for {len(observations)} observations in project '{obj.name}'")
                 return results
 
             def calculate_time_on_source(obj, attrs):
                 scans = obj.get_scans().get_active_items()
-                sources = obj.get_sources()
-                telescopes = obj.get_telescopes()
-                visibility_data = self._calculate_source_visibility(obj, {
-                    "time_step": time_step,
-                    "store_key": visibility_store_key,
-                    "recalculate": attrs.get("recalculate", False)
-                })
-                if not visibility_data:
-                    logger.error(f"Failed to obtain visibility data for '{obj.get_observation_code()}'")
-                    return {}
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return {"metadata": {}, "data": {}}
+
+                # Retrieve or calculate dependencies
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+                time_data = self._calculate_time_arrays(obj, time_attrs)
+                visibility_data = self._calculate_source_visibility(obj, visibility_attrs)
+
+                if not (time_data and visibility_data):
+                    logger.error(f"Missing required data (times or visibility) for '{obj.get_observation_code()}'")
+                    return {"metadata": {}, "data": {}}
 
                 results = {}
-                with ThreadPoolExecutor() as executor:
+                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_time_on_source, scan, obj, time_step, visibility_data): scan.name
-                        for i, scan in enumerate(scans)
+                        executor.submit(self._process_time_on_source, scan, obj, time_step, time_data, visibility_data): scan.name
+                        for scan in scans
                     }
                     for future in futures:
                         scan_name = futures[future]
                         scan_result = future.result()
-                        source_name = scan_result["source"]
-                        if source_name not in results:
-                            results[source_name] = {"telescopes": {}, "total_time": 0.0}
-                        for tel_code, blocks in scan_result["visibility_blocks"].items():
-                            if tel_code not in results[source_name]["telescopes"]:
-                                results[source_name]["telescopes"][tel_code] = []
-                            results[source_name]["telescopes"][tel_code].extend(blocks)
-                            results[source_name]["total_time"] += sum(block["duration"] for block in blocks)
+                        source_name = scan_result.get("source")
+                        if source_name and scan_result.get("time_blocks"):
+                            if source_name not in results:
+                                results[source_name] = {}
+                            results[source_name][scan_name] = scan_result["time_blocks"]
+                if not results:
+                    logger.warning(f"No time-on-source data computed for observation '{obj.get_observation_code()}'")
                 return results
 
-            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
-            return self._get_cached_or_calculate(obj, store_key, calculate_time_on_source, attributes, metadata)
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()),
+                "visibility_store_key": visibility_store_key
+            }
+            result = self._get_cached_or_calculate(obj, store_key, calculate_time_on_source, attributes, metadata)
+            return {"metadata": metadata, "data": result}
         except Exception as e:
             logger.error(f"Failed to calculate time on source: {str(e)}")
-            return {}
+            return {"metadata": {}, "data": {}}
         
-    def _process_time_on_source(self, scan: Scan, observation: Observation, time_step: float, visibility_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process time on source for a single scan.
+    def _process_time_on_source(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], visibility_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process time-on-source blocks for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
-            sources (Sources): Collection of sources.
-            telescopes (Telescopes): Collection of telescopes.
-            time_step (float): Sampling interval (seconds).
-            visibility_data (Dict[str, Any]): Precomputed visibility data.
             observation (Observation): Parent observation.
+            time_step (Optional[float]): Sampling interval (seconds).
+            time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
+            visibility_data (Dict[str, Any]): Precomputed visibility data.
 
         Returns:
-            Dict[str, Any]: Visibility blocks per telescope.
+            Dict[str, Any]: Time-on-source blocks, formatted as:
+                {
+                    "source": source_name,
+                    "time_blocks": {telescope_code: np.array([[start_mjd, end_mjd, duration], ...])}
+                }
         """
-        start_time = scan.get_start()
-        duration = scan.get_duration()
         source = scan.get_source(observation)
+        if not source or not source.isactive:
+            logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
+            return {"source": None, "time_blocks": {}}
+
         scan_name = scan.name
+        source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
+        if not active_telescopes:
+            logger.warning(f"No active telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            return {"source": source_name, "time_blocks": {}}
 
-        time_values = np.arange(0, duration, time_step) * u.s
-        times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
+        # Get times for the scan
+        scan_times = time_data.get(source_name, {}).get(scan_name, None)
+        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+            logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "time_blocks": {}}
 
-        scan_data = visibility_data.get(scan_name, {}) if isinstance(visibility_data, dict) else {}
-        visibility = scan_data.get("visibility", {})
-        if not visibility:
-            logger.warning(f"No visibility data for scan {scan_name} in observation '{observation.get_observation_code()}'")
-            return {"source": source.name if source else None, "visibility_blocks": {}}
+        # Get visibility data
+        scan_visibility = visibility_data.get(source_name, {}).get(scan_name, {})
+        if not scan_visibility:
+            logger.warning(f"No visibility data for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "time_blocks": {}}
 
-        blocks = {tel.get_code(): [] for tel in active_telescopes}
-        for tel in active_telescopes:
-            tel_code = tel.get_code()
-            vis = visibility.get(tel_code, [])
-            if not vis:
-                continue
+        # Prepare visibility array
+        tel_codes = [tel.get_code() for tel in active_telescopes]
+        visibility = np.array([scan_visibility.get(code, [False] * len(scan_times)) for code in tel_codes], dtype=bool)  # shape: (n_tels, n_times)
 
-            start_block = None
-            for t_idx, is_visible in enumerate(vis):
-                current_time = times[t_idx]
-                if is_visible and start_block is None:
-                    start_block = current_time
-                elif not is_visible and start_block is not None:
-                    end_block = times[t_idx - 1]
-                    duration_block = (end_block - start_block).sec
-                    blocks[tel_code].append({
-                        "start": start_block.isot,
-                        "end": end_block.isot,
-                        "duration": duration_block
-                    })
-                    start_block = None
+        # Compute time blocks
+        time_blocks = {}
+        time_mjd = scan_times.mjd  # MJD array
+        if time_step is None:
+            # Single-time case: treat as one block if visible
+            for i, tel_code in enumerate(tel_codes):
+                if visibility[i, 0]:
+                    duration = scan.get_duration()
+                    time_blocks[tel_code] = np.array([[time_mjd[0], time_mjd[0], duration]])
+                else:
+                    time_blocks[tel_code] = np.array([], dtype=float).reshape(0, 3)
+        else:
+            # Vectorized block computation
+            time_step_sec = time_step if time_step is not None else scan.get_duration()
+            for i, tel_code in enumerate(tel_codes):
+                vis = visibility[i]
+                # Find transitions in visibility (True -> False or False -> True)
+                diff = np.diff(vis.astype(int))
+                start_indices = np.where(diff == 1)[0] + 1
+                end_indices = np.where(diff == -1)[0]
+                if vis[0]:
+                    start_indices = np.concatenate(([0], start_indices))
+                if vis[-1]:
+                    end_indices = np.concatenate((end_indices, [len(vis) - 1]))
+                if len(start_indices) > len(end_indices):
+                    end_indices = np.concatenate((end_indices, [len(vis) - 1]))
+                elif len(end_indices) > len(start_indices):
+                    start_indices = np.concatenate(([0], start_indices))
 
-                if t_idx == len(vis) - 1 and start_block is not None:
-                    end_block = current_time
-                    duration_block = (end_block - start_block).sec
-                    blocks[tel_code].append({
-                        "start": start_block.isot,
-                        "end": end_block.isot,
-                        "duration": duration_block
-                    })
+                if len(start_indices) == 0 or len(end_indices) == 0:
+                    time_blocks[tel_code] = np.array([], dtype=float).reshape(0, 3)
+                    continue
 
-        return {"source": source.name if source else None, "visibility_blocks": blocks}
+                # Compute start, end, duration for each block
+                blocks = np.zeros((len(start_indices), 3), dtype=float)
+                blocks[:, 0] = time_mjd[start_indices]  # Start MJD
+                blocks[:, 1] = time_mjd[end_indices]   # End MJD
+                blocks[:, 2] = (blocks[:, 1] - blocks[:, 0]) * 86400.0  # Duration in seconds
+                time_blocks[tel_code] = blocks
+
+                # Log block count
+                logger.debug(f"Computed {len(blocks)} time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
+
+        return {"source": source_name, "time_blocks": time_blocks}
 
     @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """calculate beam pattern for single-dish observations.
+        """Calculate beam pattern for active telescopes in the observation or project.
 
-        args:
-            obj (Observation | ScheduleProject): the object to calculate beam pattern for.
-            attributes (Dict[str, Any]): parameters including "freq_name" and "store_key".
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate beam pattern for.
+            attributes (Dict[str, Any]): Parameters including "freq_name", "store_key", "recalculate".
 
-        returns:
-            Dict[str, Any]: beam pattern data per telescope.
+        Returns:
+            Dict[str, Any]: Beam pattern data formatted as:
+                {
+                    "metadata": {"freq_name": str, "telescope_count": int},
+                    "data": {telescope_code: {"theta": List[float], "pattern": List[float]}}
+                }
+
+        Notes:
+            - Supports both SINGLE_DISH and VLBI observations.
+            - Calculates beam pattern for all active telescopes, including SpaceTelescope.
+            - Uses vectorized computations for efficiency.
+            - Stores results in calculated_data under 'beam_pattern_{freq_name}'.
+            - Theta is in radians, pattern is normalized to max value of 1.
         """
         try:
             freq_name = attributes.get("freq_name")
             store_key = attributes.get("store_key", f"beam_pattern_{freq_name}")
+            recalculate = attributes.get("recalculate", False)
+
+            if not freq_name:
+                logger.error("No 'freq_name' provided for beam pattern calculation")
+                return {"metadata": {}, "data": {}}
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_items()
                 if not observations:
-                    logger.warning(f"no observations in project '{obj.name}'")
-                    return {}
-                results = {}
-                for obs in observations:
-                    obs_result = self._calculate_beam_pattern(obs, attributes)
-                    results[obs.get_observation_code()] = obs_result
-                logger.info(f"calculated beam pattern for {len(observations)} observations in project '{obj.name}'")
-                return results
-
-            if obj.get_observation_type() != "SINGLE_DISH":
-                logger.warning(f"beam pattern calculation is only for SINGLE_DISH, got {obj.get_observation_type()}")
-                return {}
-
-            def calculate_beam_pattern(obj, attrs):
-                telescopes = obj.get_telescopes().get_active_items()
-                frequency = obj.get_frequencies().get(freq_name).get("frequency") * 1e6
-                results = {}
-                c = 299792458
-                wavelength = c / frequency
-                theta = np.linspace(-np.pi/2, np.pi/2, 5000)
-                for tel in telescopes:
-                    if isinstance(tel, SpaceTelescope):
-                        continue
-                    D = tel.get("diameter")
-                    x = (np.pi * D / wavelength) * np.sin(theta)
-                    pattern = (2 * j1(x) / x) ** 2
-                    pattern = np.where(np.isnan(pattern), 1.0, pattern)
-                    results[tel.get_code()] = {
-                        "theta": theta.tolist(),
-                        "pattern": pattern.tolist()  # convert to list for visualizer compatibility
+                    logger.warning(f"No observations in project '{obj.name}'")
+                    return {"metadata": {}, "data": {}}
+                results = {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
+                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(self._calculate_beam_pattern, obs, attributes): obs.get_observation_code()
+                        for obs in observations
                     }
+                    telescope_counts = []
+                    for future in futures:
+                        obs_code = futures[future]
+                        obs_result = future.result()
+                        if obs_result and "data" in obs_result:
+                            results["data"][obs_code] = obs_result["data"]
+                            telescope_counts.append(obs_result["metadata"].get("telescope_count", 0))
+                    results["metadata"]["telescope_count"] = sum(telescope_counts)
+                logger.info(f"Calculated beam pattern for {len(observations)} observations in project '{obj.name}'")
                 return results
 
-            metadata = {"freq_name": freq_name}
-            return self._get_cached_or_calculate(obj, store_key, calculate_beam_pattern, attributes, metadata)
+            def calculate_beam_pattern(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+                telescopes = obj.get_telescopes().get_active_items()
+                if not telescopes:
+                    logger.warning(f"No active telescopes in observation '{obj.get_observation_code()}'")
+                    return {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
+
+                # Get frequency
+                frequency = obj.get_frequencies().get(freq_name)
+                if not frequency:
+                    logger.error(f"No frequency found for freq_name '{freq_name}' in observation '{obj.get_observation_code()}'")
+                    return {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
+                frequency = frequency.get("frequency") * 1e6  # Convert MHz to Hz
+
+                # Check observation type
+                obs_type = obj.get_observation_type()
+                if obs_type not in ["SINGLE_DISH", "VLBI"]:
+                    logger.warning(f"Beam pattern calculation is only for SINGLE_DISH or VLBI, got {obs_type}")
+                    return {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
+
+                # Vectorized computation
+                c = 299792458  # Speed of light in m/s
+                wavelength = c / frequency  # meters
+                theta = np.linspace(-np.pi / 2, np.pi / 2, 5000)  # radians
+                results = {"metadata": {"freq_name": freq_name, "telescope_count": len(telescopes)}, "data": {}}
+
+                # Collect diameters and filter valid telescopes
+                diameters = []
+                valid_telescopes = []
+                for tel in telescopes:
+                    diameter = tel.get("diameter")
+                    if diameter is None or diameter <= 0:
+                        logger.warning(f"Invalid or missing diameter for telescope '{tel.get_code()}'; skipping")
+                        continue
+                    diameters.append(diameter)
+                    valid_telescopes.append(tel)
+                
+                if not valid_telescopes:
+                    logger.warning(f"No telescopes with valid diameters in observation '{obj.get_observation_code()}'")
+                    return {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
+
+                # Vectorize beam pattern calculation
+                diameters = np.array(diameters)  # shape: (n_telescopes,)
+                x = (np.pi * diameters[:, None] / wavelength) * np.sin(theta)  # shape: (n_telescopes, n_theta)
+                pattern = (2 * j1(x) / x) ** 2  # shape: (n_telescopes, n_theta)
+                pattern = np.where(np.isnan(pattern), 1.0, pattern)  # Handle division by zero at theta=0
+                pattern = pattern / np.max(pattern, axis=1, keepdims=True)  # Normalize per telescope
+
+                # Store results
+                for tel, pat in zip(valid_telescopes, pattern):
+                    results["data"][tel.get_code()] = {
+                        "theta": theta.tolist(),
+                        "pattern": pat.tolist()  # Convert to list for visualizer compatibility
+                    }
+
+                logger.info(f"Calculated beam pattern for {len(valid_telescopes)} telescopes in observation '{obj.get_observation_code()}'")
+                return results
+
+            metadata = {"freq_name": freq_name, "telescope_count": len(obj.get_telescopes().get_active_items())}
+            result = self._get_cached_or_calculate(obj, store_key, calculate_beam_pattern, attributes, metadata)
+            return {"metadata": metadata, "data": result}
+
         except Exception as e:
-            logger.error(f"failed to calculate beam pattern: {str(e)}")
-            return {}
+            logger.error(f"Failed to calculate beam pattern: {str(e)}")
+            return {"metadata": {}, "data": {}} 
 
     @time_execution
     def _calculate_synthesized_beam(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:

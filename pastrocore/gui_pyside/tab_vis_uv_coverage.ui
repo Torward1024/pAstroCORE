@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ObservationInfoTab</class>
+ <widget class="QWidget" name="ObservationInfoTab">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>587</width>
+    <height>471</height>
+   </rect>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="1" column="0" colspan="5">
+    <widget class="QLabel" name="lbl_obs_info">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Start Time/Date: [get_start_time_date]; Duration: [DURATION] sec.</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="obs_name_edit">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>Observation code:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="4">
+    <widget class="QComboBox" name="combo_obs_type">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>150</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>150</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>150</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QComboBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
+    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
+}
+
+QComboBox:editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
+}
+
+QComboBox:editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
+}
+
+QComboBox:!editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:!editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
+}
+
+QComboBox:!editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
+}
+
+/* Стилизация кнопки со стрелкой */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: right;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
+}
+
+QComboBox::drop-down:hover {
+    background-color: #0078d7; /* Лёгкое выделение при наведении */
+}
+
+QComboBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg);
+}
+
+/* Стилизация выпадающего списка */
+QComboBox QAbstractItemView {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    selection-background-color: #0078d7;
+    selection-color: #ffffff;
+    padding: 1px;
+}
+
+QComboBox QAbstractItemView::item {
+    padding: 4px;
+    min-height: 20px;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: #0078d7;
+}</string>
+     </property>
+     <property name="currentText">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Type:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="5">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="styleSheet">
+      <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
+               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}
+               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
+     </property>
+     <property name="currentIndex">
+      <number>-1</number>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
