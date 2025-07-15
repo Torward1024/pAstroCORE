@@ -1756,41 +1756,55 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate beam pattern for active telescopes in the observation or project.
+        """Calculate beam pattern for active telescopes in the observation or project, independent of frequency.
 
         Args:
             obj (Observation | ScheduleProject): The object to calculate beam pattern for.
-            attributes (Dict[str, Any]): Parameters including "freq_name", "store_key", "recalculate".
+            attributes (Dict[str, Any]): Parameters including "store_key", "recalculate".
 
         Returns:
             Dict[str, Any]: Beam pattern data formatted as:
                 {
-                    "metadata": {"freq_name": str, "telescope_count": int},
-                    "data": {telescope_code: {"theta": List[float], "pattern": List[float]}}
+                    "metadata": {
+                        "telescope_count": int,
+                        "frequency_agnostic": bool,
+                        "scale_instruction": str
+                    },
+                    "data": {
+                        telescope_code: {
+                            "theta": List[float],  # Angles in radians
+                            "pattern": List[float]  # Normalized beam pattern, to be scaled by pi*D/wavelength
+                        }
+                    }
                 }
 
         Notes:
             - Supports both SINGLE_DISH and VLBI observations.
             - Calculates beam pattern for all active telescopes, including SpaceTelescope.
+            - Beam pattern is computed in a frequency-agnostic manner; scaling by pi*D/wavelength is required during visualization.
             - Uses vectorized computations for efficiency.
-            - Stores results in calculated_data under 'beam_pattern_{freq_name}'.
-            - Theta is in radians, pattern is normalized to max value of 1.
+            - Stores results in calculated_data under 'beam_pattern'.
         """
         try:
-            freq_name = attributes.get("freq_name")
-            store_key = attributes.get("store_key", f"beam_pattern_{freq_name}")
+            store_key = attributes.get("store_key", "beam_pattern")
             recalculate = attributes.get("recalculate", False)
 
-            if not freq_name:
-                logger.error("No 'freq_name' provided for beam pattern calculation")
-                return {"metadata": {}, "data": {}}
+            if "freq_name" in attributes:
+                logger.info("Ignoring 'freq_name' as beam pattern is calculated frequency-agnostic")
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
-                    return {"metadata": {}, "data": {}}
-                results = {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
+                    return {"metadata": {"telescope_count": 0, "frequency_agnostic": True, "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"}, "data": {}}
+                results = {
+                    "metadata": {
+                        "telescope_count": 0,
+                        "frequency_agnostic": True,
+                        "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
+                    },
+                    "data": {}
+                }
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
@@ -1812,26 +1826,38 @@ class ScheduleCalculator(Super):
                 telescopes = obj.get_telescopes().get_active_items()
                 if not telescopes:
                     logger.warning(f"No active telescopes in observation '{obj.get_observation_code()}'")
-                    return {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
-
-                # Get frequency
-                frequency = obj.get_frequencies().get(freq_name)
-                if not frequency:
-                    logger.error(f"No frequency found for freq_name '{freq_name}' in observation '{obj.get_observation_code()}'")
-                    return {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
-                frequency = frequency.get("frequency") * 1e6  # Convert MHz to Hz
+                    return {
+                        "metadata": {
+                            "telescope_count": 0,
+                            "frequency_agnostic": True,
+                            "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
+                        },
+                        "data": {}
+                    }
 
                 # Check observation type
                 obs_type = obj.get_observation_type()
                 if obs_type not in ["SINGLE_DISH", "VLBI"]:
                     logger.warning(f"Beam pattern calculation is only for SINGLE_DISH or VLBI, got {obs_type}")
-                    return {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
+                    return {
+                        "metadata": {
+                            "telescope_count": 0,
+                            "frequency_agnostic": True,
+                            "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
+                        },
+                        "data": {}
+                    }
 
                 # Vectorized computation
-                c = 299792458  # Speed of light in m/s
-                wavelength = c / frequency  # meters
                 theta = np.linspace(-np.pi / 2, np.pi / 2, 5000)  # radians
-                results = {"metadata": {"freq_name": freq_name, "telescope_count": len(telescopes)}, "data": {}}
+                results = {
+                    "metadata": {
+                        "telescope_count": len(telescopes),
+                        "frequency_agnostic": True,
+                        "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
+                    },
+                    "data": {}
+                }
 
                 # Collect diameters and filter valid telescopes
                 diameters = []
@@ -1843,14 +1869,21 @@ class ScheduleCalculator(Super):
                         continue
                     diameters.append(diameter)
                     valid_telescopes.append(tel)
-                
+
                 if not valid_telescopes:
                     logger.warning(f"No telescopes with valid diameters in observation '{obj.get_observation_code()}'")
-                    return {"metadata": {"freq_name": freq_name, "telescope_count": 0}, "data": {}}
+                    return {
+                        "metadata": {
+                            "telescope_count": 0,
+                            "frequency_agnostic": True,
+                            "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
+                        },
+                        "data": {}
+                    }
 
                 # Vectorize beam pattern calculation
                 diameters = np.array(diameters)  # shape: (n_telescopes,)
-                x = (np.pi * diameters[:, None] / wavelength) * np.sin(theta)  # shape: (n_telescopes, n_theta)
+                x = diameters[:, None] * np.sin(theta)  # shape: (n_telescopes, n_theta), frequency-agnostic
                 pattern = (2 * j1(x) / x) ** 2  # shape: (n_telescopes, n_theta)
                 pattern = np.where(np.isnan(pattern), 1.0, pattern)  # Handle division by zero at theta=0
                 pattern = pattern / np.max(pattern, axis=1, keepdims=True)  # Normalize per telescope
@@ -1862,153 +1895,263 @@ class ScheduleCalculator(Super):
                         "pattern": pat.tolist()  # Convert to list for visualizer compatibility
                     }
 
-                logger.info(f"Calculated beam pattern for {len(valid_telescopes)} telescopes in observation '{obj.get_observation_code()}'")
+                logger.info(f"Calculated frequency-agnostic beam pattern for {len(valid_telescopes)} telescopes in observation '{obj.get_observation_code()}'")
                 return results
 
-            metadata = {"freq_name": freq_name, "telescope_count": len(obj.get_telescopes().get_active_items())}
+            metadata = {
+                "telescope_count": len(obj.get_telescopes().get_active_items()),
+                "frequency_agnostic": True,
+                "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
+            }
             result = self._get_cached_or_calculate(obj, store_key, calculate_beam_pattern, attributes, metadata)
             return {"metadata": metadata, "data": result}
 
         except Exception as e:
             logger.error(f"Failed to calculate beam pattern: {str(e)}")
-            return {"metadata": {}, "data": {}} 
+            return {
+                "metadata": {
+                    "telescope_count": 0,
+                    "frequency_agnostic": True,
+                    "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
+                },
+                "data": {}
+            } 
 
     @time_execution
     def _calculate_synthesized_beam(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate synthesized beam for VLBI observations.
+        """Calculate synthesized beam for VLBI observations across all active frequencies.
 
         Args:
             obj (Observation | ScheduleProject): The object to calculate synthesized beam for.
-            attributes (Dict[str, Any]): Parameters including "freq_name", "time_step", and "store_key".
+            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", and "recalculate".
 
         Returns:
-            Dict[str, Any]: Synthesized beam data per scan, formatted as {scan_name: {"theta_u": [...], "theta_v": [...], "beam_2d": [...]}}.
+            Dict[str, Any]: Synthesized beam data per source, scan, and frequency, formatted as:
+                {
+                    "metadata": {
+                        "time_step": float,
+                        "scan_count": int,
+                        "freq_names": List[str]
+                    },
+                    "data": {
+                        source_name: {
+                            scan_name: {
+                                freq_name: np.array([[theta_u, theta_v, beam_x, beam_y], ...])
+                            }
+                        }
+                    }
+                }
 
         Notes:
-            - Expects UV data in meters from _calculate_uv_coverage.
-            - Computes 2D FFT of UV plane to derive the synthesized beam.
-            - Returns angles in degrees for visualizer compatibility.
+            - Requires UV data in meters from _calculate_uv_coverage.
+            - Computes 2D FFT of UV plane to derive the synthesized beam for each active frequency.
+            - Results are cached under 'synthesized_beam' key in calculated_data.
+            - Uses vectorized computations for efficiency.
         """
         try:
-            freq_name = attributes.get("freq_name")
             time_step = attributes.get("time_step")
-            store_key = attributes.get("store_key", f"synthesized_beam_{freq_name}")
+            store_key = attributes.get("store_key", "synthesized_beam")
+            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
-                    return {}
-                results = {}
+                    return {"metadata": {"time_step": time_step, "scan_count": 0, "freq_names": []}, "data": {}}
+                results = {
+                    "metadata": {
+                        "time_step": time_step,
+                        "scan_count": 0,
+                        "freq_names": []
+                    },
+                    "data": {}
+                }
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_synthesized_beam, obs, attributes): obs.get_observation_code()
                         for obs in observations
                     }
+                    scan_counts = []
+                    freq_names_set = set()
                     for future in futures:
                         obs_code = futures[future]
-                        results[obs_code] = future.result()
+                        obs_result = future.result()
+                        if obs_result and "data" in obs_result:
+                            results["data"][obs_code] = obs_result["data"]
+                            scan_counts.append(obs_result["metadata"].get("scan_count", 0))
+                            freq_names_set.update(obs_result["metadata"].get("freq_names", []))
+                    results["metadata"]["scan_count"] = sum(scan_counts)
+                    results["metadata"]["freq_names"] = sorted(list(freq_names_set))
                 logger.info(f"Calculated synthesized beam for {len(observations)} observations in project '{obj.name}'")
                 return results
 
             if obj.get_observation_type() != "VLBI":
                 logger.warning(f"Synthesized beam calculation is only for VLBI, got {obj.get_observation_type()}")
-                return {}
+                return {"metadata": {"time_step": time_step, "scan_count": 0, "freq_names": []}, "data": {}}
 
-            def calculate_synthesized_beam(obj, attrs):
-                frequency = obj.get_frequencies().get(freq_name).get("frequency") * 1e6  # Convert MHz to Hz
-                if frequency is None:
-                    logger.error(f"No frequency found for freq_name '{freq_name}' in observation '{obj.get_observation_code()}'")
-                    return {}
-                uv_store_key = "uv_coverage"  # Use the geometric UV coverage key
+            def calculate_synthesized_beam(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+                scans = obj.get_scans().get_active_items()
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return {"metadata": {"time_step": time_step, "scan_count": 0, "freq_names": []}, "data": {}}
+
+                frequencies = obj.get_frequencies().get_active_items()
+                if not frequencies:
+                    logger.warning(f"No active frequencies in observation '{obj.get_observation_code()}'")
+                    return {"metadata": {"time_step": time_step, "scan_count": len(scans), "freq_names": []}, "data": {}}
+
+                freq_names = [freq.name for freq in frequencies]
+                results = {"metadata": {"time_step": time_step, "scan_count": len(scans), "freq_names": freq_names}, "data": {}}
+
+                # Retrieve or calculate UV coverage
+                uv_store_key = "uv_coverage"
                 uv_data = self._calculate_uv_coverage(obj, {
-                    "time_step": attrs.get("time_step"),
+                    "time_step": time_step,
                     "store_key": uv_store_key,
-                    "recalculate": attrs.get("recalculate", False)
+                    "recalculate": recalculate
                 })
                 if not uv_data:
                     logger.warning(f"No UV data available for '{obj.get_observation_code()}'")
-                    return {}
+                    return {"metadata": {"time_step": time_step, "scan_count": len(scans), "freq_names": freq_names}, "data": {}}
 
-                results = {}
-                scans = obj.get_scans().get_active_items()
-                for scan in scans:
-                    scan_name = scan.name
-                    scan_uv_data = uv_data.get(scan_name, {})
-                    uv_points = scan_uv_data.get("uv_points", {})
-                    if not uv_points:
-                        logger.warning(f"No UV points for scan '{scan_name}' in observation '{obj.get_observation_code()}'")
-                        continue
-
-                    # Collect UV points in meters
-                    u = []
-                    v = []
-                    for time_idx, points in uv_points.items():
-                        for baseline, (uuu, vvv, _) in points.items():
-                            if not (np.isnan(uuu) or np.isnan(vvv)):
-                                u.append(uuu)
-                                v.append(vvv)
-                                # Include conjugate points for Hermitian symmetry
-                                u.append(-uuu)
-                                v.append(-vvv)
-
-                    if not u or not v:
-                        logger.warning(f"No valid UV points for scan '{scan_name}'")
-                        continue
-
-                    # Create UV plane
-                    u = np.array(u)
-                    v = np.array(v)
-                    u_max = np.max(np.abs(u))
-                    v_max = np.max(np.abs(v))
-                    if u_max == 0 or v_max == 0:
-                        logger.warning(f"Invalid UV range for scan '{scan_name}': u_max={u_max}, v_max={v_max}")
-                        continue
-
-                    grid_size = 512  # Fixed grid size for FFT
-                    u_grid = np.linspace(-u_max, u_max, grid_size)
-                    v_grid = np.linspace(-v_max, v_max, grid_size)
-                    uv_plane = np.zeros((grid_size, grid_size), dtype=complex)
-
-                    # Populate UV plane
-                    for uu, vv in zip(u, v):
-                        u_idx = int((uu + u_max) / (2 * u_max) * (grid_size - 1))
-                        v_idx = int((vv + v_max) / (2 * v_max) * (grid_size - 1))
-                        if 0 <= u_idx < grid_size and 0 <= v_idx < grid_size:
-                            uv_plane[v_idx, u_idx] += 1.0
-
-                    # Compute synthesized beam via 2D FFT
-                    beam_2d = fftshift(fft2(uv_plane))
-                    beam_2d = np.abs(beam_2d)
-                    beam_2d /= np.max(beam_2d) if np.max(beam_2d) != 0 else 1.0  # Normalize
-
-                    # Convert UV to angular coordinates
-                    wavelength = 299792458 / frequency  # meters
-                    theta_u_max = wavelength / (2 * u_max)  # radians
-                    theta_v_max = wavelength / (2 * v_max)  # radians
-                    theta_u = np.linspace(-theta_u_max, theta_u_max, grid_size)
-                    theta_v = np.linspace(-theta_v_max, theta_v_max, grid_size)
-                    theta_u_deg = np.degrees(theta_u)
-                    theta_v_deg = np.degrees(theta_v)
-
-                    # Store results per scan
-                    results[scan_name] = {
-                        "theta_u": theta_u_deg.tolist(),
-                        "theta_v": theta_v_deg.tolist(),
-                        "beam_2d": beam_2d.tolist()  # Convert to list for visualizer
+                # Process scans in parallel
+                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(self._process_synthesized_beam, scan, obj, time_step, uv_data, frequencies): scan.name
+                        for scan in scans
                     }
-                    logger.debug(f"Computed synthesized beam for scan '{scan_name}' with {len(u)//2} UV points")
+                    for future in futures:
+                        scan_name = futures[future]
+                        scan_result = future.result()
+                        source_name = scan_result.get("source")
+                        if source_name and scan_result.get("beam_data"):
+                            if source_name not in results["data"]:
+                                results["data"][source_name] = {}
+                            results["data"][source_name][scan_name] = scan_result["beam_data"]
 
-                if not results:
+                if not results["data"]:
                     logger.warning(f"No synthesized beam data computed for observation '{obj.get_observation_code()}'")
+                else:
+                    logger.info(f"Calculated synthesized beam for {len(results['data'])} sources across {len(scans)} scans in '{obj.get_observation_code()}'")
                 return results
 
-            metadata = {"freq_name": freq_name, "time_step": time_step}
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()),
+                "freq_names": [freq.name for freq in obj.get_frequencies().get_active_items()]
+            }
             return self._get_cached_or_calculate(obj, store_key, calculate_synthesized_beam, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate synthesized beam: {str(e)}")
-            return {}
+            return {"metadata": {"time_step": time_step, "scan_count": 0, "freq_names": []}, "data": {}}
+        
+    def _process_synthesized_beam(self, scan: Scan, observation: Observation, time_step: Optional[float], uv_data: Dict[str, Any], frequencies: List[IF]) -> Dict[str, Any]:
+        """Process synthesized beam for a single scan across all active frequencies.
+
+        Args:
+            scan (Scan): The scan to process.
+            observation (Observation): Parent observation.
+            time_step (Optional[float]): Sampling interval (seconds).
+            uv_data (Dict[str, Any]): Precomputed UV data in meters.
+            frequencies (List[IF]): List of active frequency setups.
+
+        Returns:
+            Dict[str, Any]: Synthesized beam data for the scan, formatted as:
+                {
+                    "source": source_name,
+                    "beam_data": {
+                        freq_name: np.array([[theta_u, theta_v, beam_x, beam_y], ...])
+                    }
+                }
+        """
+        source = scan.get_source(observation)
+        if not source or not source.isactive:
+            logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
+            return {"source": None, "beam_data": {}}
+
+        scan_name = scan.name
+        source_name = source.name
+        scan_uv_data = uv_data.get(source_name, {}).get(scan_name, {}).get("uv_points", {})
+        if not scan_uv_data:
+            logger.warning(f"No UV points for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "beam_data": {}}
+
+        beam_data = {}
+        c = 299792458  # Speed of light in m/s
+
+        # Vectorized collection of UV points
+        u_all, v_all = [], []
+        for baseline, points in scan_uv_data.items():
+            if points.size > 0:
+                u_all.append(points[:, 0])  # u in meters
+                v_all.append(points[:, 1])  # v in meters
+                u_all.append(-points[:, 0])  # Conjugate points for Hermitian symmetry
+                v_all.append(-points[:, 1])
+        if not u_all or not v_all:
+            logger.warning(f"No valid UV points for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "beam_data": {}}
+
+        u = np.concatenate(u_all)
+        v = np.concatenate(v_all)
+        if len(u) < 10:  # Minimum threshold for reliable beam
+            logger.warning(f"Too few UV points ({len(u)//2}) for reliable synthesized beam in scan '{scan_name}'")
+            return {"source": source_name, "beam_data": {}}
+
+        u_max = np.max(np.abs(u)) if u.size > 0 else 0
+        v_max = np.max(np.abs(v)) if v.size > 0 else 0
+        if u_max == 0 or v_max == 0:
+            logger.warning(f"Invalid UV range for scan '{scan_name}': u_max={u_max}, v_max={v_max}")
+            return {"source": source_name, "beam_data": {}}
+
+        # Adaptive grid size based on number of UV points
+        n_points = len(u) // 2
+        grid_size = max(128, min(1024, int(np.sqrt(n_points) * 16)))  # Dynamic grid size
+        if grid_size % 2 != 0:
+            grid_size += 1  # Ensure even size for FFT
+        logger.debug(f"Using grid_size={grid_size} for {n_points} UV points in scan '{scan_name}'")
+
+        # Create UV grid
+        u_grid = np.linspace(-u_max, u_max, grid_size)
+        v_grid = np.linspace(-v_max, v_max, grid_size)
+        uv_plane = np.zeros((grid_size, grid_size), dtype=complex)
+        u_idx = ((u + u_max) / (2 * u_max) * (grid_size - 1)).astype(int)
+        v_idx = ((v + v_max) / (2 * v_max) * (grid_size - 1)).astype(int)
+        valid_idx = (0 <= u_idx) & (u_idx < grid_size) & (0 <= v_idx) & (v_idx < grid_size)
+        np.add.at(uv_plane, (v_idx[valid_idx], u_idx[valid_idx]), 1.0)
+
+        for freq in frequencies:
+            freq_name = freq.name
+            frequency = freq.get("frequency") * 1e6  # Convert MHz to Hz
+            if frequency is None or frequency <= 0:
+                logger.warning(f"Invalid frequency for '{freq_name}' in scan '{scan_name}'")
+                continue
+
+            # Compute synthesized beam
+            wavelength = c / frequency
+            beam_2d = fftshift(fft2(uv_plane))
+            beam_2d = np.abs(beam_2d)
+            beam_2d /= np.max(beam_2d) if np.max(beam_2d) != 0 else 1.0  # Normalize
+
+            # Convert to angular coordinates
+            theta_u_max = wavelength / (2 * u_max) if u_max > 0 else np.pi
+            theta_v_max = wavelength / (2 * v_max) if v_max > 0 else np.pi
+            theta_u = np.linspace(-theta_u_max, theta_u_max, grid_size)
+            theta_v = np.linspace(-theta_v_max, theta_v_max, grid_size)
+            theta_u_deg = np.degrees(theta_u)
+            theta_v_deg = np.degrees(theta_v)
+
+            # Create output array: [theta_u, theta_v, beam_x, beam_y]
+            u_grid, v_grid = np.meshgrid(theta_u_deg, theta_v_deg)
+            beam_array = np.stack([u_grid.ravel(), v_grid.ravel(), beam_2d.ravel(), beam_2d.ravel()], axis=-1)  # beam_x = beam_y for isotropic beam
+            beam_data[freq_name] = beam_array
+
+            logger.debug(f"Computed synthesized beam for scan '{scan_name}', source '{source_name}', frequency '{freq_name}' with {len(u)//2} UV points")
+
+        if not beam_data:
+            logger.warning(f"No synthesized beam data computed for scan '{scan_name}' in source '{source_name}'")
+        return {"source": source_name, "beam_data": beam_data}
     
     @time_execution
     def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -2079,6 +2222,130 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to calculate baseline projections: {str(e)}")
             return {}
 
+    @time_execution
+    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate baseline projections for VLBI observations in geometric coordinates (meters).
+
+        Args:
+            obj (Observation | ScheduleProject): The object to calculate projections for.
+            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", "recalculate".
+
+        Returns:
+            Dict[str, Any]: Baseline projection data per source and scan in meters, formatted as:
+                {
+                    "metadata": {
+                        "time_step": float,
+                        "scan_count": int
+                    },
+                    "data": {
+                        source_name: {
+                            scan_name: {
+                                baseline: np.array([proj1, ..., projn])  # baseline projections in meters
+                            }
+                        }
+                    }
+                }
+
+        Notes:
+            - Calculates projections as BL = sqrt(u² + v²) in meters from uv_coverage data.
+            - Uses precomputed UV coverage from calculated_data with store_key="uv_coverage".
+            - Invokes _calculate_uv_coverage if UV data is missing.
+            - Ignores 'freq_name' attribute, as frequency is handled by the visualizer.
+            - Uses vectorized computations for efficiency.
+        """
+        try:
+            time_step = attributes.get("time_step")
+            store_key = attributes.get("store_key", "baseline_projections")
+            recalculate = attributes.get("recalculate", False)
+
+            if "freq_name" in attributes:
+                logger.info(f"Ignoring 'freq_name' attribute for baseline projections in geometric coordinates")
+
+            if isinstance(obj, ScheduleProject):
+                observations = obj.get_items()
+                if not observations:
+                    logger.warning(f"No observations in project '{obj.name}'")
+                    return {"metadata": {"time_step": time_step, "scan_count": 0}, "data": {}}
+                results = {
+                    "metadata": {
+                        "time_step": time_step,
+                        "scan_count": 0
+                    },
+                    "data": {}
+                }
+                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(self._calculate_baseline_projections, obs, attributes): obs.get_observation_code()
+                        for obs in observations
+                    }
+                    scan_counts = []
+                    for future in futures:
+                        obs_code = futures[future]
+                        obs_result = future.result()
+                        if obs_result and "data" in obs_result:
+                            results["data"][obs_code] = obs_result["data"]
+                            scan_counts.append(obs_result["metadata"].get("scan_count", 0))
+                    results["metadata"]["scan_count"] = sum(scan_counts)
+                logger.info(f"Calculated baseline projections for {len(observations)} observations in project '{obj.name}'")
+                return results
+
+            if obj.get_observation_type() != "VLBI":
+                logger.warning(f"Baseline projections are only for VLBI, got {obj.get_observation_type()}")
+                return {"metadata": {"time_step": time_step, "scan_count": 0}, "data": {}}
+
+            def calculate_baseline_projections(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+                scans = obj.get_scans().get_active_items()
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return {"metadata": {"time_step": time_step, "scan_count": 0}, "data": {}}
+
+                telescopes = obj.get_telescopes()
+                active_telescopes = telescopes.get_active_items()
+                if len(active_telescopes) < 2:
+                    logger.error(f"VLBI requires at least 2 active telescopes, got {len(active_telescopes)}")
+                    return {"metadata": {"time_step": time_step, "scan_count": len(scans)}, "data": {}}
+
+                # Retrieve or calculate UV coverage
+                uv_store_key = "uv_coverage"
+                uv_attrs = {
+                    "time_step": time_step,
+                    "store_key": uv_store_key,
+                    "recalculate": recalculate
+                }
+                uv_data = self._calculate_uv_coverage(obj, uv_attrs)
+                if not uv_data:
+                    logger.error(f"No UV coverage data for observation '{obj.get_observation_code()}'")
+                    return {"metadata": {"time_step": time_step, "scan_count": len(scans)}, "data": {}}
+
+                results = {"metadata": {"time_step": time_step, "scan_count": len(scans)}, "data": {}}
+                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(self._process_baseline_projections, scan, obj, time_step, uv_data): scan.name
+                        for scan in scans
+                    }
+                    for future in futures:
+                        scan_name = futures[future]
+                        scan_result = future.result()
+                        source_name = scan_result.get("source")
+                        if source_name and scan_result.get("projections"):
+                            if source_name not in results["data"]:
+                                results["data"][source_name] = {}
+                            results["data"][source_name][scan_name] = scan_result["projections"]
+
+                if not results["data"]:
+                    logger.warning(f"No baseline projections computed for observation '{obj.get_observation_code()}'")
+                else:
+                    logger.info(f"Calculated baseline projections for {len(results['data'])} sources across {len(scans)} scans in '{obj.get_observation_code()}'")
+                return results
+
+            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
+            return self._get_cached_or_calculate(obj, store_key, calculate_baseline_projections, attributes, metadata)
+        except Exception as e:
+            logger.error(f"Failed to calculate baseline projections: {str(e)}")
+            return {"metadata": {"time_step": time_step, "scan_count": 0}, "data": {}}
+    
     def _process_baseline_projections(self, scan: Scan, observation: Observation, time_step: Optional[float], uv_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process baseline projections for a single scan in geometric coordinates (meters).
 
@@ -2086,79 +2353,85 @@ class ScheduleCalculator(Super):
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds).
-            uv_data (Dict[str, Any]): Precomputed UV data in meters.
+            uv_data (Dict[str, Any]): Precomputed UV data from _calculate_uv_coverage.
 
         Returns:
-            Dict[str, Any]: Baseline projections in meters, formatted as {time_idx: {pair: bl}}.
+            Dict[str, Any]: Baseline projections in meters, formatted as:
+                {
+                    "source": source_name,
+                    "projections": {
+                        baseline: np.array([proj1, ..., projn])  # projections in meters
+                    }
+                }
+
+        Notes:
+            - Computes BL = sqrt(u² + v²) from UV data in meters.
+            - Uses vectorized computations for efficiency.
+            - Returns empty projections if UV data is invalid or insufficient.
         """
-        start_time = scan.get_start()
-        duration = scan.get_duration()
+        source = scan.get_source(observation)
+        if not source or not source.isactive:
+            logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
+            return {"source": None, "projections": {}}
+
+        scan_name = scan.name
+        source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
-        scan_name = scan.name
 
-        logger.debug(f"Processing baseline projections for scan {scan_name}")
+        if len(active_telescopes) < 2:
+            logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for baseline projections in scan '{scan_name}'")
+            return {"source": source_name, "projections": {}}
 
-        scan_uv_data = uv_data.get(scan_name, {}) if isinstance(uv_data, dict) else {}
-        if not scan_uv_data or "uv_points" not in scan_uv_data:
-            logger.error(f"No UV data available for scan {scan_name} at {start_time.isot}")
-            return {"times": [], "projections": {}}
+        # Get UV data for the scan
+        scan_uv_data = uv_data.get(source_name, {}).get(scan_name, {})
+        if not scan_uv_data:
+            logger.warning(f"No UV data for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "projections": {}}
 
-        if time_step is None:
-            projections = self._compute_projections_from_uv(scan_uv_data["uv_points"], active_telescopes)
-            logger.debug(f"Computed {len(projections)} projections for single-time scan {scan_name}")
-            return {"projections": {0: projections}}
-
-        time_values = np.arange(0, duration, time_step) * u.s
-        times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
-        uv_points = scan_uv_data.get("uv_points", {})
-
-        if not uv_points:
-            logger.warning(f"No UV points found for scan {scan_name}")
-            return {"times": times.isot.tolist(), "projections": {}}
-
-        logger.debug(f"Found {len(uv_points)} UV points for scan {scan_name}")
-        projections = {}
-        for time_idx, uv_dict in uv_points.items():
-            if time_idx >= len(times):
-                logger.warning(f"Time index {time_idx} exceeds available times ({len(times)}) in scan {scan_name}")
-                continue
-            proj_dict = {}
-            for pair, (uuu, vvv, _) in uv_dict.items():
-                bl = np.sqrt(uuu * uuu + vvv * vvv)
-                if not np.isnan(bl):
-                    proj_dict[pair] = float(bl)
-                else:
-                    logger.debug(f"Skipping NaN baseline for pair {pair} at time_idx {time_idx}")
-            if proj_dict:
-                projections[time_idx] = proj_dict
-            else:
-                logger.debug(f"No valid projections for time_idx {time_idx} in scan {scan_name}")
-
+        projections = self._compute_projections_from_uv(scan_uv_data, active_telescopes, time_step)
         if not projections:
-            logger.warning(f"No valid baseline projections computed for scan {scan_name}")
-
-        return {
-            "times": times.isot.tolist(),
-            "projections": projections
-        }
+            logger.warning(f"No valid baseline projections computed for scan '{scan_name}'")
+        else:
+            logger.debug(f"Computed {sum(len(proj) for proj in projections.values())} baseline projections for scan '{scan_name}' across {len(projections)} baselines")
         
-    def _compute_projections_from_uv(self, uv_points: Dict[int, Dict[str, Tuple[float, float, float]]], telescopes: List[Telescope | SpaceTelescope]) -> Dict[str, float]:
-        """Compute baseline projection BL = sqrt(u² + v²) from pre-calculated (u,v) data in meters.
+        return {"source": source_name, "projections": projections}
+        
+    def _compute_projections_from_uv(self, uv_data: Dict[str, np.ndarray], telescopes: List[Telescope | SpaceTelescope], time_step: Optional[float]) -> Dict[str, np.ndarray]:
+        """Compute baseline projections BL = sqrt(u² + v²) from UV data in meters.
 
         Args:
-            uv_points (Dict[int, Dict[str, Tuple[float, float, float]]]): UV data organized by time index.
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
+            uv_data (Dict[str, np.ndarray]): UV data as {baseline: np.array([[u,v,w], ...])}.
+            telescopes (List[Telescope | SpaceTelescope]): List of active telescopes.
+            time_step (Optional[float]): Sampling interval (seconds).
 
         Returns:
-            Dict[str, float]: Baseline length per telescope pair in meters for the first time index.
+            Dict[str, np.ndarray]: Baseline projections in meters, formatted as {baseline: np.array([proj1, ..., projn])}.
+
+        Notes:
+            - Requires at least 10 UV points per baseline for reliable projections.
+            - Filters out NaN values and logs invalid baselines.
         """
         projections = {}
-        # Use the first time index (e.g., time_idx=0) for single-time calculations
-        uv_dict = uv_points.get(0, {})
-        for pair, (uuu, vvv, _) in uv_dict.items():
-            bl = np.sqrt(uuu * uuu + vvv * vvv)  # BL = sqrt(u² + v²) in meters
-            projections[pair] = float(bl)
+        min_points = 10  # Minimum number of UV points for reliable projection
+        for baseline, uvw in uv_data.items():
+            if uvw.size == 0 or np.all(np.isnan(uvw)):
+                logger.debug(f"Skipping baseline '{baseline}' due to empty or invalid UV data")
+                continue
+            if len(uvw) < min_points:
+                logger.warning(f"Baseline '{baseline}' has too few UV points ({len(uvw)} < {min_points}); skipping")
+                continue
+            u, v = uvw[:, 0], uvw[:, 1]  # Extract u, v components in meters
+            bl = np.sqrt(u**2 + v**2)  # BL = sqrt(u² + v²)
+            valid_mask = ~np.isnan(bl)  # Filter out NaN values
+            if np.any(valid_mask):
+                projections[baseline] = bl[valid_mask]
+                logger.debug(f"Computed {np.sum(valid_mask)} projections for baseline '{baseline}'")
+            else:
+                logger.debug(f"No valid projections for baseline '{baseline}'")
+        
+        if not projections:
+            logger.warning(f"No valid baseline projections computed for provided UV data")
         return projections
 
     def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, float]:
@@ -2192,133 +2465,257 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate Mollweide projection tracks for telescopes and source.
+        """Calculate Mollweide projection tracks for telescopes and source coordinates for active scans.
 
         Args:
             obj (Observation | ScheduleProject): The object to calculate tracks for.
-            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
+            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Mollweide coordinates per scan.
+            Dict[str, Any]: Mollweide tracks and source coordinates, formatted as:
+                {
+                    "metadata": {
+                        "time_step": float,
+                        "scan_count": int,
+                        "sources": [{"name": str, "lon": float, "lat": float}, ...]
+                    },
+                    "data": {
+                        source_name: {
+                            scan_name: {
+                                telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
+                            }
+                        }
+                    }
+                }
+
+        Notes:
+            - Depends on precomputed time arrays and telescope positions.
+            - Uses vectorized computations for efficiency.
+            - Stores results in calculated_data under the specified store_key.
         """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "mollweide_tracks")
+            recalculate = attributes.get("recalculate", False)
 
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
-                    return {}
-                results = {}
-                for obs in observations:
-                    obs_result = self._calculate_mollweide_tracks(obs, attributes)
-                    results[obs.get_observation_code()] = obs_result
+                    return {"metadata": {"time_step": time_step, "scan_count": 0, "sources": []}, "data": {}}
+                results = {
+                    "metadata": {
+                        "time_step": time_step,
+                        "scan_count": 0,
+                        "sources": []
+                    },
+                    "data": {}
+                }
+                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {
+                        executor.submit(self._calculate_mollweide_tracks, obs, attributes): obs.get_observation_code()
+                        for obs in observations
+                    }
+                    source_set = set()
+                    scan_counts = []
+                    for future in futures:
+                        obs_code = futures[future]
+                        obs_result = future.result()
+                        if obs_result and "data" in obs_result:
+                            results["data"][obs_code] = obs_result["data"]
+                            scan_counts.append(obs_result["metadata"].get("scan_count", 0))
+                            for source in obs_result["metadata"].get("sources", []):
+                                source_tuple = (source["name"], source["lon"], source["lat"])
+                                source_set.add(source_tuple)
+                    results["metadata"]["scan_count"] = sum(scan_counts)
+                    results["metadata"]["sources"] = [
+                        {"name": name, "lon": lon, "lat": lat}
+                        for name, lon, lat in sorted(source_set, key=lambda x: x[0])
+                    ]
                 logger.info(f"Calculated Mollweide tracks for {len(observations)} observations in project '{obj.name}'")
                 return results
 
-            def calculate_mollweide_tracks(obj, attrs):
+            def calculate_mollweide(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
                 scans = obj.get_scans().get_active_items()
-                position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": attrs.get("recalculate", False)}
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return {"metadata": {"time_step": time_step, "scan_count": 0, "sources": []}, "data": {}}
+
+                # Retrieve or calculate dependencies
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": recalculate}
+                time_data = self._calculate_time_arrays(obj, time_attrs)
                 position_data = self._calculate_telescope_positions(obj, position_attrs)
-                results = {}
-                with ThreadPoolExecutor() as executor:
+
+                if not (time_data and position_data):
+                    logger.error(f"Missing required data (times or positions) for '{obj.get_observation_code()}'")
+                    return {"metadata": {"time_step": time_step, "scan_count": len(scans), "sources": []}, "data": {}}
+
+                # Collect active sources
+                sources = obj.get_sources().get_active_items()
+                source_coords = [
+                    {
+                        "name": source.name,
+                        "lon": float(lon),
+                        "lat": float(lat)
+                    }
+                    for source in sources
+                    for lon, lat in [self._compute_mollweide_coords(
+                        SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
+                    )]
+                ]
+
+                results = {"metadata": {"time_step": time_step, "scan_count": len(scans), "sources": source_coords}, "data": {}}
+                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_mollweide_tracks, scan, obj, time_step, position_data): i
-                        for i, scan in enumerate(scans)
+                        executor.submit(self._process_mollweide_tracks, scan, obj, time_step, time_data, position_data): scan.name
+                        for scan in scans
                     }
                     for future in futures:
                         scan_name = futures[future]
-                        results[scan_name] = future.result()
+                        scan_result = future.result()
+                        source_name = scan_result.get("source")
+                        if source_name and scan_result.get("tracks"):
+                            if source_name not in results["data"]:
+                                results["data"][source_name] = {}
+                            results["data"][source_name][scan_name] = scan_result["tracks"]
+
+                if not results["data"]:
+                    logger.warning(f"No Mollweide tracks computed for observation '{obj.get_observation_code()}'")
+                else:
+                    logger.info(f"Calculated Mollweide tracks for {len(results['data'])} sources across {len(scans)} scans in '{obj.get_observation_code()}'")
                 return results
 
-            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
-            return self._get_cached_or_calculate(obj, store_key, calculate_mollweide_tracks, attributes, metadata)
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()),
+                "sources": []
+            }
+            return self._get_cached_or_calculate(obj, store_key, calculate_mollweide, attributes, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
-            return {}
+            return {"metadata": {"time_step": time_step, "scan_count": 0, "sources": []}, "data": {}}
 
-    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], position_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process Mollweide tracks for a single scan.
+    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process Mollweide tracks for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
-            sources (Sources): Collection of sources.
-            telescopes (Telescopes): Collection of telescopes.
-            time_step (Optional[float]): Sampling interval (seconds).
-            position_data (Dict[str, Any]): Precomputed position data.
             observation (Observation): Parent observation.
+            time_step (Optional[float]): Sampling interval (seconds).
+            time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
+            position_data (Dict[str, Any]): Precomputed telescope positions.
 
         Returns:
-            Dict[str, Any]: Mollweide coordinates for source and telescopes.
+            Dict[str, Any]: Mollweide tracks for the scan, formatted as:
+                {
+                    "source": source_name,
+                    "tracks": {
+                        telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
+                    }
+                }
         """
-        start_time = scan.get_start()
-        duration = scan.get_duration()
         source = scan.get_source(observation)
+        if not source or not source.isactive:
+            logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
+            return {"source": None, "tracks": {}}
+
+        scan_name = scan.name
+        source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
-        scan_name = scan.name
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs') if source else None
-        source_lon, source_lat = self._compute_mollweide_coords(source_coord) if source_coord else (None, None)
 
-        if not position_data or scan_name not in position_data:
-            logger.error(f"No position data for scan {scan_name}")
-            return {"source": {"name": source.name if source else None, "lon": source_lon, "lat": source_lat}, "telescope_tracks": {}}
-        
-        if time_step is None:
-            mean_time = start_time + (duration / 2) * u.s
-            tel_positions = position_data.get(scan_name, {}).get("telescope_positions", {})
-            tracks = {}
-            for tel in active_telescopes:
-                pos = tel_positions.get(tel.get_code())
-                if pos:
-                    lon, lat = self._compute_mollweide_coords_from_position(pos, mean_time)
-                    tracks[tel.get_code()] = {"lon": [lon], "lat": [lat]}
+        if not active_telescopes:
+            logger.warning(f"No active telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            return {"source": source_name, "tracks": {}}
+
+        # Get times for the scan
+        scan_times = time_data.get(source_name, {}).get(scan_name, None)
+        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+            logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "tracks": {}}
+
+        # Get telescope positions for the scan
+        scan_positions = position_data.get(scan_name, {})
+        if not scan_positions:
+            logger.warning(f"No position data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            return {"source": source_name, "tracks": {}}
+
+        # Prepare arrays for vectorized computation
+        tel_codes = [tel.get_code() for tel in active_telescopes]
+        positions = np.array([
+            scan_positions.get(code, np.full((len(scan_times), 3), np.nan))
+            for code in tel_codes
+        ])  # shape: (n_tels, n_times, 3)
+
+        # Vectorized Mollweide coordinate calculation
+        tracks = {}
+        r = np.sqrt(np.sum(positions**2, axis=2))  # shape: (n_tels, n_times)
+        valid_mask = r > 0  # Avoid division by zero
+        ra_rad = np.full_like(r, np.nan)
+        dec_rad = np.full_like(r, np.nan)
+        ra_rad[valid_mask] = np.arctan2(positions[valid_mask, 1], positions[valid_mask, 0])
+        dec_rad[valid_mask] = np.arcsin(positions[valid_mask, 2] / r[valid_mask])
+        ra = np.degrees(ra_rad)  # shape: (n_tels, n_times)
+        dec = np.degrees(dec_rad)  # shape: (n_tels, n_times)
+        lon = np.where(ra > 180.0, ra - 360.0, ra)  # shape: (n_tels, n_times)
+        lat = np.clip(dec, -90.0, 90.0)  # shape: (n_tels, n_times)
+
+        for i, tel_code in enumerate(tel_codes):
+            if np.all(np.isnan(lon[i]) | np.isnan(lat[i])):
+                logger.warning(f"No valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
+                continue
+            valid_points = ~np.isnan(lon[i]) & ~np.isnan(lat[i])
+            tracks[tel_code] = np.column_stack((lon[i, valid_points], lat[i, valid_points]))  # shape: (n_valid_times, 2)
+
+        if not tracks:
+            logger.warning(f"No valid Mollweide tracks computed for scan '{scan_name}'")
         else:
-            time_values = np.arange(0, duration, time_step) * u.s
-            times = Time(start_time.mjd + time_values.to(u.d).value, format='mjd')
-            tel_positions = position_data.get(scan_name, {}).get("telescope_positions", {})
-            
-            tracks = {tel.get_code(): {"lon": [], "lat": []} for tel in active_telescopes}
-            for t_idx, t in enumerate(times):
-                for tel in active_telescopes:
-                    pos_data = tel_positions.get(tel.get_code(), {})
-                    pos = pos_data.get("positions", [])[t_idx] if "positions" in pos_data else None
-                    if pos:
-                        lon, lat = self._compute_mollweide_coords_from_position(pos, t)
-                        tracks[tel.get_code()]["lon"].append(lon)
-                        tracks[tel.get_code()]["lat"].append(lat)
-
-        return {
-            "source": {"name": source.name if source else None, "lon": source_lon, "lat": source_lat},
-            "times": times.isot.tolist() if time_step else [mean_time.isot],
-            "telescope_tracks": tracks
-        }
+            logger.debug(f"Computed Mollweide tracks for {len(tracks)} telescopes in scan '{scan_name}'")
+        return {"source": source_name, "tracks": tracks}
     
-    def _compute_mollweide_coords_from_position(self, position: Tuple[float, float, float], time: Time) -> Tuple[float, float]:
-        """Compute Mollweide coordinates from GCRS position in J2000.
+    def _compute_mollweide_coords_from_position(self, position: np.ndarray, time: Time) -> np.ndarray:
+        """Compute Mollweide coordinates from GCRS position array in J2000.
 
         Args:
-            position (Tuple[float, float, float]): GCRS position (x, y, z) in meters.
-            time (Time): Observation time.
+            position (np.ndarray): GCRS positions (x, y, z) in meters, shape (n_times, 3).
+            time (Time): Observation times (used for logging).
 
         Returns:
-            Tuple[float, float]: RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
+            np.ndarray: Mollweide coordinates (lon, lat) in degrees, shape (n_times, 2).
+
+        Notes:
+            - Vectorized to handle multiple positions at once.
+            - Returns NaN for invalid positions (e.g., zero radius).
         """
-        x, y, z = position
-        r = np.sqrt(x**2 + y**2 + z**2)
-        ra_rad = np.arctan2(y, x)  # RA
-        dec_rad = np.arcsin(z / r)  # Dec
-        
-        ra = np.degrees(ra_rad)  # 0° to 360°
-        dec = np.degrees(dec_rad)  # -90° to 90°
+        try:
+            position = np.asarray(position, dtype=float)  # Ensure array input
+            if position.ndim == 1:
+                position = position[None, :]  # Add time dimension for single position
+            if position.shape[-1] != 3:
+                logger.error(f"Invalid position shape {position.shape} for Mollweide calculation")
+                return np.full((position.shape[0], 2), np.nan)
 
-        lon = ra
-        if lon > 180.0:
-            lon -= 360.0
-        lat = np.clip(dec, -90.0, 90.0)
+            r = np.sqrt(np.sum(position**2, axis=1))  # shape: (n_times,)
+            valid_mask = r > 0  # Avoid division by zero
+            ra_rad = np.full(r.shape, np.nan)
+            dec_rad = np.full(r.shape, np.nan)
+            ra_rad[valid_mask] = np.arctan2(position[valid_mask, 1], position[valid_mask, 0])
+            dec_rad[valid_mask] = np.arcsin(position[valid_mask, 2] / r[valid_mask])
+            ra = np.degrees(ra_rad)  # shape: (n_times,)
+            dec = np.degrees(dec_rad)  # shape: (n_times,)
+            lon = np.where(ra > 180.0, ra - 360.0, ra)  # shape: (n_times,)
+            lat = np.clip(dec, -90.0, 90.0)  # shape: (n_times,)
+            result = np.column_stack((lon, lat))  # shape: (n_times, 2)
 
-        return lon, lat
+            if np.any(np.isnan(result)):
+                logger.warning(f"Mollweide coordinates contain NaN values at time {time.isot}")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to compute Mollweide coordinates: {str(e)}")
+            return np.full((position.shape[0], 2), np.nan)
 
     def _compute_mollweide_coords(self, coord: SkyCoord) -> Tuple[float, float]:
         """Compute coordinates for Mollweide projection in J2000.
