@@ -256,7 +256,8 @@ class ScheduleCalculator(Super):
             Dict[str, Any]: Telescope positions per scan, formatted as {scan_name: {telescope_code: np.array([[x, y, z], ...])}}.
 
         Notes:
-            - Uses precomputed orbits from 'interpolated_orbits' for SpaceTelescopes.
+            - Uses precomputed orbits from 'interpolated_orbits' for SpaceTelescopes with use_kep=False.
+            - Skips orbit interpolation if no active SpaceTelescopes with use_kep=False are present.
             - Positions are stored as numpy arrays in meters.
             - Excludes telescopes with unavailable orbit data for SpaceTelescopes.
         """
@@ -297,11 +298,25 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
                     return {}
 
-                # Get interpolated orbits
-                orbit_attrs = {"time_step": time_step, "store_key": "interpolated_orbits", "recalculate": recalculate}
-                orbit_data = self._calculate_interpolated_orbits(obj, orbit_attrs)
-                if not orbit_data:
-                    logger.info(f"No interpolated orbit data for observation '{obj.get_observation_code()}'")
+                # Check if any active SpaceTelescopes with use_kep=False exist in scans
+                has_orbit_based_telescopes = False
+                for scan in scans:
+                    scan_telescopes = scan.get_telescopes(obj).get_active_items()
+                    if any(isinstance(tel, SpaceTelescope) and not tel.get("use_kep") for tel in scan_telescopes):
+                        has_orbit_based_telescopes = True
+                        break
+
+                # Calculate interpolated orbits only if necessary
+                orbit_data = {}
+                if has_orbit_based_telescopes:
+                    orbit_attrs = {"time_step": time_step, "store_key": "interpolated_orbits", "recalculate": recalculate}
+                    orbit_data = self._calculate_interpolated_orbits(obj, orbit_attrs)
+                    if not orbit_data:
+                        logger.info(f"No interpolated orbit data for observation '{obj.get_observation_code()}'")
+                    else:
+                        logger.debug(f"Retrieved orbit data for observation '{obj.get_observation_code()}'")
+                else:
+                    logger.debug(f"No active SpaceTelescopes with use_kep=False in observation '{obj.get_observation_code()}'; skipping orbit interpolation")
 
                 # Process each scan
                 results = {}
@@ -1302,14 +1317,14 @@ class ScheduleCalculator(Super):
                             }
                         }
                     }
-                }
 
         Notes:
             - Uses precomputed time arrays, telescope positions, and source visibility from calculated_data.
-            - Computes angles for ground telescopes only (AZIM or EQUA mounts).
+            - Computes angles for ground telescopes only (instances of Telescope, not SpaceTelescope).
             - Space telescopes are excluded as they use pitch/yaw.
             - Stores results in calculated_data under 'az_el' key.
             - Vectorized computations are used for efficiency.
+            - Skips calculation and logs warning if no ground telescopes or active scans are present.
         """
         try:
             time_step = attributes.get("time_step")
@@ -1340,6 +1355,16 @@ class ScheduleCalculator(Super):
                 scans = obj.get_scans().get_active_items()
                 if not scans:
                     logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    return {}
+
+                # Check for ground telescopes (instances of Telescope, not SpaceTelescope)
+                ground_telescopes = [
+                    telescope for telescope in obj.get_telescopes().get_items()
+                    if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope)
+                    and telescope.mount_type in ["AZIM", "EQUA"]
+                ]
+                if not ground_telescopes:
+                    logger.warning(f"No ground telescopes in active scans for observation '{obj.get_observation_code()}'")
                     return {}
 
                 # Retrieve or calculate dependencies
