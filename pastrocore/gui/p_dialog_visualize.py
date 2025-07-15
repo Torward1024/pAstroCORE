@@ -1,5 +1,5 @@
 # pastrocore/gui/p_dialog_visualize.py
-from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout, QWidget, QProgressDialog
 from PySide6.QtCore import Slot, Qt
 from .ui_dialog_visualize import Ui_VisualizationDialog
 from .p_tab_vis_uv_coverage import UVVisualizationTab
@@ -9,7 +9,6 @@ from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import numpy as np
 from typing import Dict, Optional, List
 
 class VisualizationDialog(QDialog):
@@ -25,6 +24,8 @@ class VisualizationDialog(QDialog):
         project (ScheduleProject): The current project containing observations.
         manipulator (ScheduleManipulator): Manipulator for accessing project data and performing visualizations.
         visualization_tabs (Dict[str, QWidget]): Dictionary mapping visualization types to their tab widgets.
+        cached_observations (Dict[str, Observation]): Cached observation objects to optimize performance.
+        cached_calc_data (Dict[str, Dict]): Cached calculated data for all observations.
     """
 
     def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
@@ -41,6 +42,8 @@ class VisualizationDialog(QDialog):
         self.project = project
         self.manipulator = manipulator
         self.visualization_tabs: Dict[str, QWidget] = {}
+        self.cached_observations: Dict[str, Observation] = {}
+        self.cached_calc_data: Dict[str, Dict] = {}
         logger.debug(f"VisualizationDialog initialized with project id={id(self.project)}, "
                      f"manipulator id={id(self.manipulator)}")
 
@@ -62,6 +65,12 @@ class VisualizationDialog(QDialog):
 
     def populate_observations(self):
         """Populate the observation combo box with available observations from the project."""
+        progress = QProgressDialog("Loading observations...", "Cancel", 0, 0, self)
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.show()
+        QApplication.processEvents()
+
         self.ui.comboBoxObservation.clear()
         response = self.manipulator.process_request({
             "operation": "inspect",
@@ -72,6 +81,7 @@ class VisualizationDialog(QDialog):
             observations = response["result"]
             if observations:
                 for obs_name, obs in observations.items():
+                    self.cached_observations[obs_name] = obs
                     code_response = self.manipulator.process_request({
                         "operation": "inspect",
                         "obj": obs,
@@ -82,6 +92,17 @@ class VisualizationDialog(QDialog):
                     else:
                         logger.error(f"Failed to get code for observation '{obs_name}': "
                                      f"{code_response.get('error', 'Unknown error')}")
+                    # Cache calculated data for UV coverage and times only
+                    calc_data_response = self.manipulator.process_request({
+                        "operation": "inspect",
+                        "obj": obs,
+                        "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "times"]}}
+                    })
+                    if calc_data_response["status"]:
+                        self.cached_calc_data[obs_name] = calc_data_response["result"]
+                        logger.debug(f"Cached calculated data for observation '{obs_name}'")
+                    else:
+                        logger.error(f"Failed to cache data for '{obs_name}': {calc_data_response.get('error', 'Unknown error')}")
                 logger.info(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
             else:
                 logger.info("No observations found in project")
@@ -91,10 +112,10 @@ class VisualizationDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Failed to load observations: "
                                                 f"{response.get('error', 'Unknown error')}")
             self.ui.pushButtonVisualize.setEnabled(False)
+        progress.close()
 
-    @Slot()
     def update_visualization_types(self):
-        """Update visualization types based on calculated data of the selected observation."""
+        """Update visualization types based on cached calculated data."""
         self.ui.comboBoxVisualizationType.clear()
         current_obs_name = self.ui.comboBoxObservation.currentData()
         if not current_obs_name:
@@ -102,38 +123,12 @@ class VisualizationDialog(QDialog):
             self.ui.pushButtonVisualize.setEnabled(False)
             return
 
-        # Get the observation object
-        obs_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_item": current_obs_name}
-        })
-        if not obs_response["status"]:
-            logger.error(f"Failed to retrieve observation '{current_obs_name}': "
-                         f"{obs_response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to load observation: "
-                                                f"{obs_response.get('error', 'Unknown error')}")
-            return
-
-        observation = obs_response["result"]
-        # Get calculated data
-        calc_data_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": observation,
-            "attributes": {"get_calculated_data": None}
-        })
-        if not calc_data_response["status"]:
-            logger.error(f"Failed to retrieve calculated data: {calc_data_response.get('error', 'Unknown error')}")
+        calc_data = self.cached_calc_data.get(current_obs_name, {})
+        if not calc_data:
+            logger.error(f"No cached calculated data for observation '{current_obs_name}'")
             self.ui.pushButtonVisualize.setEnabled(False)
             return
 
-        calc_data = calc_data_response["result"]
-        if not isinstance(calc_data, dict):
-            logger.error(f"calc_data is not a dictionary, got type {type(calc_data)}")
-            self.ui.pushButtonVisualize.setEnabled(False)
-            return
-
-        # Map calculated data keys to visualization types
         visualization_map = {
             "uv_coverage": "UV Coverage",
             "source_visibility": "Source Visibility",
@@ -187,19 +182,11 @@ class VisualizationDialog(QDialog):
             QMessageBox.warning(self, "Warning", "Please select an observation and visualization type.")
             return
 
-        # Get the observation
-        obs_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_item": obs_name}
-        })
-        if not obs_response["status"]:
-            logger.error(f"Failed to retrieve observation '{obs_name}': "
-                         f"{obs_response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to load observation: "
-                                                f"{obs_response.get('error', 'Unknown error')}")
+        observation = self.cached_observations.get(obs_name)
+        if not observation:
+            logger.error(f"Observation '{obs_name}' not found in cache")
+            QMessageBox.critical(self, "Error", f"Failed to load observation: {obs_name}")
             return
-        observation = obs_response["result"]
 
         # Map visualization type to store_key
         visualization_map = {
@@ -234,26 +221,16 @@ class VisualizationDialog(QDialog):
         # Create visualization tab based on type
         tab_widget = None
         if vis_type == "UV Coverage":
-            calc_data_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": observation,
-                "attributes": {"get_calculated_data": None}
-            })
-            if not calc_data_response["status"]:
-                logger.error(f"Failed to retrieve calculated data: {calc_data_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to load calculated data")
-                return
-            calc_data = calc_data_response["result"]
-
+            calc_data = self.cached_calc_data.get(obs_name, {})
             # Extract sources, scans, and baselines for UV coverage
-            sources = list(calc_data.get("baseline_projections", {}).get("data", {}).keys())
+            sources = list(calc_data.get("uv_coverage", {}).get("data", {}).keys())
             scans = []
             baselines = []
-            if "baseline_projections" in calc_data:
-                for source_name in calc_data["baseline_projections"]["data"]:
-                    scans.extend(list(calc_data["baseline_projections"]["data"][source_name].keys()))
-                    for scan_name in calc_data["baseline_projections"]["data"][source_name]:
-                        baselines.extend(list(calc_data["baseline_projections"]["data"][source_name][scan_name].keys()))
+            if "uv_coverage" in calc_data:
+                for source_name in calc_data["uv_coverage"]["data"]:
+                    scans.extend(list(calc_data["uv_coverage"]["data"][source_name].keys()))
+                    for scan_name in calc_data["uv_coverage"]["data"][source_name]:
+                        baselines.extend(list(calc_data["uv_coverage"]["data"][source_name][scan_name].keys()))
             scans = sorted(list(set(scans)))
             baselines = sorted(list(set(baselines)))
 
@@ -285,12 +262,7 @@ class VisualizationDialog(QDialog):
                 return
 
             frequencies = freq_response["result"].get_active_items()
-            calc_data = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": observation,
-                "attributes": {"get_calculated_data": None}
-            })["result"]
-
+            calc_data = self.cached_calc_data.get(obs_name, {})
             freq_name = None
             for freq in frequencies:
                 store_key = f"{vis_key}_{freq.get('name').strip()}"
