@@ -282,7 +282,7 @@ class ScheduleCalculator(Super):
                         for future in futures:
                             obs_code = futures[future]
                             results[obs_code] = future.result()
-                    logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.name}'")
+                        logger.info(f"Calculated telescope positions for {len(observations)} observations in project '{obj.name}'")
                     return results
 
                 # Get time arrays
@@ -308,11 +308,12 @@ class ScheduleCalculator(Super):
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_scan_positions, scan, obj, time_step, time_data, orbit_data): scan.name
+                        executor.submit(self._process_scan_positions, scan, obj, time_step, time_data, orbit_data): scan
                         for scan in scans
                     }
                     for future in futures:
-                        scan_name = futures[future]
+                        scan = futures[future]
+                        scan_name = scan.name
                         results[scan_name] = future.result()
                         if not results[scan_name]:
                             excluded_telescopes.extend([tel.get_code() for tel in scan.get_telescopes(obj).get_active_items()])
@@ -325,7 +326,7 @@ class ScheduleCalculator(Super):
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
             return self._get_cached_or_calculate(obj, store_key, calculate_positions, attributes, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate telescope positions: {str(e)}")
+            logger.error(f"Failed to calculate telescope positions for observation '{obj.get_observation_code()}': {str(e)}")
             return {}
         
     def _process_scan_positions(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], orbit_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -336,7 +337,7 @@ class ScheduleCalculator(Super):
             observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds).
             time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
-            orbit_data (Dict[str, Any]): Precomputed orbit data as {spacetelescope_code: np.array([[x, y, z], ...])}.
+            orbit_data (Dict[str, Any]): Precomputed orbit data as {scan_name: {spacetelescope_code: np.array([[x, y, z], ...])}}.
 
         Returns:
             Dict[str, Any]: Positions for active telescopes, formatted as {telescope_code: np.array([[x, y, z], ...])}.
@@ -406,9 +407,10 @@ class ScheduleCalculator(Super):
                     logger.warning(f"Position calculation failed for Keplerian telescope '{tel_code}' in scan '{scan_name}': {str(e)}")
 
         # Process orbit-based space telescopes
+        scan_orbit_data = orbit_data.get(scan_name, {})
         for tel in orbit_space_tels:
             tel_code = tel.get_code()
-            orbit_positions = orbit_data.get(tel_code, np.array([]))
+            orbit_positions = scan_orbit_data.get(tel_code, np.array([]))
             if orbit_positions.size > 0 and orbit_positions.shape[0] == len(scan_times):
                 positions[tel_code] = orbit_positions
             else:
@@ -2336,11 +2338,12 @@ class ScheduleCalculator(Super):
             attributes (Dict[str, Any]): Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Interpolated orbit data as {spacetelescope_code: np.array([[x, y, z], ...])}.
+            Dict[str, Any]: Interpolated orbit data as {scan_name: {spacetelescope_code: np.array([[x, y, z], ...])}}.
 
         Notes:
             - Interpolates orbits only for SpaceTelescopes that are active in scans and have orbit files.
             - Stores results under 'interpolated_orbits' key in calculated_data.
+            - Preserves data with NaN values, logging a warning instead of excluding.
             - Returns empty dict if no active SpaceTelescopes are found.
         """
         try:
@@ -2365,7 +2368,7 @@ class ScheduleCalculator(Super):
                         for future in futures:
                             obs_code = futures[future]
                             results[obs_code] = future.result()
-                    logger.info(f"Calculated interpolated orbits for {len(observations)} observations in project '{obj.name}'")
+                        logger.info(f"Calculated interpolated orbits for {len(observations)} observations in project '{obj.name}'")
                     return results
 
                 # Get time arrays
@@ -2390,67 +2393,55 @@ class ScheduleCalculator(Super):
                     logger.info(f"No active SpaceTelescopes in observation '{obj.get_observation_code()}'")
                     return {}
 
-                # Collect times for SpaceTelescopes that participate in active scans
-                telescope_times = {tel.get_code(): [] for tel in active_space_telescopes}
-                active_telescopes_in_scans = set()
+                # Initialize results dictionary
+                results = {scan.name: {} for scan in scans}
 
-                for scan in scans:
-                    source = scan.get_source(obj)
-                    if not source or not source.isactive:
-                        continue
-                    scan_times = time_data.get(source.name, {}).get(scan.name, None)
-                    if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
-                        continue
-                    scan_telescopes = scan.get_telescopes(obj).get_active_items()
-                    for tel in scan_telescopes:
-                        if isinstance(tel, SpaceTelescope) and not tel.get("use_kep"):
-                            telescope_times[tel.get_code()].extend(scan_times)
-                            active_telescopes_in_scans.add(tel.get_code())
-
-                # Filter to only telescopes that are active in scans
-                active_space_telescopes = [
-                    tel for tel in active_space_telescopes if tel.get_code() in active_telescopes_in_scans
-                ]
-                if not active_space_telescopes:
-                    logger.info(f"No SpaceTelescopes participate in active scans in observation '{obj.get_observation_code()}'")
-                    return {}
-
-                # Interpolate orbits
-                results = {}
                 with self._orbit_cache_lock:
-                    for tel in active_space_telescopes:
-                        tel_code = tel.get_code()
-                        times = telescope_times.get(tel_code, [])
-                        if not times:
-                            logger.warning(f"No active scan times for SpaceTelescope '{tel_code}'")
-                            excluded_telescopes.append(tel_code)
+                    for scan in scans:
+                        scan_name = scan.name
+                        source = scan.get_source(obj)
+                        if not source or not source.isactive:
+                            logger.debug(f"Skipping scan '{scan_name}' due to inactive or missing source")
                             continue
-                        unique_times = Time(np.unique([t.mjd for t in times]), format='mjd')
-                        if unique_times.size == 0:
-                            logger.warning(f"No valid times for SpaceTelescope '{tel_code}'")
-                            excluded_telescopes.append(tel_code)
+                        scan_times = time_data.get(source.name, {}).get(scan_name, None)
+                        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+                            logger.warning(f"No valid times for scan '{scan_name}' in source '{source.name}'")
                             continue
-                        start_time = min(unique_times)
-                        end_time = max(unique_times)
-                        orbit_file = tel.get_orbit()
-                        if orbit_file:
+
+                        scan_telescopes = scan.get_telescopes(obj).get_active_items()
+                        scan_space_telescopes = [
+                            tel for tel in scan_telescopes
+                            if isinstance(tel, SpaceTelescope) and not tel.get("use_kep")
+                        ]
+
+                        if not scan_space_telescopes:
+                            logger.debug(f"No active SpaceTelescopes in scan '{scan_name}'")
+                            continue
+
+                        for tel in scan_space_telescopes:
+                            tel_code = tel.get_code()
+                            orbit_file = tel.get_orbit()
+                            if not orbit_file:
+                                logger.warning(f"No orbit file for telescope '{tel_code}' in scan '{scan_name}'; excluding")
+                                excluded_telescopes.append(tel_code)
+                                continue
+
                             try:
-                                orbit_data = self._interpolate_orbit(tel, unique_times, start_time, end_time)
+                                orbit_data = self._interpolate_orbit(tel, scan_times, scan.get_start(), scan.get_start() + scan.get_duration() * u.s)
                                 if "positions" in orbit_data:
-                                    results[tel_code] = orbit_data["positions"]
+                                    results[scan_name][tel_code] = orbit_data["positions"]
+                                    if np.any(np.isnan(orbit_data["positions"])):
+                                        logger.warning(f"Orbit data for '{tel_code}' in scan '{scan_name}' contains NaN values")
                                 else:
-                                    logger.warning(f"No valid orbit data for '{tel_code}'")
+                                    logger.warning(f"No orbit data returned for '{tel_code}' in scan '{scan_name}'")
                                     excluded_telescopes.append(tel_code)
                             except ValueError as e:
-                                logger.warning(f"Excluding telescope '{tel_code}' due to unavailable orbit data: {str(e)}")
+                                logger.warning(f"Excluding telescope '{tel_code}' in scan '{scan_name}' due to interpolation error: {str(e)}")
                                 excluded_telescopes.append(tel_code)
-                        else:
-                            logger.warning(f"No orbit file for telescope '{tel_code}'; excluding")
-                            excluded_telescopes.append(tel_code)
 
                 if excluded_telescopes:
-                    logger.info(f"Excluded {len(excluded_telescopes)} telescopes: {', '.join(excluded_telescopes)}")
-                logger.debug(f"Calculated interpolated orbits for {len(results)} SpaceTelescopes in '{obj.get_observation_code()}'")
+                    logger.info(f"Excluded {len(set(excluded_telescopes))} telescopes: {', '.join(set(excluded_telescopes))}")
+                logger.debug(f"Calculated interpolated orbits for {len(results)} scans in '{obj.get_observation_code()}'")
                 return results
 
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
@@ -2469,12 +2460,12 @@ class ScheduleCalculator(Super):
             end_time (Time): End time of the required range (for validation, must have scale='utc').
 
         Returns:
-            Dict[str, Any]: Interpolated orbit data with positions as np.array([[x, y, z], ...]). Returns empty dict if no data.
+            Dict[str, Any]: Interpolated orbit data with positions as np.array([[x, y, z], ...]). Includes NaN values with a warning.
 
         Notes:
             - Uses the provided times array directly for interpolation.
             - If orbit data partially covers the time range, interpolates only for the available portion.
-            - Ensures no NaN values are included in the output.
+            - Logs a warning if interpolated data contains NaN values.
         """
         if telescope.get("use_kep"):
             logger.info(f"Skipping interpolation for '{telescope.get_code()}' as use_kep=True")
@@ -2520,11 +2511,6 @@ class ScheduleCalculator(Super):
                 return {}
             data_times = orbit_data["times"]
             positions = orbit_data["positions"]
-
-            # Check for NaN or invalid data
-            if np.any(np.isnan(positions)):
-                logger.warning(f"Orbit data contains NaN for '{telescope.get_code()}': positions={positions}")
-                return {}
 
             # Compute interpolation times in seconds since J2000
             j2000_mjd = Time("2000-01-01T12:00:00", scale='utc').mjd
@@ -2582,10 +2568,9 @@ class ScheduleCalculator(Super):
                     for pos in filtered_positions.T
                 ]).T
 
-            # Check for NaN in interpolated data
-            if np.any(np.isnan(full_positions[valid_mask])):
-                logger.warning(f"Interpolated positions contain NaN for '{telescope.get_code()}' in valid range")
-                return {}
+            # Log warning if interpolated data contains NaN
+            if np.any(np.isnan(full_positions)):
+                logger.warning(f"Interpolated positions for '{telescope.get_code()}' contain NaN values in range {Time(t_start / 86400.0 + j2000_mjd, format='mjd', scale='utc').isot} to {Time(t_end / 86400.0 + j2000_mjd, format='mjd', scale='utc').isot}")
 
             logger.info(f"Interpolated orbit for '{telescope.get_code()}' using {method} with {len(valid_interp_times)} points")
             return {"positions": full_positions}
