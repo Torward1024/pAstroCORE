@@ -244,22 +244,7 @@ class ScheduleVisualizer(Super):
         return plot_func(obj, attributes, fig=fig)
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot UV coverage for an Observation with flexible filtering.
-
-        Args:
-            obj: Observation object containing the UV coverage data.
-            attributes: Dictionary with visualization parameters, including:
-                - store_key: Key for UV coverage data (default: "uv_coverage").
-                - times_key: Key for time data (default: "times").
-                - baselines: List of baseline pairs to include (e.g., ["AT-MP", "MP-PK"]).
-                - sources: List of source names to include.
-                - scans: List of scan names to include.
-                - time_range: Tuple of (start, end) in MJD for time filtering.
-            fig: Matplotlib figure object for plotting.
-
-        Returns:
-            Dict containing metadata about the plotted data (e.g., number of baselines, points).
-        """
+        """Plot UV coverage for an Observation with flexible filtering and frequency scaling."""
         with self._lock:
             logger.debug(f"Plotting UV coverage for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "uv_coverage")
@@ -268,42 +253,56 @@ class ScheduleVisualizer(Super):
             source_name = attributes.get("source_name", None)
             scans = attributes.get("scans", None)
             time_range = attributes.get("time_range", None)
+            frequencies = attributes.get("frequencies", None)
+            units = attributes.get("units", "wavelengths")
+
+            logger.debug(f"Input attributes: store_key={store_key}, times_key={times_key}, "
+                        f"baselines={baselines}, source_name={source_name}, scans={scans}, "
+                        f"time_range={time_range}, frequencies={frequencies}, units={units}")
 
             # Create axis even if no data is plotted
             ax = fig.add_subplot(111)
-            ax.set_xlabel("u (wavelengths)")
-            ax.set_ylabel("v (wavelengths)")
+            ax.set_xlabel(f"u ({units})")
+            ax.set_ylabel(f"v ({units})")
             ax.set_title(f"UV Coverage for {source_name if source_name else 'No Source'}")
             ax.grid(True)
             ax.invert_xaxis()
 
+            # If no frequencies are selected, return empty plot
+            if not frequencies:
+                logger.debug("No frequencies selected, returning empty UV plot")
+                return {"baselines": 0, "points": 0, "frequencies": 0}
+
             # Retrieve UV coverage and time data
             uv_data = obj.get_calculated_data_by_key(store_key)
             times_data = obj.get_calculated_data_by_key(times_key)
-            if not uv_data or not times_data:
-                logger.warning(f"Missing data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
-                return {"baselines": 0, "points": 0}
+            logger.debug(f"Retrieved uv_data: {uv_data}")
+            logger.debug(f"Retrieved times_data: {times_data}")
+
+            # Validate data structure
+            if not isinstance(uv_data, dict) or not isinstance(times_data, dict):
+                logger.warning(f"Invalid data type: uv_data={type(uv_data)}, times_data={type(times_data)} in {obj.get_observation_code()}")
+                return {"baselines": 0, "points": 0, "frequencies": len(frequencies)}
 
             uv_data = uv_data.get("data", {})
             times_data = times_data.get("data", {})
+            logger.debug(f"UV data (post-extraction): {uv_data}")
+            logger.debug(f"Times data (post-extraction): {times_data}")
             if not uv_data or not times_data:
                 logger.warning(f"Empty data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
-                return {"baselines": 0, "points": 0}
+                return {"baselines": 0, "points": 0, "frequencies": len(frequencies)}
 
             # Default to first source if none specified
             if not source_name:
-                sources = [list(uv_data.keys())[0]] if uv_data else []
+                sources = list(uv_data.keys())[:1] if uv_data else []
                 logger.debug(f"No source specified, defaulting to first source: {sources}")
             else:
                 sources = [source_name]
 
-            result = {"baselines": 0, "points": 0}
+            result = {"baselines": 0, "points": 0, "frequencies": len(frequencies)}
             plotted_pairs = set()
-
-            # Check if scans or baselines are empty
-            if not scans or not baselines:
-                logger.debug("No scans or baselines selected, returning empty plot")
-                return result
+            EARTH_DIAMETER = 12742000.0  # Average Earth diameter in meters
+            SPEED_OF_LIGHT = 299792458.0  # Speed of light in m/s
 
             for source in sources:
                 if source not in uv_data or source not in times_data:
@@ -311,18 +310,29 @@ class ScheduleVisualizer(Super):
                     continue
                 source_uv = uv_data[source]
                 source_times = times_data[source]
+                logger.debug(f"Processing source {source}: uv={source_uv}, times={source_times}")
 
                 # Filter scans (use all if none specified)
-                scan_list = scans if scans else source_uv.keys()
-                # Collect all UV points for each baseline across selected scans
-                baseline_points = {}
+                scan_list = scans if scans else list(source_uv.keys())
+                logger.debug(f"Scans to process: {scan_list}")
                 for scan in scan_list:
                     if scan not in source_uv or scan not in source_times:
                         logger.debug(f"Scan {scan} not found for source {source}")
                         continue
 
-                    times = [t.mjd for t in source_times[scan] if t]
+                    # Validate times
+                    times = []
+                    for t in source_times[scan]:
+                        if t and hasattr(t, 'mjd'):
+                            times.append(t.mjd)
+                        else:
+                            logger.debug(f"Invalid time entry in scan {scan}, source {source}: {t}")
+                    logger.debug(f"Valid times for scan {scan}: {times}")
+                    if not times:
+                        logger.debug(f"No valid times for scan {scan}, source {source}")
+                        continue
                     uv_points = source_uv[scan]
+                    logger.debug(f"UV points for scan {scan}: {uv_points}")
 
                     # Apply time range filter if specified
                     if time_range:
@@ -330,38 +340,55 @@ class ScheduleVisualizer(Super):
                         valid_indices = [i for i, t in enumerate(times) if start_mjd <= t <= end_mjd]
                         times = [times[i] for i in valid_indices]
                         for tel_code in uv_points:
-                            uv_points[tel_code] = [uv_points[tel_code][i] for i in valid_indices]
+                            uv_points[tel_code] = [uv_points[tel_code][i] for i in valid_indices if i < len(uv_points[tel_code])]
+                        logger.debug(f"After time range filter: times={times}, uv_points={uv_points}")
                         if not times:
                             logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
                             continue
 
-                    for tel_code in uv_points:
-                        if baselines and tel_code not in baselines:
-                            continue
-                        if tel_code not in baseline_points:
-                            baseline_points[tel_code] = []
-                        baseline_points[tel_code].extend([pt for pt in uv_points[tel_code] if pt is not None and not np.any(np.isnan(pt))])
+                    # Process each frequency
+                    for freq_mhz in frequencies:
+                        wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0  # Avoid division by zero
+                        scaling_factor = 1.0 if units == "wavelengths" else (1.0 / EARTH_DIAMETER)
+                        logger.debug(f"Frequency {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
 
-                # Plot all points for each baseline
-                for tel_code in baseline_points:
-                    if not baseline_points[tel_code]:
-                        logger.debug(f"No valid UV points for {tel_code} in source {source}")
-                        continue
-                    try:
-                        u, v, _ = zip(*baseline_points[tel_code])
-                        u, v = np.array(u), np.array(v)
-                        color_idx = len(plotted_pairs) % len(self.moderate2_colors)
-                        ax.scatter(u, v, s=1, c=[self.moderate2_colors[color_idx]], label=f"{tel_code}")
-                        ax.scatter(-u, -v, s=1, c=[self.moderate2_colors[color_idx]])
-                        plotted_pairs.add(tel_code)
-                        result["points"] += len(u)
-                    except (ValueError, TypeError) as e:
-                        logger.error(f"Invalid UV point format for {tel_code}: {str(e)}")
-                        continue
+                        for tel_code in uv_points:
+                            if baselines and tel_code not in baselines:
+                                logger.debug(f"Skipping tel_code {tel_code} not in baselines {baselines}")
+                                continue
+                            if not uv_points[tel_code]:
+                                logger.debug(f"No valid UV points for {tel_code} in source {source}, scan {scan}")
+                                continue
+                            try:
+                                # Validate UV points format
+                                valid_points = [
+                                    pt for pt in uv_points[tel_code]
+                                    if pt is not None and isinstance(pt, (list, tuple)) and len(pt) >= 2 and not np.any(np.isnan(pt[:2]))
+                                ]
+                                logger.debug(f"Valid UV points for {tel_code}: {len(valid_points)}")
+                                if not valid_points:
+                                    logger.debug(f"No valid UV points after filtering for {tel_code} in source {source}, scan {scan}")
+                                    continue
+                                u, v = zip(*[(pt[0], pt[1]) for pt in valid_points])
+                                u, v = np.array(u, dtype=float), np.array(v, dtype=float)
+                                # Scale UV points based on units
+                                u_scaled = u / wavelength * scaling_factor if wavelength != 0 else u
+                                v_scaled = v / wavelength * scaling_factor if wavelength != 0 else v
+                                logger.debug(f"Scaled UV points: u={u_scaled[:5]}, v={v_scaled[:5]}")
+                                color_idx = (len(plotted_pairs) + frequencies.index(freq_mhz)) % len(self.moderate2_colors)
+                                label = f"{tel_code} ({freq_mhz} MHz)"
+                                ax.scatter(u_scaled, v_scaled, s=1, c=[self.moderate2_colors[color_idx]], label=label)
+                                ax.scatter(-u_scaled, -v_scaled, s=1, c=[self.moderate2_colors[color_idx]])
+                                plotted_pairs.add(f"{tel_code}_{freq_mhz}")
+                                result["points"] += len(u_scaled)
+                            except (ValueError, TypeError) as e:
+                                logger.error(f"Invalid UV point format for {tel_code} at {freq_mhz} MHz: {str(e)}")
+                                continue
 
             result["baselines"] = len(plotted_pairs)
             if plotted_pairs:
                 ax.legend()
+            logger.debug(f"Visualization result: {result}")
             return result
 
     def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
