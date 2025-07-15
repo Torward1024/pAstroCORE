@@ -265,7 +265,7 @@ class ScheduleVisualizer(Super):
             store_key = attributes.get("store_key", "uv_coverage")
             times_key = attributes.get("times_key", "times")
             baselines = attributes.get("baselines", None)
-            sources = attributes.get("sources", None)
+            source_name = attributes.get("source_name", None)
             scans = attributes.get("scans", None)
             time_range = attributes.get("time_range", None)
 
@@ -283,9 +283,11 @@ class ScheduleVisualizer(Super):
                 return {}
 
             # Default to first source if none specified
-            if not sources:
+            if not source_name:
                 sources = [list(uv_data.keys())[0]] if uv_data else []
-                logger.debug(f"No sources specified, defaulting to first source: {sources}")
+                logger.debug(f"No source specified, defaulting to first source: {sources}")
+            else:
+                sources = [source_name]
 
             result = {"baselines": 0, "points": 0}
             plotted_pairs = set()
@@ -300,6 +302,8 @@ class ScheduleVisualizer(Super):
 
                 # Filter scans (use all if none specified)
                 scan_list = scans if scans else source_uv.keys()
+                # Collect all UV points for each baseline across selected scans
+                baseline_points = {}
                 for scan in scan_list:
                     if scan not in source_uv or scan not in source_times:
                         logger.debug(f"Scan {scan} not found for source {source}")
@@ -320,31 +324,35 @@ class ScheduleVisualizer(Super):
                             continue
 
                     for tel_code in uv_points:
-                        # Filter baselines if specified
                         if baselines and tel_code not in baselines:
                             continue
-                        if tel_code in plotted_pairs:
-                            continue
+                        if tel_code not in baseline_points:
+                            baseline_points[tel_code] = []
+                        baseline_points[tel_code].extend([pt for pt in uv_points[tel_code] if pt is not None and not np.any(np.isnan(pt))])
 
-                        try:
-                            u, v, _ = zip(*[pt for pt in uv_points[tel_code] if pt is not None and not np.any(np.isnan(pt))])
-                            u, v = np.array(u), np.array(v)
-                            if len(u) == 0:
-                                logger.debug(f"No valid UV points for {tel_code} in scan {scan}, source {source}")
-                                continue
-
-                            color_idx = len(plotted_pairs) % len(self.moderate2_colors)
-                            ax.scatter(u, v, s=1, c=[self.moderate2_colors[color_idx]], label=f"{tel_code}")
-                            ax.scatter(-u, -v, s=1, c=[self.moderate2_colors[color_idx]])
-                            plotted_pairs.add(tel_code)
-                            result["points"] += len(u)
-                        except (ValueError, TypeError) as e:
-                            logger.error(f"Invalid UV point format for {tel_code} in scan {scan}: {str(e)}")
-                            continue
+                # Plot all points for each baseline
+                for tel_code in baseline_points:
+                    if not baseline_points[tel_code]:
+                        logger.debug(f"No valid UV points for {tel_code} in source {source}")
+                        continue
+                    try:
+                        u, v, _ = zip(*baseline_points[tel_code])
+                        u, v = np.array(u), np.array(v)
+                        color_idx = len(plotted_pairs) % len(self.moderate2_colors)
+                        ax.scatter(u, v, s=1, c=[self.moderate2_colors[color_idx]], label=f"{tel_code}")
+                        ax.scatter(-u, -v, s=1, c=[self.moderate2_colors[color_idx]])
+                        plotted_pairs.add(tel_code)
+                        result["points"] += len(u)
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Invalid UV point format for {tel_code}: {str(e)}")
+                        continue
 
             if not plotted_pairs:
                 logger.warning(f"No valid UV data to plot for {obj.get_observation_code()}")
-                plt.close(fig)
+                ax.set_xlabel("u (wavelengths)")
+                ax.set_ylabel("v (wavelengths)")
+                ax.set_title(f"UV Coverage for {', '.join(sources)}")
+                ax.grid(True)
                 return {}
 
             result["baselines"] = len(plotted_pairs)

@@ -2,7 +2,7 @@ from abc import ABC
 from common.super.super import Super
 from common.utils.logging_setup import logger
 
-from pastrocore.base.frequencies import Frequencies
+from pastrocore.base.frequencies import Frequencies, IF
 from pastrocore.base.sources import Sources, Source
 from pastrocore.base.telescopes import Telescope, SpaceTelescope, Telescopes
 from pastrocore.base.scans import Scan
@@ -2152,75 +2152,6 @@ class ScheduleCalculator(Super):
         if not beam_data:
             logger.warning(f"No synthesized beam data computed for scan '{scan_name}' in source '{source_name}'")
         return {"source": source_name, "beam_data": beam_data}
-    
-    @time_execution
-    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate baseline projections for VLBI observations in geometric coordinates (meters).
-
-        Args:
-            obj (Observation | ScheduleProject): The object to calculate projections for.
-            attributes (Dict[str, Any]): Parameters including "time_step" and "store_key".
-
-        Returns:
-            Dict[str, Any]: Baseline projection data per scan in meters.
-                    Format: {scan_name: {"times": [ISO times], "projections": {time_idx: {pair: bl}}}}
-
-        Notes:
-            - Calculates projections as BL = sqrt(u² + v²) in meters.
-            - The 'freq_name' attribute, if provided, is ignored and logged for compatibility.
-        """
-        try:
-            time_step = attributes.get("time_step")
-            store_key = attributes.get("store_key", "baseline_projections")
-
-            if isinstance(obj, ScheduleProject):
-                observations = obj.get_items()
-                if not observations:
-                    logger.warning(f"No observations in project '{obj.name}'")
-                    return {}
-                results = {}
-                for obs in observations:
-                    obs_result = self._calculate_baseline_projections(obs, attributes)
-                    results[obs.get_observation_code()] = obs_result
-                logger.info(f"Calculated baseline projections for {len(observations)} observations in project '{obj.name}'")
-                return results
-
-            if obj.get_observation_type() != "VLBI":
-                logger.warning(f"Baseline projections are only for VLBI, got {obj.get_observation_type()}")
-                return {}
-
-            def calculate_baseline_projections(obj, attrs):
-                scans = obj.get_scans().get_active_items()
-                telescopes = obj.get_telescopes()
-                active_telescopes = telescopes.get_active_items()
-                if len(active_telescopes) < 2:
-                    logger.error(f"VLBI requires at least 2 active telescopes, got {len(active_telescopes)}")
-                    return {}
-                uv_store_key = "uv_coverage"  # Use the new UV coverage key
-                uv_data = self._calculate_uv_coverage(obj, {
-                    "time_step": time_step,
-                    "store_key": uv_store_key,
-                    "recalculate": attrs.get("recalculate", False)
-                })
-                if not uv_data:
-                    logger.error(f"Failed to obtain UV coverage data for '{obj.get_observation_code()}'")
-                    return {}
-                results = {}
-                with ThreadPoolExecutor() as executor:
-                    futures = {
-                        executor.submit(self._process_baseline_projections, scan, obj, time_step, uv_data): scan.name
-                        for scan in scans
-                    }
-                    for future in futures:
-                        scan_name = futures[future]
-                        results[scan_name] = future.result()
-                return results
-
-            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
-            return self._get_cached_or_calculate(obj, store_key, calculate_baseline_projections, attributes, metadata)
-        except Exception as e:
-            logger.error(f"Failed to calculate baseline projections: {str(e)}")
-            return {}
 
     @time_execution
     def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -2232,26 +2163,24 @@ class ScheduleCalculator(Super):
 
         Returns:
             Dict[str, Any]: Baseline projection data per source and scan in meters, formatted as:
-                {
-                    "metadata": {
-                        "time_step": float,
-                        "scan_count": int
-                    },
-                    "data": {
+                For Observation:
+                    {
                         source_name: {
                             scan_name: {
-                                baseline: np.array([proj1, ..., projn])  # baseline projections in meters
+                                baseline: np.array([proj1, ..., projn])  # projections in meters
                             }
                         }
                     }
-                }
-
-        Notes:
-            - Calculates projections as BL = sqrt(u² + v²) in meters from uv_coverage data.
-            - Uses precomputed UV coverage from calculated_data with store_key="uv_coverage".
-            - Invokes _calculate_uv_coverage if UV data is missing.
-            - Ignores 'freq_name' attribute, as frequency is handled by the visualizer.
-            - Uses vectorized computations for efficiency.
+                For ScheduleProject:
+                    {
+                        obs_code: {
+                            source_name: {
+                                scan_name: {
+                                    baseline: np.array([proj1, ..., projn])  # projections in meters
+                                }
+                            }
+                        }
+                    }
         """
         try:
             time_step = attributes.get("time_step")
@@ -2265,46 +2194,44 @@ class ScheduleCalculator(Super):
                 observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
-                    return {"metadata": {"time_step": time_step, "scan_count": 0}, "data": {}}
-                results = {
-                    "metadata": {
-                        "time_step": time_step,
-                        "scan_count": 0
-                    },
-                    "data": {}
-                }
+                    return {}
+                results = {}
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_baseline_projections, obs, attributes): obs.get_observation_code()
                         for obs in observations
                     }
-                    scan_counts = []
                     for future in futures:
                         obs_code = futures[future]
                         obs_result = future.result()
-                        if obs_result and "data" in obs_result:
-                            results["data"][obs_code] = obs_result["data"]
-                            scan_counts.append(obs_result["metadata"].get("scan_count", 0))
-                    results["metadata"]["scan_count"] = sum(scan_counts)
-                logger.info(f"Calculated baseline projections for {len(observations)} observations in project '{obj.name}'")
+                        logger.debug(f"Processing result for observation '{obs_code}': {obs_result.keys()}")
+                        if obs_result:
+                            results[obs_code] = obs_result
+                        else:
+                            logger.warning(f"No valid data from observation '{obs_code}'")
+                if not results:
+                    logger.warning(f"No baseline projections computed for project '{obj.name}'")
+                else:
+                    logger.info(f"Calculated baseline projections for {len(observations)} observations in project '{obj.name}'")
+                    logger.debug(f"Final structure for '{obj.name}': {list(results.keys())}")
                 return results
 
             if obj.get_observation_type() != "VLBI":
                 logger.warning(f"Baseline projections are only for VLBI, got {obj.get_observation_type()}")
-                return {"metadata": {"time_step": time_step, "scan_count": 0}, "data": {}}
+                return {}
 
             def calculate_baseline_projections(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
                 scans = obj.get_scans().get_active_items()
                 if not scans:
                     logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
-                    return {"metadata": {"time_step": time_step, "scan_count": 0}, "data": {}}
+                    return {}
 
                 telescopes = obj.get_telescopes()
                 active_telescopes = telescopes.get_active_items()
                 if len(active_telescopes) < 2:
                     logger.error(f"VLBI requires at least 2 active telescopes, got {len(active_telescopes)}")
-                    return {"metadata": {"time_step": time_step, "scan_count": len(scans)}, "data": {}}
+                    return {}
 
                 # Retrieve or calculate UV coverage
                 uv_store_key = "uv_coverage"
@@ -2316,9 +2243,9 @@ class ScheduleCalculator(Super):
                 uv_data = self._calculate_uv_coverage(obj, uv_attrs)
                 if not uv_data:
                     logger.error(f"No UV coverage data for observation '{obj.get_observation_code()}'")
-                    return {"metadata": {"time_step": time_step, "scan_count": len(scans)}, "data": {}}
+                    return {}
 
-                results = {"metadata": {"time_step": time_step, "scan_count": len(scans)}, "data": {}}
+                results = {}
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
@@ -2330,21 +2257,23 @@ class ScheduleCalculator(Super):
                         scan_result = future.result()
                         source_name = scan_result.get("source")
                         if source_name and scan_result.get("projections"):
-                            if source_name not in results["data"]:
-                                results["data"][source_name] = {}
-                            results["data"][source_name][scan_name] = scan_result["projections"]
+                            if source_name not in results:
+                                results[source_name] = {}
+                            results[source_name][scan_name] = scan_result["projections"]
+                            logger.debug(f"Added projections for scan '{scan_name}' in source '{source_name}'")
 
-                if not results["data"]:
+                if not results:
                     logger.warning(f"No baseline projections computed for observation '{obj.get_observation_code()}'")
                 else:
-                    logger.info(f"Calculated baseline projections for {len(results['data'])} sources across {len(scans)} scans in '{obj.get_observation_code()}'")
+                    logger.info(f"Calculated baseline projections for {len(results)} sources across {len(scans)} scans in '{obj.get_observation_code()}'")
                 return results
 
             metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
-            return self._get_cached_or_calculate(obj, store_key, calculate_baseline_projections, attributes, metadata)
+            result = self._get_cached_or_calculate(obj, store_key, calculate_baseline_projections, attributes, metadata)
+            return result
         except Exception as e:
             logger.error(f"Failed to calculate baseline projections: {str(e)}")
-            return {"metadata": {"time_step": time_step, "scan_count": 0}, "data": {}}
+            return {}
     
     def _process_baseline_projections(self, scan: Scan, observation: Observation, time_step: Optional[float], uv_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process baseline projections for a single scan in geometric coordinates (meters).
@@ -2473,25 +2402,24 @@ class ScheduleCalculator(Super):
 
         Returns:
             Dict[str, Any]: Mollweide tracks and source coordinates, formatted as:
-                {
-                    "metadata": {
-                        "time_step": float,
-                        "scan_count": int,
-                        "sources": [{"name": str, "lon": float, "lat": float}, ...]
-                    },
-                    "data": {
+                For Observation:
+                    {
                         source_name: {
                             scan_name: {
                                 telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
                             }
                         }
                     }
-                }
-
-        Notes:
-            - Depends on precomputed time arrays and telescope positions.
-            - Uses vectorized computations for efficiency.
-            - Stores results in calculated_data under the specified store_key.
+                For ScheduleProject:
+                    {
+                        obs_code: {
+                            source_name: {
+                                scan_name: {
+                                    telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
+                                }
+                            }
+                        }
+                    }
         """
         try:
             time_step = attributes.get("time_step")
@@ -2502,45 +2430,34 @@ class ScheduleCalculator(Super):
                 observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
-                    return {"metadata": {"time_step": time_step, "scan_count": 0, "sources": []}, "data": {}}
-                results = {
-                    "metadata": {
-                        "time_step": time_step,
-                        "scan_count": 0,
-                        "sources": []
-                    },
-                    "data": {}
-                }
+                    return {}
+                results = {}
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_mollweide_tracks, obs, attributes): obs.get_observation_code()
                         for obs in observations
                     }
-                    source_set = set()
-                    scan_counts = []
                     for future in futures:
                         obs_code = futures[future]
                         obs_result = future.result()
-                        if obs_result and "data" in obs_result:
-                            results["data"][obs_code] = obs_result["data"]
-                            scan_counts.append(obs_result["metadata"].get("scan_count", 0))
-                            for source in obs_result["metadata"].get("sources", []):
-                                source_tuple = (source["name"], source["lon"], source["lat"])
-                                source_set.add(source_tuple)
-                    results["metadata"]["scan_count"] = sum(scan_counts)
-                    results["metadata"]["sources"] = [
-                        {"name": name, "lon": lon, "lat": lat}
-                        for name, lon, lat in sorted(source_set, key=lambda x: x[0])
-                    ]
-                logger.info(f"Calculated Mollweide tracks for {len(observations)} observations in project '{obj.name}'")
+                        logger.debug(f"Processing result for observation '{obs_code}': {obs_result.keys()}")
+                        if obs_result:
+                            results[obs_code] = obs_result
+                        else:
+                            logger.warning(f"No valid data from observation '{obs_code}'")
+                    if not results:
+                        logger.warning(f"No Mollweide tracks computed for project '{obj.name}'")
+                    else:
+                        logger.info(f"Calculated Mollweide tracks for {len(observations)} observations in project '{obj.name}'")
+                        logger.debug(f"Final structure for '{obj.name}': {list(results.keys())}")
                 return results
 
             def calculate_mollweide(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
                 scans = obj.get_scans().get_active_items()
                 if not scans:
                     logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
-                    return {"metadata": {"time_step": time_step, "scan_count": 0, "sources": []}, "data": {}}
+                    return {}
 
                 # Retrieve or calculate dependencies
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
@@ -2550,23 +2467,9 @@ class ScheduleCalculator(Super):
 
                 if not (time_data and position_data):
                     logger.error(f"Missing required data (times or positions) for '{obj.get_observation_code()}'")
-                    return {"metadata": {"time_step": time_step, "scan_count": len(scans), "sources": []}, "data": {}}
+                    return {}
 
-                # Collect active sources
-                sources = obj.get_sources().get_active_items()
-                source_coords = [
-                    {
-                        "name": source.name,
-                        "lon": float(lon),
-                        "lat": float(lat)
-                    }
-                    for source in sources
-                    for lon, lat in [self._compute_mollweide_coords(
-                        SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-                    )]
-                ]
-
-                results = {"metadata": {"time_step": time_step, "scan_count": len(scans), "sources": source_coords}, "data": {}}
+                results = {}
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
@@ -2578,25 +2481,27 @@ class ScheduleCalculator(Super):
                         scan_result = future.result()
                         source_name = scan_result.get("source")
                         if source_name and scan_result.get("tracks"):
-                            if source_name not in results["data"]:
-                                results["data"][source_name] = {}
-                            results["data"][source_name][scan_name] = scan_result["tracks"]
+                            if source_name not in results:
+                                results[source_name] = {}
+                            results[source_name][scan_name] = scan_result["tracks"]
+                            logger.debug(f"Added tracks for scan '{scan_name}' in source '{source_name}'")
 
-                if not results["data"]:
+                if not results:
                     logger.warning(f"No Mollweide tracks computed for observation '{obj.get_observation_code()}'")
                 else:
-                    logger.info(f"Calculated Mollweide tracks for {len(results['data'])} sources across {len(scans)} scans in '{obj.get_observation_code()}'")
+                    logger.info(f"Calculated Mollweide tracks for {len(results)} sources across {len(scans)} scans in '{obj.get_observation_code()}'")
                 return results
 
             metadata = {
                 "time_step": time_step,
                 "scan_count": len(obj.get_scans().get_active_items()),
-                "sources": []
+                "sources": []  # Only used for mollweide_tracks in cache
             }
-            return self._get_cached_or_calculate(obj, store_key, calculate_mollweide, attributes, metadata)
+            result = self._get_cached_or_calculate(obj, store_key, calculate_mollweide, attributes, metadata)
+            return result
         except Exception as e:
             logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
-            return {"metadata": {"time_step": time_step, "scan_count": 0, "sources": []}, "data": {}}
+            return {}
 
     def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process Mollweide tracks for a single scan using vectorized computations.
