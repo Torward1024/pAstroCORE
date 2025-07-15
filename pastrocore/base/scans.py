@@ -23,11 +23,12 @@ class Scan(BaseEntity):
     is_off_source: bool
 
     def __init__(self, name: str = None, start: Time = None, duration: float = 1.0, source: Optional[Source] = None,
-                 telescopes: List[Union[Telescope, SpaceTelescope]] = None, frequencies: List[IF] = None,
-                 is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None):
+             telescopes: List[Union[Telescope, SpaceTelescope]] = None, frequencies: List[IF] = None,
+             is_off_source: bool = False, isactive: bool = True, observation: 'Observation' = None):
         """Initialize a Scan with name, start time, duration, and references to observation entities."""
         if start is None:
             start = Time.now()
+        start = Time(start.iso.split('.')[0], format='iso')
         if name is None:
             name = f"scan_{uuid.uuid4().hex[:32]}"
         check_type(start, Time, "Start time")
@@ -124,7 +125,8 @@ class Scan(BaseEntity):
 
     def get_end(self) -> Time:
         """Retrieve the end time of the scan."""
-        return self.start + self.duration * u.s
+        end_time = self.start + self.duration * u.s
+        return Time(end_time.iso.split('.')[0], format='iso')
 
     def get_MJD_starttime(self) -> float:
         """Retrieve the start time in Modified Julian Date (MJD)."""
@@ -169,6 +171,7 @@ class Scan(BaseEntity):
     def set_start(self, start: Time) -> None:
         """Set the start time of the scan."""
         check_type(start, Time, "Start time")
+        start = Time(start.iso.split('.')[0], format='iso')
         self.set({"start": start})
         logger.info(f"Set scan start to {start.isot}")
 
@@ -423,6 +426,7 @@ class Scan(BaseEntity):
         from pastrocore.base.observation import Observation
         data = data.copy()
         start_time = Time(data.pop("start"))
+        start_time = Time(start_time.iso.split('.')[0], format='iso')
         source_name = data.pop("source", None)
         telescope_names = data.pop("telescopes", [])  # List of telescope names
         frequency_names = data.pop("frequencies", [])  # List of frequency names
