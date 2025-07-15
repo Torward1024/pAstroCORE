@@ -2410,16 +2410,6 @@ class ScheduleCalculator(Super):
                             }
                         }
                     }
-                For ScheduleProject:
-                    {
-                        obs_code: {
-                            source_name: {
-                                scan_name: {
-                                    telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
-                                }
-                            }
-                        }
-                    }
         """
         try:
             time_step = attributes.get("time_step")

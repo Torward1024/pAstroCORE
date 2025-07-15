@@ -12,30 +12,10 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from typing import Dict, Optional, List
 
 class VisualizationDialog(QDialog):
-    """Dialog for visualizing observation parameters using ScheduleVisualizer through ScheduleManipulator.
-
-    This dialog allows users to select an observation and a visualization type. Each visualization type
-    is displayed in a unique tab within a QTabWidget, ensuring only one tab per visualization type.
-    Visualization tabs are dynamically created based on calculated data, and Matplotlib figures are
-    embedded for interactive visualization.
-
-    Attributes:
-        ui (Ui_VisualizationDialog): The UI instance for the dialog.
-        project (ScheduleProject): The current project containing observations.
-        manipulator (ScheduleManipulator): Manipulator for accessing project data and performing visualizations.
-        visualization_tabs (Dict[str, QWidget]): Dictionary mapping visualization types to their tab widgets.
-        cached_observations (Dict[str, Observation]): Cached observation objects to optimize performance.
-        cached_calc_data (Dict[str, Dict]): Cached calculated data for all observations.
-    """
+    """Dialog for visualizing observation parameters using ScheduleVisualizer through ScheduleManipulator."""
 
     def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
-        """Initialize the visualization dialog.
-
-        Args:
-            project (ScheduleProject): The current project instance.
-            manipulator (ScheduleManipulator): The manipulator for project operations and visualizations.
-            parent (QWidget, optional): Parent widget for the dialog.
-        """
+        """Initialize the visualization dialog."""
         super().__init__(parent)
         self.ui = Ui_VisualizationDialog()
         self.ui.setupUi(self)
@@ -158,11 +138,7 @@ class VisualizationDialog(QDialog):
 
     @Slot(int)
     def close_tab(self, index: int):
-        """Close a specific tab and remove its visualization widget.
-
-        Args:
-            index (int): Index of the tab to close.
-        """
+        """Close a specific tab and remove its visualization widget."""
         tab_widget = self.ui.tabWidget.widget(index)
         vis_type = tab_widget.property("vis_type")
         if vis_type in self.visualization_tabs:
@@ -284,11 +260,16 @@ class VisualizationDialog(QDialog):
 
         # Add filters for UV coverage
         if vis_type == "UV Coverage":
+            # Get frequencies from UVVisualizationTab
+            frequencies = tab_widget.get_selected_frequencies()
             vis_attributes.update({
                 "source_name": tab_widget.get_selected_source(),
                 "scans": tab_widget.get_selected_scans(),
-                "baselines": tab_widget.get_selected_baselines()
+                "baselines": tab_widget.get_selected_baselines(),
+                "frequencies": frequencies,
+                "units": tab_widget.get_selected_units()
             })
+            logger.debug(f"Updated vis_attributes for UV Coverage: {vis_attributes}")
 
         try:
             self.ui.pushButtonVisualize.setEnabled(False)

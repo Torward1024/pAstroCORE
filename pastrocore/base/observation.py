@@ -249,52 +249,355 @@ class Observation(BaseEntity):
         except Exception as e:
             logger.error(f"Failed to serialize observation '{self.name}': {str(e)}")
             raise
-
+        
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
-        """Create an Observation object from a dictionary.
-
-        Restores astropy.time.Time arrays in calculated_data['times'] from ISO strings,
-        while other data types are deserialized appropriately.
         """
-        def restore_quantity(obj):
-            if isinstance(obj, dict):
-                if "times" in obj:
-                    restored_times = {}
-                    for source_name, scans in obj["times"].items():
+        Create an Observation object from a dictionary.
+
+        Restores calculated_data according to specified formats, handling astropy.time.Time,
+        numpy.ndarray, and astropy.units.Quantity as needed.
+
+        Args:
+            data (dict): Dictionary containing observation data.
+
+        Returns:
+            Observation: Deserialized Observation object.
+
+        Raises:
+            ValueError: If critical data fields are missing or invalid.
+            TypeError: If data structure is invalid.
+        """
+        def restore_calculated_data(calculated_data: Dict[str, Any]) -> Dict[str, Any]:
+            """
+            Restore calculated_data according to specified formats in data_formats.txt.
+
+            Args:
+                calculated_data (Dict[str, Any]): Raw calculated data dictionary.
+
+            Returns:
+                Dict[str, Any]: Restored calculated data with proper types.
+
+            Raises:
+                ValueError: If data format is invalid.
+                TypeError: If data structure is unexpected.
+            """
+            restored = {}
+            for key, value in calculated_data.items():
+                if not isinstance(value, dict) or "data" not in value:
+                    logger.error(f"Invalid structure for {key}: expected dict with 'data' key, got {type(value)}")
+                    raise ValueError(f"Invalid structure for {key} in calculated_data")
+
+                restored_data = {}
+                metadata = value.get("metadata", {})
+                data = value.get("data", {})
+
+                if key == "times":
+                    restored_metadata = {}
+                    for meta_key, meta_value in metadata.items():
+                        if meta_key in ("time_step", "time_threshold"):
+                            restored_metadata[meta_key] = float(meta_value)
+                        elif meta_key in ("start_time", "end_time"):
+                            if isinstance(meta_value, (int, float)):
+                                restored_metadata[meta_key] = Time(meta_value, format="mjd")
+                            elif isinstance(meta_value, str):
+                                restored_metadata[meta_key] = Time(meta_value)
+                            else:
+                                logger.error(f"Invalid type for {meta_key} in times.metadata: {type(meta_value)}")
+                                raise ValueError(f"Invalid {meta_key} in times.metadata")
+                        elif meta_key == "scan_count":
+                            restored_metadata[meta_key] = int(meta_value)
+                        else:
+                            restored_metadata[meta_key] = meta_value
+                        logger.debug(f"Restored {meta_key} in times.metadata: {meta_value}")
+
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for times.data, got {type(data)}")
+                        raise TypeError(f"Invalid times.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
                         restored_scans = {}
                         for scan_name, times in scans.items():
-                            if isinstance(times, (list, tuple)):
-                                restored_scans[scan_name] = Time(times)
-                            else:
-                                restored_scans[scan_name] = times
-                        restored_times[source_name] = restored_scans
-                    obj["times"] = restored_times
-                return {k: restore_quantity(v) for k, v in obj.items()}
-            elif isinstance(obj, (list, tuple)):
-                return [restore_quantity(item) for item in obj]
-            return obj
+                            try:
+                                if isinstance(times, (list, tuple)):
+                                    restored_scans[scan_name] = Time([t if isinstance(t, str) else float(t) for t in times], format="mjd" if all(isinstance(t, (int, float)) for t in times) else None)
+                                elif isinstance(times, str):
+                                    restored_scans[scan_name] = Time(times)
+                                else:
+                                    logger.error(f"Invalid time format in scan {scan_name}: {type(times)}")
+                                    raise ValueError(f"Invalid time format in scan {scan_name}")
+                                logger.debug(f"Restored times for scan {scan_name} in source {source_name}")
+                            except Exception as e:
+                                logger.error(f"Failed to convert times for scan {scan_name}: {str(e)}")
+                                raise ValueError(f"Invalid time data in scan {scan_name}")
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
 
-        kwargs = {
-            "name": data["name"],
-            "code": data["code"],
-            "observation_type": data["observation_type"],
-            "sources": Sources.from_dict(data["sources"]),
-            "telescopes": Telescopes.from_dict(data["telescopes"]),
-            "frequencies": Frequencies.from_dict(data["frequencies"]),
-            "calculated_data": restore_quantity(data.get("calculated_data", {})),
-            "isactive": data.get("isactive", True),
-        }
-        # Create Observation without scans first
-        obs = cls(**kwargs)
-        # Deserialize scans with the observation instance
-        kwargs["scans"] = Scans.from_dict(data["scans"], observation=obs)
-        # Update the observation with scans
-        obs.set({"scans": kwargs["scans"]})
-        # Synchronize all scans to ensure source references and activity status are consistent
-        obs.scans.activate_all(obs)
-        logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans")
-        return obs
+                elif key in ("telescope_positions", "interpolated_orbits"):
+                    restored_metadata = metadata  # No specific processing for metadata
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for {key}.data, got {type(data)}")
+                        raise TypeError(f"Invalid {key}.data structure")
+                    for scan_name, telescopes in data.items():
+                        if not isinstance(telescopes, dict):
+                            logger.error(f"Expected dict for telescopes in scan {scan_name}, got {type(telescopes)}")
+                            raise TypeError(f"Invalid telescopes structure in scan {scan_name}")
+                        restored_telescopes = {}
+                        for telescope_code, positions in telescopes.items():
+                            try:
+                                restored_telescopes[telescope_code] = np.array(positions) * u.m
+                                logger.debug(f"Restored {key} for {telescope_code} in scan {scan_name}")
+                            except Exception as e:
+                                logger.error(f"Failed to convert {key} for {telescope_code}: {str(e)}")
+                                raise ValueError(f"Invalid {key} data for {telescope_code}")
+                        restored_data[scan_name] = restored_telescopes
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                elif key == "source_visibility":
+                    restored_metadata = metadata
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for source_visibility.data, got {type(data)}")
+                        raise TypeError(f"Invalid source_visibility.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
+                        restored_scans = {}
+                        for scan_name, telescopes in scans.items():
+                            if not isinstance(telescopes, dict):
+                                logger.error(f"Expected dict for telescopes in scan {scan_name}, got {type(telescopes)}")
+                                raise TypeError(f"Invalid telescopes structure in scan {scan_name}")
+                            restored_telescopes = {}
+                            for telescope_code, visibility in telescopes.items():
+                                try:
+                                    restored_telescopes[telescope_code] = np.array(visibility, dtype=bool)
+                                    logger.debug(f"Restored source_visibility for {telescope_code} in scan {scan_name}")
+                                except Exception as e:
+                                    logger.error(f"Failed to convert source_visibility for {telescope_code}: {str(e)}")
+                                    raise ValueError(f"Invalid source_visibility data for {telescope_code}")
+                            restored_scans[scan_name] = restored_telescopes
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                elif key == "beam_pattern":
+                    restored_metadata = metadata
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for beam_pattern.data, got {type(data)}")
+                        raise TypeError(f"Invalid beam_pattern.data structure")
+                    for telescope_code, beam_data in data.items():
+                        try:
+                            restored_data[telescope_code] = np.array(beam_data)
+                            logger.debug(f"Restored beam_pattern for {telescope_code}")
+                        except Exception as e:
+                            logger.error(f"Failed to convert beam_pattern for {telescope_code}: {str(e)}")
+                            raise ValueError(f"Invalid beam_pattern data for {telescope_code}")
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                elif key == "time_on_source":
+                    restored_metadata = metadata
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for time_on_source.data, got {type(data)}")
+                        raise TypeError(f"Invalid time_on_source.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
+                        restored_scans = {}
+                        for scan_name, telescopes in scans.items():
+                            if not isinstance(telescopes, dict):
+                                logger.error(f"Expected dict for telescopes in scan {scan_name}, got {type(telescopes)}")
+                                raise TypeError(f"Invalid telescopes structure in scan {scan_name}")
+                            restored_telescopes = {}
+                            for telescope_code, time_blocks in telescopes.items():
+                                try:
+                                    restored_blocks = []
+                                    for block in time_blocks:
+                                        if isinstance(block, (list, tuple)) and len(block) == 3:
+                                            start, end, duration = block
+                                            restored_block = [
+                                                Time(start) if isinstance(start, str) else Time(start, format="mjd"),
+                                                Time(end) if isinstance(end, str) else Time(end, format="mjd"),
+                                                float(duration)
+                                            ]
+                                            restored_blocks.append(restored_block)
+                                        else:
+                                            logger.error(f"Invalid time block format in {telescope_code}: {block}")
+                                            raise ValueError(f"Invalid time block format in {telescope_code}")
+                                    restored_telescopes[telescope_code] = np.array(restored_blocks)
+                                    logger.debug(f"Restored time_on_source for {telescope_code} in scan {scan_name}")
+                                except Exception as e:
+                                    logger.error(f"Failed to convert time_on_source for {telescope_code}: {str(e)}")
+                                    raise ValueError(f"Invalid time_on_source data for {telescope_code}")
+                            restored_scans[scan_name] = restored_telescopes
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                elif key == "az_el":
+                    restored_metadata = metadata
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for az_el.data, got {type(data)}")
+                        raise TypeError(f"Invalid az_el.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
+                        restored_scans = {}
+                        for scan_name, telescopes in scans.items():
+                            if not isinstance(telescopes, dict):
+                                logger.error(f"Expected dict for telescopes in scan {scan_name}, got {type(telescopes)}")
+                                raise TypeError(f"Invalid telescopes structure in scan {scan_name}")
+                            restored_telescopes = {}
+                            for telescope_code, az_el_data in telescopes.items():
+                                try:
+                                    restored_telescopes[telescope_code] = np.array(az_el_data) * u.deg
+                                    logger.debug(f"Restored az_el for {telescope_code} in scan {scan_name}")
+                                except Exception as e:
+                                    logger.error(f"Failed to convert az_el for {telescope_code}: {str(e)}")
+                                    raise ValueError(f"Invalid az_el data for {telescope_code}")
+                            restored_scans[scan_name] = restored_telescopes
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                elif key == "sun_angles":
+                    restored_metadata = metadata
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for sun_angles.data, got {type(data)}")
+                        raise TypeError(f"Invalid sun_angles.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
+                        restored_scans = {}
+                        for scan_name, telescopes in scans.items():
+                            if not isinstance(telescopes, dict):
+                                logger.error(f"Expected dict for telescopes in scan {scan_name}, got {type(telescopes)}")
+                                raise TypeError(f"Invalid telescopes structure in scan {scan_name}")
+                            restored_telescopes = {}
+                            for telescope_code, angles in telescopes.items():
+                                try:
+                                    restored_telescopes[telescope_code] = np.array(angles) * u.deg
+                                    logger.debug(f"Restored sun_angles for {telescope_code} in scan {scan_name}")
+                                except Exception as e:
+                                    logger.error(f"Failed to convert sun_angles for {telescope_code}: {str(e)}")
+                                    raise ValueError(f"Invalid sun_angles data for {telescope_code}")
+                            restored_scans[scan_name] = restored_telescopes
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                elif key == "synthesized_beam":
+                    restored_metadata = {
+                        "time_step": float(metadata.get("time_step", 0.0)),
+                        "scan_count": int(metadata.get("scan_count", 0)),
+                        "freq_names": metadata.get("freq_names", [])
+                    }
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for synthesized_beam.data, got {type(data)}")
+                        raise TypeError(f"Invalid synthesized_beam.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
+                        restored_scans = {}
+                        for scan_name, freqs in scans.items():
+                            if not isinstance(freqs, dict):
+                                logger.error(f"Expected dict for frequencies in scan {scan_name}, got {type(freqs)}")
+                                raise TypeError(f"Invalid frequencies structure in scan {scan_name}")
+                            restored_freqs = {}
+                            for freq_name, beam_data in freqs.items():
+                                try:
+                                    restored_freqs[freq_name] = np.array(beam_data)
+                                    logger.debug(f"Restored synthesized_beam for {freq_name} in scan {scan_name}")
+                                except Exception as e:
+                                    logger.error(f"Failed to convert synthesized_beam for {freq_name}: {str(e)}")
+                                    raise ValueError(f"Invalid synthesized_beam data for {freq_name}")
+                            restored_scans[scan_name] = restored_freqs
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                elif key == "baseline_projections":
+                    restored_metadata = metadata
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for baseline_projections.data, got {type(data)}")
+                        raise TypeError(f"Invalid baseline_projections.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
+                        restored_scans = {}
+                        for scan_name, baselines in scans.items():
+                            if not isinstance(baselines, dict):
+                                logger.error(f"Expected dict for baselines in scan {scan_name}, got {type(baselines)}")
+                                raise TypeError(f"Invalid baselines structure in scan {scan_name}")
+                            restored_baselines = {}
+                            for baseline, projections in baselines.items():
+                                try:
+                                    restored_baselines[baseline] = np.array(projections)
+                                    logger.debug(f"Restored baseline_projections for {baseline} in scan {scan_name}")
+                                except Exception as e:
+                                    logger.error(f"Failed to convert baseline_projections for {baseline}: {str(e)}")
+                                    raise ValueError(f"Invalid baseline_projections data for {baseline}")
+                            restored_scans[scan_name] = restored_baselines
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                elif key == "mollweide_tracks":
+                    restored_metadata = {
+                        "time_step": float(metadata.get("time_step", 0.0)),
+                        "scan_count": int(metadata.get("scan_count", 0)),
+                        "sources": metadata.get("sources", [])
+                    }
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for mollweide_tracks.data, got {type(data)}")
+                        raise TypeError(f"Invalid mollweide_tracks.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
+                        restored_scans = {}
+                        for scan_name, telescopes in scans.items():
+                            if not isinstance(telescopes, dict):
+                                logger.error(f"Expected dict for telescopes in scan {scan_name}, got {type(telescopes)}")
+                                raise TypeError(f"Invalid telescopes structure in scan {scan_name}")
+                            restored_telescopes = {}
+                            for telescope_code, tracks in telescopes.items():
+                                try:
+                                    restored_telescopes[telescope_code] = np.array(tracks) * u.deg
+                                    logger.debug(f"Restored mollweide_tracks for {telescope_code} in scan {scan_name}")
+                                except Exception as e:
+                                    logger.error(f"Failed to convert mollweide_tracks for {telescope_code}: {str(e)}")
+                                    raise ValueError(f"Invalid mollweide_tracks data for {telescope_code}")
+                            restored_scans[scan_name] = restored_telescopes
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
+                else:
+                    logger.warning(f"Unknown calculated_data key {key}, storing as-is")
+                    restored[key] = value
+
+            return restored
+
+        try:
+            kwargs = {
+                "name": data["name"],
+                "code": data["code"],
+                "observation_type": data["observation_type"],
+                "sources": Sources.from_dict(data["sources"]),
+                "telescopes": Telescopes.from_dict(data["telescopes"]),
+                "frequencies": Frequencies.from_dict(data["frequencies"]),
+                "calculated_data": restore_calculated_data(data.get("calculated_data", {})),
+                "isactive": data.get("isactive", True),
+            }
+            obs = cls(**kwargs)
+            kwargs["scans"] = Scans.from_dict(data["scans"], observation=obs)
+            obs.set({"scans": kwargs["scans"]})
+            obs.scans.activate_all(obs)
+            logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans")
+            return obs
+        except Exception as e:
+            logger.error(f"Failed to deserialize observation from dictionary: {str(e)}")
+            raise
 
     def __repr__(self) -> str:
         """Return a string representation of the Observation object."""
