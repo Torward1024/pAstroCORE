@@ -269,18 +269,26 @@ class ScheduleVisualizer(Super):
             scans = attributes.get("scans", None)
             time_range = attributes.get("time_range", None)
 
+            # Create axis even if no data is plotted
+            ax = fig.add_subplot(111)
+            ax.set_xlabel("u (wavelengths)")
+            ax.set_ylabel("v (wavelengths)")
+            ax.set_title(f"UV Coverage for {source_name if source_name else 'No Source'}")
+            ax.grid(True)
+            ax.invert_xaxis()
+
             # Retrieve UV coverage and time data
             uv_data = obj.get_calculated_data_by_key(store_key)
             times_data = obj.get_calculated_data_by_key(times_key)
             if not uv_data or not times_data:
-                logger.error(f"Missing data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
-                return {}
+                logger.warning(f"Missing data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
+                return {"baselines": 0, "points": 0}
 
             uv_data = uv_data.get("data", {})
             times_data = times_data.get("data", {})
             if not uv_data or not times_data:
-                logger.error(f"Empty data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
-                return {}
+                logger.warning(f"Empty data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
+                return {"baselines": 0, "points": 0}
 
             # Default to first source if none specified
             if not source_name:
@@ -291,7 +299,11 @@ class ScheduleVisualizer(Super):
 
             result = {"baselines": 0, "points": 0}
             plotted_pairs = set()
-            ax = fig.add_subplot(111)
+
+            # Check if scans or baselines are empty
+            if not scans or not baselines:
+                logger.debug("No scans or baselines selected, returning empty plot")
+                return result
 
             for source in sources:
                 if source not in uv_data or source not in times_data:
@@ -347,21 +359,9 @@ class ScheduleVisualizer(Super):
                         logger.error(f"Invalid UV point format for {tel_code}: {str(e)}")
                         continue
 
-            if not plotted_pairs:
-                logger.warning(f"No valid UV data to plot for {obj.get_observation_code()}")
-                ax.set_xlabel("u (wavelengths)")
-                ax.set_ylabel("v (wavelengths)")
-                ax.set_title(f"UV Coverage for {', '.join(sources)}")
-                ax.grid(True)
-                return {}
-
             result["baselines"] = len(plotted_pairs)
-            ax.set_xlabel("u (wavelengths)")
-            ax.set_ylabel("v (wavelengths)")
-            ax.set_title(f"UV Coverage for {', '.join(sources)}")
-            ax.grid(True)
-            ax.legend()
-            ax.invert_xaxis()
+            if plotted_pairs:
+                ax.legend()
             return result
 
     def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
