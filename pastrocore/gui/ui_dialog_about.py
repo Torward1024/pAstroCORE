@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_aboutIpPctq.ui'
+## Form generated from reading UI file 'dialog_aboutNReSSr.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -121,10 +121,11 @@ class Ui_AboutDialog(object):
         AboutDialog.setStyleSheet(QCoreApplication.translate("AboutDialog", u"background-color: #ffffff; font-family: Arial;", None))
         self.label_2.setText("")
         self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
-        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.81a", None))
+        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.82a", None))
         self.label.setText(QCoreApplication.translate("AboutDialog", u"Ballistics Laborator\n"
 "Astro Space Center LPI, 2018-2025", None))
         self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for  radio astronomical observations\n"
 " planning and visualization.", None))
         self.labelTitle.setText(QCoreApplication.translate("AboutDialog", u"pAstroCORE", None))
     # retranslateUi
+
