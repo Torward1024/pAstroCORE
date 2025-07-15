@@ -270,7 +270,7 @@ class ScheduleVisualizer(Super):
 
             # If no frequencies are selected, return empty plot
             if not frequencies:
-                logger.debug("No frequencies selected, returning empty UV plot")
+                logger.debug("No frequencies selected, returning empty axis")
                 return {"baselines": 0, "points": 0, "frequencies": 0}
 
             # Retrieve UV coverage and time data
@@ -356,7 +356,8 @@ class ScheduleVisualizer(Super):
                             if baselines and tel_code not in baselines:
                                 logger.debug(f"Skipping tel_code {tel_code} not in baselines {baselines}")
                                 continue
-                            if not uv_points[tel_code]:
+                            # Проверяем, что uv_points[tel_code] является списком и не пустой
+                            if not isinstance(uv_points[tel_code], (list, tuple)) or len(uv_points[tel_code]) == 0:
                                 logger.debug(f"No valid UV points for {tel_code} in source {source}, scan {scan}")
                                 continue
                             try:
@@ -382,7 +383,7 @@ class ScheduleVisualizer(Super):
                                 plotted_pairs.add(f"{tel_code}_{freq_mhz}")
                                 result["points"] += len(u_scaled)
                             except (ValueError, TypeError) as e:
-                                logger.error(f"Invalid UV point format for {tel_code} at {freq_mhz} MHz: {str(e)}")
+                                logger.error(f"Error processing UV points for {tel_code} at {freq_mhz} MHz: {str(e)}")
                                 continue
 
             result["baselines"] = len(plotted_pairs)

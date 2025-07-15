@@ -515,6 +515,35 @@ class Observation(BaseEntity):
                             restored_scans[scan_name] = restored_freqs
                         restored_data[source_name] = restored_scans
                     restored[key] = {"metadata": restored_metadata, "data": restored_data}
+                
+                elif key == "uv_coverage":
+                    restored_metadata = {
+                        "time_step": float(metadata.get("time_step", 0.0)),
+                        "scan_count": int(metadata.get("scan_count", 0))
+                    }
+                    if not isinstance(data, dict):
+                        logger.error(f"Expected dict for uv_coverage.data, got {type(data)}")
+                        raise TypeError(f"Invalid uv_coverage.data structure")
+                    for source_name, scans in data.items():
+                        if not isinstance(scans, dict):
+                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
+                            raise TypeError(f"Invalid scans structure for source {source_name}")
+                        restored_scans = {}
+                        for scan_name, baselines in scans.items():
+                            if not isinstance(baselines, dict):
+                                logger.error(f"Expected dict for baselines in scan {scan_name}, got {type(baselines)}")
+                                raise TypeError(f"Invalid baselines structure in scan {scan_name}")
+                            restored_baselines = {}
+                            for baseline, uvw in baselines.items():
+                                try:
+                                    restored_baselines[baseline] = np.array(uvw)
+                                    logger.debug(f"Restored uv_coverage for {baseline} in scan {scan_name}")
+                                except Exception as e:
+                                    logger.error(f"Failed to convert baseline_projections for {baseline}: {str(e)}")
+                                    raise ValueError(f"Invalid baseline_projections data for {baseline}")
+                            restored_scans[scan_name] = restored_baselines
+                        restored_data[source_name] = restored_scans
+                    restored[key] = {"metadata": restored_metadata, "data": restored_data}
 
                 elif key == "baseline_projections":
                     restored_metadata = metadata

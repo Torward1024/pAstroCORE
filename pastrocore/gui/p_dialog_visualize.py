@@ -51,7 +51,13 @@ class VisualizationDialog(QDialog):
         progress.show()
         QApplication.processEvents()
 
+        # Clear combo boxes and disable them initially
         self.ui.comboBoxObservation.clear()
+        self.ui.comboBoxObservation.setEnabled(False)
+        self.ui.comboBoxVisualizationType.clear()
+        self.ui.comboBoxVisualizationType.setEnabled(False)
+        self.ui.pushButtonVisualize.setEnabled(False)
+
         response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
@@ -84,29 +90,31 @@ class VisualizationDialog(QDialog):
                     else:
                         logger.error(f"Failed to cache data for '{obs_name}': {calc_data_response.get('error', 'Unknown error')}")
                 logger.info(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
+                # Enable comboBoxObservation if there are observations
+                self.ui.comboBoxObservation.setEnabled(True)
             else:
                 logger.info("No observations found in project")
-                self.ui.pushButtonVisualize.setEnabled(False)
         else:
             logger.error(f"Failed to retrieve observations: {response.get('error', 'Unknown error')}")
             QMessageBox.critical(self, "Error", f"Failed to load observations: "
                                                 f"{response.get('error', 'Unknown error')}")
-            self.ui.pushButtonVisualize.setEnabled(False)
         progress.close()
 
     def update_visualization_types(self):
         """Update visualization types based on cached calculated data."""
+        # Clear and disable visualization type combo box by default
         self.ui.comboBoxVisualizationType.clear()
+        self.ui.comboBoxVisualizationType.setEnabled(False)
+        self.ui.pushButtonVisualize.setEnabled(False)
+
         current_obs_name = self.ui.comboBoxObservation.currentData()
         if not current_obs_name:
-            logger.debug("No observation selected, clearing visualization types")
-            self.ui.pushButtonVisualize.setEnabled(False)
+            logger.debug("No observation selected, visualization types cleared and disabled")
             return
 
         calc_data = self.cached_calc_data.get(current_obs_name, {})
         if not calc_data:
-            logger.error(f"No cached calculated data for observation '{current_obs_name}'")
-            self.ui.pushButtonVisualize.setEnabled(False)
+            logger.debug(f"No calculated data for observation '{current_obs_name}', visualization types cleared and disabled")
             return
 
         visualization_map = {
@@ -132,9 +140,13 @@ class VisualizationDialog(QDialog):
                         available_visualizations.append(vis_name)
                         break
 
-        self.ui.comboBoxVisualizationType.addItems(available_visualizations)
-        logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
-        self.ui.pushButtonVisualize.setEnabled(bool(available_visualizations))
+        if available_visualizations:
+            self.ui.comboBoxVisualizationType.addItems(available_visualizations)
+            self.ui.comboBoxVisualizationType.setEnabled(True)
+            self.ui.pushButtonVisualize.setEnabled(True)
+            logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
+        else:
+            logger.debug(f"No valid calculated data for visualization types in observation '{current_obs_name}'")
 
     @Slot(int)
     def close_tab(self, index: int):
