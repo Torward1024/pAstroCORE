@@ -1,7 +1,7 @@
 # pastrocore/gui/p_tab_vis_uv_coverage.py
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QListWidgetItem
 from PySide6.QtCore import Slot, Qt
-from .ui_tab_vis_uv_coverage import Ui_tab_vis_uv_coverage
+from .ui_tab_vis_uv_coverage import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
@@ -13,34 +13,13 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 
 class UVVisualizationTab(QWidget):
-    """Widget for UV coverage visualization with source, scan, and baseline selection.
-
-    This widget provides a UI for selecting a source, scans, and baselines to filter
-    UV coverage data, which is then visualized using Matplotlib.
-
-    Attributes:
-        ui (Ui_tab_vis_uv_coverage): The UI instance for the UV visualization tab.
-        manipulator (ScheduleManipulator): Manipulator for accessing observation data.
-        observation (Observation): The observation to visualize.
-        canvas (FigureCanvas): Matplotlib canvas for rendering the plot.
-        toolbar (NavigationToolbar): Matplotlib toolbar for interactive controls.
-        cached_data (dict): Cached calculated data to optimize performance.
-    """
+    """Widget for UV coverage visualization with source, scan, baseline, and frequency selection."""
 
     def __init__(self, manipulator: ScheduleManipulator, observation: Observation,
                  sources: List[str], scans: List[str], baselines: List[str], parent=None):
-        """Initialize the UV visualization tab.
-
-        Args:
-            manipulator (ScheduleManipulator): Manipulator for project operations and visualizations.
-            observation (Observation): The observation to visualize.
-            sources (List[str]): List of source names available for selection.
-            scans (List[str]): List of scan names available for selection.
-            baselines (List[str]): List of baseline names available for selection.
-            parent (QWidget, optional): Parent widget for the tab.
-        """
+        """Initialize the UV visualization tab."""
         super().__init__(parent)
-        self.ui = Ui_tab_vis_uv_coverage()
+        self.ui = Ui_ObservationInfoTab()
         self.ui.setupUi(self)
         self.manipulator = manipulator
         self.observation = observation
@@ -57,6 +36,19 @@ class UVVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listBaselines.addItem(item)
 
+        # Populate frequencies
+        self.frequencies = self._get_frequencies()
+        logger.debug(f"Populated frequencies: {self.frequencies}")
+        for freq in self.frequencies:
+            item = QListWidgetItem(f"{freq:.2f} MHz")
+            item.setData(Qt.UserRole, freq)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            item.setCheckState(Qt.Checked)
+            self.ui.listFrequencies.addItem(item)
+
+        # Populate units combo box
+        self.ui.comboBox_2.addItems(["Wavelengths", "Earth Diameters"])
+
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         self.figure = None
@@ -66,40 +58,52 @@ class UVVisualizationTab(QWidget):
         self.ui.comboBox.currentIndexChanged.connect(self.on_filter_changed)
         self.ui.listScans.itemChanged.connect(self.on_filter_changed)
         self.ui.listBaselines.itemChanged.connect(self.on_filter_changed)
+        self.ui.listFrequencies.itemChanged.connect(self.on_filter_changed)
+        self.ui.comboBox_2.currentIndexChanged.connect(self.on_filter_changed)
 
-        # Cache data immediately (in main thread, but optimized)
+        # Cache data immediately
         self._cache_calculated_data()
         if sources:
             self.update_scans_for_source(sources[0])
+            self.update_visualization()  # Trigger initial visualization
+
+    def _get_frequencies(self) -> List[float]:
+        """Retrieve the list of frequencies (in MHz) from the observation."""
+        response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_frequencies": None}
+        })
+        if response["status"]:
+            frequencies = response["result"].get_items()
+            freq_list = [float(f.get("frequency")) for f in frequencies]
+            logger.debug(f"Retrieved frequencies: {freq_list}")
+            return freq_list
+        logger.error(f"Failed to retrieve frequencies: {response.get('error', 'Unknown error')}")
+        return []
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
         calc_data_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "times"]}}  # Limit to necessary keys
+            "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "times"]}}
         })
         if calc_data_response["status"]:
             self.cached_data = calc_data_response["result"]
-            logger.debug("Cached calculated data for UVVisualizationTab")
+            logger.debug(f"Cached calculated data: {self.cached_data}")
         else:
             logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
             self.cached_data = {}
 
     def get_selected_source(self) -> Optional[str]:
-        """Get the currently selected source name.
-
-        Returns:
-            Optional[str]: The selected source name or None if not selected.
-        """
-        return self.ui.comboBox.currentText() if self.ui.comboBox.currentText() else None
+        """Get the currently selected source name."""
+        source = self.ui.comboBox.currentText() if self.ui.comboBox.currentText() else None
+        logger.debug(f"Selected source: {source}")
+        return source
 
     def get_selected_scans(self) -> List[str]:
-        """Get the list of selected scan names.
-
-        Returns:
-            List[str]: List of checked scan names.
-        """
+        """Get the list of selected scan names."""
         selected_scans = []
         for i in range(self.ui.listScans.count()):
             item = self.ui.listScans.item(i)
@@ -109,11 +113,7 @@ class UVVisualizationTab(QWidget):
         return selected_scans
 
     def get_selected_baselines(self) -> List[str]:
-        """Get the list of selected baseline names.
-
-        Returns:
-            List[str]: List of checked baseline names.
-        """
+        """Get the list of selected baseline names."""
         selected_baselines = []
         for i in range(self.ui.listBaselines.count()):
             item = self.ui.listBaselines.item(i)
@@ -122,13 +122,30 @@ class UVVisualizationTab(QWidget):
         logger.debug(f"Selected baselines: {selected_baselines}")
         return selected_baselines
 
+    def get_selected_frequencies(self) -> List[float]:
+        """Get the list of selected frequencies (in MHz)."""
+        selected_frequencies = []
+        for i in range(self.ui.listFrequencies.count()):
+            item = self.ui.listFrequencies.item(i)
+            if item.checkState() == Qt.Checked:
+                freq = float(item.data(Qt.UserRole))
+                selected_frequencies.append(freq)
+        # Fallback to all frequencies if none are selected
+        if not selected_frequencies:
+            selected_frequencies = self.frequencies
+            logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
+        logger.debug(f"Selected frequencies: {selected_frequencies}")
+        return selected_frequencies
+
+    def get_selected_units(self) -> str:
+        """Get the selected units for UV visualization."""
+        units = self.ui.comboBox_2.currentText().lower().replace(" ", "_")
+        logger.debug(f"Selected units: {units}")
+        return units
+
     @Slot()
     def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget.
-
-        Args:
-            figure: The Matplotlib figure to embed.
-        """
+        """Embed a Matplotlib figure into the widget."""
         if self.canvas:
             self.layout.removeWidget(self.canvas)
             self.canvas.deleteLater()
@@ -155,12 +172,7 @@ class UVVisualizationTab(QWidget):
         self.update_visualization()
 
     def update_scans_for_source(self, source_name: str):
-        """Update the scans list based on the selected source, preserving check states.
-
-        Args:
-            source_name (str): The name of the selected source.
-        """
-        # Store current check states
+        """Update the scans list based on the selected source, preserving check states."""
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
                           for i in range(self.ui.listScans.count())}
         logger.debug(f"Stored check states: {current_checks}")
@@ -170,12 +182,12 @@ class UVVisualizationTab(QWidget):
             logger.debug("No source selected, clearing scans list")
             return
 
-        if not self.cached_data:
-            logger.error("No cached data available for updating scans")
+        if not self.cached_data or "uv_coverage" not in self.cached_data:
+            logger.error("No cached UV coverage data available for updating scans")
             return
 
         scans = []
-        if "uv_coverage" in self.cached_data and source_name in self.cached_data["uv_coverage"]["data"]:
+        if source_name in self.cached_data["uv_coverage"]["data"]:
             scan_data = self.cached_data["uv_coverage"]["data"][source_name]
             scans_response = self.manipulator.process_request({
                 "operation": "inspect",
@@ -197,7 +209,6 @@ class UVVisualizationTab(QWidget):
                     item = QListWidgetItem(display_text)
                     item.setData(Qt.UserRole, scan_name)
                     item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                    # Restore previous check state or default to Checked
                     item.setCheckState(current_checks.get(scan_name, Qt.Checked))
                     self.ui.listScans.addItem(item)
                     scans.append(scan_name)
@@ -208,23 +219,31 @@ class UVVisualizationTab(QWidget):
     def update_visualization(self):
         """Update the UV coverage visualization based on current filter selections."""
         source_name = self.get_selected_source()
-        logger.debug(f"Updating visualization for source '{source_name}'")
+        frequencies = self.get_selected_frequencies()
+        units = self.get_selected_units()
+        scans = self.get_selected_scans()
+        baselines = self.get_selected_baselines()
+        logger.debug(f"Updating visualization: source='{source_name}', frequencies={frequencies}, "
+                     f"units={units}, scans={scans}, baselines={baselines}")
+
         vis_attributes = {
             "plot_type": "uv_coverage",
             "show": False,
             "return_figure": True,
             "source_name": source_name,
-            "scans": self.get_selected_scans(),
-            "baselines": self.get_selected_baselines()
+            "scans": scans,
+            "baselines": baselines,
+            "frequencies": frequencies,
+            "units": units
         }
 
-        # If no scans or baselines are selected, create an empty plot
-        if not vis_attributes["scans"] or not vis_attributes["baselines"]:
-            logger.debug("No scans or baselines selected, creating empty UV plot")
+        # If no scans, baselines, or frequencies are selected, create an empty plot
+        if not scans or not baselines or not frequencies:
+            logger.debug("No scans, baselines, or frequencies selected, creating empty UV plot")
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_subplot(111)
-            ax.set_xlabel("u (wavelengths)")
-            ax.set_ylabel("v (wavelengths)")
+            ax.set_xlabel(f"u ({units})")
+            ax.set_ylabel(f"v ({units})")
             ax.set_title(f"UV Coverage for {source_name if source_name else 'No Source'}")
             ax.grid(True)
             ax.invert_xaxis()
@@ -242,7 +261,7 @@ class UVVisualizationTab(QWidget):
                 figure = response.get("result", {}).get("figure")
                 if figure:
                     self.embed_figure(figure)
-                    logger.info(f"UV coverage visualization updated for source '{source_name}'")
+                    logger.info(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
                 else:
                     logger.error("No figure returned from visualizer")
             else:
