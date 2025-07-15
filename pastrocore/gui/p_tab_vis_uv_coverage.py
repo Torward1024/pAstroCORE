@@ -261,7 +261,7 @@ class UVVisualizationTab(QWidget):
                 figure = response.get("result", {}).get("figure")
                 if figure:
                     self.embed_figure(figure)
-                    logger.info(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
+                    logger.debug(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
                 else:
                     logger.error("No figure returned from visualizer")
             else:

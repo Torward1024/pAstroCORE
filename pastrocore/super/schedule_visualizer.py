@@ -349,23 +349,19 @@ class ScheduleVisualizer(Super):
                     # Process each frequency
                     for freq_mhz in frequencies:
                         wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0  # Avoid division by zero
-                        scaling_factor = 1.0 if units == "wavelengths" else (1.0 / EARTH_DIAMETER)
+                        scaling_factor = 1.0 if units == "wavelengths" else (wavelength / EARTH_DIAMETER)
                         logger.debug(f"Frequency {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
 
                         for tel_code in uv_points:
                             if baselines and tel_code not in baselines:
                                 logger.debug(f"Skipping tel_code {tel_code} not in baselines {baselines}")
                                 continue
-                            # Проверяем, что uv_points[tel_code] является списком и не пустой
-                            if not isinstance(uv_points[tel_code], (list, tuple)) or len(uv_points[tel_code]) == 0:
+                            if len(uv_points[tel_code]) == 0:
                                 logger.debug(f"No valid UV points for {tel_code} in source {source}, scan {scan}")
                                 continue
                             try:
                                 # Validate UV points format
-                                valid_points = [
-                                    pt for pt in uv_points[tel_code]
-                                    if pt is not None and isinstance(pt, (list, tuple)) and len(pt) >= 2 and not np.any(np.isnan(pt[:2]))
-                                ]
+                                valid_points = [pt for pt in uv_points[tel_code]]
                                 logger.debug(f"Valid UV points for {tel_code}: {len(valid_points)}")
                                 if not valid_points:
                                     logger.debug(f"No valid UV points after filtering for {tel_code} in source {source}, scan {scan}")
