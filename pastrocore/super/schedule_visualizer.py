@@ -262,9 +262,9 @@ class ScheduleVisualizer(Super):
 
             # Create axis even if no data is plotted
             ax = fig.add_subplot(111)
-            ax.set_xlabel(f"u ({units})")
-            ax.set_ylabel(f"v ({units})")
-            ax.set_title(f"UV Coverage for {source_name if source_name else 'No Source'}")
+            ax.set_xlabel(f"u, ({units})")
+            ax.set_ylabel(f"v, ({units})")
+            ax.set_title(f"Obs. code: {obj.code}\n(u,v) coverage for: {source_name if source_name else 'No Source'}")
             ax.grid(True)
             ax.invert_xaxis()
 
