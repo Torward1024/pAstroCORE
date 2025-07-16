@@ -6,6 +6,8 @@ from .p_tab_vis_uv_coverage import UVVisualizationTab
 from .p_tab_vis_az_el import AzElVisualizationTab
 from .p_tab_vis_sun_angles import SunAnglesVisualizationTab
 from .p_tab_vis_beam_pattern import BeamPatternVisualizationTab
+from .p_tab_vis_time_on_source import TimeOnSourceVisualizationTab
+
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
@@ -80,12 +82,12 @@ class VisualizationDialog(QDialog):
                         self.ui.comboBoxObservation.addItem(code_response["result"], obs_name)
                     else:
                         logger.error(f"Failed to get code for observation '{obs_name}': "
-                                     f"{code_response.get('error', 'Unknown error')}")
-                    # Cache calculated data for UV coverage, sun angles, beam pattern, and times
+                                    f"{code_response.get('error', 'Unknown error')}")
+                    # Cache calculated data for UV coverage, sun angles, beam pattern, times, and time_on_source
                     calc_data_response = self.manipulator.process_request({
                         "operation": "inspect",
                         "obj": obs,
-                        "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "sun_angles", "beam_pattern", "times"]}}
+                        "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "az_el", "sun_angles", "beam_pattern", "times", "time_on_source"]}}
                     })
                     if calc_data_response["status"]:
                         self.cached_calc_data[obs_name] = calc_data_response["result"]
@@ -154,7 +156,6 @@ class VisualizationDialog(QDialog):
         tab_widget.deleteLater()
         logger.debug(f"Closed tab for visualization type '{vis_type}' at index {index}")
 
-    @Slot()
     def perform_visualization(self):
         """Perform the selected visualization and display it in a unique tab."""
         obs_name = self.ui.comboBoxObservation.currentData()
@@ -191,7 +192,7 @@ class VisualizationDialog(QDialog):
         if vis_type in self.visualization_tabs:
             logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
             tab_widget = self.visualization_tabs[vis_type]
-            if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern"]:
+            if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source"]:
                 tab_widget.update_visualization()
             else:
                 # Handle other visualization types if needed
@@ -248,6 +249,20 @@ class VisualizationDialog(QDialog):
             telescopes = list(calc_data.get("beam_pattern", {}).get("data", {}).keys())
             telescopes = sorted(list(set(telescopes)))
             tab_widget = BeamPatternVisualizationTab(self.manipulator, observation, parent=self)
+        elif vis_type == "Time on Source":
+            calc_data = self.cached_calc_data.get(obs_name, {})
+            # Extract sources, scans, and telescopes for Time on Source
+            sources = list(calc_data.get("time_on_source", {}).get("data", {}).keys())
+            scans = []
+            telescopes = []
+            if "time_on_source" in calc_data:
+                for source_name in calc_data["time_on_source"]["data"]:
+                    scans.extend(list(calc_data["time_on_source"]["data"][source_name].keys()))
+                    for scan_name in calc_data["time_on_source"]["data"][source_name]:
+                        telescopes.extend(list(calc_data["time_on_source"]["data"][source_name][scan_name].keys()))
+            scans = sorted(list(set(scans)))
+            telescopes = sorted(list(set(telescopes)))
+            tab_widget = TimeOnSourceVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
 
         if tab_widget:
             tab_widget.setProperty("vis_type", vis_type)
@@ -295,7 +310,14 @@ class VisualizationDialog(QDialog):
                 "freq_names": tab_widget.get_selected_frequencies()
             })
             logger.debug(f"Updated vis_attributes for Beam Pattern: {vis_attributes}")
-        
+        elif vis_type == "Time on Source":
+            vis_attributes.update({
+                "source_name": tab_widget.get_selected_source(),
+                "scans": tab_widget.get_selected_scans(),
+                "telescopes": tab_widget.get_selected_telescopes()
+            })
+            logger.debug(f"Updated vis_attributes for Time on Source: {vis_attributes}")
+
         try:
             self.ui.pushButtonVisualize.setEnabled(False)
             self.ui.pushButtonVisualize.setText("Visualizing...")
@@ -315,7 +337,7 @@ class VisualizationDialog(QDialog):
                     return
 
                 # Embed figure in the tab
-                if vis_type in ["UV Coverage", "Sun Angles", "Beam Pattern"]:
+                if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source"]:
                     tab_widget.embed_figure(figure)
                 else:
                     canvas = FigureCanvas(figure)

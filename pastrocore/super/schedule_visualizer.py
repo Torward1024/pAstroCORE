@@ -742,60 +742,194 @@ class ScheduleVisualizer(Super):
             return result
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot time on source for an Observation."""
+        """Plot time on source for an Observation with flexible filtering.
+
+        Args:
+            obj: Observation object containing the time on source data.
+            attributes: Dictionary with visualization parameters, including 'store_key', 'source_name',
+                        'telescopes', 'scans', and 'time_range'.
+            fig: Matplotlib figure object for plotting.
+
+        Returns:
+            Dict containing metadata about the plotted data (e.g., number of scans, telescopes, and time blocks).
+        """
         with self._lock:
             logger.debug(f"Plotting time on source for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "time_on_source")
+            source_name = attributes.get("source_name", None)
+            telescopes = attributes.get("telescopes", None)
+            scans = attributes.get("scans", None)
+            time_range = attributes.get("time_range", None)
+
+            logger.debug(f"Input attributes: store_key={store_key}, source_name={source_name}, "
+                        f"telescopes={telescopes}, scans={scans}, time_range={time_range}")
+
+            # Create axis even if no data is plotted
+            ax = fig.add_subplot(111)
+            ax.set_xlabel("Time (MJD)")
+            ax.set_ylabel("Telescope")
+            ax.set_title(f"Time on Source for Observation: {obj.get_observation_code()}")
+            ax.grid(True, axis="x")
+
+            # Check if required parameters are provided
+            if not (source_name or telescopes or scans):
+                logger.debug("No source, telescopes, or scans specified, returning empty plot")
+                return {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
+
+            # Retrieve time on source data
             data = obj.get_calculated_data_by_key(store_key)
             if not data:
                 logger.error(f"No time on source data found for '{store_key}' in {obj.get_observation_code()}")
-                return {}
+                return {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
 
+            # Validate data structure
             data = data.get("data", {})
-            telescopes = set()
+            if not isinstance(data, dict):
+                logger.warning(f"Invalid data type: data={type(data)} in {obj.get_observation_code()}")
+                return {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
+            if not data:
+                logger.warning(f"Empty time on source data in {obj.get_observation_code()}")
+                return {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
+
+            # Default to first source if none specified
+            sources = [source_name] if source_name else list(data.keys())[:1]
+            if not sources:
+                logger.debug("No sources available, returning empty plot")
+                return {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
+
+            result = {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
+            plotted_telescopes = set()
             all_blocks = {}
-            source_name = None
-            for source, source_data in data.items():
-                source_name = source
-                for tel, blocks in source_data["telescopes"].items():
-                    telescopes.add(tel)
-                    if tel not in all_blocks:
-                        all_blocks[tel] = []
-                    all_blocks[tel].extend(blocks)
 
-            telescopes = sorted(telescopes)
-            ax = fig.add_subplot(111)
+            for source in sources:
+                if source not in data:
+                    logger.warning(f"Source {source} not found in time on source data")
+                    continue
+                source_data = data[source]
 
-            for i, tel in enumerate(telescopes):
-                for block in all_blocks.get(tel, []):
-                    start = Time(block["start"]).mjd
-                    end = Time(block["start"]) + block["duration"] * u.s
-                    end = end.mjd
-                    ax.fill_between([start, end], [i, i], [i + 1, i + 1], color=self.moderate2_colors[i % len(self.moderate2_colors)], alpha=0.5)
+                # Filter scans (use all if none specified)
+                scan_list = scans if scans else list(source_data.keys())
+                result["scans"] += len(scan_list)
+                logger.debug(f"Scans to process for source {source}: {scan_list}")
 
-            all_times = [[] for _ in range(len(telescopes))]
-            for i, tel in enumerate(telescopes):
-                for block in all_blocks.get(tel, []):
-                    all_times[i].append((Time(block["start"]).mjd, (Time(block["start"]) + block["duration"] * u.s).mjd))
-            
-            intersections = []
-            for t in sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end))):
-                active = [sum(1 for start, end in tel_times if start <= t <= end) for tel_times in all_times]
-                if all(a == 1 for a in active):
-                    intersections.append(t)
-            
-            for i in range(0, len(intersections), 2):
-                if i + 1 < len(intersections):
-                    start, end = intersections[i], intersections[i + 1]
-                    ax.fill_between([start, end], [-1, -1], [0, 0], color=self.intersection_color, alpha=0.7)
+                for scan in scan_list:
+                    if scan not in source_data:
+                        logger.debug(f"Scan {scan} not found for source {source}")
+                        continue
+                    scan_data = source_data[scan]
 
-            ax.set_yticks(np.arange(-1, len(telescopes)))
-            ax.set_yticklabels(["Total Intersection"] + telescopes)
-            ax.set_xlabel("Time (MJD)")
-            ax.set_ylabel("Telescope")
-            ax.set_title(f"Time on Source ({source_name})")
-            ax.grid(True, axis="x")
-            return {"telescopes": len(telescopes)}
+                    # Determine telescopes to plot
+                    tel_list = telescopes if telescopes else list(scan_data.keys())
+                    for tel_code in tel_list:
+                        if tel_code not in scan_data:
+                            logger.debug(f"Telescope {tel_code} not found in scan {scan}, source {source}")
+                            continue
+                        blocks = scan_data[tel_code]
+                        # Convert numpy array to list if necessary
+                        if isinstance(blocks, np.ndarray):
+                            blocks = blocks.tolist()
+                        if not blocks or len(blocks) == 0:
+                            logger.debug(f"No time blocks for {tel_code} in scan {scan}, source {source}")
+                            continue
+                        if tel_code not in all_blocks:
+                            all_blocks[tel_code] = []
+
+                        # Filter blocks by time range if specified
+                        filtered_blocks = []
+                        for block in blocks:
+                            try:
+                                # Handle start and end: either MJD (float/int) or string
+                                if isinstance(block[0], (int, float)):
+                                    start_mjd = float(block[0])
+                                else:
+                                    start_mjd = Time(block[0]).mjd
+                                if isinstance(block[1], (int, float)):
+                                    end_mjd = float(block[1])
+                                else:
+                                    end_mjd = Time(block[1]).mjd
+                                duration = float(block[2])  # Duration in seconds
+
+                                # Verify duration consistency
+                                calculated_duration = (end_mjd - start_mjd) * 86400  # Convert days to seconds
+                                if abs(calculated_duration - duration) > 1e-6:
+                                    logger.warning(f"Duration mismatch for {tel_code} in scan {scan}, source {source}: "
+                                                f"stored={duration}s, calculated={calculated_duration}s")
+
+                                # Apply time range filter
+                                if time_range:
+                                    start_range, end_range = time_range
+                                    if start_mjd >= end_range or end_mjd <= start_range:
+                                        continue
+                                filtered_blocks.append((start_mjd, end_mjd, duration))
+                            except (ValueError, TypeError) as e:
+                                logger.error(f"Invalid block format for {tel_code} in scan {scan}, source {source}: {block}, error: {str(e)}")
+                                continue
+                        all_blocks[tel_code].extend(filtered_blocks)
+                        result["points"] += len(filtered_blocks)
+
+            # Sort telescopes for consistent plotting
+            tel_list = sorted(all_blocks.keys())
+            result["telescopes"] = len(tel_list)
+            if not tel_list:
+                logger.debug("No valid telescopes to plot after filtering")
+                return {"scans": result["scans"], "telescopes": 0, "points": 0, "intersections": 0}
+
+            # Plot time blocks for each telescope
+            for i, tel in enumerate(tel_list):
+                color_idx = i % len(self.moderate2_colors)
+                for start_mjd, end_mjd, _ in all_blocks[tel]:
+                    ax.fill_between(
+                        [start_mjd, end_mjd],
+                        [i, i],
+                        [i + 1, i + 1],
+                        color=self.moderate2_colors[color_idx],
+                        alpha=0.5,
+                        label=tel if tel not in plotted_telescopes else None
+                    )
+                    plotted_telescopes.add(tel)
+
+            # Calculate intersections (times when all selected telescopes are active)
+            if tel_list:
+                all_times = [[(start, end) for start, end, _ in all_blocks[tel]] for tel in tel_list]
+                if all_times:
+                    # Collect all unique time points
+                    time_points = sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end)))
+                    intersection_times = []
+
+                    # Check each interval between time points
+                    for i in range(len(time_points) - 1):
+                        start, end = time_points[i], time_points[i + 1]
+                        # Check if ALL telescopes are active in this interval
+                        all_active = True
+                        for tel_times in all_times:
+                            # A telescope is active if the interval [start, end] is fully contained in one of its blocks
+                            active = any(start_t <= start and end <= end_t for start_t, end_t in tel_times)
+                            if not active:
+                                all_active = False
+                                break
+                        if all_active:
+                            intersection_times.append((start, end))
+
+                    # Plot intersection regions
+                    for start, end in intersection_times:
+                        ax.fill_between(
+                            [start, end],
+                            [-1, -1],
+                            [0, 0],
+                            color=self.intersection_color,
+                            alpha=0.7,
+                            label="Total Intersection" if not intersection_times else None
+                        )
+                    result["intersections"] = len(intersection_times)
+
+            # Set y-axis labels
+            ax.set_yticks(np.arange(-1, len(tel_list)))
+            ax.set_yticklabels(["Total Intersection"] + tel_list)
+            if plotted_telescopes:
+                ax.legend()
+
+            logger.debug(f"Visualization result: {result}")
+            return result
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Plot beam patterns for an Observation with one subplot per telescope, showing patterns for specified frequencies.
