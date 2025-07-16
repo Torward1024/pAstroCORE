@@ -2,6 +2,7 @@
 from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout, QWidget, QProgressDialog
 from PySide6.QtCore import Slot, Qt
 from .ui_dialog_visualize import Ui_VisualizationDialog
+from .p_tab_vis_mollweide import MollweideVisualizationTab
 from .p_tab_vis_uv_coverage import UVVisualizationTab
 from .p_tab_vis_az_el import AzElVisualizationTab
 from .p_tab_vis_sun_angles import SunAnglesVisualizationTab
@@ -278,6 +279,20 @@ class VisualizationDialog(QDialog):
             scans = sorted(list(set(scans)))
             baselines = sorted(list(set(baselines)))
             tab_widget = BaselineProjectionsVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
+        elif vis_type == "Mollweide Tracks":
+            calc_data = self.cached_calc_data.get(obs_name, {})
+            # Extract sources, scans, and telescopes for Mollweide Tracks
+            sources = list(calc_data.get("mollweide_tracks", {}).get("data", {}).keys())
+            scans = []
+            telescopes = []
+            if "mollweide_tracks" in calc_data:
+                for source_name in calc_data["mollweide_tracks"]["data"]:
+                    scans.extend(list(calc_data["mollweide_tracks"]["data"][source_name].keys()))
+                    for scan_name in calc_data["mollweide_tracks"]["data"][source_name]:
+                        telescopes.extend(list(calc_data["mollweide_tracks"]["data"][source_name][scan_name].keys()))
+            scans = sorted(list(set(scans)))
+            telescopes = sorted(list(set(telescopes)))
+            tab_widget = MollweideVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
 
         if tab_widget:
             tab_widget.setProperty("vis_type", vis_type)
@@ -342,6 +357,13 @@ class VisualizationDialog(QDialog):
                 "units": tab_widget.get_selected_units()
             })
             logger.debug(f"Updated vis_attributes for Baseline Projections: {vis_attributes}")
+        elif vis_type == "Mollweide Tracks":
+            vis_attributes.update({
+                "source_name": tab_widget.get_selected_sources()[0] if tab_widget.get_selected_sources() else None,
+                "scans": tab_widget.get_selected_scans(),
+                "telescopes": tab_widget.get_selected_telescopes()
+            })
+            logger.debug(f"Updated vis_attributes for Mollweide Tracks: {vis_attributes}")
 
         try:
             self.ui.pushButtonVisualize.setEnabled(False)
