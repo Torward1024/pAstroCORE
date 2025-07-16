@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_vis_sun_anglesLWoKsA.ui'
+## Form generated from reading UI file 'tab_vis_sun_anglesBrBfrq.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -18,15 +18,15 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QLabel,
     QListWidget, QListWidgetItem, QSizePolicy, QWidget)
 
-class Ui_SunAnglesVisTab(object):
-    def setupUi(self, SunAnglesVisTab):
-        if not SunAnglesVisTab.objectName():
-            SunAnglesVisTab.setObjectName(u"SunAnglesVisTab")
-        SunAnglesVisTab.resize(881, 550)
-        SunAnglesVisTab.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
-        self.gridLayout_3 = QGridLayout(SunAnglesVisTab)
+class Ui_VisDefaultTab(object):
+    def setupUi(self, VisDefaultTab):
+        if not VisDefaultTab.objectName():
+            VisDefaultTab.setObjectName(u"VisDefaultTab")
+        VisDefaultTab.resize(881, 550)
+        VisDefaultTab.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
+        self.gridLayout_3 = QGridLayout(VisDefaultTab)
         self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self.widget = QWidget(SunAnglesVisTab)
+        self.widget = QWidget(VisDefaultTab)
         self.widget.setObjectName(u"widget")
         self.widget.setStyleSheet(u"QWidget{\n"
 "    border: 1px solid #005BB5; /* \u0426\u0432\u0435\u0442 \u0433\u0440\u0430\u043d\u0438\u0446\u044b \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d \u0441 \u0438\u043a\u043e\u043d\u043a\u0430\u043c\u0438 */\n"
@@ -41,7 +41,7 @@ class Ui_SunAnglesVisTab(object):
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
-        self.cmbSource = QComboBox(SunAnglesVisTab)
+        self.cmbSource = QComboBox(VisDefaultTab)
         self.cmbSource.setObjectName(u"cmbSource")
         self.cmbSource.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
@@ -129,22 +129,22 @@ class Ui_SunAnglesVisTab(object):
 
         self.gridLayout.addWidget(self.cmbSource, 0, 0, 1, 2)
 
-        self.lblTelescopes = QLabel(SunAnglesVisTab)
+        self.lblTelescopes = QLabel(VisDefaultTab)
         self.lblTelescopes.setObjectName(u"lblTelescopes")
 
         self.gridLayout.addWidget(self.lblTelescopes, 3, 0, 1, 2)
 
-        self.listScans = QListWidget(SunAnglesVisTab)
+        self.listScans = QListWidget(VisDefaultTab)
         self.listScans.setObjectName(u"listScans")
 
         self.gridLayout.addWidget(self.listScans, 2, 0, 1, 2)
 
-        self.listTelescopes = QListWidget(SunAnglesVisTab)
+        self.listTelescopes = QListWidget(VisDefaultTab)
         self.listTelescopes.setObjectName(u"listTelescopes")
 
         self.gridLayout.addWidget(self.listTelescopes, 4, 0, 1, 2)
 
-        self.lblScans = QLabel(SunAnglesVisTab)
+        self.lblScans = QLabel(VisDefaultTab)
         self.lblScans.setObjectName(u"lblScans")
 
         self.gridLayout.addWidget(self.lblScans, 1, 0, 1, 2)
@@ -152,7 +152,7 @@ class Ui_SunAnglesVisTab(object):
 
         self.gridLayout_2.addLayout(self.gridLayout, 1, 0, 1, 1)
 
-        self.lblSource = QLabel(SunAnglesVisTab)
+        self.lblSource = QLabel(VisDefaultTab)
         self.lblSource.setObjectName(u"lblSource")
 
         self.gridLayout_2.addWidget(self.lblSource, 0, 0, 1, 1)
@@ -163,15 +163,15 @@ class Ui_SunAnglesVisTab(object):
         self.gridLayout_3.setColumnStretch(0, 5)
         self.gridLayout_3.setColumnStretch(1, 1)
 
-        self.retranslateUi(SunAnglesVisTab)
+        self.retranslateUi(VisDefaultTab)
 
-        QMetaObject.connectSlotsByName(SunAnglesVisTab)
+        QMetaObject.connectSlotsByName(VisDefaultTab)
     # setupUi
 
-    def retranslateUi(self, SunAnglesVisTab):
-        self.lblTelescopes.setText(QCoreApplication.translate("SunAnglesVisTab", u"Telescopes", None))
-        self.lblScans.setText(QCoreApplication.translate("SunAnglesVisTab", u"Scans:", None))
-        self.lblSource.setText(QCoreApplication.translate("SunAnglesVisTab", u"Source:", None))
+    def retranslateUi(self, VisDefaultTab):
+        self.lblTelescopes.setText(QCoreApplication.translate("VisDefaultTab", u"Telescopes", None))
+        self.lblScans.setText(QCoreApplication.translate("VisDefaultTab", u"Scans:", None))
+        self.lblSource.setText(QCoreApplication.translate("VisDefaultTab", u"Source:", None))
         pass
     # retranslateUi
 
