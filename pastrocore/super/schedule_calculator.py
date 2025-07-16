@@ -1786,100 +1786,69 @@ class ScheduleCalculator(Super):
 
         Returns:
             Dict[str, Any]: Beam pattern data formatted as:
-                {
-                    "metadata": {
-                        "telescope_count": int,
-                        "frequency_agnostic": bool,
-                        "scale_instruction": str
-                    },
-                    "data": {
+                For Observation:
+                    {
                         telescope_code: {
                             "theta": List[float],  # Angles in radians
                             "pattern": List[float]  # Normalized beam pattern, to be scaled by pi*D/wavelength
                         }
                     }
-                }
+                For ScheduleProject:
+                    {
+                        obs_code: {
+                            telescope_code: {
+                                "theta": List[float],
+                                "pattern": List[float]
+                            }
+                        }
+                    }
 
         Notes:
             - Supports both SINGLE_DISH and VLBI observations.
             - Calculates beam pattern for all active telescopes, including SpaceTelescope.
             - Beam pattern is computed in a frequency-agnostic manner; scaling by pi*D/wavelength is required during visualization.
             - Uses vectorized computations for efficiency.
-            - Stores results in calculated_data under 'beam_pattern'.
+            - Stores results in calculated_data under 'beam_pattern' with metadata.
         """
         try:
             store_key = attributes.get("store_key", "beam_pattern")
             recalculate = attributes.get("recalculate", False)
 
-            if "freq_name" in attributes:
-                logger.info("Ignoring 'freq_name' as beam pattern is calculated frequency-agnostic")
-
             if isinstance(obj, ScheduleProject):
                 observations = obj.get_items()
                 if not observations:
                     logger.warning(f"No observations in project '{obj.name}'")
-                    return {"metadata": {"telescope_count": 0, "frequency_agnostic": True, "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"}, "data": {}}
-                results = {
-                    "metadata": {
-                        "telescope_count": 0,
-                        "frequency_agnostic": True,
-                        "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
-                    },
-                    "data": {}
-                }
+                    return {}
+                results = {}
                 max_workers = min(len(observations), 4) if len(observations) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(self._calculate_beam_pattern, obs, attributes): obs.get_observation_code()
                         for obs in observations
                     }
-                    telescope_counts = []
                     for future in futures:
                         obs_code = futures[future]
                         obs_result = future.result()
-                        if obs_result and "data" in obs_result:
-                            results["data"][obs_code] = obs_result["data"]
-                            telescope_counts.append(obs_result["metadata"].get("telescope_count", 0))
-                    results["metadata"]["telescope_count"] = sum(telescope_counts)
-                logger.info(f"Calculated beam pattern for {len(observations)} observations in project '{obj.name}'")
+                        if obs_result:
+                            results[obs_code] = obs_result
+                    logger.info(f"Calculated beam pattern for {len(observations)} observations in project '{obj.name}'")
                 return results
 
             def calculate_beam_pattern(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
                 telescopes = obj.get_telescopes().get_active_items()
                 if not telescopes:
                     logger.warning(f"No active telescopes in observation '{obj.get_observation_code()}'")
-                    return {
-                        "metadata": {
-                            "telescope_count": 0,
-                            "frequency_agnostic": True,
-                            "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
-                        },
-                        "data": {}
-                    }
+                    return {}
 
                 # Check observation type
                 obs_type = obj.get_observation_type()
                 if obs_type not in ["SINGLE_DISH", "VLBI"]:
                     logger.warning(f"Beam pattern calculation is only for SINGLE_DISH or VLBI, got {obs_type}")
-                    return {
-                        "metadata": {
-                            "telescope_count": 0,
-                            "frequency_agnostic": True,
-                            "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
-                        },
-                        "data": {}
-                    }
+                    return {}
 
                 # Vectorized computation
                 theta = np.linspace(-np.pi / 2, np.pi / 2, 5000)  # radians
-                results = {
-                    "metadata": {
-                        "telescope_count": len(telescopes),
-                        "frequency_agnostic": True,
-                        "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
-                    },
-                    "data": {}
-                }
+                results = {}
 
                 # Collect diameters and filter valid telescopes
                 diameters = []
@@ -1894,14 +1863,7 @@ class ScheduleCalculator(Super):
 
                 if not valid_telescopes:
                     logger.warning(f"No telescopes with valid diameters in observation '{obj.get_observation_code()}'")
-                    return {
-                        "metadata": {
-                            "telescope_count": 0,
-                            "frequency_agnostic": True,
-                            "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
-                        },
-                        "data": {}
-                    }
+                    return {}
 
                 # Vectorize beam pattern calculation
                 diameters = np.array(diameters)  # shape: (n_telescopes,)
@@ -1912,32 +1874,23 @@ class ScheduleCalculator(Super):
 
                 # Store results
                 for tel, pat in zip(valid_telescopes, pattern):
-                    results["data"][tel.get_code()] = {
+                    results[tel.get_code()] = {
                         "theta": theta.tolist(),
                         "pattern": pat.tolist()  # Convert to list for visualizer compatibility
                     }
 
-                logger.info(f"Calculated frequency-agnostic beam pattern for {len(valid_telescopes)} telescopes in observation '{obj.get_observation_code()}'")
+                logger.info(f"Calculated beam pattern for {len(valid_telescopes)} telescopes in observation '{obj.get_observation_code()}'")
                 return results
 
             metadata = {
                 "telescope_count": len(obj.get_telescopes().get_active_items()),
-                "frequency_agnostic": True,
                 "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
             }
-            result = self._get_cached_or_calculate(obj, store_key, calculate_beam_pattern, attributes, metadata)
-            return {"metadata": metadata, "data": result}
+            return self._get_cached_or_calculate(obj, store_key, calculate_beam_pattern, attributes, metadata)
 
         except Exception as e:
             logger.error(f"Failed to calculate beam pattern: {str(e)}")
-            return {
-                "metadata": {
-                    "telescope_count": 0,
-                    "frequency_agnostic": True,
-                    "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
-                },
-                "data": {}
-            } 
+            return {}
 
     @time_execution
     def _calculate_synthesized_beam(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:

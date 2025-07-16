@@ -8,15 +8,13 @@ from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from typing import List, Optional
-from astropy.time import Time
 import astropy.units as u
 import matplotlib.pyplot as plt
 
 class BeamPatternVisualizationTab(QWidget):
-    """Widget for beam pattern visualization with frequency and telescope selection."""
+    """Widget for beam pattern visualization with telescope and frequency selection."""
 
-    def __init__(self, manipulator: ScheduleManipulator, observation: Observation,
-                 sources: List[str], scans: List[str], telescopes: List[str], frequencies: List[str], parent=None):
+    def __init__(self, manipulator: ScheduleManipulator, observation: Observation, parent=None):
         """Initialize the beam pattern visualization tab."""
         super().__init__(parent)
         self.ui = Ui_VisBeamPatternTab()
@@ -26,19 +24,12 @@ class BeamPatternVisualizationTab(QWidget):
         self.canvas = None
         self.toolbar = None
         self.cached_data = None
+        self.frequencies = self._get_frequencies()  # Get frequencies from observation or metadata
         logger.debug(f"BeamPatternVisualizationTab initialized for observation id={id(observation)}")
 
-        # Populate UI elements
-        self.ui.cmbSource.addItems(sources)
-        for telescope in telescopes:
-            item = QListWidgetItem(telescope)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Checked)
-            self.ui.listTelescopes.addItem(item)
-
         # Populate frequencies
-        for freq in frequencies:
-            item = QListWidgetItem(freq)
+        for freq in self.frequencies:
+            item = QListWidgetItem(f"{freq:.2f} MHz" if freq != "default" else "Default")
             item.setData(Qt.UserRole, freq)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
@@ -50,15 +41,26 @@ class BeamPatternVisualizationTab(QWidget):
         logger.debug("BeamPatternVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
-        self.ui.cmbSource.currentIndexChanged.connect(self.on_filter_changed)
         self.ui.listFrequencies.itemChanged.connect(self.on_filter_changed)
         self.ui.listTelescopes.itemChanged.connect(self.on_filter_changed)
 
         # Cache data immediately
         self._cache_calculated_data()
-        if sources:
-            self.update_scans_for_source(sources[0])
-            self.update_visualization()  # Trigger initial visualization
+
+    def _get_frequencies(self) -> List[str]:
+        """Retrieve the list of frequencies (in MHz) or a default value based on beam pattern metadata."""
+        response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_frequencies": None}
+        })
+        if response["status"]:
+            frequencies = response["result"].get_items()
+            freq_list = [float(f.get("frequency")) for f in frequencies]
+            logger.debug(f"Retrieved frequencies from observation: {freq_list}")
+            return freq_list
+        logger.error(f"Failed to retrieve frequencies: {response.get('error', 'Unknown error')}")
+        return ["default"]
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
@@ -74,12 +76,6 @@ class BeamPatternVisualizationTab(QWidget):
             logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
             self.cached_data = {}
 
-    def get_selected_source(self) -> Optional[str]:
-        """Get the currently selected source name."""
-        source = self.ui.cmbSource.currentText() if self.ui.cmbSource.currentText() else None
-        logger.debug(f"Selected source: {source}")
-        return source
-
     def get_selected_frequencies(self) -> List[str]:
         """Get the list of selected frequency names."""
         selected_frequencies = []
@@ -87,6 +83,9 @@ class BeamPatternVisualizationTab(QWidget):
             item = self.ui.listFrequencies.item(i)
             if item.checkState() == Qt.Checked:
                 selected_frequencies.append(item.data(Qt.UserRole))
+        if not selected_frequencies:
+            selected_frequencies = self.frequencies  # Fallback to all frequencies
+            logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
         logger.debug(f"Selected frequencies: {selected_frequencies}")
         return selected_frequencies
 
@@ -99,18 +98,6 @@ class BeamPatternVisualizationTab(QWidget):
                 selected_telescopes.append(item.text())
         logger.debug(f"Selected telescopes: {selected_telescopes}")
         return selected_telescopes
-
-    def get_selected_scans(self) -> List[str]:
-        """Get the list of selected scan names."""
-        selected_scans = []
-        if not self.cached_data or "beam_pattern" not in self.cached_data:
-            logger.debug("No cached beam pattern data available for scans")
-            return selected_scans
-        source_name = self.get_selected_source()
-        if source_name and source_name in self.cached_data["beam_pattern"]["data"]:
-            selected_scans = list(self.cached_data["beam_pattern"]["data"][source_name].keys())
-        logger.debug(f"Selected scans: {selected_scans}")
-        return selected_scans
 
     @Slot()
     def embed_figure(self, figure):
@@ -135,58 +122,20 @@ class BeamPatternVisualizationTab(QWidget):
     @Slot()
     def on_filter_changed(self):
         """Handle changes in filter selections by updating scans and visualization."""
-        source_name = self.get_selected_source()
-        logger.debug(f"Filter changed, updating scans for source '{source_name}'")
-        self.update_scans_for_source(source_name)
         self.update_visualization()
-
-    def update_scans_for_source(self, source_name: str):
-        """Update the scans list based on the selected source, preserving check states."""
-        current_checks = {self.ui.listFrequencies.item(i).data(Qt.UserRole): self.ui.listFrequencies.item(i).checkState()
-                          for i in range(self.ui.listFrequencies.count())}
-        logger.debug(f"Stored frequency check states: {current_checks}")
-
-        self.ui.listFrequencies.clear()
-        if not source_name:
-            logger.debug("No source selected, clearing frequencies list")
-            return
-
-        if not self.cached_data or "beam_pattern" not in self.cached_data:
-            logger.error("No cached beam pattern data available for updating frequencies")
-            return
-
-        frequencies = []
-        if source_name in self.cached_data["beam_pattern"]["data"]:
-            scan_data = self.cached_data["beam_pattern"]["data"][source_name]
-            for scan_name in scan_data:
-                for freq_name in scan_data[scan_name]:
-                    if freq_name not in frequencies:
-                        item = QListWidgetItem(freq_name)
-                        item.setData(Qt.UserRole, freq_name)
-                        item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                        item.setCheckState(current_checks.get(freq_name, Qt.Checked))
-                        self.ui.listFrequencies.addItem(item)
-                        frequencies.append(freq_name)
-            logger.debug(f"Populated {len(frequencies)} frequencies for source '{source_name}'")
-        else:
-            logger.debug(f"No beam pattern data for source '{source_name}'")
 
     def update_visualization(self):
         """Update the beam pattern visualization based on current filter selections."""
-        source_name = self.get_selected_source()
         frequencies = self.get_selected_frequencies()
         telescopes = self.get_selected_telescopes()
-        scans = self.get_selected_scans()
-        logger.debug(f"Updating visualization: source='{source_name}', frequencies={frequencies}, telescopes={telescopes}, scans={scans}")
+        logger.debug(f"Updating visualization: frequencies={frequencies}, telescopes={telescopes}")
 
         vis_attributes = {
             "plot_type": "beam_pattern",
             "show": False,
             "return_figure": True,
-            "source_name": source_name,
-            "freq_names": frequencies,
-            "telescopes": telescopes,
-            "scans": scans
+            "freq_names": frequencies if frequencies != ["default"] else None,
+            "telescopes": telescopes
         }
 
         try:
@@ -200,7 +149,7 @@ class BeamPatternVisualizationTab(QWidget):
                 figure = response.get("result", {}).get("figure")
                 if figure:
                     self.embed_figure(figure)
-                    logger.debug(f"Beam pattern visualization updated for source '{source_name}'")
+                    logger.debug(f"Beam pattern visualization updated")
                 else:
                     logger.error("No figure returned from visualizer")
             else:

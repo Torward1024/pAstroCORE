@@ -132,8 +132,8 @@ class VisualizationDialog(QDialog):
         available_visualizations = []
 
         for calc_key, vis_name in visualization_map.items():
-            if calc_key in calc_data and calc_data[calc_key].get("data"):
-                available_visualizations.append(vis_name)
+            if calc_key in calc_data and isinstance(calc_data[calc_key], dict) and calc_data[calc_key].get("data"):
+                    available_visualizations.append(vis_name)
 
         if available_visualizations:
             self.ui.comboBoxVisualizationType.addItems(available_visualizations)
@@ -191,7 +191,7 @@ class VisualizationDialog(QDialog):
         if vis_type in self.visualization_tabs:
             logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
             tab_widget = self.visualization_tabs[vis_type]
-            if vis_type in ["UV Coverage", "Sun Angles", "Beam Pattern"]:
+            if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern"]:
                 tab_widget.update_visualization()
             else:
                 # Handle other visualization types if needed
@@ -245,21 +245,9 @@ class VisualizationDialog(QDialog):
             tab_widget = AzElVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
         elif vis_type == "Beam Pattern":
             calc_data = self.cached_calc_data.get(obs_name, {})
-            # Extract sources, scans, telescopes, and frequencies for Beam Pattern
-            sources = list(calc_data.get("beam_pattern", {}).get("data", {}).keys())
-            scans = []
-            telescopes = []
-            frequencies = calc_data.get("beam_pattern", {}).get("metadata", {}).get("freq_names", [])
-            if "beam_pattern" in calc_data:
-                for source_name in calc_data["beam_pattern"]["data"]:
-                    scans.extend(list(calc_data["beam_pattern"]["data"][source_name].keys()))
-                    for scan_name in calc_data["beam_pattern"]["data"][source_name]:
-                        for freq_name in calc_data["beam_pattern"]["data"][source_name][scan_name]:
-                            telescopes.extend(list(calc_data["beam_pattern"]["data"][source_name][scan_name][freq_name].keys()))
-            scans = sorted(list(set(scans)))
+            telescopes = list(calc_data.get("beam_pattern", {}).get("data", {}).keys())
             telescopes = sorted(list(set(telescopes)))
-            frequencies = sorted(list(set(frequencies)))
-            tab_widget = BeamPatternVisualizationTab(self.manipulator, observation, sources, scans, telescopes, frequencies, parent=self)
+            tab_widget = BeamPatternVisualizationTab(self.manipulator, observation, parent=self)
 
         if tab_widget:
             tab_widget.setProperty("vis_type", vis_type)
@@ -272,7 +260,8 @@ class VisualizationDialog(QDialog):
         vis_attributes = {
             "plot_type": vis_key,
             "show": False,
-            "return_figure": True
+            "return_figure": True,
+            "store_key": vis_key
         }
 
         # Add filters for specific visualizations
@@ -302,8 +291,6 @@ class VisualizationDialog(QDialog):
             logger.debug(f"Updated vis_attributes for Az/El or HA/Dec: {vis_attributes}")
         elif vis_type == "Beam Pattern":
             vis_attributes.update({
-                "source_name": tab_widget.get_selected_source(),
-                "scans": tab_widget.get_selected_scans(),
                 "telescopes": tab_widget.get_selected_telescopes(),
                 "freq_names": tab_widget.get_selected_frequencies()
             })
