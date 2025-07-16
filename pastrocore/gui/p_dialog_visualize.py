@@ -7,6 +7,7 @@ from .p_tab_vis_az_el import AzElVisualizationTab
 from .p_tab_vis_sun_angles import SunAnglesVisualizationTab
 from .p_tab_vis_beam_pattern import BeamPatternVisualizationTab
 from .p_tab_vis_time_on_source import TimeOnSourceVisualizationTab
+from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab  # Новый импорт
 
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
@@ -83,11 +84,11 @@ class VisualizationDialog(QDialog):
                     else:
                         logger.error(f"Failed to get code for observation '{obs_name}': "
                                     f"{code_response.get('error', 'Unknown error')}")
-                    # Cache calculated data for UV coverage, sun angles, beam pattern, times, and time_on_source
+                    # Cache calculated data for UV coverage, sun angles, beam pattern, times, time_on_source, and baseline_projections
                     calc_data_response = self.manipulator.process_request({
                         "operation": "inspect",
                         "obj": obs,
-                        "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "az_el", "sun_angles", "beam_pattern", "times", "time_on_source"]}}
+                        "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "az_el", "sun_angles", "beam_pattern", "times", "time_on_source", "baseline_projections"]}}
                     })
                     if calc_data_response["status"]:
                         self.cached_calc_data[obs_name] = calc_data_response["result"]
@@ -192,7 +193,7 @@ class VisualizationDialog(QDialog):
         if vis_type in self.visualization_tabs:
             logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
             tab_widget = self.visualization_tabs[vis_type]
-            if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source"]:
+            if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections"]:
                 tab_widget.update_visualization()
             else:
                 # Handle other visualization types if needed
@@ -263,6 +264,20 @@ class VisualizationDialog(QDialog):
             scans = sorted(list(set(scans)))
             telescopes = sorted(list(set(telescopes)))
             tab_widget = TimeOnSourceVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
+        elif vis_type == "Baseline Projections":
+            calc_data = self.cached_calc_data.get(obs_name, {})
+            # Extract sources, scans, and baselines for Baseline Projections
+            sources = list(calc_data.get("baseline_projections", {}).get("data", {}).keys())
+            scans = []
+            baselines = []
+            if "baseline_projections" in calc_data:
+                for source_name in calc_data["baseline_projections"]["data"]:
+                    scans.extend(list(calc_data["baseline_projections"]["data"][source_name].keys()))
+                    for scan_name in calc_data["baseline_projections"]["data"][source_name]:
+                        baselines.extend(list(calc_data["baseline_projections"]["data"][source_name][scan_name].keys()))
+            scans = sorted(list(set(scans)))
+            baselines = sorted(list(set(baselines)))
+            tab_widget = BaselineProjectionsVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
 
         if tab_widget:
             tab_widget.setProperty("vis_type", vis_type)
@@ -317,6 +332,16 @@ class VisualizationDialog(QDialog):
                 "telescopes": tab_widget.get_selected_telescopes()
             })
             logger.debug(f"Updated vis_attributes for Time on Source: {vis_attributes}")
+        elif vis_type == "Baseline Projections":
+            frequencies = tab_widget.get_selected_frequencies()
+            vis_attributes.update({
+                "source_name": tab_widget.get_selected_source(),
+                "scans": tab_widget.get_selected_scans(),
+                "baselines": tab_widget.get_selected_baselines(),
+                "frequencies": frequencies,
+                "units": tab_widget.get_selected_units()
+            })
+            logger.debug(f"Updated vis_attributes for Baseline Projections: {vis_attributes}")
 
         try:
             self.ui.pushButtonVisualize.setEnabled(False)
@@ -337,7 +362,7 @@ class VisualizationDialog(QDialog):
                     return
 
                 # Embed figure in the tab
-                if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source"]:
+                if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections"]:
                     tab_widget.embed_figure(figure)
                 else:
                     canvas = FigureCanvas(figure)
