@@ -34,7 +34,7 @@ class CalculationThread(QThread):
         """Execute calculations asynchronously and emit progress signals."""
         try:
             results = {}
-            freq_dependent_calcs = ["Beam Pattern", "Synthesized Beam"]
+            freq_dependent_calcs = ["Synthesized Beam"]
             total = sum(len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1
                         for target in self.targets for calc_type in self.calc_types)
             current = 0

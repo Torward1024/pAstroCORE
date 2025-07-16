@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_vis_beam_patternvLTEyy.ui'
+## Form generated from reading UI file 'tab_vis_beam_patternIbQvVD.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -51,10 +51,10 @@ class Ui_VisBeamPatternTab(object):
 
         self.gridLayout.addWidget(self.lblTelescopes, 0, 0, 1, 1)
 
-        self.lblScans = QLabel(VisBeamPatternTab)
-        self.lblScans.setObjectName(u"lblScans")
+        self.lblFrequencies = QLabel(VisBeamPatternTab)
+        self.lblFrequencies.setObjectName(u"lblFrequencies")
 
-        self.gridLayout.addWidget(self.lblScans, 6, 0, 1, 1)
+        self.gridLayout.addWidget(self.lblFrequencies, 6, 0, 1, 1)
 
         self.listTelescopes = QListWidget(VisBeamPatternTab)
         self.listTelescopes.setObjectName(u"listTelescopes")
@@ -76,8 +76,8 @@ class Ui_VisBeamPatternTab(object):
     # setupUi
 
     def retranslateUi(self, VisBeamPatternTab):
-        self.lblTelescopes.setText(QCoreApplication.translate("VisBeamPatternTab", u"Telescopes", None))
-        self.lblScans.setText(QCoreApplication.translate("VisBeamPatternTab", u"Frequencies:", None))
+        self.lblTelescopes.setText(QCoreApplication.translate("VisBeamPatternTab", u"Telescopes:", None))
+        self.lblFrequencies.setText(QCoreApplication.translate("VisBeamPatternTab", u"Frequencies:", None))
         pass
     # retranslateUi
 
