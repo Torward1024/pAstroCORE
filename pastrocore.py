@@ -53,6 +53,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
     def clear_connections(self):
         """Disconnect all action signals to prevent duplicates."""
+        # Disconnect action signals
         for action, connection in self._action_connections.items():
             try:
                 action.triggered.disconnect(connection)
@@ -72,15 +73,21 @@ class PAstroCoreMainWindow(QMainWindow):
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             try:
-                project_explorer.clicked.disconnect(self.handle_project_explorer_click)
-                logger.debug("Disconnected project explorer clicked signal")
+                # Check if signal is connected before disconnecting
+                if project_explorer.receivers(project_explorer.clicked) > 0:
+                    project_explorer.clicked.disconnect(self.handle_project_explorer_click)
+                    logger.debug("Disconnected project explorer clicked signal")
             except Exception as e:
                 logger.debug(f"No signal to disconnect for project explorer: {str(e)}")
+        else:
+            logger.warning("Project explorer widget not found during clear_connections")
 
         # Disconnect tab close handler
+        tab_container = self.ui.tabContainer
         try:
-            self.ui.tabContainer.tabCloseRequested.disconnect(self.handle_tab_close)
-            logger.debug("Disconnected tabCloseRequested signal")
+            if tab_container.receivers(tab_container.tabCloseRequested) > 0:
+                tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
+                logger.debug("Disconnected tabCloseRequested signal")
         except Exception as e:
             logger.debug(f"No signal to disconnect for tabCloseRequested: {str(e)}")
     
@@ -109,39 +116,48 @@ class PAstroCoreMainWindow(QMainWindow):
 
     def setup_ui(self):
         """Setup the UI components and their initial states."""
+        # Ensure dockWidget is visible
+        self.ui.dockWidget.setVisible(True)
+        self.ui.actionProject_Explorer.setChecked(True)
+        
+        # Update project explorer
         self.update_project_explorer()
+
         # Remove Welcome tab if it exists
         for i in range(self.ui.tabContainer.count()):
             if self.ui.tabContainer.widget(i).objectName() == "tabWelcome":
                 self.ui.tabContainer.removeTab(i)
                 break
+
         # Open project info tab immediately
         self.open_project_info_tab()
+
         # Make tabs closable
         self.ui.tabContainer.setTabsClosable(True)
+
         # Remove close button for project tab
         for i in range(self.ui.tabContainer.count()):
             if self.ui.tabContainer.widget(i).objectName() == "projectInfoTab":
                 self.ui.tabContainer.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
+
         # Enable context menu for projectExplorer
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.setContextMenuPolicy(Qt.CustomContextMenu)
             project_explorer.customContextMenuRequested.connect(self.show_context_menu)
+            logger.debug("Project explorer context menu connected")
+        else:
+            logger.error("Project explorer widget not found during setup_ui")
+
         # Connect dockWidget visibility changes to sync with menu action
         self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
-        # Initialize actionProject_Explorer state
-        self.ui.actionProject_Explorer.setChecked(self.ui.dockWidget.isVisible())
-        # Connect actionProject_Explorer toggled signal to toggle dockWidget visibility
         self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
-        self.ui.dockWidget.setVisible(True)
 
     def setup_connections(self):
         """Connect UI signals to slots, ensuring no duplicates."""
-        # Clear existing connections first
         self.clear_connections()
 
-        # Connect action signals and store connections
+        # Connect action signals
         actions = [
             (self.ui.actionNewProject, self.new_project),
             (self.ui.actionOpenProject, self.open_project),
@@ -166,10 +182,16 @@ class PAstroCoreMainWindow(QMainWindow):
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
             logger.debug("Connected project explorer clicked signal")
+        else:
+            logger.error("Project explorer widget not found during setup_connections")
 
         # Connect tab close signal
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
         logger.debug("Connected tabCloseRequested signal")
+
+        # Connect project_updated to update project explorer
+        self.project_updated.connect(self.update_project_explorer)
+        logger.debug("Connected project_updated signal to update_project_explorer")
 
     @Slot()
     def open_calculation_dialog(self):
@@ -361,17 +383,23 @@ class PAstroCoreMainWindow(QMainWindow):
 
     def update_project_explorer(self):
         """Update Project Explorer tree using ScheduleInspector."""
+        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+        if not project_explorer:
+            logger.error("Project explorer widget not found")
+            return
+
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["Project Explorer"])
         root = model.invisibleRootItem()
 
+        # Get project name
         project_name_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
             "attributes": {"get_name": None}
         })
         project_name = project_name_response["result"] if project_name_response["status"] else "Untitled Project"
-        logger.debug(f"update_project_explorer: project id={id(self.project)}, name={project_name}, direct_name={self.project.get_name()}")
+        logger.debug(f"Updating project explorer: project id={id(self.project)}, name={project_name}")
 
         project_item = QStandardItem(f"Project: {project_name}")
         project_item.setData("project", Qt.UserRole)
@@ -381,6 +409,7 @@ class PAstroCoreMainWindow(QMainWindow):
         observations_item.setData("observations", Qt.UserRole)
         project_item.appendRow(observations_item)
 
+        # Get observations
         observations_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
@@ -403,23 +432,18 @@ class PAstroCoreMainWindow(QMainWindow):
                             observations_item.appendRow(obs_item)
                             logger.debug(f"Added observation '{code_response['result']}' to Project Explorer")
                         else:
-                            logger.error(f"Failed to get code for observation with name '{obs_name}': {code_response.get('error', 'Unknown error')}")
+                            logger.error(f"Failed to get code for observation '{obs_name}': {code_response.get('error', 'Unknown error')}")
                 else:
-                    logger.info("No observations found in project")
+                    logger.debug("No observations found in project")
             else:
                 logger.error(f"Expected dict for observations, got {type(result)}: {result}")
         else:
             logger.error(f"Failed to inspect observations: {observations_response.get('error', 'Unknown error')}")
 
-        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
-        if project_explorer:
-            # Remove redundant setModel(None)
-            project_explorer.setModel(model)
-            project_explorer.expandAll()
-            project_explorer.viewport().update()
-            logger.debug("Project explorer model set and expanded")
-        else:
-            logger.error("Project explorer widget not found")
+        project_explorer.setModel(model)
+        project_explorer.expandAll()
+        project_explorer.viewport().update()
+        logger.debug("Project explorer updated and expanded")
 
     def load_settings(self) -> dict:
         """Load application settings from settings.pastro file."""
@@ -902,7 +926,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    # Применение QSS
+    # QSS styles
     app.setStyleSheet("""
         QMainWindow {
             background-color: #f5f5f5;

@@ -116,7 +116,6 @@ class ScheduleProject(Project):
             Observation: The Observation object with the specified code.
 
         Raises:
-            KeyError: If the observation code is not found.
             ValueError: If the code is not a non-empty string.
         """
         check_non_empty_string(code, "Observation code")
@@ -124,8 +123,7 @@ class ScheduleProject(Project):
             if observation.get_observation_code() == code:
                 logger.info(f"Retrieved observation with code='{code}' from project '{self.name}'")
                 return observation
-        logger.error(f"Observation with code='{code}' not found in project '{self.name}'")
-        raise KeyError(f"Observation with code '{code}' not found")
+        logger.info(f"There is no Observation with code='{code}' in project '{self.name}'")
 
     def set_project(self, name: str, items: Dict[str, Observation]) -> None:
         """Set the entire project configuration, replacing name and observations.

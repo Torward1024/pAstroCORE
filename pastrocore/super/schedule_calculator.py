@@ -127,7 +127,7 @@ class ScheduleCalculator(Super):
         logger.info(f"Recalculating '{store_key}' for '{obj.get_observation_code()}' with recalculate={recalculate}")
         result = calc_func(obj, attributes)
         if not result:
-            logger.error(f"Calculation for '{store_key}' returned empty result")
+            logger.warning(f"Calculation for '{store_key}' returned empty result")
         with self._lock:
             obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": result})
         return result
@@ -1361,8 +1361,9 @@ class ScheduleCalculator(Super):
                 ground_telescopes = [
                     telescope for telescope in obj.get_telescopes().get_items()
                     if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope)
-                    and telescope.mount_type in ["AZIM", "EQUA"]
                 ]
+
+                logger.info(f"Ground telescopes to process: '{ground_telescopes}'")
                 if not ground_telescopes:
                     logger.warning(f"No ground telescopes in active scans for observation '{obj.get_observation_code()}'")
                     return {}

@@ -31,6 +31,20 @@ class AddObservationDialog(QDialog):
         """Connect UI signals to slots."""
         self.ui.okButton.clicked.connect(self.accept)
         self.ui.closeButton.clicked.connect(self.reject)
+        # Explicitly connect QLineEdit and QComboBox signals
+        self.ui.obs_code.textChanged.connect(self.on_obs_code_changed)
+        self.ui.combo_obs_type.currentTextChanged.connect(self.on_obs_type_changed)
+        logger.debug("AddObservationDialog connections set up")
+
+    @Slot(str)
+    def on_obs_code_changed(self, text: str):
+        """Handle changes to observation code input."""
+        logger.debug(f"Observation code input changed to: {text}")
+
+    @Slot(str)
+    def on_obs_type_changed(self, text: str):
+        """Handle changes to observation type selection."""
+        logger.debug(f"Observation type changed to: {text}")
 
     def accept(self):
         """Handle OK button click to add observation."""
@@ -52,6 +66,8 @@ class AddObservationDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Observation code '{obs_code}' already exists.")
             logger.error(f"Observation code '{obs_code}' already exists")
             return
+        else:
+            logger.debug(f"Observation code '{obs_code}' is unique")
 
         try:
             request = {
@@ -61,7 +77,7 @@ class AddObservationDialog(QDialog):
                     "create_item": {
                         "item_code": obs_code,
                         "isactive": True,
-                        "observation_type": obs_type  # Pass observation type
+                        "observation_type": obs_type
                     }
                 }
             }
