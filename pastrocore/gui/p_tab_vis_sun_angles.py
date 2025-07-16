@@ -1,7 +1,7 @@
-# pastrocore/gui/p_tab_vis_uv_coverage.py
+# pastrocore/gui/p_tab_vis_sun_angles.py
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QListWidgetItem
 from PySide6.QtCore import Slot, Qt
-from .ui_tab_vis_uv_coverage import Ui_UVCoverageVisTab
+from .ui_tab_vis_sun_angles import Ui_SunAnglesVisTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
@@ -12,54 +12,47 @@ from astropy.time import Time
 import astropy.units as u
 import matplotlib.pyplot as plt
 
-class UVVisualizationTab(QWidget):
-    """Widget for UV coverage visualization with source, scan, baseline, and frequency selection."""
+class SunAnglesVisualizationTab(QWidget):
+    """Widget for Sun angles visualization with source, scan, and telescope selection."""
 
     def __init__(self, manipulator: ScheduleManipulator, observation: Observation,
-                 sources: List[str], scans: List[str], baselines: List[str], parent=None):
-        """Initialize the UV visualization tab."""
+                 sources: List[str], scans: List[str], telescopes: List[str], parent=None):
+        """Initialize the Sun angles visualization tab."""
         super().__init__(parent)
-        self.ui = Ui_UVCoverageVisTab()
+        self.ui = Ui_SunAnglesVisTab()
         self.ui.setupUi(self)
         self.manipulator = manipulator
         self.observation = observation
         self.canvas = None
         self.toolbar = None
         self.cached_data = None
-        logger.debug(f"UVVisualizationTab initialized for observation id={id(observation)}")
+        logger.debug(f"SunAnglesVisualizationTab initialized for observation id={id(observation)}")
 
         # Populate UI elements
-        self.ui.comboBox.addItems(sources)
-        for baseline in baselines:
-            item = QListWidgetItem(baseline)
+        self.ui.cmbSource.addItems(sources)
+        for telescope in telescopes:
+            item = QListWidgetItem(telescope)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked)
-            self.ui.listBaselines.addItem(item)
+            self.ui.listTelescopes.addItem(item)
 
-        # Populate frequencies
-        self.frequencies = self._get_frequencies()
-        logger.debug(f"Populated frequencies: {self.frequencies}")
-        for freq in self.frequencies:
-            item = QListWidgetItem(f"{freq:.2f} MHz")
-            item.setData(Qt.UserRole, freq)
+        # Populate scans
+        for scan in scans:
+            item = QListWidgetItem(scan)
+            item.setData(Qt.UserRole, scan)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
-            self.ui.listFrequencies.addItem(item)
-
-        # Populate units combo box
-        self.ui.comboBox_2.addItems(["Wavelengths", "Earth Diameters"])
+            self.ui.listScans.addItem(item)
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         self.figure = None
-        logger.debug("UVVisualizationTab UI populated and ready for visualization")
+        logger.debug("SunAnglesVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
-        self.ui.comboBox.currentIndexChanged.connect(self.on_filter_changed)
+        self.ui.cmbSource.currentIndexChanged.connect(self.on_filter_changed)
         self.ui.listScans.itemChanged.connect(self.on_filter_changed)
-        self.ui.listBaselines.itemChanged.connect(self.on_filter_changed)
-        self.ui.listFrequencies.itemChanged.connect(self.on_filter_changed)
-        self.ui.comboBox_2.currentIndexChanged.connect(self.on_filter_changed)
+        self.ui.listTelescopes.itemChanged.connect(self.on_filter_changed)
 
         # Cache data immediately
         self._cache_calculated_data()
@@ -67,27 +60,12 @@ class UVVisualizationTab(QWidget):
             self.update_scans_for_source(sources[0])
             self.update_visualization()  # Trigger initial visualization
 
-    def _get_frequencies(self) -> List[float]:
-        """Retrieve the list of frequencies (in MHz) from the observation."""
-        response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_frequencies": None}
-        })
-        if response["status"]:
-            frequencies = response["result"].get_items()
-            freq_list = [float(f.get("frequency")) for f in frequencies]
-            logger.debug(f"Retrieved frequencies: {freq_list}")
-            return freq_list
-        logger.error(f"Failed to retrieve frequencies: {response.get('error', 'Unknown error')}")
-        return []
-
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
         calc_data_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "times"]}}
+            "attributes": {"get_calculated_data": {"keys": ["sun_angles", "times"]}}
         })
         if calc_data_response["status"]:
             self.cached_data = calc_data_response["result"]
@@ -98,7 +76,7 @@ class UVVisualizationTab(QWidget):
 
     def get_selected_source(self) -> Optional[str]:
         """Get the currently selected source name."""
-        source = self.ui.comboBox.currentText() if self.ui.comboBox.currentText() else None
+        source = self.ui.cmbSource.currentText() if self.ui.cmbSource.currentText() else None
         logger.debug(f"Selected source: {source}")
         return source
 
@@ -112,36 +90,15 @@ class UVVisualizationTab(QWidget):
         logger.debug(f"Selected scans: {selected_scans}")
         return selected_scans
 
-    def get_selected_baselines(self) -> List[str]:
-        """Get the list of selected baseline names."""
-        selected_baselines = []
-        for i in range(self.ui.listBaselines.count()):
-            item = self.ui.listBaselines.item(i)
+    def get_selected_telescopes(self) -> List[str]:
+        """Get the list of selected telescope names."""
+        selected_telescopes = []
+        for i in range(self.ui.listTelescopes.count()):
+            item = self.ui.listTelescopes.item(i)
             if item.checkState() == Qt.Checked:
-                selected_baselines.append(item.text())
-        logger.debug(f"Selected baselines: {selected_baselines}")
-        return selected_baselines
-
-    def get_selected_frequencies(self) -> List[float]:
-        """Get the list of selected frequencies (in MHz)."""
-        selected_frequencies = []
-        for i in range(self.ui.listFrequencies.count()):
-            item = self.ui.listFrequencies.item(i)
-            if item.checkState() == Qt.Checked:
-                freq = float(item.data(Qt.UserRole))
-                selected_frequencies.append(freq)
-        # Fallback to all frequencies if none are selected
-        if not selected_frequencies:
-            selected_frequencies = self.frequencies
-            logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
-        logger.debug(f"Selected frequencies: {selected_frequencies}")
-        return selected_frequencies
-
-    def get_selected_units(self) -> str:
-        """Get the selected units for UV visualization."""
-        units = self.ui.comboBox_2.currentText().lower().replace(" ", "_")
-        logger.debug(f"Selected units: {units}")
-        return units
+                selected_telescopes.append(item.text())
+        logger.debug(f"Selected telescopes: {selected_telescopes}")
+        return selected_telescopes
 
     @Slot()
     def embed_figure(self, figure):
@@ -161,7 +118,7 @@ class UVVisualizationTab(QWidget):
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug("Embedded Matplotlib figure in UVVisualizationTab")
+        logger.debug("Embedded Matplotlib figure in SunAnglesVisualizationTab")
 
     @Slot()
     def on_filter_changed(self):
@@ -182,13 +139,13 @@ class UVVisualizationTab(QWidget):
             logger.debug("No source selected, clearing scans list")
             return
 
-        if not self.cached_data or "uv_coverage" not in self.cached_data:
-            logger.error("No cached UV coverage data available for updating scans")
+        if not self.cached_data or "sun_angles" not in self.cached_data:
+            logger.error("No cached sun angles data available for updating scans")
             return
 
         scans = []
-        if source_name in self.cached_data["uv_coverage"]["data"]:
-            scan_data = self.cached_data["uv_coverage"]["data"][source_name]
+        if source_name in self.cached_data["sun_angles"]["data"]:
+            scan_data = self.cached_data["sun_angles"]["data"][source_name]
             scans_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.observation,
@@ -214,39 +171,33 @@ class UVVisualizationTab(QWidget):
                     scans.append(scan_name)
             logger.debug(f"Populated {len(scans)} scans for source '{source_name}'")
         else:
-            logger.debug(f"No UV coverage data for source '{source_name}'")
+            logger.debug(f"No sun angles data for source '{source_name}'")
 
     def update_visualization(self):
-        """Update the UV coverage visualization based on current filter selections."""
+        """Update the Sun angles visualization based on current filter selections."""
         source_name = self.get_selected_source()
-        frequencies = self.get_selected_frequencies()
-        units = self.get_selected_units()
         scans = self.get_selected_scans()
-        baselines = self.get_selected_baselines()
-        logger.debug(f"Updating visualization: source='{source_name}', frequencies={frequencies}, "
-                     f"units={units}, scans={scans}, baselines={baselines}")
+        telescopes = self.get_selected_telescopes()
+        logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
 
         vis_attributes = {
-            "plot_type": "uv_coverage",
+            "plot_type": "sun_angles",
             "show": False,
             "return_figure": True,
             "source_name": source_name,
             "scans": scans,
-            "baselines": baselines,
-            "frequencies": frequencies,
-            "units": units
+            "telescopes": telescopes
         }
 
-        # If no scans, baselines, or frequencies are selected, create an empty plot
-        if not scans or not baselines or not frequencies:
-            logger.debug("No scans, baselines, or frequencies selected, creating empty UV plot")
+        # If no scans or telescopes are selected, create an empty plot
+        if not scans or not telescopes:
+            logger.debug("No scans or telescopes selected, creating empty Sun angles plot")
             fig = plt.figure(figsize=(10, 6))
             ax = fig.add_subplot(111)
-            ax.set_xlabel(f"u ({units})")
-            ax.set_ylabel(f"v ({units})")
-            ax.set_title(f"UV Coverage for {source_name if source_name else 'No Source'}")
+            ax.set_xlabel("Time (MJD)")
+            ax.set_ylabel("Angle to Sun (degrees)")
+            ax.set_title(f"Sun Angles for {source_name if source_name else 'No Source'}")
             ax.grid(True)
-            ax.invert_xaxis()
             self.embed_figure(fig)
             return
 
@@ -261,10 +212,10 @@ class UVVisualizationTab(QWidget):
                 figure = response.get("result", {}).get("figure")
                 if figure:
                     self.embed_figure(figure)
-                    logger.debug(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
+                    logger.debug(f"Sun angles visualization updated for source '{source_name}'")
                 else:
                     logger.error("No figure returned from visualizer")
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
         except Exception as e:
-            logger.error(f"Exception during UV visualization update: {str(e)}")
+            logger.error(f"Exception during Sun angles visualization update: {str(e)}")

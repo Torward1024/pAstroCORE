@@ -244,7 +244,17 @@ class ScheduleVisualizer(Super):
         return plot_func(obj, attributes, fig=fig)
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot UV coverage for an Observation with flexible filtering and frequency scaling."""
+        """Plot UV coverage for an Observation with flexible filtering and frequency scaling.
+
+        Args:
+            obj: Observation object containing the UV coverage data.
+            attributes: Dictionary with visualization parameters, including 'store_key', 'times_key', 
+                    'baselines', 'source_name', 'scans', 'time_range', 'frequencies', and 'units'.
+            fig: Matplotlib figure object for plotting.
+
+        Returns:
+            Dict containing metadata about the plotted data (e.g., number of baselines, points, and frequencies).
+        """
         with self._lock:
             logger.debug(f"Plotting UV coverage for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "uv_coverage")
@@ -264,13 +274,13 @@ class ScheduleVisualizer(Super):
             ax = fig.add_subplot(111)
             ax.set_xlabel(f"u, ({units})")
             ax.set_ylabel(f"v, ({units})")
-            ax.set_title(f"Obs. code: {obj.code}\n(u,v) coverage for: {source_name if source_name else 'No Source'}")
+            ax.set_title(f"Obs. code: {obj.code}\n(u,v) coverage")
             ax.grid(True)
             ax.invert_xaxis()
 
-            # If no frequencies are selected, return empty plot
-            if not frequencies:
-                logger.debug("No frequencies selected, returning empty axis")
+            # Check if required parameters are provided
+            if not (source_name or baselines or scans or frequencies):
+                logger.debug("No source, baselines, scans, or frequencies specified, returning empty plot")
                 return {"baselines": 0, "points": 0, "frequencies": 0}
 
             # Retrieve UV coverage and time data
@@ -282,7 +292,7 @@ class ScheduleVisualizer(Super):
             # Validate data structure
             if not isinstance(uv_data, dict) or not isinstance(times_data, dict):
                 logger.warning(f"Invalid data type: uv_data={type(uv_data)}, times_data={type(times_data)} in {obj.get_observation_code()}")
-                return {"baselines": 0, "points": 0, "frequencies": len(frequencies)}
+                return {"baselines": 0, "points": 0, "frequencies": 0}
 
             uv_data = uv_data.get("data", {})
             times_data = times_data.get("data", {})
@@ -290,16 +300,15 @@ class ScheduleVisualizer(Super):
             logger.debug(f"Times data (post-extraction): {times_data}")
             if not uv_data or not times_data:
                 logger.warning(f"Empty data: uv_data={bool(uv_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
-                return {"baselines": 0, "points": 0, "frequencies": len(frequencies)}
+                return {"baselines": 0, "points": 0, "frequencies": 0}
 
             # Default to first source if none specified
-            if not source_name:
-                sources = list(uv_data.keys())[:1] if uv_data else []
-                logger.debug(f"No source specified, defaulting to first source: {sources}")
-            else:
-                sources = [source_name]
+            sources = [source_name] if source_name else list(uv_data.keys())[:1]
+            if not sources:
+                logger.debug("No sources available, returning empty plot")
+                return {"baselines": 0, "points": 0, "frequencies": 0}
 
-            result = {"baselines": 0, "points": 0, "frequencies": len(frequencies)}
+            result = {"baselines": 0, "points": 0, "frequencies": len(frequencies) if frequencies else 0}
             plotted_pairs = set()
             EARTH_DIAMETER = 12742000.0  # Average Earth diameter in meters
             SPEED_OF_LIGHT = 299792458.0  # Speed of light in m/s
@@ -347,7 +356,7 @@ class ScheduleVisualizer(Super):
                             continue
 
                     # Process each frequency
-                    for freq_mhz in frequencies:
+                    for freq_mhz in (frequencies or []):
                         wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0  # Avoid division by zero
                         scaling_factor = 1.0 if units == "wavelengths" else (wavelength / EARTH_DIAMETER)
                         logger.debug(f"Frequency {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
@@ -372,11 +381,11 @@ class ScheduleVisualizer(Super):
                                 u_scaled = u / wavelength * scaling_factor if wavelength != 0 else u
                                 v_scaled = v / wavelength * scaling_factor if wavelength != 0 else v
                                 logger.debug(f"Scaled UV points: u={u_scaled[:5]}, v={v_scaled[:5]}")
-                                color_idx = (len(plotted_pairs) + frequencies.index(freq_mhz)) % len(self.moderate2_colors)
-                                label = f"{tel_code} ({freq_mhz} MHz)"
+                                color_idx = (len(plotted_pairs) + (frequencies.index(freq_mhz) if frequencies else 0)) % len(self.moderate2_colors)
+                                label = f"{tel_code} ({freq_mhz} MHz)" if freq_mhz else f"{tel_code}"
                                 ax.scatter(u_scaled, v_scaled, s=1, c=[self.moderate2_colors[color_idx]], label=label)
                                 ax.scatter(-u_scaled, -v_scaled, s=1, c=[self.moderate2_colors[color_idx]])
-                                plotted_pairs.add(f"{tel_code}_{freq_mhz}")
+                                plotted_pairs.add(f"{tel_code}_{freq_mhz}" if freq_mhz else tel_code)
                                 result["points"] += len(u_scaled)
                             except (ValueError, TypeError) as e:
                                 logger.error(f"Error processing UV points for {tel_code} at {freq_mhz} MHz: {str(e)}")
@@ -419,33 +428,136 @@ class ScheduleVisualizer(Super):
             return {"scans": len(data)}
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot angles to the Sun for an Observation."""
+        """Plot angles to the Sun for an Observation with flexible filtering.
+
+        Args:
+            obj: Observation object containing the sun angles data.
+            attributes: Dictionary with visualization parameters, including 'store_key', 'times_key',
+                    'source_name', 'telescopes', 'scans', and 'time_range'.
+            fig: Matplotlib figure object for plotting.
+
+        Returns:
+            Dict containing metadata about the plotted data (e.g., number of scans, telescopes, and points).
+        """
         with self._lock:
             logger.debug(f"Plotting sun angles for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "sun_angles")
-            data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No sun angles data found for '{store_key}' in {obj.get_observation_code()}")
-                return {}
+            times_key = attributes.get("times_key", "times")
+            source_name = attributes.get("source_name", None)
+            telescopes = attributes.get("telescopes", None)
+            scans = attributes.get("scans", None)
+            time_range = attributes.get("time_range", None)
 
-            data = data.get("data", {})
+            logger.debug(f"Input attributes: store_key={store_key}, times_key={times_key}, "
+                        f"source_name={source_name}, telescopes={telescopes}, scans={scans}, "
+                        f"time_range={time_range}")
+
+            # Create axis even if no data is plotted
             ax = fig.add_subplot(111)
-            for scan_idx, scan_data in data.items():
-                times = [Time(t) for t in scan_data.get("times", []) if t]
-                angles = scan_data.get("sun_angles", {})
-                source = scan_data.get("source")
-                for i, (tel_code, angle_list) in enumerate(angles.items()):
-                    valid_pairs = [(t.mjd, float(a)) for t, a in zip(times, angle_list) if a is not None]
-                    if valid_pairs:
-                        times_mjd, angles_sorted = zip(*sorted(valid_pairs))
-                        ax.plot(times_mjd, angles_sorted, label=f"{tel_code}", color=self.moderate2_colors[i % len(self.moderate2_colors)])
-            
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Angle to Sun (degrees)")
-            ax.set_title(f"Sun Angles for Source {source}")
-            ax.legend()
+            ax.set_title(f"Sun Angles for Observation: {obj.get_observation_code()}")
             ax.grid(True)
-            return {"scans": len(data)}
+
+            # Check if required parameters are provided
+            if not (source_name or telescopes or scans):
+                logger.debug("No source, telescopes, or scans specified, returning empty plot")
+                return {"scans": 0, "telescopes": 0, "points": 0}
+
+            # Retrieve sun angles and time data
+            sun_angles_data = obj.get_calculated_data_by_key(store_key)
+            times_data = obj.get_calculated_data_by_key(times_key)
+            logger.debug(f"Retrieved sun_angles_data: {sun_angles_data}")
+            logger.debug(f"Retrieved times_data: {times_data}")
+
+            # Validate data structure
+            if not isinstance(sun_angles_data, dict) or not isinstance(times_data, dict):
+                logger.warning(f"Invalid data type: sun_angles_data={type(sun_angles_data)}, "
+                            f"times_data={type(times_data)} in {obj.get_observation_code()}")
+                return {"scans": 0, "telescopes": 0, "points": 0}
+
+            sun_angles_data = sun_angles_data.get("data", {})
+            times_data = times_data.get("data", {})
+            logger.debug(f"Sun angles data (post-extraction): {sun_angles_data}")
+            logger.debug(f"Times data (post-extraction): {times_data}")
+            if not sun_angles_data or not times_data:
+                logger.warning(f"Empty data: sun_angles_data={bool(sun_angles_data)}, "
+                            f"times_data={bool(times_data)} in {obj.get_observation_code()}")
+                return {"scans": 0, "telescopes": 0, "points": 0}
+
+            # Default to first source if none specified
+            sources = [source_name] if source_name else list(sun_angles_data.keys())[:1]
+            if not sources:
+                logger.debug("No sources available, returning empty plot")
+                return {"scans": 0, "telescopes": 0, "points": 0}
+
+            result = {"scans": 0, "telescopes": 0, "points": 0}
+            plotted_telescopes = set()
+
+            for source in sources:
+                if source not in sun_angles_data or source not in times_data:
+                    logger.warning(f"Source {source} not found in sun angles or times data")
+                    continue
+                source_angles = sun_angles_data[source]
+                source_times = times_data[source]
+                logger.debug(f"Processing source {source}: angles={source_angles}, times={source_times}")
+
+                # Filter scans (use all if none specified)
+                scan_list = scans if scans else list(source_angles.keys())
+                result["scans"] += len(scan_list)
+                logger.debug(f"Scans to process: {scan_list}")
+
+                for scan in scan_list:
+                    if scan not in source_angles or scan not in source_times:
+                        logger.debug(f"Scan {scan} not found for source {source}")
+                        continue
+
+                    # Validate times
+                    times = []
+                    for t in source_times[scan]:
+                        if t and hasattr(t, 'mjd'):
+                            times.append(t)
+                        else:
+                            logger.debug(f"Invalid time entry in scan {scan}, source {source}: {t}")
+                    logger.debug(f"Valid times for scan {scan}: {len(times)}")
+                    if not times:
+                        logger.debug(f"No valid times for scan {scan}, source {source}")
+                        continue
+                    angles = source_angles[scan]
+                    logger.debug(f"Angles for scan {scan}: {angles}")
+
+                    # Apply time range filter if specified
+                    if time_range:
+                        start_mjd, end_mjd = time_range
+                        valid_indices = [i for i, t in enumerate(times) if start_mjd <= t.mjd <= end_mjd]
+                        times = [times[i] for i in valid_indices]
+                        for tel_code in angles:
+                            angles[tel_code] = [angles[tel_code][i] for i in valid_indices if i < len(angles[tel_code])]
+                        logger.debug(f"After time range filter: times={len(times)}, angles={angles}")
+                        if not times:
+                            logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
+                            continue
+
+                    # Process each telescope
+                    tel_list = telescopes if telescopes else list(angles.keys())
+                    for tel_code in tel_list:
+                        if tel_code not in angles:
+                            logger.debug(f"Telescope {tel_code} not found in scan {scan}, source {source}")
+                            continue
+                        valid_pairs = [(t.mjd, float(a)) for t, a in zip(times, angles[tel_code]) if a is not None]
+                        if valid_pairs:
+                            times_mjd, angles_sorted = zip(*sorted(valid_pairs))
+                            color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
+                            ax.plot(times_mjd, angles_sorted, label=f"{tel_code} ({source})",
+                                    color=self.moderate2_colors[color_idx])
+                            plotted_telescopes.add(tel_code)
+                            result["points"] += len(valid_pairs)
+
+            result["telescopes"] = len(plotted_telescopes)
+            if plotted_telescopes:
+                ax.legend()
+            logger.debug(f"Visualization result: {result}")
+            return result
 
     def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Plot Azimuth/Elevation or Hour Angle/Declination for an Observation."""

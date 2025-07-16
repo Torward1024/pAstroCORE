@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout, Q
 from PySide6.QtCore import Slot, Qt
 from .ui_dialog_visualize import Ui_VisualizationDialog
 from .p_tab_vis_uv_coverage import UVVisualizationTab
+from .p_tab_vis_sun_angles import SunAnglesVisualizationTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
@@ -78,11 +79,11 @@ class VisualizationDialog(QDialog):
                     else:
                         logger.error(f"Failed to get code for observation '{obs_name}': "
                                      f"{code_response.get('error', 'Unknown error')}")
-                    # Cache calculated data for UV coverage and times only
+                    # Cache calculated data for UV coverage, sun angles, and times
                     calc_data_response = self.manipulator.process_request({
                         "operation": "inspect",
                         "obj": obs,
-                        "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "times"]}}
+                        "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "sun_angles", "times"]}}
                     })
                     if calc_data_response["status"]:
                         self.cached_calc_data[obs_name] = calc_data_response["result"]
@@ -119,26 +120,20 @@ class VisualizationDialog(QDialog):
 
         visualization_map = {
             "uv_coverage": "UV Coverage",
-            "source_visibility": "Source Visibility",
+            #"source_visibility": "Source Visibility",
             "sun_angles": "Sun Angles",
             "az_el": "Az/El or HA/Dec",
             "time_on_source": "Time on Source",
             "beam_pattern": "Beam Pattern",
-            "synthesized_beam": "Synthesized Beam",
+            #"synthesized_beam": "Synthesized Beam",
             "baseline_projections": "Baseline Projections",
             "mollweide_tracks": "Mollweide Tracks"
         }
-        freq_dependent_plots = ["beam_pattern", "synthesized_beam"]
         available_visualizations = []
 
         for calc_key, vis_name in visualization_map.items():
             if calc_key in calc_data and calc_data[calc_key].get("data"):
                 available_visualizations.append(vis_name)
-            elif calc_key in freq_dependent_plots:
-                for data_key in calc_data.keys():
-                    if data_key.startswith(f"{calc_key}_freq_") and calc_data[data_key].get("data"):
-                        available_visualizations.append(vis_name)
-                        break
 
         if available_visualizations:
             self.ui.comboBoxVisualizationType.addItems(available_visualizations)
@@ -179,12 +174,12 @@ class VisualizationDialog(QDialog):
         # Map visualization type to store_key
         visualization_map = {
             "UV Coverage": "uv_coverage",
-            "Source Visibility": "source_visibility",
+            #"Source Visibility": "source_visibility",
             "Sun Angles": "sun_angles",
             "Az/El or HA/Dec": "az_el",
             "Time on Source": "time_on_source",
             "Beam Pattern": "beam_pattern",
-            "Synthesized Beam": "synthesized_beam",
+            #"Synthesized Beam": "synthesized_beam",
             "Baseline Projections": "baseline_projections",
             "Mollweide Tracks": "mollweide_tracks"
         }
@@ -198,7 +193,7 @@ class VisualizationDialog(QDialog):
         if vis_type in self.visualization_tabs:
             logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
             tab_widget = self.visualization_tabs[vis_type]
-            if vis_type == "UV Coverage":
+            if vis_type in ["UV Coverage", "Sun Angles"]:
                 tab_widget.update_visualization()
             else:
                 # Handle other visualization types if needed
@@ -221,14 +216,28 @@ class VisualizationDialog(QDialog):
                         baselines.extend(list(calc_data["uv_coverage"]["data"][source_name][scan_name].keys()))
             scans = sorted(list(set(scans)))
             baselines = sorted(list(set(baselines)))
-
             tab_widget = UVVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
-        
-        tab_widget.setProperty("vis_type", vis_type)
-        self.visualization_tabs[vis_type] = tab_widget
-        self.ui.tabWidget.addTab(tab_widget, vis_type)
-        self.ui.tabWidget.setCurrentWidget(tab_widget)
-        logger.debug(f"Created new tab for visualization type '{vis_type}'")
+        elif vis_type == "Sun Angles":
+            calc_data = self.cached_calc_data.get(obs_name, {})
+            # Extract sources, scans, and telescopes for Sun angles
+            sources = list(calc_data.get("sun_angles", {}).get("data", {}).keys())
+            scans = []
+            telescopes = []
+            if "sun_angles" in calc_data:
+                for source_name in calc_data["sun_angles"]["data"]:
+                    scans.extend(list(calc_data["sun_angles"]["data"][source_name].keys()))
+                    for scan_name in calc_data["sun_angles"]["data"][source_name]:
+                        telescopes.extend(list(calc_data["sun_angles"]["data"][source_name][scan_name].keys()))
+            scans = sorted(list(set(scans)))
+            telescopes = sorted(list(set(telescopes)))
+            tab_widget = SunAnglesVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
+
+        if tab_widget:
+            tab_widget.setProperty("vis_type", vis_type)
+            self.visualization_tabs[vis_type] = tab_widget
+            self.ui.tabWidget.addTab(tab_widget, vis_type)
+            self.ui.tabWidget.setCurrentWidget(tab_widget)
+            logger.debug(f"Created new tab for visualization type '{vis_type}'")
 
         # Perform visualization
         vis_attributes = {
@@ -270,9 +279,8 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"No valid frequency found for {vis_type}")
                 return
 
-        # Add filters for UV coverage
+        # Add filters for UV Coverage and Sun Angles
         if vis_type == "UV Coverage":
-            # Get frequencies from UVVisualizationTab
             frequencies = tab_widget.get_selected_frequencies()
             vis_attributes.update({
                 "source_name": tab_widget.get_selected_source(),
@@ -281,7 +289,13 @@ class VisualizationDialog(QDialog):
                 "frequencies": frequencies,
                 "units": tab_widget.get_selected_units()
             })
-            logger.debug(f"Updated vis_attributes for UV Coverage: {vis_attributes}")
+        elif vis_type == "Sun Angles":
+            vis_attributes.update({
+                "source_name": tab_widget.get_selected_source(),
+                "scans": tab_widget.get_selected_scans(),
+                "telescopes": tab_widget.get_selected_telescopes()
+            })
+            logger.debug(f"Updated vis_attributes for Sun Angles: {vis_attributes}")
 
         try:
             self.ui.pushButtonVisualize.setEnabled(False)
@@ -302,7 +316,7 @@ class VisualizationDialog(QDialog):
                     return
 
                 # Embed figure in the tab
-                if vis_type == "UV Coverage":
+                if vis_type in ["UV Coverage", "Sun Angles"]:
                     tab_widget.embed_figure(figure)
                 else:
                     canvas = FigureCanvas(figure)
