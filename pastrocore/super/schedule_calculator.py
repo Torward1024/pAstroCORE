@@ -2112,14 +2112,18 @@ class ScheduleCalculator(Super):
 
         Returns:
             Dict[str, Any]: Mollweide tracks and source coordinates, formatted as:
-                For Observation:
-                    {
-                        source_name: {
-                            scan_name: {
-                                telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
-                            }
+                {
+                    "metadata": {
+                        "time_step": float,
+                        "scan_count": int,
+                        "sources": [{"name": str, "lon": float, "lat": float}, ...]
+                    },
+                    "data": {
+                        scan_name: {
+                            telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
                         }
                     }
+                }
         """
         try:
             time_step = attributes.get("time_step")
@@ -2179,26 +2183,32 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         scan_name = futures[future]
                         scan_result = future.result()
-                        source_name = scan_result.get("source")
-                        if source_name and scan_result.get("tracks"):
-                            if source_name not in results:
-                                results[source_name] = {}
-                            results[source_name][scan_name] = scan_result["tracks"]
-                            logger.debug(f"Added tracks for scan '{scan_name}' in source '{source_name}'")
+                        if scan_result.get("tracks"):
+                            results[scan_name] = scan_result["tracks"]
+                            logger.debug(f"Added tracks for scan '{scan_name}'")
+                        else:
+                            logger.warning(f"No tracks for scan '{scan_name}' in observation '{obj.get_observation_code()}'")
 
                 if not results:
                     logger.warning(f"No Mollweide tracks computed for observation '{obj.get_observation_code()}'")
-                else:
-                    logger.info(f"Calculated Mollweide tracks for {len(results)} sources across {len(scans)} scans in '{obj.get_observation_code()}'")
                 return results
+
+            # Calculate source coordinates for metadata
+            sources_metadata = []
+            for source in obj.get_sources().get_active_items():
+                ra = source.ra_degrees  # in degrees
+                dec = source.dec_degrees  # in degrees
+                lon = ra - 360.0 if ra > 180.0 else ra
+                lat = np.clip(dec, -90.0, 90.0)
+                sources_metadata.append({"name": source.name, "lon": float(lon), "lat": float(lat)})
 
             metadata = {
                 "time_step": time_step,
                 "scan_count": len(obj.get_scans().get_active_items()),
-                "sources": []  # Only used for mollweide_tracks in cache
+                "sources": sources_metadata
             }
             result = self._get_cached_or_calculate(obj, store_key, calculate_mollweide, attributes, metadata)
-            return result
+            return {"metadata": metadata, "data": result}
         except Exception as e:
             logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
             return {}
@@ -2216,7 +2226,6 @@ class ScheduleCalculator(Super):
         Returns:
             Dict[str, Any]: Mollweide tracks for the scan, formatted as:
                 {
-                    "source": source_name,
                     "tracks": {
                         telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
                     }
@@ -2225,7 +2234,7 @@ class ScheduleCalculator(Super):
         source = scan.get_source(observation)
         if not source or not source.isactive:
             logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
-            return {"source": None, "tracks": {}}
+            return {"tracks": {}}
 
         scan_name = scan.name
         source_name = source.name
@@ -2234,19 +2243,19 @@ class ScheduleCalculator(Super):
 
         if not active_telescopes:
             logger.warning(f"No active telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return {"source": source_name, "tracks": {}}
+            return {"tracks": {}}
 
         # Get times for the scan
         scan_times = time_data.get(source_name, {}).get(scan_name, None)
         if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
-            return {"source": source_name, "tracks": {}}
+            return {"tracks": {}}
 
         # Get telescope positions for the scan
         scan_positions = position_data.get(scan_name, {})
         if not scan_positions:
             logger.warning(f"No position data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return {"source": source_name, "tracks": {}}
+            return {"tracks": {}}
 
         # Prepare arrays for vectorized computation
         tel_codes = [tel.get_code() for tel in active_telescopes]
@@ -2279,7 +2288,7 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid Mollweide tracks computed for scan '{scan_name}'")
         else:
             logger.debug(f"Computed Mollweide tracks for {len(tracks)} telescopes in scan '{scan_name}'")
-        return {"source": source_name, "tracks": tracks}
+        return {"tracks": tracks}
 
     def _load_orbit_data(self, orbit_file: str, start_time: Optional[Time] = None, end_time: Optional[Time] = None) -> Dict[str, np.ndarray]:
         """Load orbit data from a CCSDS OEM 2.0 styled file, optionally filtering by time range.

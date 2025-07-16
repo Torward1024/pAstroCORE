@@ -196,9 +196,6 @@ class VisualizationDialog(QDialog):
             tab_widget = self.visualization_tabs[vis_type]
             if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections"]:
                 tab_widget.update_visualization()
-            else:
-                # Handle other visualization types if needed
-                pass
             self.ui.tabWidget.setCurrentWidget(tab_widget)
             return
 
@@ -206,7 +203,6 @@ class VisualizationDialog(QDialog):
         tab_widget = None
         if vis_type == "UV Coverage":
             calc_data = self.cached_calc_data.get(obs_name, {})
-            # Extract sources, scans, and baselines for UV coverage
             sources = list(calc_data.get("uv_coverage", {}).get("data", {}).keys())
             scans = []
             baselines = []
@@ -220,7 +216,6 @@ class VisualizationDialog(QDialog):
             tab_widget = UVVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
         elif vis_type == "Sun Angles":
             calc_data = self.cached_calc_data.get(obs_name, {})
-            # Extract sources, scans, and telescopes for Sun angles
             sources = list(calc_data.get("sun_angles", {}).get("data", {}).keys())
             scans = []
             telescopes = []
@@ -234,7 +229,6 @@ class VisualizationDialog(QDialog):
             tab_widget = SunAnglesVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
         elif vis_type == "Az/El or HA/Dec":
             calc_data = self.cached_calc_data.get(obs_name, {})
-            # Extract sources, scans, and telescopes for Az/El
             sources = list(calc_data.get("az_el", {}).get("data", {}).keys())
             scans = []
             telescopes = []
@@ -253,7 +247,6 @@ class VisualizationDialog(QDialog):
             tab_widget = BeamPatternVisualizationTab(self.manipulator, observation, parent=self)
         elif vis_type == "Time on Source":
             calc_data = self.cached_calc_data.get(obs_name, {})
-            # Extract sources, scans, and telescopes for Time on Source
             sources = list(calc_data.get("time_on_source", {}).get("data", {}).keys())
             scans = []
             telescopes = []
@@ -267,7 +260,6 @@ class VisualizationDialog(QDialog):
             tab_widget = TimeOnSourceVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
         elif vis_type == "Baseline Projections":
             calc_data = self.cached_calc_data.get(obs_name, {})
-            # Extract sources, scans, and baselines for Baseline Projections
             sources = list(calc_data.get("baseline_projections", {}).get("data", {}).keys())
             scans = []
             baselines = []
@@ -281,15 +273,12 @@ class VisualizationDialog(QDialog):
             tab_widget = BaselineProjectionsVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
         elif vis_type == "Mollweide Tracks":
             calc_data = self.cached_calc_data.get(obs_name, {})
-            # Extract sources, scans, and telescopes for Mollweide Tracks
-            sources = list(calc_data.get("mollweide_tracks", {}).get("data", {}).keys())
-            scans = []
+            sources = [s["name"] for s in calc_data.get("mollweide_tracks", {}).get("metadata", {}).get("sources", [])]
+            scans = list(calc_data.get("mollweide_tracks", {}).get("data", {}).keys())
             telescopes = []
             if "mollweide_tracks" in calc_data:
-                for source_name in calc_data["mollweide_tracks"]["data"]:
-                    scans.extend(list(calc_data["mollweide_tracks"]["data"][source_name].keys()))
-                    for scan_name in calc_data["mollweide_tracks"]["data"][source_name]:
-                        telescopes.extend(list(calc_data["mollweide_tracks"]["data"][source_name][scan_name].keys()))
+                for scan_name in calc_data["mollweide_tracks"]["data"]:
+                    telescopes.extend(list(calc_data["mollweide_tracks"]["data"][scan_name].keys()))
             scans = sorted(list(set(scans)))
             telescopes = sorted(list(set(telescopes)))
             tab_widget = MollweideVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
@@ -359,9 +348,9 @@ class VisualizationDialog(QDialog):
             logger.debug(f"Updated vis_attributes for Baseline Projections: {vis_attributes}")
         elif vis_type == "Mollweide Tracks":
             vis_attributes.update({
-                "source_name": tab_widget.get_selected_sources()[0] if tab_widget.get_selected_sources() else None,
                 "scans": tab_widget.get_selected_scans(),
-                "telescopes": tab_widget.get_selected_telescopes()
+                "telescopes": tab_widget.get_selected_telescopes(),
+                "sources": tab_widget.get_selected_sources()  # Pass selected sources
             })
             logger.debug(f"Updated vis_attributes for Mollweide Tracks: {vis_attributes}")
 
