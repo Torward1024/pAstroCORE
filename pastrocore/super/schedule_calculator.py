@@ -1090,7 +1090,9 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to calculate sun angles: {str(e)}")
             return {}
 
-    def _process_sun_angles(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any], visibility_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_sun_angles(self, scan: Scan, observation: Observation, time_step: Optional[float], 
+                       time_data: Dict[str, Any], position_data: Dict[str, Any], 
+                       visibility_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process Sun angles for a single scan using vectorized computations.
 
         Args:
@@ -1105,8 +1107,13 @@ class ScheduleCalculator(Super):
             Dict[str, Any]: Sun angles for the scan, formatted as:
                 {
                     "source": source_name,
-                    "angles": {telescope_code: np.array([angle1, angle2, ...])}
+                    "angles": {telescope_code: np.array([angle1, angle2, ...])}  # angles in degrees
                 }
+
+        Notes:
+            - Handles NaN positions by assigning NaN angles, preserving array dimensions.
+            - Uses vectorized computations for efficiency.
+            - Logs warning if significant portion of positions are NaN or if vector normalization fails.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
@@ -1157,6 +1164,11 @@ class ScheduleCalculator(Super):
 
         # Check for NaN in positions
         nan_positions = np.any(np.isnan(positions), axis=2)  # shape: (n_tels, n_times)
+        # Log high NaN ratio
+        nan_ratio = np.mean(nan_positions, axis=1)  # shape: (n_tels,)
+        for i, tel_code in enumerate(tel_codes):
+            if nan_ratio[i] > 0.5:
+                logger.warning(f"High NaN ratio ({nan_ratio[i]:.2%}) in positions for telescope '{tel_code}' in scan '{scan_name}'")
 
         # Compute Sun position
         sun_coord = get_sun(scan_times)  # shape: (n_times,)
@@ -1188,14 +1200,12 @@ class ScheduleCalculator(Super):
             itrs = GCRS(gcrs_coords, obstime=scan_times).transform_to(ITRS(obstime=scan_times))
             locations = itrs.earth_location
 
-            # Transform Sun to AltAz for ground telescopes
+            # Transform Sun and source to AltAz for ground telescopes
+            source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
             sun_altaz = sun_coord.transform_to(AltAz(obstime=scan_times, location=locations))
+            source_altaz = source_coord.transform_to(AltAz(obstime=scan_times, location=locations))
             sun_el = sun_altaz.alt.deg  # shape: (n_ground_tels, n_times)
             sun_az = sun_altaz.az.deg   # shape: (n_ground_tels, n_times)
-
-            # Compute angular separation
-            source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-            source_altaz = source_coord.transform_to(AltAz(obstime=scan_times, location=locations))
             source_el = source_altaz.alt.deg  # shape: (n_ground_tels, n_times)
             source_az = source_altaz.az.deg   # shape: (n_ground_tels, n_times)
 
@@ -1216,74 +1226,63 @@ class ScheduleCalculator(Super):
         if space_tels:
             space_codes = [tel.get_code() for tel in space_tels]
             space_indices = [tel_codes.index(code) for code in space_codes]
-            logger.debug(f"Space telescopes: {space_codes}, space_indices: {space_indices}")
-
-            # Ensure only one space telescope is processed
-            if len(space_tels) > 1:
-                logger.warning(f"Expected 1 space telescope, found {len(space_tels)}. Processing only the first one.")
-                space_tels = space_tels[:1]
-                space_codes = space_codes[:1]
-                space_indices = space_indices[:1]
-
             space_positions = positions[space_indices]  # shape: (n_space_tels, n_times, 3)
             space_nan = nan_positions[space_indices]  # shape: (n_space_tels, n_times)
             space_visibility = visibility[space_indices]  # shape: (n_space_tels, n_times)
 
-            # Validate space telescope data
-            if space_positions.shape[0] != 1:
-                logger.error(f"Invalid number of space telescopes in positions: {space_positions.shape[0]}")
-                return {"source": source_name, "angles": angles}
-            if space_visibility.shape[0] != 1:
-                logger.error(f"Invalid number of space telescopes in visibility: {space_visibility.shape[0]}")
-                return {"source": source_name, "angles": angles}
+            source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
+            source_vec = np.array([
+                source_coord.cartesian.x.value,
+                source_coord.cartesian.y.value,
+                source_coord.cartesian.z.value
+            ]).T  # shape: (1, 3)
 
             for i, tel in enumerate(space_tels):
                 tel_code = tel.get_code()
-                logger.debug(f"Processing space telescope '{tel_code}' in scan '{scan_name}': "
-                            f"space_positions[{i}].shape={space_positions[i].shape}, "
-                            f"space_visibility[{i}].shape={space_visibility[i].shape}, "
-                            f"space_nan[{i}].shape={space_nan[i].shape}")
-
-                if len(space_visibility[i]) != len(scan_times):
-                    logger.error(f"Mismatch in visibility length for space telescope '{tel_code}' in scan '{scan_name}': "
-                                f"{len(space_visibility[i])} visibility points vs {len(scan_times)} times")
-                    continue
-
-                is_visible = space_visibility[i] & ~space_nan[i]  # shape: (n_times,)
+                is_visible = space_visibility[i]  # shape: (n_times,)
                 angles[tel_code] = np.full(len(scan_times), np.nan, dtype=float)
                 if np.any(is_visible):
                     try:
-                        tel_pos = space_positions[i][is_visible]  # shape: (n_valid_times, 3)
-                        logger.debug(f"Space telescope '{tel_code}': is_visible.shape={is_visible.shape}, "
-                                    f"tel_pos.shape={tel_pos.shape}, scan_times.shape={len(scan_times)}")
+                        tel_pos = space_positions[i]  # shape: (n_times, 3)
+                        # Apply visibility and NaN mask
+                        valid_mask = is_visible & ~space_nan[i]  # shape: (n_times,)
+                        logger.debug(f"Space telescope '{tel_code}' in scan '{scan_name}': "
+                                    f"valid_mask.sum={np.sum(valid_mask)}")
+                        if np.any(valid_mask):
+                            valid_tel_pos = tel_pos[valid_mask]  # shape: (n_valid_times, 3) or (3,)
+                            valid_sun_vec = sun_vec[valid_mask]  # shape: (n_valid_times, 3) or (3,)
+                            valid_source_vec = np.repeat(source_vec, np.sum(valid_mask) or 1, axis=0)  # shape: (n_valid_times, 3)
 
-                        # Compute source vector
-                        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-                        source_vec = np.array([
-                            source_coord.cartesian.x.value,
-                            source_coord.cartesian.y.value,
-                            source_coord.cartesian.z.value
-                        ]).T  # shape: (1, 3)
-                        source_vec = np.repeat(source_vec, len(tel_pos), axis=0)  # shape: (n_valid_times, 3)
+                            # Ensure arrays are 2D
+                            valid_tel_pos = np.atleast_2d(valid_tel_pos)  # shape: (n_valid_times, 3)
+                            valid_sun_vec = np.atleast_2d(valid_sun_vec)  # shape: (n_valid_times, 3)
+                            valid_source_vec = np.atleast_2d(valid_source_vec)  # shape: (n_valid_times, 3)
 
-                        # Normalize vectors
-                        tel_norm = np.linalg.norm(tel_pos, axis=1, keepdims=True)
-                        sun_norm = np.linalg.norm(sun_vec[is_visible], axis=1, keepdims=True)
-                        source_norm = np.linalg.norm(source_vec, axis=1, keepdims=True)
-                        valid = (tel_norm > 0) & (sun_norm > 0) & (source_norm > 0)
-                        valid = valid.flatten()
+                            logger.debug(f"Space telescope '{tel_code}' in scan '{scan_name}': "
+                                        f"valid_tel_pos.shape={valid_tel_pos.shape}, "
+                                        f"valid_sun_vec.shape={valid_sun_vec.shape}, "
+                                        f"valid_source_vec.shape={valid_source_vec.shape}")
 
-                        if np.any(valid):
-                            tel_unit = tel_pos[valid] / tel_norm[valid]
-                            sun_unit = sun_vec[is_visible][valid] / sun_norm[valid]
-                            source_unit = source_vec[valid] / source_norm[valid]
-                            cos_sep = np.sum(sun_unit * source_unit, axis=1)
-                            cos_sep = np.clip(cos_sep, -1.0, 1.0)
-                            sep = np.degrees(np.arccos(cos_sep))
-                            angles[tel_code][is_visible][valid] = sep
-                            logger.debug(f"Computed {np.sum(valid)} sun angles for space telescope '{tel_code}' in scan '{scan_name}'")
+                            # Normalize vectors
+                            tel_norm = np.linalg.norm(valid_tel_pos, axis=1, keepdims=True)
+                            sun_norm = np.linalg.norm(valid_sun_vec, axis=1, keepdims=True)
+                            source_norm = np.linalg.norm(valid_source_vec, axis=1, keepdims=True)
+                            valid = (tel_norm > 0) & (sun_norm > 0) & (source_norm > 0)
+                            valid = valid.flatten()
+
+                            if np.any(valid):
+                                tel_unit = valid_tel_pos[valid] / tel_norm[valid]
+                                sun_unit = valid_sun_vec[valid] / sun_norm[valid]
+                                source_unit = valid_source_vec[valid] / source_norm[valid]
+                                cos_sep = np.sum(sun_unit * source_unit, axis=1)
+                                cos_sep = np.clip(cos_sep, -1.0, 1.0)
+                                sep = np.degrees(np.arccos(cos_sep))
+                                angles[tel_code][valid_mask][valid] = sep
+                                logger.debug(f"Computed {np.sum(valid)} sun angles for space telescope '{tel_code}' in scan '{scan_name}'")
+                            else:
+                                logger.warning(f"No valid vectors after normalization for space telescope '{tel_code}' in scan '{scan_name}'")
                         else:
-                            logger.debug(f"No valid vectors for space telescope '{tel_code}' in scan '{scan_name}'")
+                            logger.debug(f"No valid positions or visibility for space telescope '{tel_code}' in scan '{scan_name}'")
                     except Exception as e:
                         logger.error(f"Failed to compute sun angles for space telescope '{tel_code}' in scan '{scan_name}': {str(e)}")
                         continue

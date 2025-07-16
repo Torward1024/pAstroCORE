@@ -23,7 +23,7 @@ class CalculationThread(QThread):
         # Validate calc_types
         valid_calcs = [
             "UV Coverage", "Mollweide Tracks", "Baseline Projections",
-            "Time on Source", "Sun Angles", "Azimuth/Elevation"
+            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern"
         ]
         invalid_calcs = [calc for calc in calc_types if calc not in valid_calcs]
         if invalid_calcs:
@@ -49,6 +49,7 @@ class CalculationThread(QThread):
                         "UV Coverage": "uv_coverage",
                         "Mollweide Tracks": "mollweide_tracks",
                         "Baseline Projections": "baseline_projections",
+                        "Beam Pattern": "beam_pattern",
                         "Time on Source": "time_on_source",
                         "Sun Angles": "sun_angles",
                         "Azimuth/Elevation": "az_el"
@@ -138,6 +139,7 @@ class CalculationDialog(QDialog):
             "UV Coverage",
             "Mollweide Tracks",
             "Baseline Projections",
+            "Beam Pattern",
             "Time on Source",
             "Sun Angles",
             "Azimuth/Elevation"
