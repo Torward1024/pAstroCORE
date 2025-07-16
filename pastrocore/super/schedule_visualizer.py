@@ -74,7 +74,6 @@ class ScheduleVisualizer(Super):
 
         self._plot_types: Dict[str, Callable] = {
             "uv_coverage": self._plot_uv_coverage,
-            "source_visibility": self._plot_source_visibility,
             "sun_angles": self._plot_sun_angles,
             "az_el": self._plot_az_el,
             "time_on_source": self._plot_time_on_source,
@@ -1302,31 +1301,147 @@ class ScheduleVisualizer(Super):
             return result
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot Mollweide tracks for an Observation."""
+        """Plot Mollweide tracks for an Observation with flexible filtering.
+
+        Args:
+            obj: Observation object containing the Mollweide tracks data.
+            attributes: Dictionary with visualization parameters, including 'store_key', 'source_name',
+                        'telescopes', 'scans', and 'time_range'.
+            fig: Matplotlib figure object for plotting.
+
+        Returns:
+            Dict containing metadata about the plotted data (e.g., number of scans, telescopes, sources, and points).
+        """
         with self._lock:
             logger.debug(f"Plotting Mollweide tracks for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "mollweide_tracks")
+            source_name = attributes.get("source_name", None)
+            telescopes = attributes.get("telescopes", None)
+            scans = attributes.get("scans", None)
+            time_range = attributes.get("time_range", None)
+
+            logger.debug(f"Input attributes: store_key={store_key}, source_name={source_name}, "
+                        f"telescopes={telescopes}, scans={scans}, time_range={time_range}")
+
+            # Create axis with Mollweide projection even if no data is plotted
+            ax = fig.add_subplot(111, projection="mollweide")
+            ax.set_title(f"Mollweide Tracks for Observation: {obj.get_observation_code()}")
+            ax.grid(True)
+
+            # Check if required parameters are provided
+            if not (source_name or telescopes or scans):
+                logger.debug("No source, telescopes, or scans specified, returning empty plot")
+                return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
+
+            # Retrieve Mollweide tracks data
             data = obj.get_calculated_data_by_key(store_key)
             if not data:
                 logger.error(f"No Mollweide tracks data found for '{store_key}' in {obj.get_observation_code()}")
-                return {}
+                return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
 
+            # Validate data structure
+            if not isinstance(data, dict):
+                logger.warning(f"Invalid data type: data={type(data)} in {obj.get_observation_code()}")
+                return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
+
+            metadata = data.get("metadata", {})
             data = data.get("data", {})
-            ax = fig.add_subplot(111, projection="mollweide")
-            for scan_idx, scan_data in data.items():
-                tracks = scan_data.get("telescope_tracks", {})
-                for i, (tel_code, track) in enumerate(tracks.items()):
-                    ax.scatter(np.radians(track["lon"]), np.radians(track["lat"]), 
-                               c=[self.moderate2_colors[i % len(self.moderate2_colors)]], label=tel_code, s=0.1, zorder=1)
-                    
-                source = scan_data["source"]
-                ax.scatter(np.radians(source["lon"]), np.radians(source["lat"]), c='red', marker='o', 
-                           label=f"Source: {source['name']}", s=10, zorder=2)
-            
-            ax.set_title("Mollweide Tracks")
-            ax.grid(True)
-            ax.legend(loc='upper right', bbox_to_anchor=(1.15, 1))
-            return {"scans": len(data)}
+            if not data:
+                logger.warning(f"Empty Mollweide tracks data in {obj.get_observation_code()}")
+                return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
+
+            # Extract sources from metadata
+            sources_metadata = metadata.get("sources", [])
+            source_names = [s["name"] for s in sources_metadata]
+            sources = [source_name] if source_name else source_names
+            if not sources:
+                logger.debug("No sources available, returning empty plot")
+                return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
+
+            result = {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
+            plotted_telescopes = set()
+            plotted_sources = set()
+
+            # Plot source positions from metadata
+            for source in sources_metadata:
+                if source["name"] not in sources:
+                    continue
+                lon_rad = np.radians(source["lon"])
+                lat_rad = np.radians(source["lat"])
+                ax.scatter(lon_rad, lat_rad, c='red', marker='o', s=50, label=f"Source: {source['name']}",
+                        zorder=2)
+                plotted_sources.add(source["name"])
+                result["sources"] += 1
+
+            # Process tracks for each source
+            for source in sources:
+                if source not in data:
+                    logger.warning(f"Source {source} not found in Mollweide tracks data")
+                    continue
+                source_data = data[source]
+                logger.debug(f"Processing source {source}: data={source_data}")
+
+                # Filter scans (use all if none specified)
+                scan_list = scans if scans else list(source_data.keys())
+                result["scans"] += len(scan_list)
+                logger.debug(f"Scans to process for source {source}: {scan_list}")
+
+                for scan in scan_list:
+                    if scan not in source_data:
+                        logger.debug(f"Scan {scan} not found for source {source}")
+                        continue
+                    scan_data = source_data[scan]
+
+                    # Determine telescopes to plot
+                    tel_list = telescopes if telescopes else list(scan_data.keys())
+                    for tel_code in tel_list:
+                        if tel_code not in scan_data:
+                            logger.debug(f"Telescope {tel_code} not found in scan {scan}, source {source}")
+                            continue
+                        tracks = scan_data[tel_code]
+                        if not isinstance(tracks, np.ndarray) or len(tracks) == 0:
+                            logger.debug(f"No valid tracks for {tel_code} in scan {scan}, source {source}")
+                            continue
+
+                        # Validate track format: expect [[lon1, lat1], [lon2, lat2], ...]
+                        if tracks.ndim != 2 or tracks.shape[1] != 2:
+                            logger.warning(f"Invalid track format for {tel_code} in scan {scan}, source {source}: shape={tracks.shape}")
+                            continue
+
+                        # Apply time range filter (if applicable, assuming times are available elsewhere)
+                        if time_range:
+                            # Note: time_range filtering requires time data, which isn't directly in mollweide_tracks.
+                            # Assuming times_key data is aligned with tracks, this would need times_data integration.
+                            # For now, skip time filtering as it's not specified in the data structure.
+                            logger.debug("Time range filtering not implemented for Mollweide tracks due to missing time data")
+
+                        # Plot tracks
+                        try:
+                            lon, lat = tracks[:, 0], tracks[:, 1]
+                            valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
+                            lon = lon[valid_mask]
+                            lat = lat[valid_mask]
+                            if len(lon) == 0:
+                                logger.debug(f"No valid track points for {tel_code} in scan {scan}, source {source}")
+                                continue
+                            lon_rad = np.radians(lon)
+                            lat_rad = np.radians(lat)
+                            color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
+                            ax.scatter(lon_rad, lat_rad, s=1, c=[self.moderate2_colors[color_idx]],
+                                    label=tel_code if tel_code not in plotted_telescopes else None, zorder=1)
+                            plotted_telescopes.add(tel_code)
+                            result["points"] += len(lon)
+                        except Exception as e:
+                            logger.error(f"Error plotting tracks for {tel_code} in scan {scan}, source {source}: {str(e)}")
+                            continue
+
+            result["telescopes"] = len(plotted_telescopes)
+            result["sources"] = len(plotted_sources)
+            if plotted_telescopes or plotted_sources:
+                ax.legend(loc='upper right', bbox_to_anchor=(1.15, 1), fontsize=8)
+
+            logger.debug(f"Visualization result: {result}")
+            return result
 
     def _visualize_telescopes(self, obj: Union[Telescope, SpaceTelescope, Telescopes], attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Visualize Telescope-related objects."""
