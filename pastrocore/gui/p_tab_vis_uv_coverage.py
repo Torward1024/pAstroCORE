@@ -91,7 +91,7 @@ class UVVisualizationTab(QWidget):
         })
         if calc_data_response["status"]:
             self.cached_data = calc_data_response["result"]
-            logger.debug(f"Cached calculated data: {self.cached_data}")
+            logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
         else:
             logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
             self.cached_data = {}
@@ -134,7 +134,6 @@ class UVVisualizationTab(QWidget):
         if not selected_frequencies:
             selected_frequencies = self.frequencies
             logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
-        logger.debug(f"Selected frequencies: {selected_frequencies}")
         return selected_frequencies
 
     def get_selected_units(self) -> str:
@@ -236,19 +235,6 @@ class UVVisualizationTab(QWidget):
             "frequencies": frequencies,
             "units": units
         }
-
-        # If no scans, baselines, or frequencies are selected, create an empty plot
-        if not scans or not baselines or not frequencies:
-            logger.debug("No scans, baselines, or frequencies selected, creating empty UV plot")
-            fig = plt.figure(figsize=(10, 6))
-            ax = fig.add_subplot(111)
-            ax.set_xlabel(f"u ({units})")
-            ax.set_ylabel(f"v ({units})")
-            ax.set_title(f"UV Coverage for {source_name if source_name else 'No Source'}")
-            ax.grid(True)
-            ax.invert_xaxis()
-            self.embed_figure(fig)
-            return
 
         try:
             response = self.manipulator.process_request({

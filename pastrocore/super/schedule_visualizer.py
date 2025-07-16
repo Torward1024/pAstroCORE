@@ -560,59 +560,186 @@ class ScheduleVisualizer(Super):
             return result
 
     def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot Azimuth/Elevation or Hour Angle/Declination for an Observation."""
+        """Plot Azimuth/Elevation or Hour Angle/Declination for an Observation with one subplot per telescope.
+
+        Args:
+            obj: Observation object containing the Az/El or HA/Dec data.
+            attributes: Dictionary with visualization parameters, including 'store_key', 'times_key',
+                        'source_name', 'telescopes', 'scans', 'time_range', and 'coord_type'.
+            fig: Matplotlib figure object for plotting.
+
+        Returns:
+            Dict containing metadata about the plotted data (e.g., number of scans, telescopes, and points).
+        """
         with self._lock:
-            logger.debug(f"Plotting Az/El for {obj.get_observation_code()}")
+            logger.debug(f"Plotting Az/El or HA/Dec for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "az_el")
-            data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No Az/El data found for '{store_key}' in {obj.get_observation_code()}")
-                return {}
+            times_key = attributes.get("times_key", "times")
+            source_name = attributes.get("source_name", None)
+            telescopes = attributes.get("telescopes", None)
+            scans = attributes.get("scans", None)
+            time_range = attributes.get("time_range", None)
+            coord_type = attributes.get("coord_type", "AzEl")
 
-            data = data.get("data", {})
-            source = None
-            all_telescopes = {}
-            for scan_idx, scan_data in data.items():
-                times = [Time(t) for t in scan_data.get("times", []) if t]
-                az_el = scan_data.get("az_el", {})
-                source = scan_data.get("source")
-                for tel_code, coords in az_el.items():
-                    if tel_code not in all_telescopes:
-                        all_telescopes[tel_code] = {"times": [], "az": [], "el": [], "coord_type": coords.get("coord_type", "AzEl")}
-                    valid_az = [(t.mjd, float(c)) for t, c in zip(times, coords["coord1"]) if c is not None]
-                    valid_el = [(t.mjd, float(c)) for t, c in zip(times, coords["coord2"]) if c is not None]
-                    if valid_az and valid_el:
-                        times_az, az = zip(*sorted(valid_az))
-                        times_el, el = zip(*sorted(valid_el))
-                        all_telescopes[tel_code]["times"].extend(times_az)
-                        all_telescopes[tel_code]["az"].extend(az)
-                        all_telescopes[tel_code]["el"].extend(el)
+            # Validate coord_type
+            valid_coord_types = ["AzEl", "HADec"]
+            if coord_type not in valid_coord_types:
+                logger.warning(f"Invalid coord_type '{coord_type}', defaulting to 'AzEl'")
+                coord_type = "AzEl"
 
-            n_tels = len(all_telescopes)
-            if n_tels == 0:
-                logger.warning(f"No valid Az/El data for {obj.get_observation_code()}")
-                return {}
+            logger.debug(f"Input attributes: store_key={store_key}, times_key={times_key}, "
+                        f"source_name={source_name}, telescopes={telescopes}, scans={scans}, "
+                        f"time_range={time_range}, coord_type={coord_type}")
 
-            if n_tels == 1:
+            # Check if required parameters are provided
+            if not (source_name or telescopes or scans):
+                logger.debug("No source, telescopes, or scans specified, creating empty plot")
                 ax = fig.add_subplot(111)
-                axes = [ax]
-            else:
-                axes = fig.subplots(n_tels, 1, sharex=False, sharey=False)
-
-            for i, (tel_code, data) in enumerate(all_telescopes.items()):
-                ax = axes[i]
-                color = self.moderate2_colors[i % len(self.moderate2_colors)]
-                coord_type = data["coord_type"]
-                ax.plot(data["times"], data["az"], label=f"{coord_type[:2]}", color=color)
-                ax.plot(data["times"], data["el"], label=f"{coord_type[2:]}", linestyle='--', color=color)
-                ax.set_xlabel("Time, (MJD)")
-                ax.set_ylabel("Angle, (deg)")
-                ax.set_title(f"Telescope: {tel_code}")
-                ax.legend(loc='upper right')
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, degrees)")
+                ax.set_title(f"{coord_type} for Observation: {obj.get_observation_code()}")
                 ax.grid(True)
+                return {"scans": 0, "telescopes": 0, "points": 0}
 
-            fig.suptitle(f"Az/El or HA/Dec for {source}", y=1.02)
-            return {"scans": len(data)}
+            # Retrieve Az/El and time data
+            az_el_data = obj.get_calculated_data_by_key(store_key)
+            times_data = obj.get_calculated_data_by_key(times_key)
+
+            # Validate data structure
+            if not isinstance(az_el_data, dict) or not isinstance(times_data, dict):
+                logger.warning(f"Invalid data type: az_el_data={type(az_el_data)}, "
+                            f"times_data={type(times_data)} in {obj.get_observation_code()}")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, degrees)")
+                ax.set_title(f"{coord_type} for Observation: {obj.get_observation_code()}")
+                ax.grid(True)
+                return {"scans": 0, "telescopes": 0, "points": 0}
+
+            az_el_data = az_el_data.get("data", {})
+            times_data = times_data.get("data", {})
+            if not az_el_data or not times_data:
+                logger.warning(f"Empty data: az_el_data={bool(az_el_data)}, "
+                            f"times_data={bool(times_data)} in {obj.get_observation_code()}")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, degrees)")
+                ax.set_title(f"{coord_type} for Observation: {obj.get_observation_code()}")
+                ax.grid(True)
+                return {"scans": 0, "telescopes": 0, "points": 0}
+
+            # Default to first source if none specified
+            sources = [source_name] if source_name else list(az_el_data.keys())[:1]
+            if not sources:
+                logger.debug("No sources available, creating empty plot")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, degrees)")
+                ax.set_title(f"{coord_type} for Observation: {obj.get_observation_code()}")
+                ax.grid(True)
+                return {"scans": 0, "telescopes": 0, "points": 0}
+
+            result = {"scans": 0, "telescopes": 0, "points": 0}
+            plotted_telescopes = set()
+
+            # Determine telescopes to plot
+            all_telescopes = set()
+            for source in sources:
+                if source not in az_el_data:
+                    logger.warning(f"Source {source} not found in Az/El data")
+                    continue
+                for scan in az_el_data[source]:
+                    all_telescopes.update(az_el_data[source][scan].keys())
+            tel_list = sorted(telescopes if telescopes else list(all_telescopes))
+            result["telescopes"] = len(tel_list)
+
+            # Create subplot grid
+            n_tels = len(tel_list)
+            if n_tels == 0:
+                logger.debug("No telescopes to plot, creating empty plot")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, degrees)")
+                ax.set_title(f"{coord_type} for Observation: {obj.get_observation_code()}")
+                ax.grid(True)
+                return {"scans": 0, "telescopes": 0, "points": 0}
+
+            # Calculate grid dimensions (m x n)
+            n_cols = int(np.ceil(np.sqrt(n_tels)))
+            n_rows = int(np.ceil(n_tels / n_cols))
+            logger.debug(f"Creating subplot grid: {n_rows} rows x {n_cols} cols for {n_tels} telescopes")
+            axes = fig.subplots(n_rows, n_cols, sharex=True, sharey=True)
+            axes = np.array(axes).flatten() if n_tels > 1 else [axes]
+
+            # Plot data for each telescope
+            for source in sources:
+                if source not in az_el_data or source not in times_data:
+                    logger.warning(f"Source {source} not found in Az/El or times data")
+                    continue
+                source_coords = az_el_data[source]
+                source_times = times_data[source]
+
+                # Filter scans (use all if none specified)
+                scan_list = scans if scans else list(source_coords.keys())
+                result["scans"] += len(scan_list)
+
+                for scan in scan_list:
+                    if scan not in source_coords or scan not in source_times:
+                        logger.debug(f"Scan {scan} not found for source {source}")
+                        continue
+
+                    # Validate and filter times
+                    times = [t for t in source_times[scan] if t and hasattr(t, 'mjd')]
+                    if not times:
+                        logger.debug(f"No valid times for scan {scan}, source {source}")
+                        continue
+                    coords = source_coords[scan]
+
+                    # Apply time range filter if specified
+                    if time_range:
+                        start_mjd, end_mjd = time_range
+                        valid_indices = [i for i, t in enumerate(times) if start_mjd <= t.mjd <= end_mjd]
+                        times = [times[i] for i in valid_indices]
+                        coords = {tel: [coords[tel][i] for i in valid_indices if i < len(coords[tel])] for tel in coords}
+                        if not times:
+                            logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
+                            continue
+
+                    # Plot for each telescope
+                    for tel_idx, tel_code in enumerate(tel_list):
+                        if tel_code not in coords:
+                            logger.debug(f"Telescope {tel_code} not found in scan {scan}, source {source}")
+                            continue
+                        coord_pairs = coords[tel_code]
+                        valid_pairs = [(t.mjd, float(c[0]), float(c[1])) for t, c in zip(times, coord_pairs)
+                                    if c[0] is not None and c[1] is not None]
+                        if valid_pairs:
+                            times_mjd, az, el = zip(*sorted(valid_pairs))
+                            color_idx = tel_idx % len(self.moderate2_colors)
+                            ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
+                            ax.plot(times_mjd, az, label=f"{source}, {coord_type[:2]}",
+                                    color=self.moderate2_colors[color_idx])
+                            ax.plot(times_mjd, el, label=f"{source}, {coord_type[2:]}",
+                                    linestyle='--', color=self.moderate2_colors[color_idx])
+                            ax.set_title(f"{tel_code}")
+                            ax.set_xlabel("Time (MJD)")
+                            ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, deg)")
+                            ax.grid(True)
+                            ax.legend()
+                            plotted_telescopes.add(tel_code)
+                            result["points"] += len(valid_pairs)
+
+            # Hide unused subplots
+            for idx in range(len(tel_list), len(axes)):
+                axes[idx].set_visible(False)
+
+            # Adjust layout
+            fig.suptitle(f"{coord_type} for Observation: {obj.get_observation_code()}", fontsize=14)
+            plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+            result["telescopes"] = len(plotted_telescopes)
+            logger.debug(f"Visualization result: {result}")
+            return result
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Plot time on source for an Observation."""

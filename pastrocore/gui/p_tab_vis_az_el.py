@@ -1,4 +1,4 @@
-# pastrocore/gui/p_tab_vis_sun_angles.py
+# pastrocore/gui/p_tab_vis_az_el.py
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QListWidgetItem
 from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_default import Ui_VisDefaultTab
@@ -12,12 +12,12 @@ from astropy.time import Time
 import astropy.units as u
 import matplotlib.pyplot as plt
 
-class SunAnglesVisualizationTab(QWidget):
-    """Widget for Sun angles visualization with source, scan, and telescope selection."""
+class AzElVisualizationTab(QWidget):
+    """Widget for Az/El or HA/Dec visualization with source, scan, and telescope selection."""
 
     def __init__(self, manipulator: ScheduleManipulator, observation: Observation,
                  sources: List[str], scans: List[str], telescopes: List[str], parent=None):
-        """Initialize the Sun angles visualization tab."""
+        """Initialize the Az/El or HA/Dec visualization tab."""
         super().__init__(parent)
         self.ui = Ui_VisDefaultTab()
         self.ui.setupUi(self)
@@ -26,7 +26,8 @@ class SunAnglesVisualizationTab(QWidget):
         self.canvas = None
         self.toolbar = None
         self.cached_data = None
-        logger.debug(f"SunAnglesVisualizationTab initialized for observation id={id(observation)}")
+        self.coord_type = "AzEl"  # Default coordinate type
+        logger.debug(f"AzElVisualizationTab initialized for observation id={id(observation)}")
 
         # Populate UI elements
         self.ui.cmbSource.addItems(sources)
@@ -47,7 +48,7 @@ class SunAnglesVisualizationTab(QWidget):
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         self.figure = None
-        logger.debug("SunAnglesVisualizationTab UI populated and ready for visualization")
+        logger.debug("AzElVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
         self.ui.cmbSource.currentIndexChanged.connect(self.on_filter_changed)
@@ -65,7 +66,7 @@ class SunAnglesVisualizationTab(QWidget):
         calc_data_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["sun_angles", "times"]}}
+            "attributes": {"get_calculated_data": {"keys": ["az_el", "times"]}}
         })
         if calc_data_response["status"]:
             self.cached_data = calc_data_response["result"]
@@ -118,7 +119,7 @@ class SunAnglesVisualizationTab(QWidget):
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug("Embedded Matplotlib figure in SunAnglesVisualizationTab")
+        logger.debug("Embedded Matplotlib figure in AzElVisualizationTab")
 
     @Slot()
     def on_filter_changed(self):
@@ -139,13 +140,13 @@ class SunAnglesVisualizationTab(QWidget):
             logger.debug("No source selected, clearing scans list")
             return
 
-        if not self.cached_data or "sun_angles" not in self.cached_data:
-            logger.error("No cached sun angles data available for updating scans")
+        if not self.cached_data or "az_el" not in self.cached_data:
+            logger.error("No cached Az/El data available for updating scans")
             return
 
         scans = []
-        if source_name in self.cached_data["sun_angles"]["data"]:
-            scan_data = self.cached_data["sun_angles"]["data"][source_name]
+        if source_name in self.cached_data["az_el"]["data"]:
+            scan_data = self.cached_data["az_el"]["data"][source_name]
             scans_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.observation,
@@ -171,22 +172,24 @@ class SunAnglesVisualizationTab(QWidget):
                     scans.append(scan_name)
             logger.debug(f"Populated {len(scans)} scans for source '{source_name}'")
         else:
-            logger.debug(f"No sun angles data for source '{source_name}'")
+            logger.debug(f"No Az/El data for source '{source_name}'")
 
     def update_visualization(self):
-        """Update the Sun angles visualization based on current filter selections."""
+        """Update the Az/El or HA/Dec visualization based on current filter selections."""
         source_name = self.get_selected_source()
         scans = self.get_selected_scans()
         telescopes = self.get_selected_telescopes()
         logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
 
         vis_attributes = {
-            "plot_type": "sun_angles",
+            "plot_type": "az_el",
             "show": False,
             "return_figure": True,
             "source_name": source_name,
             "scans": scans,
-            "telescopes": telescopes
+            "telescopes": telescopes,
+            "coord_type": self.coord_type,
+            "line_styles": {"primary": "-", "secondary": "--"}
         }
 
         try:
@@ -200,10 +203,10 @@ class SunAnglesVisualizationTab(QWidget):
                 figure = response.get("result", {}).get("figure")
                 if figure:
                     self.embed_figure(figure)
-                    logger.debug(f"Sun angles visualization updated for source '{source_name}'")
+                    logger.debug(f"Az/El visualization updated for source '{source_name}'")
                 else:
                     logger.error("No figure returned from visualizer")
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
         except Exception as e:
-            logger.error(f"Exception during Sun angles visualization update: {str(e)}")
+            logger.error(f"Exception during Az/El visualization update: {str(e)}")

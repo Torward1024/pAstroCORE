@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout, Q
 from PySide6.QtCore import Slot, Qt
 from .ui_dialog_visualize import Ui_VisualizationDialog
 from .p_tab_vis_uv_coverage import UVVisualizationTab
+from .p_tab_vis_az_el import AzElVisualizationTab
 from .p_tab_vis_sun_angles import SunAnglesVisualizationTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
@@ -231,6 +232,20 @@ class VisualizationDialog(QDialog):
             scans = sorted(list(set(scans)))
             telescopes = sorted(list(set(telescopes)))
             tab_widget = SunAnglesVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
+        elif vis_type == "Az/El or HA/Dec":
+            calc_data = self.cached_calc_data.get(obs_name, {})
+            # Extract sources, scans, and telescopes for Az/El
+            sources = list(calc_data.get("az_el", {}).get("data", {}).keys())
+            scans = []
+            telescopes = []
+            if "az_el" in calc_data:
+                for source_name in calc_data["az_el"]["data"]:
+                    scans.extend(list(calc_data["az_el"]["data"][source_name].keys()))
+                    for scan_name in calc_data["az_el"]["data"][source_name]:
+                        telescopes.extend(list(calc_data["az_el"]["data"][source_name][scan_name].keys()))
+            scans = sorted(list(set(scans)))
+            telescopes = sorted(list(set(telescopes)))
+            tab_widget = AzElVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
 
         if tab_widget:
             tab_widget.setProperty("vis_type", vis_type)
@@ -296,6 +311,14 @@ class VisualizationDialog(QDialog):
                 "telescopes": tab_widget.get_selected_telescopes()
             })
             logger.debug(f"Updated vis_attributes for Sun Angles: {vis_attributes}")
+        elif vis_type == "Az/El or HA/Dec":
+            vis_attributes.update({
+                "source_name": tab_widget.get_selected_source(),
+                "scans": tab_widget.get_selected_scans(),
+                "telescopes": tab_widget.get_selected_telescopes(),
+                "coord_type": "AzEl"  # Can be dynamic if UI control is added
+            })
+            logger.debug(f"Updated vis_attributes for Az/El or HA/Dec: {vis_attributes}")
 
         try:
             self.ui.pushButtonVisualize.setEnabled(False)
