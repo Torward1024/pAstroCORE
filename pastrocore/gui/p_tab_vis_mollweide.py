@@ -8,8 +8,6 @@ from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from typing import List, Optional
-from astropy.time import Time
-import astropy.units as u
 import matplotlib.pyplot as plt
 
 
@@ -71,9 +69,7 @@ class MollweideVisualizationTab(QWidget):
 
         # Cache data immediately
         self._cache_calculated_data()
-        if sources:
-            self.update_scans_for_source(sources[0])
-            self.update_visualization()  # Trigger initial visualization
+        self.update_visualization()  # Trigger initial visualization
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
@@ -157,80 +153,25 @@ class MollweideVisualizationTab(QWidget):
 
     @Slot()
     def on_filter_changed(self):
-        """Handle changes in filter selections by updating scans and visualization."""
-        sources = self.get_selected_sources()
-        logger.debug(f"Filter changed, updating scans for sources: {sources}")
-        if sources:
-            self.update_scans_for_source(sources[0])  # Update scans based on first selected source
-        else:
-            self.ui.listScans.clear()
+        """Handle changes in filter selections by updating visualization."""
+        logger.debug("Filter changed, updating visualization")
         self.update_visualization()
-
-    def update_scans_for_source(self, source_name: str):
-        """Update the scans list based on the selected source, preserving check states.
-
-        Args:
-            source_name: Name of the selected source.
-        """
-        current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
-                          for i in range(self.ui.listScans.count())}
-        logger.debug(f"Stored check states: {current_checks}")
-
-        self.ui.listScans.clear()
-        if not source_name:
-            logger.debug("No source selected, clearing scans list")
-            return
-
-        if not self.cached_data or "mollweide_tracks" not in self.cached_data:
-            logger.error("No cached Mollweide tracks data available for updating scans")
-            return
-
-        scans = []
-        if source_name in self.cached_data["mollweide_tracks"]["data"]:
-            scan_data = self.cached_data["mollweide_tracks"]["data"][source_name]
-            scans_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation,
-                "attributes": {"get_scans": None}
-            })
-            if not scans_response["status"]:
-                logger.error(f"Failed to retrieve scans: {scans_response.get('error', 'Unknown error')}")
-                return
-
-            scan_objects = scans_response["result"].get_items()
-            for scan in scan_objects:
-                scan_name = scan.get("name")
-                if scan_name in scan_data:
-                    start_time = Time(scan.get_start()).isot
-                    duration = scan.get_duration() * u.s
-                    end_time = (Time(scan.get_start()) + duration).isot
-                    display_text = f"{start_time} - {end_time}"
-                    item = QListWidgetItem(display_text)
-                    item.setData(Qt.UserRole, scan_name)
-                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                    item.setCheckState(current_checks.get(scan_name, Qt.Checked))
-                    self.ui.listScans.addItem(item)
-                    scans.append(scan_name)
-            logger.debug(f"Populated {len(scans)} scans for source '{source_name}'")
-        else:
-            logger.debug(f"No Mollweide tracks data for source '{source_name}'")
 
     def update_visualization(self):
         """Update the Mollweide tracks visualization based on current filter selections."""
-        sources = self.get_selected_sources()
-        source_name = sources[0] if sources else None  # Use first selected source
         scans = self.get_selected_scans()
         telescopes = self.get_selected_telescopes()
-        logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
+        sources = self.get_selected_sources()
+        logger.debug(f"Updating visualization: scans={scans}, telescopes={telescopes}, sources={sources}")
 
         vis_attributes = {
             "plot_type": "mollweide_tracks",
             "show": False,
             "return_figure": True,
             "store_key": "mollweide_tracks",
-            "source_name": source_name,
             "scans": scans,
-            "telescopes": telescopes
+            "telescopes": telescopes,
+            "sources": sources  # Pass selected sources for plotting their positions
         }
 
         try:
@@ -244,7 +185,7 @@ class MollweideVisualizationTab(QWidget):
                 figure = response.get("result", {}).get("figure")
                 if figure:
                     self.embed_figure(figure)
-                    logger.debug(f"Mollweide tracks visualization updated for source '{source_name}'")
+                    logger.debug("Mollweide tracks visualization updated")
                 else:
                     logger.error("No figure returned from visualizer")
             else:
