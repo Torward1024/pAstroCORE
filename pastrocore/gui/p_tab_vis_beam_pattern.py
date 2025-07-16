@@ -24,16 +24,26 @@ class BeamPatternVisualizationTab(QWidget):
         self.canvas = None
         self.toolbar = None
         self.cached_data = None
-        self.frequencies = self._get_frequencies()  # Get frequencies from observation or metadata
+        self.frequencies = self._get_frequencies()  # Get frequencies from observation
+        self.telescopes = self._get_telescopes()  # Get telescopes from beam pattern data
         logger.debug(f"BeamPatternVisualizationTab initialized for observation id={id(observation)}")
 
         # Populate frequencies
+        logger.debug(f"Populating frequencies: {self.frequencies}")
         for freq in self.frequencies:
-            item = QListWidgetItem(f"{freq:.2f} MHz" if freq != "default" else "Default")
+            item = QListWidgetItem(f"{freq:.2f} MHz")
             item.setData(Qt.UserRole, freq)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
             self.ui.listFrequencies.addItem(item)
+
+        # Populate telescopes
+        logger.debug(f"Populating telescopes: {self.telescopes}")
+        for tel in self.telescopes:
+            item = QListWidgetItem(tel)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            item.setCheckState(Qt.Checked)
+            self.ui.listTelescopes.addItem(item)
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
@@ -47,8 +57,8 @@ class BeamPatternVisualizationTab(QWidget):
         # Cache data immediately
         self._cache_calculated_data()
 
-    def _get_frequencies(self) -> List[str]:
-        """Retrieve the list of frequencies (in MHz) or a default value based on beam pattern metadata."""
+    def _get_frequencies(self) -> List[float]:
+        """Retrieve the list of frequencies (in MHz) from observation."""
         response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -60,7 +70,23 @@ class BeamPatternVisualizationTab(QWidget):
             logger.debug(f"Retrieved frequencies from observation: {freq_list}")
             return freq_list
         logger.error(f"Failed to retrieve frequencies: {response.get('error', 'Unknown error')}")
-        return ["default"]
+        return []
+
+    def _get_telescopes(self) -> List[str]:
+        """Retrieve the list of telescope codes from beam pattern data."""
+        response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_calculated_data": {"keys": ["beam_pattern"]}}
+        })
+        if response["status"]:
+            beam_data = response["result"].get("beam_pattern", {}).get("data", {})
+            telescopes = list(beam_data.keys())  # Extract only top-level keys (telescope codes)
+            tel_list = sorted(telescopes)
+            logger.debug(f"Retrieved telescopes from beam pattern data: {tel_list}")
+            return tel_list
+        logger.error(f"Failed to retrieve telescopes: {response.get('error', 'Unknown error')}")
+        return []
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
@@ -76,21 +102,22 @@ class BeamPatternVisualizationTab(QWidget):
             logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
             self.cached_data = {}
 
-    def get_selected_frequencies(self) -> List[str]:
-        """Get the list of selected frequency names."""
+    def get_selected_frequencies(self) -> List[float]:
+        """Get the list of selected frequency values."""
         selected_frequencies = []
         for i in range(self.ui.listFrequencies.count()):
             item = self.ui.listFrequencies.item(i)
             if item.checkState() == Qt.Checked:
-                selected_frequencies.append(item.data(Qt.UserRole))
+                freq = float(item.data(Qt.UserRole))
+                selected_frequencies.append(freq)
+        # Fallback to all frequencies if none are selected
         if not selected_frequencies:
-            selected_frequencies = self.frequencies  # Fallback to all frequencies
+            selected_frequencies = self.frequencies
             logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
-        logger.debug(f"Selected frequencies: {selected_frequencies}")
         return selected_frequencies
 
     def get_selected_telescopes(self) -> List[str]:
-        """Get the list of selected telescope names."""
+        """Get the list of selected telescope codes."""
         selected_telescopes = []
         for i in range(self.ui.listTelescopes.count()):
             item = self.ui.listTelescopes.item(i)
@@ -121,7 +148,7 @@ class BeamPatternVisualizationTab(QWidget):
 
     @Slot()
     def on_filter_changed(self):
-        """Handle changes in filter selections by updating scans and visualization."""
+        """Handle changes in filter selections by updating visualization."""
         self.update_visualization()
 
     def update_visualization(self):
@@ -134,8 +161,8 @@ class BeamPatternVisualizationTab(QWidget):
             "plot_type": "beam_pattern",
             "show": False,
             "return_figure": True,
-            "freq_names": frequencies if frequencies != ["default"] else None,
-            "telescopes": telescopes
+            "freq_names": frequencies if frequencies != self.frequencies else None,
+            "telescopes": telescopes if telescopes != self.telescopes else None
         }
 
         try:

@@ -798,27 +798,24 @@ class ScheduleVisualizer(Super):
             return {"telescopes": len(telescopes)}
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot beam patterns for an Observation with one subplot per telescope and frequency.
+        """Plot beam patterns for an Observation with one subplot per telescope, showing patterns for specified frequencies.
 
         Args:
             obj: Observation object containing the beam pattern data.
-            attributes: Dictionary with visualization parameters, including 'store_key', 'freq_names',
-                        'telescopes', 'scans', and 'source_name'.
+            attributes: Dictionary with visualization parameters, including 'store_key', 'freq_names', and 'telescopes'.
             fig: Matplotlib figure object for plotting.
 
         Returns:
-            Dict containing metadata about the plotted data (e.g., number of telescopes, frequencies, and scans).
+            Dict containing metadata about the plotted data (e.g., number of telescopes, frequencies).
         """
         with self._lock:
             logger.debug(f"Plotting beam pattern for {obj.get_observation_code()}")
-            freq_names = attributes.get("freq_names", None)  # List of frequency names or single freq_name
+            store_key = attributes.get("store_key", "beam_pattern")
+            freq_names = attributes.get("freq_names", None)  # List of frequency values or single value
             telescopes = attributes.get("telescopes", None)  # List of telescope codes or single code
-            scans = attributes.get("scans", None)  # List of scan names or single scan
-            source_name = attributes.get("source_name", None)  # Single source name
-            store_key = attributes.get("store_key", "beam_pattern")  # Default store_key
+            SPEED_OF_LIGHT = 299792458.0  # Speed of light in m/s
 
-            logger.debug(f"Input attributes: store_key={store_key}, freq_names={freq_names}, "
-                        f"telescopes={telescopes}, scans={scans}, source_name={source_name}")
+            logger.debug(f"Input attributes: store_key={store_key}, freq_names={freq_names}, telescopes={telescopes}")
 
             # Create axis even if no data is plotted
             ax = fig.add_subplot(111)
@@ -828,9 +825,9 @@ class ScheduleVisualizer(Super):
             ax.grid(True)
 
             # Check if required parameters are provided
-            if not (source_name or telescopes or scans or freq_names):
-                logger.debug("No source, telescopes, scans, or frequencies specified, returning empty plot")
-                return {"scans": 0, "telescopes": 0, "frequencies": 0}
+            if not (telescopes or freq_names):
+                logger.debug("No telescopes or frequencies specified, returning empty plot")
+                return {"telescopes": 0, "frequencies": 0}
 
             # Retrieve beam pattern data
             beam_data = obj.get_calculated_data_by_key(store_key)
@@ -839,112 +836,88 @@ class ScheduleVisualizer(Super):
             # Validate data structure
             if not isinstance(beam_data, dict):
                 logger.warning(f"Invalid data type: beam_data={type(beam_data)} in {obj.get_observation_code()}")
-                return {"scans": 0, "telescopes": 0, "frequencies": 0}
+                return {"telescopes": 0, "frequencies": 0}
 
             beam_data = beam_data.get("data", {})
-            metadata = beam_data.get("metadata", {})
             logger.debug(f"Beam data (post-extraction): {beam_data}")
             if not beam_data:
                 logger.warning(f"Empty beam data in {obj.get_observation_code()}")
-                return {"scans": 0, "telescopes": 0, "frequencies": 0}
-
-            # Default to first source if none specified
-            sources = [source_name] if source_name else list(beam_data.keys())[:1]
-            if not sources:
-                logger.debug("No sources available, returning empty plot")
-                return {"scans": 0, "telescopes": 0, "frequencies": 0}
-
-            result = {"scans": 0, "telescopes": 0, "frequencies": 0}
-            plotted_telescopes = set()
-            plotted_frequencies = set()
-
-            # Validate frequencies against metadata
-            available_freqs = metadata.get("freq_names", [])
-            if freq_names:
-                freq_list = [f for f in (freq_names if isinstance(freq_names, list) else [freq_names]) if f in available_freqs]
-                if not freq_list:
-                    logger.warning(f"No valid frequencies in {freq_names} match metadata: {available_freqs}")
-                    return {"scans": 0, "telescopes": 0, "frequencies": 0}
-            else:
-                freq_list = available_freqs
-            result["frequencies"] = len(freq_list)
+                return {"telescopes": 0, "frequencies": 0}
 
             # Determine telescopes to plot
-            all_telescopes = set()
-            for source in sources:
-                if source not in beam_data:
-                    logger.warning(f"Source {source} not found in beam data")
-                    continue
-                for scan in beam_data[source]:
-                    for freq_name in beam_data[source][scan]:
-                        all_telescopes.update(beam_data[source][scan][freq_name].keys())
-            tel_list = sorted(telescopes if telescopes else list(all_telescopes))
-            result["telescopes"] = len(tel_list)
+            all_telescopes = list(beam_data.keys())
+            tel_list = sorted(telescopes if telescopes else all_telescopes)
+            if not tel_list:
+                logger.debug("No telescopes available, returning empty plot")
+                return {"telescopes": 0, "frequencies": 0}
+
+            # Determine frequencies to plot
+            freq_list = (
+                [float(f) for f in (freq_names if isinstance(freq_names, list) else [freq_names]) if f]
+                if freq_names else []
+            )
+            if not freq_list:
+                # Fallback to observation frequencies if none specified
+                freq_list = [float(f.get("frequency")) for f in obj.get_frequencies().get_items()]
+                logger.debug(f"No frequencies specified, using observation frequencies: {freq_list}")
+            if not freq_list:
+                logger.warning(f"No valid frequencies available in observation or attributes")
+                return {"telescopes": len(tel_list), "frequencies": 0}
 
             # Create subplot grid
             n_tels = len(tel_list)
-            if n_tels == 0:
-                logger.debug("No telescopes to plot, returning empty plot")
-                return {"scans": 0, "telescopes": 0, "frequencies": 0}
-
-            # Calculate grid dimensions (m x n)
             n_cols = int(np.ceil(np.sqrt(n_tels)))
             n_rows = int(np.ceil(n_tels / n_cols))
             logger.debug(f"Creating subplot grid: {n_rows} rows x {n_cols} cols for {n_tels} telescopes")
             axes = fig.subplots(n_rows, n_cols, sharex=True, sharey=True)
             axes = np.array(axes).flatten() if n_tels > 1 else [axes]
 
-            for source in sources:
-                if source not in beam_data:
-                    logger.warning(f"Source {source} not found in beam data")
+            result = {"telescopes": 0, "frequencies": len(freq_list)}
+            plotted_telescopes = set()
+            plotted_frequencies = set()
+
+            # Process each telescope
+            for tel_idx, tel_code in enumerate(tel_list):
+                if tel_code not in beam_data:
+                    logger.debug(f"Telescope {tel_code} not found in beam_data, skipping")
                     continue
-                source_data = beam_data[source]
+                ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
+                ax.set_xlabel("Theta (radians)")
+                ax.set_ylabel("Normalized Peak Flux (Jy)")
+                ax.set_title(f"{tel_code}")
+                ax.grid(True)
 
-                # Filter scans (use all if none specified)
-                scan_list = scans if scans else list(source_data.keys())
-                result["scans"] += MMSlen(scan_list)
-                logger.debug(f"Scans to process: {scan_list}")
+                # Retrieve theta and pattern (frequency-agnostic)
+                beam = beam_data.get(tel_code, {})
+                theta = np.array(beam.get("theta", []))
+                pattern = np.array(beam.get("pattern", []))
+                if len(theta) == 0 or len(pattern) == 0:
+                    logger.debug(f"Empty theta or pattern for {tel_code}")
+                    continue
 
-                for scan in scan_list:
-                    if scan not in source_data:
-                        logger.debug(f"Scan {scan} not found for source {source}")
-                        continue
-                    scan_data = source_data[scan]
+                # Plot for each frequency
+                for freq_idx, freq_mhz in enumerate(freq_list):
+                    wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6)  # Wavelength in meters
+                    scaling_factor = 1.0 / wavelength**2  # Scale pattern by 1/wavelength^2
+                    logger.debug(f"Tel {tel_code}, freq {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
 
-                    for freq_name in freq_list:
-                        if freq_name not in scan_data:
-                            logger.debug(f"Frequency {freq_name} not found in scan {scan}, source {source}")
-                            continue
-                        freq_data = scan_data[freq_name]
-                        plotted_frequencies.add(freq_name)
+                    # Apply scaling factor
+                    scaled_pattern = pattern * scaling_factor
+                    logger.debug(f"Scaled pattern for {tel_code} at {freq_mhz}: {scaled_pattern[:5]}")
 
-                        # Plot for each telescope
-                        for tel_idx, tel_code in enumerate(tel_list):
-                            if tel_code not in freq_data:
-                                logger.debug(f"Telescope {tel_code} not found in freq {freq_name}, scan {scan}, source {source}")
-                                continue
-                            beam = freq_data[tel_code]
-                            theta = np.array(beam.get("theta", []))
-                            pattern = np.array(beam.get("pattern", []))
-                            if len(theta) == 0 or len(pattern) == 0:
-                                logger.debug(f"Empty theta or pattern for {tel_code} in freq {freq_name}, scan {scan}")
-                                continue
-                            ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
-                            color_idx = (tel_idx + len(plotted_frequencies)) % len(self.moderate2_colors)
-                            ax.plot(
-                                theta, pattern,
-                                label=f"{source}, {freq_name}",
-                                color=self.moderate2_colors[color_idx]
-                            )
-                            # Set axis limits based on theta range
-                            theta_range = np.max(np.abs(theta)) * 1.1 if len(theta) > 0 else 1.0
-                            ax.set_xlim(-theta_range, theta_range)
-                            ax.set_title(f"{tel_code}")
-                            ax.set_xlabel("Theta (radians)")
-                            ax.set_ylabel("Normalized Peak Flux (Jy)")
-                            ax.grid(True)
-                            ax.legend()
-                            plotted_telescopes.add(tel_code)
+                    # Plot the beam pattern
+                    color_idx = freq_idx % len(self.moderate2_colors)
+                    ax.plot(
+                        theta, scaled_pattern,
+                        label=f"{freq_mhz:.2f} MHz",
+                        color=self.moderate2_colors[color_idx]
+                    )
+                    # Set axis limits based on theta range
+                    theta_range = np.max(np.abs(theta)) * 1.1 if len(theta) > 0 else 1.0
+                    ax.set_xlim(-theta_range, theta_range)
+                    ax.legend()
+                    plotted_telescopes.add(tel_code)
+                    plotted_frequencies.add(freq_mhz)
 
             # Hide unused subplots
             for idx in range(len(tel_list), len(axes)):

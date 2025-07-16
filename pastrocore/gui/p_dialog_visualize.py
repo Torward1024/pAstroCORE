@@ -286,7 +286,7 @@ class VisualizationDialog(QDialog):
                 "source_name": tab_widget.get_selected_source(),
                 "scans": tab_widget.get_selected_scans(),
                 "telescopes": tab_widget.get_selected_telescopes(),
-                "coord_type": "AzEl"  # Can be dynamic if UI control is added
+                "coord_type": "AzEl"
             })
             logger.debug(f"Updated vis_attributes for Az/El or HA/Dec: {vis_attributes}")
         elif vis_type == "Beam Pattern":
@@ -295,7 +295,7 @@ class VisualizationDialog(QDialog):
                 "freq_names": tab_widget.get_selected_frequencies()
             })
             logger.debug(f"Updated vis_attributes for Beam Pattern: {vis_attributes}")
-
+        
         try:
             self.ui.pushButtonVisualize.setEnabled(False)
             self.ui.pushButtonVisualize.setText("Visualizing...")

@@ -1790,7 +1790,7 @@ class ScheduleCalculator(Super):
                     {
                         telescope_code: {
                             "theta": List[float],  # Angles in radians
-                            "pattern": List[float]  # Normalized beam pattern, to be scaled by pi*D/wavelength
+                            "pattern": List[float]  # Normalized beam pattern, to be scaled by wavelength
                         }
                     }
                 For ScheduleProject:
@@ -1806,7 +1806,7 @@ class ScheduleCalculator(Super):
         Notes:
             - Supports both SINGLE_DISH and VLBI observations.
             - Calculates beam pattern for all active telescopes, including SpaceTelescope.
-            - Beam pattern is computed in a frequency-agnostic manner; scaling by pi*D/wavelength is required during visualization.
+            - Beam pattern is computed in a frequency-agnostic manner; scaling by wavelength is required during visualization.
             - Uses vectorized computations for efficiency.
             - Stores results in calculated_data under 'beam_pattern' with metadata.
         """
@@ -1884,7 +1884,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "telescope_count": len(obj.get_telescopes().get_active_items()),
-                "scale_instruction": "Multiply pattern by (pi*D/wavelength)^2 during visualization"
+                "scale_instruction": "Multiply pattern by wavelength during visualization"
             }
             return self._get_cached_or_calculate(obj, store_key, calculate_beam_pattern, attributes, metadata)
 
