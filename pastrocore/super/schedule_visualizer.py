@@ -1137,76 +1137,169 @@ class ScheduleVisualizer(Super):
             return {}
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot baseline projections for an Observation using scatter points.
+        """Plot baseline projections for an Observation with flexible filtering and frequency scaling.
 
         Args:
             obj: Observation object containing the baseline projections data.
-            attributes: Dictionary with visualization parameters, including 'store_key'.
+            attributes: Dictionary with visualization parameters, including 'store_key', 'times_key',
+                        'baselines', 'source_name', 'scans', 'time_range', 'frequencies', and 'units'.
             fig: Matplotlib figure object for plotting.
 
         Returns:
-            Dict containing metadata about the plotted data (e.g., number of scans, baselines, and projections).
+            Dict containing metadata about the plotted data (e.g., number of scans, baselines, projections, and frequencies).
         """
         with self._lock:
             logger.debug(f"Plotting baseline projections for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "baseline_projections")
-            data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No baseline projections data found for '{store_key}' in {obj.get_observation_code()}")
-                return {}
+            times_key = attributes.get("times_key", "times")
+            baselines = attributes.get("baselines", None)
+            source_name = attributes.get("source_name", None)
+            scans = attributes.get("scans", None)
+            time_range = attributes.get("time_range", None)
+            frequencies = attributes.get("frequencies", None)
+            units = attributes.get("units", "meters")
 
-            data = data.get("data", {})
-            plotted_pairs = set()
-            valid_projections = 0
-            pair_data = {}
+            logger.debug(f"Input attributes: store_key={store_key}, times_key={times_key}, "
+                        f"baselines={baselines}, source_name={source_name}, scans={scans}, "
+                        f"time_range={time_range}, frequencies={frequencies}, units={units}")
 
-            for scan_idx, scan_data in data.items():
-                times_mjd = [Time(t).mjd for t in scan_data.get("times", []) if t]
-                if not times_mjd:
-                    logger.debug(f"No valid times for scan {scan_idx} in {obj.get_observation_code()}")
-                    continue
-                projections = scan_data.get("projections", {})
-                if not projections:
-                    logger.debug(f"No projection data for scan {scan_idx} in {obj.get_observation_code()}")
-                    continue
-
-                for time_idx, proj_dict in projections.items():
-                    if time_idx >= len(times_mjd):
-                        logger.warning(f"Time index {time_idx} exceeds available times ({len(times_mjd)}) in scan {scan_idx}")
-                        continue
-                    for pair, bl in proj_dict.items():
-                        if bl is None or np.isnan(bl):
-                            logger.debug(f"Skipping invalid baseline for pair {pair} at time_idx {time_idx}: {bl}")
-                            continue
-                        if pair not in pair_data:
-                            pair_data[pair] = {"times": [], "bl": []}
-                        pair_data[pair]["times"].append(times_mjd[time_idx])
-                        pair_data[pair]["bl"].append(float(bl))  # Ensure float for plotting
-                        valid_projections += 1
-
-            if not pair_data:
-                logger.warning(f"No valid projection data to plot for {obj.get_observation_code()}. Scans processed: {len(data)}")
-                return {}
-
+            # Create axis even if no data is plotted
             ax = fig.add_subplot(111)
-            for i, (pair, data) in enumerate(pair_data.items()):
-                color_idx = i % len(self.moderate2_colors)
-                ax.scatter(
-                    data["times"],
-                    data["bl"],
-                    label=pair if pair not in plotted_pairs else None,
-                    color=self.moderate2_colors[color_idx],
-                    s=10,
-                    alpha=0.7
-                )
-                plotted_pairs.add(pair)
-
             ax.set_xlabel("Time (MJD)")
-            ax.set_ylabel("Baseline Length (meters)")
-            ax.set_title("Baseline Projections")
-            ax.legend()
+            ax.set_ylabel(f"Baseline Length ({units})")
+            ax.set_title(f"Baseline Projections for Observation: {obj.get_observation_code()}")
             ax.grid(True)
-            return {"scans": len(data), "baselines": len(plotted_pairs), "projections": valid_projections}
+
+            # Check if required parameters are provided
+            if not (source_name or baselines or scans or frequencies):
+                logger.debug("No source, baselines, scans, or frequencies specified, returning empty plot")
+                return {"scans": 0, "baselines": 0, "projections": 0, "frequencies": 0}
+
+            # Retrieve baseline projections and time data
+            bl_data = obj.get_calculated_data_by_key(store_key)
+            times_data = obj.get_calculated_data_by_key(times_key)
+            logger.debug(f"Retrieved bl_data: {bl_data}")
+            logger.debug(f"Retrieved times_data: {times_data}")
+
+            # Validate data structure
+            if not isinstance(bl_data, dict) or not isinstance(times_data, dict):
+                logger.warning(f"Invalid data type: bl_data={type(bl_data)}, times_data={type(times_data)} in {obj.get_observation_code()}")
+                return {"scans": 0, "baselines": 0, "projections": 0, "frequencies": 0}
+
+            bl_data = bl_data.get("data", {})
+            times_data = times_data.get("data", {})
+            logger.debug(f"Baseline projections data (post-extraction): {bl_data}")
+            logger.debug(f"Times data (post-extraction): {times_data}")
+            if not bl_data or not times_data:
+                logger.warning(f"Empty data: bl_data={bool(bl_data)}, times_data={bool(times_data)} in {obj.get_observation_code()}")
+                return {"scans": 0, "baselines": 0, "projections": 0, "frequencies": 0}
+
+            # Default to first source if none specified
+            sources = [source_name] if source_name else list(bl_data.keys())[:1]
+            if not sources:
+                logger.debug("No sources available, returning empty plot")
+                return {"scans": 0, "baselines": 0, "projections": 0, "frequencies": 0}
+
+            result = {"scans": 0, "baselines": 0, "projections": 0, "frequencies": len(frequencies) if frequencies else 0}
+            plotted_pairs = set()
+            SPEED_OF_LIGHT = 299792458.0  # Speed of light in m/s
+            EARTH_DIAMETER = 12742000.0   # Average Earth diameter in meters
+
+            for source in sources:
+                if source not in bl_data or source not in times_data:
+                    logger.warning(f"Source {source} not found in baseline projections or times data")
+                    continue
+                source_bl = bl_data[source]
+                source_times = times_data[source]
+                logger.debug(f"Processing source {source}: bl={source_bl}, times={source_times}")
+
+                # Filter scans (use all if none specified)
+                scan_list = scans if scans else list(source_bl.keys())
+                result["scans"] += len(scan_list)
+                logger.debug(f"Scans to process: {scan_list}")
+
+                for scan in scan_list:
+                    if scan not in source_bl or scan not in source_times:
+                        logger.debug(f"Scan {scan} not found for source {source}")
+                        continue
+
+                    # Validate times
+                    times = []
+                    for t in source_times[scan]:
+                        if t and hasattr(t, 'mjd'):
+                            times.append(t.mjd)
+                        else:
+                            logger.debug(f"Invalid time entry in scan {scan}, source {source}: {t}")
+                    logger.debug(f"Valid times for scan {scan}: {times}")
+                    if not times:
+                        logger.debug(f"No valid times for scan {scan}, source {source}")
+                        continue
+                    bl_points = source_bl[scan]
+                    logger.debug(f"Baseline projections for scan {scan}: {bl_points}")
+
+                    # Apply time range filter if specified
+                    if time_range:
+                        start_mjd, end_mjd = time_range
+                        valid_indices = [i for i, t in enumerate(times) if start_mjd <= t <= end_mjd]
+                        times = [times[i] for i in valid_indices]
+                        for pair in bl_points:
+                            # Ensure bl_points[pair] is a NumPy array and filter by valid indices
+                            if isinstance(bl_points[pair], np.ndarray):
+                                bl_points[pair] = bl_points[pair][valid_indices]
+                            else:
+                                logger.warning(f"Invalid data type for bl_points[{pair}] in scan {scan}, source {source}: {type(bl_points[pair])}")
+                                bl_points[pair] = np.array([])
+                        logger.debug(f"After time range filter: times={times}, bl_points={bl_points}")
+                        if not times:
+                            logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
+                            continue
+
+                    # Process each frequency
+                    for freq_mhz in (frequencies or [None]):
+                        wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0  # Avoid division by zero
+                        scaling_factor = 1.0 if units == "meters" else (wavelength / EARTH_DIAMETER)
+                        logger.debug(f"Frequency {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
+
+                        for pair in bl_points:
+                            if baselines and pair not in baselines:
+                                logger.debug(f"Skipping pair {pair} not in baselines {baselines}")
+                                continue
+                            if not isinstance(bl_points[pair], np.ndarray) or len(bl_points[pair]) == 0:
+                                logger.debug(f"No valid baseline projections for {pair} in source {source}, scan {scan}")
+                                continue
+                            try:
+                                # Filter out NaN values and convert to float
+                                valid_projs = bl_points[pair][~np.isnan(bl_points[pair])].astype(float)
+                                logger.debug(f"Valid projections for {pair}: {len(valid_projs)}")
+                                if len(valid_projs) == 0:
+                                    logger.debug(f"No valid projections after filtering for {pair} in source {source}, scan {scan}")
+                                    continue
+                                # Ensure times and projections align
+                                if len(valid_projs) > len(times):
+                                    valid_projs = valid_projs[:len(times)]
+                                    logger.warning(f"Truncated projections for {pair} to match times length: {len(times)}")
+                                elif len(times) > len(valid_projs):
+                                    times_subset = times[:len(valid_projs)]
+                                    logger.warning(f"Truncated times for {pair} to match projections length: {len(valid_projs)}")
+                                else:
+                                    times_subset = times
+                                # Scale projections based on units
+                                bl_scaled = valid_projs / wavelength * scaling_factor if freq_mhz else valid_projs
+                                logger.debug(f"Scaled projections: bl={bl_scaled[:5]}")
+                                color_idx = (len(plotted_pairs) + (frequencies.index(freq_mhz) if frequencies and freq_mhz else 0)) % len(self.moderate2_colors)
+                                label = f"{pair} ({freq_mhz} MHz)" if freq_mhz else f"{pair}"
+                                ax.scatter(times_subset, bl_scaled, s=10, c=[self.moderate2_colors[color_idx]], label=label, alpha=0.7)
+                                plotted_pairs.add(f"{pair}_{freq_mhz}" if freq_mhz else pair)
+                                result["projections"] += len(bl_scaled)
+                            except Exception as e:
+                                logger.error(f"Error processing projections for {pair} at {freq_mhz} MHz: {str(e)}")
+                                continue
+
+            result["baselines"] = len(plotted_pairs)
+            if plotted_pairs:
+                ax.legend()
+            logger.debug(f"Visualization result: {result}")
+            return result
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Plot Mollweide tracks for an Observation."""
