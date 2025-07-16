@@ -161,8 +161,8 @@ class BeamPatternVisualizationTab(QWidget):
             "plot_type": "beam_pattern",
             "show": False,
             "return_figure": True,
-            "freq_names": frequencies if frequencies != self.frequencies else None,
-            "telescopes": telescopes if telescopes != self.telescopes else None
+            "freq_names": frequencies,
+            "telescopes": telescopes
         }
 
         try:

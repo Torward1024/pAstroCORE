@@ -817,16 +817,13 @@ class ScheduleVisualizer(Super):
 
             logger.debug(f"Input attributes: store_key={store_key}, freq_names={freq_names}, telescopes={telescopes}")
 
-            # Create axis even if no data is plotted
-            ax = fig.add_subplot(111)
-            ax.set_xlabel("Theta (radians)")
-            ax.set_ylabel("Normalized Peak Flux (Jy)")
-            ax.set_title(f"Beam Pattern for Observation: {obj.get_observation_code()}")
-            ax.grid(True)
-
             # Check if required parameters are provided
             if not (telescopes or freq_names):
                 logger.debug("No telescopes or frequencies specified, returning empty plot")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Theta (radians)")
+                ax.set_ylabel("Normalized Peak Flux (Jy)")
+                ax.grid(True)
                 return {"telescopes": 0, "frequencies": 0}
 
             # Retrieve beam pattern data
@@ -836,12 +833,20 @@ class ScheduleVisualizer(Super):
             # Validate data structure
             if not isinstance(beam_data, dict):
                 logger.warning(f"Invalid data type: beam_data={type(beam_data)} in {obj.get_observation_code()}")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Theta (radians)")
+                ax.set_ylabel("Normalized Peak Flux (Jy)")
+                ax.grid(True)
                 return {"telescopes": 0, "frequencies": 0}
 
             beam_data = beam_data.get("data", {})
             logger.debug(f"Beam data (post-extraction): {beam_data}")
             if not beam_data:
                 logger.warning(f"Empty beam data in {obj.get_observation_code()}")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Theta (radians)")
+                ax.set_ylabel("Normalized Peak Flux (Jy)")
+                ax.grid(True)
                 return {"telescopes": 0, "frequencies": 0}
 
             # Determine telescopes to plot
@@ -849,6 +854,10 @@ class ScheduleVisualizer(Super):
             tel_list = sorted(telescopes if telescopes else all_telescopes)
             if not tel_list:
                 logger.debug("No telescopes available, returning empty plot")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Theta (radians)")
+                ax.set_ylabel("Normalized Peak Flux (Jy)")
+                ax.grid(True)
                 return {"telescopes": 0, "frequencies": 0}
 
             # Determine frequencies to plot
@@ -862,6 +871,10 @@ class ScheduleVisualizer(Super):
                 logger.debug(f"No frequencies specified, using observation frequencies: {freq_list}")
             if not freq_list:
                 logger.warning(f"No valid frequencies available in observation or attributes")
+                ax = fig.add_subplot(111)
+                ax.set_xlabel("Theta (radians)")
+                ax.set_ylabel("Normalized Peak Flux (Jy)")
+                ax.grid(True)
                 return {"telescopes": len(tel_list), "frequencies": 0}
 
             # Create subplot grid
@@ -882,10 +895,16 @@ class ScheduleVisualizer(Super):
                     logger.debug(f"Telescope {tel_code} not found in beam_data, skipping")
                     continue
                 ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
-                ax.set_xlabel("Theta (radians)")
-                ax.set_ylabel("Normalized Peak Flux (Jy)")
-                ax.set_title(f"{tel_code}")
                 ax.grid(True)
+
+                # Add telescope code as annotation instead of title
+                ax.annotate(
+                    tel_code,
+                    xy=(0.05, 0.95),
+                    xycoords='axes fraction',
+                    fontsize=10,
+                    bbox=dict(boxstyle="round", facecolor='white', alpha=0.8)
+                )
 
                 # Retrieve theta and pattern (frequency-agnostic)
                 beam = beam_data.get(tel_code, {})
@@ -915,7 +934,8 @@ class ScheduleVisualizer(Super):
                     # Set axis limits based on theta range
                     theta_range = np.max(np.abs(theta)) * 1.1 if len(theta) > 0 else 1.0
                     ax.set_xlim(-theta_range, theta_range)
-                    ax.legend()
+                    ax.legend(fontsize=8)
+
                     plotted_telescopes.add(tel_code)
                     plotted_frequencies.add(freq_mhz)
 
@@ -923,9 +943,13 @@ class ScheduleVisualizer(Super):
             for idx in range(len(tel_list), len(axes)):
                 axes[idx].set_visible(False)
 
-            # Adjust layout
+            # Add common axis labels
+            fig.text(0.5, 0.04, "Theta (radians)", ha='center', fontsize=12)
+            fig.text(0.04, 0.5, "Normalized Peak Flux (Jy)", va='center', rotation='vertical', fontsize=12)
+
+            # Adjust layout and add common title
             fig.suptitle(f"Beam Pattern for Observation: {obj.get_observation_code()}", fontsize=14)
-            plt.tight_layout(rect=[0, 0, 1, 0.95])
+            plt.tight_layout(rect=[0.05, 0.05, 1, 0.95])
 
             result["telescopes"] = len(plotted_telescopes)
             result["frequencies"] = len(plotted_frequencies)
