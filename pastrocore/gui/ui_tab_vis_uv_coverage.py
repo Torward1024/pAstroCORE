@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_vis_uv_coverageTfvEYB.ui'
+## Form generated from reading UI file 'tab_vis_uv_coverageoTvDgn.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -18,15 +18,15 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QLabel,
     QListWidget, QListWidgetItem, QSizePolicy, QWidget)
 
-class Ui_ObservationInfoTab(object):
-    def setupUi(self, ObservationInfoTab):
-        if not ObservationInfoTab.objectName():
-            ObservationInfoTab.setObjectName(u"ObservationInfoTab")
-        ObservationInfoTab.resize(881, 550)
-        ObservationInfoTab.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
-        self.gridLayout_3 = QGridLayout(ObservationInfoTab)
+class Ui_UVCoverageVisTab(object):
+    def setupUi(self, UVCoverageVisTab):
+        if not UVCoverageVisTab.objectName():
+            UVCoverageVisTab.setObjectName(u"UVCoverageVisTab")
+        UVCoverageVisTab.resize(881, 550)
+        UVCoverageVisTab.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
+        self.gridLayout_3 = QGridLayout(UVCoverageVisTab)
         self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self.widget = QWidget(ObservationInfoTab)
+        self.widget = QWidget(UVCoverageVisTab)
         self.widget.setObjectName(u"widget")
         self.widget.setStyleSheet(u"QWidget{\n"
 "    border: 1px solid #005BB5; /* \u0426\u0432\u0435\u0442 \u0433\u0440\u0430\u043d\u0438\u0446\u044b \u0441\u043e\u0433\u043b\u0430\u0441\u043e\u0432\u0430\u043d \u0441 \u0438\u043a\u043e\u043d\u043a\u0430\u043c\u0438 */\n"
@@ -41,17 +41,17 @@ class Ui_ObservationInfoTab(object):
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
-        self.listBaselines = QListWidget(ObservationInfoTab)
+        self.listBaselines = QListWidget(UVCoverageVisTab)
         self.listBaselines.setObjectName(u"listBaselines")
 
         self.gridLayout.addWidget(self.listBaselines, 6, 0, 1, 2)
 
-        self.listScans = QListWidget(ObservationInfoTab)
+        self.listScans = QListWidget(UVCoverageVisTab)
         self.listScans.setObjectName(u"listScans")
 
         self.gridLayout.addWidget(self.listScans, 4, 0, 1, 2)
 
-        self.comboBox = QComboBox(ObservationInfoTab)
+        self.comboBox = QComboBox(UVCoverageVisTab)
         self.comboBox.setObjectName(u"comboBox")
         self.comboBox.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
@@ -139,32 +139,32 @@ class Ui_ObservationInfoTab(object):
 
         self.gridLayout.addWidget(self.comboBox, 0, 0, 1, 2)
 
-        self.lblScans = QLabel(ObservationInfoTab)
+        self.lblScans = QLabel(UVCoverageVisTab)
         self.lblScans.setObjectName(u"lblScans")
 
         self.gridLayout.addWidget(self.lblScans, 3, 0, 1, 2)
 
-        self.listFrequencies = QListWidget(ObservationInfoTab)
+        self.listFrequencies = QListWidget(UVCoverageVisTab)
         self.listFrequencies.setObjectName(u"listFrequencies")
 
         self.gridLayout.addWidget(self.listFrequencies, 2, 0, 1, 1)
 
-        self.lblUnits = QLabel(ObservationInfoTab)
+        self.lblUnits = QLabel(UVCoverageVisTab)
         self.lblUnits.setObjectName(u"lblUnits")
 
         self.gridLayout.addWidget(self.lblUnits, 7, 0, 1, 1)
 
-        self.lblBaselines = QLabel(ObservationInfoTab)
+        self.lblBaselines = QLabel(UVCoverageVisTab)
         self.lblBaselines.setObjectName(u"lblBaselines")
 
         self.gridLayout.addWidget(self.lblBaselines, 5, 0, 1, 2)
 
-        self.lblFrequencies = QLabel(ObservationInfoTab)
+        self.lblFrequencies = QLabel(UVCoverageVisTab)
         self.lblFrequencies.setObjectName(u"lblFrequencies")
 
         self.gridLayout.addWidget(self.lblFrequencies, 1, 0, 1, 2)
 
-        self.comboBox_2 = QComboBox(ObservationInfoTab)
+        self.comboBox_2 = QComboBox(UVCoverageVisTab)
         self.comboBox_2.setObjectName(u"comboBox_2")
         self.comboBox_2.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
@@ -255,7 +255,7 @@ class Ui_ObservationInfoTab(object):
 
         self.gridLayout_2.addLayout(self.gridLayout, 1, 0, 1, 1)
 
-        self.lblSource = QLabel(ObservationInfoTab)
+        self.lblSource = QLabel(UVCoverageVisTab)
         self.lblSource.setObjectName(u"lblSource")
 
         self.gridLayout_2.addWidget(self.lblSource, 0, 0, 1, 1)
@@ -266,17 +266,17 @@ class Ui_ObservationInfoTab(object):
         self.gridLayout_3.setColumnStretch(0, 5)
         self.gridLayout_3.setColumnStretch(1, 1)
 
-        self.retranslateUi(ObservationInfoTab)
+        self.retranslateUi(UVCoverageVisTab)
 
-        QMetaObject.connectSlotsByName(ObservationInfoTab)
+        QMetaObject.connectSlotsByName(UVCoverageVisTab)
     # setupUi
 
-    def retranslateUi(self, ObservationInfoTab):
-        self.lblScans.setText(QCoreApplication.translate("ObservationInfoTab", u"Scans:", None))
-        self.lblUnits.setText(QCoreApplication.translate("ObservationInfoTab", u"Units:", None))
-        self.lblBaselines.setText(QCoreApplication.translate("ObservationInfoTab", u"Baselines:", None))
-        self.lblFrequencies.setText(QCoreApplication.translate("ObservationInfoTab", u"Frequencies:", None))
-        self.lblSource.setText(QCoreApplication.translate("ObservationInfoTab", u"Source:", None))
+    def retranslateUi(self, UVCoverageVisTab):
+        self.lblScans.setText(QCoreApplication.translate("UVCoverageVisTab", u"Scans:", None))
+        self.lblUnits.setText(QCoreApplication.translate("UVCoverageVisTab", u"Units:", None))
+        self.lblBaselines.setText(QCoreApplication.translate("UVCoverageVisTab", u"Baselines:", None))
+        self.lblFrequencies.setText(QCoreApplication.translate("UVCoverageVisTab", u"Frequencies:", None))
+        self.lblSource.setText(QCoreApplication.translate("UVCoverageVisTab", u"Source:", None))
         pass
     # retranslateUi
 

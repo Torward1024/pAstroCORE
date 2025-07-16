@@ -84,23 +84,15 @@ class ScheduleCalculator(Super):
         """
         super().__init__(manipulator)
         self._lock = threading.Lock()
-        self._orbit_cache = {}  # Temporary storage for orbit data: {telescope_code: orbit_data}
-        self._orbit_cache_lock = threading.Lock()  # Lock for orbit cache
+        self._orbit_cache = {} 
+        self._orbit_cache_lock = threading.Lock()
         logger.info("Initialized Scheduling Calculator")
-
-    def _default_result(self) -> Dict[str, Any]:
-        """Return the default result when calculation is not applied.
-
-        Returns:
-            Dict[str, Any]: An empty dictionary.
-        """
-        return {}
     
     def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Retrieve cached data or perform calculation and cache the result.
 
         Args:
-            obj (Observation | ScheduleProject): The object (Observation or Project) to calculate for.
+            obj (Observation | ScheduleProject): The object to calculate for.
             store_key (str): Unique key for storing/retrieving calculated data.
             calc_func: The calculation function to execute if no valid cache exists.
             attributes (Dict[str, Any]): Calculation parameters (e.g., "recalculate", "time_step").
@@ -110,24 +102,29 @@ class ScheduleCalculator(Super):
             Dict[str, Any]: Calculated or cached data.
 
         Notes:
-            - If "recalculate" is False and valid cached data exists, returns cached result.
+            - Returns cached result if "recalculate" is False and valid cache exists.
             - Uses thread-safe caching with a lock.
+            - Logs warnings for empty or invalid results.
         """
+        if not store_key:
+            logger.error("Empty store_key provided for caching")
+            return {}
+
         recalculate = attributes.get("recalculate", False)
         time_step = attributes.get("time_step")
+        obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
 
         existing_data = obj.get_calculated_data_by_key(store_key)
         if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
             if existing_data["data"]:
-                logger.info(f"Using cached data for '{store_key}' in '{obj.get_observation_code()}'")
+                logger.info(f"Retrieved cached data for '{store_key}' in '{obj_name}'")
                 return existing_data["data"]
-            else:
-                logger.warning(f"Cached data for '{store_key}' in '{obj.get_observation_code()}' is empty, forcing recalculation")
+            logger.warning(f"Cached data for '{store_key}' in '{obj_name}' is empty; recalculating")
 
-        logger.info(f"Recalculating '{store_key}' for '{obj.get_observation_code()}' with recalculate={recalculate}")
+        logger.info(f"Calculating '{store_key}' for '{obj_name}' (recalculate={recalculate})")
         result = calc_func(obj, attributes)
         if not result:
-            logger.warning(f"Calculation for '{store_key}' returned empty result")
+            logger.warning(f"Calculation for '{store_key}' in '{obj_name}' returned empty result")
         with self._lock:
             obj.set_calculated_data_by_key(store_key, {"metadata": metadata, "data": result})
         return result
@@ -632,7 +629,8 @@ class ScheduleCalculator(Super):
             return {}
 
     def _process_source_visibility(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process source visibility for a single scan using vectorized computations.
+        """
+        Process source visibility for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
@@ -675,141 +673,90 @@ class ScheduleCalculator(Super):
 
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
         visibility = {}
+        tel_codes = [tel.get_code() for tel in active_telescopes]
+        positions = np.array([scan_positions.get(code, np.full((len(scan_times), 3), np.nan)) for code in tel_codes])  # shape: (n_tels, n_times, 3)
+
+        # Check for NaN in positions
+        nan_positions = np.any(np.isnan(positions), axis=2)  # shape: (n_tels, n_times)
 
         # Separate telescopes by type
         ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
         space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope)]
 
-        # Process ground telescopes (AZIM and EQUA mounts)
+        # Process ground telescopes
         if ground_tels:
-            # Prepare arrays for ground telescopes
             ground_codes = [tel.get_code() for tel in ground_tels]
-            ground_positions = np.array([scan_positions.get(code, np.full((len(scan_times), 3), np.nan)) for code in ground_codes])  # shape: (n_tels, n_times, 3)
-            mount_types = [tel.get("mount_type").value for tel in ground_tels]
-            
-            # Process AZIM mounts
-            azim_tels = [tel for tel, mt in zip(ground_tels, mount_types) if mt == "AZIM"]
-            if azim_tels:
-                azim_codes = [tel.get_code() for tel in azim_tels]
-                azim_indices = [i for i, mt in enumerate(mount_types) if mt == "AZIM"]
-                azim_positions = ground_positions[azim_indices]  # shape: (n_azim_tels, n_times, 3)
-                
-                # Vectorized coordinate transformation for AZIM
-                gcrs_coords = CartesianRepresentation(
-                    x=azim_positions[:, :, 0] * u.m,
-                    y=azim_positions[:, :, 1] * u.m,
-                    z=azim_positions[:, :, 2] * u.m
-                )
-                gcrs = GCRS(gcrs_coords, obstime=scan_times)
-                itrs = gcrs.transform_to(ITRS(obstime=scan_times))
-                locations = itrs.earth_location
-                altaz = source_coord.transform_to(AltAz(obstime=scan_times, location=locations))
-                el = altaz.alt.deg  # shape: (n_tels, n_times)
-                az = altaz.az.deg   # shape: (n_tels, n_times)
-                
-                # Check visibility for AZIM mounts
-                for i, tel in enumerate(azim_tels):
-                    el_range = tel.get_elevation_range()
-                    az_range = tel.get_azimuth_range()
-                    is_visible = (float(el_range[0]) <= el[i]) & (el[i] <= float(el_range[1])) & \
-                                (float(az_range[0]) <= az[i]) & (az[i] <= float(az_range[1]))
-                    visibility[tel.get_code()] = is_visible.tolist()
-            
-            # Process EQUA mounts
-            equa_tels = [tel for tel, mt in zip(ground_tels, mount_types) if mt == "EQUA"]
-            if equa_tels:
-                equa_codes = [tel.get_code() for tel in equa_tels]
-                equa_indices = [i for i, mt in enumerate(mount_types) if mt == "EQUA"]
-                equa_positions = ground_positions[equa_indices]  # shape: (n_equa_tels, n_times, 3)
-                
-                # Vectorized coordinate transformation for EQUA
-                gcrs_coords = CartesianRepresentation(
-                    x=equa_positions[:, :, 0] * u.m,
-                    y=equa_positions[:, :, 1] * u.m,
-                    z=equa_positions[:, :, 2] * u.m
-                )
-                gcrs = GCRS(gcrs_coords, obstime=scan_times)
-                itrs = gcrs.transform_to(ITRS(obstime=scan_times))
-                locations = itrs.earth_location
-                hadec = source_coord.transform_to(HADec(obstime=scan_times, location=locations))
-                ha = hadec.ha.deg   # shape: (n_tels, n_times)
-                dec = hadec.dec.deg # shape: (n_tels, n_times)
-                
-                # Check visibility for EQUA mounts
-                for i, tel in enumerate(equa_tels):
-                    ha_range = tel.get_azimuth_range()
-                    dec_range = tel.get_elevation_range()
-                    is_visible = (float(dec_range[0]) <= dec[i]) & (dec[i] <= float(dec_range[1])) & \
-                                (float(ha_range[0]) <= ha[i]) & (ha[i] <= float(ha_range[1]))
-                    visibility[tel.get_code()] = is_visible.tolist()
-            
-            # Handle unsupported mount types
-            for tel in ground_tels:
-                if tel.get("mount_type").value not in ["AZIM", "EQUA"]:
-                    logger.warning(f"Unsupported mount type {tel.get('mount_type').value} for telescope '{tel.get_code()}'")
-                    visibility[tel.get_code()] = [False] * len(scan_times)
+            ground_indices = [tel_codes.index(code) for code in ground_codes]
+            ground_positions = positions[ground_indices]  # shape: (n_ground_tels, n_times, 3)
+            ground_nan = nan_positions[ground_indices]  # shape: (n_ground_tels, n_times)
 
-        # Process space telescopes (temporary placeholder: always visible)
-        if space_tels:
-            for tel in space_tels:
+            # Convert telescope positions to ITRS
+            gcrs_coords = CartesianRepresentation(
+                x=ground_positions[:, :, 0] * u.m,
+                y=ground_positions[:, :, 1] * u.m,
+                z=ground_positions[:, :, 2] * u.m
+            )
+            itrs = GCRS(gcrs_coords, obstime=scan_times).transform_to(ITRS(obstime=scan_times))
+            locations = itrs.earth_location
+
+            # Transform source to AltAz and HADec
+            altaz = source_coord.transform_to(AltAz(obstime=scan_times, location=locations))
+            hadec = source_coord.transform_to(HADec(obstime=scan_times, location=locations))
+            el = altaz.alt.deg  # shape: (n_ground_tels, n_times)
+            az = altaz.az.deg   # shape: (n_ground_tels, n_times)
+            ha = hadec.ha.deg   # shape: (n_ground_tels, n_times)
+            dec = hadec.dec.deg # shape: (n_ground_tels, n_times)
+
+            # Check visibility for each telescope
+            for i, tel in enumerate(ground_tels):
                 tel_code = tel.get_code()
-                visibility[tel_code] = [True] * len(scan_times)  # Placeholder: assume always visible
-                logger.debug(f"Space telescope '{tel_code}' in scan '{scan_name}' assumed always visible (placeholder)")
-
-        return {"source": source_name, "visibility": visibility}  
-
-    def _compute_visibility_at_time(self, source: Source, telescopes: List[Telescope | SpaceTelescope], time: Time, positions: Dict[str, Tuple[float, float, float]]) -> Dict[str, bool]:
-        """Compute visibility of a source for telescopes at a given time using precomputed positions.
-
-        Args:
-            source (Source): The source to check visibility for.
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
-            time (Time): The time of observation.
-            positions (Dict[str, Tuple[float, float, float]]): Precomputed GCRS positions.
-
-        Returns:
-            Dict[str, bool]: Visibility status per telescope code.
-        """
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-        visibility = {}
-        for tel in telescopes:
-            pos = positions.get(tel.get_code())
-            if pos is None:
-                logger.debug(f"No position data for telescope '{tel.get_code()}' at {time.isot}")
-                visibility[tel.get_code()] = False
-                continue
-            if isinstance(tel, SpaceTelescope):
-                itrs = ITRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
-                altaz = source_coord.transform_to(AltAz(obstime=time, location=itrs.earth_location))
-                pitch = altaz.alt.deg
-                yaw = altaz.az.deg
-                pitch_range = tel.get_pitch_range()
-                yaw_range = tel.get_yaw_range()
-                is_visible = (pitch_range[0] <= pitch <= pitch_range[1]) and (yaw_range[0] <= yaw <= yaw_range[1])
-            else:
-                gcrs = GCRS(CartesianRepresentation(*pos, unit=u.m), obstime=time)
-                itrs = gcrs.transform_to(ITRS(obstime=time))
-                location = itrs.earth_location
-                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
-                el = altaz.alt.deg
-                az = altaz.az.deg
-                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
-                ha = hadec.ha.deg
-                mount_type = tel.get("mount_type")
-                if mount_type.value == "AZIM":
+                mount_type = tel.get("mount_type").value
+                is_visible = np.full(len(scan_times), False, dtype=bool)
+                
+                # Set visibility to False where positions are NaN
+                is_visible[~ground_nan[i]] = True  # Initially True for non-NaN positions
+                
+                if mount_type == "AZIM":
                     el_range = tel.get_elevation_range()
                     az_range = tel.get_azimuth_range()
-                    is_visible = (el_range[0] <= el <= el_range[1]) and (az_range[0] <= az <= az_range[1])
-                elif mount_type.value == "EQUA":
-                    dec = hadec.dec.deg
+                    is_visible[~ground_nan[i]] &= (float(el_range[0]) <= el[i][~ground_nan[i]]) & \
+                                                (el[i][~ground_nan[i]] <= float(el_range[1])) & \
+                                                (float(az_range[0]) <= az[i][~ground_nan[i]]) & \
+                                                (az[i][~ground_nan[i]] <= float(az_range[1]))
+                elif mount_type == "EQUA":
                     ha_range = tel.get_azimuth_range()
                     dec_range = tel.get_elevation_range()
-                    is_visible = (dec_range[0] <= dec <= dec_range[1]) and (ha_range[0] <= ha <= ha_range[1])
+                    is_visible[~ground_nan[i]] &= (float(dec_range[0]) <= dec[i][~ground_nan[i]]) & \
+                                                (dec[i][~ground_nan[i]] <= float(dec_range[1])) & \
+                                                (float(ha_range[0]) <= ha[i][~ground_nan[i]]) & \
+                                                (ha[i][~ground_nan[i]] <= float(ha_range[1]))
                 else:
-                    logger.debug(f"Unsupported mount type {mount_type.value} for telescope '{tel.get_code()}'")
-                    is_visible = False
-            visibility[tel.get_code()] = is_visible
-        return visibility
+                    logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel_code}'")
+                    is_visible = np.full(len(scan_times), False, dtype=bool)
+                
+                visibility[tel_code] = is_visible.tolist()
+
+        # Process space telescopes
+        if space_tels:
+            space_codes = [tel.get_code() for tel in space_tels]
+            space_indices = [tel_codes.index(code) for code in space_codes]
+            space_nan = nan_positions[space_indices]  # shape: (n_space_tels, n_times)
+
+            # Transform source to AltAz for pitch/yaw
+            for i, tel in enumerate(space_tels):
+                tel_code = tel.get_code()
+                is_visible = np.full(len(scan_times), False, dtype=bool)
+                
+                # Set visibility to False where positions are NaN
+                is_visible[~space_nan[i]] = True  # Initially True for non-NaN positions
+                visibility[tel_code] = is_visible.tolist()
+
+        if not visibility:
+            logger.warning(f"No visibility data computed for scan '{scan_name}'")
+        else:
+            logger.debug(f"Computed visibility for {len(visibility)} telescopes in scan '{scan_name}'")
+
+        return {"source": source_name, "visibility": visibility}
     
     @time_execution
     def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -988,16 +935,6 @@ class ScheduleCalculator(Super):
         ra = source_coord.ra.rad
         dec = source_coord.dec.rad
 
-        # Compute positions if not provided
-        if gcrs_positions is None:
-            gcrs_positions = np.array([self._compute_telescope_position(tel, times) for tel in telescopes])  # shape: (n_tels, n_times, 3)
-
-        # Compute visibility if not provided
-        if visibility is None:
-            positions_dict = {tel.get_code(): pos for tel, pos in zip(telescopes, gcrs_positions[:, 0, :])}
-            visibility = np.array([self._compute_visibility_at_time(source, telescopes, times[0], positions_dict)[tel.get_code()] for tel in telescopes])
-            visibility = np.repeat(visibility[:, None], len(times), axis=1)  # shape: (n_tels, n_times)
-
         n_tels = len(telescopes)
         n_times = len(times)
 
@@ -1153,16 +1090,8 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to calculate sun angles: {str(e)}")
             return {}
 
-    def _process_sun_angles(
-        self,
-        scan: Scan,
-        observation: Observation,
-        time_step: Optional[float],
-        time_data: Dict[str, Any],
-        position_data: Dict[str, Any],
-        visibility_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Process sun angles for a single scan using vectorized computations.
+    def _process_sun_angles(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any], visibility_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process Sun angles for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
@@ -1170,10 +1099,10 @@ class ScheduleCalculator(Super):
             time_step (Optional[float]): Sampling interval (seconds).
             time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
             position_data (Dict[str, Any]): Precomputed telescope positions.
-            visibility_data (Dict[str, Any]): Precomputed source visibility data.
+            visibility_data (Dict[str, Any]): Precomputed visibility data.
 
         Returns:
-            Dict[str, Any]: Sun angles in degrees, formatted as:
+            Dict[str, Any]: Sun angles for the scan, formatted as:
                 {
                     "source": source_name,
                     "angles": {telescope_code: np.array([angle1, angle2, ...])}
@@ -1199,103 +1128,171 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
             return {"source": source_name, "angles": {}}
 
-        # Get telescope positions and visibility
-        scan_positions = position_data.get(scan_name, {})
+        # Get visibility and position data
         scan_visibility = visibility_data.get(source_name, {}).get(scan_name, {})
-        if not (scan_positions and scan_visibility):
-            logger.warning(f"No position or visibility data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+        scan_positions = position_data.get(scan_name, {})
+        if not (scan_visibility and scan_positions):
+            logger.warning(f"No visibility or position data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
             return {"source": source_name, "angles": {}}
 
-        # Prepare source and sun coordinates
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-        sun_coord = get_sun(scan_times)
-
-        angles = {}
-        # Process telescopes
+        # Prepare arrays
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        visibility = np.array([scan_visibility.get(code, [False] * len(scan_times)) for code in tel_codes], dtype=bool)  # shape: (n_tels, n_times)
-        positions = np.array([scan_positions.get(code, np.full((len(scan_times), 3), np.nan)) for code in tel_codes])  # shape: (n_tels, n_times, 3)
+        positions = np.array([
+            scan_positions.get(code, np.full((len(scan_times), 3), np.nan))
+            for code in tel_codes
+        ])  # shape: (n_tels, n_times, 3)
+        visibility = np.array([
+            scan_visibility.get(code, [False] * len(scan_times))
+            for code in tel_codes
+        ], dtype=bool)  # shape: (n_tels, n_times)
 
+        # Validate array shapes
+        logger.debug(f"Scan '{scan_name}': scan_times.shape={len(scan_times)}, positions.shape={positions.shape}, visibility.shape={visibility.shape}")
         if positions.shape[1] != len(scan_times):
-            logger.warning(f"Mismatched position data length for scan '{scan_name}': {positions.shape[1]} positions vs {len(scan_times)} times")
+            logger.error(f"Mismatch in position data length for scan '{scan_name}': {positions.shape[1]} positions vs {len(scan_times)} times")
+            return {"source": source_name, "angles": {}}
+        if visibility.shape[1] != len(scan_times):
+            logger.error(f"Mismatch in visibility data length for scan '{scan_name}': {visibility.shape[1]} visibility points vs {len(scan_times)} times")
             return {"source": source_name, "angles": {}}
 
-        # Vectorized angular separation calculation
-        separations = source_coord.separation(sun_coord).deg  # shape: (n_times,)
-        for i, tel_code in enumerate(tel_codes):
-            tel_angles = np.full_like(separations, np.nan)  # Initialize with NaN
-            tel_angles[visibility[i]] = separations[visibility[i]]  # Set angles where source is visible
-            if np.any(~np.isnan(tel_angles)):
-                angles[tel_code] = tel_angles
-            else:
-                logger.debug(f"No valid sun angles for telescope '{tel_code}' in scan '{scan_name}'")
+        # Check for NaN in positions
+        nan_positions = np.any(np.isnan(positions), axis=2)  # shape: (n_tels, n_times)
+
+        # Compute Sun position
+        sun_coord = get_sun(scan_times)  # shape: (n_times,)
+        sun_vec = np.array([
+            sun_coord.cartesian.x.value,
+            sun_coord.cartesian.y.value,
+            sun_coord.cartesian.z.value
+        ]).T  # shape: (n_times, 3)
+
+        # Initialize results
+        angles = {}
+        ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
+        space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope)]
+
+        # Process ground telescopes
+        if ground_tels:
+            ground_codes = [tel.get_code() for tel in ground_tels]
+            ground_indices = [tel_codes.index(code) for code in ground_codes]
+            ground_positions = positions[ground_indices]  # shape: (n_ground_tels, n_times, 3)
+            ground_nan = nan_positions[ground_indices]  # shape: (n_ground_tels, n_times)
+            ground_visibility = visibility[ground_indices]  # shape: (n_ground_tels, n_times)
+
+            # Convert telescope positions to ITRS for ground telescopes
+            gcrs_coords = CartesianRepresentation(
+                x=ground_positions[:, :, 0] * u.m,
+                y=ground_positions[:, :, 1] * u.m,
+                z=ground_positions[:, :, 2] * u.m
+            )
+            itrs = GCRS(gcrs_coords, obstime=scan_times).transform_to(ITRS(obstime=scan_times))
+            locations = itrs.earth_location
+
+            # Transform Sun to AltAz for ground telescopes
+            sun_altaz = sun_coord.transform_to(AltAz(obstime=scan_times, location=locations))
+            sun_el = sun_altaz.alt.deg  # shape: (n_ground_tels, n_times)
+            sun_az = sun_altaz.az.deg   # shape: (n_ground_tels, n_times)
+
+            # Compute angular separation
+            source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
+            source_altaz = source_coord.transform_to(AltAz(obstime=scan_times, location=locations))
+            source_el = source_altaz.alt.deg  # shape: (n_ground_tels, n_times)
+            source_az = source_altaz.az.deg   # shape: (n_ground_tels, n_times)
+
+            for i, tel in enumerate(ground_tels):
+                tel_code = tel.get_code()
+                is_visible = ground_visibility[i] & ~ground_nan[i]  # shape: (n_times,)
+                angles[tel_code] = np.full(len(scan_times), np.nan, dtype=float)
+                if np.any(is_visible):
+                    cos_sep = np.sin(np.radians(source_el[i])) * np.sin(np.radians(sun_el[i])) + \
+                            np.cos(np.radians(source_el[i])) * np.cos(np.radians(sun_el[i])) * \
+                            np.cos(np.radians(source_az[i] - sun_az[i]))
+                    cos_sep = np.clip(cos_sep, -1.0, 1.0)
+                    sep = np.degrees(np.arccos(cos_sep))
+                    angles[tel_code][is_visible] = sep[is_visible]
+                    logger.debug(f"Computed {np.sum(is_visible)} sun angles for ground telescope '{tel_code}' in scan '{scan_name}'")
+
+        # Process space telescopes
+        if space_tels:
+            space_codes = [tel.get_code() for tel in space_tels]
+            space_indices = [tel_codes.index(code) for code in space_codes]
+            logger.debug(f"Space telescopes: {space_codes}, space_indices: {space_indices}")
+
+            # Ensure only one space telescope is processed
+            if len(space_tels) > 1:
+                logger.warning(f"Expected 1 space telescope, found {len(space_tels)}. Processing only the first one.")
+                space_tels = space_tels[:1]
+                space_codes = space_codes[:1]
+                space_indices = space_indices[:1]
+
+            space_positions = positions[space_indices]  # shape: (n_space_tels, n_times, 3)
+            space_nan = nan_positions[space_indices]  # shape: (n_space_tels, n_times)
+            space_visibility = visibility[space_indices]  # shape: (n_space_tels, n_times)
+
+            # Validate space telescope data
+            if space_positions.shape[0] != 1:
+                logger.error(f"Invalid number of space telescopes in positions: {space_positions.shape[0]}")
+                return {"source": source_name, "angles": angles}
+            if space_visibility.shape[0] != 1:
+                logger.error(f"Invalid number of space telescopes in visibility: {space_visibility.shape[0]}")
+                return {"source": source_name, "angles": angles}
+
+            for i, tel in enumerate(space_tels):
+                tel_code = tel.get_code()
+                logger.debug(f"Processing space telescope '{tel_code}' in scan '{scan_name}': "
+                            f"space_positions[{i}].shape={space_positions[i].shape}, "
+                            f"space_visibility[{i}].shape={space_visibility[i].shape}, "
+                            f"space_nan[{i}].shape={space_nan[i].shape}")
+
+                if len(space_visibility[i]) != len(scan_times):
+                    logger.error(f"Mismatch in visibility length for space telescope '{tel_code}' in scan '{scan_name}': "
+                                f"{len(space_visibility[i])} visibility points vs {len(scan_times)} times")
+                    continue
+
+                is_visible = space_visibility[i] & ~space_nan[i]  # shape: (n_times,)
+                angles[tel_code] = np.full(len(scan_times), np.nan, dtype=float)
+                if np.any(is_visible):
+                    try:
+                        tel_pos = space_positions[i][is_visible]  # shape: (n_valid_times, 3)
+                        logger.debug(f"Space telescope '{tel_code}': is_visible.shape={is_visible.shape}, "
+                                    f"tel_pos.shape={tel_pos.shape}, scan_times.shape={len(scan_times)}")
+
+                        # Compute source vector
+                        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
+                        source_vec = np.array([
+                            source_coord.cartesian.x.value,
+                            source_coord.cartesian.y.value,
+                            source_coord.cartesian.z.value
+                        ]).T  # shape: (1, 3)
+                        source_vec = np.repeat(source_vec, len(tel_pos), axis=0)  # shape: (n_valid_times, 3)
+
+                        # Normalize vectors
+                        tel_norm = np.linalg.norm(tel_pos, axis=1, keepdims=True)
+                        sun_norm = np.linalg.norm(sun_vec[is_visible], axis=1, keepdims=True)
+                        source_norm = np.linalg.norm(source_vec, axis=1, keepdims=True)
+                        valid = (tel_norm > 0) & (sun_norm > 0) & (source_norm > 0)
+                        valid = valid.flatten()
+
+                        if np.any(valid):
+                            tel_unit = tel_pos[valid] / tel_norm[valid]
+                            sun_unit = sun_vec[is_visible][valid] / sun_norm[valid]
+                            source_unit = source_vec[valid] / source_norm[valid]
+                            cos_sep = np.sum(sun_unit * source_unit, axis=1)
+                            cos_sep = np.clip(cos_sep, -1.0, 1.0)
+                            sep = np.degrees(np.arccos(cos_sep))
+                            angles[tel_code][is_visible][valid] = sep
+                            logger.debug(f"Computed {np.sum(valid)} sun angles for space telescope '{tel_code}' in scan '{scan_name}'")
+                        else:
+                            logger.debug(f"No valid vectors for space telescope '{tel_code}' in scan '{scan_name}'")
+                    except Exception as e:
+                        logger.error(f"Failed to compute sun angles for space telescope '{tel_code}' in scan '{scan_name}': {str(e)}")
+                        continue
 
         if not angles:
-            logger.warning(f"No valid sun angles computed for scan '{scan_name}'")
+            logger.warning(f"No sun angles computed for scan '{scan_name}'")
         else:
             logger.debug(f"Computed sun angles for {len(angles)} telescopes in scan '{scan_name}'")
-
         return {"source": source_name, "angles": angles}
-
-    def _compute_sun_angle(self, source_coord: SkyCoord, time: Time, telescopes: List[Telescope | SpaceTelescope]) -> Dict[str, float]:
-        """Compute angle between the direction from telescope to source and to Sun for each telescope at a given time.
-
-        Args:
-            source_coord (SkyCoord): Source coordinates.
-            time (Time): Time of calculation.
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
-
-        Returns:
-            Dict[str, float]: Angular separation (degrees) per telescope code.
-        """
-        sun_gcrs = get_sun(time)
-        angles = {}
-
-        for tel in telescopes:
-            if isinstance(tel, SpaceTelescope):
-
-                tel_pos, _ = tel.get_state_vector(time)
-                tel_pos = np.array(tel_pos)
-
-                sun_pos = np.array([sun_gcrs.cartesian.x.to(u.m).value,
-                                    sun_gcrs.cartesian.y.to(u.m).value,
-                                    sun_gcrs.cartesian.z.to(u.m).value])
-
-                source_icrs = source_coord.icrs
-                source_dir = np.array([source_icrs.cartesian.x.value,
-                                    source_icrs.cartesian.y.value,
-                                    source_icrs.cartesian.z.value])
-                source_dir /= np.linalg.norm(source_dir)
-
-                vec_to_sun = sun_pos - tel_pos
-                vec_to_sun /= np.linalg.norm(vec_to_sun)
-
-                vec_to_source = source_dir
-
-                cos_angle = np.clip(np.dot(vec_to_source, vec_to_sun), -1.0, 1.0)
-                angle = np.degrees(np.arccos(cos_angle))
-
-                angles[tel.get_code()] = angle
-            else:
-                x, y, z = tel.get_coordinates()
-                vx, vy, vz = tel.get_velocities()
-                
-                dt = (time - Time("2000-01-01T12:00:00")).sec
-                itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
-                itrs = ITRS(itrs_coords, obstime=time)
-                location = itrs.earth_location
-                
-                altaz_frame = AltAz(obstime=time, location=location)
-                source_altaz = source_coord.transform_to(altaz_frame)
-                sun_altaz = sun_gcrs.transform_to(altaz_frame)
-
-                if source_altaz.alt.deg < 0 or sun_altaz.alt.deg < 0:
-                    angle = float('nan')
-                else:
-                    angle = source_altaz.separation(sun_altaz).deg
-                angles[tel.get_code()] = angle
-
-        return angles
 
     @time_execution
     def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
@@ -2389,35 +2386,6 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid baseline projections computed for provided UV data")
         return projections
 
-    def _compute_baseline_projections_at_time(self, telescopes: List[Telescope | SpaceTelescope], time: Time, frequency: float, source_coord: Optional[SkyCoord] = None) -> Dict[str, float]:
-        """Fallback method to compute BL = sqrt(u² + v²) at a given time if UV data is unavailable.
-
-        Args:
-            telescopes (List[Telescope | SpaceTelescope]): List of telescopes.
-            time (Time): Time of calculation.
-            frequency (float): Frequency in Hz.
-            source_coord (Optional[SkyCoord]): Source coordinates (unused in this fallback).
-
-        Returns:
-            Dict[str, float]: Baseline projections per telescope pair.
-        """
-        logger.warning(f"Fallback to direct computation of baseline projections at {time.isot}")
-        positions = [self._compute_telescope_position(tel, time) for tel in telescopes]
-        c = 299792458  # m/s
-        wavelength = c / frequency
-        projections = {}
-        
-        for i, pos1 in enumerate(positions):
-            for j, pos2 in enumerate(positions[i + 1:], i + 1):
-                baseline = np.array(pos1) - np.array(pos2)
-                uu = baseline[0] / wavelength
-                vv = baseline[1] / wavelength
-                bl = math.sqrt(uu * uu + vv * vv)  # BL = sqrt(u² + v²)
-                pair = f"{telescopes[i].get_code()}-{telescopes[j].get_code()}"
-                projections[pair] = bl
-        
-        return projections
-
     @time_execution
     def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate Mollweide projection tracks for telescopes and source coordinates for active scans.
@@ -2596,66 +2564,6 @@ class ScheduleCalculator(Super):
         else:
             logger.debug(f"Computed Mollweide tracks for {len(tracks)} telescopes in scan '{scan_name}'")
         return {"source": source_name, "tracks": tracks}
-    
-    def _compute_mollweide_coords_from_position(self, position: np.ndarray, time: Time) -> np.ndarray:
-        """Compute Mollweide coordinates from GCRS position array in J2000.
-
-        Args:
-            position (np.ndarray): GCRS positions (x, y, z) in meters, shape (n_times, 3).
-            time (Time): Observation times (used for logging).
-
-        Returns:
-            np.ndarray: Mollweide coordinates (lon, lat) in degrees, shape (n_times, 2).
-
-        Notes:
-            - Vectorized to handle multiple positions at once.
-            - Returns NaN for invalid positions (e.g., zero radius).
-        """
-        try:
-            position = np.asarray(position, dtype=float)  # Ensure array input
-            if position.ndim == 1:
-                position = position[None, :]  # Add time dimension for single position
-            if position.shape[-1] != 3:
-                logger.error(f"Invalid position shape {position.shape} for Mollweide calculation")
-                return np.full((position.shape[0], 2), np.nan)
-
-            r = np.sqrt(np.sum(position**2, axis=1))  # shape: (n_times,)
-            valid_mask = r > 0  # Avoid division by zero
-            ra_rad = np.full(r.shape, np.nan)
-            dec_rad = np.full(r.shape, np.nan)
-            ra_rad[valid_mask] = np.arctan2(position[valid_mask, 1], position[valid_mask, 0])
-            dec_rad[valid_mask] = np.arcsin(position[valid_mask, 2] / r[valid_mask])
-            ra = np.degrees(ra_rad)  # shape: (n_times,)
-            dec = np.degrees(dec_rad)  # shape: (n_times,)
-            lon = np.where(ra > 180.0, ra - 360.0, ra)  # shape: (n_times,)
-            lat = np.clip(dec, -90.0, 90.0)  # shape: (n_times,)
-            result = np.column_stack((lon, lat))  # shape: (n_times, 2)
-
-            if np.any(np.isnan(result)):
-                logger.warning(f"Mollweide coordinates contain NaN values at time {time.isot}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to compute Mollweide coordinates: {str(e)}")
-            return np.full((position.shape[0], 2), np.nan)
-
-    def _compute_mollweide_coords(self, coord: SkyCoord) -> Tuple[float, float]:
-        """Compute coordinates for Mollweide projection in J2000.
-
-        Args:
-            coord (SkyCoord): Source coordinates.
-
-        Returns:
-            Tuple[float, float]: RA (in [-180, 180] degrees) and Dec (in [-90, 90] degrees).
-        """
-        ra = coord.ra.deg  # 0° to 360°
-        dec = coord.dec.deg
-
-        lon = ra
-        if lon > 180.0:
-            lon -= 360.0
-        lat = np.clip(dec, -90.0, 90.0)
-
-        return lon, lat
 
     def _load_orbit_data(self, orbit_file: str, start_time: Optional[Time] = None, end_time: Optional[Time] = None) -> Dict[str, np.ndarray]:
         """Load orbit data from a CCSDS OEM 2.0 styled file, optionally filtering by time range.
@@ -2789,74 +2697,6 @@ class ScheduleCalculator(Super):
                 return x
         logger.warning(f"Kepler's equation did not converge for e={e}, initial={initial}")
         return x
-
-    def _get_state_vector_from_kepler(self, telescope: SpaceTelescope, time: Time) -> Tuple[np.ndarray, np.ndarray]:
-        """Calculate state vector using Keplerian elements.
-
-        Args:
-            telescope (SpaceTelescope): The space telescope.
-            time (Time): Time for state vector calculation.
-
-        Returns:
-            Tuple[np.ndarray, np.ndarray]: Position and velocity vectors in meters and m/s.
-        """
-        kepler = telescope.get("kepler_elements")
-        if kepler is None:
-            raise ValueError(f"No Keplerian elements defined for telescope '{telescope.get_code()}'")
-        
-        a = kepler["a"]  # semi-major axis (m)
-        e = kepler["e"]  # eccentricity
-        i = np.radians(kepler["i"])  # inclination (deg to rad)
-        raan = np.radians(kepler["raan"])  # RA of ascending node (deg to rad)
-        argp = np.radians(kepler["argp"])  # argument of periapsis (deg to rad)
-        nu0 = np.radians(kepler["nu"])  # true anomaly at epoch (deg to rad)
-        epoch = kepler["epoch"]
-        mu = kepler["mu"]  # gravitational parameter (m^3/s^2)
-        
-        # Mean motion
-        n = np.sqrt(mu / a**3)  # rad/s
-        # Time since epoch
-        dt = (time - epoch).sec
-        # Mean anomaly
-        M = nu0 + n * dt
-        # Solve Kepler's equation for eccentric anomaly
-        E = self._solve_kepler(M, e)
-        # True anomaly
-        cos_nu = (np.cos(E) - e) / (1 - e * np.cos(E))
-        sin_nu = (np.sqrt(1 - e**2) * np.sin(E)) / (1 - e * np.cos(E))
-        nu = np.arctan2(sin_nu, cos_nu)
-        # Distance
-        r = a * (1 - e**2) / (1 + e * np.cos(nu))
-        # Position in orbital plane
-        p = np.array([r * np.cos(nu), r * np.sin(nu), 0.0])
-        # Velocity in orbital plane
-        v = np.array([
-            -np.sqrt(mu / (a * (1 - e**2))) * np.sin(nu),
-            np.sqrt(mu / (a * (1 - e**2))) * (e + np.cos(nu)),
-            0.0
-        ])
-        # Rotation matrices
-        R1 = np.array([
-            [np.cos(raan), -np.sin(raan), 0],
-            [np.sin(raan), np.cos(raan), 0],
-            [0, 0, 1]
-        ])
-        R2 = np.array([
-            [1, 0, 0],
-            [0, np.cos(i), -np.sin(i)],
-            [0, np.sin(i), np.cos(i)]
-        ])
-        R3 = np.array([
-            [np.cos(argp), -np.sin(argp), 0],
-            [np.sin(argp), np.cos(argp), 0],
-            [0, 0, 1]
-        ])
-        R = R1 @ R2 @ R3
-        # Transform to GCRS
-        pos = R @ p
-        vel = R @ v
-        logger.debug(f"Calculated Keplerian state vector for '{telescope.get_code()}' at {time.isot}: pos={pos}, vel={vel}")
-        return pos, vel
 
     @time_execution
     def _calculate_interpolated_orbits(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
