@@ -954,33 +954,50 @@ class ScheduleVisualizer(Super):
                         label=tel if tel not in plotted_telescopes else None
                     )
                     plotted_telescopes.add(tel)
+                    result["points"] += 1
 
-            # Calculate intersections
+            # Calculate intersections (times when all selected telescopes are active)
             if tel_list and all_blocks:
                 all_times = [[(start, end) for start, end, _ in all_blocks[tel]] for tel in tel_list]
-                if all_times and all(all_times):  # Проверяем, что списки не пустые
-                    # Собираем все временные точки
+                if all_times and all(all_times):  # Check that lists are not empty
+                    # Collect all unique time points
                     time_points = sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end)))
                     intersection_times = []
+                    logger.debug(f"Time points for intersection: {time_points}")
+
+                    # Check each interval between time points
                     for i in range(len(time_points) - 1):
                         start, end = time_points[i], time_points[i + 1]
-                        # Проверяем, что каждый телескоп активен в интервале [start, end]
-                        all_active = all(
-                            any(start_t <= end and end_t >= start for start_t, end_t in tel_times)
-                            for tel_times in all_times
-                        )
+                        # Check if ALL telescopes are active in this interval
+                        all_active = True
+                        for tel_times in all_times:
+                            # A telescope is active if the interval [start, end] is fully contained in one of its blocks
+                            active = any(start_t <= start and end <= end_t for start_t, end_t in tel_times)
+                            if not active:
+                                all_active = False
+                                break
                         if all_active:
                             intersection_times.append((start, end))
-                    
-                    # Визуализация пересечений
+
+                    # Log intersection times for debugging
+                    logger.debug(f"Intersection times: {intersection_times}")
+
+                    # Plot intersection regions with annotations
                     for i, (start, end) in enumerate(intersection_times):
+                        duration = (end - start) * 86400  # Convert to seconds
                         ax.fill_between(
                             [start, end],
                             [-1, -1],
                             [0, 0],
                             color=self.intersection_color,
-                            alpha=0.9,
+                            alpha=0.9,  # Increased visibility
                             label="Total Intersection" if i == 0 else None
+                        )
+                        # Add duration annotation for debugging
+                        ax.text(
+                            (start + end) / 2, -0.5, f"{duration:.1f}s",
+                            ha='center', va='center', fontsize=8, color='black',
+                            bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')
                         )
                     result["intersections"] = len(intersection_times)
                 else:
