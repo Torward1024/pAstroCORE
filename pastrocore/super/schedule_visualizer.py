@@ -530,7 +530,7 @@ class ScheduleVisualizer(Super):
             )
 
             if not uv_data or not times_data:
-                logger.debug("No UV data or times available, returning empty result")
+                logger.debug("No UV data or times available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
                     labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
@@ -557,7 +557,6 @@ class ScheduleVisualizer(Super):
             plotted_pairs = set()
             legend_handles = []
             legend_labels = []
-            max_uv = 0.0
 
             for source in uv_data:
                 if source != source_name:
@@ -590,7 +589,7 @@ class ScheduleVisualizer(Super):
                 for tel_code in all_uv_points:
                     all_uv_points[tel_code] = [all_uv_points[tel_code][i] for i in time_indices if i < len(all_uv_points[tel_code])]
 
-                for freq_mhz in freq_list:
+                for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
                     for tel_code in all_uv_points:
                         if tel_code not in baselines:
@@ -606,7 +605,17 @@ class ScheduleVisualizer(Super):
                         else:
                             u_scaled = (u / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
                             v_scaled = (v / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
-                        max_uv = max(max_uv, np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
+                        max_uv = max(np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
+                        color_idx = len(plotted_pairs) % len(self._style_config['colors'])
+                        label = f"{tel_code} ({freq_mhz:.2f} MHz)"
+                        handle = ax.scatter(
+                            u_scaled, v_scaled, s=1, c=[self._style_config['colors'][color_idx]], label=label
+                        )
+                        ax.scatter(-u_scaled, -v_scaled, s=1, c=[self._style_config['colors'][color_idx]])
+                        legend_handles.append(handle)
+                        legend_labels.append((freq_mhz, tel_code))
+                        plotted_pairs.add(f"{tel_code}_{freq_mhz}")
+                        result["points"] += len(u_scaled)
 
             if units == "wavelengths":
                 if max_uv >= 1e12:
@@ -674,13 +683,8 @@ class ScheduleVisualizer(Super):
                             u_scaled = (u / wavelength) / (self.EARTH_DIAMETER / ref_wavelength) / scale
                             v_scaled = (v / wavelength) / (self.EARTH_DIAMETER / ref_wavelength) / scale
                         color_idx = len(plotted_pairs) % len(self._style_config['colors'])
-                        label = f"{tel_code} ({freq_mhz:.2f} MHz)"
-                        handle = ax.scatter(
-                            u_scaled, v_scaled, s=1, c=[self._style_config['colors'][color_idx]], label=label
-                        )
+                        ax.scatter(u_scaled, v_scaled, s=1, c=[self._style_config['colors'][color_idx]])
                         ax.scatter(-u_scaled, -v_scaled, s=1, c=[self._style_config['colors'][color_idx]])
-                        legend_handles.append(handle)
-                        legend_labels.append((freq_mhz, tel_code))
                         plotted_pairs.add(f"{tel_code}_{freq_mhz}")
                         result["points"] += len(u_scaled)
 
