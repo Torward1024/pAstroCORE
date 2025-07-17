@@ -971,7 +971,16 @@ class ScheduleVisualizer(Super):
             return result
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot Mollweide tracks for an Observation with flexible filtering."""
+        """Plot Mollweide tracks for an Observation with flexible filtering.
+
+        Args:
+            obj (Observation): The observation object to plot.
+            attributes (Dict[str, Any]): Attributes for filtering (telescopes, scans, time_range, store_key).
+            fig (plt.Figure): Matplotlib figure to plot on.
+
+        Returns:
+            Dict[str, Any]: Dictionary with counts of plotted scans, telescopes, sources, and points.
+        """
         with self._lock:
             logger.debug(f"Plotting Mollweide tracks for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "mollweide_tracks")
@@ -981,17 +990,24 @@ class ScheduleVisualizer(Super):
 
             if not (telescopes or scans):
                 logger.debug("No telescopes or scans specified")
-                return {}
+                return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
 
+            # Fetch calculated data
             data = obj.get_calculated_data_by_key(store_key)
-            data = data.get("data", {}) if isinstance(data, dict) else {}
-            if not data:
-                logger.warning(f"No Mollweide track data found for '{store_key}' in {obj.get_observation_code()}")
+            logger.debug(f"Retrieved calculated data '{store_key}' for observation '{obj.get_observation_code()}': {data}")
+            if not data or not isinstance(data, dict):
+                logger.warning(f"No valid Mollweide track data found for '{store_key}' in {obj.get_observation_code()}")
                 ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
                 ax.set_title(f"Mollweide Tracks for Observation: {obj.get_observation_code()}")
                 return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
 
+            # Extract metadata and scan data
             metadata = data.get("metadata", {})
+            scan_data = data.get("data", {})
+            logger.debug(f"Metadata retrieved: {metadata}")
+            logger.debug(f"Scan data retrieved: {scan_data}")
+
+            # Setup axes
             ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
             ax.set_title(f"Mollweide Tracks for Observation: {obj.get_observation_code()}")
 
@@ -1000,43 +1016,59 @@ class ScheduleVisualizer(Super):
             plotted_sources = set()
 
             # Plot sources from metadata
-            sources = metadata.get("sources", [])
-            logger.debug(f"Found {len(sources)} sources in metadata")
-            for source in sources:
-                if not isinstance(source, dict) or "name" not in source or "lon" not in source or "lat" not in source:
-                    logger.warning(f"Invalid source format in metadata: {source}")
+            sources = metadata.get("sources", {})
+            logger.debug(f"Found {len(sources)} sources in metadata: {sources}")
+            if not sources:
+                logger.warning(f"No sources found in metadata for {obj.get_observation_code()}")
+
+            for source_name, coords in sources.items():
+                logger.debug(f"Processing source {source_name} with coords: {coords}")
+                if not isinstance(coords, (list, np.ndarray)) or len(coords) != 2:
+                    logger.warning(f"Invalid source coordinates format for {source_name}: {coords}")
                     continue
                 try:
-                    lon = float(source["lon"])
-                    lat = float(source["lat"])
+                    lon, lat = float(coords[0]), float(coords[1])
                     lon_rad = np.radians(lon)
                     lat_rad = np.radians(lat)
-                    ax.scatter(lon_rad, lat_rad, c='red', marker='*', s=100, label=f"Source: {source['name']}",
-                            zorder=3, edgecolors='black')  # Use star marker for better visibility
-                    plotted_sources.add(source["name"])
+                    logger.debug(f"Plotting source {source_name} at lon={lon}, lat={lat}")
+                    ax.scatter(
+                        lon_rad,
+                        lat_rad,
+                        c="red",
+                        marker="*",
+                        s=100,
+                        label=f"Source: {source_name}" if source_name not in plotted_sources else None,
+                        zorder=3,
+                        edgecolors="black",
+                    )
+                    plotted_sources.add(source_name)
                     result["sources"] += 1
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Failed to plot source {source.get('name', 'unknown')}: {str(e)}")
+                    logger.warning(f"Failed to plot source {source_name}: {str(e)}")
                     continue
 
-            scan_list = scans if scans else list(data.keys())
+            # Process scan data
+            scan_list = scans if scans else list(scan_data.keys())
             result["scans"] = len(scan_list)
             all_tracks = {}
             for scan_name in scan_list:
-                if scan_name not in data:
+                if scan_name not in scan_data:
+                    logger.debug(f"No data for scan {scan_name}")
                     continue
-                scan_data = data[scan_name]
-                tel_list = telescopes if telescopes else list(scan_data.keys())
+                scan = scan_data[scan_name]
+                tel_list = telescopes if telescopes else list(scan.keys())
                 for tel_code in tel_list:
-                    if tel_code not in scan_data:
+                    if tel_code not in scan:
                         continue
-                    tracks = scan_data[tel_code]
+                    tracks = scan[tel_code]
                     if not isinstance(tracks, np.ndarray) or len(tracks) == 0 or tracks.ndim != 2 or tracks.shape[1] != 2:
+                        logger.debug(f"Invalid track data for telescope {tel_code} in scan {scan_name}")
                         continue
                     if tel_code not in all_tracks:
                         all_tracks[tel_code] = []
                     all_tracks[tel_code].append(tracks)
 
+            # Plot tracks
             for tel_code in all_tracks:
                 tracks = np.vstack(all_tracks[tel_code]) if all_tracks[tel_code] else np.array([])
                 if len(tracks) == 0:
@@ -1049,16 +1081,22 @@ class ScheduleVisualizer(Super):
                     continue
                 lon_rad = np.radians(lon)
                 lat_rad = np.radians(lat)
-                color_idx = len(plotted_telescopes) % len(self._style_config['colors'])
-                ax.scatter(lon_rad, lat_rad, s=1, c=[self._style_config['colors'][color_idx]],
-                        label=f"{tel_code}" if tel_code not in plotted_telescopes else None,
-                        zorder=1)
+                color_idx = len(plotted_telescopes) % len(self._style_config["colors"])
+                ax.scatter(
+                    lon_rad,
+                    lat_rad,
+                    s=1,
+                    c=[self._style_config["colors"][color_idx]],
+                    label=f"{tel_code}" if tel_code not in plotted_telescopes else None,
+                    zorder=1,
+                )
                 plotted_telescopes.add(tel_code)
                 result["points"] += len(lon)
 
             result["telescopes"] = len(plotted_telescopes)
             if plotted_telescopes or plotted_sources:
-                ax.legend(**self._style_config['legend'])
+                ax.legend(**self._style_config["legend"])
+            logger.debug(f"Plotting result: {result}")
             return result
 
     def _visualize_telescopes(self, obj: Union[Telescope, SpaceTelescope, Telescopes], attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
