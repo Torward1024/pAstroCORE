@@ -25,6 +25,7 @@ from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from pastrocore.gui.p_dialog_visualize import VisualizationDialog
 from common.utils.logging_setup import logger, setup_logging, update_logging_level
+import threading
 import logging
 import pastrocore.gui.rc_icons
 
