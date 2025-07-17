@@ -550,7 +550,11 @@ class ScheduleVisualizer(Super):
 
             if not (source_name or telescopes or scans):
                 logger.debug("No source, telescopes, or scans specified")
-                return {}
+                ax = self._setup_axes(fig, "az_el", obj.get_observation_code())
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, deg)")
+                ax.set_title(f"{coord_type} for Observation: {obj.get_observation_code()}")
+                return {"scans": 0, "telescopes": 0, "points": 0}
 
             az_el_data, times_data, scan_list = self._filter_data(
                 obj.get_calculated_data_by_key(store_key),
@@ -559,6 +563,11 @@ class ScheduleVisualizer(Super):
             )
 
             if not az_el_data or not times_data:
+                logger.warning(f"No {coord_type} data found for '{store_key}' in {obj.get_observation_code()}")
+                ax = self._setup_axes(fig, "az_el", obj.get_observation_code())
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, deg)")
+                ax.set_title(f"{coord_type} for Observation: {obj.get_observation_code()}")
                 return {"scans": 0, "telescopes": 0, "points": 0}
 
             all_telescopes = set()
@@ -567,6 +576,11 @@ class ScheduleVisualizer(Super):
                     all_telescopes.update(az_el_data[source][scan].keys())
             tel_list = sorted(telescopes if telescopes else list(all_telescopes))
             if not tel_list:
+                logger.warning(f"No telescopes available for {coord_type} plotting in {obj.get_observation_code()}")
+                ax = self._setup_axes(fig, "az_el", obj.get_observation_code())
+                ax.set_xlabel("Time (MJD)")
+                ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, deg)")
+                ax.set_title(f"{coord_type} for Observation: {obj.get_observation_code()}")
                 return {"scans": len(scan_list), "telescopes": 0, "points": 0}
 
             n_tels = len(tel_list)
@@ -972,6 +986,9 @@ class ScheduleVisualizer(Super):
             data = obj.get_calculated_data_by_key(store_key)
             data = data.get("data", {}) if isinstance(data, dict) else {}
             if not data:
+                logger.warning(f"No Mollweide track data found for '{store_key}' in {obj.get_observation_code()}")
+                ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
+                ax.set_title(f"Mollweide Tracks for Observation: {obj.get_observation_code()}")
                 return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
 
             metadata = data.get("metadata", {})
@@ -982,14 +999,25 @@ class ScheduleVisualizer(Super):
             plotted_telescopes = set()
             plotted_sources = set()
 
+            # Plot sources from metadata
             sources = metadata.get("sources", [])
+            logger.debug(f"Found {len(sources)} sources in metadata")
             for source in sources:
-                lon_rad = np.radians(source["lon"])
-                lat_rad = np.radians(source["lat"])
-                ax.scatter(lon_rad, lat_rad, c='red', marker='o', s=50, label=f"Source: {source['name']}",
-                          zorder=2)
-                plotted_sources.add(source['name'])
-                result["sources"] += 1
+                if not isinstance(source, dict) or "name" not in source or "lon" not in source or "lat" not in source:
+                    logger.warning(f"Invalid source format in metadata: {source}")
+                    continue
+                try:
+                    lon = float(source["lon"])
+                    lat = float(source["lat"])
+                    lon_rad = np.radians(lon)
+                    lat_rad = np.radians(lat)
+                    ax.scatter(lon_rad, lat_rad, c='red', marker='*', s=100, label=f"Source: {source['name']}",
+                            zorder=3, edgecolors='black')  # Use star marker for better visibility
+                    plotted_sources.add(source["name"])
+                    result["sources"] += 1
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Failed to plot source {source.get('name', 'unknown')}: {str(e)}")
+                    continue
 
             scan_list = scans if scans else list(data.keys())
             result["scans"] = len(scan_list)
@@ -1023,8 +1051,8 @@ class ScheduleVisualizer(Super):
                 lat_rad = np.radians(lat)
                 color_idx = len(plotted_telescopes) % len(self._style_config['colors'])
                 ax.scatter(lon_rad, lat_rad, s=1, c=[self._style_config['colors'][color_idx]],
-                          label=f"{tel_code}" if tel_code not in plotted_telescopes else None,
-                          zorder=1)
+                        label=f"{tel_code}" if tel_code not in plotted_telescopes else None,
+                        zorder=1)
                 plotted_telescopes.add(tel_code)
                 result["points"] += len(lon)
 
