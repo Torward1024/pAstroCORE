@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_aboutNReSSr.ui'
+## Form generated from reading UI file 'dialog_aboutmNYcdn.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -24,14 +24,14 @@ class Ui_AboutDialog(object):
         if not AboutDialog.objectName():
             AboutDialog.setObjectName(u"AboutDialog")
         AboutDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        AboutDialog.resize(310, 265)
+        AboutDialog.resize(300, 300)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(AboutDialog.sizePolicy().hasHeightForWidth())
         AboutDialog.setSizePolicy(sizePolicy)
-        AboutDialog.setMinimumSize(QSize(310, 265))
-        AboutDialog.setMaximumSize(QSize(310, 265))
+        AboutDialog.setMinimumSize(QSize(300, 300))
+        AboutDialog.setMaximumSize(QSize(300, 300))
         icon = QIcon()
         icon.addFile(u":/icons/about_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         AboutDialog.setWindowIcon(icon)
@@ -39,8 +39,18 @@ class Ui_AboutDialog(object):
         AboutDialog.setModal(True)
         self.gridLayout_2 = QGridLayout(AboutDialog)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.gridLayout = QGridLayout()
-        self.gridLayout.setObjectName(u"gridLayout")
+        self.labelTitle = QLabel(AboutDialog)
+        self.labelTitle.setObjectName(u"labelTitle")
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        font.setPointSize(16)
+        font.setBold(False)
+        self.labelTitle.setFont(font)
+        self.labelTitle.setFrameShape(QFrame.Shape.NoFrame)
+        self.labelTitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout_2.addWidget(self.labelTitle, 1, 1, 1, 1)
+
         self.label_2 = QLabel(AboutDialog)
         self.label_2.setObjectName(u"label_2")
         self.label_2.setMinimumSize(QSize(120, 120))
@@ -48,7 +58,33 @@ class Ui_AboutDialog(object):
         self.label_2.setPixmap(QPixmap(u":/icons/pAstroCORE_icon.png"))
         self.label_2.setScaledContents(True)
 
-        self.gridLayout.addWidget(self.label_2, 0, 0, 1, 1)
+        self.gridLayout_2.addWidget(self.label_2, 1, 0, 1, 1)
+
+        self.gridLayout = QGridLayout()
+        self.gridLayout.setObjectName(u"gridLayout")
+        self.line_3 = QFrame(AboutDialog)
+        self.line_3.setObjectName(u"line_3")
+        self.line_3.setFrameShape(QFrame.Shape.HLine)
+        self.line_3.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout.addWidget(self.line_3, 4, 0, 1, 2)
+
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayout.addItem(self.horizontalSpacer, 12, 0, 1, 1)
+
+        self.line_4 = QFrame(AboutDialog)
+        self.line_4.setObjectName(u"line_4")
+        self.line_4.setFrameShape(QFrame.Shape.HLine)
+        self.line_4.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout.addWidget(self.line_4, 10, 0, 1, 2)
+
+        self.label = QLabel(AboutDialog)
+        self.label.setObjectName(u"label")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.gridLayout.addWidget(self.label, 9, 0, 1, 2)
 
         self.closeButton = QPushButton(AboutDialog)
         self.closeButton.setObjectName(u"closeButton")
@@ -69,45 +105,37 @@ class Ui_AboutDialog(object):
 "}")
         self.closeButton.setFlat(True)
 
-        self.gridLayout.addWidget(self.closeButton, 6, 1, 1, 1)
-
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.gridLayout.addItem(self.horizontalSpacer, 6, 0, 1, 1)
-
-        self.labelVersion = QLabel(AboutDialog)
-        self.labelVersion.setObjectName(u"labelVersion")
-        self.labelVersion.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout.addWidget(self.labelVersion, 2, 0, 1, 2)
-
-        self.label = QLabel(AboutDialog)
-        self.label.setObjectName(u"label")
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self.gridLayout.addWidget(self.label, 4, 0, 1, 2)
+        self.gridLayout.addWidget(self.closeButton, 12, 1, 1, 1)
 
         self.labelDescription = QLabel(AboutDialog)
         self.labelDescription.setObjectName(u"labelDescription")
         self.labelDescription.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.labelDescription.setWordWrap(True)
 
-        self.gridLayout.addWidget(self.labelDescription, 3, 0, 1, 2)
+        self.gridLayout.addWidget(self.labelDescription, 7, 0, 1, 2)
 
-        self.labelTitle = QLabel(AboutDialog)
-        self.labelTitle.setObjectName(u"labelTitle")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(16)
-        font.setBold(False)
-        self.labelTitle.setFont(font)
-        self.labelTitle.setFrameShape(QFrame.Shape.NoFrame)
-        self.labelTitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.labelVersion = QLabel(AboutDialog)
+        self.labelVersion.setObjectName(u"labelVersion")
+        self.labelVersion.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.gridLayout.addWidget(self.labelTitle, 0, 1, 1, 1)
+        self.gridLayout.addWidget(self.labelVersion, 5, 0, 1, 2)
+
+        self.line = QFrame(AboutDialog)
+        self.line.setObjectName(u"line")
+        self.line.setFrameShape(QFrame.Shape.HLine)
+        self.line.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout.addWidget(self.line, 6, 0, 1, 2)
+
+        self.line_2 = QFrame(AboutDialog)
+        self.line_2.setObjectName(u"line_2")
+        self.line_2.setFrameShape(QFrame.Shape.HLine)
+        self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout.addWidget(self.line_2, 8, 0, 1, 2)
 
 
-        self.gridLayout_2.addLayout(self.gridLayout, 0, 0, 1, 1)
+        self.gridLayout_2.addLayout(self.gridLayout, 2, 0, 1, 2)
 
 
         self.retranslateUi(AboutDialog)
@@ -119,13 +147,12 @@ class Ui_AboutDialog(object):
     def retranslateUi(self, AboutDialog):
         AboutDialog.setWindowTitle(QCoreApplication.translate("AboutDialog", u"About pAstroCORE", None))
         AboutDialog.setStyleSheet(QCoreApplication.translate("AboutDialog", u"background-color: #ffffff; font-family: Arial;", None))
+        self.labelTitle.setText(QCoreApplication.translate("AboutDialog", u"pAstroCORE", None))
         self.label_2.setText("")
-        self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
-        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.82a", None))
-        self.label.setText(QCoreApplication.translate("AboutDialog", u"Ballistics Laborator\n"
+        self.label.setText(QCoreApplication.translate("AboutDialog", u"Ballistics Laboratory\n"
 "Astro Space Center LPI, 2018-2025", None))
+        self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
         self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for  radio astronomical observations\n"
 " planning and visualization.", None))
-        self.labelTitle.setText(QCoreApplication.translate("AboutDialog", u"pAstroCORE", None))
+        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.90a", None))
     # retranslateUi
-
