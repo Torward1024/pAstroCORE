@@ -195,9 +195,9 @@ class VisualizationDialog(QDialog):
                     scans.extend(list(calc_data["uv_coverage"]["data"][source_name].keys()))
                     for scan_name in calc_data["uv_coverage"]["data"][source_name]:
                         baselines.extend(list(calc_data["uv_coverage"]["data"][source_name][scan_name].keys()))
-            scans = sorted(list(set(scans)))
-            baselines = sorted(list(set(baselines)))
-            tab_widget = UVVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
+                scans = sorted(list(set(scans)))
+                baselines = sorted(list(set(baselines)))
+                tab_widget = UVVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
         elif vis_type == "Sun Angles":
             calc_data = self.cached_calc_data.get(obs_name, {})
             sources = list(calc_data.get("sun_angles", {}).get("data", {}).keys())
@@ -208,9 +208,9 @@ class VisualizationDialog(QDialog):
                     scans.extend(list(calc_data["sun_angles"]["data"][source_name].keys()))
                     for scan_name in calc_data["sun_angles"]["data"][source_name]:
                         telescopes.extend(list(calc_data["sun_angles"]["data"][source_name][scan_name].keys()))
-            scans = sorted(list(set(scans)))
-            telescopes = sorted(list(set(telescopes)))
-            tab_widget = SunAnglesVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
+                scans = sorted(list(set(scans)))
+                telescopes = sorted(list(set(telescopes)))
+                tab_widget = SunAnglesVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
         elif vis_type == "Az/El or HA/Dec":
             calc_data = self.cached_calc_data.get(obs_name, {})
             sources = list(calc_data.get("az_el", {}).get("data", {}).keys())
@@ -221,9 +221,9 @@ class VisualizationDialog(QDialog):
                     scans.extend(list(calc_data["az_el"]["data"][source_name].keys()))
                     for scan_name in calc_data["az_el"]["data"][source_name]:
                         telescopes.extend(list(calc_data["az_el"]["data"][source_name][scan_name].keys()))
-            scans = sorted(list(set(scans)))
-            telescopes = sorted(list(set(telescopes)))
-            tab_widget = AzElVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
+                scans = sorted(list(set(scans)))
+                telescopes = sorted(list(set(telescopes)))
+                tab_widget = AzElVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
         elif vis_type == "Beam Pattern":
             calc_data = self.cached_calc_data.get(obs_name, {})
             telescopes = list(calc_data.get("beam_pattern", {}).get("data", {}).keys())
@@ -239,9 +239,9 @@ class VisualizationDialog(QDialog):
                     scans.extend(list(calc_data["time_on_source"]["data"][source_name].keys()))
                     for scan_name in calc_data["time_on_source"]["data"][source_name]:
                         telescopes.extend(list(calc_data["time_on_source"]["data"][source_name][scan_name].keys()))
-            scans = sorted(list(set(scans)))
-            telescopes = sorted(list(set(telescopes)))
-            tab_widget = TimeOnSourceVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
+                scans = sorted(list(set(scans)))
+                telescopes = sorted(list(set(telescopes)))
+                tab_widget = TimeOnSourceVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
         elif vis_type == "Baseline Projections":
             calc_data = self.cached_calc_data.get(obs_name, {})
             sources = list(calc_data.get("baseline_projections", {}).get("data", {}).keys())
@@ -252,9 +252,9 @@ class VisualizationDialog(QDialog):
                     scans.extend(list(calc_data["baseline_projections"]["data"][source_name].keys()))
                     for scan_name in calc_data["baseline_projections"]["data"][source_name]:
                         baselines.extend(list(calc_data["baseline_projections"]["data"][source_name][scan_name].keys()))
-            scans = sorted(list(set(scans)))
-            baselines = sorted(list(set(baselines)))
-            tab_widget = BaselineProjectionsVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
+                scans = sorted(list(set(scans)))
+                baselines = sorted(list(set(baselines)))
+                tab_widget = BaselineProjectionsVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
         elif vis_type == "Mollweide Tracks":
             calc_data = self.cached_calc_data.get(obs_name, {})
             sources = list(calc_data.get("mollweide_tracks", {}).get("metadata", {}).get("sources", {}).keys())
@@ -263,9 +263,9 @@ class VisualizationDialog(QDialog):
             if "mollweide_tracks" in calc_data:
                 for scan_name in calc_data["mollweide_tracks"]["data"]:
                     telescopes.extend(list(calc_data["mollweide_tracks"]["data"][scan_name].keys()))
-            scans = sorted(list(set(scans)))
-            telescopes = sorted(list(set(telescopes)))
-            tab_widget = MollweideVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
+                scans = sorted(list(set(scans)))
+                telescopes = sorted(list(set(telescopes)))
+                tab_widget = MollweideVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
 
         if tab_widget:
             tab_widget.setProperty("vis_type", vis_type)
@@ -347,8 +347,22 @@ class VisualizationDialog(QDialog):
             })
             logger.debug(f"Visualization response: {response}")
             if response["status"]:
-                logger.info(f"Performed visualization '{vis_type}' for observation '{obs_name}'")
-                figure = response.get("result", {}).get("figure")
+                result = response.get("result", {})
+                if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
+                    logger.debug("Empty visualization result, clearing tab")
+                    if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections"]:
+                        tab_widget._clear_canvas()  # Call clear_canvas on the tab
+                    else:
+                        # For Mollweide or other tabs, clear the layout
+                        layout = tab_widget.layout()
+                        for i in reversed(range(layout.count())):
+                            widget = layout.itemAt(i).widget()
+                            if widget:
+                                layout.removeWidget(widget)
+                                widget.deleteLater()
+                    logger.info(f"Cleared visualization tab for '{vis_type}' due to empty result")
+                    return
+                figure = result.get("figure")
                 if not figure:
                     logger.error(f"No figure returned for visualization '{vis_type}'")
                     QMessageBox.critical(self, "Error", "No figure returned from visualizer")
@@ -363,6 +377,7 @@ class VisualizationDialog(QDialog):
                     layout.addWidget(toolbar)
                     layout.addWidget(canvas)
                     canvas.draw()
+                logger.info(f"Performed visualization '{vis_type}' for observation '{obs_name}'")
             else:
                 logger.error(f"Failed to perform visualization '{vis_type}': {response.get('message', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to perform visualization: "
