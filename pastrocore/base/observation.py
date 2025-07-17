@@ -283,10 +283,20 @@ class Observation(BaseEntity):
                 TypeError: If data structure is unexpected.
             """
             restored = {}
+            if not calculated_data:
+                logger.debug("Empty calculated_data provided, returning empty restored dictionary")
+                return restored
+
             for key, value in calculated_data.items():
-                if not isinstance(value, dict) or "data" not in value:
-                    logger.error(f"Invalid structure for {key}: expected dict with 'data' key, got {type(value)}")
-                    raise ValueError(f"Invalid structure for {key} in calculated_data")
+                if not isinstance(value, dict):
+                    logger.warning(f"Invalid structure for {key}: expected dict, got {type(value)}, storing as-is")
+                    restored[key] = value
+                    continue
+
+                if not value.get("data"):
+                    logger.debug(f"No data found for {key} in calculated_data, storing empty data")
+                    restored[key] = {"metadata": value.get("metadata", {}), "data": {}}
+                    continue
 
                 restored_data = {}
                 metadata = value.get("metadata", {})
@@ -336,7 +346,7 @@ class Observation(BaseEntity):
                     restored[key] = {"metadata": restored_metadata, "data": restored_data}
 
                 elif key in ("telescope_positions", "interpolated_orbits"):
-                    restored_metadata = metadata  # No specific processing for metadata
+                    restored_metadata = metadata
                     if not isinstance(data, dict):
                         logger.error(f"Expected dict for {key}.data, got {type(data)}")
                         raise TypeError(f"Invalid {key}.data structure")
@@ -347,8 +357,8 @@ class Observation(BaseEntity):
                         restored_telescopes = {}
                         for telescope_code, positions in telescopes.items():
                             try:
-                                restored_telescopes[telescope_code] = np.array(positions) * u.m
-                                logger.debug(f"Restored {key} for {telescope_code} in scan {scan_name}")
+                                restored_telescopes[telescope_code] = np.array(positions)
+                                logger.debug(f"Restored {key} for {telescope_code} in scan {scan_name}: shape={np.array(positions).shape}")
                             except Exception as e:
                                 logger.error(f"Failed to convert {key} for {telescope_code}: {str(e)}")
                                 raise ValueError(f"Invalid {key} data for {telescope_code}")
@@ -389,7 +399,7 @@ class Observation(BaseEntity):
                     for telescope_code, beam_data in data.items():
                         try:
                             restored_data[telescope_code] = np.array(beam_data)
-                            logger.debug(f"Restored beam_pattern for {telescope_code}")
+                            logger.debug(f"Restored beam_pattern for {telescope_code}: shape={np.array(beam_data).shape}")
                         except Exception as e:
                             logger.error(f"Failed to convert beam_pattern for {telescope_code}: {str(e)}")
                             raise ValueError(f"Invalid beam_pattern data for {telescope_code}")
@@ -451,8 +461,12 @@ class Observation(BaseEntity):
                             restored_telescopes = {}
                             for telescope_code, az_el_data in telescopes.items():
                                 try:
-                                    restored_telescopes[telescope_code] = np.array(az_el_data) * u.deg
-                                    logger.debug(f"Restored az_el for {telescope_code} in scan {scan_name}")
+                                    restored_array = np.array(az_el_data)
+                                    if restored_array.ndim != 2 or restored_array.shape[1] != 2:
+                                        logger.error(f"Invalid az_el shape for {telescope_code} in scan {scan_name}: {restored_array.shape}")
+                                        raise ValueError(f"Invalid az_el shape for {telescope_code}")
+                                    restored_telescopes[telescope_code] = restored_array
+                                    logger.debug(f"Restored az_el for {telescope_code} in scan {scan_name}: shape={restored_array.shape}")
                                 except Exception as e:
                                     logger.error(f"Failed to convert az_el for {telescope_code}: {str(e)}")
                                     raise ValueError(f"Invalid az_el data for {telescope_code}")
@@ -477,8 +491,12 @@ class Observation(BaseEntity):
                             restored_telescopes = {}
                             for telescope_code, angles in telescopes.items():
                                 try:
-                                    restored_telescopes[telescope_code] = np.array(angles) * u.deg
-                                    logger.debug(f"Restored sun_angles for {telescope_code} in scan {scan_name}")
+                                    restored_array = np.array(angles)
+                                    if restored_array.ndim != 1:
+                                        logger.error(f"Invalid sun_angles shape for {telescope_code} in scan {scan_name}: {restored_array.shape}")
+                                        raise ValueError(f"Invalid sun_angles shape for {telescope_code}")
+                                    restored_telescopes[telescope_code] = restored_array
+                                    logger.debug(f"Restored sun_angles for {telescope_code} in scan {scan_name}: shape={restored_array.shape}")
                                 except Exception as e:
                                     logger.error(f"Failed to convert sun_angles for {telescope_code}: {str(e)}")
                                     raise ValueError(f"Invalid sun_angles data for {telescope_code}")
@@ -508,14 +526,14 @@ class Observation(BaseEntity):
                             for freq_name, beam_data in freqs.items():
                                 try:
                                     restored_freqs[freq_name] = np.array(beam_data)
-                                    logger.debug(f"Restored synthesized_beam for {freq_name} in scan {scan_name}")
+                                    logger.debug(f"Restored synthesized_beam for {freq_name} in scan {scan_name}: shape={np.array(beam_data).shape}")
                                 except Exception as e:
                                     logger.error(f"Failed to convert synthesized_beam for {freq_name}: {str(e)}")
                                     raise ValueError(f"Invalid synthesized_beam data for {freq_name}")
                             restored_scans[scan_name] = restored_freqs
                         restored_data[source_name] = restored_scans
                     restored[key] = {"metadata": restored_metadata, "data": restored_data}
-                
+
                 elif key == "uv_coverage":
                     restored_metadata = {
                         "time_step": float(metadata.get("time_step", 0.0)),
@@ -537,10 +555,10 @@ class Observation(BaseEntity):
                             for baseline, uvw in baselines.items():
                                 try:
                                     restored_baselines[baseline] = np.array(uvw)
-                                    logger.debug(f"Restored uv_coverage for {baseline} in scan {scan_name}")
+                                    logger.debug(f"Restored uv_coverage for {baseline} in scan {scan_name}: shape={np.array(uvw).shape}")
                                 except Exception as e:
-                                    logger.error(f"Failed to convert baseline_projections for {baseline}: {str(e)}")
-                                    raise ValueError(f"Invalid baseline_projections data for {baseline}")
+                                    logger.error(f"Failed to convert uv_coverage for {baseline}: {str(e)}")
+                                    raise ValueError(f"Invalid uv_coverage data for {baseline}")
                             restored_scans[scan_name] = restored_baselines
                         restored_data[source_name] = restored_scans
                     restored[key] = {"metadata": restored_metadata, "data": restored_data}
@@ -563,7 +581,7 @@ class Observation(BaseEntity):
                             for baseline, projections in baselines.items():
                                 try:
                                     restored_baselines[baseline] = np.array(projections)
-                                    logger.debug(f"Restored baseline_projections for {baseline} in scan {scan_name}")
+                                    logger.debug(f"Restored baseline_projections for {baseline} in scan {scan_name}: shape={np.array(projections).shape}")
                                 except Exception as e:
                                     logger.error(f"Failed to convert baseline_projections for {baseline}: {str(e)}")
                                     raise ValueError(f"Invalid baseline_projections data for {baseline}")
@@ -583,8 +601,8 @@ class Observation(BaseEntity):
                         raise ValueError(f"Invalid mollweide_tracks.metadata.sources structure")
                     for source_name, coords in sources_raw.items():
                         try:
-                            restored_metadata["sources"][source_name] = np.array(coords) * u.deg
-                            logger.debug(f"Restored mollweide_tracks sources for {source_name}")
+                            restored_metadata["sources"][source_name] = np.array(coords)
+                            logger.debug(f"Restored mollweide_tracks sources for {source_name}: shape={np.array(coords).shape}")
                         except Exception as e:
                             logger.error(f"Failed to convert mollweide_tracks sources for {source_name}: {str(e)}")
                             raise ValueError(f"Invalid mollweide_tracks sources data for {source_name}")
@@ -600,13 +618,14 @@ class Observation(BaseEntity):
                         restored_telescopes = {}
                         for telescope_code, tracks in telescopes.items():
                             try:
-                                restored_telescopes[telescope_code] = np.array(tracks) * u.deg
-                                logger.debug(f"Restored mollweide_tracks for {telescope_code} in scan {scan_name}")
+                                restored_telescopes[telescope_code] = np.array(tracks)
+                                logger.debug(f"Restored mollweide_tracks for {telescope_code} in scan {scan_name}: shape={np.array(tracks).shape}")
                             except Exception as e:
                                 logger.error(f"Failed to convert mollweide_tracks for {telescope_code}: {str(e)}")
                                 raise ValueError(f"Invalid mollweide_tracks data for {telescope_code}")
                         restored_data[scan_name] = restored_telescopes
                     restored[key] = {"metadata": restored_metadata, "data": restored_data}
+
                 else:
                     logger.warning(f"Unknown calculated_data key {key}, storing as-is")
                     restored[key] = value
