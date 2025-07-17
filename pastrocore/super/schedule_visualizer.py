@@ -141,7 +141,7 @@ class ScheduleVisualizer(Super):
 
     def _visualize(self, obj: Union[ScheduleProject, Observation, Telescope, SpaceTelescope, Telescopes, Source, Sources, Scan, Scans, IF, Frequencies], 
                    attributes: Dict[str, Any]) -> Any:
-        """Visualize the specified object based on provided attributes.
+        """Visualize the specified objectlettere
 
         Args:
             obj: The object to visualize.
@@ -318,77 +318,95 @@ class ScheduleVisualizer(Super):
                     continue
                 source_uv = uv_data[source]
                 source_times = times_data[source]
-                logger.debug(f"Processing source {source}: uv={source_uv}, times={source_times}")
+                logger.debug(f"Processing source {source}")
 
-                # Filter scans (use all if none specified)
+                # Collect all data across scans for this source
+                all_times = []
+                all_uv_points = {}
                 scan_list = scans if scans else list(source_uv.keys())
                 logger.debug(f"Scans to process: {scan_list}")
+
                 for scan in scan_list:
                     if scan not in source_uv or scan not in source_times:
                         logger.debug(f"Scan {scan} not found for source {source}")
                         continue
-
-                    # Validate times
                     times = []
                     for t in source_times[scan]:
                         if t and hasattr(t, 'mjd'):
                             times.append(t.mjd)
                         else:
                             logger.debug(f"Invalid time entry in scan {scan}, source {source}: {t}")
-                    logger.debug(f"Valid times for scan {scan}: {times}")
                     if not times:
                         logger.debug(f"No valid times for scan {scan}, source {source}")
                         continue
+                    # Append times and UV points
+                    all_times.extend(times)
                     uv_points = source_uv[scan]
-                    logger.debug(f"UV points for scan {scan}: {uv_points}")
+                    for tel_code in uv_points:
+                        if tel_code not in all_uv_points:
+                            all_uv_points[tel_code] = []
+                        all_uv_points[tel_code].extend([(pt[0], pt[1]) for pt in uv_points[tel_code] if len(pt) >= 2])
 
-                    # Apply time range filter if specified
-                    if time_range:
-                        start_mjd, end_mjd = time_range
-                        valid_indices = [i for i, t in enumerate(times) if start_mjd <= t <= end_mjd]
-                        times = [times[i] for i in valid_indices]
-                        for tel_code in uv_points:
-                            uv_points[tel_code] = [uv_points[tel_code][i] for i in valid_indices if i < len(uv_points[tel_code])]
-                        logger.debug(f"After time range filter: times={times}, uv_points={uv_points}")
-                        if not times:
-                            logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
+                # Ensure data consistency
+                if not all_times or not all_uv_points:
+                    logger.debug(f"No valid times or UV points for source {source}")
+                    continue
+
+                # Sort all times and UV points by time
+                time_indices = np.argsort(all_times)
+                all_times = [all_times[i] for i in time_indices]
+                for tel_code in all_uv_points:
+                    if len(all_uv_points[tel_code]) != len(all_times):
+                        logger.warning(f"Mismatch in lengths for {tel_code}: times={len(all_times)}, uv_points={len(all_uv_points[tel_code])}")
+                        min_len = min(len(all_times), len(all_uv_points[tel_code]))
+                        all_times = all_times[:min_len]
+                        all_uv_points[tel_code] = all_uv_points[tel_code][:min_len]
+                    all_uv_points[tel_code] = [all_uv_points[tel_code][i] for i in time_indices if i < len(all_uv_points[tel_code])]
+
+                # Apply time range filter if specified
+                if time_range:
+                    start_mjd, end_mjd = time_range
+                    valid_indices = [i for i, t in enumerate(all_times) if start_mjd <= t <= end_mjd]
+                    all_times = [all_times[i] for i in valid_indices]
+                    for tel_code in all_uv_points:
+                        all_uv_points[tel_code] = [all_uv_points[tel_code][i] for i in valid_indices if i < len(all_uv_points[tel_code])]
+                    logger.debug(f"After time range filter: times={len(all_times)}")
+                    if not all_times:
+                        logger.debug(f"No valid times in range {time_range} for source {source}")
+                        continue
+
+                # Process each frequency
+                for freq_mhz in (frequencies or [None]):
+                    wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0
+                    scaling_factor = 1.0 if units == "wavelengths" else (wavelength / EARTH_DIAMETER)
+                    logger.debug(f"Frequency {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
+
+                    for tel_code in all_uv_points:
+                        if baselines and tel_code not in baselines:
+                            logger.debug(f"Skipping tel_code {tel_code} not in baselines {baselines}")
                             continue
-
-                    # Process each frequency
-                    for freq_mhz in (frequencies or []):
-                        wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0  # Avoid division by zero
-                        scaling_factor = 1.0 if units == "wavelengths" else (wavelength / EARTH_DIAMETER)
-                        logger.debug(f"Frequency {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
-
-                        for tel_code in uv_points:
-                            if baselines and tel_code not in baselines:
-                                logger.debug(f"Skipping tel_code {tel_code} not in baselines {baselines}")
+                        if len(all_uv_points[tel_code]) == 0:
+                            logger.debug(f"No valid UV points for {tel_code} in source {source}")
+                            continue
+                        try:
+                            valid_points = [(pt[0], pt[1]) for pt in all_uv_points[tel_code] if len(pt) >= 2]
+                            if not valid_points:
+                                logger.debug(f"No valid UV points after filtering for {tel_code} in source {source}")
                                 continue
-                            if len(uv_points[tel_code]) == 0:
-                                logger.debug(f"No valid UV points for {tel_code} in source {source}, scan {scan}")
-                                continue
-                            try:
-                                # Validate UV points format
-                                valid_points = [pt for pt in uv_points[tel_code]]
-                                logger.debug(f"Valid UV points for {tel_code}: {len(valid_points)}")
-                                if not valid_points:
-                                    logger.debug(f"No valid UV points after filtering for {tel_code} in source {source}, scan {scan}")
-                                    continue
-                                u, v = zip(*[(pt[0], pt[1]) for pt in valid_points])
-                                u, v = np.array(u, dtype=float), np.array(v, dtype=float)
-                                # Scale UV points based on units
-                                u_scaled = u / wavelength * scaling_factor if wavelength != 0 else u
-                                v_scaled = v / wavelength * scaling_factor if wavelength != 0 else v
-                                logger.debug(f"Scaled UV points: u={u_scaled[:5]}, v={v_scaled[:5]}")
-                                color_idx = (len(plotted_pairs) + (frequencies.index(freq_mhz) if frequencies else 0)) % len(self.moderate2_colors)
-                                label = f"{tel_code} ({freq_mhz} MHz)" if freq_mhz else f"{tel_code}"
-                                ax.scatter(u_scaled, v_scaled, s=1, c=[self.moderate2_colors[color_idx]], label=label)
-                                ax.scatter(-u_scaled, -v_scaled, s=1, c=[self.moderate2_colors[color_idx]])
-                                plotted_pairs.add(f"{tel_code}_{freq_mhz}" if freq_mhz else tel_code)
-                                result["points"] += len(u_scaled)
-                            except (ValueError, TypeError) as e:
-                                logger.error(f"Error processing UV points for {tel_code} at {freq_mhz} MHz: {str(e)}")
-                                continue
+                            u, v = zip(*valid_points)
+                            u, v = np.array(u, dtype=float), np.array(v, dtype=float)
+                            u_scaled = u / wavelength * scaling_factor if wavelength != 0 else u
+                            v_scaled = v / wavelength * scaling_factor if wavelength != 0 else v
+                            logger.debug(f"Scaled UV points: u={u_scaled[:5]}, v={v_scaled[:5]}")
+                            color_idx = (len(plotted_pairs) + (frequencies.index(freq_mhz) if frequencies and freq_mhz else 0)) % len(self.moderate2_colors)
+                            label = f"{tel_code} ({freq_mhz} MHz)" if freq_mhz else f"{tel_code}"
+                            ax.scatter(u_scaled, v_scaled, s=1, c=[self.moderate2_colors[color_idx]], label=label)
+                            ax.scatter(-u_scaled, -v_scaled, s=1, c=[self.moderate2_colors[color_idx]])
+                            plotted_pairs.add(f"{tel_code}_{freq_mhz}" if freq_mhz else tel_code)
+                            result["points"] += len(u_scaled)
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"Error processing UV points for {tel_code} at {freq_mhz} MHz: {str(e)}")
+                            continue
 
             result["baselines"] = len(plotted_pairs)
             if plotted_pairs:
@@ -408,23 +426,55 @@ class ScheduleVisualizer(Super):
 
             data = data.get("data", {})
             ax = fig.add_subplot(111)
+            result = {"scans": 0}
+            plotted_telescopes = set()
+
+            # Collect data across all scans
+            all_data = {}
             for scan_idx, scan_data in data.items():
                 times = [Time(t).mjd for t in scan_data.get("times", []) if t]
                 visibility = scan_data.get("visibility", {})
                 source = scan_data.get("source")
-                for i, (tel_code, vis) in enumerate(visibility.items()):
+                if not times:
+                    logger.debug(f"No valid times for scan {scan_idx}, source {source}")
+                    continue
+                result["scans"] += 1
+                for tel_code, vis in visibility.items():
+                    if tel_code not in all_data:
+                        all_data[tel_code] = {"times": [], "visibility": []}
                     valid_pairs = [(t, float(v)) for t, v in zip(times, vis) if v is not None]
                     if valid_pairs:
                         times_mjd, vis_valid = zip(*valid_pairs)
-                        ax.plot(times_mjd, vis_valid, label=f"{tel_code}", marker='o' if not attributes.get("time_step") else None,
-                                color=self.moderate2_colors[i % len(self.moderate2_colors)])
-            
+                        all_data[tel_code]["times"].extend(times_mjd)
+                        all_data[tel_code]["visibility"].extend(vis_valid)
+
+            # Plot combined data
+            for tel_code, data in all_data.items():
+                times_mjd = data["times"]
+                vis_valid = data["visibility"]
+                if times_mjd and vis_valid:
+                    # Sort by time
+                    sorted_indices = np.argsort(times_mjd)
+                    times_mjd = [times_mjd[i] for i in sorted_indices]
+                    vis_valid = [vis_valid[i] for i in sorted_indices]
+                    color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
+                    ax.plot(
+                        times_mjd,
+                        vis_valid,
+                        label=f"{tel_code}",
+                        marker="o" if not attributes.get("time_step") else None,
+                        color=self.moderate2_colors[color_idx],
+                    )
+                    plotted_telescopes.add(tel_code)
+
             ax.set_xlabel("Time (MJD)")
             ax.set_ylabel("Visible (1 = Yes, 0 = No)")
             ax.set_title(f"Source Visibility for {source}")
-            ax.legend()
             ax.grid(True)
-            return {"scans": len(data)}
+            if plotted_telescopes:
+                ax.legend()
+            logger.debug(f"Visualization result: {result}")
+            return result
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
         """Plot angles to the Sun for an Observation with flexible filtering.
@@ -499,9 +549,11 @@ class ScheduleVisualizer(Super):
                     continue
                 source_angles = sun_angles_data[source]
                 source_times = times_data[source]
-                logger.debug(f"Processing source {source}: angles={source_angles}, times={source_times}")
+                logger.debug(f"Processing source {source}")
 
-                # Filter scans (use all if none specified)
+                # Collect all data across scans
+                all_times = []
+                all_angles = {}
                 scan_list = scans if scans else list(source_angles.keys())
                 result["scans"] += len(scan_list)
                 logger.debug(f"Scans to process: {scan_list}")
@@ -510,47 +562,57 @@ class ScheduleVisualizer(Super):
                     if scan not in source_angles or scan not in source_times:
                         logger.debug(f"Scan {scan} not found for source {source}")
                         continue
-
-                    # Validate times
                     times = []
                     for t in source_times[scan]:
                         if t and hasattr(t, 'mjd'):
                             times.append(t)
                         else:
                             logger.debug(f"Invalid time entry in scan {scan}, source {source}: {t}")
-                    logger.debug(f"Valid times for scan {scan}: {len(times)}")
                     if not times:
                         logger.debug(f"No valid times for scan {scan}, source {source}")
                         continue
+                    all_times.extend(times)
                     angles = source_angles[scan]
-                    logger.debug(f"Angles for scan {scan}: {angles}")
+                    for tel_code in angles:
+                        if tel_code not in all_angles:
+                            all_angles[tel_code] = []
+                        all_angles[tel_code].extend(angles[tel_code])
 
-                    # Apply time range filter if specified
-                    if time_range:
-                        start_mjd, end_mjd = time_range
-                        valid_indices = [i for i, t in enumerate(times) if start_mjd <= t.mjd <= end_mjd]
-                        times = [times[i] for i in valid_indices]
-                        for tel_code in angles:
-                            angles[tel_code] = [angles[tel_code][i] for i in valid_indices if i < len(angles[tel_code])]
-                        logger.debug(f"After time range filter: times={len(times)}, angles={angles}")
-                        if not times:
-                            logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
-                            continue
+                # Sort all times and angles by time
+                if not all_times:
+                    logger.debug(f"No valid times for source {source} after collecting scans")
+                    continue
+                time_indices = np.argsort(all_times)
+                all_times = [all_times[i] for i in time_indices]
+                for tel_code in all_angles:
+                    all_angles[tel_code] = [all_angles[tel_code][i] for i in time_indices]
 
-                    # Process each telescope
-                    tel_list = telescopes if telescopes else list(angles.keys())
-                    for tel_code in tel_list:
-                        if tel_code not in angles:
-                            logger.debug(f"Telescope {tel_code} not found in scan {scan}, source {source}")
-                            continue
-                        valid_pairs = [(t.mjd, float(a)) for t, a in zip(times, angles[tel_code]) if a is not None]
-                        if valid_pairs:
-                            times_mjd, angles_sorted = zip(*sorted(valid_pairs))
-                            color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
-                            ax.plot(times_mjd, angles_sorted, label=f"{tel_code} ({source})",
-                                    color=self.moderate2_colors[color_idx])
-                            plotted_telescopes.add(tel_code)
-                            result["points"] += len(valid_pairs)
+                # Apply time range filter if specified
+                if time_range:
+                    start_mjd, end_mjd = time_range
+                    valid_indices = [i for i, t in enumerate(all_times) if start_mjd <= t.mjd <= end_mjd]
+                    all_times = [all_times[i] for i in valid_indices]
+                    for tel_code in all_angles:
+                        all_angles[tel_code] = [all_angles[tel_code][i] for i in valid_indices if i < len(all_angles[tel_code])]
+                    logger.debug(f"After time range filter: times={len(all_times)}")
+                    if not all_times:
+                        logger.debug(f"No valid times in range {time_range} for source {source}")
+                        continue
+
+                # Process each telescope
+                tel_list = telescopes if telescopes else list(all_angles.keys())
+                for tel_code in tel_list:
+                    if tel_code not in all_angles:
+                        logger.debug(f"Telescope {tel_code} not found in source {source}")
+                        continue
+                    valid_pairs = [(t.mjd, float(a)) for t, a in zip(all_times, all_angles[tel_code]) if a is not None]
+                    if valid_pairs:
+                        times_mjd, angles_sorted = zip(*sorted(valid_pairs))
+                        color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
+                        ax.plot(times_mjd, angles_sorted, label=f"{tel_code} ({source})",
+                                color=self.moderate2_colors[color_idx])
+                        plotted_telescopes.add(tel_code)
+                        result["points"] += len(valid_pairs)
 
             result["telescopes"] = len(plotted_telescopes)
             if plotted_telescopes:
@@ -663,7 +725,6 @@ class ScheduleVisualizer(Super):
                 ax.grid(True)
                 return {"scans": 0, "telescopes": 0, "points": 0}
 
-            # Calculate grid dimensions (m x n)
             n_cols = int(np.ceil(np.sqrt(n_tels)))
             n_rows = int(np.ceil(n_tels / n_cols))
             logger.debug(f"Creating subplot grid: {n_rows} rows x {n_cols} cols for {n_tels} telescopes")
@@ -678,7 +739,9 @@ class ScheduleVisualizer(Super):
                 source_coords = az_el_data[source]
                 source_times = times_data[source]
 
-                # Filter scans (use all if none specified)
+                # Collect all data across scans
+                all_times = []
+                all_coords = {}
                 scan_list = scans if scans else list(source_coords.keys())
                 result["scans"] += len(scan_list)
 
@@ -686,47 +749,60 @@ class ScheduleVisualizer(Super):
                     if scan not in source_coords or scan not in source_times:
                         logger.debug(f"Scan {scan} not found for source {source}")
                         continue
-
-                    # Validate and filter times
                     times = [t for t in source_times[scan] if t and hasattr(t, 'mjd')]
                     if not times:
                         logger.debug(f"No valid times for scan {scan}, source {source}")
                         continue
+                    all_times.extend(times)
                     coords = source_coords[scan]
+                    for tel in coords:
+                        if tel not in all_coords:
+                            all_coords[tel] = []
+                        all_coords[tel].extend(coords[tel])
 
-                    # Apply time range filter if specified
-                    if time_range:
-                        start_mjd, end_mjd = time_range
-                        valid_indices = [i for i, t in enumerate(times) if start_mjd <= t.mjd <= end_mjd]
-                        times = [times[i] for i in valid_indices]
-                        coords = {tel: [coords[tel][i] for i in valid_indices if i < len(coords[tel])] for tel in coords}
-                        if not times:
-                            logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
-                            continue
+                # Sort all times and coordinates by time
+                if not all_times:
+                    logger.debug(f"No valid times for source {source} after collecting scans")
+                    continue
+                time_indices = np.argsort(all_times)
+                all_times = [all_times[i] for i in time_indices]
+                for tel in all_coords:
+                    all_coords[tel] = [all_coords[tel][i] for i in time_indices]
 
-                    # Plot for each telescope
-                    for tel_idx, tel_code in enumerate(tel_list):
-                        if tel_code not in coords:
-                            logger.debug(f"Telescope {tel_code} not found in scan {scan}, source {source}")
-                            continue
-                        coord_pairs = coords[tel_code]
-                        valid_pairs = [(t.mjd, float(c[0]), float(c[1])) for t, c in zip(times, coord_pairs)
-                                    if c[0] is not None and c[1] is not None]
-                        if valid_pairs:
-                            times_mjd, az, el = zip(*sorted(valid_pairs))
-                            color_idx = tel_idx % len(self.moderate2_colors)
-                            ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
-                            ax.plot(times_mjd, az, label=f"{source}, {coord_type[:2]}",
-                                    color=self.moderate2_colors[color_idx])
-                            ax.plot(times_mjd, el, label=f"{source}, {coord_type[2:]}",
-                                    linestyle='--', color=self.moderate2_colors[color_idx])
-                            ax.set_title(f"{tel_code}")
-                            ax.set_xlabel("Time (MJD)")
-                            ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, deg)")
-                            ax.grid(True)
-                            ax.legend()
-                            plotted_telescopes.add(tel_code)
-                            result["points"] += len(valid_pairs)
+                # Apply time range filter
+                if time_range:
+                    start_mjd, end_mjd = time_range
+                    valid_indices = [i for i, t in enumerate(all_times) if start_mjd <= t.mjd <= end_mjd]
+                    all_times = [all_times[i] for i in valid_indices]
+                    for tel in all_coords:
+                        all_coords[tel] = [all_coords[tel][i] for i in valid_indices if i < len(all_coords[tel])]
+                    if not all_times:
+                        logger.debug(f"No valid times in range {time_range} for source {source}")
+                        continue
+
+                # Plot for each telescope
+                for tel_idx, tel_code in enumerate(tel_list):
+                    if tel_code not in all_coords:
+                        logger.debug(f"Telescope {tel_code} not found in source {source}")
+                        continue
+                    coord_pairs = all_coords[tel_code]
+                    valid_pairs = [(t.mjd, float(c[0]), float(c[1])) for t, c in zip(all_times, coord_pairs)
+                                if c[0] is not None and c[1] is not None]
+                    if valid_pairs:
+                        times_mjd, az, el = zip(*sorted(valid_pairs))
+                        color_idx = tel_idx % len(self.moderate2_colors)
+                        ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
+                        ax.plot(times_mjd, az, label=f"{source}, {coord_type[:2]}",
+                                color=self.moderate2_colors[color_idx])
+                        ax.plot(times_mjd, el, label=f"{source}, {coord_type[2:]}",
+                                linestyle='--', color=self.moderate2_colors[color_idx])
+                        ax.set_title(f"{tel_code}")
+                        ax.set_xlabel("Time (MJD)")
+                        ax.set_ylabel(f"Angle ({coord_type[:2]}/{coord_type[2:]}, deg)")
+                        ax.grid(True)
+                        ax.legend()
+                        plotted_telescopes.add(tel_code)
+                        result["points"] += len(valid_pairs)
 
             # Hide unused subplots
             for idx in range(len(tel_list), len(axes)):
@@ -832,12 +908,9 @@ class ScheduleVisualizer(Super):
                             continue
                         if tel_code not in all_blocks:
                             all_blocks[tel_code] = []
-
                         # Filter blocks by time range if specified
-                        filtered_blocks = []
                         for block in blocks:
                             try:
-                                # Handle start and end: either MJD (float/int) or string
                                 if isinstance(block[0], (int, float)):
                                     start_mjd = float(block[0])
                                 else:
@@ -847,24 +920,19 @@ class ScheduleVisualizer(Super):
                                 else:
                                     end_mjd = Time(block[1]).mjd
                                 duration = float(block[2])  # Duration in seconds
-
                                 # Verify duration consistency
-                                calculated_duration = (end_mjd - start_mjd) * 86400  # Convert days to seconds
+                                calculated_duration = (end_mjd - start_mjd) * 86400
                                 if abs(calculated_duration - duration) > 1e-6:
                                     logger.warning(f"Duration mismatch for {tel_code} in scan {scan}, source {source}: "
                                                 f"stored={duration}s, calculated={calculated_duration}s")
-
-                                # Apply time range filter
                                 if time_range:
                                     start_range, end_range = time_range
                                     if start_mjd >= end_range or end_mjd <= start_range:
                                         continue
-                                filtered_blocks.append((start_mjd, end_mjd, duration))
+                                all_blocks[tel_code].append((start_mjd, end_mjd, duration))
                             except (ValueError, TypeError) as e:
                                 logger.error(f"Invalid block format for {tel_code} in scan {scan}, source {source}: {block}, error: {str(e)}")
                                 continue
-                        all_blocks[tel_code].extend(filtered_blocks)
-                        result["points"] += len(filtered_blocks)
 
             # Sort telescopes for consistent plotting
             tel_list = sorted(all_blocks.keys())
@@ -887,39 +955,38 @@ class ScheduleVisualizer(Super):
                     )
                     plotted_telescopes.add(tel)
 
-            # Calculate intersections (times when all selected telescopes are active)
-            if tel_list:
+            # Calculate intersections
+            if tel_list and all_blocks:
                 all_times = [[(start, end) for start, end, _ in all_blocks[tel]] for tel in tel_list]
-                if all_times:
-                    # Collect all unique time points
+                if all_times and all(all_times):  # Проверяем, что списки не пустые
+                    # Собираем все временные точки
                     time_points = sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end)))
                     intersection_times = []
-
-                    # Check each interval between time points
                     for i in range(len(time_points) - 1):
                         start, end = time_points[i], time_points[i + 1]
-                        # Check if ALL telescopes are active in this interval
-                        all_active = True
-                        for tel_times in all_times:
-                            # A telescope is active if the interval [start, end] is fully contained in one of its blocks
-                            active = any(start_t <= start and end <= end_t for start_t, end_t in tel_times)
-                            if not active:
-                                all_active = False
-                                break
+                        # Проверяем, что каждый телескоп активен в интервале [start, end]
+                        all_active = all(
+                            any(start_t <= end and end_t >= start for start_t, end_t in tel_times)
+                            for tel_times in all_times
+                        )
                         if all_active:
                             intersection_times.append((start, end))
-
-                    # Plot intersection regions
-                    for start, end in intersection_times:
+                    
+                    # Визуализация пересечений
+                    for i, (start, end) in enumerate(intersection_times):
                         ax.fill_between(
                             [start, end],
                             [-1, -1],
                             [0, 0],
                             color=self.intersection_color,
-                            alpha=0.7,
-                            label="Total Intersection" if not intersection_times else None
+                            alpha=0.9,
+                            label="Total Intersection" if i == 0 else None
                         )
                     result["intersections"] = len(intersection_times)
+                else:
+                    logger.debug("No valid time blocks for intersection calculation")
+            else:
+                logger.debug("No telescopes or blocks to calculate intersections")
 
             # Set y-axis labels
             ax.set_yticks(np.arange(-1, len(tel_list)))
@@ -944,13 +1011,12 @@ class ScheduleVisualizer(Super):
         with self._lock:
             logger.debug(f"Plotting beam pattern for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "beam_pattern")
-            freq_names = attributes.get("freq_names", None)  # List of frequency values or single value
-            telescopes = attributes.get("telescopes", None)  # List of telescope codes or single code
-            SPEED_OF_LIGHT = 299792458.0  # Speed of light in m/s
+            freq_names = attributes.get("freq_names", None)
+            telescopes = attributes.get("telescopes", None)
+            SPEED_OF_LIGHT = 299792458.0
 
             logger.debug(f"Input attributes: store_key={store_key}, freq_names={freq_names}, telescopes={telescopes}")
 
-            # Check if required parameters are provided
             if not (telescopes or freq_names):
                 logger.debug("No telescopes or frequencies specified, returning empty plot")
                 ax = fig.add_subplot(111)
@@ -959,11 +1025,9 @@ class ScheduleVisualizer(Super):
                 ax.grid(True)
                 return {"telescopes": 0, "frequencies": 0}
 
-            # Retrieve beam pattern data
             beam_data = obj.get_calculated_data_by_key(store_key)
             logger.debug(f"Retrieved beam_data: {beam_data}")
 
-            # Validate data structure
             if not isinstance(beam_data, dict):
                 logger.warning(f"Invalid data type: beam_data={type(beam_data)} in {obj.get_observation_code()}")
                 ax = fig.add_subplot(111)
@@ -982,7 +1046,6 @@ class ScheduleVisualizer(Super):
                 ax.grid(True)
                 return {"telescopes": 0, "frequencies": 0}
 
-            # Determine telescopes to plot
             all_telescopes = list(beam_data.keys())
             tel_list = sorted(telescopes if telescopes else all_telescopes)
             if not tel_list:
@@ -993,13 +1056,11 @@ class ScheduleVisualizer(Super):
                 ax.grid(True)
                 return {"telescopes": 0, "frequencies": 0}
 
-            # Determine frequencies to plot
             freq_list = (
                 [float(f) for f in (freq_names if isinstance(freq_names, list) else [freq_names]) if f]
                 if freq_names else []
             )
             if not freq_list:
-                # Fallback to observation frequencies if none specified
                 freq_list = [float(f.get("frequency")) for f in obj.get_frequencies().get_items()]
                 logger.debug(f"No frequencies specified, using observation frequencies: {freq_list}")
             if not freq_list:
@@ -1010,7 +1071,6 @@ class ScheduleVisualizer(Super):
                 ax.grid(True)
                 return {"telescopes": len(tel_list), "frequencies": 0}
 
-            # Create subplot grid
             n_tels = len(tel_list)
             n_cols = int(np.ceil(np.sqrt(n_tels)))
             n_rows = int(np.ceil(n_tels / n_cols))
@@ -1022,7 +1082,6 @@ class ScheduleVisualizer(Super):
             plotted_telescopes = set()
             plotted_frequencies = set()
 
-            # Process each telescope
             for tel_idx, tel_code in enumerate(tel_list):
                 if tel_code not in beam_data:
                     logger.debug(f"Telescope {tel_code} not found in beam_data, skipping")
@@ -1030,7 +1089,6 @@ class ScheduleVisualizer(Super):
                 ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
                 ax.grid(True)
 
-                # Add telescope code as annotation instead of title
                 ax.annotate(
                     tel_code,
                     xy=(0.05, 0.95),
@@ -1039,7 +1097,6 @@ class ScheduleVisualizer(Super):
                     bbox=dict(boxstyle="round", facecolor='white', alpha=0.8)
                 )
 
-                # Retrieve theta and pattern (frequency-agnostic)
                 beam = beam_data.get(tel_code, {})
                 theta = np.array(beam.get("theta", []))
                 pattern = np.array(beam.get("pattern", []))
@@ -1047,24 +1104,20 @@ class ScheduleVisualizer(Super):
                     logger.debug(f"Empty theta or pattern for {tel_code}")
                     continue
 
-                # Plot for each frequency
                 for freq_idx, freq_mhz in enumerate(freq_list):
-                    wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6)  # Wavelength in meters
-                    scaling_factor = 1.0 / wavelength**2  # Scale pattern by 1/wavelength^2
+                    wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6)
+                    scaling_factor = 1.0 / wavelength**2
                     logger.debug(f"Tel {tel_code}, freq {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
 
-                    # Apply scaling factor
                     scaled_pattern = pattern * scaling_factor
                     logger.debug(f"Scaled pattern for {tel_code} at {freq_mhz}: {scaled_pattern[:5]}")
 
-                    # Plot the beam pattern
                     color_idx = freq_idx % len(self.moderate2_colors)
                     ax.plot(
                         theta, scaled_pattern,
                         label=f"{freq_mhz:.2f} MHz",
                         color=self.moderate2_colors[color_idx]
                     )
-                    # Set axis limits based on theta range
                     theta_range = np.max(np.abs(theta)) * 1.1 if len(theta) > 0 else 1.0
                     ax.set_xlim(-theta_range, theta_range)
                     ax.legend(fontsize=8)
@@ -1072,15 +1125,12 @@ class ScheduleVisualizer(Super):
                     plotted_telescopes.add(tel_code)
                     plotted_frequencies.add(freq_mhz)
 
-            # Hide unused subplots
             for idx in range(len(tel_list), len(axes)):
                 axes[idx].set_visible(False)
 
-            # Add common axis labels
             fig.text(0.5, 0.04, "Theta (radians)", ha='center', fontsize=12)
             fig.text(0.04, 0.5, "Normalized Peak Flux (Jy)", va='center', rotation='vertical', fontsize=12)
 
-            # Adjust layout and add common title
             fig.suptitle(f"Beam Pattern for Observation: {obj.get_observation_code()}", fontsize=14)
             plt.tight_layout(rect=[0.05, 0.05, 1, 0.95])
 
@@ -1201,8 +1251,8 @@ class ScheduleVisualizer(Super):
 
             result = {"scans": 0, "baselines": 0, "projections": 0, "frequencies": len(frequencies) if frequencies else 0}
             plotted_pairs = set()
-            SPEED_OF_LIGHT = 299792458.0  # Speed of light in m/s
-            EARTH_DIAMETER = 12742000.0   # Average Earth diameter in meters
+            SPEED_OF_LIGHT = 299792458.0
+            EARTH_DIAMETER = 12742000.0
 
             for source in sources:
                 if source not in bl_data or source not in times_data:
@@ -1210,9 +1260,11 @@ class ScheduleVisualizer(Super):
                     continue
                 source_bl = bl_data[source]
                 source_times = times_data[source]
-                logger.debug(f"Processing source {source}: bl={source_bl}, times={source_times}")
+                logger.debug(f"Processing source {source}")
 
-                # Filter scans (use all if none specified)
+                # Collect all data across scans
+                all_times = []
+                all_bl_points = {}
                 scan_list = scans if scans else list(source_bl.keys())
                 result["scans"] += len(scan_list)
                 logger.debug(f"Scans to process: {scan_list}")
@@ -1221,78 +1273,86 @@ class ScheduleVisualizer(Super):
                     if scan not in source_bl or scan not in source_times:
                         logger.debug(f"Scan {scan} not found for source {source}")
                         continue
-
-                    # Validate times
                     times = []
                     for t in source_times[scan]:
                         if t and hasattr(t, 'mjd'):
                             times.append(t.mjd)
                         else:
                             logger.debug(f"Invalid time entry in scan {scan}, source {source}: {t}")
-                    logger.debug(f"Valid times for scan {scan}: {times}")
                     if not times:
                         logger.debug(f"No valid times for scan {scan}, source {source}")
                         continue
+                    all_times.extend(times)
                     bl_points = source_bl[scan]
-                    logger.debug(f"Baseline projections for scan {scan}: {bl_points}")
+                    for pair in bl_points:
+                        if pair not in all_bl_points:
+                            all_bl_points[pair] = []
+                        all_bl_points[pair].extend([float(p) for p in bl_points[pair] if p is not None])
 
-                    # Apply time range filter if specified
-                    if time_range:
-                        start_mjd, end_mjd = time_range
-                        valid_indices = [i for i, t in enumerate(times) if start_mjd <= t <= end_mjd]
-                        times = [times[i] for i in valid_indices]
-                        for pair in bl_points:
-                            # Ensure bl_points[pair] is a NumPy array and filter by valid indices
-                            if isinstance(bl_points[pair], np.ndarray):
-                                bl_points[pair] = bl_points[pair][valid_indices]
-                            else:
-                                logger.warning(f"Invalid data type for bl_points[{pair}] in scan {scan}, source {source}: {type(bl_points[pair])}")
-                                bl_points[pair] = np.array([])
-                        logger.debug(f"After time range filter: times={times}, bl_points={bl_points}")
-                        if not times:
-                            logger.debug(f"No valid times in range {time_range} for scan {scan}, source {source}")
+                # Ensure data consistency
+                if not all_times or not all_bl_points:
+                    logger.debug(f"No valid times or baseline points for source {source}")
+                    continue
+
+                # Sort all times and projections by time
+                time_indices = np.argsort(all_times)
+                all_times = [all_times[i] for i in time_indices]
+                for pair in all_bl_points:
+                    if len(all_bl_points[pair]) != len(all_times):
+                        logger.warning(f"Mismatch in lengths for {pair}: times={len(all_times)}, bl_points={len(all_bl_points[pair])}")
+                        min_len = min(len(all_times), len(all_bl_points[pair]))
+                        all_times = all_times[:min_len]
+                        all_bl_points[pair] = all_bl_points[pair][:min_len]
+                    all_bl_points[pair] = [all_bl_points[pair][i] for i in time_indices if i < len(all_bl_points[pair])]
+
+                # Apply time range filter
+                if time_range:
+                    start_mjd, end_mjd = time_range
+                    valid_indices = [i for i, t in enumerate(all_times) if start_mjd <= t <= end_mjd]
+                    all_times = [all_times[i] for i in valid_indices]
+                    for pair in all_bl_points:
+                        all_bl_points[pair] = [all_bl_points[pair][i] for i in valid_indices if i < len(all_bl_points[pair])]
+                    logger.debug(f"After time range filter: times={len(all_times)}")
+                    if not all_times:
+                        logger.debug(f"No valid times in range {time_range} for source {source}")
+                        continue
+
+                # Process each frequency
+                for freq_mhz in (frequencies or [None]):
+                    wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0
+                    scaling_factor = 1.0 if units == "meters" else (wavelength / EARTH_DIAMETER)
+                    logger.debug(f"Frequency {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
+
+                    for pair in all_bl_points:
+                        if baselines and pair not in baselines:
+                            logger.debug(f"Skipping pair {pair} not in baselines {baselines}")
                             continue
-
-                    # Process each frequency
-                    for freq_mhz in (frequencies or [None]):
-                        wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0  # Avoid division by zero
-                        scaling_factor = 1.0 if units == "meters" else (wavelength / EARTH_DIAMETER)
-                        logger.debug(f"Frequency {freq_mhz} MHz, wavelength={wavelength}, scaling_factor={scaling_factor}")
-
-                        for pair in bl_points:
-                            if baselines and pair not in baselines:
-                                logger.debug(f"Skipping pair {pair} not in baselines {baselines}")
+                        if len(all_bl_points[pair]) == 0:
+                            logger.debug(f"No valid baseline projections for {pair} in source {source}")
+                            continue
+                        try:
+                            valid_projs = np.array(all_bl_points[pair], dtype=float)
+                            valid_projs = valid_projs[~np.isnan(valid_projs)]
+                            if len(valid_projs) == 0:
+                                logger.debug(f"No valid projections after filtering for {pair} in source {source}")
                                 continue
-                            if not isinstance(bl_points[pair], np.ndarray) or len(bl_points[pair]) == 0:
-                                logger.debug(f"No valid baseline projections for {pair} in source {source}, scan {scan}")
-                                continue
-                            try:
-                                # Filter out NaN values and convert to float
-                                valid_projs = bl_points[pair][~np.isnan(bl_points[pair])].astype(float)
-                                logger.debug(f"Valid projections for {pair}: {len(valid_projs)}")
-                                if len(valid_projs) == 0:
-                                    logger.debug(f"No valid projections after filtering for {pair} in source {source}, scan {scan}")
-                                    continue
-                                # Ensure times and projections align
-                                if len(valid_projs) > len(times):
-                                    valid_projs = valid_projs[:len(times)]
-                                    logger.warning(f"Truncated projections for {pair} to match times length: {len(times)}")
-                                elif len(times) > len(valid_projs):
-                                    times_subset = times[:len(valid_projs)]
-                                    logger.warning(f"Truncated times for {pair} to match projections length: {len(valid_projs)}")
-                                else:
-                                    times_subset = times
-                                # Scale projections based on units
-                                bl_scaled = valid_projs / wavelength * scaling_factor if freq_mhz else valid_projs
-                                logger.debug(f"Scaled projections: bl={bl_scaled[:5]}")
-                                color_idx = (len(plotted_pairs) + (frequencies.index(freq_mhz) if frequencies and freq_mhz else 0)) % len(self.moderate2_colors)
-                                label = f"{pair} ({freq_mhz} MHz)" if freq_mhz else f"{pair}"
-                                ax.scatter(times_subset, bl_scaled, s=10, c=[self.moderate2_colors[color_idx]], label=label, alpha=0.7)
-                                plotted_pairs.add(f"{pair}_{freq_mhz}" if freq_mhz else pair)
-                                result["projections"] += len(bl_scaled)
-                            except Exception as e:
-                                logger.error(f"Error processing projections for {pair} at {freq_mhz} MHz: {str(e)}")
-                                continue
+                            if len(valid_projs) != len(all_times):
+                                logger.warning(f"Mismatch in lengths for {pair}: times={len(all_times)}, valid_projs={len(valid_projs)}")
+                                min_len = min(len(all_times), len(valid_projs))
+                                valid_projs = valid_projs[:min_len]
+                                times_subset = all_times[:min_len]
+                            else:
+                                times_subset = all_times
+                            bl_scaled = valid_projs / wavelength * scaling_factor if freq_mhz else valid_projs
+                            logger.debug(f"Scaled projections: bl={bl_scaled[:5]}")
+                            color_idx = (len(plotted_pairs) + (frequencies.index(freq_mhz) if frequencies and freq_mhz else 0)) % len(self.moderate2_colors)
+                            label = f"{pair} ({freq_mhz} MHz)" if freq_mhz else f"{pair}"
+                            ax.scatter(times_subset, bl_scaled, s=10, c=[self.moderate2_colors[color_idx]], label=label, alpha=0.7)
+                            plotted_pairs.add(f"{pair}_{freq_mhz}" if freq_mhz else pair)
+                            result["projections"] += len(bl_scaled)
+                        except Exception as e:
+                            logger.error(f"Error processing projections for {pair} at {freq_mhz} MHz: {str(e)}")
+                            continue
 
             result["baselines"] = len(plotted_pairs)
             if plotted_pairs:
@@ -1322,23 +1382,19 @@ class ScheduleVisualizer(Super):
             logger.debug(f"Input attributes: store_key={store_key}, "
                         f"telescopes={telescopes}, scans={scans}, time_range={time_range}")
 
-            # Create axis with Mollweide projection even if no data is plotted
             ax = fig.add_subplot(111, projection="mollweide")
             ax.set_title(f"Mollweide Tracks for Observation: {obj.get_observation_code()}")
             ax.grid(True)
 
-            # Check if required parameters are provided
             if not (telescopes or scans):
                 logger.debug("No telescopes or scans specified, returning empty plot")
                 return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
 
-            # Retrieve Mollweide tracks data
             data = obj.get_calculated_data_by_key(store_key)
             if not data:
                 logger.error(f"No Mollweide tracks data found for '{store_key}' in {obj.get_observation_code()}")
                 return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
 
-            # Validate data structure
             if not isinstance(data, dict):
                 logger.warning(f"Invalid data type: data={type(data)} in {obj.get_observation_code()}")
                 return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
@@ -1349,34 +1405,31 @@ class ScheduleVisualizer(Super):
                 logger.warning(f"Empty Mollweide tracks data in {obj.get_observation_code()}")
                 return {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
 
-            # Initialize result metrics
             result = {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
             plotted_telescopes = set()
             plotted_sources = set()
 
-            # Plot source positions from metadata
             sources = metadata.get("sources", [])
             for source in sources:
                 lon_rad = np.radians(source["lon"])
                 lat_rad = np.radians(source["lat"])
                 ax.scatter(lon_rad, lat_rad, c='red', marker='o', s=50, label=f"Source: {source['name']}",
                           zorder=2)
-                plotted_sources.add(source["name"])
+                plotted_sources.add(source['name'])
                 result["sources"] += 1
 
-            # Process tracks for each scan
             scan_list = scans if scans else list(tracks_data.keys())
             result["scans"] = len(scan_list)
             logger.debug(f"Scans to process: {scan_list}")
 
+            # Collect all tracks by telescope
+            all_tracks = {}
             for scan_name in scan_list:
                 if scan_name not in tracks_data:
                     logger.debug(f"Scan {scan_name} not found in Mollweide tracks data")
                     continue
-
                 scan_data = tracks_data[scan_name]
                 tel_list = telescopes if telescopes else list(scan_data.keys())
-
                 for tel_code in tel_list:
                     if tel_code not in scan_data:
                         logger.debug(f"Telescope {tel_code} not found in scan {scan_name}")
@@ -1385,36 +1438,38 @@ class ScheduleVisualizer(Super):
                     if not isinstance(tracks, np.ndarray) or len(tracks) == 0:
                         logger.debug(f"No valid tracks for {tel_code} in scan {scan_name}")
                         continue
-
-                    # Validate track format: expect [[lon1, lat1], [lon2, lat2], ...]
                     if tracks.ndim != 2 or tracks.shape[1] != 2:
                         logger.warning(f"Invalid track format for {tel_code} in scan {scan_name}: shape={tracks.shape}")
                         continue
+                    if tel_code not in all_tracks:
+                        all_tracks[tel_code] = []
+                    all_tracks[tel_code].append(tracks)
 
-                    # Apply time range filter (not implemented)
-                    if time_range:
-                        logger.debug("Time range filtering not implemented for Mollweide tracks due to missing time data")
-
-                    # Plot tracks
-                    try:
-                        lon, lat = tracks[:, 0], tracks[:, 1]
-                        valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
-                        lon = lon[valid_mask]
-                        lat = lat[valid_mask]
-                        if len(lon) == 0:
-                            logger.debug(f"No valid track points for {tel_code} in scan {scan_name}")
-                            continue
-                        lon_rad = np.radians(lon)
-                        lat_rad = np.radians(lat)
-                        color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
-                        ax.scatter(lon_rad, lat_rad, s=1, c=[self.moderate2_colors[color_idx]],
-                                  label=f"{tel_code} (Scan {scan_name})" if tel_code not in plotted_telescopes else None,
-                                  zorder=1)
-                        plotted_telescopes.add(tel_code)
-                        result["points"] += len(lon)
-                    except Exception as e:
-                        logger.error(f"Error plotting tracks for {tel_code} in scan {scan_name}: {str(e)}")
+            # Plot combined tracks
+            for tel_code in all_tracks:
+                try:
+                    tracks = np.vstack(all_tracks[tel_code]) if all_tracks[tel_code] else np.array([])
+                    if len(tracks) == 0:
+                        logger.debug(f"No valid tracks for {tel_code} after combining scans")
                         continue
+                    lon, lat = tracks[:, 0], tracks[:, 1]
+                    valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
+                    lon = lon[valid_mask]
+                    lat = lat[valid_mask]
+                    if len(lon) == 0:
+                        logger.debug(f"No valid track points for {tel_code}")
+                        continue
+                    lon_rad = np.radians(lon)
+                    lat_rad = np.radians(lat)
+                    color_idx = len(plotted_telescopes) % len(self.moderate2_colors)
+                    ax.scatter(lon_rad, lat_rad, s=1, c=[self.moderate2_colors[color_idx]],
+                              label=f"{tel_code}" if tel_code not in plotted_telescopes else None,
+                              zorder=1)
+                    plotted_telescopes.add(tel_code)
+                    result["points"] += len(lon)
+                except Exception as e:
+                    logger.error(f"Error plotting tracks for {tel_code}: {str(e)}")
+                    continue
 
             result["telescopes"] = len(plotted_telescopes)
             result["sources"] = len(plotted_sources)
