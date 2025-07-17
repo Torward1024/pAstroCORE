@@ -7,10 +7,12 @@ from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
 import astropy.units as u
 import matplotlib.pyplot as plt
+import gc
 
 class TimeOnSourceVisualizationTab(QWidget):
     """Widget for Time on Source visualization with source, scan, and telescope selection."""
@@ -34,6 +36,7 @@ class TimeOnSourceVisualizationTab(QWidget):
         self.observation = observation
         self.canvas = None
         self.toolbar = None
+        self.figure = None
         self.cached_data = None
         logger.debug(f"TimeOnSourceVisualizationTab initialized for observation id={id(observation)}")
 
@@ -41,7 +44,7 @@ class TimeOnSourceVisualizationTab(QWidget):
         self.ui.cmbSource.addItems(sources)
         for telescope in telescopes:
             item = QListWidgetItem(telescope)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
             self.ui.listTelescopes.addItem(item)
 
@@ -55,7 +58,6 @@ class TimeOnSourceVisualizationTab(QWidget):
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
-        self.figure = None
         logger.debug("TimeOnSourceVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
@@ -120,33 +122,68 @@ class TimeOnSourceVisualizationTab(QWidget):
                 selected_telescopes.append(item.text())
         logger.debug(f"Selected telescopes: {selected_telescopes}")
         return selected_telescopes
-    
+
     def _clear_canvas(self):
-        """Clear the current canvas and toolbar if they exist."""
+        """Aggressively clear the canvas, toolbar, and figure to release all resources."""
+        logger.debug("Clearing canvas, toolbar, and figure")
+
+        # Remove and delete canvas
         if self.canvas:
-            self.layout.removeWidget(self.canvas)
-            self.canvas.deleteLater()
-            self.canvas = None
+            try:
+                self.layout.removeWidget(self.canvas)
+                self.canvas.setParent(None)
+                self.canvas.deleteLater()
+                logger.debug("Canvas removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove canvas: {str(e)}")
+            finally:
+                self.canvas = None
+
+        # Remove and delete toolbar
         if self.toolbar:
-            self.layout.removeWidget(self.toolbar)
-            self.toolbar.deleteLater()
-            self.toolbar = None
+            try:
+                self.layout.removeWidget(self.toolbar)
+                self.toolbar.setParent(None)
+                self.toolbar.deleteLater()
+                logger.debug("Toolbar removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove toolbar: {str(e)}")
+            finally:
+                self.toolbar = None
+
+        # Clear and close figure
         if self.figure:
-            plt.close(self.figure)
-            self.figure = None
-        logger.debug("Canvas, toolbar, and figure cleared")
+            try:
+                for ax in self.figure.axes:
+                    ax.clear()
+                    ax.remove()
+                self.figure.clf()
+                plt.close(self.figure)
+                logger.debug(f"Figure {id(self.figure)} closed and cleared")
+            except Exception as e:
+                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
+            finally:
+                self.figure = None
+
+        # Force garbage collection and log open figures
+        gc.collect(2)
+        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
     @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget."""
-        self._clear_canvas()  # Clear existing canvas and figure before embedding new one
+    def embed_figure(self, figure: Figure):
+        """Embed a Matplotlib figure into the widget.
+
+        Args:
+            figure: Matplotlib Figure object to embed.
+        """
+        self._clear_canvas()  # Clear existing resources first
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug("Embedded Matplotlib figure in TimeOnSourceVisualizationTab")
+        logger.debug(f"Embedded Matplotlib figure {id(figure)} in TimeOnSourceVisualizationTab")
 
     @Slot()
     def on_filter_changed(self):
@@ -212,7 +249,10 @@ class TimeOnSourceVisualizationTab(QWidget):
         telescopes = self.get_selected_telescopes()
         logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
 
-        if not source_name or not scans or not telescopes: self._clear_canvas(); return
+        if not source_name or not scans or not telescopes:
+            logger.debug("Missing required filters (source, scans, or telescopes), clearing canvas")
+            self._clear_canvas()
+            return
 
         vis_attributes = {
             "plot_type": "time_on_source",
@@ -242,7 +282,7 @@ class TimeOnSourceVisualizationTab(QWidget):
                     self.embed_figure(figure)
                     logger.debug(f"Time on Source visualization updated for source '{source_name}'")
                 else:
-                    logger.error("No figure returned from visualizer")
+                    logger.error("No figure returned from visualizer, clearing canvas")
                     self._clear_canvas()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
@@ -250,3 +290,9 @@ class TimeOnSourceVisualizationTab(QWidget):
         except Exception as e:
             logger.error(f"Exception during Time on Source visualization update: {str(e)}")
             self._clear_canvas()
+
+    def closeEvent(self, event):
+        """Ensure resources are cleaned up when the widget is closed."""
+        self._clear_canvas()
+        super().closeEvent(event)
+        logger.debug(f"TimeOnSourceVisualizationTab closed, resources cleaned up")

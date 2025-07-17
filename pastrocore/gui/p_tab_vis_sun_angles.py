@@ -7,17 +7,28 @@ from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
 import astropy.units as u
 import matplotlib.pyplot as plt
+import gc
 
 class SunAnglesVisualizationTab(QWidget):
     """Widget for Sun angles visualization with source, scan, and telescope selection."""
 
     def __init__(self, manipulator: ScheduleManipulator, observation: Observation,
                  sources: List[str], scans: List[str], telescopes: List[str], parent=None):
-        """Initialize the Sun angles visualization tab."""
+        """Initialize the Sun angles visualization tab.
+
+        Args:
+            manipulator: ScheduleManipulator instance for processing visualization requests.
+            observation: Observation object containing Sun angles data.
+            sources: List of available source names.
+            scans: List of available scan names.
+            telescopes: List of available telescope codes.
+            parent: Parent widget, typically a QDialog.
+        """
         super().__init__(parent)
         self.ui = Ui_VisDefaultTab()
         self.ui.setupUi(self)
@@ -25,6 +36,7 @@ class SunAnglesVisualizationTab(QWidget):
         self.observation = observation
         self.canvas = None
         self.toolbar = None
+        self.figure = None
         self.cached_data = None
         logger.debug(f"SunAnglesVisualizationTab initialized for observation id={id(observation)}")
 
@@ -32,7 +44,7 @@ class SunAnglesVisualizationTab(QWidget):
         self.ui.cmbSource.addItems(sources)
         for telescope in telescopes:
             item = QListWidgetItem(telescope)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
             self.ui.listTelescopes.addItem(item)
 
@@ -46,7 +58,6 @@ class SunAnglesVisualizationTab(QWidget):
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
-        self.figure = None
         logger.debug("SunAnglesVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
@@ -75,13 +86,21 @@ class SunAnglesVisualizationTab(QWidget):
             self.cached_data = {}
 
     def get_selected_source(self) -> Optional[str]:
-        """Get the currently selected source name."""
+        """Get the currently selected source name.
+
+        Returns:
+            Selected source name or None if no source is selected.
+        """
         source = self.ui.cmbSource.currentText() if self.ui.cmbSource.currentText() else None
         logger.debug(f"Selected source: {source}")
         return source
 
     def get_selected_scans(self) -> List[str]:
-        """Get the list of selected scan names."""
+        """Get the list of selected scan names.
+
+        Returns:
+            List of selected scan names.
+        """
         selected_scans = []
         for i in range(self.ui.listScans.count()):
             item = self.ui.listScans.item(i)
@@ -91,7 +110,11 @@ class SunAnglesVisualizationTab(QWidget):
         return selected_scans
 
     def get_selected_telescopes(self) -> List[str]:
-        """Get the list of selected telescope names."""
+        """Get the list of selected telescope names.
+
+        Returns:
+            List of selected telescope codes.
+        """
         selected_telescopes = []
         for i in range(self.ui.listTelescopes.count()):
             item = self.ui.listTelescopes.item(i)
@@ -101,31 +124,66 @@ class SunAnglesVisualizationTab(QWidget):
         return selected_telescopes
 
     def _clear_canvas(self):
-        """Clear the current canvas and toolbar if they exist."""
+        """Aggressively clear the canvas, toolbar, and figure to release all resources."""
+        logger.debug("Clearing canvas, toolbar, and figure")
+
+        # Remove and delete canvas
         if self.canvas:
-            self.layout.removeWidget(self.canvas)
-            self.canvas.deleteLater()
-            self.canvas = None
+            try:
+                self.layout.removeWidget(self.canvas)
+                self.canvas.setParent(None)
+                self.canvas.deleteLater()
+                logger.debug("Canvas removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove canvas: {str(e)}")
+            finally:
+                self.canvas = None
+
+        # Remove and delete toolbar
         if self.toolbar:
-            self.layout.removeWidget(self.toolbar)
-            self.toolbar.deleteLater()
-            self.toolbar = None
+            try:
+                self.layout.removeWidget(self.toolbar)
+                self.toolbar.setParent(None)
+                self.toolbar.deleteLater()
+                logger.debug("Toolbar removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove toolbar: {str(e)}")
+            finally:
+                self.toolbar = None
+
+        # Clear and close figure
         if self.figure:
-            plt.close(self.figure)
-            self.figure = None
-        logger.debug("Canvas, toolbar, and figure cleared")
+            try:
+                for ax in self.figure.axes:
+                    ax.clear()
+                    ax.remove()
+                self.figure.clf()
+                plt.close(self.figure)
+                logger.debug(f"Figure {id(self.figure)} closed and cleared")
+            except Exception as e:
+                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
+            finally:
+                self.figure = None
+
+        # Force garbage collection and log open figures
+        gc.collect(2)
+        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
     @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget."""
-        self._clear_canvas()  # Clear existing canvas and figure before embedding new one
+    def embed_figure(self, figure: Figure):
+        """Embed a Matplotlib figure into the widget.
+
+        Args:
+            figure: Matplotlib Figure object to embed.
+        """
+        self._clear_canvas()  # Clear existing resources first
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug("Embedded Matplotlib figure in SunAnglesVisualizationTab")
+        logger.debug(f"Embedded Matplotlib figure {id(figure)} in SunAnglesVisualizationTab")
 
     @Slot()
     def on_filter_changed(self):
@@ -136,7 +194,11 @@ class SunAnglesVisualizationTab(QWidget):
         self.update_visualization()
 
     def update_scans_for_source(self, source_name: str):
-        """Update the scans list based on the selected source, preserving check states."""
+        """Update the scans list based on the selected source, preserving check states.
+
+        Args:
+            source_name: Name of the selected source.
+        """
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
                           for i in range(self.ui.listScans.count())}
         logger.debug(f"Stored check states: {current_checks}")
@@ -187,6 +249,11 @@ class SunAnglesVisualizationTab(QWidget):
         telescopes = self.get_selected_telescopes()
         logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
 
+        if not source_name or not scans or not telescopes:
+            logger.debug("Missing required filters (source, scans, or telescopes), clearing canvas")
+            self._clear_canvas()
+            return
+
         vis_attributes = {
             "plot_type": "sun_angles",
             "show": False,
@@ -214,7 +281,7 @@ class SunAnglesVisualizationTab(QWidget):
                     self.embed_figure(figure)
                     logger.debug(f"Sun angles visualization updated for source '{source_name}'")
                 else:
-                    logger.error("No figure returned from visualizer")
+                    logger.error("No figure returned from visualizer, clearing canvas")
                     self._clear_canvas()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
@@ -222,3 +289,9 @@ class SunAnglesVisualizationTab(QWidget):
         except Exception as e:
             logger.error(f"Exception during Sun angles visualization update: {str(e)}")
             self._clear_canvas()
+
+    def closeEvent(self, event):
+        """Ensure resources are cleaned up when the widget is closed."""
+        self._clear_canvas()
+        super().closeEvent(event)
+        logger.debug(f"SunAnglesVisualizationTab closed, resources cleaned up")
