@@ -110,10 +110,7 @@ class BeamPatternVisualizationTab(QWidget):
             if item.checkState() == Qt.Checked:
                 freq = float(item.data(Qt.UserRole))
                 selected_frequencies.append(freq)
-        # Fallback to all frequencies if none are selected
-        if not selected_frequencies:
-            selected_frequencies = self.frequencies
-            logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
+        logger.debug(f"Selected frequencies: {selected_frequencies}")
         return selected_frequencies
 
     def get_selected_telescopes(self) -> List[str]:
@@ -126,9 +123,8 @@ class BeamPatternVisualizationTab(QWidget):
         logger.debug(f"Selected telescopes: {selected_telescopes}")
         return selected_telescopes
 
-    @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget."""
+    def _clear_canvas(self):
+        """Clear the current canvas and toolbar if they exist."""
         if self.canvas:
             self.layout.removeWidget(self.canvas)
             self.canvas.deleteLater()
@@ -137,7 +133,11 @@ class BeamPatternVisualizationTab(QWidget):
             self.layout.removeWidget(self.toolbar)
             self.toolbar.deleteLater()
             self.toolbar = None
+        logger.debug("Canvas and toolbar cleared")
 
+    def embed_figure(self, figure):
+        """Embed a Matplotlib figure into the widget."""
+        self._clear_canvas()  # Clear existing canvas before embedding new figure
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -157,6 +157,12 @@ class BeamPatternVisualizationTab(QWidget):
         telescopes = self.get_selected_telescopes()
         logger.debug(f"Updating visualization: frequencies={frequencies}, telescopes={telescopes}")
 
+        # If no frequencies or telescopes are selected, clear the canvas and return
+        if not frequencies and not telescopes:
+            logger.debug("No frequencies or telescopes selected, clearing canvas")
+            self._clear_canvas()
+            return
+
         vis_attributes = {
             "plot_type": "beam_pattern",
             "show": False,
@@ -173,13 +179,21 @@ class BeamPatternVisualizationTab(QWidget):
             })
             logger.debug(f"Visualization response: {response}")
             if response["status"]:
-                figure = response.get("result", {}).get("figure")
+                result = response.get("result", {})
+                if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
+                    logger.debug("Empty visualization result, clearing canvas")
+                    self._clear_canvas()
+                    return
+                figure = result.get("figure")
                 if figure:
                     self.embed_figure(figure)
-                    logger.debug(f"Beam pattern visualization updated")
+                    logger.debug("Beam pattern visualization updated")
                 else:
-                    logger.error("No figure returned from visualizer")
+                    logger.error("No figure returned from visualizer, clearing canvas")
+                    self._clear_canvas()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                self._clear_canvas()
         except Exception as e:
             logger.error(f"Exception during beam pattern visualization update: {str(e)}")
+            self._clear_canvas()
