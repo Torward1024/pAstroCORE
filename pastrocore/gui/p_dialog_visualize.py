@@ -1,5 +1,5 @@
 # pastrocore/gui/p_dialog_visualize.py
-from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout, QWidget, QProgressDialog
+from PySide6.QtWidgets import QDialog, QMessageBox, QApplication, QVBoxLayout, QWidget
 from PySide6.QtCore import Slot, Qt
 from .ui_dialog_visualize import Ui_VisualizationDialog
 from .p_tab_vis_mollweide import MollweideVisualizationTab
@@ -8,7 +8,7 @@ from .p_tab_vis_az_el import AzElVisualizationTab
 from .p_tab_vis_sun_angles import SunAnglesVisualizationTab
 from .p_tab_vis_beam_pattern import BeamPatternVisualizationTab
 from .p_tab_vis_time_on_source import TimeOnSourceVisualizationTab
-from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab  # Новый импорт
+from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab
 
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
@@ -52,12 +52,6 @@ class VisualizationDialog(QDialog):
 
     def populate_observations(self):
         """Populate the observation combo box with available observations from the project."""
-        progress = QProgressDialog("Loading observations...", "Cancel", 0, 0, self)
-        progress.setWindowModality(Qt.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.show()
-        QApplication.processEvents()
-
         # Clear combo boxes and disable them initially
         self.ui.comboBoxObservation.clear()
         self.ui.comboBoxObservation.setEnabled(False)
@@ -85,7 +79,7 @@ class VisualizationDialog(QDialog):
                     else:
                         logger.error(f"Failed to get code for observation '{obs_name}': "
                                     f"{code_response.get('error', 'Unknown error')}")
-                    # Cache calculated data for UV coverage, sun angles, beam pattern, times, time_on_source, and baseline_projections
+                    # Cache calculated data keys only
                     calc_data_response = self.manipulator.process_request({
                         "operation": "inspect",
                         "obj": obs,
@@ -93,11 +87,10 @@ class VisualizationDialog(QDialog):
                     })
                     if calc_data_response["status"]:
                         self.cached_calc_data[obs_name] = calc_data_response["result"]
-                        logger.debug(f"Cached calculated data for observation '{obs_name}'")
+                        logger.debug(f"Cached calculated data keys for observation '{obs_name}'")
                     else:
                         logger.error(f"Failed to cache data for '{obs_name}': {calc_data_response.get('error', 'Unknown error')}")
                 logger.info(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
-                # Enable comboBoxObservation if there are observations
                 self.ui.comboBoxObservation.setEnabled(True)
             else:
                 logger.info("No observations found in project")
@@ -105,11 +98,9 @@ class VisualizationDialog(QDialog):
             logger.error(f"Failed to retrieve observations: {response.get('error', 'Unknown error')}")
             QMessageBox.critical(self, "Error", f"Failed to load observations: "
                                                 f"{response.get('error', 'Unknown error')}")
-        progress.close()
 
     def update_visualization_types(self):
-        """Update visualization types based on cached calculated data."""
-        # Clear and disable visualization type combo box by default
+        """Update visualization types based on cached calculated data keys."""
         self.ui.comboBoxVisualizationType.clear()
         self.ui.comboBoxVisualizationType.setEnabled(False)
         self.ui.pushButtonVisualize.setEnabled(False)
@@ -121,7 +112,7 @@ class VisualizationDialog(QDialog):
 
         calc_data = self.cached_calc_data.get(current_obs_name, {})
         if not calc_data:
-            logger.debug(f"No calculated data for observation '{current_obs_name}', visualization types cleared and disabled")
+            logger.debug(f"No calculated data keys for observation '{current_obs_name}'")
             return
 
         visualization_map = {
@@ -133,11 +124,7 @@ class VisualizationDialog(QDialog):
             "baseline_projections": "Baseline Projections",
             "mollweide_tracks": "Mollweide Tracks"
         }
-        available_visualizations = []
-
-        for calc_key, vis_name in visualization_map.items():
-            if calc_key in calc_data and isinstance(calc_data[calc_key], dict) and calc_data[calc_key].get("data"):
-                    available_visualizations.append(vis_name)
+        available_visualizations = [vis_name for calc_key, vis_name in visualization_map.items() if calc_key in calc_data]
 
         if available_visualizations:
             self.ui.comboBoxVisualizationType.addItems(available_visualizations)
@@ -145,7 +132,7 @@ class VisualizationDialog(QDialog):
             self.ui.pushButtonVisualize.setEnabled(True)
             logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
         else:
-            logger.debug(f"No valid calculated data for visualization types in observation '{current_obs_name}'")
+            logger.debug(f"No valid calculated data keys for visualization in observation '{current_obs_name}'")
 
     @Slot(int)
     def close_tab(self, index: int):
@@ -174,7 +161,6 @@ class VisualizationDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Failed to load observation: {obs_name}")
             return
 
-        # Map visualization type to store_key
         visualization_map = {
             "UV Coverage": "uv_coverage",
             "Sun Angles": "sun_angles",
@@ -190,7 +176,6 @@ class VisualizationDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")
             return
 
-        # Check if a tab for this visualization type already exists
         if vis_type in self.visualization_tabs:
             logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
             tab_widget = self.visualization_tabs[vis_type]
@@ -199,7 +184,6 @@ class VisualizationDialog(QDialog):
             self.ui.tabWidget.setCurrentWidget(tab_widget)
             return
 
-        # Create visualization tab based on type
         tab_widget = None
         if vis_type == "UV Coverage":
             calc_data = self.cached_calc_data.get(obs_name, {})
@@ -290,7 +274,6 @@ class VisualizationDialog(QDialog):
             self.ui.tabWidget.setCurrentWidget(tab_widget)
             logger.debug(f"Created new tab for visualization type '{vis_type}'")
 
-        # Perform visualization
         vis_attributes = {
             "plot_type": vis_key,
             "show": False,
@@ -298,7 +281,6 @@ class VisualizationDialog(QDialog):
             "store_key": vis_key
         }
 
-        # Add filters for specific visualizations
         if vis_type == "UV Coverage":
             frequencies = tab_widget.get_selected_frequencies()
             vis_attributes.update({
@@ -350,7 +332,7 @@ class VisualizationDialog(QDialog):
             vis_attributes.update({
                 "scans": tab_widget.get_selected_scans(),
                 "telescopes": tab_widget.get_selected_telescopes(),
-                "sources": tab_widget.get_selected_sources()  # Pass selected sources
+                "sources": tab_widget.get_selected_sources()
             })
             logger.debug(f"Updated vis_attributes for Mollweide Tracks: {vis_attributes}")
 
@@ -372,7 +354,6 @@ class VisualizationDialog(QDialog):
                     QMessageBox.critical(self, "Error", "No figure returned from visualizer")
                     return
 
-                # Embed figure in the tab
                 if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections"]:
                     tab_widget.embed_figure(figure)
                 else:
