@@ -121,13 +121,14 @@ class CalculationDialog(QDialog):
         self.populate_calc_list()
         self.populate_targets()
         self.ui.calcList.itemChanged.connect(self.handle_calc_selection)
-        self.ui.calcList.itemChanged.connect(self.log_calc_selection)  # Новый обработчик для отладки
+        self.ui.calcList.itemChanged.connect(self.log_calc_selection)
         self.ui.selectAllCalcButton.clicked.connect(self.select_all_calcs)
         self.ui.clearAllCalcButton.clicked.connect(self.clear_all_calcs)
         self.ui.selectAllObsButton.clicked.connect(self.select_all_targets)
         self.ui.clearAllObsButton.clicked.connect(self.clear_all_targets)
         self.ui.calcButton.clicked.connect(self.run_calculation)
         self.ui.cancelButton.clicked.connect(self.reject)
+        self.ui.clrButton.clicked.connect(self.clear_selected_data)
 
     def log_calc_selection(self, item):
         """Log changes in calculation selection for debugging."""
@@ -300,3 +301,25 @@ class CalculationDialog(QDialog):
         """Load dialog-specific settings."""
         self.ui.timeStepSpin.setValue(self.time_step)
         logger.debug(f"Loaded time_step={self.time_step} into timeStepSpin")
+    
+    def clear_selected_data(self):
+        """Clear calculated data for selected observations."""
+        selected_targets = [
+            self.ui.targetList.item(i).data(Qt.UserRole)
+            for i in range(self.ui.targetList.count())
+            if self.ui.targetList.item(i).checkState() == Qt.Checked
+        ]
+        
+        if not selected_targets:
+            QMessageBox.warning(self, "Warning", "No observations selected for clearing data.")
+            logger.warning("Attempted to clear data with no observations selected.")
+            return
+
+        try:
+            for target in selected_targets:
+                target.clear_calculated_data()
+                logger.info(f"Cleared calculated data for observation '{target.code}'")
+            QMessageBox.information(self, "Success", "Calculated data cleared for selected observations.")
+        except Exception as e:
+            logger.error(f"Failed to clear calculated data: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to clear calculated data: {str(e)}")

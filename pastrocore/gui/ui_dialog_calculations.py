@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_calculationsmabgXc.ui'
+## Form generated from reading UI file 'dialog_calculationsOZaatq.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -16,9 +16,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDialog,
-    QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel,
-    QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
-    QSpacerItem, QWidget)
+    QDoubleSpinBox, QFrame, QGridLayout, QHBoxLayout,
+    QLabel, QListWidget, QListWidgetItem, QPushButton,
+    QSizePolicy, QSpacerItem, QWidget)
 
 class Ui_CalculationDialog(object):
     def setupUi(self, CalculationDialog):
@@ -40,74 +40,15 @@ class Ui_CalculationDialog(object):
         CalculationDialog.setModal(True)
         self.gridLayout_3 = QGridLayout(CalculationDialog)
         self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self.line = QFrame(CalculationDialog)
+        self.line.setObjectName(u"line")
+        self.line.setFrameShape(QFrame.Shape.HLine)
+        self.line.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout_3.addWidget(self.line, 1, 0, 1, 1)
+
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
-        self.labelTargets = QLabel(CalculationDialog)
-        self.labelTargets.setObjectName(u"labelTargets")
-
-        self.gridLayout.addWidget(self.labelTargets, 2, 4, 1, 1)
-
-        self.targetList = QListWidget(CalculationDialog)
-        self.targetList.setObjectName(u"targetList")
-        self.targetList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
-
-        self.gridLayout.addWidget(self.targetList, 3, 4, 1, 1)
-
-        self.labelCalc = QLabel(CalculationDialog)
-        self.labelCalc.setObjectName(u"labelCalc")
-
-        self.gridLayout.addWidget(self.labelCalc, 2, 2, 1, 1)
-
-        self.horizontalLayout = QHBoxLayout()
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout.addItem(self.horizontalSpacer_2)
-
-        self.selectAllObsButton = QPushButton(CalculationDialog)
-        self.selectAllObsButton.setObjectName(u"selectAllObsButton")
-        self.selectAllObsButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff;\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5;\n"
-"    padding-top: 7px;\n"
-"    padding-bottom: 5px;\n"
-"}")
-        self.selectAllObsButton.setFlat(True)
-
-        self.horizontalLayout.addWidget(self.selectAllObsButton)
-
-        self.clearAllObsButton = QPushButton(CalculationDialog)
-        self.clearAllObsButton.setObjectName(u"clearAllObsButton")
-        self.clearAllObsButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff;\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5;\n"
-"    padding-top: 7px;\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.horizontalLayout.addWidget(self.clearAllObsButton)
-
-
-        self.gridLayout.addLayout(self.horizontalLayout, 6, 4, 1, 1)
-
         self.horizontalLayout_2 = QHBoxLayout()
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -157,25 +98,111 @@ class Ui_CalculationDialog(object):
 
         self.gridLayout.addLayout(self.horizontalLayout_2, 6, 2, 1, 1)
 
+        self.targetList = QListWidget(CalculationDialog)
+        self.targetList.setObjectName(u"targetList")
+        self.targetList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+
+        self.gridLayout.addWidget(self.targetList, 3, 3, 1, 1)
+
+        self.labelTargets = QLabel(CalculationDialog)
+        self.labelTargets.setObjectName(u"labelTargets")
+
+        self.gridLayout.addWidget(self.labelTargets, 2, 3, 1, 1)
+
+        self.labelCalc = QLabel(CalculationDialog)
+        self.labelCalc.setObjectName(u"labelCalc")
+
+        self.gridLayout.addWidget(self.labelCalc, 2, 2, 1, 1)
+
         self.calcList = QListWidget(CalculationDialog)
         self.calcList.setObjectName(u"calcList")
 
         self.gridLayout.addWidget(self.calcList, 3, 2, 1, 1)
 
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.gridLayout_3.addLayout(self.gridLayout, 1, 0, 1, 1)
+        self.horizontalLayout.addItem(self.horizontalSpacer_2)
 
-        self.labelCalculations = QLabel(CalculationDialog)
-        self.labelCalculations.setObjectName(u"labelCalculations")
+        self.selectAllObsButton = QPushButton(CalculationDialog)
+        self.selectAllObsButton.setObjectName(u"selectAllObsButton")
+        self.selectAllObsButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff;\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5;\n"
+"    padding-top: 7px;\n"
+"    padding-bottom: 5px;\n"
+"}")
+        self.selectAllObsButton.setFlat(True)
+
+        self.horizontalLayout.addWidget(self.selectAllObsButton)
+
+        self.clearAllObsButton = QPushButton(CalculationDialog)
+        self.clearAllObsButton.setObjectName(u"clearAllObsButton")
+        self.clearAllObsButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff;\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5;\n"
+"    padding-top: 7px;\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.horizontalLayout.addWidget(self.clearAllObsButton)
+
+
+        self.gridLayout.addLayout(self.horizontalLayout, 6, 3, 1, 1)
+
+
+        self.gridLayout_3.addLayout(self.gridLayout, 0, 0, 1, 1)
+
+        self.labelParameters = QLabel(CalculationDialog)
+        self.labelParameters.setObjectName(u"labelParameters")
         font = QFont()
         font.setFamilies([u"Arial"])
-        font.setBold(True)
-        self.labelCalculations.setFont(font)
+        font.setBold(False)
+        self.labelParameters.setFont(font)
 
-        self.gridLayout_3.addWidget(self.labelCalculations, 0, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.labelParameters, 2, 0, 1, 1)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.setObjectName(u"buttonLayout")
+        self.clrButton = QPushButton(CalculationDialog)
+        self.clrButton.setObjectName(u"clrButton")
+        self.clrButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff;\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5;\n"
+"    padding-top: 7px;\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.buttonLayout.addWidget(self.clrButton)
+
         self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.buttonLayout.addItem(self.horizontalSpacer)
@@ -225,7 +252,7 @@ class Ui_CalculationDialog(object):
         self.buttonLayout.addWidget(self.cancelButton)
 
 
-        self.gridLayout_3.addLayout(self.buttonLayout, 4, 0, 1, 1)
+        self.gridLayout_3.addLayout(self.buttonLayout, 5, 0, 1, 1)
 
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
@@ -324,11 +351,12 @@ class Ui_CalculationDialog(object):
 
         self.gridLayout_3.addLayout(self.gridLayout_2, 3, 0, 1, 1)
 
-        self.labelParameters = QLabel(CalculationDialog)
-        self.labelParameters.setObjectName(u"labelParameters")
-        self.labelParameters.setFont(font)
+        self.line_2 = QFrame(CalculationDialog)
+        self.line_2.setObjectName(u"line_2")
+        self.line_2.setFrameShape(QFrame.Shape.HLine)
+        self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.gridLayout_3.addWidget(self.labelParameters, 2, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.line_2, 4, 0, 1, 1)
 
 
         self.retranslateUi(CalculationDialog)
@@ -338,16 +366,16 @@ class Ui_CalculationDialog(object):
 
     def retranslateUi(self, CalculationDialog):
         CalculationDialog.setWindowTitle(QCoreApplication.translate("CalculationDialog", u"Perform Calculations", None))
+        self.selectAllCalcButton.setText(QCoreApplication.translate("CalculationDialog", u"Select All", None))
+        self.clearAllCalcButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear", None))
         self.labelTargets.setText(QCoreApplication.translate("CalculationDialog", u"Observations:", None))
         self.labelCalc.setText(QCoreApplication.translate("CalculationDialog", u"Calculations:", None))
         self.selectAllObsButton.setText(QCoreApplication.translate("CalculationDialog", u"Select All", None))
         self.clearAllObsButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear", None))
-        self.selectAllCalcButton.setText(QCoreApplication.translate("CalculationDialog", u"Select All", None))
-        self.clearAllCalcButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear", None))
-        self.labelCalculations.setText(QCoreApplication.translate("CalculationDialog", u"Calculations:", None))
+        self.labelParameters.setText(QCoreApplication.translate("CalculationDialog", u"Parameters:", None))
+        self.clrButton.setText(QCoreApplication.translate("CalculationDialog", u"Clear Data", None))
         self.calcButton.setText(QCoreApplication.translate("CalculationDialog", u"Calculate", None))
         self.cancelButton.setText(QCoreApplication.translate("CalculationDialog", u"Cancel", None))
         self.labelTimestep.setText(QCoreApplication.translate("CalculationDialog", u"Time step (s):", None))
         self.recalculateCheck.setText(QCoreApplication.translate("CalculationDialog", u"Recalculate", None))
-        self.labelParameters.setText(QCoreApplication.translate("CalculationDialog", u"Parameters:", None))
     # retranslateUi
