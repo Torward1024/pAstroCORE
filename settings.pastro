@@ -1,5 +1,5 @@
 {
-    "log_level": "DEBUG",
+    "log_level": "CRITICAL",
     "ogeneska": "DEBUG",
     "sources_catalog_path": "catalogs\\sources.dat",
     "telescopes_catalog_path": "catalogs\\telescopes.dat",

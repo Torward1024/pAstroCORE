@@ -16,9 +16,11 @@ import threading
 import os
 import seaborn as sns
 import astropy.units as u
-from matplotlib.colors import LinearSegmentedColormap
 import warnings
 from erfa import ErfaWarning
+
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
 
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
@@ -456,65 +458,77 @@ class ScheduleVisualizer(Super):
         return filtered_data, filtered_times, list(all_scans)
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot UV coverage for an Observation with flexible filtering and frequency scaling."""
+        """Plot UV coverage for an Observation with flexible filtering and frequency scaling.
+
+        Args:
+            obj: Observation object.
+            attributes: Visualization attributes (source_name, baselines, scans, frequencies, units).
+            fig: Matplotlib figure to plot on.
+
+        Returns:
+            Dictionary with counts of baselines, points, and frequencies.
+        """
         with self._lock:
-            logger.debug(f"Plotting UV coverage for {obj.get_observation_code()}")
+            logger.debug(f"Plotting UV coverage for {obj.get_observation_code()} with attributes: {attributes}")
             store_key = attributes.get("store_key", "uv_coverage")
             times_key = attributes.get("times_key", "times")
-            baselines = attributes.get("baselines", None)
+            baselines = attributes.get("baselines", [])
             source_name = attributes.get("source_name", None)
-            scans = attributes.get("scans", None)
-            time_range = attributes.get("time_range", None)
-            frequencies = attributes.get("frequencies", None)
+            scans = attributes.get("scans", [])
+            frequencies = attributes.get("frequencies", [])
             units = attributes.get("units", "wavelengths")
 
-            # Check if any filters are provided
-            if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
-                logger.debug("No source, baselines, scans, or frequencies specified, returning empty plot")
-                return self._create_empty_plot(
-                    fig, "uv_coverage", obj.get_observation_code(),
-                    labels={
-                        "xlabel": f"u, ({units})",
-                        "ylabel": f"v, ({units})",
-                        "title": f"(u,v) Coverage for Observation: {obj.get_observation_code()}"
-                    }
-                )
+            # Check if required filters are empty
+            if not source_name or not baselines or not scans or not frequencies:
+                logger.debug(f"Empty filter: source_name={source_name}, baselines={baselines}, "
+                            f"scans={scans}, frequencies={frequencies}, returning empty plot")
+                plt.close(fig)
+                return {"baselines": 0, "points": 0, "frequencies": 0}
 
             # Fetch and filter data
             uv_data, times_data, scan_list = self._filter_data(
                 obj.get_calculated_data_by_key(store_key),
                 obj.get_calculated_data_by_key(times_key),
-                source_name, scans, time_range
+                source_name, scans, None  # time_range not used
             )
 
-            # Return empty plot if no data
+            # Return empty result if no data
             if not uv_data or not times_data:
-                logger.debug("No UV data or times available, returning empty plot")
-                return self._create_empty_plot(
-                    fig, "uv_coverage", obj.get_observation_code(),
-                    labels={
-                        "xlabel": f"u, ({units})",
-                        "ylabel": f"v, ({units})",
-                        "title": f"(u,v) Coverage for Observation: {obj.get_observation_code()}"
-                    }
-                )
+                logger.debug("No UV data or times available, returning empty result")
+                plt.close(fig)
+                return {"baselines": 0, "points": 0, "frequencies": 0}
+
+            # Filter valid frequencies
+            freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
+            if not freq_list:
+                logger.debug("No valid frequencies provided, returning empty result")
+                plt.close(fig)
+                return {"baselines": 0, "points": 0, "frequencies": 0}
 
             # Setup axes
             ax = self._setup_axes(fig, "uv_coverage", obj.get_observation_code())
-            ax.set_xlabel(f"u, ({units})")
-            ax.set_ylabel(f"v, ({units})")
-            ax.set_title(f"(u,v) Coverage for Observation: {obj.get_observation_code()}")
             ax.invert_xaxis()
 
             # Constants for scaling
-            EARTH_DIAMETER = 12742000.0
             SPEED_OF_LIGHT = 299792458.0
+            EARTH_DIAMETER = 12742000.0
+
+            # Choose reference frequency for scaling
+            ref_freq = min(freq_list)
+            ref_wavelength = SPEED_OF_LIGHT / (ref_freq * 1e6)
+            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
 
             # Process data
-            result = {"baselines": 0, "points": 0, "frequencies": len(frequencies) if frequencies else 0}
+            result = {"baselines": 0, "points": 0, "frequencies": len(freq_list)}
             plotted_pairs = set()
+            legend_handles = []
+            legend_labels = []
+            max_uv = 0.0  # For dynamic scaling of axes labels
 
+            # Calculate max UV for scaling
             for source in uv_data:
+                if source != source_name:
+                    continue
                 source_uv = uv_data[source]
                 source_times = times_data[source]
                 all_times = []
@@ -530,6 +544,8 @@ class ScheduleVisualizer(Super):
                     all_times.extend(times)
                     uv_points = source_uv[scan]
                     for tel_code in uv_points:
+                        if tel_code not in baselines:
+                            continue
                         if tel_code not in all_uv_points:
                             all_uv_points[tel_code] = []
                         all_uv_points[tel_code].extend([(pt[0], pt[1]) for pt in uv_points[tel_code] if len(pt) >= 2])
@@ -543,87 +559,140 @@ class ScheduleVisualizer(Super):
                 for tel_code in all_uv_points:
                     all_uv_points[tel_code] = [all_uv_points[tel_code][i] for i in time_indices if i < len(all_uv_points[tel_code])]
 
-                # Plot UV points for each frequency
-                for freq_mhz in (frequencies or [None]):
-                    wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6) if freq_mhz else 1.0
-                    scaling_factor = 1.0 if units == "wavelengths" else (wavelength / EARTH_DIAMETER)
-
+                # Calculate max UV for scaling
+                for freq_mhz in freq_list:
+                    wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6)
                     for tel_code in all_uv_points:
-                        if baselines and tel_code not in baselines:
+                        if tel_code not in baselines:
                             continue
                         valid_points = [(pt[0], pt[1]) for pt in all_uv_points[tel_code] if len(pt) >= 2]
                         if not valid_points:
                             continue
                         u, v = zip(*valid_points)
                         u, v = np.array(u, dtype=float), np.array(v, dtype=float)
-                        u_scaled = u / wavelength * scaling_factor if wavelength != 0 else u
-                        v_scaled = v / wavelength * scaling_factor if wavelength != 0 else v
-                        color_idx = (len(plotted_pairs) + (frequencies.index(freq_mhz) if frequencies and freq_mhz else 0)) % len(self._style_config['colors'])
-                        label = f"{tel_code} ({freq_mhz} MHz)" if freq_mhz else f"{tel_code}"
-                        ax.scatter(u_scaled, v_scaled, s=1, c=[self._style_config['colors'][color_idx]], label=label)
+                        if units == "wavelengths":
+                            u_scaled = u / wavelength
+                            v_scaled = v / wavelength
+                        else:  # Earth diameters
+                            u_scaled = (u / wavelength) / (EARTH_DIAMETER / ref_wavelength)
+                            v_scaled = (v / wavelength) / (EARTH_DIAMETER / ref_wavelength)
+                        max_uv = max(max_uv, np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
+
+            # Determine SI prefix for wavelengths or Earth diameters
+            if units == "wavelengths":
+                if max_uv >= 1e12:
+                    prefix, scale = "Tλ", 1e12
+                elif max_uv >= 1e9:
+                    prefix, scale = "Gλ", 1e9
+                elif max_uv >= 1e6:
+                    prefix, scale = "Mλ", 1e6
+                elif max_uv >= 1e3:
+                    prefix, scale = "kλ", 1e3
+                else:
+                    prefix, scale = "λ", 1.0
+                ax.set_xlabel(f"u, ({prefix})")
+                ax.set_ylabel(f"v, ({prefix})")
+            else:
+                prefix, scale = "xED", 1.0
+                ax.set_xlabel("u, (xED)")
+                ax.set_ylabel("v, (xED)")
+
+            # Plot UV points for each frequency and baseline
+            for source in uv_data:
+                if source != source_name:
+                    continue
+                source_uv = uv_data[source]
+                source_times = times_data[source]
+                all_times = []
+                all_uv_points = {}
+
+                for scan in scan_list:
+                    if scan not in source_uv or scan not in source_times:
+                        continue
+                    times = [t.mjd for t in source_times[scan] if hasattr(t, 'mjd')]
+                    if not times:
+                        continue
+                    all_times.extend(times)
+                    uv_points = source_uv[scan]
+                    for tel_code in uv_points:
+                        if tel_code not in baselines:
+                            continue
+                        if tel_code not in all_uv_points:
+                            all_uv_points[tel_code] = []
+                        all_uv_points[tel_code].extend([(pt[0], pt[1]) for pt in uv_points[tel_code] if len(pt) >= 2])
+
+                if not all_times or not all_uv_points:
+                    continue
+
+                # Sort times and points
+                time_indices = np.argsort(all_times)
+                all_times = [all_times[i] for i in time_indices]
+                for tel_code in all_uv_points:
+                    all_uv_points[tel_code] = [all_uv_points[tel_code][i] for i in time_indices if i < len(all_uv_points[tel_code])]
+
+                for freq_idx, freq_mhz in enumerate(freq_list):
+                    wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6)
+                    for tel_code in all_uv_points:
+                        if tel_code not in baselines:
+                            continue
+                        valid_points = [(pt[0], pt[1]) for pt in all_uv_points[tel_code] if len(pt) >= 2]
+                        if not valid_points:
+                            continue
+                        u, v = zip(*valid_points)
+                        u, v = np.array(u, dtype=float), np.array(v, dtype=float)
+                        if units == "wavelengths":
+                            u_scaled = u / wavelength / scale
+                            v_scaled = v / wavelength / scale
+                        else:  # Earth diameters
+                            u_scaled = (u / wavelength) / (EARTH_DIAMETER / ref_wavelength) / scale
+                            v_scaled = (v / wavelength) / (EARTH_DIAMETER / ref_wavelength) / scale
+                        color_idx = len(plotted_pairs) % len(self._style_config['colors'])
+                        label = f"{tel_code} ({freq_mhz:.2f} MHz)"
+                        handle = ax.scatter(
+                            u_scaled, v_scaled, s=1, c=[self._style_config['colors'][color_idx]], label=label
+                        )
                         ax.scatter(-u_scaled, -v_scaled, s=1, c=[self._style_config['colors'][color_idx]])
-                        plotted_pairs.add(f"{tel_code}_{freq_mhz}" if freq_mhz else tel_code)
+                        legend_handles.append(handle)
+                        legend_labels.append((freq_mhz, tel_code))
+                        plotted_pairs.add(f"{tel_code}_{freq_mhz}")
                         result["points"] += len(u_scaled)
 
+            # If no data was plotted, return empty result
+            if not plotted_pairs:
+                logger.debug("No valid data plotted, returning empty result")
+                plt.close(fig)
+                return {"baselines": 0, "points": 0, "frequencies": 0}
+
+            # Create grouped legend with frequencies as headers without markers
+            if legend_handles:
+                grouped_legend = {}
+                for handle, (freq_mhz, tel_code) in zip(legend_handles, legend_labels):
+                    freq_key = f"{freq_mhz:.2f} MHz"
+                    if freq_key not in grouped_legend:
+                        grouped_legend[freq_key] = []
+                    grouped_legend[freq_key].append((handle, tel_code))
+
+                legend_lines = []
+                legend_texts = []
+                for freq in sorted(grouped_legend.keys()):
+                    # Add frequency header without marker
+                    legend_lines.append(Line2D([0], [0], linestyle="none", marker="none"))
+                    legend_texts.append(f"{freq}")
+                    # Add baselines with markers
+                    for handle, baseline in sorted(grouped_legend[freq], key=lambda x: x[1]):
+                        legend_lines.append(handle)
+                        legend_texts.append(f"    {baseline}")
+
+                fig.legend(
+                    legend_lines, legend_texts,
+                    loc='center right', bbox_to_anchor=(0.98, 0.5),
+                    fontsize=self._style_config['legend']['fontsize'],
+                    title="Baselines:"
+                )
+
+            ax.set_title(f"(u,v) Coverage\nObs. code: {obj.get_observation_code()}")
+            plt.tight_layout(rect=[0.05, 0.05, 0.85, 0.95])  # Adjusted for legend
             result["baselines"] = len(plotted_pairs)
-            if plotted_pairs:
-                ax.legend(**self._style_config['legend'])
-            return result
-
-    def _plot_source_visibility(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:
-        """Plot source visibility over time for an Observation."""
-        with self._lock:
-            logger.debug(f"Plotting source visibility for {obj.get_observation_code()}")
-            store_key = attributes.get("store_key", "source_visibility")
-            data = obj.get_calculated_data_by_key(store_key)
-            if not data:
-                logger.error(f"No source visibility data found for '{store_key}' in {obj.get_observation_code()}")
-                return {}
-
-            data = data.get("data", {})
-            ax = self._setup_axes(fig, "source_visibility", obj.get_observation_code())
-            ax.set_xlabel("Time (MJD)")
-            ax.set_ylabel("Visible (1 = Yes, 0 = No)")
-            ax.set_title(f"Source Visibility for Observation: {obj.get_observation_code()}")
-
-            all_data = {}
-            result = {"scans": 0}
-            plotted_telescopes = set()
-
-            for scan_idx, scan_data in data.items():
-                times = [Time(t).mjd for t in scan_data.get("times", []) if t]
-                visibility = scan_data.get("visibility", {})
-                source = scan_data.get("source")
-                if not times:
-                    continue
-                result["scans"] += 1
-                for tel_code, vis in visibility.items():
-                    if tel_code not in all_data:
-                        all_data[tel_code] = {"times": [], "visibility": []}
-                    valid_pairs = [(t, float(v)) for t, v in zip(times, vis) if v is not None]
-                    if valid_pairs:
-                        times_mjd, vis_valid = zip(*valid_pairs)
-                        all_data[tel_code]["times"].extend(times_mjd)
-                        all_data[tel_code]["visibility"].extend(vis_valid)
-
-            for tel_code, data in all_data.items():
-                times_mjd = data["times"]
-                vis_valid = data["visibility"]
-                if times_mjd and vis_valid:
-                    sorted_indices = np.argsort(times_mjd)
-                    times_mjd = [times_mjd[i] for i in sorted_indices]
-                    vis_valid = [vis_valid[i] for i in sorted_indices]
-                    color_idx = len(plotted_telescopes) % len(self._style_config['colors'])
-                    ax.plot(
-                        times_mjd, vis_valid,
-                        label=f"{tel_code}",
-                        marker="o" if not attributes.get("time_step") else None,
-                        color=self._style_config['colors'][color_idx]
-                    )
-                    plotted_telescopes.add(tel_code)
-
-            if plotted_telescopes:
-                ax.legend(**self._style_config['legend'])
             return result
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: plt.Figure) -> Dict[str, Any]:

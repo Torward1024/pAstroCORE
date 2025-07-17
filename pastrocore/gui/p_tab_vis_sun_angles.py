@@ -207,3 +207,15 @@ class SunAnglesVisualizationTab(QWidget):
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
         except Exception as e:
             logger.error(f"Exception during Sun angles visualization update: {str(e)}")
+            
+    def _clear_canvas(self):
+        """Clear the current canvas and toolbar if they exist."""
+        if self.canvas:
+            self.layout.removeWidget(self.canvas)
+            self.canvas.deleteLater()
+            self.canvas = None
+        if self.toolbar:
+            self.layout.removeWidget(self.toolbar)
+            self.toolbar.deleteLater()
+            self.toolbar = None
+        logger.debug("Canvas and toolbar cleared")

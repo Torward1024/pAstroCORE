@@ -922,6 +922,10 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot(bool)
     def sync_project_explorer_action(self, visible: bool):
         """Synchronize the Project Explorer menu action with dockWidget visibility."""
+        # Skip updating the action if the window is minimized
+        if self.isMinimized():
+            logger.debug(f"Skipping Project Explorer action synchronization: window is minimized")
+            return
         self.ui.actionProject_Explorer.setChecked(visible)
         logger.debug(f"Project Explorer action synchronized: checked={visible}")
 

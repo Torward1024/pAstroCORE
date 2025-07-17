@@ -130,10 +130,7 @@ class UVVisualizationTab(QWidget):
             if item.checkState() == Qt.Checked:
                 freq = float(item.data(Qt.UserRole))
                 selected_frequencies.append(freq)
-        # Fallback to all frequencies if none are selected
-        if not selected_frequencies:
-            selected_frequencies = self.frequencies
-            logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
+        logger.debug(f"Selected frequencies (count={self.ui.listFrequencies.count()}): {selected_frequencies}")
         return selected_frequencies
 
     def get_selected_units(self) -> str:
@@ -254,3 +251,15 @@ class UVVisualizationTab(QWidget):
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
         except Exception as e:
             logger.error(f"Exception during UV visualization update: {str(e)}")
+    
+    def _clear_canvas(self):
+        """Clear the current canvas and toolbar if they exist."""
+        if self.canvas:
+            self.layout.removeWidget(self.canvas)
+            self.canvas.deleteLater()
+            self.canvas = None
+        if self.toolbar:
+            self.layout.removeWidget(self.toolbar)
+            self.toolbar.deleteLater()
+            self.toolbar = None
+        logger.debug("Canvas and toolbar cleared")
