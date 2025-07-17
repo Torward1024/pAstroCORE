@@ -7,17 +7,28 @@ from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
 import astropy.units as u
 import matplotlib.pyplot as plt
+import gc
 
 class UVVisualizationTab(QWidget):
     """Widget for UV coverage visualization with source, scan, baseline, and frequency selection."""
 
     def __init__(self, manipulator: ScheduleManipulator, observation: Observation,
                  sources: List[str], scans: List[str], baselines: List[str], parent=None):
-        """Initialize the UV visualization tab."""
+        """Initialize the UV visualization tab.
+
+        Args:
+            manipulator: ScheduleManipulator instance for processing visualization requests.
+            observation: Observation object containing UV coverage data.
+            sources: List of available source names.
+            scans: List of available scan names.
+            baselines: List of available baseline pairs.
+            parent: Parent widget, typically a QDialog.
+        """
         super().__init__(parent)
         self.ui = Ui_UVCoverageVisTab()
         self.ui.setupUi(self)
@@ -25,20 +36,20 @@ class UVVisualizationTab(QWidget):
         self.observation = observation
         self.canvas = None
         self.toolbar = None
+        self.figure = None
         self.cached_data = None
+        self.frequencies = self._get_frequencies()
         logger.debug(f"UVVisualizationTab initialized for observation id={id(observation)}")
 
         # Populate UI elements
         self.ui.comboBox.addItems(sources)
         for baseline in baselines:
             item = QListWidgetItem(baseline)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
             self.ui.listBaselines.addItem(item)
 
         # Populate frequencies
-        self.frequencies = self._get_frequencies()
-        logger.debug(f"Populated frequencies: {self.frequencies}")
         for freq in self.frequencies:
             item = QListWidgetItem(f"{freq:.2f} MHz")
             item.setData(Qt.UserRole, freq)
@@ -51,7 +62,6 @@ class UVVisualizationTab(QWidget):
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
-        self.figure = None
         logger.debug("UVVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
@@ -68,7 +78,11 @@ class UVVisualizationTab(QWidget):
             self.update_visualization()  # Trigger initial visualization
 
     def _get_frequencies(self) -> List[float]:
-        """Retrieve the list of frequencies (in MHz) from the observation."""
+        """Retrieve the list of frequencies (in MHz) from the observation.
+
+        Returns:
+            List of frequencies in MHz.
+        """
         response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -97,13 +111,21 @@ class UVVisualizationTab(QWidget):
             self.cached_data = {}
 
     def get_selected_source(self) -> Optional[str]:
-        """Get the currently selected source name."""
+        """Get the currently selected source name.
+
+        Returns:
+            Selected source name or None if no source is selected.
+        """
         source = self.ui.comboBox.currentText() if self.ui.comboBox.currentText() else None
         logger.debug(f"Selected source: {source}")
         return source
 
     def get_selected_scans(self) -> List[str]:
-        """Get the list of selected scan names."""
+        """Get the list of selected scan names.
+
+        Returns:
+            List of selected scan names.
+        """
         selected_scans = []
         for i in range(self.ui.listScans.count()):
             item = self.ui.listScans.item(i)
@@ -113,7 +135,11 @@ class UVVisualizationTab(QWidget):
         return selected_scans
 
     def get_selected_baselines(self) -> List[str]:
-        """Get the list of selected baseline names."""
+        """Get the list of selected baseline names.
+
+        Returns:
+            List of selected baseline pairs.
+        """
         selected_baselines = []
         for i in range(self.ui.listBaselines.count()):
             item = self.ui.listBaselines.item(i)
@@ -123,48 +149,93 @@ class UVVisualizationTab(QWidget):
         return selected_baselines
 
     def get_selected_frequencies(self) -> List[float]:
-        """Get the list of selected frequencies (in MHz)."""
+        """Get the list of selected frequencies (in MHz).
+
+        Returns:
+            List of selected frequencies in MHz. Falls back to all frequencies if none selected.
+        """
         selected_frequencies = []
         for i in range(self.ui.listFrequencies.count()):
             item = self.ui.listFrequencies.item(i)
             if item.checkState() == Qt.Checked:
                 freq = float(item.data(Qt.UserRole))
                 selected_frequencies.append(freq)
-        logger.debug(f"Selected frequencies (count={self.ui.listFrequencies.count()}): {selected_frequencies}")
+        if not selected_frequencies:
+            selected_frequencies = self.frequencies
+            logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
         return selected_frequencies
 
     def get_selected_units(self) -> str:
-        """Get the selected units for UV visualization."""
+        """Get the selected units for UV coverage visualization.
+
+        Returns:
+            Selected units ('wavelengths' or 'earth_diameters').
+        """
         units = self.ui.comboBox_2.currentText().lower().replace(" ", "_")
         logger.debug(f"Selected units: {units}")
         return units
 
     def _clear_canvas(self):
-        """Clear the current canvas and toolbar if they exist."""
+        """Aggressively clear the canvas, toolbar, and figure to release all resources."""
+        logger.debug("Clearing canvas, toolbar, and figure")
+
+        # Remove and delete canvas
         if self.canvas:
-            self.layout.removeWidget(self.canvas)
-            self.canvas.deleteLater()
-            self.canvas = None
+            try:
+                self.layout.removeWidget(self.canvas)
+                self.canvas.setParent(None)
+                self.canvas.deleteLater()
+                logger.debug("Canvas removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove canvas: {str(e)}")
+            finally:
+                self.canvas = None
+
+        # Remove and delete toolbar
         if self.toolbar:
-            self.layout.removeWidget(self.toolbar)
-            self.toolbar.deleteLater()
-            self.toolbar = None
+            try:
+                self.layout.removeWidget(self.toolbar)
+                self.toolbar.setParent(None)
+                self.toolbar.deleteLater()
+                logger.debug("Toolbar removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove toolbar: {str(e)}")
+            finally:
+                self.toolbar = None
+
+        # Clear and close figure
         if self.figure:
-            plt.close(self.figure)
-            self.figure = None
-        logger.debug("Canvas, toolbar, and figure cleared")
+            try:
+                for ax in self.figure.axes:
+                    ax.clear()
+                    ax.remove()
+                self.figure.clf()
+                plt.close(self.figure)
+                logger.debug(f"Figure {id(self.figure)} closed and cleared")
+            except Exception as e:
+                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
+            finally:
+                self.figure = None
+
+        # Force garbage collection and log open figures
+        gc.collect(2)
+        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
     @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget."""
-        self._clear_canvas()  # Clear existing canvas and figure before embedding new one
+    def embed_figure(self, figure: Figure):
+        """Embed a Matplotlib figure into the widget.
+
+        Args:
+            figure: Matplotlib Figure object to embed.
+        """
+        self._clear_canvas()  # Clear existing resources first
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug("Embedded Matplotlib figure in UVVisualizationTab")
+        logger.debug(f"Embedded Matplotlib figure {id(figure)} in UVVisualizationTab")
 
     @Slot()
     def on_filter_changed(self):
@@ -175,9 +246,13 @@ class UVVisualizationTab(QWidget):
         self.update_visualization()
 
     def update_scans_for_source(self, source_name: str):
-        """Update the scans list based on the selected source, preserving check states."""
+        """Update the scans list based on the selected source, preserving check states.
+
+        Args:
+            source_name: Name of the selected source.
+        """
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
-                        for i in range(self.ui.listScans.count())}
+                          for i in range(self.ui.listScans.count())}
         logger.debug(f"Stored check states: {current_checks}")
 
         self.ui.listScans.clear()
@@ -227,15 +302,12 @@ class UVVisualizationTab(QWidget):
         scans = self.get_selected_scans()
         baselines = self.get_selected_baselines()
         logger.debug(f"Updating visualization: source='{source_name}', frequencies={frequencies}, "
-                    f"units={units}, scans={scans}, baselines={baselines}")
+                     f"units={units}, scans={scans}, baselines={baselines}")
 
-        # Skip visualization if source or scans are empty
-        if not source_name or not scans:
-            logger.debug("Missing source or scans, visualization skipped")
+        if not source_name or not scans or not baselines or not frequencies:
+            logger.debug("Missing required filters (source, scans, baselines, or frequencies), clearing canvas")
+            self._clear_canvas()
             return
-
-        # Clear canvas before new visualization
-        self._clear_canvas()
 
         vis_attributes = {
             "plot_type": "uv_coverage",
@@ -257,18 +329,26 @@ class UVVisualizationTab(QWidget):
             logger.debug(f"Visualization response: {response}")
             if response["status"]:
                 result = response.get("result", {})
-                if not result or not result.get("data"):  # Check for actual data instead of baselines count
-                    logger.debug("No valid data in visualization result, canvas remains cleared")
+                if not result or (result.get("baselines", 0) == 0 and result.get("frequencies", 0) == 0):
+                    logger.debug("Empty visualization result, clearing canvas")
+                    self._clear_canvas()
                     return
                 figure = result.get("figure")
                 if figure:
                     self.embed_figure(figure)
                     logger.debug(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
                 else:
-                    logger.error("No figure returned from visualizer, canvas remains cleared")
+                    logger.error("No figure returned from visualizer, clearing canvas")
+                    self._clear_canvas()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
                 self._clear_canvas()
         except Exception as e:
-            logger.error(f"Exception during UV visualization update: {str(e)}")
+            logger.error(f"Exception during UV coverage visualization update: {str(e)}")
             self._clear_canvas()
+
+    def closeEvent(self, event):
+        """Ensure resources are cleaned up when the widget is closed."""
+        self._clear_canvas()
+        super().closeEvent(event)
+        logger.debug(f"UVVisualizationTab closed, resources cleaned up")

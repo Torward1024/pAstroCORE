@@ -7,9 +7,10 @@ from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 from typing import List, Optional
 import matplotlib.pyplot as plt
-
+import gc
 
 class MollweideVisualizationTab(QWidget):
     """Widget for Mollweide tracks visualization with source, scan, and telescope selection."""
@@ -24,7 +25,7 @@ class MollweideVisualizationTab(QWidget):
             sources: List of source names available for visualization.
             scans: List of scan names available for visualization.
             telescopes: List of telescope codes available for visualization.
-            parent: Parent widget (optional).
+            parent: Parent widget, typically a QDialog.
         """
         super().__init__(parent)
         self.ui = Ui_MollweideVisTab()
@@ -33,20 +34,21 @@ class MollweideVisualizationTab(QWidget):
         self.observation = observation
         self.canvas = None
         self.toolbar = None
+        self.figure = None
         self.cached_data = None
         logger.debug(f"MollweideVisualizationTab initialized for observation id={id(observation)}")
 
         # Populate UI elements
         self.ui.listWidget.setObjectName("listSources")  # Rename for clarity
-        self.ui.listWidget.addItems(sources)
         for source in sources:
-            item = self.ui.listWidget.findItems(source, Qt.MatchExactly)[0]
+            item = QListWidgetItem(source)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
+            self.ui.listWidget.addItem(item)
 
         for telescope in telescopes:
             item = QListWidgetItem(telescope)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
             self.ui.listTelescopes.addItem(item)
 
@@ -59,7 +61,6 @@ class MollweideVisualizationTab(QWidget):
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
-        self.figure = None
         logger.debug("MollweideVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
@@ -126,33 +127,68 @@ class MollweideVisualizationTab(QWidget):
                 selected_telescopes.append(item.text())
         logger.debug(f"Selected telescopes: {selected_telescopes}")
         return selected_telescopes
-    
+
     def _clear_canvas(self):
-        """Clear the current canvas and toolbar if they exist."""
+        """Aggressively clear the canvas, toolbar, and figure to release all resources."""
+        logger.debug("Clearing canvas, toolbar, and figure")
+
+        # Remove and delete canvas
         if self.canvas:
-            self.layout.removeWidget(self.canvas)
-            self.canvas.deleteLater()
-            self.canvas = None
+            try:
+                self.layout.removeWidget(self.canvas)
+                self.canvas.setParent(None)
+                self.canvas.deleteLater()
+                logger.debug("Canvas removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove canvas: {str(e)}")
+            finally:
+                self.canvas = None
+
+        # Remove and delete toolbar
         if self.toolbar:
-            self.layout.removeWidget(self.toolbar)
-            self.toolbar.deleteLater()
-            self.toolbar = None
+            try:
+                self.layout.removeWidget(self.toolbar)
+                self.toolbar.setParent(None)
+                self.toolbar.deleteLater()
+                logger.debug("Toolbar removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove toolbar: {str(e)}")
+            finally:
+                self.toolbar = None
+
+        # Clear and close figure
         if self.figure:
-            plt.close(self.figure)
-            self.figure = None
-        logger.debug("Canvas, toolbar, and figure cleared")
+            try:
+                for ax in self.figure.axes:
+                    ax.clear()
+                    ax.remove()
+                self.figure.clf()
+                plt.close(self.figure)
+                logger.debug(f"Figure {id(self.figure)} closed and cleared")
+            except Exception as e:
+                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
+            finally:
+                self.figure = None
+
+        # Force garbage collection and log open figures
+        gc.collect(2)
+        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
     @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget."""
-        self._clear_canvas()  # Clear existing canvas and figure before embedding new one
+    def embed_figure(self, figure: Figure):
+        """Embed a Matplotlib figure into the widget.
+
+        Args:
+            figure: Matplotlib Figure object to embed.
+        """
+        self._clear_canvas()  # Clear existing resources first
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug("Embedded Matplotlib figure in MollweideVisualizationTab")
+        logger.debug(f"Embedded Matplotlib figure {id(figure)} in MollweideVisualizationTab")
 
     @Slot()
     def on_filter_changed(self):
@@ -167,6 +203,11 @@ class MollweideVisualizationTab(QWidget):
         sources = self.get_selected_sources()
         logger.debug(f"Updating visualization: scans={scans}, telescopes={telescopes}, sources={sources}")
 
+        if not scans or not telescopes or not sources:
+            logger.debug("Missing required filters (scans, telescopes, or sources), clearing canvas")
+            self._clear_canvas()
+            return
+
         vis_attributes = {
             "plot_type": "mollweide_tracks",
             "show": False,
@@ -174,7 +215,7 @@ class MollweideVisualizationTab(QWidget):
             "store_key": "mollweide_tracks",
             "scans": scans,
             "telescopes": telescopes,
-            "sources": sources  # Pass selected sources for plotting their positions
+            "sources": sources
         }
 
         try:
@@ -195,7 +236,7 @@ class MollweideVisualizationTab(QWidget):
                     self.embed_figure(figure)
                     logger.debug("Mollweide tracks visualization updated")
                 else:
-                    logger.error("No figure returned from visualizer")
+                    logger.error("No figure returned from visualizer, clearing canvas")
                     self._clear_canvas()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
@@ -203,3 +244,9 @@ class MollweideVisualizationTab(QWidget):
         except Exception as e:
             logger.error(f"Exception during Mollweide tracks visualization update: {str(e)}")
             self._clear_canvas()
+
+    def closeEvent(self, event):
+        """Ensure resources are cleaned up when the widget is closed."""
+        self._clear_canvas()
+        super().closeEvent(event)
+        logger.debug(f"MollweideVisualizationTab closed, resources cleaned up")
