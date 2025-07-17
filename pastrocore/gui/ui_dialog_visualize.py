@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_visualizeqBRHyf.ui'
+## Form generated from reading UI file 'dialog_visualizeckAUDB.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -16,15 +16,16 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QFormLayout,
-    QGridLayout, QLabel, QPushButton, QSizePolicy,
-    QSpacerItem, QTabWidget, QWidget)
+    QFrame, QGridLayout, QHBoxLayout, QLabel,
+    QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
+    QWidget)
 
 class Ui_VisualizationDialog(object):
     def setupUi(self, VisualizationDialog):
         if not VisualizationDialog.objectName():
             VisualizationDialog.setObjectName(u"VisualizationDialog")
         VisualizationDialog.setWindowModality(Qt.WindowModality.ApplicationModal)
-        VisualizationDialog.resize(1022, 713)
+        VisualizationDialog.resize(1090, 802)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -41,34 +42,6 @@ class Ui_VisualizationDialog(object):
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
-        self.pushButtonVisualize = QPushButton(VisualizationDialog)
-        self.pushButtonVisualize.setObjectName(u"pushButtonVisualize")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.pushButtonVisualize.setFont(font)
-        self.pushButtonVisualize.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.gridLayout.addWidget(self.pushButtonVisualize, 0, 2, 1, 1)
-
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.gridLayout.addItem(self.horizontalSpacer, 0, 1, 1, 1)
-
         self.formLayout = QFormLayout()
         self.formLayout.setObjectName(u"formLayout")
         self.label = QLabel(VisualizationDialog)
@@ -166,6 +139,9 @@ class Ui_VisualizationDialog(object):
 
         self.labelVisualizationType = QLabel(VisualizationDialog)
         self.labelVisualizationType.setObjectName(u"labelVisualizationType")
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        font.setPointSize(9)
         self.labelVisualizationType.setFont(font)
 
         self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelVisualizationType)
@@ -271,6 +247,72 @@ class Ui_VisualizationDialog(object):
 
         self.gridLayout.addLayout(self.formLayout, 0, 0, 1, 1)
 
+        self.pushButtonVisualize = QPushButton(VisualizationDialog)
+        self.pushButtonVisualize.setObjectName(u"pushButtonVisualize")
+        self.pushButtonVisualize.setFont(font)
+        self.pushButtonVisualize.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.gridLayout.addWidget(self.pushButtonVisualize, 0, 3, 1, 1)
+
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.gridLayout.addItem(self.horizontalSpacer, 0, 1, 1, 1)
+
+        self.pushButton = QPushButton(VisualizationDialog)
+        self.pushButton.setObjectName(u"pushButton")
+        self.pushButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.gridLayout.addWidget(self.pushButton, 0, 2, 1, 1)
+
+
+        self.gridLayout_2.addLayout(self.gridLayout, 0, 0, 1, 1)
+
+
+        self.gridLayout_3.addLayout(self.gridLayout_2, 0, 0, 1, 2)
+
+        self.tabWidget = QTabWidget(VisualizationDialog)
+        self.tabWidget.setObjectName(u"tabWidget")
+        self.tabWidget.setStyleSheet(u"QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }\n"
+"               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}\n"
+"               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }")
+        self.tabWidget.setTabsClosable(True)
+
+        self.gridLayout_3.addWidget(self.tabWidget, 2, 0, 1, 1)
+
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer_2)
+
         self.closeButton = QPushButton(VisualizationDialog)
         self.closeButton.setObjectName(u"closeButton")
         self.closeButton.setStyleSheet(u"QPushButton {\n"
@@ -289,22 +331,24 @@ class Ui_VisualizationDialog(object):
 "    padding-bottom: 5px;\n"
 "}")
 
-        self.gridLayout.addWidget(self.closeButton, 1, 2, 1, 1)
+        self.horizontalLayout.addWidget(self.closeButton)
 
 
-        self.gridLayout_2.addLayout(self.gridLayout, 0, 0, 1, 1)
+        self.gridLayout_3.addLayout(self.horizontalLayout, 4, 0, 1, 1)
 
+        self.line = QFrame(VisualizationDialog)
+        self.line.setObjectName(u"line")
+        self.line.setFrameShape(QFrame.Shape.HLine)
+        self.line.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.gridLayout_3.addLayout(self.gridLayout_2, 0, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.line, 3, 0, 1, 1)
 
-        self.tabWidget = QTabWidget(VisualizationDialog)
-        self.tabWidget.setObjectName(u"tabWidget")
-        self.tabWidget.setStyleSheet(u"QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }\n"
-"               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}\n"
-"               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }")
-        self.tabWidget.setTabsClosable(True)
+        self.line_2 = QFrame(VisualizationDialog)
+        self.line_2.setObjectName(u"line_2")
+        self.line_2.setFrameShape(QFrame.Shape.HLine)
+        self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.gridLayout_3.addWidget(self.tabWidget, 1, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.line_2, 1, 0, 1, 1)
 
 
         self.retranslateUi(VisualizationDialog)
@@ -318,7 +362,6 @@ class Ui_VisualizationDialog(object):
     def retranslateUi(self, VisualizationDialog):
         VisualizationDialog.setWindowTitle(QCoreApplication.translate("VisualizationDialog", u"Visualize Observation", None))
         VisualizationDialog.setStyleSheet(QCoreApplication.translate("VisualizationDialog", u"background-color: #ffffff; font-family: Arial;", None))
-        self.pushButtonVisualize.setText(QCoreApplication.translate("VisualizationDialog", u"View", None))
         self.label.setText(QCoreApplication.translate("VisualizationDialog", u"Observation:", None))
         self.labelVisualizationType.setText(QCoreApplication.translate("VisualizationDialog", u"Visualization Type:", None))
         self.comboBoxVisualizationType.setItemText(0, QCoreApplication.translate("VisualizationDialog", u"UV Coverage", None))
@@ -331,6 +374,7 @@ class Ui_VisualizationDialog(object):
         self.comboBoxVisualizationType.setItemText(7, QCoreApplication.translate("VisualizationDialog", u"Baseline Projections", None))
         self.comboBoxVisualizationType.setItemText(8, QCoreApplication.translate("VisualizationDialog", u"Mollweide Tracks", None))
 
+        self.pushButtonVisualize.setText(QCoreApplication.translate("VisualizationDialog", u"View", None))
+        self.pushButton.setText(QCoreApplication.translate("VisualizationDialog", u"Export", None))
         self.closeButton.setText(QCoreApplication.translate("VisualizationDialog", u"Close", None))
     # retranslateUi
-

@@ -257,7 +257,7 @@ class VisualizationDialog(QDialog):
             tab_widget = BaselineProjectionsVisualizationTab(self.manipulator, observation, sources, scans, baselines, parent=self)
         elif vis_type == "Mollweide Tracks":
             calc_data = self.cached_calc_data.get(obs_name, {})
-            sources = [s["name"] for s in calc_data.get("mollweide_tracks", {}).get("metadata", {}).get("sources", [])]
+            sources = list(calc_data.get("mollweide_tracks", {}).get("metadata", {}).get("sources", {}).keys())
             scans = list(calc_data.get("mollweide_tracks", {}).get("data", {}).keys())
             telescopes = []
             if "mollweide_tracks" in calc_data:

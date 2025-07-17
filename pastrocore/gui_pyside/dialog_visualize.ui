@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1022</width>
-    <height>713</height>
+    <width>1090</width>
+    <height>802</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -36,53 +36,10 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout_3">
-   <item row="0" column="0">
+   <item row="0" column="0" colspan="2">
     <layout class="QGridLayout" name="gridLayout_2">
      <item row="0" column="0">
       <layout class="QGridLayout" name="gridLayout">
-       <item row="0" column="2">
-        <widget class="QPushButton" name="pushButtonVisualize">
-         <property name="font">
-          <font>
-           <family>Arial</family>
-           <pointsize>9</pointsize>
-          </font>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-         </property>
-         <property name="text">
-          <string>View</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Orientation::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
        <item row="0" column="0">
         <layout class="QFormLayout" name="formLayout">
          <item row="0" column="0">
@@ -328,8 +285,14 @@ QComboBox QAbstractItemView::item:hover {
          </item>
         </layout>
        </item>
-       <item row="1" column="2">
-        <widget class="QPushButton" name="closeButton">
+       <item row="0" column="3">
+        <widget class="QPushButton" name="pushButtonVisualize">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>9</pointsize>
+          </font>
+         </property>
          <property name="styleSheet">
           <string notr="true">QPushButton {
     background-color: #0078d7;
@@ -348,7 +311,44 @@ QPushButton:pressed {
 }</string>
          </property>
          <property name="text">
-          <string>Close</string>
+          <string>View</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="0" column="2">
+        <widget class="QPushButton" name="pushButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Export</string>
          </property>
         </widget>
        </item>
@@ -356,7 +356,7 @@ QPushButton:pressed {
      </item>
     </layout>
    </item>
-   <item row="1" column="0">
+   <item row="2" column="0">
     <widget class="QTabWidget" name="tabWidget">
      <property name="styleSheet">
       <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
@@ -368,6 +368,61 @@ QPushButton:pressed {
      </property>
      <property name="tabsClosable">
       <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="closeButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Close</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="3" column="0">
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
     </widget>
    </item>

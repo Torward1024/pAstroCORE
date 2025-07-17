@@ -2194,13 +2194,13 @@ class ScheduleCalculator(Super):
                 return results
 
             # Calculate source coordinates for metadata
-            sources_metadata = []
+            sources_metadata = {}
             for source in obj.get_sources().get_active_items():
                 ra = source.ra_degrees  # in degrees
                 dec = source.dec_degrees  # in degrees
                 lon = ra - 360.0 if ra > 180.0 else ra
                 lat = np.clip(dec, -90.0, 90.0)
-                sources_metadata.append({"name": source.name, "lon": float(lon), "lat": float(lat)})
+                sources_metadata[source.name] = np.array([lon, lat])
 
             metadata = {
                 "time_step": time_step,

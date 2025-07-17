@@ -575,32 +575,38 @@ class Observation(BaseEntity):
                     restored_metadata = {
                         "time_step": float(metadata.get("time_step", 0.0)),
                         "scan_count": int(metadata.get("scan_count", 0)),
-                        "sources": metadata.get("sources", [])
+                        "sources": {}
                     }
+                    sources_raw = metadata.get("sources", {})
+                    if not isinstance(sources_raw, dict):
+                        logger.error(f"Expected dict for mollweide_tracks.metadata.sources, got {type(sources_raw)}")
+                        raise ValueError(f"Invalid mollweide_tracks.metadata.sources structure")
+                    for source_name, coords in sources_raw.items():
+                        try:
+                            restored_metadata["sources"][source_name] = np.array(coords) * u.deg
+                            logger.debug(f"Restored mollweide_tracks sources for {source_name}")
+                        except Exception as e:
+                            logger.error(f"Failed to convert mollweide_tracks sources for {source_name}: {str(e)}")
+                            raise ValueError(f"Invalid mollweide_tracks sources data for {source_name}")
+                    
                     if not isinstance(data, dict):
                         logger.error(f"Expected dict for mollweide_tracks.data, got {type(data)}")
                         raise TypeError(f"Invalid mollweide_tracks.data structure")
-                    for source_name, scans in data.items():
-                        if not isinstance(scans, dict):
-                            logger.error(f"Expected dict for scans in source {source_name}, got {type(scans)}")
-                            raise TypeError(f"Invalid scans structure for source {source_name}")
-                        restored_scans = {}
-                        for scan_name, telescopes in scans.items():
-                            if not isinstance(telescopes, dict):
-                                logger.error(f"Expected dict for telescopes in scan {scan_name}, got {type(telescopes)}")
-                                raise TypeError(f"Invalid telescopes structure in scan {scan_name}")
-                            restored_telescopes = {}
-                            for telescope_code, tracks in telescopes.items():
-                                try:
-                                    restored_telescopes[telescope_code] = np.array(tracks) * u.deg
-                                    logger.debug(f"Restored mollweide_tracks for {telescope_code} in scan {scan_name}")
-                                except Exception as e:
-                                    logger.error(f"Failed to convert mollweide_tracks for {telescope_code}: {str(e)}")
-                                    raise ValueError(f"Invalid mollweide_tracks data for {telescope_code}")
-                            restored_scans[scan_name] = restored_telescopes
-                        restored_data[source_name] = restored_scans
+                    restored_data = {}
+                    for scan_name, telescopes in data.items():
+                        if not isinstance(telescopes, dict):
+                            logger.error(f"Expected dict for telescopes in scan {scan_name}, got {type(telescopes)}")
+                            raise TypeError(f"Invalid telescopes structure in scan {scan_name}")
+                        restored_telescopes = {}
+                        for telescope_code, tracks in telescopes.items():
+                            try:
+                                restored_telescopes[telescope_code] = np.array(tracks) * u.deg
+                                logger.debug(f"Restored mollweide_tracks for {telescope_code} in scan {scan_name}")
+                            except Exception as e:
+                                logger.error(f"Failed to convert mollweide_tracks for {telescope_code}: {str(e)}")
+                                raise ValueError(f"Invalid mollweide_tracks data for {telescope_code}")
+                        restored_data[scan_name] = restored_telescopes
                     restored[key] = {"metadata": restored_metadata, "data": restored_data}
-
                 else:
                     logger.warning(f"Unknown calculated_data key {key}, storing as-is")
                     restored[key] = value
