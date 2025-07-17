@@ -27,8 +27,8 @@ class ScheduleVisualizer(Super):
     
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator)
-        self._lock = threading.Lock()
         logger.info("Initialized Scheduling Visualizer")
+        self._lock = threading.Lock()
 
         # Default style configuration
         self._style_config = {
@@ -37,6 +37,7 @@ class ScheduleVisualizer(Super):
                 'facecolor': 'white',
                 'edgecolor': 'black',
                 'labelcolor': 'black',
+                'grid': True  # Explicitly enable grid
             },
             'grid': {
                 'color': 'lightgray',
@@ -102,16 +103,7 @@ class ScheduleVisualizer(Super):
 
     def execute(self, obj: Union[ScheduleProject, Observation, Telescope, SpaceTelescope, Telescopes, Source, Sources, Scan, Scans, IF, Frequencies], 
                 attributes: Dict[str, Any] = None, method: str = None) -> Dict[str, Any]:
-        """Execute visualization operation on the specified object.
-
-        Args:
-            obj: The object to visualize.
-            attributes: Dictionary containing visualization parameters, including 'plot_type', 'output_file', 'show', and 'return_figure'.
-            method: Optional explicit method to call.
-
-        Returns:
-            Dict containing the visualization result data or error message in standardized format.
-        """
+        """Execute visualization operation on the specified object."""
         if attributes is None:
             attributes = {}
         logger.debug(f"Executing visualization on {type(obj).__name__} with attributes={attributes}, method={method}")
@@ -157,91 +149,57 @@ class ScheduleVisualizer(Super):
             return self._build_response(obj, False, None, None, str(e))
 
     def _setup_axes(self, fig: plt.Figure, plot_type: str, obj_name: str, projection: str = None, 
-                    n_rows: int = 1, n_cols: int = 1, sharex: bool = False, sharey: bool = False) -> Union[plt.Axes, np.ndarray]:
+                n_rows: int = 1, n_cols: int = 1, sharex: bool = False, sharey: bool = False) -> Union[plt.Axes, np.ndarray]:
         """Set up axes for plotting with consistent styling.
 
-        Args:
-            fig: Matplotlib figure object.
-            plot_type: Type of plot being created.
-            obj_name: Name of the object being visualized.
-            projection: Matplotlib projection type (e.g., 'mollweide', '3d').
-            n_rows: Number of subplot rows.
-            n_cols: Number of subplot columns.
-            sharex: Share x-axis across subplots.
-            sharey: Share y-axis across subplots.
-
-        Returns:
-            Single Axes or array of Axes.
+        Returns a single plt.Axes for single-axis plots (n_rows=1, n_cols=1, no projection) or
+        an np.ndarray of axes for multi-axis plots or when explicitly needed.
         """
-        with self._lock:
-            if projection:
-                axes = fig.add_subplot(111, projection=projection)
+        if projection:
+            axes = fig.add_subplot(111, projection=projection)
+        else:
+            axes = fig.subplots(n_rows, n_cols, sharex=sharex, sharey=sharey)
+            if n_rows * n_cols > 1:
+                axes = np.array(axes).flatten()
             else:
-                axes = fig.subplots(n_rows, n_cols, sharex=sharex, sharey=sharey)
-                if n_rows * n_cols > 1:
-                    axes = np.array(axes).flatten()
-                else:
-                    axes = np.array([axes])
-            return axes
+                # Return single Axes object for single-axis plots to avoid wrapping in np.array
+                axes = axes if n_rows == 1 and n_cols == 1 else np.array([axes])
+        return axes
 
     def _finalize_plot(self, fig: plt.Figure, attributes: Dict[str, Any], result: Dict[str, Any]) -> Dict[str, Any]:
-        """Finalize the plot by saving, displaying, or returning the figure.
-
-        Args:
-            fig: Matplotlib figure object.
-            attributes: Visualization parameters (output_file, show, return_figure).
-            result: Result dictionary to update.
-
-        Returns:
-            Updated result dictionary.
-        """
+        """Finalize the plot by saving, displaying, or returning the figure."""
         output_file = attributes.get("output_file")
-        show = attributes.get("show", True)
+        show = attributes.get("show", False)  # Default to False for GUI
         return_figure = attributes.get("return_figure", False)
 
-        with self._lock:
-            if output_file and output_file.strip():
-                output_dir = os.path.dirname(output_file)
-                if output_dir:
-                    os.makedirs(output_dir, exist_ok=True)
-                fig.savefig(output_file, dpi=self._style_config['dpi'], bbox_inches='tight')
-                logger.info(f"Visualization saved to '{output_file}'")
+        if output_file and output_file.strip():
+            output_dir = os.path.dirname(output_file)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+            fig.savefig(output_file, dpi=self._style_config['dpi'], bbox_inches='tight')
+            logger.info(f"Visualization saved to '{output_file}'")
 
-            if show:
-                logger.debug("Displaying plot with plt.show()")
-                plt.show()
-                if not return_figure:
-                    logger.debug("Closing figure after display")
-                    plt.close(fig)
-            else:
-                plt.tight_layout()
+        if show:
+            logger.debug("Displaying plot with plt.show()")
+            plt.show()
+        elif not return_figure:
+            logger.debug("Closing figure")
+            plt.close(fig)
 
-            if return_figure:
-                result["figure"] = fig
-            elif not show:
-                logger.debug("Closing figure")
-                plt.close(fig)
+        if return_figure:
+            result["figure"] = fig
 
         return result
 
     def _visualize(self, obj: Union[ScheduleProject, Observation, Telescope, SpaceTelescope, Telescopes, Source, Sources, Scan, Scans, IF, Frequencies], 
                    attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Visualize the specified object.
-
-        Args:
-            obj: The object to visualize.
-            attributes: Dictionary containing visualization parameters, including 'plot_type', 'output_file', 'show', and 'return_figure'.
-
-        Returns:
-            Visualization result data or None if an error occurs.
-        """
+        """Visualize the specified object."""
         plot_type = attributes.get("plot_type")
         if not plot_type:
             logger.error("No 'plot_type' specified in attributes")
-            return None
+            return {}
 
-        with self._lock:
-            fig = plt.figure(figsize=attributes.get("figsize", self._style_config['figsize']))
+        fig = plt.figure(figsize=attributes.get("figsize", self._style_config['figsize']))
         
         try:
             visualizer = None
@@ -252,10 +210,10 @@ class ScheduleVisualizer(Super):
             if not visualizer:
                 logger.debug(f"Closing figure due to unsupported object type: {type(obj)}")
                 plt.close(fig)
-                raise ValueError(f"Unsupported object type: {type(obj)}")
+                return {}
 
             result = visualizer(obj, attributes, fig=fig)
-            if result is None or not result:
+            if not result:
                 logger.debug("No data to plot, returning empty figure")
                 plt.close(fig)
                 return {}
@@ -265,7 +223,7 @@ class ScheduleVisualizer(Super):
         except Exception as e:
             logger.error(f"Visualization failed: {str(e)}")
             plt.close(fig)
-            return None
+            return {}
 
     def _visualize_project_or_observation(self, obj: Union[ScheduleProject, Observation], attributes: Dict[str, Any], fig: plt.Figure = None) -> Dict[str, Any]:
         """Visualize a ScheduleProject or Observation object."""
