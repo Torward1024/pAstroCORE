@@ -595,7 +595,7 @@ class ScheduleVisualizer(Super):
             else:
                 prefix, scale = "xED", 1.0
                 ax.set_xlabel("u, (xED)")
-                ax.set_ylabel("v, (xED)")
+                ax.set_ylabel("v (xED)")
 
             # Plot UV points for each frequency and baseline
             for source in uv_data:

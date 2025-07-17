@@ -10,6 +10,8 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from typing import List, Optional
 import astropy.units as u
 import matplotlib.pyplot as plt
+import gc
+import weakref
 
 class BeamPatternVisualizationTab(QWidget):
     """Widget for beam pattern visualization with telescope and frequency selection."""
@@ -23,9 +25,9 @@ class BeamPatternVisualizationTab(QWidget):
         self.observation = observation
         self.canvas = None
         self.toolbar = None
-        self.cached_data = None
-        self.frequencies = self._get_frequencies()  # Get frequencies from observation
-        self.telescopes = self._get_telescopes()  # Get telescopes from beam pattern data
+        self.figure = None
+        self.frequencies = self._get_frequencies()
+        self.telescopes = self._get_telescopes()
         logger.debug(f"BeamPatternVisualizationTab initialized for observation id={id(observation)}")
 
         # Populate frequencies
@@ -47,7 +49,6 @@ class BeamPatternVisualizationTab(QWidget):
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
-        self.figure = None
         logger.debug("BeamPatternVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
@@ -81,7 +82,7 @@ class BeamPatternVisualizationTab(QWidget):
         })
         if response["status"]:
             beam_data = response["result"].get("beam_pattern", {}).get("data", {})
-            telescopes = list(beam_data.keys())  # Extract only top-level keys (telescope codes)
+            telescopes = list(beam_data.keys())
             tel_list = sorted(telescopes)
             logger.debug(f"Retrieved telescopes from beam pattern data: {tel_list}")
             return tel_list
@@ -124,27 +125,50 @@ class BeamPatternVisualizationTab(QWidget):
         return selected_telescopes
 
     def _clear_canvas(self):
-        """Clear the current canvas and toolbar if they exist."""
+        """Aggressively clear the canvas, toolbar, and figure to release all resources."""
+       # Remove and delete canvas
         if self.canvas:
             self.layout.removeWidget(self.canvas)
-            self.canvas.deleteLater()
+            self.canvas.setParent(None)  # Detach from parent
             self.canvas = None
+            logger.debug("Canvas removed and deleted")
+
+        # Remove and delete toolbar
         if self.toolbar:
             self.layout.removeWidget(self.toolbar)
-            self.toolbar.deleteLater()
+            self.toolbar.setParent(None)  # Detach from parent
             self.toolbar = None
-        logger.debug("Canvas and toolbar cleared")
+            logger.debug("Toolbar removed and deleted")
+
+        # Close and clear figure
+        if self.figure:
+            try:
+                for ax in self.figure.axes:
+                    ax.clear()  # Clear all axes content
+                    ax.remove()  # Remove axes from figure
+                self.figure.clf()  # Clear figure
+                plt.close(self.figure)  # Explicitly close figure
+                logger.debug(f"Figure {id(self.figure)} closed and cleared")
+            except Exception as e:
+                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
+            finally:
+                self.figure = None
+
+        # Clear Matplotlib's global state
+        plt.close('all')  # Close all figures in Matplotlib's manager
+        gc.collect(2)  # Force aggressive garbage collection
+        logger.debug("Matplotlib global state cleared and garbage collected")     
 
     def embed_figure(self, figure):
         """Embed a Matplotlib figure into the widget."""
-        self._clear_canvas()  # Clear existing canvas before embedding new figure
+        self._clear_canvas()  # Clear existing resources first
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug("Embedded Matplotlib figure in BeamPatternVisualizationTab")
+        logger.debug(f"Embedded Matplotlib figure {id(figure)} in BeamPatternVisualizationTab")
 
     @Slot()
     def on_filter_changed(self):
@@ -157,8 +181,7 @@ class BeamPatternVisualizationTab(QWidget):
         telescopes = self.get_selected_telescopes()
         logger.debug(f"Updating visualization: frequencies={frequencies}, telescopes={telescopes}")
 
-        # If no frequencies or telescopes are selected, clear the canvas and return
-        if not frequencies and not telescopes:
+        if not frequencies or not telescopes:
             logger.debug("No frequencies or telescopes selected, clearing canvas")
             self._clear_canvas()
             return
@@ -168,7 +191,8 @@ class BeamPatternVisualizationTab(QWidget):
             "show": False,
             "return_figure": True,
             "freq_names": frequencies,
-            "telescopes": telescopes
+            "telescopes": telescopes,
+            "clear_previous": True  # Ensure previous figures are cleared
         }
 
         try:
@@ -187,7 +211,7 @@ class BeamPatternVisualizationTab(QWidget):
                 figure = result.get("figure")
                 if figure:
                     self.embed_figure(figure)
-                    logger.debug("Beam pattern visualization updated")
+                    logger.debug("Beam pattern visualization updated successfully")
                 else:
                     logger.error("No figure returned from visualizer, clearing canvas")
                     self._clear_canvas()

@@ -101,9 +101,8 @@ class AzElVisualizationTab(QWidget):
         logger.debug(f"Selected telescopes: {selected_telescopes}")
         return selected_telescopes
 
-    @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget."""
+    def _clear_canvas(self):
+        """Clear the current canvas and toolbar if they exist."""
         if self.canvas:
             self.layout.removeWidget(self.canvas)
             self.canvas.deleteLater()
@@ -112,7 +111,15 @@ class AzElVisualizationTab(QWidget):
             self.layout.removeWidget(self.toolbar)
             self.toolbar.deleteLater()
             self.toolbar = None
+        if self.figure:
+            plt.close(self.figure)
+            self.figure = None
+        logger.debug("Canvas, toolbar, and figure cleared")
 
+    @Slot()
+    def embed_figure(self, figure):
+        """Embed a Matplotlib figure into the widget."""
+        self._clear_canvas()  # Clear existing canvas and figure before embedding new one
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -181,6 +188,12 @@ class AzElVisualizationTab(QWidget):
         telescopes = self.get_selected_telescopes()
         logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
 
+        # Check if any required filters are missing
+        if not source_name or not scans or not telescopes:
+            logger.debug("Missing required filters (source, scans, or telescopes), clearing canvas")
+            self._clear_canvas()
+            return
+
         vis_attributes = {
             "plot_type": "az_el",
             "show": False,
@@ -200,13 +213,21 @@ class AzElVisualizationTab(QWidget):
             })
             logger.debug(f"Visualization response: {response}")
             if response["status"]:
-                figure = response.get("result", {}).get("figure")
+                result = response.get("result", {})
+                if not result or (result.get("telescopes", 0) == 0):
+                    logger.debug("Empty visualization result, clearing canvas")
+                    self._clear_canvas()
+                    return
+                figure = result.get("figure")
                 if figure:
                     self.embed_figure(figure)
                     logger.debug(f"Az/El visualization updated for source '{source_name}'")
                 else:
-                    logger.error("No figure returned from visualizer")
+                    logger.error("No figure returned from visualizer, clearing canvas")
+                    self._clear_canvas()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                self._clear_canvas()
         except Exception as e:
             logger.error(f"Exception during Az/El visualization update: {str(e)}")
+            self._clear_canvas()

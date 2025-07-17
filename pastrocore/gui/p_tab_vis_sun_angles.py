@@ -100,9 +100,8 @@ class SunAnglesVisualizationTab(QWidget):
         logger.debug(f"Selected telescopes: {selected_telescopes}")
         return selected_telescopes
 
-    @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget."""
+    def _clear_canvas(self):
+        """Clear the current canvas and toolbar if they exist."""
         if self.canvas:
             self.layout.removeWidget(self.canvas)
             self.canvas.deleteLater()
@@ -111,7 +110,15 @@ class SunAnglesVisualizationTab(QWidget):
             self.layout.removeWidget(self.toolbar)
             self.toolbar.deleteLater()
             self.toolbar = None
+        if self.figure:
+            plt.close(self.figure)
+            self.figure = None
+        logger.debug("Canvas, toolbar, and figure cleared")
 
+    @Slot()
+    def embed_figure(self, figure):
+        """Embed a Matplotlib figure into the widget."""
+        self._clear_canvas()  # Clear existing canvas and figure before embedding new one
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -197,25 +204,21 @@ class SunAnglesVisualizationTab(QWidget):
             })
             logger.debug(f"Visualization response: {response}")
             if response["status"]:
-                figure = response.get("result", {}).get("figure")
+                result = response.get("result", {})
+                if not result or (result.get("telescopes", 0) == 0):
+                    logger.debug("Empty visualization result, clearing canvas")
+                    self._clear_canvas()
+                    return
+                figure = result.get("figure")
                 if figure:
                     self.embed_figure(figure)
                     logger.debug(f"Sun angles visualization updated for source '{source_name}'")
                 else:
                     logger.error("No figure returned from visualizer")
+                    self._clear_canvas()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                self._clear_canvas()
         except Exception as e:
             logger.error(f"Exception during Sun angles visualization update: {str(e)}")
-            
-    def _clear_canvas(self):
-        """Clear the current canvas and toolbar if they exist."""
-        if self.canvas:
-            self.layout.removeWidget(self.canvas)
-            self.canvas.deleteLater()
-            self.canvas = None
-        if self.toolbar:
-            self.layout.removeWidget(self.toolbar)
-            self.toolbar.deleteLater()
-            self.toolbar = None
-        logger.debug("Canvas and toolbar cleared")
+            self._clear_canvas()

@@ -179,7 +179,7 @@ class VisualizationDialog(QDialog):
         if vis_type in self.visualization_tabs:
             logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
             tab_widget = self.visualization_tabs[vis_type]
-            if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections"]:
+            if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections", "Mollweide Tracks"]:
                 tab_widget.update_visualization()
             self.ui.tabWidget.setCurrentWidget(tab_widget)
             return
@@ -350,41 +350,28 @@ class VisualizationDialog(QDialog):
                 result = response.get("result", {})
                 if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
                     logger.debug("Empty visualization result, clearing tab")
-                    if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections"]:
-                        tab_widget._clear_canvas()  # Call clear_canvas on the tab
-                    else:
-                        # For Mollweide or other tabs, clear the layout
-                        layout = tab_widget.layout()
-                        for i in reversed(range(layout.count())):
-                            widget = layout.itemAt(i).widget()
-                            if widget:
-                                layout.removeWidget(widget)
-                                widget.deleteLater()
+                    if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections", "Mollweide Tracks"]:
+                        tab_widget._clear_canvas()  # Call clear_canvas for all tabs
                     logger.info(f"Cleared visualization tab for '{vis_type}' due to empty result")
                     return
                 figure = result.get("figure")
                 if not figure:
                     logger.error(f"No figure returned for visualization '{vis_type}'")
                     QMessageBox.critical(self, "Error", "No figure returned from visualizer")
+                    tab_widget._clear_canvas()  # Clear canvas on error
                     return
 
-                if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections"]:
-                    tab_widget.embed_figure(figure)
-                else:
-                    canvas = FigureCanvas(figure)
-                    toolbar = NavigationToolbar(canvas, tab_widget)
-                    layout = QVBoxLayout(tab_widget)
-                    layout.addWidget(toolbar)
-                    layout.addWidget(canvas)
-                    canvas.draw()
+                tab_widget.embed_figure(figure)
                 logger.info(f"Performed visualization '{vis_type}' for observation '{obs_name}'")
             else:
                 logger.error(f"Failed to perform visualization '{vis_type}': {response.get('message', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to perform visualization: "
                                                     f"{response.get('message', 'Unknown error')}")
+                tab_widget._clear_canvas()  # Clear canvas on error
         except Exception as e:
             logger.error(f"Exception during visualization '{vis_type}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Visualization failed: {str(e)}")
+            tab_widget._clear_canvas()  # Clear canvas on exception
         finally:
             self.ui.pushButtonVisualize.setEnabled(True)
             self.ui.pushButtonVisualize.setText("View")

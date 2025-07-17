@@ -126,14 +126,9 @@ class MollweideVisualizationTab(QWidget):
                 selected_telescopes.append(item.text())
         logger.debug(f"Selected telescopes: {selected_telescopes}")
         return selected_telescopes
-
-    @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget.
-
-        Args:
-            figure: Matplotlib figure to embed.
-        """
+    
+    def _clear_canvas(self):
+        """Clear the current canvas and toolbar if they exist."""
         if self.canvas:
             self.layout.removeWidget(self.canvas)
             self.canvas.deleteLater()
@@ -142,7 +137,15 @@ class MollweideVisualizationTab(QWidget):
             self.layout.removeWidget(self.toolbar)
             self.toolbar.deleteLater()
             self.toolbar = None
+        if self.figure:
+            plt.close(self.figure)
+            self.figure = None
+        logger.debug("Canvas, toolbar, and figure cleared")
 
+    @Slot()
+    def embed_figure(self, figure):
+        """Embed a Matplotlib figure into the widget."""
+        self._clear_canvas()  # Clear existing canvas and figure before embedding new one
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -182,13 +185,21 @@ class MollweideVisualizationTab(QWidget):
             })
             logger.debug(f"Visualization response: {response}")
             if response["status"]:
-                figure = response.get("result", {}).get("figure")
+                result = response.get("result", {})
+                if not result or (result.get("telescopes", 0) == 0):
+                    logger.debug("Empty visualization result, clearing canvas")
+                    self._clear_canvas()
+                    return
+                figure = result.get("figure")
                 if figure:
                     self.embed_figure(figure)
                     logger.debug("Mollweide tracks visualization updated")
                 else:
                     logger.error("No figure returned from visualizer")
+                    self._clear_canvas()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                self._clear_canvas()
         except Exception as e:
             logger.error(f"Exception during Mollweide tracks visualization update: {str(e)}")
+            self._clear_canvas()

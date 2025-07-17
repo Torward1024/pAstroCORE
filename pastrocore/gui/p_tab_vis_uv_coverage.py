@@ -139,9 +139,8 @@ class UVVisualizationTab(QWidget):
         logger.debug(f"Selected units: {units}")
         return units
 
-    @Slot()
-    def embed_figure(self, figure):
-        """Embed a Matplotlib figure into the widget."""
+    def _clear_canvas(self):
+        """Clear the current canvas and toolbar if they exist."""
         if self.canvas:
             self.layout.removeWidget(self.canvas)
             self.canvas.deleteLater()
@@ -150,7 +149,15 @@ class UVVisualizationTab(QWidget):
             self.layout.removeWidget(self.toolbar)
             self.toolbar.deleteLater()
             self.toolbar = None
+        if self.figure:
+            plt.close(self.figure)
+            self.figure = None
+        logger.debug("Canvas, toolbar, and figure cleared")
 
+    @Slot()
+    def embed_figure(self, figure):
+        """Embed a Matplotlib figure into the widget."""
+        self._clear_canvas()  # Clear existing canvas and figure before embedding new one
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -170,7 +177,7 @@ class UVVisualizationTab(QWidget):
     def update_scans_for_source(self, source_name: str):
         """Update the scans list based on the selected source, preserving check states."""
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
-                          for i in range(self.ui.listScans.count())}
+                        for i in range(self.ui.listScans.count())}
         logger.debug(f"Stored check states: {current_checks}")
 
         self.ui.listScans.clear()
@@ -220,7 +227,15 @@ class UVVisualizationTab(QWidget):
         scans = self.get_selected_scans()
         baselines = self.get_selected_baselines()
         logger.debug(f"Updating visualization: source='{source_name}', frequencies={frequencies}, "
-                     f"units={units}, scans={scans}, baselines={baselines}")
+                    f"units={units}, scans={scans}, baselines={baselines}")
+
+        # Skip visualization if source or scans are empty
+        if not source_name or not scans:
+            logger.debug("Missing source or scans, visualization skipped")
+            return
+
+        # Clear canvas before new visualization
+        self._clear_canvas()
 
         vis_attributes = {
             "plot_type": "uv_coverage",
@@ -241,25 +256,19 @@ class UVVisualizationTab(QWidget):
             })
             logger.debug(f"Visualization response: {response}")
             if response["status"]:
-                figure = response.get("result", {}).get("figure")
+                result = response.get("result", {})
+                if not result or not result.get("data"):  # Check for actual data instead of baselines count
+                    logger.debug("No valid data in visualization result, canvas remains cleared")
+                    return
+                figure = result.get("figure")
                 if figure:
                     self.embed_figure(figure)
                     logger.debug(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
                 else:
-                    logger.error("No figure returned from visualizer")
+                    logger.error("No figure returned from visualizer, canvas remains cleared")
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                self._clear_canvas()
         except Exception as e:
             logger.error(f"Exception during UV visualization update: {str(e)}")
-    
-    def _clear_canvas(self):
-        """Clear the current canvas and toolbar if they exist."""
-        if self.canvas:
-            self.layout.removeWidget(self.canvas)
-            self.canvas.deleteLater()
-            self.canvas = None
-        if self.toolbar:
-            self.layout.removeWidget(self.toolbar)
-            self.toolbar.deleteLater()
-            self.toolbar = None
-        logger.debug("Canvas and toolbar cleared")
+            self._clear_canvas()
