@@ -139,6 +139,8 @@ class VisualizationDialog(QDialog):
         """Close a specific tab and remove its visualization widget."""
         tab_widget = self.ui.tabWidget.widget(index)
         vis_type = tab_widget.property("vis_type")
+        if hasattr(tab_widget, '_clear_canvas'):
+            tab_widget._clear_canvas()
         if vis_type in self.visualization_tabs:
             del self.visualization_tabs[vis_type]
         self.ui.tabWidget.removeTab(index)
@@ -153,6 +155,14 @@ class VisualizationDialog(QDialog):
         if not obs_name or not vis_type:
             logger.warning("No observation or visualization type selected")
             QMessageBox.warning(self, "Warning", "Please select an observation and visualization type.")
+            return
+        
+        if vis_type in self.visualization_tabs:
+            logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
+            tab_widget = self.visualization_tabs[vis_type]
+            tab_widget._clear_canvas()  # Clear existing canvas
+            tab_widget.update_visualization()
+            self.ui.tabWidget.setCurrentWidget(tab_widget)
             return
 
         observation = self.cached_observations.get(obs_name)
@@ -171,6 +181,7 @@ class VisualizationDialog(QDialog):
             "Mollweide Tracks": "mollweide_tracks"
         }
         vis_key = visualization_map.get(vis_type)
+        
         if not vis_key:
             logger.error(f"Invalid visualization type: {vis_type}")
             QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")

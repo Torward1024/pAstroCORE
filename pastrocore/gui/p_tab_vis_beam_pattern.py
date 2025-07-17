@@ -7,11 +7,11 @@ from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 from typing import List, Optional
 import astropy.units as u
 import matplotlib.pyplot as plt
 import gc
-import weakref
 
 class BeamPatternVisualizationTab(QWidget):
     """Widget for beam pattern visualization with telescope and frequency selection."""
@@ -25,7 +25,7 @@ class BeamPatternVisualizationTab(QWidget):
         self.observation = observation
         self.canvas = None
         self.toolbar = None
-        self.figure = None
+        self.figure = None  # Direct reference to figure, managed explicitly
         self.frequencies = self._get_frequencies()
         self.telescopes = self._get_telescopes()
         logger.debug(f"BeamPatternVisualizationTab initialized for observation id={id(observation)}")
@@ -126,40 +126,51 @@ class BeamPatternVisualizationTab(QWidget):
 
     def _clear_canvas(self):
         """Aggressively clear the canvas, toolbar, and figure to release all resources."""
-       # Remove and delete canvas
+        logger.debug("Clearing canvas, toolbar, and figure")
+        
+        # Remove and delete canvas
         if self.canvas:
-            self.layout.removeWidget(self.canvas)
-            self.canvas.setParent(None)  # Detach from parent
-            self.canvas = None
-            logger.debug("Canvas removed and deleted")
+            try:
+                self.layout.removeWidget(self.canvas)
+                self.canvas.setParent(None)
+                self.canvas.deleteLater()
+                logger.debug("Canvas removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove canvas: {str(e)}")
+            finally:
+                self.canvas = None
 
         # Remove and delete toolbar
         if self.toolbar:
-            self.layout.removeWidget(self.toolbar)
-            self.toolbar.setParent(None)  # Detach from parent
-            self.toolbar = None
-            logger.debug("Toolbar removed and deleted")
+            try:
+                self.layout.removeWidget(self.toolbar)
+                self.toolbar.setParent(None)
+                self.toolbar.deleteLater()
+                logger.debug("Toolbar removed and scheduled for deletion")
+            except Exception as e:
+                logger.warning(f"Failed to remove toolbar: {str(e)}")
+            finally:
+                self.toolbar = None
 
-        # Close and clear figure
+        # Clear and close figure
         if self.figure:
             try:
                 for ax in self.figure.axes:
-                    ax.clear()  # Clear all axes content
-                    ax.remove()  # Remove axes from figure
-                self.figure.clf()  # Clear figure
-                plt.close(self.figure)  # Explicitly close figure
+                    ax.clear()
+                    ax.remove()
+                self.figure.clf()
+                plt.close(self.figure)
                 logger.debug(f"Figure {id(self.figure)} closed and cleared")
             except Exception as e:
                 logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
             finally:
                 self.figure = None
 
-        # Clear Matplotlib's global state
-        plt.close('all')  # Close all figures in Matplotlib's manager
-        gc.collect(2)  # Force aggressive garbage collection
-        logger.debug("Matplotlib global state cleared and garbage collected")     
+        # Force garbage collection and log open figures
+        gc.collect(2)
+        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
-    def embed_figure(self, figure):
+    def embed_figure(self, figure: Figure):
         """Embed a Matplotlib figure into the widget."""
         self._clear_canvas()  # Clear existing resources first
         self.figure = figure
@@ -192,7 +203,7 @@ class BeamPatternVisualizationTab(QWidget):
             "return_figure": True,
             "freq_names": frequencies,
             "telescopes": telescopes,
-            "clear_previous": True  # Ensure previous figures are cleared
+            "clear_previous": True
         }
 
         try:
@@ -221,3 +232,9 @@ class BeamPatternVisualizationTab(QWidget):
         except Exception as e:
             logger.error(f"Exception during beam pattern visualization update: {str(e)}")
             self._clear_canvas()
+
+    def closeEvent(self, event):
+        """Ensure resources are cleaned up when the widget is closed."""
+        self._clear_canvas()
+        super().closeEvent(event)
+        logger.debug(f"BeamPatternVisualizationTab closed, resources cleaned up")
