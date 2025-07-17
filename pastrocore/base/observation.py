@@ -392,14 +392,26 @@ class Observation(BaseEntity):
                     restored[key] = {"metadata": restored_metadata, "data": restored_data}
 
                 elif key == "beam_pattern":
-                    restored_metadata = metadata
+                    restored_metadata = {
+                        "telescope_count": int(metadata.get("telescope_count", 0)),
+                        "scale_instruction": metadata.get("scale_instruction", "")
+                    }
                     if not isinstance(data, dict):
                         logger.error(f"Expected dict for beam_pattern.data, got {type(data)}")
                         raise TypeError(f"Invalid beam_pattern.data structure")
+                    restored_data = {}
                     for telescope_code, beam_data in data.items():
+                        if not isinstance(beam_data, dict):
+                            logger.error(f"Expected dict for beam_data in telescope {telescope_code}, got {type(beam_data)}")
+                            raise TypeError(f"Invalid beam_data structure for {telescope_code}")
                         try:
-                            restored_data[telescope_code] = np.array(beam_data)
-                            logger.debug(f"Restored beam_pattern for {telescope_code}: shape={np.array(beam_data).shape}")
+                            theta = np.array(beam_data.get("theta", []), dtype=float)
+                            pattern = np.array(beam_data.get("pattern", []), dtype=float)
+                            if theta.ndim != 1 or pattern.ndim != 1 or len(theta) != len(pattern):
+                                logger.error(f"Invalid beam_pattern shape for {telescope_code}: theta={theta.shape}, pattern={pattern.shape}")
+                                raise ValueError(f"Invalid beam_pattern shape for {telescope_code}")
+                            restored_data[telescope_code] = {"theta": theta, "pattern": pattern}
+                            logger.debug(f"Restored beam_pattern for {telescope_code}: theta_shape={theta.shape}, pattern_shape={pattern.shape}")
                         except Exception as e:
                             logger.error(f"Failed to convert beam_pattern for {telescope_code}: {str(e)}")
                             raise ValueError(f"Invalid beam_pattern data for {telescope_code}")
