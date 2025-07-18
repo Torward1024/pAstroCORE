@@ -160,9 +160,6 @@ class UVVisualizationTab(QWidget):
             if item.checkState() == Qt.Checked:
                 freq = float(item.data(Qt.UserRole))
                 selected_frequencies.append(freq)
-        if not selected_frequencies:
-            selected_frequencies = self.frequencies
-            logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
         return selected_frequencies
 
     def get_selected_units(self) -> str:
