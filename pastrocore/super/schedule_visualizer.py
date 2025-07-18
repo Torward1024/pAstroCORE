@@ -1246,21 +1246,27 @@ class ScheduleVisualizer(Super):
             return result
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Plot Mollweide tracks for an Observation with flexible filtering."""
+        """Plot Mollweide tracks for an Observation with flexible filtering and grouped legend.
+
+        Args:
+            obj: Observation object to visualize.
+            attributes: Dictionary with visualization parameters (telescopes, scans, sources, max_points, etc.).
+            fig: Matplotlib Figure object for plotting.
+
+        Returns:
+            Dict[str, Any]: Dictionary with visualization results (scans, telescopes, sources, points).
+        """
         with self._lock:
             logger.debug(f"Plotting Mollweide tracks for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "mollweide_tracks")
-            telescopes = attributes.get("telescopes", None)
-            scans = attributes.get("scans", None)
-            time_range = attributes.get("time_range", None)
+            telescopes = attributes.get("telescopes", [])
+            scans = attributes.get("scans", [])
+            sources = attributes.get("sources", [])
+            max_points = attributes.get("max_points", 10000)  # Limit for performance
 
-            if not self._check_filters(attributes, ["telescopes", "scans"]):
-                logger.debug("No telescopes or scans specified, returning empty plot")
-                return self._create_empty_plot(
-                    fig, "mollweide_tracks", obj.get_observation_code(),
-                    projection="mollweide",
-                    labels={"title": f"Mollweide Tracks for Observation: {obj.get_observation_code()}"}
-                )
+            # Create Mollweide projection
+            ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
+            ax.set_title(f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}")
 
             data = obj.get_calculated_data_by_key(store_key)
             if not data or not isinstance(data, dict):
@@ -1268,79 +1274,142 @@ class ScheduleVisualizer(Super):
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
                     projection="mollweide",
-                    labels={"title": f"Mollweide Tracks for Observation: {obj.get_observation_code()}"}
+                    labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
             metadata = data.get("metadata", {})
             scan_data = data.get("data", {})
-            ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
-            ax.set_title(f"Mollweide Tracks for Observation: {obj.get_observation_code()}")
-
             result = {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
             plotted_telescopes = set()
             plotted_sources = set()
+            legend_handles = []
+            legend_labels = []
 
-            for source_name, coords in metadata.get("sources", {}).items():
-                if not isinstance(coords, (list, np.ndarray)) or len(coords) != 2:
-                    logger.warning(f"Invalid source coordinates format for {source_name}: {coords}")
-                    continue
-                try:
-                    lon, lat = float(coords[0]), float(coords[1])
-                    lon_rad = np.radians(lon)
-                    lat_rad = np.radians(lat)
-                    ax.scatter(
-                        lon_rad, lat_rad, c="red", marker="*", s=100,
-                        label=f"Source: {source_name}" if source_name not in plotted_sources else None,
-                        zorder=3, edgecolors="black"
-                    )
-                    plotted_sources.add(source_name)
-                    result["sources"] += 1
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Failed to plot source {source_name}: {str(e)}")
-                    continue
+            # Plot sources only if explicitly specified in the filter
+            source_colors = {}
+            if sources:  # Only plot sources if the filter is non-empty
+                for idx, source_name in enumerate(metadata.get("sources", {}).keys()):
+                    if source_name not in sources:
+                        continue
+                    coords = metadata["sources"].get(source_name, [])
+                    if not isinstance(coords, (list, np.ndarray)) or len(coords) != 2:
+                        logger.warning(f"Invalid source coordinates format for {source_name}: {coords}")
+                        continue
+                    try:
+                        lon, lat = float(coords[0]), float(coords[1])
+                        lon_rad = np.radians(lon)
+                        lat_rad = np.radians(lat)
+                        color_idx = idx % len(self._style_config["colors"])
+                        color = self._style_config["colors"][color_idx]
+                        source_colors[source_name] = color
+                        handle = ax.scatter(
+                            lon_rad, lat_rad, c=[color], marker="*", s=10,
+                            label=source_name if source_name not in plotted_sources else None,
+                            zorder=3, edgecolors="black"
+                        )
+                        if source_name not in plotted_sources:
+                            legend_handles.append(handle)
+                            legend_labels.append(source_name)
+                        plotted_sources.add(source_name)
+                        result["sources"] += 1
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Failed to plot source {source_name}: {str(e)}")
+                        continue
 
+            # Plot telescope tracks only if telescopes are explicitly specified
             scan_list = scans if scans else list(scan_data.keys())
             result["scans"] = len(scan_list)
             all_tracks = {}
-            for scan_name in scan_list:
-                if scan_name not in scan_data:
-                    continue
-                scan = scan_data[scan_name]
-                tel_list = telescopes if telescopes else list(scan.keys())
-                for tel_code in tel_list:
-                    if tel_code not in scan:
+            total_points = 0
+            if telescopes:  # Only process telescope tracks if telescopes are specified
+                for scan_name in scan_list:
+                    if scan_name not in scan_data:
                         continue
-                    tracks = scan[tel_code]
-                    if not isinstance(tracks, np.ndarray) or len(tracks) == 0 or tracks.ndim != 2 or tracks.shape[1] != 2:
-                        continue
-                    if tel_code not in all_tracks:
-                        all_tracks[tel_code] = []
-                    all_tracks[tel_code].append(tracks)
+                    scan = scan_data[scan_name]
+                    tel_list = telescopes  # Use only specified telescopes
+                    for tel_code in tel_list:
+                        if tel_code not in scan:
+                            continue
+                        tracks = scan[tel_code]
+                        if not isinstance(tracks, np.ndarray) or len(tracks) == 0 or tracks.ndim != 2 or tracks.shape[1] != 2:
+                            continue
+                        if tel_code not in all_tracks:
+                            all_tracks[tel_code] = []
+                        all_tracks[tel_code].append(tracks)
+                        total_points += len(tracks)
 
-            for tel_code in all_tracks:
-                tracks = np.vstack(all_tracks[tel_code]) if all_tracks[tel_code] else np.array([])
-                if len(tracks) == 0:
-                    continue
-                lon, lat = tracks[:, 0], tracks[:, 1]
-                valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
-                lon = lon[valid_mask]
-                lat = lat[valid_mask]
-                if len(lon) == 0:
-                    continue
-                lon_rad = np.radians(lon)
-                lat_rad = np.radians(lat)
-                color_idx = len(plotted_telescopes) % len(self._style_config["colors"])
-                ax.scatter(
-                    lon_rad, lat_rad, s=1, c=[self._style_config["colors"][color_idx]],
-                    label=f"{tel_code}" if tel_code not in plotted_telescopes else None,
-                    zorder=1
-                )
-                plotted_telescopes.add(tel_code)
-                result["points"] += len(lon)
+                if total_points > max_points:
+                    logger.warning(f"Total points ({total_points}) exceeds max_points ({max_points}), subsampling tracks")
+                    subsample_factor = total_points // max_points + 1
+                else:
+                    subsample_factor = 1
+
+                for tel_code in all_tracks:
+                    tracks = np.vstack(all_tracks[tel_code]) if all_tracks[tel_code] else np.array([])
+                    if len(tracks) == 0:
+                        continue
+                    lon, lat = tracks[:, 0], tracks[:, 1]
+                    valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
+                    lon = lon[valid_mask]
+                    lat = lat[valid_mask]
+                    if len(lon) == 0:
+                        continue
+                    if subsample_factor > 1:
+                        lon = lon[::subsample_factor]
+                        lat = lat[::subsample_factor]
+                    lon_rad = np.radians(lon)
+                    lat_rad = np.radians(lat)
+                    color_idx = len(plotted_telescopes) % len(self._style_config["colors"])
+                    handle = ax.scatter(
+                        lon_rad, lat_rad, s=1, c=[self._style_config["colors"][color_idx]],
+                        label=tel_code if tel_code not in plotted_telescopes else None,
+                        zorder=1
+                    )
+                    if tel_code not in plotted_telescopes:
+                        legend_handles.append(handle)
+                        legend_labels.append(tel_code)
+                    plotted_telescopes.add(tel_code)
+                    result["points"] += len(lon)
 
             result["telescopes"] = len(plotted_telescopes)
-            if plotted_telescopes or plotted_sources:
-                ax.legend(**self._style_config["legend"])
+
+            # Create grouped legend only for plotted elements
+            if legend_handles:
+                grouped_legend = {"Sources": [], "Telescopes": []}
+                for handle, label in zip(legend_handles, legend_labels):
+                    if label in plotted_sources:
+                        grouped_legend["Sources"].append((handle, label))
+                    else:
+                        grouped_legend["Telescopes"].append((handle, label))
+
+                legend_lines = []
+                legend_texts = []
+                for group, items in [("Sources:", sorted(grouped_legend["Sources"], key=lambda x: x[1])),
+                                    ("Telescopes:", sorted(grouped_legend["Telescopes"], key=lambda x: x[1]))]:
+                    if items:  # Only include groups with items
+                        legend_lines.append(Line2D([0], [0], linestyle="none", marker="none"))
+                        legend_texts.append(group)
+                        for handle, label in items:
+                            legend_lines.append(handle)
+                            legend_texts.append(f"    {label}")
+
+                fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
+                fig.legend(
+                    legend_lines, legend_texts,
+                    loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                    fontsize=self._style_config["legend"]["fontsize"],
+                    title="",
+                    bbox_transform=fig.transFigure
+                )
+
+            if not plotted_telescopes and not plotted_sources:
+                logger.debug("No telescopes or sources plotted, returning empty Mollweide plot")
+                return self._create_empty_plot(
+                    fig, "mollweide_tracks", obj.get_observation_code(),
+                    projection="mollweide",
+                    labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
+                )
+
             return result
 
     def _visualize_telescopes(self, obj: Union[Telescope, SpaceTelescope, Telescopes], attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:

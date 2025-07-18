@@ -203,11 +203,6 @@ class MollweideVisualizationTab(QWidget):
         sources = self.get_selected_sources()
         logger.debug(f"Updating visualization: scans={scans}, telescopes={telescopes}, sources={sources}")
 
-        if not scans or not telescopes or not sources:
-            logger.debug("Missing required filters (scans, telescopes, or sources), clearing canvas")
-            self._clear_canvas()
-            return
-
         vis_attributes = {
             "plot_type": "mollweide_tracks",
             "show": False,
@@ -227,23 +222,29 @@ class MollweideVisualizationTab(QWidget):
             logger.debug(f"Visualization response: {response}")
             if response["status"]:
                 result = response.get("result", {})
-                if not result or (result.get("telescopes", 0) == 0):
-                    logger.debug("Empty visualization result, clearing canvas")
-                    self._clear_canvas()
-                    return
                 figure = result.get("figure")
                 if figure:
                     self.embed_figure(figure)
                     logger.debug("Mollweide tracks visualization updated")
                 else:
-                    logger.error("No figure returned from visualizer, clearing canvas")
-                    self._clear_canvas()
+                    logger.error("No figure returned from visualizer, embedding empty plot")
+                    self._create_empty_mollweide()
             else:
                 logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
-                self._clear_canvas()
+                self._create_empty_mollweide()
         except Exception as e:
             logger.error(f"Exception during Mollweide tracks visualization update: {str(e)}")
-            self._clear_canvas()
+            self._create_empty_mollweide()
+
+    def _create_empty_mollweide(self):
+        """Create and embed an empty Mollweide projection plot."""
+        logger.debug("Creating empty Mollweide projection")
+        self._clear_canvas()
+        self.figure = Figure(figsize=self.ui.widget.size().toTuple())
+        ax = self.figure.add_subplot(111, projection="mollweide")
+        ax.set_title(f"Mollweide Tracks\nObs. code: {self.observation.get_observation_code()}")
+        self.figure.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
+        self.embed_figure(self.figure)
 
     def closeEvent(self, event):
         """Ensure resources are cleaned up when the widget is closed."""
