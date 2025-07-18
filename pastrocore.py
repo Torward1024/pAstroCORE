@@ -52,7 +52,6 @@ class PAstroCoreMainWindow(QMainWindow):
 
     def clear_connections(self):
         """Disconnect all action signals to prevent duplicates."""
-        # Disconnect action signals
         for action, connection in self._action_connections.items():
             try:
                 action.triggered.disconnect(connection)
@@ -61,7 +60,6 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
         self._action_connections.clear()
 
-        # Disconnect project_updated signal
         try:
             self.project_updated.disconnect()
             logger.debug("Disconnected project_updated signal")

@@ -58,7 +58,7 @@ class ScheduleVisualizer(Super):
             'figure': {'facecolor': 'white'},
             'figsize': (10, 6),
             'dpi': 300,
-            'legend': {'loc': 'center left', 'bbox_to_anchor': (1, 0.5), 'fontsize': 8},
+            'legend': {'loc': 'upper right', 'bbox_to_anchor': (1, 0.5), 'fontsize': 8},
             'colors': [
                 (163/255, 193/255, 218/255),
                 (74/255, 144/255, 226/255),
@@ -169,9 +169,10 @@ class ScheduleVisualizer(Super):
         """Check if any of the required filters are provided."""
         return any(attributes.get(key) for key in required_filters)
     
+    # Modified _plot_time_series (updated for sun_angles legend) in schedule_visualizer.py
     def _plot_time_series(self, obj: Observation, attributes: Dict[str, Any], fig: Figure, 
-                      plot_type: str, data_key: str, times_key: str, y_label: str,
-                      value_extractors: List[Callable], labels: List[str]) -> Dict[str, Any]:
+                        plot_type: str, data_key: str, times_key: str, y_label: str,
+                        value_extractors: List[Callable], labels: List[str]) -> Dict[str, Any]:
         """
         Generic method to plot time series data with flexible filtering and multi-value plotting.
         
@@ -266,10 +267,9 @@ class ScheduleVisualizer(Super):
                         times_mjd, values_sorted = zip(*sorted(valid_pairs))
                         color_idx = tel_idx % len(self._style_config['colors'])
                         linestyle = '--' if i > 0 and plot_type == "az_el" else '-'
-                        # Plot with consistent color for each telescope
                         line, = ax.plot(
                             times_mjd, values_sorted,
-                            label=f"{tel} ({labels[i]})" if plot_type == "az_el" and tel not in plotted_telescopes else f"{tel}",
+                            label=f"{tel} ({labels[i]})" if plot_type == "az_el" else f"{tel}",
                             color=self._style_config['colors'][color_idx],
                             linestyle=linestyle
                         )
@@ -283,33 +283,50 @@ class ScheduleVisualizer(Super):
 
             result["telescopes"] = len(plotted_telescopes)
             if plotted_telescopes:
-                # Set common axis labels for az_el with multiple telescopes
                 if plot_type == "az_el" and n_tels > 1:
                     fig.text(0.5, 0.04, "Time, (MJD)", ha='center', fontsize=12)
                     fig.text(0.04, 0.5, y_label, va='center', rotation='vertical', fontsize=12)
-                    fig.suptitle(f"{labels[0][:2]}/{labels[0][2:]}\nObs. code: {obj.get_observation_code()}", fontsize=14)
+                    fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}", fontsize=14)
+                    if legend_handles:
+                        grouped_legend = {}
+                        for handle, label in zip(legend_handles, legend_labels):
+                            tel_key = label
+                            if tel_key not in grouped_legend:
+                                grouped_legend[tel_key] = []
+                            grouped_legend[tel_key].append(handle)
+
+                        legend_lines = []
+                        legend_texts = []
+                        coord_label = attributes.get("coord_type", "AzEl")
+                        legend_lines.append(Line2D([0], [0], linestyle="none", marker="none"))
+                        legend_texts.append(f"{coord_label}")
+                        for tel in sorted(grouped_legend.keys()):
+                            legend_lines.append(grouped_legend[tel][0])
+                            legend_texts.append(f"    {tel}")
+
+                        fig.legend(
+                            legend_lines, legend_texts,
+                            loc='upper left', bbox_to_anchor=(0.87, 0.99),
+                            fontsize=self._style_config['legend']['fontsize'],
+                            title="Telescopes:",
+                            bbox_transform=fig.transFigure
+                        )
                 else:
                     axes[0].set_xlabel("Time, (MJD)")
                     axes[0].set_ylabel(y_label)
                     axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}")
 
-                # Create a single legend for az_el
-                if plot_type == "az_el" and legend_handles:
-                    fig.legend(
-                        legend_handles, legend_labels,
-                        loc='center right', bbox_to_anchor=(0.98, 0.5),
-                        fontsize=self._style_config['legend']['fontsize'],
-                        title=f"{labels[0][:2]}/{labels[0][2:]}:"
-                    )
-                # Apply legend for sun_angles or single telescope az_el
-                elif legend_handles:
-                    axes[0].legend(legend_handles, legend_labels, **self._style_config['legend'])
+                    if legend_handles:
+                        if plot_type == "sun_angles":
+                            fig.legend(
+                                legend_handles, legend_labels,
+                                loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                                fontsize=self._style_config['legend']['fontsize'],
+                                title="Telescopes:"
+                            )
+                        else:
+                            axes[0].legend(legend_handles, legend_labels, **self._style_config['legend'])
 
-                # Apply tight_layout only for az_el with multiple telescopes
-                if plot_type == "az_el" and n_tels > 1:
-                    plt.tight_layout(rect=[0.05, 0.05, 0.85, 0.95])
-
-            # Hide unused axes
             for ax in axes[max(1, len(plotted_telescopes) if plot_type == "az_el" else 1):]:
                 ax.set_visible(False)
             return result
@@ -712,21 +729,33 @@ class ScheduleVisualizer(Super):
                     for handle, baseline in sorted(grouped_legend[freq], key=lambda x: x[1]):
                         legend_lines.append(handle)
                         legend_texts.append(f"    {baseline}")
-
+                fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
                 fig.legend(
                     legend_lines, legend_texts,
-                    loc='center right', bbox_to_anchor=(0.98, 0.5),
+                    loc='upper right', bbox_to_anchor=(0.98, 0.95),
                     fontsize=self._style_config['legend']['fontsize'],
                     title="Baselines:"
-                )
+                )          
 
             ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}")
-            plt.tight_layout(rect=[0.05, 0.05, 0.85, 0.95])
+            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
             result["baselines"] = len(plotted_pairs)
             return result
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """Plot angles to the Sun for an Observation with flexible filtering."""
+        logger.debug(f"Plotting sun angles for {obj.get_observation_code()}")
+        source_name = attributes.get("source_name", None)
+        telescopes = attributes.get("telescopes", None)
+
+        if not source_name or not telescopes:
+            logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, returning empty plot")
+            return self._create_empty_plot(
+                fig, "sun_angles", obj.get_observation_code(),
+                labels={"xlabel": "Time, (MJD)", "ylabel": "a, (deg.)",
+                        "title": f"Sun Angles\nObs. code: {obj.get_observation_code()}"}
+                )
+
         return self._plot_time_series(
             obj, attributes, fig, "sun_angles", 
             data_key=attributes.get("store_key", "sun_angles"),
@@ -742,16 +771,29 @@ class ScheduleVisualizer(Super):
 
         Args:
             obj: Observation object to visualize.
-            attributes: Dictionary with visualization parameters (coord_type, etc.).
+            attributes: Dictionary with visualization parameters (coord_type, source_name, telescopes, etc.).
             fig: Matplotlib Figure object for plotting.
 
         Returns:
             Dict[str, Any]: Dictionary with visualization results.
         """
+        logger.debug(f"Plotting az_el for {obj.get_observation_code()}")
+        source_name = attributes.get("source_name", None)
+        telescopes = attributes.get("telescopes", None)
+
+        if not source_name or not telescopes:
+            logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, returning empty plot")
+            return self._create_empty_plot(
+                fig, "az_el", obj.get_observation_code(),
+                labels={"xlabel": "Time, (MJD)", "ylabel": f"{attributes.get('coord_type', 'AzEl')}, (deg)",
+                        "title": f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}"}
+                )
+
         coord_type = attributes.get("coord_type", "AzEl")
         if coord_type not in ["AzEl", "HADec"]:
             logger.warning(f"Invalid coord_type '{coord_type}', defaulting to 'AzEl'")
             coord_type = "AzEl"
+
         return self._plot_time_series(
             obj, attributes, fig, "az_el",
             data_key=attributes.get("store_key", "az_el"),
@@ -759,7 +801,7 @@ class ScheduleVisualizer(Super):
             y_label=f"{coord_type[:2]}/{coord_type[2:]}, (deg)",
             value_extractors=[lambda x: x[0], lambda x: x[1]],
             labels=[f"{coord_type[:2]}", f"{coord_type[2:]}"]
-        )
+            )
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """Plot time on source for an Observation with flexible filtering."""
