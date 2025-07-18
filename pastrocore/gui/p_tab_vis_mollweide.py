@@ -11,6 +11,7 @@ from matplotlib.figure import Figure
 from typing import List, Optional
 import matplotlib.pyplot as plt
 import gc
+from astropy.time import Time
 
 class MollweideVisualizationTab(QWidget):
     """Widget for Mollweide tracks visualization with source, scan, and telescope selection."""
@@ -39,7 +40,7 @@ class MollweideVisualizationTab(QWidget):
         logger.debug(f"MollweideVisualizationTab initialized for observation id={id(observation)}")
 
         # Populate UI elements
-        self.ui.listWidget.setObjectName("listSources")  # Rename for clarity
+        self.ui.listWidget.setObjectName("listSources")
         for source in sources:
             item = QListWidgetItem(source)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
@@ -52,12 +53,8 @@ class MollweideVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listTelescopes.addItem(item)
 
-        for scan in scans:
-            item = QListWidgetItem(scan)
-            item.setData(Qt.UserRole, scan)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            item.setCheckState(Qt.Checked)
-            self.ui.listScans.addItem(item)
+        # Initialize scans list
+        self.ui.listScans.clear()
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
@@ -68,9 +65,14 @@ class MollweideVisualizationTab(QWidget):
         self.ui.listScans.itemChanged.connect(self.filter_changed)
         self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
-        # Cache data immediately
+        # Cache data and update scans
         self._cache_calculated_data()
-        self.update_visualization()  # Trigger initial visualization
+        self.update_scans_for_source()
+        if sources:
+            self.update_visualization()
+        else:
+            logger.warning("No sources provided, visualization will show only telescope tracks")
+            self._create_empty_mollweide()
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
@@ -131,8 +133,6 @@ class MollweideVisualizationTab(QWidget):
     def _clear_canvas(self):
         """Aggressively clear the canvas, toolbar, and figure to release all resources."""
         logger.debug("Clearing canvas, toolbar, and figure")
-
-        # Remove and delete canvas
         if self.canvas:
             try:
                 self.layout.removeWidget(self.canvas)
@@ -143,8 +143,6 @@ class MollweideVisualizationTab(QWidget):
                 logger.warning(f"Failed to remove canvas: {str(e)}")
             finally:
                 self.canvas = None
-
-        # Remove and delete toolbar
         if self.toolbar:
             try:
                 self.layout.removeWidget(self.toolbar)
@@ -155,8 +153,6 @@ class MollweideVisualizationTab(QWidget):
                 logger.warning(f"Failed to remove toolbar: {str(e)}")
             finally:
                 self.toolbar = None
-
-        # Clear and close figure
         if self.figure:
             try:
                 for ax in self.figure.axes:
@@ -169,8 +165,6 @@ class MollweideVisualizationTab(QWidget):
                 logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
             finally:
                 self.figure = None
-
-        # Force garbage collection and log open figures
         gc.collect(2)
         logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
@@ -181,7 +175,7 @@ class MollweideVisualizationTab(QWidget):
         Args:
             figure: Matplotlib Figure object to embed.
         """
-        self._clear_canvas()  # Clear existing resources first
+        self._clear_canvas()
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -194,14 +188,61 @@ class MollweideVisualizationTab(QWidget):
     def filter_changed(self):
         """Handle changes in filter selections by updating visualization."""
         logger.debug("Filter changed, updating visualization")
+        self.update_scans_for_source()
         self.update_visualization()
+
+    def update_scans_for_source(self):
+        """Update the scans list with all available scans from mollweide_tracks data."""
+        current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
+                          for i in range(self.ui.listScans.count())}
+        logger.debug(f"Stored check states: {current_checks}")
+
+        self.ui.listScans.clear()
+        if not self.cached_data or "mollweide_tracks" not in self.cached_data:
+            logger.error("No cached Mollweide track data available")
+            self.ui.listScans.addItem(QListWidgetItem("No track data available"))
+            return
+
+        scans_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_scans": None}
+        })
+        if not scans_response["status"]:
+            logger.error(f"Failed to retrieve scans: {scans_response.get('error', 'Unknown error')}")
+            self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
+            return
+
+        scan_objects = scans_response["result"].get_items()
+        logger.debug(f"Retrieved {len(scan_objects)} scan objects")
+        scans = set()
+        available_scans = set(self.cached_data["mollweide_tracks"]["data"].keys())
+        logger.debug(f"Available scans in mollweide_tracks: {available_scans}")
+
+        for scan in scan_objects:
+            scan_name = scan.get("name")
+            if scan_name in available_scans:
+                start_time = Time(scan.get_start()).isot
+                display_text = f"{start_time}"
+                item = QListWidgetItem(display_text)
+                item.setData(Qt.UserRole, scan_name)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                item.setCheckState(current_checks.get(scan_name, Qt.Checked))
+                if scan_name not in scans:
+                    self.ui.listScans.addItem(item)
+                    scans.add(scan_name)
+
+        if not scans:
+            logger.warning("No scans found in mollweide_tracks data")
+            self.ui.listScans.addItem(QListWidgetItem("No scans available"))
+        logger.debug(f"Populated {len(scans)} scans")
 
     def update_visualization(self):
         """Update the Mollweide tracks visualization based on current filter selections."""
         scans = self.get_selected_scans()
         telescopes = self.get_selected_telescopes()
         sources = self.get_selected_sources()
-        logger.debug(f"Updating visualization: scans={scans}, telescopes={telescopes}, sources={sources}")
+        logger.debug(f"Updating visualization: sources={sources}, scans={scans}, telescopes={telescopes}")
 
         vis_attributes = {
             "plot_type": "mollweide_tracks",
