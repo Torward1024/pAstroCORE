@@ -771,12 +771,13 @@ class ScheduleVisualizer(Super):
             scans = attributes.get("scans", None)
             time_range = attributes.get("time_range", None)
 
-            if not self._check_filters(attributes, ["source_name", "telescopes", "scans"]):
-                logger.debug("No filters specified, returning empty plot")
+            # Strict filter check for source_name and telescopes
+            if not source_name or not telescopes:
+                logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
-                            "title": f"Time on {source_name}\nObs. code: {obj.get_observation_code()}"}
+                            "title": f"Time on {source_name or 'Source'}\nObs. code: {obj.get_observation_code()}"}
                 )
 
             data = obj.get_calculated_data_by_key(store_key)
@@ -789,9 +790,9 @@ class ScheduleVisualizer(Super):
                             "title": f"Time on {source_name}\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            sources = [source_name] if source_name else list(data.keys())[:1]
-            if not sources:
-                logger.debug("No sources available, returning empty plot")
+            sources = [source_name]
+            if source_name not in data:
+                logger.debug(f"Source {source_name} not found in data, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
@@ -805,9 +806,10 @@ class ScheduleVisualizer(Super):
 
             result = {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
             all_blocks = {}
+            legend_handles = []
+            legend_labels = []
+
             for source in sources:
-                if source not in data:
-                    continue
                 source_data = data[source]
                 scan_list = scans if scans else list(source_data.keys())
                 result["scans"] += len(scan_list)
@@ -816,10 +818,8 @@ class ScheduleVisualizer(Super):
                     if scan not in source_data:
                         continue
                     scan_data = source_data[scan]
-                    tel_list = telescopes if telescopes else list(scan_data.keys())
+                    tel_list = [tel for tel in telescopes if tel in scan_data]
                     for tel_code in tel_list:
-                        if tel_code not in scan_data:
-                            continue
                         blocks = scan_data[tel_code]
                         if isinstance(blocks, np.ndarray):
                             blocks = blocks.tolist()
@@ -851,14 +851,17 @@ class ScheduleVisualizer(Super):
             for i, tel in enumerate(tel_list):
                 color_idx = i % len(self._style_config['colors'])
                 for start_mjd, end_mjd, _ in all_blocks[tel]:
-                    ax.fill_between(
+                    handle = ax.fill_between(
                         [start_mjd, end_mjd],
                         [i, i],
                         [i + 1, i + 1],
                         color=self._style_config['colors'][color_idx],
                         alpha=0.5,
-                        label=tel if tel not in set(ax.get_legend_handles_labels()[1]) else None
+                        label=tel if tel not in set(legend_labels) else None
                     )
+                    if tel not in set(legend_labels):
+                        legend_handles.append(handle)
+                        legend_labels.append(tel)
                     result["points"] += 1
 
             if tel_list and all_blocks:
@@ -875,7 +878,7 @@ class ScheduleVisualizer(Super):
 
                     for i, (start, end) in enumerate(intersection_times):
                         duration = (end - start) * 86400
-                        ax.fill_between(
+                        handle = ax.fill_between(
                             [start, end],
                             [-1, -1],
                             [0, 0],
@@ -888,12 +891,22 @@ class ScheduleVisualizer(Super):
                             ha='center', va='center', fontsize=8, color='black',
                             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')
                         )
+                        if i == 0:
+                            legend_handles.append(handle)
+                            legend_labels.append("Total")
                         result["intersections"] = len(intersection_times)
 
             ax.set_yticks(np.arange(-1, len(tel_list)))
             ax.set_yticklabels(["Total"] + tel_list)
-            if ax.get_legend_handles_labels()[0]:
-                ax.legend(**self._style_config['legend'])
+            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
+            if legend_handles:
+                fig.legend(
+                    legend_handles, legend_labels,
+                    loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                    fontsize=self._style_config['legend']['fontsize'],
+                    title="Telescopes:"
+                )
+
             return result
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:

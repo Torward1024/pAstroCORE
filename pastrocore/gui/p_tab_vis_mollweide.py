@@ -64,9 +64,9 @@ class MollweideVisualizationTab(QWidget):
         logger.debug("MollweideVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
-        self.ui.listWidget.itemChanged.connect(self.on_filter_changed)
-        self.ui.listScans.itemChanged.connect(self.on_filter_changed)
-        self.ui.listTelescopes.itemChanged.connect(self.on_filter_changed)
+        self.ui.listWidget.itemChanged.connect(self.filter_changed)
+        self.ui.listScans.itemChanged.connect(self.filter_changed)
+        self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
         # Cache data immediately
         self._cache_calculated_data()
@@ -191,7 +191,7 @@ class MollweideVisualizationTab(QWidget):
         logger.debug(f"Embedded Matplotlib figure {id(figure)} in MollweideVisualizationTab")
 
     @Slot()
-    def on_filter_changed(self):
+    def filter_changed(self):
         """Handle changes in filter selections by updating visualization."""
         logger.debug("Filter changed, updating visualization")
         self.update_visualization()

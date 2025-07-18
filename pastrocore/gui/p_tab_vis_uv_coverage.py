@@ -65,11 +65,11 @@ class UVVisualizationTab(QWidget):
         logger.debug("UVVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
-        self.ui.comboBox.currentIndexChanged.connect(self.on_filter_changed)
-        self.ui.listScans.itemChanged.connect(self.on_filter_changed)
-        self.ui.listBaselines.itemChanged.connect(self.on_filter_changed)
-        self.ui.listFrequencies.itemChanged.connect(self.on_filter_changed)
-        self.ui.comboBox_2.currentIndexChanged.connect(self.on_filter_changed)
+        self.ui.comboBox.currentIndexChanged.connect(self.filter_changed)
+        self.ui.listScans.itemChanged.connect(self.filter_changed)
+        self.ui.listBaselines.itemChanged.connect(self.filter_changed)
+        self.ui.listFrequencies.itemChanged.connect(self.filter_changed)
+        self.ui.comboBox_2.currentIndexChanged.connect(self.filter_changed)
 
         # Cache data immediately
         self._cache_calculated_data()
@@ -238,7 +238,7 @@ class UVVisualizationTab(QWidget):
         logger.debug(f"Embedded Matplotlib figure {id(figure)} in UVVisualizationTab")
 
     @Slot()
-    def on_filter_changed(self):
+    def filter_changed(self):
         """Handle changes in filter selections by updating scans and visualization."""
         source_name = self.get_selected_source()
         logger.debug(f"Filter changed, updating scans for source '{source_name}'")
@@ -281,9 +281,7 @@ class UVVisualizationTab(QWidget):
                 scan_name = scan.get("name")
                 if scan_name in scan_data:
                     start_time = Time(scan.get_start()).isot
-                    duration = scan.get_duration() * u.s
-                    end_time = (Time(scan.get_start()) + duration).isot
-                    display_text = f"{start_time} - {end_time}"
+                    display_text = f"{start_time}"
                     item = QListWidgetItem(display_text)
                     item.setData(Qt.UserRole, scan_name)
                     item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)

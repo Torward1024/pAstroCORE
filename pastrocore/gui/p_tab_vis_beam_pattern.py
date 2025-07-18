@@ -52,8 +52,8 @@ class BeamPatternVisualizationTab(QWidget):
         logger.debug("BeamPatternVisualizationTab UI populated and ready for visualization")
 
         # Connect signals for filter changes
-        self.ui.listFrequencies.itemChanged.connect(self.on_filter_changed)
-        self.ui.listTelescopes.itemChanged.connect(self.on_filter_changed)
+        self.ui.listFrequencies.itemChanged.connect(self.filter_changed)
+        self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
         # Cache data immediately
         self._cache_calculated_data()
@@ -182,7 +182,7 @@ class BeamPatternVisualizationTab(QWidget):
         logger.debug(f"Embedded Matplotlib figure {id(figure)} in BeamPatternVisualizationTab")
 
     @Slot()
-    def on_filter_changed(self):
+    def filter_changed(self):
         """Handle changes in filter selections by updating visualization."""
         self.update_visualization()
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectolJNrY.ui'
+## Form generated from reading UI file 'tab_projectSAjDWk.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -26,68 +26,21 @@ class Ui_ProjectInfoTab(object):
         ProjectInfoTab.resize(598, 468)
         self.gridLayout = QGridLayout(ProjectInfoTab)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.lineEdit = QLineEdit(ProjectInfoTab)
-        self.lineEdit.setObjectName(u"lineEdit")
+        self.label_2 = QLabel(ProjectInfoTab)
+        self.label_2.setObjectName(u"label_2")
         font = QFont()
         font.setFamilies([u"Arial"])
         font.setPointSize(9)
-        self.lineEdit.setFont(font)
-        self.lineEdit.setStyleSheet(u"QLineEdit {\n"
-"    font-family: Arial;\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    padding: 1px;\n"
-"    border-radius: 3px;\n"
-"}\n"
-"QLineEdit[readOnly=\"true\"] {\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"] {\n"
-"    border: 1px solid #0078d7;\n"
-"    background-color: #f0f6ff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:hover {\n"
-"    border: 1px solid #1a8cff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:focus {\n"
-"    border: 1px solid #005bb5;\n"
-"    background-color: #ffffff;\n"
-"}")
-        self.lineEdit.setReadOnly(True)
+        self.label_2.setFont(font)
 
-        self.gridLayout.addWidget(self.lineEdit, 0, 1, 1, 1)
+        self.gridLayout.addWidget(self.label_2, 4, 0, 1, 1)
 
-        self.search = QLineEdit(ProjectInfoTab)
-        self.search.setObjectName(u"search")
-        self.search.setStyleSheet(u"QLineEdit {\n"
-"    font-family: Arial;\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    padding: 1px;\n"
-"    border-radius: 3px;\n"
-"}\n"
-"QLineEdit[readOnly=\"true\"] {\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"] {\n"
-"    border: 1px solid #0078d7;\n"
-"    background-color: #f0f6ff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:hover {\n"
-"    border: 1px solid #1a8cff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:focus {\n"
-"    border: 1px solid #005bb5;\n"
-"    background-color: #ffffff;\n"
-"}")
+        self.line = QFrame(ProjectInfoTab)
+        self.line.setObjectName(u"line")
+        self.line.setFrameShape(QFrame.Shape.HLine)
+        self.line.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.gridLayout.addWidget(self.search, 2, 1, 1, 1)
-
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.gridLayout.addItem(self.horizontalSpacer, 0, 2, 1, 1)
+        self.gridLayout.addWidget(self.line, 3, 0, 1, 3)
 
         self.label = QLabel(ProjectInfoTab)
         self.label.setObjectName(u"label")
@@ -99,11 +52,9 @@ class Ui_ProjectInfoTab(object):
 
         self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
 
-        self.label_2 = QLabel(ProjectInfoTab)
-        self.label_2.setObjectName(u"label_2")
-        self.label_2.setFont(font)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.gridLayout.addWidget(self.label_2, 2, 0, 1, 1)
+        self.gridLayout.addItem(self.horizontalSpacer, 0, 2, 1, 1)
 
         self.projectInfoTable = QTableView(ProjectInfoTab)
         self.projectInfoTable.setObjectName(u"projectInfoTable")
@@ -177,7 +128,70 @@ class Ui_ProjectInfoTab(object):
         self.projectInfoTable.setSortingEnabled(False)
         self.projectInfoTable.verticalHeader().setVisible(False)
 
-        self.gridLayout.addWidget(self.projectInfoTable, 1, 0, 1, 3)
+        self.gridLayout.addWidget(self.projectInfoTable, 2, 0, 1, 3)
+
+        self.lineEdit = QLineEdit(ProjectInfoTab)
+        self.lineEdit.setObjectName(u"lineEdit")
+        self.lineEdit.setFont(font)
+        self.lineEdit.setStyleSheet(u"QLineEdit {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"}\n"
+"QLineEdit[readOnly=\"true\"] {\n"
+"    border: 1px solid #d3d3d3;\n"
+"    background-color: #f9f9f9;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"] {\n"
+"    border: 1px solid #0078d7;\n"
+"    background-color: #f0f6ff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:hover {\n"
+"    border: 1px solid #1a8cff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:focus {\n"
+"    border: 1px solid #005bb5;\n"
+"    background-color: #ffffff;\n"
+"}")
+        self.lineEdit.setReadOnly(True)
+
+        self.gridLayout.addWidget(self.lineEdit, 0, 1, 1, 1)
+
+        self.search = QLineEdit(ProjectInfoTab)
+        self.search.setObjectName(u"search")
+        self.search.setStyleSheet(u"QLineEdit {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"}\n"
+"QLineEdit[readOnly=\"true\"] {\n"
+"    border: 1px solid #d3d3d3;\n"
+"    background-color: #f9f9f9;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"] {\n"
+"    border: 1px solid #0078d7;\n"
+"    background-color: #f0f6ff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:hover {\n"
+"    border: 1px solid #1a8cff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:focus {\n"
+"    border: 1px solid #005bb5;\n"
+"    background-color: #ffffff;\n"
+"}")
+
+        self.gridLayout.addWidget(self.search, 4, 1, 1, 1)
+
+        self.line_2 = QFrame(ProjectInfoTab)
+        self.line_2.setObjectName(u"line_2")
+        self.line_2.setFrameShape(QFrame.Shape.HLine)
+        self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout.addWidget(self.line_2, 1, 0, 1, 3)
 
 
         self.retranslateUi(ProjectInfoTab)
@@ -187,6 +201,6 @@ class Ui_ProjectInfoTab(object):
 
     def retranslateUi(self, ProjectInfoTab):
         ProjectInfoTab.setStyleSheet(QCoreApplication.translate("ProjectInfoTab", u"background-color: #ffffff; font-family: Arial;", None))
-        self.label.setText(QCoreApplication.translate("ProjectInfoTab", u"Name:", None))
         self.label_2.setText(QCoreApplication.translate("ProjectInfoTab", u"Search:", None))
+        self.label.setText(QCoreApplication.translate("ProjectInfoTab", u"Name:", None))
     # retranslateUi

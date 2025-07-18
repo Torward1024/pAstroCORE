@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_edtior_sourceYQSNjz.ui'
+## Form generated from reading UI file 'dialog_edtior_sourceEHnHkc.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -16,10 +16,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDialog,
-    QDoubleSpinBox, QFormLayout, QGridLayout, QHBoxLayout,
-    QHeaderView, QLabel, QLineEdit, QPushButton,
-    QSizePolicy, QSpacerItem, QTableView, QVBoxLayout,
-    QWidget)
+    QDoubleSpinBox, QFormLayout, QFrame, QGridLayout,
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QPushButton, QSizePolicy, QSpacerItem, QTableView,
+    QVBoxLayout, QWidget)
 
 class Ui_SourceEditorDialog(object):
     def setupUi(self, SourceEditorDialog):
@@ -34,6 +34,9 @@ class Ui_SourceEditorDialog(object):
         SourceEditorDialog.setSizePolicy(sizePolicy)
         SourceEditorDialog.setMinimumSize(QSize(460, 380))
         SourceEditorDialog.setMaximumSize(QSize(460, 380))
+        icon = QIcon()
+        icon.addFile(u":/icons/edit_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        SourceEditorDialog.setWindowIcon(icon)
         SourceEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(SourceEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -729,6 +732,13 @@ class Ui_SourceEditorDialog(object):
 
         self.verticalLayout.addLayout(self.formLayout)
 
+        self.line_2 = QFrame(SourceEditorDialog)
+        self.line_2.setObjectName(u"line_2")
+        self.line_2.setFrameShape(QFrame.Shape.HLine)
+        self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.verticalLayout.addWidget(self.line_2)
+
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
         self.horizontalLayout = QHBoxLayout()
@@ -852,14 +862,21 @@ class Ui_SourceEditorDialog(object):
         self.labelFluxTable.setObjectName(u"labelFluxTable")
         font = QFont()
         font.setFamilies([u"Arial"])
-        font.setPointSize(10)
-        font.setBold(True)
+        font.setPointSize(9)
+        font.setBold(False)
         self.labelFluxTable.setFont(font)
 
         self.gridLayout.addWidget(self.labelFluxTable, 0, 0, 1, 1)
 
 
         self.verticalLayout.addLayout(self.gridLayout)
+
+        self.line = QFrame(SourceEditorDialog)
+        self.line.setObjectName(u"line")
+        self.line.setFrameShape(QFrame.Shape.HLine)
+        self.line.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.verticalLayout.addWidget(self.line)
 
         self.buttonLayout = QHBoxLayout()
         self.buttonLayout.setObjectName(u"buttonLayout")
