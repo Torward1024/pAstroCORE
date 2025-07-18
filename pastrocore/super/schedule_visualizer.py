@@ -53,7 +53,7 @@ class ScheduleVisualizer(Super):
             },
             'xtick': {'color': 'black'},
             'ytick': {'color': 'black'},
-            'font': {'family': 'Trebuchet MS', 'size': 12},
+            'font': {'family': 'Trebuchet MS', 'size': 9},
             'text': {'color': 'black'},
             'figure': {'facecolor': 'white'},
             'figsize': (10, 6),
@@ -1007,12 +1007,15 @@ class ScheduleVisualizer(Super):
                 fig.text(0.5, 0.04, "Theta, (rad.)", ha='center', fontsize=12)
                 fig.text(0.04, 0.5, "Normalized Peak Flux", va='center', rotation='vertical', fontsize=12)
 
+            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.86, top=0.85)
+
             if legend_handles:
                 fig.legend(
                     legend_handles, legend_labels,
-                    loc='center right', bbox_to_anchor=(0.98, 0.5),
+                    loc='upper left', bbox_to_anchor=(0.87, 0.99),
                     fontsize=self._style_config['legend']['fontsize'],
-                    title="Frequencies:"
+                    title="Frequencies:",
+                    bbox_transform=fig.transFigure
                 )
 
             for idx in range(len(tel_list), len(axes)):
@@ -1027,9 +1030,6 @@ class ScheduleVisualizer(Super):
                 )
 
             fig.suptitle(f"Beam Pattern\nObs.code: {obj.get_observation_code()}", fontsize=14)
-            plt.tight_layout(rect=[0.05, 0.05, 0.85, 0.95])
-            result["telescopes"] = len(plotted_telescopes)
-            result["frequencies"] = len(plotted_frequencies)
             return result
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
