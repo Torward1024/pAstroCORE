@@ -485,28 +485,28 @@ class PAstroCoreMainWindow(QMainWindow):
         # Clear all existing connections
         self.clear_connections()
 
-        # clear all tabs and their signals
+        # Clear all tabs and their signals
         for i in range(self.ui.tabContainer.count() - 1, -1, -1):
             widget = self.ui.tabContainer.widget(i)
             if widget:
-                # disconnect all signals for the widget
+                # Disconnect all signals for the widget
                 try:
                     widget.disconnect()
                     logger.debug(f"Disconnected signals for widget {widget.objectName()}")
                 except Exception as e:
                     logger.debug(f"No signals to disconnect for widget {widget.objectName()}: {str(e)}")
                 self.ui.tabContainer.removeTab(i)
-                # schedule widget for deletion
+                # Schedule widget for deletion
                 widget.deleteLater()
                 logger.debug(f"Scheduled deletion for widget {widget.objectName()}")
 
-        # clear project explorer
+        # Clear project explorer
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.setModel(None)
             logger.debug("Cleared project explorer model")
 
-        # create new project and manipulator
+        # Create new project and manipulator
         old_project_id = id(self.project)
         old_manipulator_id = id(self.manipulator)
         self.project = ScheduleProject(name="Untitled Project")
@@ -515,18 +515,18 @@ class PAstroCoreMainWindow(QMainWindow):
         logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
         logger.debug(f"Old project id: {old_project_id}, old manipulator id={old_manipulator_id}")
 
-        # open project info tab
+        # Open project info tab
         self.open_project_info_tab()
 
-        # re-establish connections
+        # Re-establish connections
         self.setup_connections()
 
-        # force garbage collection to clean up old objects
+        # Force garbage collection to clean up old objects
         import gc
         gc.collect()
         logger.debug("Garbage collection triggered")
 
-        # update Project Explorer directly
+        # Update Project Explorer directly
         self.update_project_explorer()
         logger.debug("Project explorer updated synchronously")
 
@@ -598,9 +598,12 @@ class PAstroCoreMainWindow(QMainWindow):
         try:
             with open(file_path, "r") as f:
                 data = json.load(f)
+            # Создаем новое наблюдение
             imported_observation = Observation.from_dict(data)
             if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in ["VLBI", "SINGLE_DISH"]:
-                imported_observation.observation_type = "VLBI"
+                imported_observation.observation_type = "VLBI"  # Значение по умолчанию
+            # Запрашиваем уникальный код наблюдения
+            # Проверяем уникальность кода
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
@@ -610,6 +613,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.error(f"Observation code '{imported_observation.code}' already exists")
                 QMessageBox.critical(self, "Error", f"Observation code '{imported_observation.code}' already exists.")
                 return
+            # Добавляем наблюдение через Manipulator
             request = {
                 "operation": "configure",
                 "obj": self.project,
@@ -640,6 +644,7 @@ class PAstroCoreMainWindow(QMainWindow):
         try:
             with open(file_path, "r") as f:
                 data = json.load(f)
+            # Получаем существующее наблюдение
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
@@ -654,7 +659,9 @@ class PAstroCoreMainWindow(QMainWindow):
             existing_name = existing_observation.name
             existing_code = existing_observation.code
 
+            # Создаем новое наблюдение из данных файла
             imported_observation = Observation.from_dict(data)
+            # Сохраняем существующие имя и код
             imported_observation.name = existing_name
             imported_observation.code = existing_code
 
@@ -689,6 +696,7 @@ class PAstroCoreMainWindow(QMainWindow):
             file_path += ".pastrod"
 
         try:
+            # Получаем объект наблюдения
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
@@ -726,19 +734,19 @@ class PAstroCoreMainWindow(QMainWindow):
         self.settings = settings
         self.save_settings(self.settings)
 
-        # update logger level if changed
+        # Update logger level if changed
         if "log_level" in changed_keys:
             new_log_level_str = self.settings.get("log_level", "INFO")
             new_log_level = getattr(logging, new_log_level_str, logging.INFO)
             update_logging_level(new_log_level)
             logger.info(f"Logger level updated to {new_log_level_str}")
 
-        # reload only the catalogs whose paths have changed
+        # Reload only the catalogs whose paths have changed
         if "sources_catalog_path" in changed_keys:
             sources_path = self.settings.get("sources_catalog_path", os.path.join("catalogs", "sources.dat"))
             try:
-                self.catalog_manager.source_catalog.clear()
-                if sources_path:
+                self.catalog_manager.source_catalog.clear()  # Clear existing sources
+                if sources_path:  # Only load if path is non-empty
                     self.catalog_manager.load_source_catalog(sources_path)
                 sources_count = len(self.catalog_manager.source_catalog.get_items())
                 logger.info(f"Sources catalog reloaded with {sources_count} sources from {sources_path}")
@@ -749,8 +757,8 @@ class PAstroCoreMainWindow(QMainWindow):
         if "telescopes_catalog_path" in changed_keys:
             telescopes_path = self.settings.get("telescopes_catalog_path", os.path.join("catalogs", "telescopes.dat"))
             try:
-                self.catalog_manager.telescope_catalog.clear()
-                if telescopes_path:
+                self.catalog_manager.telescope_catalog.clear()  # Clear existing telescopes
+                if telescopes_path:  # Only load if path is non-empty
                     self.catalog_manager.load_telescope_catalog(telescopes_path)
                 telescopes_count = len(self.catalog_manager.telescope_catalog.get_items())
                 logger.info(f"Telescopes catalog reloaded with {telescopes_count} telescopes from {telescopes_path}")
@@ -819,6 +827,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.open_project_info_tab()
         elif item_type == "observation":
             obs_code = text
+            # Получаем наблюдение через Manipulator
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
@@ -837,20 +846,24 @@ class PAstroCoreMainWindow(QMainWindow):
         for i in range(tab_container.count()):
             if tab_container.widget(i).objectName() == "projectInfoTab":
                 tab_container.setCurrentIndex(i)
+                # Обновляем вкладку проекта
                 widget = tab_container.widget(i)
                 widget.update_tab()
+                # Убираем кнопку закрытия для вкладки проекта
                 tab_container.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
                 return
         project_tab = ProjectInfoTab(self.project, self.manipulator, self)
         project_tab.setObjectName("projectInfoTab")
         tab_container.addTab(project_tab, "Project")
         tab_container.setCurrentWidget(project_tab)
-        project_tab.update_tab()
+        project_tab.update_tab()  # Обновляем вкладку сразу после создания
+        # Убираем кнопку закрытия для новой вкладки проекта
         for i in range(tab_container.count()):
             if tab_container.widget(i).objectName() == "projectInfoTab":
                 tab_container.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
                 break
         project_tab.project_name_changed.connect(self.handle_projectInfoTab_project_name_changed)
+        # Подключаем сигнал project_updated для обновления вкладки
         self.project_updated.connect(project_tab.update_tab)
 
     @Slot(str)
@@ -883,6 +896,7 @@ class PAstroCoreMainWindow(QMainWindow):
             tab_container.setCurrentWidget(observation_tab)
             observation_tab.setFocus()
             observation_tab.observation_updated.connect(self.handle_observationTab_observation_updated)
+            # Подключаем сигнал project_updated для обновления вкладки
             self.project_updated.connect(observation_tab.update_tab)
         else:
             logger.error(f"Failed to open observation tab for code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
@@ -906,10 +920,6 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot(bool)
     def sync_project_explorer_action(self, visible: bool):
         """Synchronize the Project Explorer menu action with dockWidget visibility."""
-        # skip updating the action if the window is minimized
-        if self.isMinimized():
-            logger.debug(f"Skipping Project Explorer action synchronization: window is minimized")
-            return
         self.ui.actionProject_Explorer.setChecked(visible)
         logger.debug(f"Project Explorer action synchronized: checked={visible}")
 
