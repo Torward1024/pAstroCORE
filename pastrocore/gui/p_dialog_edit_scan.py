@@ -75,12 +75,10 @@ class ScanEditorDialog(QDialog):
         self.telescopes_model.itemChanged.connect(self.debug_item_changed)
         self.frequencies_model.itemChanged.connect(self.debug_item_changed)
 
-        # Initialize UI components
         self.ui.startTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        validator = QIntValidator(1, 999999, self)
+        validator = QIntValidator(1, 99999999999, self)
         self.ui.durationEdit.setValidator(validator)
 
-        # Track selected items manually
         self.selected_telescopes = set()
         self.selected_frequencies = set()
 
@@ -125,41 +123,34 @@ class ScanEditorDialog(QDialog):
                             logger.error(f"Error calculating end time for scan '{scan_name}': {str(e)}")
                             continue
                 if latest_end_time and latest_duration is not None:
-                    # Convert to datetime and set to QDateTime
                     try:
                         start_dt = latest_end_time.to_datetime()
                         start_qdt = QDateTime(start_dt)
                         self.ui.startTimeEdit.setDateTime(start_qdt)
-                        logger.info(f"Set start time for new scan to end of latest scan: {start_dt}")
-                        # Set duration to match the last scan's duration
+                        logger.debug(f"Set start time for new scan to end of latest scan: {start_dt}")
                         self.ui.durationEdit.setText(str(int(latest_duration)))
-                        logger.info(f"Set duration for new scan to match latest scan: {latest_duration}")
+                        logger.debug(f"Set duration for new scan to match latest scan: {latest_duration}")
                     except Exception as e:
                         logger.error(f"Error converting latest end time to QDateTime: {str(e)}")
                         current_time = QDateTime.currentDateTime()
                         self.ui.startTimeEdit.setDateTime(current_time)
                         self.ui.durationEdit.setText("1")
-                        logger.info(f"Fallback to current time and default duration (1s) due to conversion error: {current_time.toString(Qt.ISODate)}")
+                        logger.debug(f"Fallback to current time and default duration (1s) due to conversion error: {current_time.toString(Qt.ISODate)}")
                 else:
-                    # Fallback to current time and default duration if no valid scans found
                     current_time = QDateTime.currentDateTime()
                     self.ui.startTimeEdit.setDateTime(current_time)
                     self.ui.durationEdit.setText("1")
-                    logger.info(f"No valid scans found, set start time to current time: {current_time.toString(Qt.ISODate)}, duration to default: 1")
+                    logger.debug(f"No valid scans found, set start time to current time: {current_time.toString(Qt.ISODate)}, duration to default: 600")
             else:
-                # No scans available, use current time and default duration
                 current_time = QDateTime.currentDateTime()
                 self.ui.startTimeEdit.setDateTime(current_time)
-                self.ui.durationEdit.setText("1")
-                logger.info(f"No scans available, deliberately set start time to current time: {current_time.toString(Qt.ISODate)}, duration to default: 1")
+                self.ui.durationEdit.setText("600")
+                logger.debug(f"No scans available, deliberately set start time to current time: {current_time.toString(Qt.ISODate)}, duration to default: 600")
         else:
-            # Load scan data if editing
             self._load_scan_data()
 
-        # Set chk_active based on conditions
         self.ui.chk_active.setChecked(self._check_scan_conditions())
         logger.debug(f"Set chk_active for {'new scan' if self.is_new else f'scan {self.scan.name}'} based on conditions: {self.ui.chk_active.isChecked()}")
-
         logger.debug(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan.name}'} in observation '{self.observation.code}'")
 
     def debug_item_changed(self, item):
