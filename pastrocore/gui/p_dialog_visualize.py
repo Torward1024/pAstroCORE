@@ -269,13 +269,16 @@ class VisualizationDialog(QDialog):
         elif vis_type == "Mollweide Tracks":
             calc_data = self.cached_calc_data.get(obs_name, {})
             sources = list(calc_data.get("mollweide_tracks", {}).get("metadata", {}).get("sources", {}).keys())
-            scans = list(calc_data.get("mollweide_tracks", {}).get("data", {}).keys())
+            scans = []
             telescopes = []
             if "mollweide_tracks" in calc_data:
+                scans = list(calc_data["mollweide_tracks"]["data"].keys())
                 for scan_name in calc_data["mollweide_tracks"]["data"]:
                     telescopes.extend(list(calc_data["mollweide_tracks"]["data"][scan_name].keys()))
                 scans = sorted(list(set(scans)))
                 telescopes = sorted(list(set(telescopes)))
+                logger.debug(f"Extracted {len(sources)} sources, {len(scans)} scans, {len(telescopes)} telescopes for Mollweide Tracks")
+                logger.debug(f"Sources: {sources}, Scans: {scans}, Telescopes: {telescopes}")
                 tab_widget = MollweideVisualizationTab(self.manipulator, observation, sources, scans, telescopes, parent=self)
 
         if tab_widget:

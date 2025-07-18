@@ -1316,22 +1316,23 @@ class ScheduleVisualizer(Super):
                         logger.warning(f"Failed to plot source {source_name}: {str(e)}")
                         continue
 
-            # Plot telescope tracks only if telescopes are explicitly specified
-            scan_list = scans if scans else list(scan_data.keys())
-            result["scans"] = len(scan_list)
+            # Process telescope tracks only if both telescopes and scans are specified
+            result["scans"] = len(scans)
             all_tracks = {}
             total_points = 0
-            if telescopes:  # Only process telescope tracks if telescopes are specified
-                for scan_name in scan_list:
+            if telescopes and scans:  # Only process tracks if both telescopes and scans are non-empty
+                for scan_name in scans:
                     if scan_name not in scan_data:
+                        logger.debug(f"Scan {scan_name} not found in mollweide_tracks data, skipping")
                         continue
                     scan = scan_data[scan_name]
-                    tel_list = telescopes  # Use only specified telescopes
-                    for tel_code in tel_list:
+                    for tel_code in telescopes:
                         if tel_code not in scan:
+                            logger.debug(f"Telescope {tel_code} not found in scan {scan_name}, skipping")
                             continue
                         tracks = scan[tel_code]
                         if not isinstance(tracks, np.ndarray) or len(tracks) == 0 or tracks.ndim != 2 or tracks.shape[1] != 2:
+                            logger.warning(f"Invalid track data for {tel_code} in scan {scan_name}")
                             continue
                         if tel_code not in all_tracks:
                             all_tracks[tel_code] = []
@@ -1347,12 +1348,14 @@ class ScheduleVisualizer(Super):
                 for tel_code in all_tracks:
                     tracks = np.vstack(all_tracks[tel_code]) if all_tracks[tel_code] else np.array([])
                     if len(tracks) == 0:
+                        logger.debug(f"No valid tracks for {tel_code} after combining scans")
                         continue
                     lon, lat = tracks[:, 0], tracks[:, 1]
                     valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
                     lon = lon[valid_mask]
                     lat = lat[valid_mask]
                     if len(lon) == 0:
+                        logger.debug(f"No valid points for {tel_code} after filtering")
                         continue
                     if subsample_factor > 1:
                         lon = lon[::subsample_factor]
