@@ -177,7 +177,7 @@ QPushButton:pressed {
      <item row="5" column="0" colspan="2">
       <widget class="QLabel" name="labelVersion">
        <property name="text">
-        <string>Version 0.0.90a</string>
+        <string>Version 0.0.91a</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignmentFlag::AlignCenter</set>

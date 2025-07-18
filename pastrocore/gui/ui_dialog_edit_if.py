@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifuNwtAP.ui'
+## Form generated from reading UI file 'dialog_editor_ifQbvldF.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -33,6 +33,9 @@ class Ui_IFEditorDialog(object):
         IFEditorDialog.setSizePolicy(sizePolicy)
         IFEditorDialog.setMinimumSize(QSize(430, 244))
         IFEditorDialog.setMaximumSize(QSize(430, 244))
+        icon = QIcon()
+        icon.addFile(u":/icons/edit_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        IFEditorDialog.setWindowIcon(icon)
         IFEditorDialog.setModal(True)
         self.verticalLayout = QVBoxLayout(IFEditorDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -246,12 +249,19 @@ class Ui_IFEditorDialog(object):
 
         self.verticalLayout.addLayout(self.formLayout)
 
+        self.line = QFrame(IFEditorDialog)
+        self.line.setObjectName(u"line")
+        self.line.setFrameShape(QFrame.Shape.HLine)
+        self.line.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.verticalLayout.addWidget(self.line)
+
         self.labelPolarizations = QLabel(IFEditorDialog)
         self.labelPolarizations.setObjectName(u"labelPolarizations")
         font = QFont()
         font.setFamilies([u"Arial"])
         font.setPointSize(10)
-        font.setBold(True)
+        font.setBold(False)
         self.labelPolarizations.setFont(font)
 
         self.verticalLayout.addWidget(self.labelPolarizations)
@@ -274,6 +284,13 @@ class Ui_IFEditorDialog(object):
 
 
         self.verticalLayout.addLayout(self.horizontalLayout)
+
+        self.line_2 = QFrame(IFEditorDialog)
+        self.line_2.setObjectName(u"line_2")
+        self.line_2.setFrameShape(QFrame.Shape.HLine)
+        self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.verticalLayout.addWidget(self.line_2)
 
         self.polarizationsButtonLayout = QHBoxLayout()
         self.polarizationsButtonLayout.setObjectName(u"polarizationsButtonLayout")
@@ -353,14 +370,14 @@ class Ui_IFEditorDialog(object):
     # setupUi
 
     def retranslateUi(self, IFEditorDialog):
-        IFEditorDialog.setWindowTitle(QCoreApplication.translate("IFEditorDialog", u"Edit Intermediate Frequency", None))
+        IFEditorDialog.setWindowTitle(QCoreApplication.translate("IFEditorDialog", u"Frequency Editor", None))
         IFEditorDialog.setStyleSheet(QCoreApplication.translate("IFEditorDialog", u"background-color: #ffffff; font-family: Arial;", None))
         self.labelFrequency.setText(QCoreApplication.translate("IFEditorDialog", u"Frequency (MHz):", None))
         self.labelWavelength.setText(QCoreApplication.translate("IFEditorDialog", u"Wavelength (cm):", None))
         self.wavelengthDisplay.setText(QCoreApplication.translate("IFEditorDialog", u"29.979", None))
         self.labelBandwidth.setText(QCoreApplication.translate("IFEditorDialog", u"Bandwidth (MHz):", None))
         self.labelIsActive.setText(QCoreApplication.translate("IFEditorDialog", u"Active:", None))
-        self.labelPolarizations.setText(QCoreApplication.translate("IFEditorDialog", u"Polarizations:", None))
+        self.labelPolarizations.setText(QCoreApplication.translate("IFEditorDialog", u"<html><head/><body><p>Polarizations:</p></body></html>", None))
 
         __sortingEnabled = self.polarizationsList.isSortingEnabled()
         self.polarizationsList.setSortingEnabled(False)

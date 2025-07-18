@@ -34,6 +34,10 @@
   <property name="windowTitle">
    <string>Edit Source</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/edit_icon.svg</normaloff>:/icons/edit_icon.svg</iconset>
+  </property>
   <property name="styleSheet">
    <string>background-color: #ffffff; font-family: Arial;</string>
   </property>
@@ -804,6 +808,13 @@ QDoubleSpinBox::down-arrow {
     </layout>
    </item>
    <item>
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
     <layout class="QGridLayout" name="gridLayout">
      <item row="2" column="0">
       <layout class="QHBoxLayout" name="horizontalLayout">
@@ -956,8 +967,8 @@ QHeaderView::section:hover {
        <property name="font">
         <font>
          <family>Arial</family>
-         <pointsize>10</pointsize>
-         <bold>true</bold>
+         <pointsize>9</pointsize>
+         <bold>false</bold>
         </font>
        </property>
        <property name="text">
@@ -966,6 +977,13 @@ QHeaderView::section:hover {
       </widget>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
    </item>
    <item>
     <layout class="QHBoxLayout" name="buttonLayout">
@@ -1034,7 +1052,9 @@ QPushButton:pressed {
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>saveButton</sender>

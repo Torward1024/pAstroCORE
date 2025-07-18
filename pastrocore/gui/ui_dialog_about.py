@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_aboutmNYcdn.ui'
+## Form generated from reading UI file 'dialog_aboutsHVlth.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -154,5 +154,5 @@ class Ui_AboutDialog(object):
         self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
         self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for  radio astronomical observations\n"
 " planning and visualization.", None))
-        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.90a", None))
+        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.0.91a", None))
     # retranslateUi

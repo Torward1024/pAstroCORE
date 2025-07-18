@@ -14,68 +14,37 @@
    <string>background-color: #ffffff; font-family: Arial;</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="1">
-    <widget class="QLineEdit" name="lineEdit">
+   <item row="4" column="0">
+    <widget class="QLabel" name="label_2">
      <property name="font">
       <font>
        <family>Arial</family>
        <pointsize>9</pointsize>
       </font>
      </property>
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
-     </property>
-     <property name="readOnly">
-      <bool>true</bool>
+     <property name="text">
+      <string>Search:</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="1">
-    <widget class="QLineEdit" name="search">
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
+   <item row="3" column="0" colspan="3">
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>Name:</string>
      </property>
     </widget>
    </item>
@@ -92,34 +61,7 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
      </property>
     </spacer>
    </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="label">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>9</pointsize>
-       <bold>false</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>Name:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="label_2">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>9</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Search:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0" colspan="3">
+   <item row="2" column="0" colspan="3">
     <widget class="QTableView" name="projectInfoTable">
      <property name="styleSheet">
       <string notr="true">/* QTableView and QHeaderView styles for pAstroCORE */
@@ -205,6 +147,78 @@ QHeaderView::section:hover {
      <attribute name="verticalHeaderVisible">
       <bool>false</bool>
      </attribute>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="lineEdit">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QLineEdit" name="search">
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0" colspan="3">
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
     </widget>
    </item>
   </layout>

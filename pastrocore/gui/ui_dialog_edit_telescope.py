@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_telescopeANCHqe.ui'
+## Form generated from reading UI file 'dialog_editor_telescoperXjhju.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -16,10 +16,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QDialog, QDoubleSpinBox, QFormLayout, QGridLayout,
-    QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
-    QTableView, QWidget)
+    QDialog, QDoubleSpinBox, QFormLayout, QFrame,
+    QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QPushButton, QSizePolicy, QSpacerItem,
+    QTabWidget, QTableView, QWidget)
 
 class Ui_TelescopeEditorDialog(object):
     def setupUi(self, TelescopeEditorDialog):
@@ -34,6 +34,9 @@ class Ui_TelescopeEditorDialog(object):
         TelescopeEditorDialog.setSizePolicy(sizePolicy)
         TelescopeEditorDialog.setMinimumSize(QSize(460, 590))
         TelescopeEditorDialog.setMaximumSize(QSize(460, 590))
+        icon = QIcon()
+        icon.addFile(u":/icons/edit_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        TelescopeEditorDialog.setWindowIcon(icon)
         TelescopeEditorDialog.setModal(True)
         self.gridLayout_2 = QGridLayout(TelescopeEditorDialog)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
@@ -43,6 +46,148 @@ class Ui_TelescopeEditorDialog(object):
         self.tab.setObjectName(u"tab")
         self.gridLayout = QGridLayout(self.tab)
         self.gridLayout.setObjectName(u"gridLayout")
+        self.labelSefdTable = QLabel(self.tab)
+        self.labelSefdTable.setObjectName(u"labelSefdTable")
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        font.setPointSize(9)
+        font.setBold(False)
+        self.labelSefdTable.setFont(font)
+
+        self.gridLayout.addWidget(self.labelSefdTable, 2, 0, 1, 1)
+
+        self.sefdButtonLayout = QHBoxLayout()
+        self.sefdButtonLayout.setObjectName(u"sefdButtonLayout")
+        self.addSefdButton = QPushButton(self.tab)
+        self.addSefdButton.setObjectName(u"addSefdButton")
+        self.addSefdButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.sefdButtonLayout.addWidget(self.addSefdButton)
+
+        self.removeSefdButton = QPushButton(self.tab)
+        self.removeSefdButton.setObjectName(u"removeSefdButton")
+        self.removeSefdButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.sefdButtonLayout.addWidget(self.removeSefdButton)
+
+        self.clearSefdButton = QPushButton(self.tab)
+        self.clearSefdButton.setObjectName(u"clearSefdButton")
+        self.clearSefdButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.sefdButtonLayout.addWidget(self.clearSefdButton)
+
+        self.horizontalSpacerSefd = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.sefdButtonLayout.addItem(self.horizontalSpacerSefd)
+
+
+        self.gridLayout.addLayout(self.sefdButtonLayout, 4, 0, 1, 1)
+
+        self.sefdTable = QTableView(self.tab)
+        self.sefdTable.setObjectName(u"sefdTable")
+        self.sefdTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
+"\n"
+"/* Table View */\n"
+"QTableView, QTableWidget {\n"
+"    background-color: #ffffff;\n"
+"    gridline-color: #d3d3d3;\n"
+"    color: #333333;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"    border: 1px solid #d3d3d3; /* External border for table */\n"
+"}\n"
+"\n"
+"QTableView::item:selected, QTableWidget::item:selected {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"QTableView::item:hover, QTableWidget::item:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}\n"
+"\n"
+"/* Header View */\n"
+"QHeaderView {\n"
+"    background-color: #f9f9f9;\n"
+"    border: none; /* No external border to avoid doubling with QTableView */\n"
+"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
+"}\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: #f9f9f9;\n"
+"    color: #333333;\n"
+"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
+"   "
+                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
+"    border-left: none; /* Clean look */\n"
+"    border-top: none; /* Clean look */\n"
+"    padding: 4px;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"}\n"
+"\n"
+"QHeaderView::section:horizontal {\n"
+"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
+"}\n"
+"\n"
+"QHeaderView::section:vertical {\n"
+"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
+"}\n"
+"\n"
+"QHeaderView::section:hover {\n"
+"    background-color: #1a8cff;\n"
+"    color: #ffffff;\n"
+"}")
+        self.sefdTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
+        self.sefdTable.setAlternatingRowColors(True)
+        self.sefdTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.sefdTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+
+        self.gridLayout.addWidget(self.sefdTable, 3, 0, 1, 1)
+
         self.formLayout = QFormLayout()
         self.formLayout.setObjectName(u"formLayout")
         self.labelCode = QLabel(self.tab)
@@ -1141,10 +1286,10 @@ class Ui_TelescopeEditorDialog(object):
         self.mountTypeCombo.addItem("")
         self.mountTypeCombo.addItem("")
         self.mountTypeCombo.setObjectName(u"mountTypeCombo")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.mountTypeCombo.setFont(font)
+        font1 = QFont()
+        font1.setFamilies([u"Arial"])
+        font1.setPointSize(9)
+        self.mountTypeCombo.setFont(font1)
         self.mountTypeCombo.setStyleSheet(u"QComboBox {\n"
 "    font-family: Arial;\n"
 "    font-size: 9pt;\n"
@@ -1245,19 +1390,108 @@ class Ui_TelescopeEditorDialog(object):
 
         self.gridLayout.addLayout(self.formLayout, 0, 0, 1, 1)
 
-        self.labelSefdTable = QLabel(self.tab)
-        self.labelSefdTable.setObjectName(u"labelSefdTable")
-        font1 = QFont()
-        font1.setFamilies([u"Arial"])
-        font1.setPointSize(9)
-        font1.setBold(True)
-        self.labelSefdTable.setFont(font1)
+        self.line_4 = QFrame(self.tab)
+        self.line_4.setObjectName(u"line_4")
+        self.line_4.setFrameShape(QFrame.Shape.HLine)
+        self.line_4.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.gridLayout.addWidget(self.labelSefdTable, 1, 0, 1, 1)
+        self.gridLayout.addWidget(self.line_4, 1, 0, 1, 1)
 
-        self.sefdTable = QTableView(self.tab)
-        self.sefdTable.setObjectName(u"sefdTable")
-        self.sefdTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
+        self.tabWidget.addTab(self.tab, "")
+        self.tab_2 = QWidget()
+        self.tab_2.setObjectName(u"tab_2")
+        self.gridLayout_3 = QGridLayout(self.tab_2)
+        self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self.labelSurfaceEfficiencyTable = QLabel(self.tab_2)
+        self.labelSurfaceEfficiencyTable.setObjectName(u"labelSurfaceEfficiencyTable")
+        self.labelSurfaceEfficiencyTable.setFont(font)
+
+        self.gridLayout_3.addWidget(self.labelSurfaceEfficiencyTable, 0, 0, 1, 1)
+
+        self.labelSystemTemperatureTable = QLabel(self.tab_2)
+        self.labelSystemTemperatureTable.setObjectName(u"labelSystemTemperatureTable")
+        self.labelSystemTemperatureTable.setFont(font)
+
+        self.gridLayout_3.addWidget(self.labelSystemTemperatureTable, 8, 0, 1, 1)
+
+        self.labelEffectiveAreaTable = QLabel(self.tab_2)
+        self.labelEffectiveAreaTable.setObjectName(u"labelEffectiveAreaTable")
+        self.labelEffectiveAreaTable.setFont(font)
+
+        self.gridLayout_3.addWidget(self.labelEffectiveAreaTable, 4, 0, 1, 1)
+
+        self.systemTemperatureButtonLayout = QHBoxLayout()
+        self.systemTemperatureButtonLayout.setObjectName(u"systemTemperatureButtonLayout")
+        self.addSystemTemperatureButton = QPushButton(self.tab_2)
+        self.addSystemTemperatureButton.setObjectName(u"addSystemTemperatureButton")
+        self.addSystemTemperatureButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.systemTemperatureButtonLayout.addWidget(self.addSystemTemperatureButton)
+
+        self.removeSystemTemperatureButton = QPushButton(self.tab_2)
+        self.removeSystemTemperatureButton.setObjectName(u"removeSystemTemperatureButton")
+        self.removeSystemTemperatureButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.systemTemperatureButtonLayout.addWidget(self.removeSystemTemperatureButton)
+
+        self.clearSystemTemperatureButton = QPushButton(self.tab_2)
+        self.clearSystemTemperatureButton.setObjectName(u"clearSystemTemperatureButton")
+        self.clearSystemTemperatureButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.systemTemperatureButtonLayout.addWidget(self.clearSystemTemperatureButton)
+
+        self.horizontalSpacerSystemTemperature = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.systemTemperatureButtonLayout.addItem(self.horizontalSpacerSystemTemperature)
+
+
+        self.gridLayout_3.addLayout(self.systemTemperatureButtonLayout, 10, 0, 1, 1)
+
+        self.effectiveAreaTable = QTableView(self.tab_2)
+        self.effectiveAreaTable.setObjectName(u"effectiveAreaTable")
+        self.effectiveAreaTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
 "\n"
 "/* Table View */\n"
 "QTableView, QTableWidget {\n"
@@ -1311,92 +1545,75 @@ class Ui_TelescopeEditorDialog(object):
 "    background-color: #1a8cff;\n"
 "    color: #ffffff;\n"
 "}")
-        self.sefdTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
-        self.sefdTable.setAlternatingRowColors(True)
-        self.sefdTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.sefdTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.effectiveAreaTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
+        self.effectiveAreaTable.setAlternatingRowColors(True)
+        self.effectiveAreaTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.effectiveAreaTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
-        self.gridLayout.addWidget(self.sefdTable, 2, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.effectiveAreaTable, 5, 0, 1, 1)
 
-        self.sefdButtonLayout = QHBoxLayout()
-        self.sefdButtonLayout.setObjectName(u"sefdButtonLayout")
-        self.addSefdButton = QPushButton(self.tab)
-        self.addSefdButton.setObjectName(u"addSefdButton")
-        self.addSefdButton.setStyleSheet(u"QPushButton {\n"
+        self.systemTemperatureTable = QTableView(self.tab_2)
+        self.systemTemperatureTable.setObjectName(u"systemTemperatureTable")
+        self.systemTemperatureTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
+"\n"
+"/* Table View */\n"
+"QTableView, QTableWidget {\n"
+"    background-color: #ffffff;\n"
+"    gridline-color: #d3d3d3;\n"
+"    color: #333333;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"    border: 1px solid #d3d3d3; /* External border for table */\n"
+"}\n"
+"\n"
+"QTableView::item:selected, QTableWidget::item:selected {\n"
 "    background-color: #0078d7;\n"
 "    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
 "}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.sefdButtonLayout.addWidget(self.addSefdButton)
-
-        self.removeSefdButton = QPushButton(self.tab)
-        self.removeSefdButton.setObjectName(u"removeSefdButton")
-        self.removeSefdButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
+"\n"
+"QTableView::item:hover, QTableWidget::item:hover {\n"
+"    background-color: #1a8cff;\n"
 "    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
 "}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"\n"
+"/* Header View */\n"
+"QHeaderView {\n"
+"    background-color: #f9f9f9;\n"
+"    border: none; /* No external border to avoid doubling with QTableView */\n"
+"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
 "}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.sefdButtonLayout.addWidget(self.removeSefdButton)
-
-        self.clearSefdButton = QPushButton(self.tab)
-        self.clearSefdButton.setObjectName(u"clearSefdButton")
-        self.clearSefdButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: #f9f9f9;\n"
+"    color: #333333;\n"
+"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
+"   "
+                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
+"    border-left: none; /* Clean look */\n"
+"    border-top: none; /* Clean look */\n"
+"    padding: 4px;\n"
+"    font-family: Arial, sans-serif;\n"
+"    font-size: 9pt;\n"
+"}\n"
+"\n"
+"QHeaderView::section:horizontal {\n"
+"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
+"}\n"
+"\n"
+"QHeaderView::section:vertical {\n"
+"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
+"}\n"
+"\n"
+"QHeaderView::section:hover {\n"
+"    background-color: #1a8cff;\n"
 "    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
 "}")
+        self.systemTemperatureTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
+        self.systemTemperatureTable.setAlternatingRowColors(True)
+        self.systemTemperatureTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.systemTemperatureTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
-        self.sefdButtonLayout.addWidget(self.clearSefdButton)
-
-        self.horizontalSpacerSefd = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.sefdButtonLayout.addItem(self.horizontalSpacerSefd)
-
-
-        self.gridLayout.addLayout(self.sefdButtonLayout, 3, 0, 1, 1)
-
-        self.tabWidget.addTab(self.tab, "")
-        self.tab_2 = QWidget()
-        self.tab_2.setObjectName(u"tab_2")
-        self.gridLayout_3 = QGridLayout(self.tab_2)
-        self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self.labelSurfaceEfficiencyTable = QLabel(self.tab_2)
-        self.labelSurfaceEfficiencyTable.setObjectName(u"labelSurfaceEfficiencyTable")
-        self.labelSurfaceEfficiencyTable.setFont(font1)
-
-        self.gridLayout_3.addWidget(self.labelSurfaceEfficiencyTable, 0, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.systemTemperatureTable, 9, 0, 1, 1)
 
         self.surfaceEfficiencyTable = QTableView(self.tab_2)
         self.surfaceEfficiencyTable.setObjectName(u"surfaceEfficiencyTable")
@@ -1461,6 +1678,82 @@ class Ui_TelescopeEditorDialog(object):
         self.surfaceEfficiencyTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
 
         self.gridLayout_3.addWidget(self.surfaceEfficiencyTable, 1, 0, 1, 1)
+
+        self.effectiveAreaButtonLayout = QHBoxLayout()
+        self.effectiveAreaButtonLayout.setObjectName(u"effectiveAreaButtonLayout")
+        self.addEffectiveAreaButton = QPushButton(self.tab_2)
+        self.addEffectiveAreaButton.setObjectName(u"addEffectiveAreaButton")
+        self.addEffectiveAreaButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.effectiveAreaButtonLayout.addWidget(self.addEffectiveAreaButton)
+
+        self.removeEffectiveAreaButton = QPushButton(self.tab_2)
+        self.removeEffectiveAreaButton.setObjectName(u"removeEffectiveAreaButton")
+        self.removeEffectiveAreaButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.effectiveAreaButtonLayout.addWidget(self.removeEffectiveAreaButton)
+
+        self.clearEffectiveAreaButton = QPushButton(self.tab_2)
+        self.clearEffectiveAreaButton.setObjectName(u"clearEffectiveAreaButton")
+        self.clearEffectiveAreaButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+
+        self.effectiveAreaButtonLayout.addWidget(self.clearEffectiveAreaButton)
+
+        self.horizontalSpacerEffectiveArea = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.effectiveAreaButtonLayout.addItem(self.horizontalSpacerEffectiveArea)
+
+
+        self.gridLayout_3.addLayout(self.effectiveAreaButtonLayout, 6, 0, 1, 1)
+
+        self.line = QFrame(self.tab_2)
+        self.line.setObjectName(u"line")
+        self.line.setFrameShape(QFrame.Shape.HLine)
+        self.line.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout_3.addWidget(self.line, 7, 0, 1, 1)
 
         self.surfaceEfficiencyButtonLayout = QHBoxLayout()
         self.surfaceEfficiencyButtonLayout.setObjectName(u"surfaceEfficiencyButtonLayout")
@@ -1531,281 +1824,12 @@ class Ui_TelescopeEditorDialog(object):
 
         self.gridLayout_3.addLayout(self.surfaceEfficiencyButtonLayout, 2, 0, 1, 1)
 
-        self.labelEffectiveAreaTable = QLabel(self.tab_2)
-        self.labelEffectiveAreaTable.setObjectName(u"labelEffectiveAreaTable")
-        self.labelEffectiveAreaTable.setFont(font1)
+        self.line_2 = QFrame(self.tab_2)
+        self.line_2.setObjectName(u"line_2")
+        self.line_2.setFrameShape(QFrame.Shape.HLine)
+        self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
 
-        self.gridLayout_3.addWidget(self.labelEffectiveAreaTable, 3, 0, 1, 1)
-
-        self.effectiveAreaTable = QTableView(self.tab_2)
-        self.effectiveAreaTable.setObjectName(u"effectiveAreaTable")
-        self.effectiveAreaTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
-"\n"
-"/* Table View */\n"
-"QTableView, QTableWidget {\n"
-"    background-color: #ffffff;\n"
-"    gridline-color: #d3d3d3;\n"
-"    color: #333333;\n"
-"    font-family: Arial, sans-serif;\n"
-"    font-size: 9pt;\n"
-"    border: 1px solid #d3d3d3; /* External border for table */\n"
-"}\n"
-"\n"
-"QTableView::item:selected, QTableWidget::item:selected {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"}\n"
-"\n"
-"QTableView::item:hover, QTableWidget::item:hover {\n"
-"    background-color: #1a8cff;\n"
-"    color: #ffffff;\n"
-"}\n"
-"\n"
-"/* Header View */\n"
-"QHeaderView {\n"
-"    background-color: #f9f9f9;\n"
-"    border: none; /* No external border to avoid doubling with QTableView */\n"
-"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
-"}\n"
-"\n"
-"QHeaderView::section {\n"
-"    background-color: #f9f9f9;\n"
-"    color: #333333;\n"
-"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
-"   "
-                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
-"    border-left: none; /* Clean look */\n"
-"    border-top: none; /* Clean look */\n"
-"    padding: 4px;\n"
-"    font-family: Arial, sans-serif;\n"
-"    font-size: 9pt;\n"
-"}\n"
-"\n"
-"QHeaderView::section:horizontal {\n"
-"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
-"}\n"
-"\n"
-"QHeaderView::section:vertical {\n"
-"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
-"}\n"
-"\n"
-"QHeaderView::section:hover {\n"
-"    background-color: #1a8cff;\n"
-"    color: #ffffff;\n"
-"}")
-        self.effectiveAreaTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
-        self.effectiveAreaTable.setAlternatingRowColors(True)
-        self.effectiveAreaTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.effectiveAreaTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-
-        self.gridLayout_3.addWidget(self.effectiveAreaTable, 4, 0, 1, 1)
-
-        self.effectiveAreaButtonLayout = QHBoxLayout()
-        self.effectiveAreaButtonLayout.setObjectName(u"effectiveAreaButtonLayout")
-        self.addEffectiveAreaButton = QPushButton(self.tab_2)
-        self.addEffectiveAreaButton.setObjectName(u"addEffectiveAreaButton")
-        self.addEffectiveAreaButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.effectiveAreaButtonLayout.addWidget(self.addEffectiveAreaButton)
-
-        self.removeEffectiveAreaButton = QPushButton(self.tab_2)
-        self.removeEffectiveAreaButton.setObjectName(u"removeEffectiveAreaButton")
-        self.removeEffectiveAreaButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.effectiveAreaButtonLayout.addWidget(self.removeEffectiveAreaButton)
-
-        self.clearEffectiveAreaButton = QPushButton(self.tab_2)
-        self.clearEffectiveAreaButton.setObjectName(u"clearEffectiveAreaButton")
-        self.clearEffectiveAreaButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.effectiveAreaButtonLayout.addWidget(self.clearEffectiveAreaButton)
-
-        self.horizontalSpacerEffectiveArea = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.effectiveAreaButtonLayout.addItem(self.horizontalSpacerEffectiveArea)
-
-
-        self.gridLayout_3.addLayout(self.effectiveAreaButtonLayout, 5, 0, 1, 1)
-
-        self.labelSystemTemperatureTable = QLabel(self.tab_2)
-        self.labelSystemTemperatureTable.setObjectName(u"labelSystemTemperatureTable")
-        self.labelSystemTemperatureTable.setFont(font1)
-
-        self.gridLayout_3.addWidget(self.labelSystemTemperatureTable, 6, 0, 1, 1)
-
-        self.systemTemperatureTable = QTableView(self.tab_2)
-        self.systemTemperatureTable.setObjectName(u"systemTemperatureTable")
-        self.systemTemperatureTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
-"\n"
-"/* Table View */\n"
-"QTableView, QTableWidget {\n"
-"    background-color: #ffffff;\n"
-"    gridline-color: #d3d3d3;\n"
-"    color: #333333;\n"
-"    font-family: Arial, sans-serif;\n"
-"    font-size: 9pt;\n"
-"    border: 1px solid #d3d3d3; /* External border for table */\n"
-"}\n"
-"\n"
-"QTableView::item:selected, QTableWidget::item:selected {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"}\n"
-"\n"
-"QTableView::item:hover, QTableWidget::item:hover {\n"
-"    background-color: #1a8cff;\n"
-"    color: #ffffff;\n"
-"}\n"
-"\n"
-"/* Header View */\n"
-"QHeaderView {\n"
-"    background-color: #f9f9f9;\n"
-"    border: none; /* No external border to avoid doubling with QTableView */\n"
-"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
-"}\n"
-"\n"
-"QHeaderView::section {\n"
-"    background-color: #f9f9f9;\n"
-"    color: #333333;\n"
-"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
-"   "
-                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
-"    border-left: none; /* Clean look */\n"
-"    border-top: none; /* Clean look */\n"
-"    padding: 4px;\n"
-"    font-family: Arial, sans-serif;\n"
-"    font-size: 9pt;\n"
-"}\n"
-"\n"
-"QHeaderView::section:horizontal {\n"
-"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
-"}\n"
-"\n"
-"QHeaderView::section:vertical {\n"
-"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
-"}\n"
-"\n"
-"QHeaderView::section:hover {\n"
-"    background-color: #1a8cff;\n"
-"    color: #ffffff;\n"
-"}")
-        self.systemTemperatureTable.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked|QAbstractItemView.EditTrigger.EditKeyPressed)
-        self.systemTemperatureTable.setAlternatingRowColors(True)
-        self.systemTemperatureTable.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.systemTemperatureTable.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-
-        self.gridLayout_3.addWidget(self.systemTemperatureTable, 7, 0, 1, 1)
-
-        self.systemTemperatureButtonLayout = QHBoxLayout()
-        self.systemTemperatureButtonLayout.setObjectName(u"systemTemperatureButtonLayout")
-        self.addSystemTemperatureButton = QPushButton(self.tab_2)
-        self.addSystemTemperatureButton.setObjectName(u"addSystemTemperatureButton")
-        self.addSystemTemperatureButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.systemTemperatureButtonLayout.addWidget(self.addSystemTemperatureButton)
-
-        self.removeSystemTemperatureButton = QPushButton(self.tab_2)
-        self.removeSystemTemperatureButton.setObjectName(u"removeSystemTemperatureButton")
-        self.removeSystemTemperatureButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.systemTemperatureButtonLayout.addWidget(self.removeSystemTemperatureButton)
-
-        self.clearSystemTemperatureButton = QPushButton(self.tab_2)
-        self.clearSystemTemperatureButton.setObjectName(u"clearSystemTemperatureButton")
-        self.clearSystemTemperatureButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-
-        self.systemTemperatureButtonLayout.addWidget(self.clearSystemTemperatureButton)
-
-        self.horizontalSpacerSystemTemperature = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.systemTemperatureButtonLayout.addItem(self.horizontalSpacerSystemTemperature)
-
-
-        self.gridLayout_3.addLayout(self.systemTemperatureButtonLayout, 8, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.line_2, 3, 0, 1, 1)
 
         self.tabWidget.addTab(self.tab_2, "")
 
@@ -1858,7 +1882,14 @@ class Ui_TelescopeEditorDialog(object):
         self.buttonLayout.addWidget(self.cancelButton)
 
 
-        self.gridLayout_2.addLayout(self.buttonLayout, 1, 0, 1, 1)
+        self.gridLayout_2.addLayout(self.buttonLayout, 2, 0, 1, 1)
+
+        self.line_3 = QFrame(TelescopeEditorDialog)
+        self.line_3.setObjectName(u"line_3")
+        self.line_3.setFrameShape(QFrame.Shape.HLine)
+        self.line_3.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout_2.addWidget(self.line_3, 1, 0, 1, 1)
 
 
         self.retranslateUi(TelescopeEditorDialog)
@@ -1874,6 +1905,10 @@ class Ui_TelescopeEditorDialog(object):
     def retranslateUi(self, TelescopeEditorDialog):
         TelescopeEditorDialog.setWindowTitle(QCoreApplication.translate("TelescopeEditorDialog", u"Edit Telescope", None))
         TelescopeEditorDialog.setStyleSheet(QCoreApplication.translate("TelescopeEditorDialog", u"background-color: #ffffff; font-family: Arial;", None))
+        self.labelSefdTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"SEFD Table (MHz, Jy):", None))
+        self.addSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Add", None))
+        self.removeSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove", None))
+        self.clearSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear", None))
         self.labelCode.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Code:", None))
         self.codeEdit.setPlaceholderText(QCoreApplication.translate("TelescopeEditorDialog", u"Enter telescope code", None))
         self.labelName.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Name:", None))
@@ -1898,23 +1933,19 @@ class Ui_TelescopeEditorDialog(object):
         self.mountTypeCombo.setItemText(1, QCoreApplication.translate("TelescopeEditorDialog", u"AZIM", None))
 
         self.labelIsActive.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Active:", None))
-        self.labelSefdTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"SEFD Table (MHz, Jy):", None))
-        self.addSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Add", None))
-        self.removeSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove", None))
-        self.clearSefdButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("TelescopeEditorDialog", u"Main Parameters", None))
         self.labelSurfaceEfficiencyTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Surface Efficiency Table (MHz, Efficiency):", None))
-        self.addSurfaceEfficiencyButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Add", None))
-        self.removeSurfaceEfficiencyButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove", None))
-        self.clearSurfaceEfficiencyButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear", None))
-        self.labelEffectiveAreaTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Effective Area Table (MHz, m\u00b2):", None))
-        self.addEffectiveAreaButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Add", None))
-        self.removeEffectiveAreaButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove", None))
-        self.clearEffectiveAreaButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear", None))
         self.labelSystemTemperatureTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"System Temperature Table (MHz, K):", None))
+        self.labelEffectiveAreaTable.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Effective Area Table (MHz, m\u00b2):", None))
         self.addSystemTemperatureButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Add", None))
         self.removeSystemTemperatureButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove", None))
         self.clearSystemTemperatureButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear", None))
+        self.addEffectiveAreaButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Add", None))
+        self.removeEffectiveAreaButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove", None))
+        self.clearEffectiveAreaButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear", None))
+        self.addSurfaceEfficiencyButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Add", None))
+        self.removeSurfaceEfficiencyButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Remove", None))
+        self.clearSurfaceEfficiencyButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Clear", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("TelescopeEditorDialog", u"Sensitivity", None))
         self.saveButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Cancel", None))

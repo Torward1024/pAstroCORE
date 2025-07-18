@@ -32,7 +32,11 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Edit Intermediate Frequency</string>
+   <string>Frequency Editor</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/edit_icon.svg</normaloff>:/icons/edit_icon.svg</iconset>
   </property>
   <property name="styleSheet">
    <string>background-color: #ffffff; font-family: Arial;</string>
@@ -284,16 +288,23 @@ QDoubleSpinBox::down-arrow {
     </layout>
    </item>
    <item>
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QLabel" name="labelPolarizations">
      <property name="font">
       <font>
        <family>Arial</family>
        <pointsize>10</pointsize>
-       <bold>true</bold>
+       <bold>false</bold>
       </font>
      </property>
      <property name="text">
-      <string>Polarizations:</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Polarizations:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
     </widget>
    </item>
@@ -343,6 +354,13 @@ QDoubleSpinBox::down-arrow {
       </spacer>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
    </item>
    <item>
     <layout class="QHBoxLayout" name="polarizationsButtonLayout">
@@ -435,7 +453,9 @@ QPushButton:pressed {
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>saveButton</sender>

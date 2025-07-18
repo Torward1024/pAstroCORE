@@ -14,19 +14,6 @@
    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="0" colspan="5">
-    <widget class="QLabel" name="lbl_obs_info">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>9</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Start Time/Date: [get_start_time_date]; Duration: [DURATION] sec.</string>
-     </property>
-    </widget>
-   </item>
    <item row="0" column="1">
     <widget class="QLineEdit" name="obs_name_edit">
      <property name="enabled">
@@ -61,16 +48,48 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
      </property>
     </widget>
    </item>
+   <item row="4" column="0" colspan="5">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="styleSheet">
+      <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
+               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}
+               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
+     </property>
+     <property name="currentIndex">
+      <number>-1</number>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="5">
+    <widget class="QLabel" name="lbl_obs_info">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Start Time/Date: [get_start_time_date]; Duration: [DURATION] sec.</string>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="0">
     <widget class="QLabel" name="label_2">
      <property name="font">
       <font>
        <family>Arial</family>
-       <bold>true</bold>
+       <bold>false</bold>
       </font>
      </property>
      <property name="text">
       <string>Observation code:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Type:</string>
      </property>
     </widget>
    </item>
@@ -183,27 +202,24 @@ QComboBox QAbstractItemView::item:hover {
      </property>
     </widget>
    </item>
-   <item row="0" column="2">
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>Type:</string>
+   <item row="1" column="0" colspan="5">
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
     </widget>
    </item>
-   <item row="2" column="0" colspan="5">
-    <widget class="QTabWidget" name="tabWidget">
-     <property name="styleSheet">
-      <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
-               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}
-               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
-     </property>
-     <property name="currentIndex">
-      <number>-1</number>
+   <item row="3" column="0" colspan="5">
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
     </widget>
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
  <connections/>
 </ui>
