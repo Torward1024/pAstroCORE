@@ -297,16 +297,15 @@ class ScheduleVisualizer(Super):
 
                         legend_lines = []
                         legend_texts = []
-                        coord_label = attributes.get("coord_type", "AzEl")
-                        legend_lines.append(Line2D([0], [0], linestyle="none", marker="none"))
-                        legend_texts.append(f"{coord_label}")
+                        
                         for tel in sorted(grouped_legend.keys()):
                             legend_lines.append(grouped_legend[tel][0])
                             legend_texts.append(f"    {tel}")
 
+                        fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.85)
                         fig.legend(
                             legend_lines, legend_texts,
-                            loc='upper left', bbox_to_anchor=(0.87, 0.99),
+                            loc='upper right', bbox_to_anchor=(0.98, 0.95),
                             fontsize=self._style_config['legend']['fontsize'],
                             title="Telescopes:",
                             bbox_transform=fig.transFigure
@@ -317,7 +316,8 @@ class ScheduleVisualizer(Super):
                     axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}")
 
                     if legend_handles:
-                        if plot_type == "sun_angles":
+                        if plot_type == "sun_angles" and legend_handles:
+                            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
                             fig.legend(
                                 legend_handles, legend_labels,
                                 loc='upper right', bbox_to_anchor=(0.98, 0.95),
