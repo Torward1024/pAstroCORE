@@ -58,7 +58,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
             self.ui.listFrequencies.addItem(item)
 
         # Populate units combo box
-        self.ui.comboBox_2.addItems(["Meters", "Earth Diameters"])
+        self.ui.comboBox_2.addItems(["Wavelengths", "Earth Diameters"])
 
         # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
@@ -160,10 +160,6 @@ class BaselineProjectionsVisualizationTab(QWidget):
             if item.checkState() == Qt.Checked:
                 freq = float(item.data(Qt.UserRole))
                 selected_frequencies.append(freq)
-        # Fallback to all frequencies if none are selected
-        if not selected_frequencies:
-            selected_frequencies = self.frequencies
-            logger.debug(f"No frequencies selected, falling back to all frequencies: {selected_frequencies}")
         return selected_frequencies
 
     def get_selected_units(self) -> str:
