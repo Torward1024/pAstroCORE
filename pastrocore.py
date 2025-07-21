@@ -373,7 +373,6 @@ class PAstroCoreMainWindow(QMainWindow):
         model.setHorizontalHeaderLabels(["Project Explorer"])
         root = model.invisibleRootItem()
 
-        # Get project name
         project_name_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
@@ -390,7 +389,6 @@ class PAstroCoreMainWindow(QMainWindow):
         observations_item.setData("observations", Qt.UserRole)
         project_item.appendRow(observations_item)
 
-        # Get observations
         observations_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
@@ -432,14 +430,14 @@ class PAstroCoreMainWindow(QMainWindow):
         default_settings = {
             "sources_catalog_path": os.path.join("catalogs", "sources.dat"),
             "telescopes_catalog_path": os.path.join("catalogs", "telescopes.dat"),
-            "log_level": "INFO", # default log_level value
-            "time_step": 600  # default time_step value
+            "log_level": "INFO", 
+            "time_step": 600
         }
         if os.path.exists(settings_file):
             try:
                 with open(settings_file, "r") as f:
                     loaded_settings = json.load(f)
-                # Merge with default settings to ensure all keys are present
+            
                 default_settings.update(loaded_settings)
                 logger.info(f"Settings loaded from '{settings_file}'")
                 return default_settings
@@ -464,31 +462,26 @@ class PAstroCoreMainWindow(QMainWindow):
         """Create a new project, ensuring all old project data is cleared."""
         logger.info("Creating new project, clearing old data")
 
-        # Clear all existing connections
         self.clear_connections()
 
-        # Clear all tabs and their signals
         for i in range(self.ui.tabContainer.count() - 1, -1, -1):
             widget = self.ui.tabContainer.widget(i)
             if widget:
-                # Disconnect all signals for the widget
+
                 try:
                     widget.disconnect()
                     logger.debug(f"Disconnected signals for widget {widget.objectName()}")
                 except Exception as e:
                     logger.debug(f"No signals to disconnect for widget {widget.objectName()}: {str(e)}")
                 self.ui.tabContainer.removeTab(i)
-                # Schedule widget for deletion
                 widget.deleteLater()
                 logger.debug(f"Scheduled deletion for widget {widget.objectName()}")
 
-        # Clear project explorer
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.setModel(None)
             logger.debug("Cleared project explorer model")
 
-        # Create new project and manipulator
         old_project_id = id(self.project)
         old_manipulator_id = id(self.manipulator)
         self.project = ScheduleProject(name="Untitled Project")
@@ -497,10 +490,7 @@ class PAstroCoreMainWindow(QMainWindow):
         logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
         logger.debug(f"Old project id: {old_project_id}, old manipulator id={old_manipulator_id}")
 
-        # Open project info tab
         self.open_project_info_tab()
-
-        # Re-establish connections
         self.setup_connections()
 
         gc.collect()
@@ -767,7 +757,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please set a valid sources catalog path in Preferences.")
             return
 
-        sources = self.catalog_manager.source_catalog.get_items()  # Используем get_items()
+        sources = self.catalog_manager.source_catalog.get_items()
         if not sources:
             logger.warning("Sources catalog is empty")
             QMessageBox.warning(self, "Warning", "Sources catalog is empty. Check the catalog file or reload in Preferences.")
