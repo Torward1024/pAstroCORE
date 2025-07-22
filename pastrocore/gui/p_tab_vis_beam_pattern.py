@@ -1,5 +1,5 @@
 # pastrocore/gui/p_tab_vis_beam_pattern.py
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QListWidgetItem
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QListWidgetItem, QApplication
 from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_beam_pattern import Ui_VisBeamPatternTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -25,7 +25,8 @@ class BeamPatternVisualizationTab(QWidget):
         self.observation = observation
         self.canvas = None
         self.toolbar = None
-        self.figure = None  # Direct reference to figure, managed explicitly
+        self.figure = None
+        self.is_processing = False  # Flag to prevent concurrent updates
         self.frequencies = self._get_frequencies()
         self.telescopes = self._get_telescopes()
         logger.debug(f"BeamPatternVisualizationTab initialized for observation id={id(observation)}")
@@ -57,6 +58,20 @@ class BeamPatternVisualizationTab(QWidget):
 
         # Cache data immediately
         self._cache_calculated_data()
+    
+    def _lock_ui(self):
+        """Lock UI elements to prevent further changes during visualization."""
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.ui.listFrequencies.setEnabled(False)
+        self.ui.listTelescopes.setEnabled(False)
+        logger.debug("UI locked in BaselineProjectionsVisualizationTab")
+
+    def _unlock_ui(self):
+        """Unlock UI elements after visualization is complete."""
+        QApplication.restoreOverrideCursor()
+        self.ui.listFrequencies.setEnabled(True)
+        self.ui.listTelescopes.setEnabled(True)
+        logger.debug("UI unlocked in BaselineProjectionsVisualizationTab")
 
     def _get_frequencies(self) -> List[float]:
         """Retrieve the list of frequencies (in MHz) from observation."""
@@ -184,7 +199,16 @@ class BeamPatternVisualizationTab(QWidget):
     @Slot()
     def filter_changed(self):
         """Handle changes in filter selections by updating visualization."""
-        self.update_visualization()
+        if self.is_processing:
+            logger.debug("Filter change ignored, visualization is processing")
+            return
+        self.is_processing = True
+        self._lock_ui()  # Lock UI immediately to prevent new signals
+        try:
+            self.update_visualization()
+        finally:
+            self.is_processing = False
+            self._unlock_ui()
 
     def update_visualization(self):
         """Update the beam pattern visualization based on current filter selections."""
