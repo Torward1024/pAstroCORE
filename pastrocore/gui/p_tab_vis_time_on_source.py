@@ -1,5 +1,5 @@
 # pastrocore/gui/p_tab_vis_time_on_source.py
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QListWidgetItem
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QListWidgetItem, QApplication
 from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_default import Ui_VisDefaultTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -38,6 +38,7 @@ class TimeOnSourceVisualizationTab(QWidget):
         self.toolbar = None
         self.figure = None
         self.cached_data = None
+        self.is_processing = False  # Flag to prevent concurrent updates
         logger.debug(f"TimeOnSourceVisualizationTab initialized for observation id={id(observation)}")
 
         # Populate UI elements
@@ -70,6 +71,22 @@ class TimeOnSourceVisualizationTab(QWidget):
         if sources:
             self.update_scans_for_source(sources[0])
             self.update_visualization()  # Trigger initial visualization
+    
+    def _lock_ui(self):
+        """Lock UI elements to prevent further changes during visualization."""
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.ui.cmbSource.setEnabled(False)
+        self.ui.listScans.setEnabled(False)
+        self.ui.listTelescopes.setEnabled(False)
+        logger.debug("UI locked in TimeOnSourceVisualizationTab")
+
+    def _unlock_ui(self):
+        """Unlock UI elements after visualization is complete."""
+        QApplication.restoreOverrideCursor()
+        self.ui.cmbSource.setEnabled(True)
+        self.ui.listScans.setEnabled(True)
+        self.ui.listTelescopes.setEnabled(True)
+        logger.debug("UI unlocked in TimeOnSourceVisualizationTab")
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
@@ -188,10 +205,19 @@ class TimeOnSourceVisualizationTab(QWidget):
     @Slot()
     def filter_changed(self):
         """Handle changes in filter selections by updating scans and visualization."""
-        source_name = self.get_selected_source()
-        logger.debug(f"Filter changed, updating scans for source '{source_name}'")
-        self.update_scans_for_source(source_name)
-        self.update_visualization()
+        if self.is_processing:
+            logger.debug("Filter change ignored, visualization is processing")
+            return
+        self.is_processing = True
+        self._lock_ui()  # Lock UI immediately to prevent new signals
+        try:
+            source_name = self.get_selected_source()
+            logger.debug(f"Filter changed, updating scans for source '{source_name}'")
+            self.update_scans_for_source(source_name)
+            self.update_visualization()
+        finally:
+            self.is_processing = False
+            self._unlock_ui()
 
     def update_scans_for_source(self, source_name: str):
         """Update the scans list based on the selected source, preserving check states.

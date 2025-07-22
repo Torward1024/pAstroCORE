@@ -1,6 +1,6 @@
 # pastrocore/gui/p_tab_vis_sun_angles.py
 from PySide6.QtWidgets import QWidget, QListWidgetItem, QVBoxLayout, QApplication
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_default import Ui_VisDefaultTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
@@ -59,21 +59,7 @@ class SunAnglesVisualizationTab(QWidget):
         if sources:
             self.update_scans_for_source(sources[0])
             self.update_visualization()
-
-    def _cache_calculated_data(self):
-        """Cache calculated data for the observation to optimize performance."""
-        calc_data_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["sun_angles", "times"]}}
-        })
-        if calc_data_response["status"]:
-            self.cached_data = calc_data_response["result"]
-            logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
-        else:
-            logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
-            self.cached_data = {}
-
+    
     def _lock_ui(self):
         """Lock UI elements to prevent further changes during visualization."""
         QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -89,6 +75,20 @@ class SunAnglesVisualizationTab(QWidget):
         self.ui.listScans.setEnabled(True)
         self.ui.listTelescopes.setEnabled(True)
         logger.debug("UI unlocked in SunAnglesVisualizationTab")
+
+    def _cache_calculated_data(self):
+        """Cache calculated data for the observation to optimize performance."""
+        calc_data_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_calculated_data": {"keys": ["sun_angles", "times"]}}
+        })
+        if calc_data_response["status"]:
+            self.cached_data = calc_data_response["result"]
+            logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
+        else:
+            logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
+            self.cached_data = {}
 
     def _clear_canvas(self):
         """Safely clear the canvas, toolbar, and figure to release all resources."""
@@ -156,6 +156,7 @@ class SunAnglesVisualizationTab(QWidget):
             logger.error(f"Failed to draw canvas: {str(e)}")
             self._clear_canvas()
 
+    @Slot()
     def filter_changed(self):
         """Handle changes in filter selections by updating scans and visualization."""
         if self.is_processing:

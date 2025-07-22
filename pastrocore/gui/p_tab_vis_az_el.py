@@ -72,20 +72,6 @@ class AzElVisualizationTab(QWidget):
         if sources:
             self.update_scans_for_source(sources[0])
             self.update_visualization()  # Trigger initial visualization
-
-    def _cache_calculated_data(self):
-        """Cache calculated data for the observation to optimize performance."""
-        calc_data_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["az_el", "times"]}}
-        })
-        if calc_data_response["status"]:
-            self.cached_data = calc_data_response["result"]
-            logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
-        else:
-            logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
-            self.cached_data = {}
     
     def _lock_ui(self):
         """Lock UI elements to prevent further changes during visualization."""
@@ -102,6 +88,20 @@ class AzElVisualizationTab(QWidget):
         self.ui.listScans.setEnabled(True)
         self.ui.listTelescopes.setEnabled(True)
         logger.debug("UI unlocked in AzElVisualizationTab")
+
+    def _cache_calculated_data(self):
+        """Cache calculated data for the observation to optimize performance."""
+        calc_data_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.observation,
+            "attributes": {"get_calculated_data": {"keys": ["az_el", "times"]}}
+        })
+        if calc_data_response["status"]:
+            self.cached_data = calc_data_response["result"]
+            logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
+        else:
+            logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
+            self.cached_data = {} 
 
     def get_selected_source(self) -> Optional[str]:
         """Get the currently selected source name.
