@@ -24,7 +24,7 @@ from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from pastrocore.gui.p_dialog_visualize import VisualizationDialog
-from common.utils.logging_setup import logger, setup_logging, update_logging_level
+from common.utils.logging_setup import logger, setup_logging, update_logging_level, update_logging_clear
 import logging
 import gc
 
@@ -43,8 +43,11 @@ class PAstroCoreMainWindow(QMainWindow):
     
         log_level_str = self.settings.get("log_level", "INFO")
         log_level = getattr(logging, log_level_str, logging.INFO)
-        logger = setup_logging(log_file="output.log", log_level=log_level)
+        clear_log = self.settings.get("clear_log_on_start", False)
+        logger = setup_logging(log_file="output.log", log_level=log_level, clear_log=clear_log)
         update_logging_level(log_level)
+        update_logging_clear("output.log", clear_log)
+        logger.debug(f"Logging initialized with clear_log={clear_log}")
     
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
@@ -434,7 +437,8 @@ class PAstroCoreMainWindow(QMainWindow):
             "sources_catalog_path": os.path.join("catalogs", "sources.dat"),
             "telescopes_catalog_path": os.path.join("catalogs", "telescopes.dat"),
             "log_level": "INFO", 
-            "time_step": 600
+            "time_step": 600,
+            "clear_log_on_start": False
         }
         if os.path.exists(settings_file):
             try:
@@ -702,6 +706,11 @@ class PAstroCoreMainWindow(QMainWindow):
             new_log_level = getattr(logging, new_log_level_str, logging.INFO)
             update_logging_level(new_log_level)
             logger.info(f"Logger level updated to {new_log_level_str}")
+
+        if "clear_log_on_start" in changed_keys:
+            clear_log = self.settings.get("clear_log_on_start", False)
+            update_logging_clear("output.log", clear_log)
+            logger.info(f"Log file clearing setting updated to {clear_log}. This will take effect now and on the next application start.")
 
         if "sources_catalog_path" in changed_keys:
             sources_path = self.settings.get("sources_catalog_path", os.path.join("catalogs", "sources.dat"))
