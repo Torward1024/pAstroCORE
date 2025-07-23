@@ -316,16 +316,13 @@ class ScheduleVisualizer(Super):
                     axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}")
 
                     if legend_handles:
-                        if plot_type == "sun_angles" and legend_handles:
-                            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
-                            fig.legend(
-                                legend_handles, legend_labels,
-                                loc='upper right', bbox_to_anchor=(0.98, 0.95),
-                                fontsize=self._style_config['legend']['fontsize'],
-                                title="Telescopes:"
-                            )
-                        else:
-                            axes[0].legend(legend_handles, legend_labels, **self._style_config['legend'])
+                        fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
+                        fig.legend(
+                            legend_handles, legend_labels,
+                            loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                            fontsize=self._style_config['legend']['fontsize'],
+                            title="Telescopes:"
+                        )
 
             for ax in axes[max(1, len(plotted_telescopes) if plot_type == "az_el" else 1):]:
                 ax.set_visible(False)
