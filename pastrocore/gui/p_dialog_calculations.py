@@ -258,13 +258,19 @@ class CalculationDialog(QDialog):
             "recalculate": False
         }
         logger.debug(f"CalculationDialog: params set to {params}")
-        calc_params = {calc: params.copy() for calc in selected_calcs}  # Копируем параметры для каждого расчета
-        self.progress_dialog = QProgressDialog("Calculating...", "Cancel", 0, 100, self)
+        calc_params = {calc: params.copy() for calc in selected_calcs}
+
+        # Initialize and show progress dialog immediately
+        self.progress_dialog = QProgressDialog("Preparing calculations...", "Cancel", 0, 100, self)
         self.progress_dialog.setWindowModality(Qt.WindowModal)
+        self.progress_dialog.setValue(0)
+        self.progress_dialog.show()  # Показываем диалог сразу
+
         self.thread = CalculationThread(self.manipulator, selected_targets, selected_calcs, calc_params)
         self.thread.progress.connect(self.update_progress)
         self.thread.finished.connect(self.calculation_finished)
         self.thread.error.connect(self.calculation_error)
+        self.progress_dialog.canceled.connect(self.cancel_calculation)  # Подключаем обработку отмены
         self.thread.start()
 
         # Emit time_step_updated signal if time_step changed
@@ -277,12 +283,19 @@ class CalculationDialog(QDialog):
         self.progress_dialog.setValue(value)
         self.progress_dialog.setLabelText(message)
         if self.progress_dialog.wasCanceled():
+            logger.debug("Progress dialog canceled, requesting thread termination")
             self.thread.terminate()
-
-    def run_calculation_and_visualize(self):
-        """Run calculations and open visualization dialog."""
-        QMessageBox.information(self, "Info", "Visualization is not implemented yet.")
-        self.run_calculation()
+            self.progress_dialog.close()
+            QMessageBox.information(self, "Cancelled", "Calculation was cancelled.")
+            self.reject()
+    
+    def cancel_calculation(self):
+        """Handle cancellation of the calculation thread."""
+        logger.debug("Cancellation requested by user")
+        self.thread.terminate()
+        self.progress_dialog.close()
+        QMessageBox.information(self, "Cancelled", "Calculation was cancelled.")
+        self.reject()
 
     def calculation_finished(self, results):
         """Handle calculation completion."""
