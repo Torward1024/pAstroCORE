@@ -69,7 +69,7 @@ class ScanEditorDialog(QDialog):
         self.ui.pushButton_2.clicked.connect(self.reject)
 
         # Connect checkbox signals
-        self.ui.chk_offsource.stateChanged.connect(self.on_offsource_changed)
+        self.ui.chk_offsource.stateChanged.connect(self.offsource_changed)
 
         # Connect model signals for debugging
         self.telescopes_model.itemChanged.connect(self.debug_item_changed)
@@ -427,7 +427,7 @@ class ScanEditorDialog(QDialog):
         self.ui.tab_frequencies.viewport().update()
 
     @Slot(int)
-    def on_offsource_changed(self, state):
+    def offsource_changed(self, state):
         """Handle OFF SOURCE checkbox state change."""
         is_off_source = bool(state)
         self.ui.sourceCombo.setEnabled(not is_off_source)
