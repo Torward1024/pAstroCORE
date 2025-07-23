@@ -47,6 +47,7 @@ class VisualizationDialog(QDialog):
     def setup_connections(self):
         """Connect UI signals to slots."""
         self.ui.pushButtonVisualize.clicked.connect(self.perform_visualization)
+        self.ui.pushButton.clicked.connect(self.export_calculated_data)
         self.ui.closeButton.clicked.connect(self.reject)
         self.ui.tabWidget.tabCloseRequested.connect(self.close_tab)
         logger.debug("VisualizationDialog connections set up")
@@ -400,3 +401,237 @@ class VisualizationDialog(QDialog):
             QApplication.restoreOverrideCursor()
             QApplication.processEvents()
             logger.debug("Visualization process completed, UI unlocked")
+
+    @Slot()
+    def export_calculated_data(self):
+        """Export calculated data for the current visualization tab to a tab-separated text file.
+
+        Uses times from cached_calc_data['times'] instead of scan names, filtered by selected scans.
+        """
+        if self.is_processing:
+            logger.debug("Export request ignored, processing in progress")
+            return
+        self.is_processing = True
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        self.ui.pushButtonExport.setEnabled(False)
+        self.ui.pushButtonExport.setText("Exporting...")
+        QApplication.processEvents()
+
+        try:
+            # Get current observation and visualization type
+            obs_name = self.ui.comboBoxObservation.currentData()
+            vis_type = self.ui.tabWidget.tabText(self.ui.tabWidget.currentIndex())
+
+            if not obs_name or not vis_type:
+                logger.warning("No observation or visualization tab selected for export")
+                QMessageBox.warning(self, "Warning", "Please select an observation and open a visualization tab.")
+                return
+
+            # Get the visualization tab widget
+            tab_widget = self.ui.tabWidget.currentWidget()
+            if not tab_widget:
+                logger.error("No active visualization tab found")
+                QMessageBox.critical(self, "Error", "No active visualization tab found.")
+                return
+
+            # Map visualization type to data key
+            visualization_map = {
+                "UV Coverage": "uv_coverage",
+                "Sun Angles": "sun_angles",
+                "Az/El or HA/Dec": "az_el",
+                "Time on Source": "time_on_source",
+                "Beam Pattern": "beam_pattern",
+                "Baseline Projections": "baseline_projections",
+                "Mollweide Tracks": "mollweide_tracks"
+            }
+            data_key = visualization_map.get(vis_type)
+            if not data_key:
+                logger.error(f"Invalid visualization type for export: {vis_type}")
+                QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")
+                return
+
+            # Get cached data for the observation
+            calc_data = self.cached_calc_data.get(obs_name, {}).get(data_key, {}).get("data", {})
+            times_data = self.cached_calc_data.get(obs_name, {}).get("times", {})
+            if not calc_data:
+                logger.error(f"No cached data available for {data_key} in observation '{obs_name}'")
+                QMessageBox.critical(self, "Error", f"No data available for {vis_type}.")
+                return
+            if not times_data and vis_type != "Beam Pattern":
+                logger.error(f"No cached times data available for observation '{obs_name}'")
+                QMessageBox.critical(self, "Error", f"No times data available for {vis_type}.")
+                return
+
+            # Validate data structure
+            expected_keys = {
+                "uv_coverage": ["times", "u", "v"],
+                "baseline_projections": ["times", "u", "v"],
+                "sun_angles": ["times", "angles"],
+                "az_el": ["times", "az", "el"],
+                "time_on_source": [],
+                "beam_pattern": ["angles", "power"],
+                "mollweide_tracks": ["times", "ra", "dec"]
+            }
+            if data_key != "time_on_source":  # time_on_source has scalar values
+                for level in calc_data.values():
+                    for sublevel in level.values():
+                        for subsublevel in sublevel.values():
+                            if not all(key in subsublevel for key in expected_keys[data_key]):
+                                logger.error(f"Invalid data structure for {data_key}")
+                                QMessageBox.critical(self, "Error", f"Invalid data structure for {vis_type}.")
+                                return
+
+            # Get filter selections from the tab
+            filters = {}
+            if vis_type in ["UV Coverage", "Baseline Projections"]:
+                filters["source_name"] = tab_widget.get_selected_source()
+                filters["scans"] = tab_widget.get_selected_scans()
+                filters["baselines"] = tab_widget.get_selected_baselines()
+                filters["frequencies"] = tab_widget.get_selected_frequencies()
+                filters["units"] = tab_widget.get_selected_units()
+            elif vis_type in ["Sun Angles", "Az/El or HA/Dec", "Time on Source"]:
+                filters["source_name"] = tab_widget.get_selected_source()
+                filters["scans"] = tab_widget.get_selected_scans()
+                filters["telescopes"] = tab_widget.get_selected_telescopes()
+            elif vis_type == "Beam Pattern":
+                filters["frequencies"] = tab_widget.get_selected_frequencies()
+                filters["telescopes"] = tab_widget.get_selected_telescopes()
+            elif vis_type == "Mollweide Tracks":
+                filters["sources"] = tab_widget.get_selected_sources()
+                filters["scans"] = tab_widget.get_selected_scans()
+                filters["telescopes"] = tab_widget.get_selected_telescopes()
+
+            # Validate filters
+            required_filters = {
+                "UV Coverage": ["source_name", "scans", "baselines", "frequencies"],
+                "Baseline Projections": ["source_name", "scans", "baselines", "frequencies"],
+                "Sun Angles": ["source_name", "scans", "telescopes"],
+                "Az/El or HA/Dec": ["source_name", "scans", "telescopes"],
+                "Time on Source": ["source_name", "scans", "telescopes"],
+                "Beam Pattern": ["frequencies", "telescopes"],
+                "Mollweide Tracks": ["scans", "telescopes"]
+            }
+            missing_filters = [f for f in required_filters.get(vis_type, []) if not filters.get(f)]
+            if missing_filters:
+                logger.warning(f"Missing filters for export: {missing_filters}")
+                QMessageBox.warning(self, "Warning", f"Missing filters: {', '.join(missing_filters)}")
+                return
+
+            # Prepare data for export
+            table_data = []
+            headers = []
+
+            if vis_type in ["UV Coverage", "Baseline Projections"]:
+                source_name = filters["source_name"]
+                scans = filters["scans"]
+                baselines = filters["baselines"]
+                frequencies = filters["frequencies"]
+                units = filters["units"]
+                headers = ["Source", "Time (UTC)", "Baseline", "Frequency (MHz)", f"U ({units})", f"V ({units})"]
+                for scan in scans:
+                    if scan in times_data:
+                        times = [t.isot for t in times_data[scan]["times"]]
+                        for baseline in baselines:
+                            for freq in frequencies:
+                                data = calc_data.get(source_name, {}).get(scan, {}).get(baseline, {}).get(str(freq), {})
+                                if data:
+                                    u_values = data.get("u", [])
+                                    v_values = data.get("v", [])
+                                    for t, u, v in zip(times, u_values, v_values):
+                                        table_data.append([
+                                            source_name, t, baseline, f"{freq:.2f}",
+                                            f"{u:.4f}", f"{v:.4f}"
+                                        ])
+
+            elif vis_type in ["Sun Angles", "Az/El or HA/Dec"]:
+                source_name = filters["source_name"]
+                scans = filters["scans"]
+                telescopes = filters["telescopes"]
+                headers = ["Source", "Time (UTC)", "Telescope", "Angle (deg)" if vis_type == "Sun Angles" else "Azimuth (deg)", "Elevation (deg)"]
+                for scan in scans:
+                    if scan in times_data:
+                        times = [t.isot for t in times_data[scan]["times"]]
+                        for telescope in telescopes:
+                            data = calc_data.get(source_name, {}).get(scan, {}).get(telescope, {})
+                            if data:
+                                values = data.get("angles" if vis_type == "Sun Angles" else "az", []), data.get("el", []) if vis_type == "Az/El or HA/Dec" else ([None] * len(times))
+                                for t, (val1, val2) in zip(times, zip(*values)):
+                                    row = [source_name, t, telescope, f"{val1:.4f}"]
+                                    if val2 is not None:
+                                        row.append(f"{val2:.4f}")
+                                    table_data.append(row)
+
+            elif vis_type == "Time on Source":
+                source_name = filters["source_name"]
+                scans = filters["scans"]
+                telescopes = filters["telescopes"]
+                headers = ["Source", "Time (UTC)", "Telescope", "Time on Source (s)"]
+                for scan in scans:
+                    if scan in times_data:
+                        times = [t.isot for t in times_data[scan]["times"]]
+                        for telescope in telescopes:
+                            duration = calc_data.get(source_name, {}).get(scan, {}).get(telescope, 0.0)
+                            for t in times:
+                                table_data.append([source_name, t, telescope, f"{duration:.4f}"])
+
+            elif vis_type == "Beam Pattern":
+                telescopes = filters["telescopes"]
+                frequencies = filters["frequencies"]
+                headers = ["Telescope", "Frequency (MHz)", "Angle (arcsec)", "Power (dB)"]
+                for telescope in telescopes:
+                    for freq in frequencies:
+                        data = calc_data.get(telescope, {}).get(str(freq), {})
+                        angles = data.get("angles", [])
+                        powers = data.get("power", [])
+                        for angle, power in zip(angles, powers):
+                            table_data.append([telescope, f"{freq:.2f}", f"{angle:.4f}", f"{power:.4f}"])
+
+            elif vis_type == "Mollweide Tracks":
+                scans = filters["scans"]
+                telescopes = filters["telescopes"]
+                sources = filters["sources"]
+                headers = ["Source", "Time (UTC)", "Telescope", "RA (rad)", "Dec (rad)"]
+                for scan in scans:
+                    if scan in times_data:
+                        times = [t.isot for t in times_data[scan]["times"]]
+                        for telescope in telescopes:
+                            data = calc_data.get(scan, {}).get(telescope, {})
+                            if data:
+                                ra = data.get("ra", [])
+                                dec = data.get("dec", [])
+                                for t, r, d in zip(times, ra, dec):
+                                    for source in sources:
+                                        table_data.append([source, t, telescope, f"{r:.4f}", f"{d:.4f}"])
+
+            if not table_data:
+                logger.warning(f"No data to export for {vis_type}")
+                QMessageBox.warning(self, "Warning", f"No data available to export for {vis_type}.")
+                return
+
+            # Open file dialog to get export path
+            file_name, _ = QFileDialog.getSaveFileName(
+                self, "Export Calculated Data", "", "Text Files (*.txt);;All Files (*)"
+            )
+            if not file_name:
+                logger.debug("Export cancelled by user")
+                return
+
+            # Write data to file
+            try:
+                with open(file_name, 'w', encoding='utf-8') as f:
+                    f.write('\t'.join(headers) + '\n')
+                    for row in table_data:
+                        f.write('\t'.join(str(val) for val in row) + '\n')
+                logger.info(f"Exported calculated data to {file_name}")
+                QMessageBox.information(self, "Success", f"Data exported successfully to {file_name}")
+            except Exception as e:
+                logger.error(f"Failed to write to file {file_name}: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to export data: {str(e)}")
+
+        finally:
+            self.is_processing = False
+            self.ui.pushButtonExport.setEnabled(True)
+            self.ui.pushButtonExport.setText("Export")
+            QApplication.restoreOverrideCursor()
+            QApplication.processEvents()
+            logger.debug("Export process completed, UI unlocked")
