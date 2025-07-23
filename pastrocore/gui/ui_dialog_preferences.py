@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_preferencesZaGHFP.ui'
+## Form generated from reading UI file 'dialog_preferenceslHwpJt.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -15,9 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QDoubleSpinBox,
-    QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QSizePolicy, QTabWidget, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog,
+    QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel,
+    QLineEdit, QPushButton, QSizePolicy, QTabWidget,
+    QWidget)
 
 class Ui_PreferencesDialog(object):
     def setupUi(self, PreferencesDialog):
@@ -47,14 +48,36 @@ class Ui_PreferencesDialog(object):
         self.gridLayout_3.setObjectName(u"gridLayout_3")
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
-        self.lbl_sources_catalog_path = QLabel(self.tab)
-        self.lbl_sources_catalog_path.setObjectName(u"lbl_sources_catalog_path")
+        self.lbl_telescopes_catalog_path = QLabel(self.tab)
+        self.lbl_telescopes_catalog_path.setObjectName(u"lbl_telescopes_catalog_path")
         font = QFont()
         font.setFamilies([u"Arial"])
         font.setPointSize(9)
-        self.lbl_sources_catalog_path.setFont(font)
+        self.lbl_telescopes_catalog_path.setFont(font)
 
-        self.gridLayout_2.addWidget(self.lbl_sources_catalog_path, 0, 0, 1, 1)
+        self.gridLayout_2.addWidget(self.lbl_telescopes_catalog_path, 1, 0, 1, 1)
+
+        self.openSourcesCatalogButton = QPushButton(self.tab)
+        self.openSourcesCatalogButton.setObjectName(u"openSourcesCatalogButton")
+        self.openSourcesCatalogButton.setStyleSheet(u"QPushButton {\n"
+"    background-color: #0078d7;\n"
+"    color: #ffffff;\n"
+"    padding: 6px;\n"
+"    border-radius: 3px;\n"
+"    border: none;\n"
+"}\n"
+"QPushButton:hover {\n"
+"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
+"}\n"
+"QPushButton:pressed {\n"
+"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
+"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
+"    padding-bottom: 5px;\n"
+"}")
+        self.openSourcesCatalogButton.setAutoDefault(False)
+        self.openSourcesCatalogButton.setFlat(True)
+
+        self.gridLayout_2.addWidget(self.openSourcesCatalogButton, 0, 2, 1, 1)
 
         self.sourcesCatalogPath = QLineEdit(self.tab)
         self.sourcesCatalogPath.setObjectName(u"sourcesCatalogPath")
@@ -83,60 +106,11 @@ class Ui_PreferencesDialog(object):
 
         self.gridLayout_2.addWidget(self.sourcesCatalogPath, 0, 1, 1, 1)
 
-        self.lbl_telescopes_catalog_path = QLabel(self.tab)
-        self.lbl_telescopes_catalog_path.setObjectName(u"lbl_telescopes_catalog_path")
-        self.lbl_telescopes_catalog_path.setFont(font)
+        self.lbl_sources_catalog_path = QLabel(self.tab)
+        self.lbl_sources_catalog_path.setObjectName(u"lbl_sources_catalog_path")
+        self.lbl_sources_catalog_path.setFont(font)
 
-        self.gridLayout_2.addWidget(self.lbl_telescopes_catalog_path, 1, 0, 1, 1)
-
-        self.openSourcesCatalogButton = QPushButton(self.tab)
-        self.openSourcesCatalogButton.setObjectName(u"openSourcesCatalogButton")
-        self.openSourcesCatalogButton.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff; /* \u0421\u0432\u0435\u0442\u043b\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0432\u0435\u0434\u0435\u043d\u0438\u0438 */\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5; /* \u0422\u0435\u043c\u043d\u0435\u0435 \u043f\u0440\u0438 \u043d\u0430\u0436\u0430\u0442\u0438\u0438 */\n"
-"    padding-top: 7px; /* \u041b\u0435\u0433\u043a\u043e\u0435 \u0441\u043c\u0435\u0449\u0435\u043d\u0438\u0435 \u0432\u043d\u0438\u0437 \u0434\u043b\u044f \u044d\u0444\u0444\u0435\u043a\u0442\u0430 \"\u043f\u0440\u043e\u0434\u0430\u0432\u043b\u0438\u0432\u0430\u043d\u0438\u044f\" */\n"
-"    padding-bottom: 5px;\n"
-"}")
-        self.openSourcesCatalogButton.setAutoDefault(False)
-        self.openSourcesCatalogButton.setFlat(True)
-
-        self.gridLayout_2.addWidget(self.openSourcesCatalogButton, 0, 2, 1, 1)
-
-        self.telescopesCatalogPath = QLineEdit(self.tab)
-        self.telescopesCatalogPath.setObjectName(u"telescopesCatalogPath")
-        self.telescopesCatalogPath.setStyleSheet(u"QLineEdit {\n"
-"    font-family: Arial;\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    padding: 1px;\n"
-"    border-radius: 3px;\n"
-"}\n"
-"QLineEdit[readOnly=\"true\"] {\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"] {\n"
-"    border: 1px solid #0078d7;\n"
-"    background-color: #f0f6ff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:hover {\n"
-"    border: 1px solid #1a8cff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:focus {\n"
-"    border: 1px solid #005bb5;\n"
-"    background-color: #ffffff;\n"
-"}")
-
-        self.gridLayout_2.addWidget(self.telescopesCatalogPath, 1, 1, 1, 1)
+        self.gridLayout_2.addWidget(self.lbl_sources_catalog_path, 0, 0, 1, 1)
 
         self.openTelescopesCatalogButton = QPushButton(self.tab)
         self.openTelescopesCatalogButton.setObjectName(u"openTelescopesCatalogButton")
@@ -159,11 +133,6 @@ class Ui_PreferencesDialog(object):
         self.openTelescopesCatalogButton.setFlat(True)
 
         self.gridLayout_2.addWidget(self.openTelescopesCatalogButton, 1, 2, 1, 1)
-
-        self.labelLogging = QLabel(self.tab)
-        self.labelLogging.setObjectName(u"labelLogging")
-
-        self.gridLayout_2.addWidget(self.labelLogging, 2, 0, 1, 1)
 
         self.comboLogging = QComboBox(self.tab)
         self.comboLogging.setObjectName(u"comboLogging")
@@ -255,6 +224,43 @@ class Ui_PreferencesDialog(object):
 "}")
 
         self.gridLayout_2.addWidget(self.comboLogging, 2, 1, 1, 1)
+
+        self.telescopesCatalogPath = QLineEdit(self.tab)
+        self.telescopesCatalogPath.setObjectName(u"telescopesCatalogPath")
+        self.telescopesCatalogPath.setStyleSheet(u"QLineEdit {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    padding: 1px;\n"
+"    border-radius: 3px;\n"
+"}\n"
+"QLineEdit[readOnly=\"true\"] {\n"
+"    border: 1px solid #d3d3d3;\n"
+"    background-color: #f9f9f9;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"] {\n"
+"    border: 1px solid #0078d7;\n"
+"    background-color: #f0f6ff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:hover {\n"
+"    border: 1px solid #1a8cff;\n"
+"}\n"
+"QLineEdit[readOnly=\"false\"]:focus {\n"
+"    border: 1px solid #005bb5;\n"
+"    background-color: #ffffff;\n"
+"}")
+
+        self.gridLayout_2.addWidget(self.telescopesCatalogPath, 1, 1, 1, 1)
+
+        self.labelLogging = QLabel(self.tab)
+        self.labelLogging.setObjectName(u"labelLogging")
+
+        self.gridLayout_2.addWidget(self.labelLogging, 2, 0, 1, 1)
+
+        self.chkClearLog = QCheckBox(self.tab)
+        self.chkClearLog.setObjectName(u"chkClearLog")
+
+        self.gridLayout_2.addWidget(self.chkClearLog, 3, 0, 1, 3)
 
 
         self.gridLayout_3.addLayout(self.gridLayout_2, 0, 0, 1, 2)
@@ -416,11 +422,12 @@ class Ui_PreferencesDialog(object):
 
     def retranslateUi(self, PreferencesDialog):
         PreferencesDialog.setWindowTitle(QCoreApplication.translate("PreferencesDialog", u"Dialog", None))
-        self.lbl_sources_catalog_path.setText(QCoreApplication.translate("PreferencesDialog", u"Sources catalog path:", None))
         self.lbl_telescopes_catalog_path.setText(QCoreApplication.translate("PreferencesDialog", u"Telescopes catalog path:", None))
         self.openSourcesCatalogButton.setText(QCoreApplication.translate("PreferencesDialog", u"Open...", None))
+        self.lbl_sources_catalog_path.setText(QCoreApplication.translate("PreferencesDialog", u"Sources catalog path:", None))
         self.openTelescopesCatalogButton.setText(QCoreApplication.translate("PreferencesDialog", u"Open...", None))
         self.labelLogging.setText(QCoreApplication.translate("PreferencesDialog", u"Logging level:", None))
+        self.chkClearLog.setText(QCoreApplication.translate("PreferencesDialog", u"Clear log-file on start", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("PreferencesDialog", u"Common", None))
         self.labelTimestep.setText(QCoreApplication.translate("PreferencesDialog", u"Time step (s):", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("PreferencesDialog", u"Calculations", None))

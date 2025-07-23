@@ -7,22 +7,21 @@ import os
 import logging
 
 class PreferencesDialog(QDialog):
-    """Dialog for configuring application settings, such as catalog paths, logging level, and time step."""
-    settings_updated = Signal(dict, list)  # Modified: Added list of changed keys
+    """Dialog for configuring application settings, such as catalog paths, logging level, time step, and log clearing."""
+    settings_updated = Signal(dict, list)  # Signal emits updated settings and list of changed keys
 
     def __init__(self, settings: dict, parent=None):
         """Initialize the preferences dialog with current settings.
 
         Args:
             settings (dict): Current application settings with keys 'sources_catalog_path', 
-                            'telescopes_catalog_path', 'log_level', and 'time_step'.
+                            'telescopes_catalog_path', 'log_level', 'time_step', and 'clear_log_on_start'.
             parent (QWidget, optional): Parent widget. Defaults to None.
         """
         super().__init__(parent)
         self.ui = Ui_PreferencesDialog()
         self.ui.setupUi(self)
         self.settings = settings.copy()
-        # Store original settings for comparison
         self.original_settings = settings.copy()
         self.setup_ui()
         self.setup_connections()
@@ -32,10 +31,9 @@ class PreferencesDialog(QDialog):
         self.ui.sourcesCatalogPath.setText(self.settings.get("sources_catalog_path", ""))
         self.ui.telescopesCatalogPath.setText(self.settings.get("telescopes_catalog_path", ""))
         self.ui.timeStepSpin.setValue(self.settings.get("time_step", 600))
-        # Make fields read-only to prevent manual editing
+        self.ui.chkClearLog.setChecked(self.settings.get("clear_log_on_start", False))  # Initialize checkbox
         self.ui.sourcesCatalogPath.setReadOnly(True)
         self.ui.telescopesCatalogPath.setReadOnly(True)
-        # Populate logging level combo box
         log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         self.ui.comboLogging.addItems(log_levels)
         current_log_level = self.settings.get("log_level", "INFO")
@@ -79,6 +77,7 @@ class PreferencesDialog(QDialog):
         telescopes_path = self.ui.telescopesCatalogPath.text().strip()
         log_level = self.ui.comboLogging.currentText()
         time_step = self.ui.timeStepSpin.value()
+        clear_log_on_start = self.ui.chkClearLog.isChecked()
 
         # Validate file existence if paths are non-empty
         if sources_path and not os.path.isfile(sources_path):
@@ -108,6 +107,8 @@ class PreferencesDialog(QDialog):
             changed_keys.append("log_level")
         if time_step != self.original_settings.get("time_step", 600):
             changed_keys.append("time_step")
+        if clear_log_on_start != self.original_settings.get("clear_log_on_start", False):
+            changed_keys.append("clear_log_on_start")
 
         if changed_keys:
             # Update settings only if there are changes
@@ -115,8 +116,16 @@ class PreferencesDialog(QDialog):
             self.settings["telescopes_catalog_path"] = telescopes_path
             self.settings["log_level"] = log_level
             self.settings["time_step"] = time_step
+            self.settings["clear_log_on_start"] = clear_log_on_start
             logger.info(f"Settings updated in PreferencesDialog: sources_path={sources_path}, "
-                        f"telescopes_path={telescopes_path}, log_level={log_level}, time_step={time_step}")
+                        f"telescopes_path={telescopes_path}, log_level={log_level}, "
+                        f"time_step={time_step}, clear_log_on_start={clear_log_on_start}")
+            if "clear_log_on_start" in changed_keys:
+                logger.info("Log file clearing setting changed and applied immediately.")
+                QMessageBox.information(
+                    self, "Info",
+                    "Log file clearing setting changed and applied immediately. This will also take effect on the next application start."
+                )
             self.settings_updated.emit(self.settings, changed_keys)
         else:
             logger.info("No changes in settings detected. Skipping update.")
