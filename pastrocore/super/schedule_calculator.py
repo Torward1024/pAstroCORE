@@ -1767,7 +1767,6 @@ class ScheduleCalculator(Super):
             logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for baseline projections in scan '{scan_name}'")
             return {"source": source_name, "projections": {}}
 
-        # Get UV data for the scan
         scan_uv_data = uv_data.get(source_name, {}).get(scan_name, {})
         if not scan_uv_data:
             logger.warning(f"No UV data for scan '{scan_name}' in source '{source_name}'")
@@ -1820,80 +1819,48 @@ class ScheduleCalculator(Super):
 
     @time_execution
     def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Calculate Mollweide projection tracks for telescopes and source coordinates for active scans.
+        """Calculate Mollweide projection tracks for telescopes in active scans.
 
         Args:
             obj (Observation | ScheduleProject): The object to calculate tracks for.
             attributes (Dict[str, Any]): Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Mollweide tracks and source coordinates, formatted as:
-                {
-                    "metadata": {
-                        "time_step": float,
-                        "scan_count": int,
-                        "sources": [{"name": str, "lon": float, "lat": float}, ...]
-                    },
-                    "data": {
-                        scan_name: {
-                            telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
-                        }
-                    }
-                }
+            Dict[str, Any]: Mollweide tracks, formatted as:
+                For Observation: {scan_name: {telescope_code: np.array([[lon1, lat1], ...])}} in meters
+                For ScheduleProject: {obs_code: {scan_name: {telescope_code: np.array([[lon1, lat1], ...])}}}
+
+        Notes:
+            - Uses precomputed times and telescope positions.
+            - Stores metadata (time_step, scan_count, sources) in calculated_data.
+            - Handles both Observation and ScheduleProject with parallel processing for projects.
         """
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "mollweide_tracks")
             recalculate = attributes.get("recalculate", False)
 
-            if isinstance(obj, ScheduleProject):
-                observations = obj.get_items()
-                if not observations:
-                    logger.warning(f"No observations in project '{obj.name}'")
-                    return {}
-                results = {}
-                max_workers = min(len(observations), 4) if len(observations) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._calculate_mollweide_tracks, obs, attributes): obs.get_observation_code()
-                        for obs in observations
-                    }
-                    for future in futures:
-                        obs_code = futures[future]
-                        obs_result = future.result()
-                        logger.debug(f"Processing result for observation '{obs_code}': {obs_result.keys()}")
-                        if obs_result:
-                            results[obs_code] = obs_result
-                        else:
-                            logger.warning(f"No valid data from observation '{obs_code}'")
-                    if not results:
-                        logger.warning(f"No Mollweide tracks computed for project '{obj.name}'")
-                    else:
-                        logger.info(f"Calculated Mollweide tracks for {len(observations)} observations in project '{obj.name}'")
-                        logger.debug(f"Final structure for '{obj.name}': {list(results.keys())}")
-                return results
-
-            def calculate_mollweide(obj: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
-                scans = obj.get_scans().get_active_items()
+            def calculate_mollweide(obs: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+                scans, _, _ = self._get_active_components(obs, require_scans=True)
                 if not scans:
-                    logger.warning(f"No active scans in observation '{obj.get_observation_code()}'")
+                    logger.warning(f"No active scans in observation '{obs.get_observation_code()}'")
                     return {}
 
                 # Retrieve or calculate dependencies
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": recalculate}
-                time_data = self._calculate_time_arrays(obj, time_attrs)
-                position_data = self._calculate_telescope_positions(obj, position_attrs)
+                time_data = self._calculate_time_arrays(obs, time_attrs)
+                position_data = self._calculate_telescope_positions(obs, position_attrs)
 
                 if not (time_data and position_data):
-                    logger.error(f"Missing required data (times or positions) for '{obj.get_observation_code()}'")
+                    logger.error(f"Missing required data (times or positions) for '{obs.get_observation_code()}'")
                     return {}
 
                 results = {}
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_mollweide_tracks, scan, obj, time_step, time_data, position_data): scan.name
+                        executor.submit(self._process_mollweide_tracks, scan, obs, time_step, time_data, position_data): scan.name
                         for scan in scans
                     }
                     for future in futures:
@@ -1901,15 +1868,15 @@ class ScheduleCalculator(Super):
                         scan_result = future.result()
                         if scan_result.get("tracks"):
                             results[scan_name] = scan_result["tracks"]
-                            logger.debug(f"Added tracks for scan '{scan_name}'")
+                            logger.debug(f"Computed tracks for scan '{scan_name}' in '{obs.get_observation_code()}'")
                         else:
-                            logger.warning(f"No tracks for scan '{scan_name}' in observation '{obj.get_observation_code()}'")
+                            logger.warning(f"No tracks for scan '{scan_name}' in '{obs.get_observation_code()}'")
 
                 if not results:
-                    logger.warning(f"No Mollweide tracks computed for observation '{obj.get_observation_code()}'")
+                    logger.warning(f"No Mollweide tracks computed for observation '{obs.get_observation_code()}'")
                 return results
 
-            # Calculate source coordinates for metadata
+            # Prepare metadata
             sources_metadata = {}
             for source in obj.get_sources().get_active_items():
                 ra = source.ra_degrees  # in degrees
@@ -1920,13 +1887,18 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()),
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_items()),
                 "sources": sources_metadata
             }
-            result = self._get_cached_or_calculate(obj, store_key, calculate_mollweide, attributes, metadata)
-            return {"metadata": metadata, "data": result}
+
+            # Process object and cache results
+            result = self._process_object(obj, attributes, calculate_mollweide, store_key, metadata)
+            if not result:
+                logger.warning(f"No Mollweide tracks computed for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}'")
+            return result
+
         except Exception as e:
-            logger.error(f"Failed to calculate Mollweide tracks: {str(e)}")
+            logger.error(f"Failed to calculate Mollweide tracks for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
             return {}
 
     def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
