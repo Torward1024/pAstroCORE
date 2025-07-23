@@ -1,15 +1,16 @@
 # utils/logging_setup.py
 import logging
 
-def setup_logging(log_file: str = "output.log", log_level: int = logging.INFO) -> logging.Logger:
+def setup_logging(log_file: str = "output.log", log_level: int = logging.INFO, clear_log: bool = False) -> logging.Logger:
     """Set up and configure logging for the system.
 
     Creates a logger with both file and console handlers, using a consistent format for log messages.
-    Allows specifying the logging level for flexible logging configuration.
+    Allows specifying the logging level and whether to clear the log file on start.
 
     Args:
         log_file (str): Path to the log file. Defaults to "output.log".
         log_level (int): Logging level (e.g., logging.DEBUG, logging.INFO). Defaults to logging.INFO.
+        clear_log (bool): If True, clears the log file before adding new logs. Defaults to False.
 
     Returns:
         logging.Logger: The configured logger instance.
@@ -17,12 +18,7 @@ def setup_logging(log_file: str = "output.log", log_level: int = logging.INFO) -
     Notes:
         - Log format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s".
         - Handlers are added only if the logger has no existing handlers to avoid duplication.
-        - Valid log levels are defined in the logging module (e.g., logging.DEBUG, logging.INFO, logging.WARNING).
-
-    Examples:
-        >>> logger = setup_logging("my_log.log", logging.DEBUG)
-        >>> logger.debug("Debug message")
-        # Output to both my_log.log and console: <timestamp> - root - DEBUG - Debug message
+        - If clear_log is True, the log file is truncated before adding new logs.
     """
     logger = logging.getLogger("")
     logger.setLevel(log_level)
@@ -30,7 +26,9 @@ def setup_logging(log_file: str = "output.log", log_level: int = logging.INFO) -
     # Avoid duplicate handlers if already set up
     if not logger.handlers:
         # File handler
-        fh = logging.FileHandler(log_file)
+        # Use 'w' mode to clear the file if clear_log is True, else 'a' to append
+        mode = 'w' if clear_log else 'a'
+        fh = logging.FileHandler(log_file, mode=mode)
         fh.setLevel(log_level)
 
         # Console handler
@@ -65,6 +63,33 @@ def update_logging_level(log_level: int) -> None:
         logger.setLevel(log_level)
         for handler in logger.handlers:
             handler.setLevel(log_level)
+
+def update_logging_clear(log_file: str, clear_log: bool) -> None:
+    """Update the logging configuration to clear the log file if specified.
+
+    Args:
+        log_file (str): Path to the log file.
+        clear_log (bool): If True, reconfigures the file handler to clear the log file.
+    """
+    global logger
+    if logger is None:
+        logger = setup_logging(log_file=log_file, clear_log=clear_log)
+        return
+
+    if clear_log:
+        # Remove existing file handlers
+        for handler in logger.handlers[:]:
+            if isinstance(handler, logging.FileHandler):
+                logger.removeHandler(handler)
+                handler.close()
+        
+        # Create new file handler in write mode to clear the file
+        fh = logging.FileHandler(log_file, mode='w')
+        fh.setLevel(logger.level)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+        logger.info("Log file cleared due to clear_log=True")
 
 # Singleton logger instance with default INFO level
 logger = setup_logging()
