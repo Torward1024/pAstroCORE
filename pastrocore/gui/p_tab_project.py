@@ -57,9 +57,9 @@ class ProjectInfoTab(QWidget):
         self.ui.lineEdit.editingFinished.connect(self.handle_project_name_confirmed)
         self.ui.search.textChanged.connect(self.handle_search_text_changed)
         self.ui.projectInfoTable.doubleClicked.connect(self.handle_table_double_click)
-        self.ui.lineEdit.mouseDoubleClickEvent = self.on_line_edit_double_click
+        self.ui.lineEdit.mouseDoubleClickEvent = self.line_edit_double_click
 
-    def on_line_edit_double_click(self, event):
+    def line_edit_double_click(self, event):
         """Enable editing of project name on double-click."""
         self.ui.lineEdit.setReadOnly(False)
         self.ui.lineEdit.setFocus()

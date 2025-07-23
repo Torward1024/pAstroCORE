@@ -316,16 +316,13 @@ class ScheduleVisualizer(Super):
                     axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}")
 
                     if legend_handles:
-                        if plot_type == "sun_angles" and legend_handles:
-                            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
-                            fig.legend(
-                                legend_handles, legend_labels,
-                                loc='upper right', bbox_to_anchor=(0.98, 0.95),
-                                fontsize=self._style_config['legend']['fontsize'],
-                                title="Telescopes:"
-                            )
-                        else:
-                            axes[0].legend(legend_handles, legend_labels, **self._style_config['legend'])
+                        fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
+                        fig.legend(
+                            legend_handles, legend_labels,
+                            loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                            fontsize=self._style_config['legend']['fontsize'],
+                            title="Telescopes:"
+                        )
 
             for ax in axes[max(1, len(plotted_telescopes) if plot_type == "az_el" else 1):]:
                 ax.set_visible(False)
@@ -576,7 +573,7 @@ class ScheduleVisualizer(Super):
             all_scaled_points = []
             max_uv = 0.0
 
-            # Collect all UV points and calculate max_uv
+            # Collect all UV points with corresponding times
             for source in uv_data:
                 if source != source_name:
                     continue
@@ -588,36 +585,55 @@ class ScheduleVisualizer(Super):
                 for scan in scan_list:
                     if scan not in source_uv or scan not in source_times:
                         continue
-                    times = [t.mjd for t in source_times[scan] if hasattr(t, 'mjd')]
+                    times = [t for t in source_times[scan] if hasattr(t, 'mjd')]
                     if not times:
                         continue
-                    all_times.extend(times)
                     uv_points = source_uv[scan]
                     for tel_code in uv_points:
                         if tel_code not in baselines:
                             continue
                         if tel_code not in all_uv_points:
                             all_uv_points[tel_code] = []
-                        all_uv_points[tel_code].extend([(pt[0], pt[1]) for pt in uv_points[tel_code] if len(pt) >= 2])
+                        # Ensure UV points and times have the same length
+                        uv_array = np.array(uv_points[tel_code], dtype=float)  # shape: (n_times, 3)
+                        if uv_array.shape[0] != len(times):
+                            logger.warning(f"Mismatch in UV points ({uv_array.shape[0]}) and times ({len(times)}) for baseline {tel_code} in scan {scan}")
+                            min_len = min(uv_array.shape[0], len(times))
+                            uv_array = uv_array[:min_len]
+                            scan_times = times[:min_len]
+                        else:
+                            scan_times = times
+                        # Filter out NaN values
+                        valid_mask = ~np.any(np.isnan(uv_array[:, :2]), axis=1)  # Check u, v for NaN
+                        valid_times = [scan_times[i] for i in range(len(scan_times)) if valid_mask[i]]
+                        valid_uv = uv_array[valid_mask][:, :2]  # Take only u, v
+                        all_times.extend(valid_times)
+                        all_uv_points[tel_code].extend(valid_uv.tolist())
 
                 if not all_times or not all_uv_points:
+                    logger.debug(f"No valid data for source {source}, skipping")
                     continue
 
-                time_indices = np.argsort(all_times)
+                # Sort by time to ensure correspondence
+                time_indices = np.argsort([t.mjd for t in all_times])
                 all_times = [all_times[i] for i in time_indices]
                 for tel_code in all_uv_points:
                     all_uv_points[tel_code] = [all_uv_points[tel_code][i] for i in time_indices if i < len(all_uv_points[tel_code])]
 
+                # Plot UV points for each frequency
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
                     for tel_code in all_uv_points:
                         if tel_code not in baselines:
                             continue
-                        valid_points = [(pt[0], pt[1]) for pt in all_uv_points[tel_code] if len(pt) >= 2]
-                        if not valid_points:
+                        if not all_uv_points[tel_code]:
                             continue
-                        u, v = zip(*valid_points)
+                        u, v = zip(*all_uv_points[tel_code])
                         u, v = np.array(u, dtype=float), np.array(v, dtype=float)
+                        # Skip if all values are NaN
+                        if np.all(np.isnan(u)) or np.all(np.isnan(v)):
+                            logger.debug(f"All UV points for baseline {tel_code} at {freq_mhz:.2f} MHz are NaN, skipping")
+                            continue
                         if units == "wavelengths":
                             u_scaled = u / wavelength
                             v_scaled = v / wavelength
@@ -653,7 +669,6 @@ class ScheduleVisualizer(Super):
                 prefix, scale = "xED", 1.0
                 ax.set_xlabel("u, (xED)")
                 ax.set_ylabel("v, (xED)")
-
 
             uv_max_scaled = 0.0
             for u_scaled, v_scaled, tel_code, freq_mhz, freq_idx in all_scaled_points:
@@ -699,7 +714,7 @@ class ScheduleVisualizer(Super):
                     fontsize=self._style_config['legend']['fontsize'],
                     title="Baselines:"
                 )
-            
+
             ax.invert_xaxis()
             ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}")
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
@@ -1123,98 +1138,122 @@ class ScheduleVisualizer(Super):
             legend_handles = []
             legend_labels = []
             max_bl = 0.0
-            all_scaled_points = []
 
+            # Collect all baseline projections with corresponding times
+            all_data = {pair: [] for pair in baselines}  # Store (time_mjd, projection) pairs
             for source in bl_data:
                 if source != source_name:
                     continue
                 source_bl = bl_data[source]
                 source_times = times_data[source]
-                all_times = []
-                all_bl_points = {}
 
                 for scan in scan_list:
                     if scan not in source_bl or scan not in source_times:
+                        logger.debug(f"Scan {scan} not found in source {source}, skipping")
                         continue
-                    times = [t.mjd for t in source_times[scan] if hasattr(t, 'mjd')]
+                    times = [t for t in source_times[scan] if hasattr(t, 'mjd')]
                     if not times:
+                        logger.debug(f"No valid times for scan {scan} in source {source}, skipping")
                         continue
-                    all_times.extend(times)
                     bl_points = source_bl[scan]
                     for pair in bl_points:
                         if pair not in baselines:
                             continue
-                        if pair not in all_bl_points:
-                            all_bl_points[pair] = []
-                        all_bl_points[pair].extend([float(p) for p in bl_points[pair] if p is not None])
+                        # Convert projections to numpy array
+                        bl_array = np.array(bl_points[pair], dtype=float)
+                        if bl_array.shape[0] != len(times):
+                            logger.warning(f"Mismatch in projections ({bl_array.shape[0]}) and times ({len(times)}) for baseline {pair} in scan {scan}")
+                            min_len = min(bl_array.shape[0], len(times))
+                            bl_array = bl_array[:min_len]
+                            scan_times = times[:min_len]
+                        else:
+                            scan_times = times
+                        # Store time-projection pairs
+                        for t, bl in zip(scan_times, bl_array):
+                            all_data[pair].append((t.mjd, bl))
 
-                if not all_times or not all_bl_points:
+            # Process data for each baseline and frequency
+            for pair in baselines:
+                if not all_data[pair]:
+                    logger.debug(f"No data for baseline {pair}, skipping")
+                    continue
+                # Convert to arrays and filter NaN
+                times_mjd, projections = zip(*all_data[pair]) if all_data[pair] else ([], [])
+                times_mjd = np.array(times_mjd, dtype=float)
+                projections = np.array(projections, dtype=float)
+                if len(times_mjd) == 0 or len(projections) == 0:
+                    logger.debug(f"No valid data for baseline {pair} after combining, skipping")
+                    continue
+                # Sort by time
+                time_indices = np.argsort(times_mjd)
+                times_mjd = times_mjd[time_indices]
+                projections = projections[time_indices]
+                # Filter NaN
+                valid_mask = ~np.isnan(projections)
+                if not np.any(valid_mask):
+                    logger.debug(f"All projections for baseline {pair} are NaN, skipping")
+                    continue
+                times_mjd = times_mjd[valid_mask]
+                projections = projections[valid_mask]
+                if len(times_mjd) != len(projections):
+                    logger.error(f"After filtering, times ({len(times_mjd)}) and projections ({len(projections)}) lengths mismatch for baseline {pair}")
                     continue
 
-                time_indices = np.argsort(all_times)
-                all_times = [all_times[i] for i in time_indices]
-                for pair in all_bl_points:
-                    all_bl_points[pair] = [all_bl_points[pair][i] for i in time_indices if i < len(all_bl_points[pair])]
-
+                # Plot for each frequency
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
-                    for pair in all_bl_points:
-                        if pair not in baselines:
-                            continue
-                        valid_projs = np.array(all_bl_points[pair], dtype=float)
-                        valid_projs = valid_projs[~np.isnan(valid_projs)]
-                        if len(valid_projs) == 0:
-                            continue
-                        if len(valid_projs) != len(all_times):
-                            min_len = min(len(all_times), len(valid_projs))
-                            valid_projs = valid_projs[:min_len]
-                            times_subset = all_times[:min_len]
+                    # Scale projections
+                    bl_scaled = np.array(projections, dtype=float)
+                    if units == "wavelengths":
+                        bl_scaled = bl_scaled / wavelength
+                    else:
+                        bl_scaled = (bl_scaled / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
+                    # Filter NaN after scaling
+                    valid_mask = ~np.isnan(bl_scaled)
+                    if not np.any(valid_mask):
+                        logger.debug(f"All scaled projections for baseline {pair} at {freq_mhz:.2f} MHz are NaN, skipping")
+                        continue
+                    valid_times_mjd = times_mjd[valid_mask]
+                    valid_bl_scaled = bl_scaled[valid_mask]
+                    if len(valid_times_mjd) != len(valid_bl_scaled):
+                        logger.error(f"After scaling, times ({len(valid_times_mjd)}) and projections ({len(valid_bl_scaled)}) lengths mismatch for baseline {pair} at {freq_mhz:.2f} MHz")
+                        continue
+                    max_bl = max(max_bl, np.max(np.abs(valid_bl_scaled)))
+                    # Determine scale for plotting
+                    if units == "wavelengths":
+                        if max_bl >= 1e12:
+                            prefix, scale = "Tλ", 1e12
+                        elif max_bl >= 1e9:
+                            prefix, scale = "Gλ", 1e9
+                        elif max_bl >= 1e6:
+                            prefix, scale = "Mλ", 1e6
+                        elif max_bl >= 1e3:
+                            prefix, scale = "kλ", 1e3
                         else:
-                            times_subset = all_times
-                        if units == "wavelengths":
-                            bl_scaled = valid_projs / wavelength
-                        else:
-                            bl_scaled = (valid_projs / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
-                        max_bl = max(max_bl, np.max(np.abs(bl_scaled)))
-                        all_scaled_points.append((times_subset, bl_scaled, pair, freq_mhz, freq_idx))
+                            prefix, scale = "λ", 1.0
+                    else:
+                        prefix, scale = "xED", 1.0
+                    ax.set_ylabel(f"Baseline Length, ({prefix})")
+                    # Plot
+                    color_idx = len(plotted_pairs) % len(self._style_config['colors'])
+                    label = f"{pair} ({freq_mhz:.2f} MHz)"
+                    bl_plot = valid_bl_scaled / scale
+                    handle = ax.scatter(
+                        valid_times_mjd, bl_plot, s=10, c=[self._style_config['colors'][color_idx]], label=label, alpha=0.7
+                    )
+                    logger.debug(f"Plotted {len(bl_plot)} points for baseline {pair} at {freq_mhz:.2f} MHz")
+                    legend_handles.append(handle)
+                    legend_labels.append((freq_mhz, pair))
+                    plotted_pairs.add(f"{pair}_{freq_mhz}")
+                    result["projections"] += len(bl_plot)
 
-            if not all_scaled_points:
+            if not plotted_pairs:
                 logger.debug("No valid data plotted, returning empty result")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
-
-            # Determine scale for wavelengths
-            if units == "wavelengths":
-                if max_bl >= 1e12:
-                    prefix, scale = "Tλ", 1e12
-                elif max_bl >= 1e9:
-                    prefix, scale = "Gλ", 1e9
-                elif max_bl >= 1e6:
-                    prefix, scale = "Mλ", 1e6
-                elif max_bl >= 1e3:
-                    prefix, scale = "kλ", 1e3
-                else:
-                    prefix, scale = "λ", 1.0
-                ax.set_ylabel(f"Baseline Length, ({prefix})")
-            else:
-                prefix, scale = "xED", 1.0
-                ax.set_ylabel(f"Baseline Length, (xED)")
-
-            # Plot scaled baseline projections
-            for times_subset, bl_scaled, pair, freq_mhz, freq_idx in all_scaled_points:
-                color_idx = len(plotted_pairs) % len(self._style_config['colors'])
-                label = f"{pair} ({freq_mhz:.2f} MHz)"
-                bl_plot = bl_scaled / scale
-                handle = ax.scatter(
-                    times_subset, bl_plot, s=10, c=[self._style_config['colors'][color_idx]], label=label, alpha=0.7
-                )
-                legend_handles.append(handle)
-                legend_labels.append((freq_mhz, pair))
-                plotted_pairs.add(f"{pair}_{freq_mhz}")
-                result["projections"] += len(bl_scaled)
 
             # Create grouped legend
             if legend_handles:
@@ -1243,6 +1282,7 @@ class ScheduleVisualizer(Super):
                 )
 
             result["baselines"] = len(plotted_pairs)
+            logger.debug(f"Visualization result: {result}")
             return result
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:

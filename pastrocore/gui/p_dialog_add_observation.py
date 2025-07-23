@@ -32,17 +32,17 @@ class AddObservationDialog(QDialog):
         self.ui.okButton.clicked.connect(self.accept)
         self.ui.closeButton.clicked.connect(self.reject)
         # Explicitly connect QLineEdit and QComboBox signals
-        self.ui.obs_code.textChanged.connect(self.on_obs_code_changed)
-        self.ui.combo_obs_type.currentTextChanged.connect(self.on_obs_type_changed)
+        self.ui.obs_code.textChanged.connect(self.obs_code_changed)
+        self.ui.combo_obs_type.currentTextChanged.connect(self.obs_type_changed)
         logger.debug("AddObservationDialog connections set up")
 
     @Slot(str)
-    def on_obs_code_changed(self, text: str):
+    def obs_code_changed(self, text: str):
         """Handle changes to observation code input."""
         logger.debug(f"Observation code input changed to: {text}")
 
     @Slot(str)
-    def on_obs_type_changed(self, text: str):
+    def obs_type_changed(self, text: str):
         """Handle changes to observation type selection."""
         logger.debug(f"Observation type changed to: {text}")
 

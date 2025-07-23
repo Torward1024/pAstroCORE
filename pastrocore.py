@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QApplication, QFileDialog, QMessageBox,
     QTreeView, QTabBar, QProgressDialog, QMenu
 )
+from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal, Slot, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 # Core files
@@ -38,6 +39,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.settings = self.load_settings()
+        self._dock_was_visible = True
     
         log_level_str = self.settings.get("log_level", "INFO")
         log_level = getattr(logging, log_level_str, logging.INFO)
@@ -117,7 +119,8 @@ class PAstroCoreMainWindow(QMainWindow):
         """Setup the UI components and their initial states."""
 
         self.ui.dockWidget.setVisible(True)
-        self.ui.actionProject_Explorer.setChecked(True)     
+        self.ui.actionProject_Explorer.setChecked(True)
+        self._dock_was_visible = True
         self.update_project_explorer()
 
         for i in range(self.ui.tabContainer.count()):
@@ -872,12 +875,39 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot(bool)
     def sync_project_explorer_action(self, visible: bool):
         """Synchronize the Project Explorer menu action with dockWidget visibility."""
+        if self.windowState() & QtCore.Qt.WindowMinimized:
+            logger.debug("Skipping sync_project_explorer_action during minimization")
+            return
         self.ui.actionProject_Explorer.setChecked(visible)
+        self._dock_was_visible = visible
         logger.debug(f"Project Explorer action synchronized: checked={visible}")
+    
+    def changeEvent(self, event):
+        """Handle window state changes, such as minimization and restoration."""
+        if event.type() == QtCore.QEvent.WindowStateChange:
+            old_state = event.oldState()
+            new_state = self.windowState()
+            if old_state & QtCore.Qt.WindowNoState and new_state & QtCore.Qt.WindowMinimized:
+                self._dock_was_visible = self.ui.dockWidget.isVisible()
+                try:
+                    self.ui.dockWidget.visibilityChanged.disconnect(self.sync_project_explorer_action)
+                    logger.debug("Disconnected visibilityChanged signal during minimization")
+                except Exception as e:
+                    logger.debug(f"Could not disconnect visibilityChanged signal: {str(e)}")
+            elif old_state & QtCore.Qt.WindowMinimized and new_state == QtCore.Qt.WindowNoState:
+                try:
+                    self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
+                    logger.debug("Reconnected visibilityChanged signal after restoration")
+                except Exception as e:
+                    logger.debug(f"Could not reconnect visibilityChanged signal: {str(e)}")
+                if self.ui.dockWidget.isVisible() != self._dock_was_visible:
+                    self.ui.dockWidget.setVisible(self._dock_was_visible)
+                    self.ui.actionProject_Explorer.setChecked(self._dock_was_visible)
+                    logger.debug(f"Restored dockWidget visibility: {self._dock_was_visible}")
+        super().changeEvent(event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    # QSS styles
     app.setStyleSheet("""
         QMainWindow {
             background-color: #f5f5f5;
