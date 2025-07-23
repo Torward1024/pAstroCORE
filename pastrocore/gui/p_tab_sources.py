@@ -49,14 +49,14 @@ class SourcesTab(QWidget):
         self.ui.table.setColumnWidth(6, 100)  # DEC
 
         # Подключение сигналов
-        self.ui.search.textChanged.connect(self.on_search_changed)
+        self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
         self.update()
 
         logger.info(f"SourcesTab initialized for observation '{observation.code}' with catalog_manager id={id(catalog_manager)}")
 
     @Slot(str)
-    def on_search_changed(self, text: str):
+    def search_changed(self, text: str):
         """Handle search text change."""
         reg_exp = QRegularExpression(text)
         self.proxy_model.setFilterRegularExpression(reg_exp)

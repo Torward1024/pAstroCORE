@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QVBoxLayout
-from PySide6.QtCore import Signal, Slot, Qt
+from PySide6.QtCore import Signal, Slot
 from pastrocore.utils.catalogmanager import CatalogManager
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -26,7 +26,6 @@ class ObservationTab(QWidget):
         self.parent_widget = parent
         self._updating = False
 
-        # Инициализация вкладок для таблиц
         self.frequencies_tab = FrequenciesTab(observation, project, manipulator, self)
         self.sources_tab = SourcesTab(self.observation, self.project, self.manipulator, self.catalog_manager, self)
         self.telescopes_tab = TelescopesTab(observation, self.project, self.manipulator, self.catalog_manager, self)
@@ -37,29 +36,24 @@ class ObservationTab(QWidget):
             sources_tab=self.sources_tab
         )
 
-        # Создание вкладок и добавление их в tabWidget
-        # Frequencies Tab
         self.tab_freq = QWidget()
         self.tab_freq.setObjectName("tab_freq")
         frequencies_layout = QVBoxLayout(self.tab_freq)
         frequencies_layout.addWidget(self.frequencies_tab)
         self.ui.tabWidget.addTab(self.tab_freq, "Frequencies")
 
-        # Sources Tab
         self.tab_sources = QWidget()
         self.tab_sources.setObjectName("tab_sources")
         sources_layout = QVBoxLayout(self.tab_sources)
         sources_layout.addWidget(self.sources_tab)
         self.ui.tabWidget.addTab(self.tab_sources, "Sources")
 
-        # Telescopes Tab
         self.tab_tels = QWidget()
         self.tab_tels.setObjectName("tab_tels")
         telescopes_layout = QVBoxLayout(self.tab_tels)
         telescopes_layout.addWidget(self.telescopes_tab)
         self.ui.tabWidget.addTab(self.tab_tels, "Telescopes")
 
-        # Scans Tab
         self.tab_scans = QWidget()
         self.tab_scans.setObjectName("tab_scans")
         scans_layout = QVBoxLayout(self.tab_scans)
@@ -71,17 +65,16 @@ class ObservationTab(QWidget):
 
     def setup_connections(self):
         """Connect UI signals to slots."""
-        self.ui.obs_name_edit.editingFinished.connect(self.on_obs_name_confirmed)
-        self.ui.combo_obs_type.currentTextChanged.connect(self.on_obs_type_changed)
-        self.ui.obs_name_edit.mouseDoubleClickEvent = self.on_obs_name_edit_double_click
+        self.ui.obs_name_edit.editingFinished.connect(self.obs_name_confirmed)
+        self.ui.combo_obs_type.currentTextChanged.connect(self.obs_type_changed)
+        self.ui.obs_name_edit.mouseDoubleClickEvent = self.obs_name_edit_double_click
 
-        # Подключаем сигналы от дочерних вкладок
         self.frequencies_tab.data_updated.connect(self.observation_updated)
         self.sources_tab.data_updated.connect(self.observation_updated)
         self.telescopes_tab.data_updated.connect(self.observation_updated)
         self.scans_tab.data_updated.connect(self.observation_updated)
 
-    def on_obs_name_edit_double_click(self, event):
+    def obs_name_edit_double_click(self, event):
         """Enable editing of observation code on double-click."""
         self.ui.obs_name_edit.setReadOnly(False)
         self.ui.obs_name_edit.setFocus()
@@ -89,7 +82,7 @@ class ObservationTab(QWidget):
         event.accept()
 
     @Slot()
-    def on_obs_name_confirmed(self):
+    def obs_name_confirmed(self):
         if self.ui.obs_name_edit.isReadOnly():
             return
         new_code = self.ui.obs_name_edit.text().strip()
@@ -124,7 +117,7 @@ class ObservationTab(QWidget):
             self.ui.obs_name_edit.setReadOnly(True)
 
     @Slot(str)
-    def on_obs_type_changed(self, text: str):
+    def obs_type_changed(self, text: str):
         """Handle observation type change."""
         if not text or self._updating:
             return
@@ -167,7 +160,6 @@ class ObservationTab(QWidget):
                 return
             obs_code = obs_code_response["result"]
 
-            # Проверяем, существует ли наблюдение в проекте
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
@@ -179,27 +171,21 @@ class ObservationTab(QWidget):
                 return
 
             new_observation = obs_response["result"]
-            # Проверяем, изменились ли данные наблюдения
             if new_observation != self.observation:
                 logger.debug(f"Observation with code '{obs_code}' data updated, refreshing local reference")
                 self.observation = new_observation
-                # Обновляем зависимости дочерних вкладок
                 self.frequencies_tab.observation = self.observation
                 self.sources_tab.observation = self.observation
                 self.telescopes_tab.observation = self.observation
                 self.scans_tab.observation = self.observation
 
-            # Update observation code (visible to user)
             self.ui.obs_name_edit.setText(self.observation.code)
-
-            # Update observation code in tab title
             self.setObjectName(f"observationTab_{obs_code}")
             for i in range(self.parent_widget.ui.tabContainer.count()):
                 if self.parent_widget.ui.tabContainer.widget(i) == self:
                     self.parent_widget.ui.tabContainer.setTabText(i, f"Observation: {obs_code}")
                     break
 
-            # Update observation type
             type_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.observation,
@@ -213,7 +199,6 @@ class ObservationTab(QWidget):
                 self.ui.combo_obs_type.setCurrentText(obs_type)
                 self.ui.combo_obs_type.blockSignals(False)
 
-            # Update start time and duration
             start_time_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.observation,
@@ -230,7 +215,6 @@ class ObservationTab(QWidget):
 
             self.ui.lbl_obs_info.setText(f"Start Time/Date: {start_time} Duration: {duration} sec.")
 
-            # Обновляем дочерние вкладки
             self.frequencies_tab.update()
             self.sources_tab.update()
             self.telescopes_tab.update()
@@ -253,7 +237,7 @@ class ObservationTab(QWidget):
         logger.info(f"Closed observation tab for code '{self.observation.get_observation_code()}'")
 
     @Slot()
-    def on_observation_changed(self):
+    def observation_changed(self):
         """Handle changes in observation data."""
         if not self._updating:
             logger.info(f"Observation changed, emitting observation_updated for code '{self.observation.get_observation_code()}'")
