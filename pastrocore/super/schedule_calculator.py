@@ -633,6 +633,11 @@ class ScheduleCalculator(Super):
                     "source": source_name,
                     "visibility": {telescope_code: [True/False, ...]}
                 }
+
+        Notes:
+            - Ensures visibility array length matches scan_times length.
+            - Sets visibility to False for times where telescope positions are NaN.
+            - Supports both ground and space telescopes with appropriate visibility checks.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
@@ -662,10 +667,19 @@ class ScheduleCalculator(Super):
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
         visibility = {}
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        positions = np.array([scan_positions.get(code, np.full((len(scan_times), 3), np.nan)) for code in tel_codes])  # shape: (n_tels, n_times, 3)
+        n_times = len(scan_times)
+
+        # Prepare positions array with shape (n_tels, n_times, 3)
+        positions = np.array([
+            scan_positions.get(code, np.full((n_times, 3), np.nan)) 
+            for code in tel_codes
+        ])  # shape: (n_tels, n_times, 3)
 
         # Check for NaN in positions
         nan_positions = np.any(np.isnan(positions), axis=2)  # shape: (n_tels, n_times)
+
+        # Initialize visibility array with False
+        visibility_array = np.full((len(tel_codes), n_times), False, dtype=bool)
 
         # Separate telescopes by type
         ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
@@ -695,34 +709,44 @@ class ScheduleCalculator(Super):
             ha = hadec.ha.deg   # shape: (n_ground_tels, n_times)
             dec = hadec.dec.deg # shape: (n_ground_tels, n_times)
 
-            # Check visibility for each telescope
+            # Check visibility for each ground telescope
             for i, tel in enumerate(ground_tels):
                 tel_code = tel.get_code()
                 mount_type = tel.get("mount_type").value
-                is_visible = np.full(len(scan_times), False, dtype=bool)
-                
+                is_visible = np.full(n_times, False, dtype=bool)
+
                 # Set visibility to False where positions are NaN
-                is_visible[~ground_nan[i]] = True  # Initially True for non-NaN positions
-                
+                valid_positions = ~ground_nan[i]
+                if not np.any(valid_positions):
+                    logger.warning(f"All positions are NaN for ground telescope '{tel_code}' in scan '{scan_name}'")
+                    visibility_array[ground_indices[i]] = is_visible
+                    continue
+
+                # Check visibility based on mount type
                 if mount_type == "AZIM":
                     el_range = tel.get_elevation_range()
                     az_range = tel.get_azimuth_range()
-                    is_visible[~ground_nan[i]] &= (float(el_range[0]) <= el[i][~ground_nan[i]]) & \
-                                                (el[i][~ground_nan[i]] <= float(el_range[1])) & \
-                                                (float(az_range[0]) <= az[i][~ground_nan[i]]) & \
-                                                (az[i][~ground_nan[i]] <= float(az_range[1]))
+                    is_visible[valid_positions] = (
+                        (float(el_range[0]) <= el[i, valid_positions]) &
+                        (el[i, valid_positions] <= float(el_range[1])) &
+                        (float(az_range[0]) <= az[i, valid_positions]) &
+                        (az[i, valid_positions] <= float(az_range[1]))
+                    )
                 elif mount_type == "EQUA":
                     ha_range = tel.get_azimuth_range()
                     dec_range = tel.get_elevation_range()
-                    is_visible[~ground_nan[i]] &= (float(dec_range[0]) <= dec[i][~ground_nan[i]]) & \
-                                                (dec[i][~ground_nan[i]] <= float(dec_range[1])) & \
-                                                (float(ha_range[0]) <= ha[i][~ground_nan[i]]) & \
-                                                (ha[i][~ground_nan[i]] <= float(ha_range[1]))
+                    is_visible[valid_positions] = (
+                        (float(dec_range[0]) <= dec[i, valid_positions]) &
+                        (dec[i, valid_positions] <= float(dec_range[1])) &
+                        (float(ha_range[0]) <= ha[i, valid_positions]) &
+                        (ha[i, valid_positions] <= float(ha_range[1]))
+                    )
                 else:
-                    logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel_code}'")
-                    is_visible = np.full(len(scan_times), False, dtype=bool)
-                
-                visibility[tel_code] = is_visible.tolist()
+                    logger.warning(f"Unsupported mount type '{mount_type}' for telescope '{tel_code}' in scan '{scan_name}'")
+                    is_visible = np.full(n_times, False, dtype=bool)
+
+                visibility_array[ground_indices[i]] = is_visible
+                logger.debug(f"Computed visibility for ground telescope '{tel_code}' in scan '{scan_name}': {np.sum(is_visible)} visible points")
 
         # Process space telescopes
         if space_tels:
@@ -730,14 +754,18 @@ class ScheduleCalculator(Super):
             space_indices = [tel_codes.index(code) for code in space_codes]
             space_nan = nan_positions[space_indices]  # shape: (n_space_tels, n_times)
 
-            # Transform source to AltAz for pitch/yaw
             for i, tel in enumerate(space_tels):
                 tel_code = tel.get_code()
-                is_visible = np.full(len(scan_times), False, dtype=bool)
-                
-                # Set visibility to False where positions are NaN
-                is_visible[~space_nan[i]] = True  # Initially True for non-NaN positions
-                visibility[tel_code] = is_visible.tolist()
+                is_visible = np.full(n_times, False, dtype=bool)
+                # Set visibility to True for non-NaN positions
+                valid_positions = ~space_nan[i]
+                is_visible[valid_positions] = True
+                visibility_array[space_indices[i]] = is_visible
+                logger.debug(f"Computed visibility for space telescope '{tel_code}' in scan '{scan_name}': {np.sum(is_visible)} visible points")
+
+        # Convert visibility array to dictionary
+        for i, tel_code in enumerate(tel_codes):
+            visibility[tel_code] = visibility_array[i].tolist()
 
         if not visibility:
             logger.warning(f"No visibility data computed for scan '{scan_name}'")
@@ -814,7 +842,11 @@ class ScheduleCalculator(Super):
 
         Returns:
             Dict[str, Any]: UV points in meters, formatted as:
-                {"source": source_name, "uv_points": {baseline: [[u,v,w], ...]}}.
+                {"source": source_name, "uv_points": {baseline: np.array([[u,v,w], ...])}}.
+
+        Notes:
+            - Outputs NaN for UVW points where source is not visible or telescope positions are NaN.
+            - Ensures output array size matches input times for index correspondence.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
@@ -845,24 +877,58 @@ class ScheduleCalculator(Super):
 
         # Prepare arrays
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        visibility = np.array([scan_visibility.get(code, [False] * len(scan_times)) for code in tel_codes], dtype=bool)  # shape: (n_tels, n_times)
-        positions = np.array([scan_positions.get(code, np.full((len(scan_times), 3), np.nan)) for code in tel_codes])  # shape: (n_tels, n_times, 3)
+        n_times = len(scan_times)
+        
+        # Form visibility array with shape (n_tels, n_times), ensuring all entries are valid
+        visibility = np.full((len(tel_codes), n_times), False, dtype=bool)
+        for i, code in enumerate(tel_codes):
+            vis_data = scan_visibility.get(code, None)
+            if vis_data is None or len(vis_data) != n_times:
+                logger.warning(f"Visibility data for telescope '{code}' in scan '{scan_name}' is missing or has incorrect length ({len(vis_data) if vis_data is not None else 'None'} vs expected {n_times})")
+                visibility[i, :] = False
+            else:
+                try:
+                    visibility[i, :] = np.array(vis_data, dtype=bool)
+                except Exception as e:
+                    logger.error(f"Failed to process visibility data for telescope '{code}' in scan '{scan_name}': {str(e)}")
+                    visibility[i, :] = False
 
-        if positions.shape[1] != len(scan_times):
-            logger.warning(f"Mismatched position data length for scan '{scan_name}': {positions.shape[1]} positions vs {len(scan_times)} times")
+        # Form positions array with shape (n_tels, n_times, 3)
+        positions = np.array([
+            scan_positions.get(code, np.full((n_times, 3), np.nan)) 
+            for code in tel_codes
+        ])  # shape: (n_tels, n_times, 3)
+
+        if positions.shape[1] != n_times:
+            logger.error(f"Mismatched position data length for scan '{scan_name}': {positions.shape[1]} positions vs {n_times} times")
             return {"source": source_name, "uv_points": {}}
 
-        uv_points = self._compute_uv_at_time(active_telescopes, scan_times, source, visibility, positions)
-
-        # Check for sufficient valid UV points
-        valid_point_count = sum(len(points) for points in uv_points.values())
-        min_points = len(active_telescopes) * (len(active_telescopes) - 1) // 2  # Minimum one point per possible baseline
-        if valid_point_count < min_points:
-            logger.warning(f"Insufficient valid UV points ({valid_point_count} < {min_points}) for scan '{scan_name}'")
+        # Compute UVW coordinates with NaN for non-visible or invalid positions
+        try:
+            uv_points = self._compute_uv_at_time(active_telescopes, scan_times, source, visibility, positions)
+        except Exception as e:
+            logger.error(f"Failed to calculate UV coverage for scan '{scan_name}': {str(e)}")
             return {"source": source_name, "uv_points": {}}
 
-        logger.debug(f"Computed {valid_point_count} UV points for scan '{scan_name}' across {len(uv_points)} baselines")
-        return {"source": source_name, "uv_points": uv_points}
+        # Ensure UV points are returned for all times, filling with NaN where necessary
+        pairs = [f"{active_telescopes[i].get_code()}-{active_telescopes[j].get_code()}" for i, j in zip(*np.triu_indices(len(active_telescopes), k=1))]
+        full_uv_points = {}
+        for pair in pairs:
+            if pair in uv_points and uv_points[pair].shape[0] == n_times:
+                full_uv_points[pair] = uv_points[pair]
+            else:
+                # Initialize with NaN for all times
+                full_uv_points[pair] = np.full((n_times, 3), np.nan, dtype=float)
+                if pair in uv_points and uv_points[pair].size > 0:
+                    # Copy valid points to corresponding indices
+                    valid_indices = np.arange(n_times)[~np.any(np.isnan(uv_points[pair]), axis=1)]
+                    if valid_indices.size > 0:
+                        full_uv_points[pair][valid_indices] = uv_points[pair][:valid_indices.size]
+                logger.debug(f"Filled UV points with NaN for baseline '{pair}' in scan '{scan_name}'")
+
+        valid_point_count = sum(np.sum(~np.any(np.isnan(points), axis=1)) for points in full_uv_points.values())
+        logger.debug(f"Computed {valid_point_count} valid UV points for scan '{scan_name}' across {len(full_uv_points)} baselines")
+        return {"source": source_name, "uv_points": full_uv_points}
 
     def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], times: Time, source: Optional[Source] = None, visibility: Optional[np.ndarray] = None, gcrs_positions: Optional[np.ndarray] = None) -> Dict[str, np.ndarray]:
         """Compute UVW coordinates for multiple times in geometric coordinates (meters) using vectorized operations.
@@ -875,7 +941,8 @@ class ScheduleCalculator(Super):
             gcrs_positions (Optional[np.ndarray]): GCRS positions of shape (n_telescopes, n_times, 3).
 
         Returns:
-            Dict[str, np.ndarray]: UVW coordinates in meters per baseline, formatted as {baseline: np.array([[u,v,w], ...])}.
+            Dict[str, np.ndarray]: UVW coordinates in meters per baseline, formatted as {baseline: np.array([[u,v,w], ...])},
+            where the array has shape (n_times, 3) and contains NaN for non-visible times or invalid positions.
         """
         if not telescopes or len(telescopes) < 2:
             logger.warning(f"Insufficient telescopes ({len(telescopes)}) to compute (u,v,w) at {times[0].isot}")
@@ -885,13 +952,24 @@ class ScheduleCalculator(Super):
             logger.warning("No source provided; cannot calculate (u,v,w)")
             return {}
 
+        if visibility is None or gcrs_positions is None:
+            logger.warning("Missing visibility or position data; cannot calculate (u,v,w)")
+            return {}
+
+        # Validate input shapes
+        n_tels = len(telescopes)
+        n_times = len(times)
+        if visibility.shape != (n_tels, n_times):
+            logger.error(f"Visibility shape {visibility.shape} does not match expected ({n_tels}, {n_times})")
+            return {}
+        if gcrs_positions.shape != (n_tels, n_times, 3):
+            logger.error(f"Position shape {gcrs_positions.shape} does not match expected ({n_tels}, {n_times}, 3)")
+            return {}
+
         # Prepare source coordinates
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
         ra = source_coord.ra.rad
         dec = source_coord.dec.rad
-
-        n_tels = len(telescopes)
-        n_times = len(times)
 
         # Create indices for upper triangle to get unique baseline pairs
         i, j = np.triu_indices(n_tels, k=1)  # Indices for upper triangle (i < j)
@@ -904,8 +982,12 @@ class ScheduleCalculator(Super):
         # Compute visibility mask for baselines
         vis_mask = visibility[i] & visibility[j]  # shape: (n_pairs, n_times)
 
+        # Check for NaN in positions for baselines
+        pos_nan = np.any(np.isnan(gcrs_positions), axis=2)  # shape: (n_tels, n_times)
+        baseline_nan = pos_nan[i] | pos_nan[j]  # shape: (n_pairs, n_times)
+        vis_mask = vis_mask & ~baseline_nan  # Set visibility to False where positions are NaN
+
         # Compute UVW coordinates using rotation matrix
-        # Rotation matrix from GCRS to UVW coordinates based on source RA and Dec
         cos_ra, sin_ra = np.cos(ra), np.sin(ra)
         cos_dec, sin_dec = np.cos(dec), np.sin(dec)
         rotation_matrix = np.array([
@@ -920,19 +1002,18 @@ class ScheduleCalculator(Super):
         uvw_flat = baselines_flat @ rotation_matrix.T  # shape: (n_pairs * n_times, 3)
         uvw = uvw_flat.reshape(n_pairs, n_times, 3)  # shape: (n_pairs, n_times, 3)
 
-        # Apply visibility mask and filter out NaN values
-        uvw[~vis_mask] = np.nan  # Set non-visible points to NaN
+        # Apply visibility mask: set non-visible or NaN positions to NaN
+        uvw[~vis_mask] = np.nan  # shape: (n_pairs, n_times, 3)
+
         uv_points = {}
         for pair_idx, pair in enumerate(pairs):
             uvw_pair = uvw[pair_idx]  # shape: (n_times, 3)
-            # Select valid (non-NaN) points
-            valid_mask = ~np.any(np.isnan(uvw_pair), axis=1)  # shape: (n_times,)
-            if np.any(valid_mask):
-                uv_points[pair] = uvw_pair[valid_mask]  # shape: (n_valid_times, 3)
-                logger.debug(f"Computed {np.sum(valid_mask)} UVW points for baseline {pair}")
-            else:
-                logger.debug(f"No valid UVW points for baseline {pair}")
+            uv_points[pair] = uvw_pair
+            valid_count = np.sum(~np.any(np.isnan(uvw_pair), axis=1))
+            logger.debug(f"Computed {valid_count} valid UVW points for baseline '{pair}' (total {n_times} points)")
 
+        if not uv_points:
+            logger.warning(f"No valid UVW points computed for any baseline")
         return uv_points
 
     @time_execution
@@ -1750,8 +1831,8 @@ class ScheduleCalculator(Super):
 
         Notes:
             - Computes BL = sqrt(u² + v²) from UV data in meters.
-            - Uses vectorized computations for efficiency.
-            - Returns empty projections if UV data is invalid or insufficient.
+            - Outputs NaN for times where UV data is NaN or source is not visible.
+            - Ensures output array size matches input times for index correspondence.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
@@ -1772,7 +1853,15 @@ class ScheduleCalculator(Super):
             logger.warning(f"No UV data for scan '{scan_name}' in source '{source_name}'")
             return {"source": source_name, "projections": {}}
 
-        projections = self._compute_projections_from_uv(scan_uv_data, active_telescopes, time_step)
+        # Get time data to determine expected length
+        time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+        time_data = self._calculate_time_arrays(observation, time_attrs)
+        scan_times = time_data.get(source_name, {}).get(scan_name, None)
+        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+            logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
+            return {"source": source_name, "projections": {}}
+
+        projections = self._compute_projections_from_uv(scan_uv_data, active_telescopes, time_step, len(scan_times))
         if not projections:
             logger.warning(f"No valid baseline projections computed for scan '{scan_name}'")
         else:
@@ -1780,39 +1869,35 @@ class ScheduleCalculator(Super):
         
         return {"source": source_name, "projections": projections}
         
-    def _compute_projections_from_uv(self, uv_data: Dict[str, np.ndarray], telescopes: List[Telescope | SpaceTelescope], time_step: Optional[float]) -> Dict[str, np.ndarray]:
+    def _compute_projections_from_uv(self, uv_data: Dict[str, np.ndarray], telescopes: List[Telescope | SpaceTelescope], time_step: Optional[float], n_times: int) -> Dict[str, np.ndarray]:
         """Compute baseline projections BL = sqrt(u² + v²) from UV data in meters.
 
         Args:
             uv_data (Dict[str, np.ndarray]): UV data as {baseline: np.array([[u,v,w], ...])}.
             telescopes (List[Telescope | SpaceTelescope]): List of active telescopes.
             time_step (Optional[float]): Sampling interval (seconds).
+            n_times (int): Expected number of time points to match.
 
         Returns:
             Dict[str, np.ndarray]: Baseline projections in meters, formatted as {baseline: np.array([proj1, ..., projn])}.
-
-        Notes:
-            - Requires at least 10 UV points per baseline for reliable projections.
-            - Filters out NaN values and logs invalid baselines.
         """
         projections = {}
-        min_points = 10  # Minimum number of UV points for reliable projection
-        for baseline, uvw in uv_data.items():
-            if uvw.size == 0 or np.all(np.isnan(uvw)):
-                logger.debug(f"Skipping baseline '{baseline}' due to empty or invalid UV data")
-                continue
-            if len(uvw) < min_points:
-                logger.warning(f"Baseline '{baseline}' has too few UV points ({len(uvw)} < {min_points}); skipping")
-                continue
+        # Define all possible baselines
+        pairs = [f"{telescopes[i].get_code()}-{telescopes[j].get_code()}" for i, j in zip(*np.triu_indices(len(telescopes), k=1))]
+        
+        for baseline in pairs:
+            uvw = uv_data.get(baseline, np.full((n_times, 3), np.nan, dtype=float))
+            if uvw.shape[0] != n_times:
+                logger.warning(f"UV data for baseline '{baseline}' has length {uvw.shape[0]}, expected {n_times}; adjusting with NaN")
+                temp = np.full((n_times, 3), np.nan, dtype=float)
+                temp[:min(uvw.shape[0], n_times)] = uvw[:n_times]
+                uvw = temp
             u, v = uvw[:, 0], uvw[:, 1]  # Extract u, v components in meters
             bl = np.sqrt(u**2 + v**2)  # BL = sqrt(u² + v²)
-            valid_mask = ~np.isnan(bl)  # Filter out NaN values
-            if np.any(valid_mask):
-                projections[baseline] = bl[valid_mask]
-                logger.debug(f"Computed {np.sum(valid_mask)} projections for baseline '{baseline}'")
-            else:
-                logger.debug(f"No valid projections for baseline '{baseline}'")
-        
+            projections[baseline] = bl
+            valid_count = np.sum(~np.isnan(bl))
+            logger.debug(f"Computed {valid_count} valid projections for baseline '{baseline}'")
+
         if not projections:
             logger.warning(f"No valid baseline projections computed for provided UV data")
         return projections
@@ -1918,6 +2003,10 @@ class ScheduleCalculator(Super):
                         telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
                     }
                 }
+
+        Notes:
+            - Outputs NaN for coordinates where telescope positions are NaN.
+            - Ensures output array size matches input times for index correspondence.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
@@ -1956,8 +2045,8 @@ class ScheduleCalculator(Super):
         tracks = {}
         r = np.sqrt(np.sum(positions**2, axis=2))  # shape: (n_tels, n_times)
         valid_mask = r > 0  # Avoid division by zero
-        ra_rad = np.full_like(r, np.nan)
-        dec_rad = np.full_like(r, np.nan)
+        ra_rad = np.full_like(r, np.nan)  # shape: (n_tels, n_times)
+        dec_rad = np.full_like(r, np.nan)  # shape: (n_tels, n_times)
         ra_rad[valid_mask] = np.arctan2(positions[valid_mask, 1], positions[valid_mask, 0])
         dec_rad[valid_mask] = np.arcsin(positions[valid_mask, 2] / r[valid_mask])
         ra = np.degrees(ra_rad)  # shape: (n_tels, n_times)
@@ -1966,16 +2055,15 @@ class ScheduleCalculator(Super):
         lat = np.clip(dec, -90.0, 90.0)  # shape: (n_tels, n_times)
 
         for i, tel_code in enumerate(tel_codes):
-            if np.all(np.isnan(lon[i]) | np.isnan(lat[i])):
+            tracks[tel_code] = np.column_stack((lon[i], lat[i]))  # shape: (n_times, 2)
+            valid_points = np.sum(~np.isnan(lon[i]) & ~np.isnan(lat[i]))
+            if valid_points == 0:
                 logger.warning(f"No valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
-                continue
-            valid_points = ~np.isnan(lon[i]) & ~np.isnan(lat[i])
-            tracks[tel_code] = np.column_stack((lon[i, valid_points], lat[i, valid_points]))  # shape: (n_valid_times, 2)
+            else:
+                logger.debug(f"Computed {valid_points} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
 
         if not tracks:
             logger.warning(f"No valid Mollweide tracks computed for scan '{scan_name}'")
-        else:
-            logger.debug(f"Computed Mollweide tracks for {len(tracks)} telescopes in scan '{scan_name}'")
         return {"tracks": tracks}
 
     def _load_orbit_data(self, orbit_file: str, start_time: Optional[Time] = None, end_time: Optional[Time] = None) -> Dict[str, np.ndarray]:

@@ -76,7 +76,7 @@ class ScanEditorDialog(QDialog):
         self.frequencies_model.itemChanged.connect(self.debug_item_changed)
 
         self.ui.startTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        validator = QIntValidator(1, 99999999999, self)
+        validator = QIntValidator(1, 99999, self)
         self.ui.durationEdit.setValidator(validator)
 
         self.selected_telescopes = set()
