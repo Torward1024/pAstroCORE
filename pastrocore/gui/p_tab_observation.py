@@ -253,7 +253,7 @@ class ObservationTab(QWidget):
         logger.info(f"Closed observation tab for code '{self.observation.get_observation_code()}'")
 
     @Slot()
-    def on_observation_changed(self):
+    def observation_changed(self):
         """Handle changes in observation data."""
         if not self._updating:
             logger.info(f"Observation changed, emitting observation_updated for code '{self.observation.get_observation_code()}'")

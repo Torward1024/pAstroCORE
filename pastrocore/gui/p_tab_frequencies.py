@@ -48,12 +48,12 @@ class FrequenciesTab(QWidget):
         self.ui.table.setColumnHidden(2, True)  # Скрываем столбец "Name"
 
         # Подключение сигналов
-        self.ui.search.textChanged.connect(self.on_search_changed)
+        self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
         self.update()
 
     @Slot(str)
-    def on_search_changed(self, text: str):
+    def search_changed(self, text: str):
         """Handle search text change."""
         reg_exp = QRegularExpression(text)
         self.proxy_model.setFilterRegularExpression(reg_exp)

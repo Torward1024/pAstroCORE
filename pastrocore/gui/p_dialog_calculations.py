@@ -263,8 +263,8 @@ class CalculationDialog(QDialog):
         self.progress_dialog.setWindowModality(Qt.WindowModal)
         self.thread = CalculationThread(self.manipulator, selected_targets, selected_calcs, calc_params)
         self.thread.progress.connect(self.update_progress)
-        self.thread.finished.connect(self.on_calculation_finished)
-        self.thread.error.connect(self.on_calculation_error)
+        self.thread.finished.connect(self.calculation_finished)
+        self.thread.error.connect(self.calculation_error)
         self.thread.start()
 
         # Emit time_step_updated signal if time_step changed
@@ -284,13 +284,13 @@ class CalculationDialog(QDialog):
         QMessageBox.information(self, "Info", "Visualization is not implemented yet.")
         self.run_calculation()
 
-    def on_calculation_finished(self, results):
+    def calculation_finished(self, results):
         """Handle calculation completion."""
         self.progress_dialog.close()
         QMessageBox.information(self, "Success", "Calculations completed successfully.")
         self.accept()
 
-    def on_calculation_error(self, error):
+    def calculation_error(self, error):
         """Handle calculation errors."""
         self.progress_dialog.close()
         logger.error(f"Calculation error: {error}")

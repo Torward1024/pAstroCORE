@@ -53,7 +53,7 @@ class ScansTab(QWidget):
         self.ui.table.setColumnHidden(2, True)  # Hide "Scan ID" column
 
         # Connect signals
-        self.ui.search.textChanged.connect(self.on_search_changed)
+        self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
 
         # Connect data_updated signals from other tabs
@@ -68,7 +68,7 @@ class ScansTab(QWidget):
         logger.info(f"ScansTab initialized for observation '{observation.code}'")
 
     @Slot(str)
-    def on_search_changed(self, text: str):
+    def search_changed(self, text: str):
         """Handle search text change."""
         reg_exp = QRegularExpression(text)
         self.proxy_model.setFilterRegularExpression(reg_exp)
