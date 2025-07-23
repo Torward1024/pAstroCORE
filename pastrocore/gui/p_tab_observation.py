@@ -71,9 +71,9 @@ class ObservationTab(QWidget):
 
     def setup_connections(self):
         """Connect UI signals to slots."""
-        self.ui.obs_name_edit.editingFinished.connect(self.on_obs_name_confirmed)
-        self.ui.combo_obs_type.currentTextChanged.connect(self.on_obs_type_changed)
-        self.ui.obs_name_edit.mouseDoubleClickEvent = self.on_obs_name_edit_double_click
+        self.ui.obs_name_edit.editingFinished.connect(self.obs_name_confirmed)
+        self.ui.combo_obs_type.currentTextChanged.connect(self.obs_type_changed)
+        self.ui.obs_name_edit.mouseDoubleClickEvent = self.obs_name_edit_double_click
 
         # Подключаем сигналы от дочерних вкладок
         self.frequencies_tab.data_updated.connect(self.observation_updated)
@@ -81,7 +81,7 @@ class ObservationTab(QWidget):
         self.telescopes_tab.data_updated.connect(self.observation_updated)
         self.scans_tab.data_updated.connect(self.observation_updated)
 
-    def on_obs_name_edit_double_click(self, event):
+    def obs_name_edit_double_click(self, event):
         """Enable editing of observation code on double-click."""
         self.ui.obs_name_edit.setReadOnly(False)
         self.ui.obs_name_edit.setFocus()
@@ -89,7 +89,7 @@ class ObservationTab(QWidget):
         event.accept()
 
     @Slot()
-    def on_obs_name_confirmed(self):
+    def obs_name_confirmed(self):
         if self.ui.obs_name_edit.isReadOnly():
             return
         new_code = self.ui.obs_name_edit.text().strip()
@@ -124,7 +124,7 @@ class ObservationTab(QWidget):
             self.ui.obs_name_edit.setReadOnly(True)
 
     @Slot(str)
-    def on_obs_type_changed(self, text: str):
+    def obs_type_changed(self, text: str):
         """Handle observation type change."""
         if not text or self._updating:
             return
