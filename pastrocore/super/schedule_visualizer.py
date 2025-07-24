@@ -29,17 +29,22 @@ from matplotlib.lines import Line2D
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 class ScheduleVisualizer(Super):
-    """Scheduler implementation of Visualizer for visualizing ScheduleProject and its components."""
     SPEED_OF_LIGHT: float = 299792458.0  # Speed of light in m/s
     EARTH_DIAMETER: float = 12742000.0   # Earth diameter in meters
-    
+
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator)
         logger.info("Initialized Scheduling Visualizer")
         self._lock = threading.Lock()
-
+        
+        # Default style configuration
         self._style_config = {
             'plt_style': 'seaborn-v0_8-whitegrid',
+            'figure': {
+                'figsize': (10, 6),
+                'dpi': 76,
+                'facecolor': 'white'
+            },
             'axes': {
                 'facecolor': 'white',
                 'edgecolor': 'black',
@@ -51,42 +56,65 @@ class ScheduleVisualizer(Super):
                 'linestyle': '--',
                 'linewidth': 0.5
             },
-            'xtick': {'color': 'black'},
-            'ytick': {'color': 'black'},
-            'font': {'family': 'Trebuchet MS', 'size': 9},
-            'text': {'color': 'black'},
-            'figure': {'facecolor': 'white'},
-            'figsize': (10, 6),
-            'dpi': 300,
-            'legend': {'loc': 'upper right', 'bbox_to_anchor': (1, 0.5), 'fontsize': 8},
+            'font': {
+                'family': 'Trebuchet MS',
+                'size': 9,
+                'title_size': 14,
+                'label_size': 12,
+                'tick_size': 9,
+                'legend_size': 9
+            },
+            'text': {
+                'color': 'black'
+            },
+            'xtick': {
+                'color': 'black',
+                'labelsize': 9
+            },
+            'ytick': {
+                'color': 'black',
+                'labelsize': 9
+            },
+            'legend': {
+                'loc': 'upper right',
+                'bbox_to_anchor': (1, 0.95),
+                'fontsize': 8,
+                'title_fontsize': 10
+            },
             'colors': [
-                (163/255, 193/255, 218/255),
-                (74/255, 144/255, 226/255),
-                (80/255, 200/255, 120/255),
-                (46/255, 139/255, 87/255),
-                (255/255, 99/255, 71/255),
-                (255/255, 165/255, 0/255),
-                (255/255, 140/255, 0/255),
-                (218/255, 112/255, 214/255),
-                (255/255, 215/255, 0/255),
-                (139/255, 69/255, 19/255),
+                (163/255, 193/255, 218/255),  # Light blue
+                (74/255, 144/255, 226/255),   # Blue
+                (80/255, 200/255, 120/255),   # Green
+                (46/255, 139/255, 87/255),    # Dark green
+                (255/255, 99/255, 71/255),    # Tomato
+                (255/255, 165/255, 0/255),    # Orange
+                (255/255, 140/255, 0/255),    # Dark orange
+                (218/255, 112/255, 214/255),  # Orchid
+                (255/255, 215/255, 0/255),    # Gold
+                (139/255, 69/255, 19/255),    # Brown
             ],
-            'intersection_color': (255/255, 165/255, 0/255),
-            'redpurple_cmap': LinearSegmentedColormap.from_list(
-                "RedPurple",
-                [(139/255, 0/255, 0/255), (255/255, 69/255, 0/255), (255/255, 255/255, 0/255),
-                 (0/255, 255/255, 0/255), (0/255, 206/255, 209/255), (0/255, 0/255, 139/255)][::-1]
-            )
+            'colormaps': {
+                'redpurple': LinearSegmentedColormap.from_list(
+                    "RedPurple",
+                    [(139/255, 0/255, 0/255), (255/255, 69/255, 0/255), (255/255, 255/255, 0/255),
+                     (0/255, 255/255, 0/255), (0/255, 206/255, 209/255), (0/255, 0/255, 139/255)][::-1]
+                )
+            },
+            'intersection_color': (255/255, 165/255, 0/255),  # Orange for intersections
+            'markers': {
+                'default_size': 10,
+                'source_style': '*',
+                'track_style': 'o',
+                'track_size': 1,
+                'scatter_size': 5
+            },
+            'linestyles': {
+                'default': '-',
+                'secondary': '--'
+            }
         }
 
-        plt.style.use(self._style_config['plt_style'])
-        plt.rc('axes', **self._style_config['axes'])
-        plt.rc('grid', **self._style_config['grid'])
-        plt.rc('xtick', **self._style_config['xtick'])
-        plt.rc('ytick', **self._style_config['ytick'])
-        plt.rc('font', **self._style_config['font'])
-        plt.rc('text', **self._style_config['text'])
-        plt.rc('figure', **self._style_config['figure'])
+        self._apply_style_config()
 
         self._object_visualizers: Dict[type, Callable] = {
             (ScheduleProject, Observation): self._visualize_project_or_observation
@@ -101,6 +129,117 @@ class ScheduleVisualizer(Super):
             "baseline_projections": self._plot_baseline_projections,
             "mollweide_tracks": self._plot_mollweide_tracks,
         }
+
+    def _apply_style_config(self) -> None:
+        """Apply the style configuration to matplotlib."""
+        plt.style.use(self._style_config['plt_style'])
+        plt.rc('axes', **self._style_config['axes'])
+        plt.rc('grid', **self._style_config['grid'])
+        plt.rc('xtick', **self._style_config['xtick'])
+        plt.rc('ytick', **self._style_config['ytick'])
+        
+        valid_font_params = {k: v for k, v in self._style_config['font'].items() 
+                            if k in ['family', 'size', 'weight', 'style', 'variant', 'stretch']}
+        plt.rc('font', **valid_font_params)
+        plt.rc('text', **self._style_config['text'])
+        plt.rc('figure', **self._style_config['figure'])
+        
+        valid_legend_params = {k: v for k, v in self._style_config['legend'].items() 
+                            if k in ['fontsize', 'title_fontsize', 'loc', 'frameon', 'shadow', 
+                                        'framealpha', 'edgecolor', 'facecolor', 'numpoints', 
+                                        'scatterpoints', 'markerscale', 'labelspacing', 'columnspacing', 
+                                        'handlelength', 'handletextpad', 'borderpad', 'borderaxespad']}
+        plt.rc('legend', **valid_legend_params)
+
+    def get_style_config(self) -> Dict[str, Any]:
+        """Return the current style configuration.
+
+        Returns:
+            Dict[str, Any]: A copy of the current style configuration dictionary.
+        """
+        import copy
+        logger.debug("Retrieving style configuration")
+        return copy.deepcopy(self._style_config)
+
+    def set_style_config(self, config: Dict[str, Any], partial: bool = False) -> None:
+        """Set a new style configuration and apply it.
+
+        Args:
+            config (Dict[str, Any]): New style configuration dictionary or partial updates.
+            partial (bool): If True, update only provided keys; if False, replace entire config.
+
+        Raises:
+            ValueError: If the provided configuration is invalid.
+        """
+        logger.debug(f"Setting style configuration (partial={partial}): {config}")
+
+        def validate_config(config: Dict[str, Any]) -> None:
+            """Validate configuration values."""
+            if not isinstance(config, dict):
+                raise ValueError("Configuration must be a dictionary")
+            if 'plt_style' in config and not isinstance(config['plt_style'], str):
+                raise ValueError("plt_style must be a string")
+            if 'figure' in config:
+                if not isinstance(config['figure'], dict):
+                    raise ValueError("figure must be a dictionary")
+                if 'figsize' in config['figure'] and not isinstance(config['figure']['figsize'], (tuple, list)):
+                    raise ValueError("figsize must be a tuple or list")
+                if 'dpi' in config['figure'] and not isinstance(config['figure']['dpi'], (int, float)):
+                    raise ValueError("dpi must be a number")
+            if 'font' in config:
+                if not isinstance(config['font'], dict):
+                    raise ValueError("font must be a dictionary")
+                for key in ['size', 'title_size', 'label_size', 'tick_size', 'legend_size']:
+                    if key in config['font'] and not isinstance(config['font'][key], (int, float)):
+                        raise ValueError(f"font.{key} must be a number")
+            if 'colors' in config and not isinstance(config['colors'], (list, tuple)):
+                raise ValueError("colors must be a list or tuple")
+            if 'colormaps' in config and not isinstance(config['colormaps'], dict):
+                raise ValueError("colormaps must be a dictionary")
+            if 'intersection_color' in config and not isinstance(config['intersection_color'], (tuple, list)):
+                raise ValueError("intersection_color must be a tuple or list")
+            if 'markers' in config:
+                if not isinstance(config['markers'], dict):
+                    raise ValueError("markers must be a dictionary")
+                for key in ['default_size', 'track_size', 'scatter_size']:
+                    if key in config['markers'] and not isinstance(config['markers'][key], (int, float)):
+                        raise ValueError(f"markers.{key} must be a number")
+                for key in ['source_style', 'track_style']:
+                    if key in config['markers'] and not isinstance(config['markers'][key], str):
+                        raise ValueError(f"markers.{key} must be a string")
+            if 'linestyles' in config:
+                if not isinstance(config['linestyles'], dict):
+                    raise ValueError("linestyles must be a dictionary")
+                for key in ['default', 'secondary']:
+                    if key in config['linestyles'] and not isinstance(config['linestyles'][key], str):
+                        raise ValueError(f"linestyles.{key} must be a string")
+
+        with self._lock:
+            if partial:
+                import copy
+                new_config = copy.deepcopy(self._style_config)
+                for key, value in config.items():
+                    if isinstance(value, dict) and key in new_config and isinstance(new_config[key], dict):
+                        new_config[key].update(value)
+                    else:
+                        new_config[key] = value
+            else:
+                required_keys = {'plt_style', 'figure', 'axes', 'grid', 'font', 'text', 'xtick', 'ytick', 'legend', 'colors', 'colormaps', 'intersection_color', 'markers', 'linestyles'}
+                if not all(key in config for key in required_keys):
+                    missing = required_keys - set(config.keys())
+                    logger.error(f"Invalid style configuration: missing keys {missing}")
+                    raise ValueError(f"Style configuration must include all required keys: {missing}")
+                new_config = config
+
+            try:
+                validate_config(new_config)
+            except ValueError as e:
+                logger.error(f"Invalid style configuration: {str(e)}")
+                raise
+
+            self._style_config = new_config
+            self._apply_style_config()
+            logger.info("Style configuration updated and applied")
 
     def execute(self, obj: Union[ScheduleProject, Observation, Telescope, SpaceTelescope, Telescopes, Source, Sources, Scan, Scans, IF, Frequencies], 
                 attributes: Dict[str, Any] = None, method: str = None) -> Dict[str, Any]:
@@ -146,13 +285,15 @@ class ScheduleVisualizer(Super):
             return self._build_response(obj, False, None, None, str(e))
         
     def _create_empty_plot(self, fig: Figure, plot_type: str, obj_name: str, 
-                          projection: str = None, labels: Dict[str, str] = None) -> Dict[str, Any]:
+                      projection: str = None, labels: Dict[str, str] = None) -> Dict[str, Any]:
         """Create an empty plot with consistent styling and labels."""
         ax = self._setup_axes(fig, plot_type, obj_name, projection=projection)
         if labels:
-            ax.set_xlabel(labels.get('xlabel', ''))
-            ax.set_ylabel(labels.get('ylabel', ''))
-            ax.set_title(labels.get('title', f"{plot_type.replace('_', ' ').title()} for {obj_name}"))
+            ax.set_xlabel(labels.get('xlabel', ''), fontsize=self._style_config['font']['label_size'])
+            ax.set_ylabel(labels.get('ylabel', ''), fontsize=self._style_config['font']['label_size'])
+            ax.set_title(labels.get('title', f"{plot_type.replace('_', ' ').title()} for {obj_name}"),
+                        fontsize=self._style_config['font']['title_size'])
+            ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
         logger.debug(f"Created empty plot for {plot_type} with obj_name={obj_name}")
         return {}
     
@@ -256,7 +397,7 @@ class ScheduleVisualizer(Super):
                             continue
                         times_mjd, values_sorted = zip(*sorted(valid_pairs))
                         color_idx = tel_idx % len(self._style_config['colors'])
-                        linestyle = '--' if i > 0 and plot_type == "az_el" else '-'
+                        linestyle = self._style_config['linestyles']['secondary'] if i > 0 and plot_type == "az_el" else self._style_config['linestyles']['default']
                         line, = ax.plot(
                             times_mjd, values_sorted,
                             label=f"{tel} ({labels[i]})" if plot_type == "az_el" else f"{tel}",
@@ -268,15 +409,16 @@ class ScheduleVisualizer(Super):
                             legend_labels.append(f"{tel}")
                         result["points"] += len(valid_pairs)
                     if plot_type == "az_el" and n_tels > 1:
-                        ax.set_title(f"{tel}")
+                        ax.set_title(f"{tel}", fontsize=self._style_config['font']['title_size'])
+                    ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
                     plotted_telescopes.add(tel)
 
             result["telescopes"] = len(plotted_telescopes)
             if plotted_telescopes:
                 if plot_type == "az_el" and n_tels > 1:
-                    fig.text(0.5, 0.04, "Time, (MJD)", ha='center', fontsize=12)
-                    fig.text(0.04, 0.5, y_label, va='center', rotation='vertical', fontsize=12)
-                    fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}", fontsize=14)
+                    fig.text(0.5, 0.04, "Time, (MJD)", ha='center', fontsize=self._style_config['font']['label_size'])
+                    fig.text(0.04, 0.5, y_label, va='center', rotation='vertical', fontsize=self._style_config['font']['label_size'])
+                    fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
                     if legend_handles:
                         grouped_legend = {}
                         for handle, label in zip(legend_handles, legend_labels):
@@ -295,23 +437,29 @@ class ScheduleVisualizer(Super):
                         fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.85)
                         fig.legend(
                             legend_lines, legend_texts,
-                            loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                            loc=self._style_config['legend']['loc'], 
+                            bbox_to_anchor=self._style_config['legend']['bbox_to_anchor'],
                             fontsize=self._style_config['legend']['fontsize'],
                             title="Telescopes:",
+                            title_fontsize=self._style_config['legend']['title_fontsize'],
                             bbox_transform=fig.transFigure
                         )
                 else:
-                    axes[0].set_xlabel("Time, (MJD)")
-                    axes[0].set_ylabel(y_label)
-                    axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}")
+                    axes[0].set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
+                    axes[0].set_ylabel(y_label, fontsize=self._style_config['font']['label_size'])
+                    axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}", 
+                                    fontsize=self._style_config['font']['title_size'])
+                    axes[0].tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
                     if legend_handles:
                         fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
                         fig.legend(
                             legend_handles, legend_labels,
-                            loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                            loc=self._style_config['legend']['loc'], 
+                            bbox_to_anchor=self._style_config['legend']['bbox_to_anchor'],
                             fontsize=self._style_config['legend']['fontsize'],
-                            title="Telescopes:"
+                            title="Telescopes:",
+                            title_fontsize=self._style_config['legend']['title_fontsize']
                         )
 
             for ax in axes[max(1, len(plotted_telescopes) if plot_type == "az_el" else 1):]:
@@ -376,7 +524,7 @@ class ScheduleVisualizer(Super):
             logger.error("No 'plot_type' specified in attributes")
             return {}
 
-        fig = Figure(figsize=attributes.get("figsize", self._style_config['figsize']))
+        fig = Figure(figsize=attributes.get("figsize", self._style_config['figure']['figsize']))
         
         try:
             visualizer = None
@@ -542,6 +690,7 @@ class ScheduleVisualizer(Super):
                 )
 
             ax = self._setup_axes(fig, "uv_coverage", obj.get_observation_code())
+            ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
             if not freq_list:
@@ -610,8 +759,8 @@ class ScheduleVisualizer(Super):
 
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
-                    for tel_code in all_uv_points:
-                        if tel_code not in baselines:
+                    for tel_idx, tel_code in enumerate(baselines):
+                        if tel_code not in all_uv_points:
                             continue
                         if not all_uv_points[tel_code]:
                             continue
@@ -628,7 +777,7 @@ class ScheduleVisualizer(Super):
                             u_scaled = (u / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
                             v_scaled = (v / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
                         max_uv = max(max_uv, np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
-                        all_scaled_points.append((u_scaled, v_scaled, tel_code, freq_mhz, freq_idx))
+                        all_scaled_points.append((u_scaled, v_scaled, tel_code, freq_mhz, tel_idx))
 
             if not all_scaled_points:
                 logger.debug("No valid data plotted, returning empty result")
@@ -657,15 +806,24 @@ class ScheduleVisualizer(Super):
                 ax.set_ylabel("v, (xED)")
 
             uv_max_scaled = 0.0
-            for u_scaled, v_scaled, tel_code, freq_mhz, freq_idx in all_scaled_points:
-                color_idx = len(plotted_pairs) % len(self._style_config['colors'])
+            for u_scaled, v_scaled, tel_code, freq_mhz, tel_idx in all_scaled_points:
+                color = self._style_config['colors'][tel_idx % len(self._style_config['colors'])]
                 label = f"{tel_code} ({freq_mhz:.2f} MHz)"
                 u_plot = u_scaled / scale
                 v_plot = v_scaled / scale
                 handle = ax.scatter(
-                    u_plot, v_plot, s=1, c=[self._style_config['colors'][color_idx]], label=label
+                    u_plot, v_plot, 
+                    s=self._style_config['markers']['scatter_size'], 
+                    c=[color], 
+                    label=label,
+                    marker=self._style_config['markers']['track_style']
                 )
-                ax.scatter(-u_plot, -v_plot, s=1, c=[self._style_config['colors'][color_idx]])
+                ax.scatter(
+                    -u_plot, -v_plot, 
+                    s=self._style_config['markers']['scatter_size'], 
+                    c=[color], 
+                    marker=self._style_config['markers']['track_style']
+                )
                 legend_handles.append(handle)
                 legend_labels.append((freq_mhz, tel_code))
                 plotted_pairs.add(f"{tel_code}_{freq_mhz}")
@@ -675,6 +833,13 @@ class ScheduleVisualizer(Super):
             if uv_max_scaled > 0:
                 ax.set_xlim(-uv_max_scaled * 1.1, uv_max_scaled * 1.1)
                 ax.set_ylim(-uv_max_scaled * 1.1, uv_max_scaled * 1.1)
+
+            if units == "wavelengths":
+                ax.set_xlabel(f"u, ({prefix})", fontsize=self._style_config['font']['label_size'])
+                ax.set_ylabel(f"v, ({prefix})", fontsize=self._style_config['font']['label_size'])
+            else:
+                ax.set_xlabel("u, (xED)", fontsize=self._style_config['font']['label_size'])
+                ax.set_ylabel("v, (xED)", fontsize=self._style_config['font']['label_size'])
 
             if legend_handles:
                 grouped_legend = {}
@@ -692,16 +857,19 @@ class ScheduleVisualizer(Super):
                     for handle, baseline in sorted(grouped_legend[freq], key=lambda x: x[1]):
                         legend_lines.append(handle)
                         legend_texts.append(f"    {baseline}")
-                fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
+
+                fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
                 fig.legend(
                     legend_lines, legend_texts,
-                    loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                    loc=self._style_config['legend']['loc'], 
+                    bbox_to_anchor=self._style_config['legend']['bbox_to_anchor'],
                     fontsize=self._style_config['legend']['fontsize'],
-                    title="Baselines:"
+                    title="Baselines:",
+                    title_fontsize=self._style_config['legend']['title_fontsize']
                 )
 
             ax.invert_xaxis()
-            ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}")
+            ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
             result["baselines"] = len(plotted_pairs)
             return result
@@ -806,9 +974,11 @@ class ScheduleVisualizer(Super):
                 )
 
             ax = self._setup_axes(fig, "time_on_source", obj.get_observation_code())
-            ax.set_xlabel("Time, (MJD)")
-            ax.set_ylabel("Telescope")
-            ax.set_title(f"Time on {source_name}\nObs. code: {obj.get_observation_code()}")
+            ax.set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
+            ax.set_ylabel("Telescope", fontsize=self._style_config['font']['label_size'])
+            ax.set_title(f"Time on {source_name or 'Source'}\nObs. code: {obj.get_observation_code()}", 
+                        fontsize=self._style_config['font']['title_size'])
+            ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             result = {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
             all_blocks = {}
@@ -894,7 +1064,8 @@ class ScheduleVisualizer(Super):
                         )
                         ax.text(
                             (start + end) / 2, -0.5, f"{duration:.1f}s",
-                            ha='center', va='center', fontsize=8, color='black',
+                            ha='center', va='center', fontsize=self._style_config['font']['tick_size'],
+                            color='black',
                             bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')
                         )
                         if i == 0:
@@ -903,14 +1074,16 @@ class ScheduleVisualizer(Super):
                         result["intersections"] = len(intersection_times)
 
             ax.set_yticks(np.arange(-1, len(tel_list)))
-            ax.set_yticklabels(["Total"] + tel_list)
+            ax.set_yticklabels(["Total"] + tel_list, fontsize=self._style_config['font']['tick_size'])
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
             if legend_handles:
                 fig.legend(
                     legend_handles, legend_labels,
-                    loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                    loc=self._style_config['legend']['loc'], 
+                    bbox_to_anchor=self._style_config['legend']['bbox_to_anchor'],
                     fontsize=self._style_config['legend']['fontsize'],
-                    title="Telescopes:"
+                    title="Telescopes:",
+                    title_fontsize=self._style_config['legend']['title_fontsize']
                 )
 
             return result
@@ -972,6 +1145,9 @@ class ScheduleVisualizer(Super):
             )
             axes = np.atleast_1d(axes)
 
+            norm = plt.Normalize(min(freq_list), max(freq_list)) if freq_list else None
+            cmap = self._style_config['colormaps']['redpurple'] if freq_list else None
+
             result = {"telescopes": 0, "frequencies": len(freq_list)}
             plotted_telescopes = set()
             plotted_frequencies = set()
@@ -980,7 +1156,8 @@ class ScheduleVisualizer(Super):
 
             for tel_idx, tel_code in enumerate(tel_list):
                 ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
-                ax.set_title(tel_code)
+                ax.set_title(tel_code, fontsize=self._style_config['font']['title_size'])
+                ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
                 beam = beam_data.get(tel_code, {})
                 theta = np.array(beam.get("theta", []), dtype=float)
@@ -998,10 +1175,11 @@ class ScheduleVisualizer(Super):
                         theta_scaling_factor = ref_wavelength / wavelength
                         scaled_theta = theta * theta_scaling_factor
                         scaled_pattern = pattern / np.max(np.abs(pattern)) if np.max(np.abs(pattern)) > 0 else pattern
-                        color_idx = freq_idx % len(self._style_config['colors'])
+                        color = cmap(norm(freq_mhz)) if cmap else self._style_config['colors'][freq_idx % len(self._style_config['colors'])]
                         line, = ax.plot(
                             scaled_theta, scaled_pattern,
-                            color=self._style_config['colors'][color_idx]
+                            color=color,
+                            linestyle=self._style_config['linestyles']['default']
                         )
                         label = f"{freq_mhz:.2f} MHz"
                         if label not in legend_labels:
@@ -1023,17 +1201,19 @@ class ScheduleVisualizer(Super):
                 ax.set_xlabel("")
                 ax.set_ylabel("")
             if plotted_telescopes:
-                fig.text(0.5, 0.04, "Theta, (rad.)", ha='center', fontsize=12)
-                fig.text(0.04, 0.5, "Normalized Peak Flux", va='center', rotation='vertical', fontsize=12)
+                fig.text(0.5, 0.04, "Theta, (rad.)", ha='center', fontsize=self._style_config['font']['label_size'])
+                fig.text(0.04, 0.5, "Normalized Peak Flux", va='center', rotation='vertical', fontsize=self._style_config['font']['label_size'])
 
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.86, top=0.85)
 
             if legend_handles:
                 fig.legend(
                     legend_handles, legend_labels,
-                    loc='upper left', bbox_to_anchor=(0.87, 0.99),
+                    loc=self._style_config['legend']['loc'], 
+                    bbox_to_anchor=(0.87, 0.99),
                     fontsize=self._style_config['legend']['fontsize'],
                     title="Frequencies:",
+                    title_fontsize=self._style_config['legend']['title_fontsize'],
                     bbox_transform=fig.transFigure
                 )
 
@@ -1048,7 +1228,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            fig.suptitle(f"Beam Pattern\nObs.code: {obj.get_observation_code()}", fontsize=14)
+            fig.suptitle(f"Beam Pattern\nObs.code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
             return result
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
@@ -1100,9 +1280,10 @@ class ScheduleVisualizer(Super):
 
             ax = self._setup_axes(fig, "baseline_projections", obj.get_observation_code())
             ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f'{int(x)}'))
-            ax.set_xlabel("Time, (MJD)")
-            ax.set_ylabel(f"Baseline Length, ({units})")
-            ax.set_title(f"Baseline Projections\nObs. code: {obj.get_observation_code()}")
+            ax.set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
+            ax.set_ylabel(f"Baseline Length, ({units})", fontsize=self._style_config['font']['label_size'])
+            ax.set_title(f"Baseline Projections\nObs. code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
+            ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
             if not freq_list:
@@ -1146,8 +1327,8 @@ class ScheduleVisualizer(Super):
                         bl_array = np.array(bl_points[pair], dtype=float)
                         if bl_array.shape[0] != len(times):
                             logger.warning(f"Mismatch in projections ({bl_array.shape[0]}) and times ({len(times)}) for baseline {pair} in scan {scan}")
-                            min_len = min(bl_array.shape[0], len(times))
-                            bl_array = bl_array[:min_len]
+                            min_len = min(uv_array.shape[0], len(times))
+                            uv_array = uv_array[:min_len]
                             scan_times = times[:min_len]
                         else:
                             scan_times = times
@@ -1155,8 +1336,7 @@ class ScheduleVisualizer(Super):
                         for t, bl in zip(scan_times, bl_array):
                             all_data[pair].append((t.mjd, bl))
 
-
-            for pair in baselines:
+            for pair_idx, pair in enumerate(baselines):
                 if not all_data[pair]:
                     logger.debug(f"No data for baseline {pair}, skipping")
                     continue
@@ -1175,11 +1355,14 @@ class ScheduleVisualizer(Super):
                 if not np.any(valid_mask):
                     logger.debug(f"All projections for baseline {pair} are NaN, skipping")
                     continue
-                times_mjd = times_mjd[valid_mask]
-                projections = projections[valid_mask]
-                if len(times_mjd) != len(projections):
-                    logger.error(f"After filtering, times ({len(times_mjd)}) and projections ({len(projections)}) lengths mismatch for baseline {pair}")
+                valid_times_mjd = times_mjd[valid_mask]
+                valid_bl_scaled = projections[valid_mask]
+                if len(valid_times_mjd) != len(valid_bl_scaled):
+                    logger.error(f"After filtering, times ({len(valid_times_mjd)}) and projections ({len(valid_bl_scaled)}) lengths mismatch for baseline {pair}")
                     continue
+
+                # Assign color based on baseline index
+                color = self._style_config['colors'][pair_idx % len(self._style_config['colors'])]
 
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
@@ -1199,7 +1382,6 @@ class ScheduleVisualizer(Super):
                         logger.error(f"After scaling, times ({len(valid_times_mjd)}) and projections ({len(valid_bl_scaled)}) lengths mismatch for baseline {pair} at {freq_mhz:.2f} MHz")
                         continue
                     max_bl = max(max_bl, np.max(np.abs(valid_bl_scaled)))
-                    # Determine scale for plotting
                     if units == "wavelengths":
                         if max_bl >= 1e12:
                             prefix, scale = "Tλ", 1e12
@@ -1213,13 +1395,16 @@ class ScheduleVisualizer(Super):
                             prefix, scale = "λ", 1.0
                     else:
                         prefix, scale = "xED", 1.0
-                    ax.set_ylabel(f"Baseline Length, ({prefix})")
-                    # Plot
-                    color_idx = len(plotted_pairs) % len(self._style_config['colors'])
+                    ax.set_ylabel(f"Baseline Length, ({prefix})", fontsize=self._style_config['font']['label_size'])
                     label = f"{pair} ({freq_mhz:.2f} MHz)"
                     bl_plot = valid_bl_scaled / scale
                     handle = ax.scatter(
-                        valid_times_mjd, bl_plot, s=10, c=[self._style_config['colors'][color_idx]], label=label, alpha=0.7
+                        valid_times_mjd, bl_plot, 
+                        s=self._style_config['markers']['scatter_size'], 
+                        c=[color], 
+                        label=label, 
+                        alpha=0.7,
+                        marker=self._style_config['markers']['track_style']
                     )
                     logger.debug(f"Plotted {len(bl_plot)} points for baseline {pair} at {freq_mhz:.2f} MHz")
                     legend_handles.append(handle)
@@ -1235,7 +1420,6 @@ class ScheduleVisualizer(Super):
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Create grouped legend
             if legend_handles:
                 grouped_legend = {}
                 for handle, (freq_mhz, baseline) in zip(legend_handles, legend_labels):
@@ -1256,9 +1440,11 @@ class ScheduleVisualizer(Super):
                 fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
                 fig.legend(
                     legend_lines, legend_texts,
-                    loc='upper right', bbox_to_anchor=(0.98, 0.95),
+                    loc=self._style_config['legend']['loc'], 
+                    bbox_to_anchor=self._style_config['legend']['bbox_to_anchor'],
                     fontsize=self._style_config['legend']['fontsize'],
-                    title="Baselines:"
+                    title="Baselines:",
+                    title_fontsize=self._style_config['legend']['title_fontsize']
                 )
 
             result["baselines"] = len(plotted_pairs)
@@ -1285,7 +1471,8 @@ class ScheduleVisualizer(Super):
             max_points = attributes.get("max_points", 10000)
 
             ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
-            ax.set_title(f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}")
+            ax.set_title(f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
+            ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             data = obj.get_calculated_data_by_key(store_key)
             if not data or not isinstance(data, dict):
@@ -1321,7 +1508,10 @@ class ScheduleVisualizer(Super):
                         color = self._style_config["colors"][color_idx]
                         source_colors[source_name] = color
                         handle = ax.scatter(
-                            lon_rad, lat_rad, c=[color], marker="*", s=10,
+                            lon_rad, lat_rad, 
+                            c=[color], 
+                            marker=self._style_config['markers']['source_style'], 
+                            s=self._style_config['markers']['default_size'],
                             label=source_name if source_name not in plotted_sources else None,
                             zorder=3, edgecolors="black"
                         )
@@ -1337,59 +1527,66 @@ class ScheduleVisualizer(Super):
             result["scans"] = len(scans)
             all_tracks = {}
             total_points = 0
-            if telescopes and scans:
-                for scan_name in scans:
-                    if scan_name not in scan_data:
-                        logger.debug(f"Scan {scan_name} not found in mollweide_tracks data, skipping")
-                        continue
-                    scan = scan_data[scan_name]
-                    for tel_code in telescopes:
-                        if tel_code not in scan:
-                            logger.debug(f"Telescope {tel_code} not found in scan {scan_name}, skipping")
-                            continue
-                        tracks = scan[tel_code]
-                        if not isinstance(tracks, np.ndarray) or len(tracks) == 0 or tracks.ndim != 2 or tracks.shape[1] != 2:
-                            logger.warning(f"Invalid track data for {tel_code} in scan {scan_name}")
-                            continue
-                        if tel_code not in all_tracks:
-                            all_tracks[tel_code] = []
-                        all_tracks[tel_code].append(tracks)
-                        total_points += len(tracks)
+            norm = None
+            cmap = self._style_config['colormaps']['redpurple'] if telescopes else None
+            if telescopes:
+                norm = plt.Normalize(0, len(telescopes)) if telescopes else None
 
-                if total_points > max_points:
-                    logger.warning(f"Total points ({total_points}) exceeds max_points ({max_points}), subsampling tracks")
-                    subsample_factor = total_points // max_points + 1
-                else:
-                    subsample_factor = 1
+            for scan_name in scans:
+                if scan_name not in scan_data:
+                    logger.debug(f"Scan {scan_name} not found in mollweide_tracks data, skipping")
+                    continue
+                scan = scan_data[scan_name]
+                for tel_idx, tel_code in enumerate(telescopes):
+                    if tel_code not in scan:
+                        logger.debug(f"Telescope {tel_code} not found in scan {scan_name}, skipping")
+                        continue
+                    tracks = scan[tel_code]
+                    if not isinstance(tracks, np.ndarray) or len(tracks) == 0 or tracks.ndim != 2 or tracks.shape[1] != 2:
+                        logger.warning(f"Invalid track data for {tel_code} in scan {scan_name}")
+                        continue
+                    if tel_code not in all_tracks:
+                        all_tracks[tel_code] = []
+                    all_tracks[tel_code].append(tracks)
+                    total_points += len(tracks)
 
-                for tel_code in all_tracks:
-                    tracks = np.vstack(all_tracks[tel_code]) if all_tracks[tel_code] else np.array([])
-                    if len(tracks) == 0:
-                        logger.debug(f"No valid tracks for {tel_code} after combining scans")
-                        continue
-                    lon, lat = tracks[:, 0], tracks[:, 1]
-                    valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
-                    lon = lon[valid_mask]
-                    lat = lat[valid_mask]
-                    if len(lon) == 0:
-                        logger.debug(f"No valid points for {tel_code} after filtering")
-                        continue
-                    if subsample_factor > 1:
-                        lon = lon[::subsample_factor]
-                        lat = lat[::subsample_factor]
-                    lon_rad = np.radians(lon)
-                    lat_rad = np.radians(lat)
-                    color_idx = len(plotted_telescopes) % len(self._style_config["colors"])
-                    handle = ax.scatter(
-                        lon_rad, lat_rad, s=1, c=[self._style_config["colors"][color_idx]],
-                        label=tel_code if tel_code not in plotted_telescopes else None,
-                        zorder=1
-                    )
-                    if tel_code not in plotted_telescopes:
-                        legend_handles.append(handle)
-                        legend_labels.append(tel_code)
-                    plotted_telescopes.add(tel_code)
-                    result["points"] += len(lon)
+            if total_points > max_points:
+                logger.warning(f"Total points ({total_points}) exceeds max_points ({max_points}), subsampling tracks")
+                subsample_factor = total_points // max_points + 1
+            else:
+                subsample_factor = 1
+
+            for tel_idx, tel_code in enumerate(all_tracks):
+                tracks = np.vstack(all_tracks[tel_code]) if all_tracks[tel_code] else np.array([])
+                if len(tracks) == 0:
+                    logger.debug(f"No valid tracks for {tel_code} after combining scans")
+                    continue
+                lon, lat = tracks[:, 0], tracks[:, 1]
+                valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
+                lon = lon[valid_mask]
+                lat = lat[valid_mask]
+                if len(lon) == 0:
+                    logger.debug(f"No valid points for {tel_code} after filtering")
+                    continue
+                if subsample_factor > 1:
+                    lon = lon[::subsample_factor]
+                    lat = lat[::subsample_factor]
+                lon_rad = np.radians(lon)
+                lat_rad = np.radians(lat)
+                color = cmap(tel_idx / len(telescopes)) if cmap else self._style_config["colors"][len(plotted_telescopes) % len(self._style_config["colors"])]
+                handle = ax.scatter(
+                    lon_rad, lat_rad, 
+                    s=self._style_config['markers']['track_size'], 
+                    c=[color],
+                    marker=self._style_config['markers']['track_style'],
+                    label=tel_code if tel_code not in plotted_telescopes else None,
+                    zorder=1
+                )
+                if tel_code not in plotted_telescopes:
+                    legend_handles.append(handle)
+                    legend_labels.append(tel_code)
+                plotted_telescopes.add(tel_code)
+                result["points"] += len(lon)
 
             result["telescopes"] = len(plotted_telescopes)
 
@@ -1415,9 +1612,11 @@ class ScheduleVisualizer(Super):
                 fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
                 fig.legend(
                     legend_lines, legend_texts,
-                    loc='upper right', bbox_to_anchor=(0.98, 0.95),
-                    fontsize=self._style_config["legend"]["fontsize"],
+                    loc=self._style_config['legend']['loc'], 
+                    bbox_to_anchor=self._style_config['legend']['bbox_to_anchor'],
+                    fontsize=self._style_config['legend']['fontsize'],
                     title="",
+                    title_fontsize=self._style_config['legend']['title_fontsize'],
                     bbox_transform=fig.transFigure
                 )
 
