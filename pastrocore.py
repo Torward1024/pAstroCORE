@@ -152,7 +152,6 @@ class PAstroCoreMainWindow(QMainWindow):
         """Connect UI signals to slots, ensuring no duplicates."""
         self.clear_connections()
 
-        # Connect action signals
         actions = [
             (self.ui.actionNewProject, self.new_project),
             (self.ui.actionOpenProject, self.open_project),
