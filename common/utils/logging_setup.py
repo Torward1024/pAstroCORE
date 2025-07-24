@@ -23,24 +23,18 @@ def setup_logging(log_file: str = "output.log", log_level: int = logging.INFO, c
     logger = logging.getLogger("")
     logger.setLevel(log_level)
 
-    # Avoid duplicate handlers if already set up
     if not logger.handlers:
-        # File handler
-        # Use 'w' mode to clear the file if clear_log is True, else 'a' to append
         mode = 'w' if clear_log else 'a'
         fh = logging.FileHandler(log_file, mode=mode)
         fh.setLevel(log_level)
 
-        # Console handler
         ch = logging.StreamHandler()
         ch.setLevel(log_level)
 
-        # Formatter
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         fh.setFormatter(formatter)
         ch.setFormatter(formatter)
 
-        # Add handlers
         logger.addHandler(fh)
         logger.addHandler(ch)
 
@@ -77,13 +71,11 @@ def update_logging_clear(log_file: str, clear_log: bool) -> None:
         return
 
     if clear_log:
-        # Remove existing file handlers
         for handler in logger.handlers[:]:
             if isinstance(handler, logging.FileHandler):
                 logger.removeHandler(handler)
                 handler.close()
-        
-        # Create new file handler in write mode to clear the file
+    
         fh = logging.FileHandler(log_file, mode='w')
         fh.setLevel(logger.level)
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -91,5 +83,4 @@ def update_logging_clear(log_file: str, clear_log: bool) -> None:
         logger.addHandler(fh)
         logger.info("Log file cleared due to clear_log=True")
 
-# Singleton logger instance with default INFO level
 logger = setup_logging()
