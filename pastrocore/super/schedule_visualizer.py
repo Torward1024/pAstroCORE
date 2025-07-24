@@ -58,27 +58,27 @@ class ScheduleVisualizer(Super):
             },
             'font': {
                 'family': 'Trebuchet MS',
-                'size': 9,
+                'size': 10,
                 'title_size': 14,
                 'label_size': 12,
-                'tick_size': 9,
-                'legend_size': 9
+                'tick_size': 10,
+                'legend_size': 10
             },
             'text': {
                 'color': 'black'
             },
             'xtick': {
                 'color': 'black',
-                'labelsize': 9
+                'labelsize': 10
             },
             'ytick': {
                 'color': 'black',
-                'labelsize': 9
+                'labelsize': 10
             },
             'legend': {
                 'loc': 'upper right',
                 'bbox_to_anchor': (1, 0.95),
-                'fontsize': 8,
+                'fontsize': 10,
                 'title_fontsize': 10
             },
             'colors': [
@@ -105,7 +105,7 @@ class ScheduleVisualizer(Super):
                 'default_size': 10,
                 'source_style': '*',
                 'track_style': 'o',
-                'track_size': 1,
+                'track_size': 0.5,
                 'scatter_size': 5
             },
             'linestyles': {
