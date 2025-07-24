@@ -38,7 +38,6 @@ class ScheduleVisualizer(Super):
         logger.info("Initialized Scheduling Visualizer")
         self._lock = threading.Lock()
 
-        # Default style configuration
         self._style_config = {
             'plt_style': 'seaborn-v0_8-whitegrid',
             'axes': {
@@ -80,7 +79,6 @@ class ScheduleVisualizer(Super):
             )
         }
 
-        # Apply global styles
         plt.style.use(self._style_config['plt_style'])
         plt.rc('axes', **self._style_config['axes'])
         plt.rc('grid', **self._style_config['grid'])
@@ -91,11 +89,7 @@ class ScheduleVisualizer(Super):
         plt.rc('figure', **self._style_config['figure'])
 
         self._object_visualizers: Dict[type, Callable] = {
-            (ScheduleProject, Observation): self._visualize_project_or_observation,
-            (Telescope, SpaceTelescope, Telescopes): self._visualize_telescopes,
-            (Source, Sources): self._visualize_sources,
-            (Scan, Scans): self._visualize_scans,
-            (IF, Frequencies): self._visualize_frequencies,
+            (ScheduleProject, Observation): self._visualize_project_or_observation
         }
 
         self._plot_types: Dict[str, Callable] = {
@@ -116,14 +110,12 @@ class ScheduleVisualizer(Super):
         logger.debug(f"Executing visualization on {type(obj).__name__} with attributes={attributes}, method={method}")
 
         try:
-            # If an explicit method is provided, use it
             if method:
                 method_func = getattr(self, method, None)
                 if callable(method_func):
                     result = method_func(obj, attributes)
                     return self._build_response(obj, True, method, result)
 
-            # Check for method in attributes
             method_name = attributes.get("method")
             if method_name:
                 method = getattr(self, method_name, None)
@@ -137,7 +129,6 @@ class ScheduleVisualizer(Super):
                     result = method(obj, attributes)
                     return self._build_response(obj, True, prefixed_method_name, result)
 
-            # Try type-specific visualization method
             obj_type_name = type(obj).__name__.lower()
             auto_method_name = f"_visualize_{obj_type_name}"
             method = getattr(self, auto_method_name, None)
@@ -145,7 +136,6 @@ class ScheduleVisualizer(Super):
                 result = method(obj, attributes)
                 return self._build_response(obj, True, auto_method_name, result)
 
-            # Fallback to default visualize method
             result = self._visualize(obj, attributes)
             if result is None:
                 return self._build_response(obj, False, "_visualize", None, "Visualization failed")
@@ -220,7 +210,7 @@ class ScheduleVisualizer(Super):
                 )
 
             n_tels = len(telescopes if telescopes else set(tel for src in data for scan in data[src] for tel in data[src][scan]))
-            # For sun_angles, always use a single axis; for az_el, one axis per telescope
+
             n_rows = 1 if plot_type != "az_el" else n_tels
             n_cols = 1
             axes = self._setup_axes(fig, plot_type, obj.get_observation_code(), n_rows=n_rows, n_cols=n_cols, sharex=True, sharey=True)
@@ -573,7 +563,6 @@ class ScheduleVisualizer(Super):
             all_scaled_points = []
             max_uv = 0.0
 
-            # Collect all UV points with corresponding times
             for source in uv_data:
                 if source != source_name:
                     continue
@@ -594,8 +583,8 @@ class ScheduleVisualizer(Super):
                             continue
                         if tel_code not in all_uv_points:
                             all_uv_points[tel_code] = []
-                        # Ensure UV points and times have the same length
-                        uv_array = np.array(uv_points[tel_code], dtype=float)  # shape: (n_times, 3)
+
+                        uv_array = np.array(uv_points[tel_code], dtype=float)
                         if uv_array.shape[0] != len(times):
                             logger.warning(f"Mismatch in UV points ({uv_array.shape[0]}) and times ({len(times)}) for baseline {tel_code} in scan {scan}")
                             min_len = min(uv_array.shape[0], len(times))
@@ -614,13 +603,11 @@ class ScheduleVisualizer(Super):
                     logger.debug(f"No valid data for source {source}, skipping")
                     continue
 
-                # Sort by time to ensure correspondence
                 time_indices = np.argsort([t.mjd for t in all_times])
                 all_times = [all_times[i] for i in time_indices]
                 for tel_code in all_uv_points:
                     all_uv_points[tel_code] = [all_uv_points[tel_code][i] for i in time_indices if i < len(all_uv_points[tel_code])]
 
-                # Plot UV points for each frequency
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
                     for tel_code in all_uv_points:
@@ -630,7 +617,7 @@ class ScheduleVisualizer(Super):
                             continue
                         u, v = zip(*all_uv_points[tel_code])
                         u, v = np.array(u, dtype=float), np.array(v, dtype=float)
-                        # Skip if all values are NaN
+
                         if np.all(np.isnan(u)) or np.all(np.isnan(v)):
                             logger.debug(f"All UV points for baseline {tel_code} at {freq_mhz:.2f} MHz are NaN, skipping")
                             continue
@@ -651,7 +638,6 @@ class ScheduleVisualizer(Super):
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Determine scale for wavelengths
             if units == "wavelengths":
                 if max_uv >= 1e12:
                     prefix, scale = "Tλ", 1e12
@@ -686,7 +672,6 @@ class ScheduleVisualizer(Super):
                 result["points"] += len(u_scaled)
                 uv_max_scaled = max(uv_max_scaled, np.max(np.abs(u_plot)), np.max(np.abs(v_plot)))
 
-            # Set axis limits to ensure points are visible
             if uv_max_scaled > 0:
                 ax.set_xlim(-uv_max_scaled * 1.1, uv_max_scaled * 1.1)
                 ax.set_ylim(-uv_max_scaled * 1.1, uv_max_scaled * 1.1)
@@ -1089,7 +1074,6 @@ class ScheduleVisualizer(Super):
             frequencies = attributes.get("frequencies", [])
             units = attributes.get("units", "wavelengths")
 
-            # Strict filter check
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
                 logger.debug(f"Missing required filters: source_name={source_name}, baselines={baselines}, "
                             f"scans={scans}, frequencies={frequencies}, returning empty plot")
@@ -1139,8 +1123,7 @@ class ScheduleVisualizer(Super):
             legend_labels = []
             max_bl = 0.0
 
-            # Collect all baseline projections with corresponding times
-            all_data = {pair: [] for pair in baselines}  # Store (time_mjd, projection) pairs
+            all_data = {pair: [] for pair in baselines}
             for source in bl_data:
                 if source != source_name:
                     continue
@@ -1159,7 +1142,7 @@ class ScheduleVisualizer(Super):
                     for pair in bl_points:
                         if pair not in baselines:
                             continue
-                        # Convert projections to numpy array
+
                         bl_array = np.array(bl_points[pair], dtype=float)
                         if bl_array.shape[0] != len(times):
                             logger.warning(f"Mismatch in projections ({bl_array.shape[0]}) and times ({len(times)}) for baseline {pair} in scan {scan}")
@@ -1168,27 +1151,26 @@ class ScheduleVisualizer(Super):
                             scan_times = times[:min_len]
                         else:
                             scan_times = times
-                        # Store time-projection pairs
+
                         for t, bl in zip(scan_times, bl_array):
                             all_data[pair].append((t.mjd, bl))
 
-            # Process data for each baseline and frequency
+
             for pair in baselines:
                 if not all_data[pair]:
                     logger.debug(f"No data for baseline {pair}, skipping")
                     continue
-                # Convert to arrays and filter NaN
+
                 times_mjd, projections = zip(*all_data[pair]) if all_data[pair] else ([], [])
                 times_mjd = np.array(times_mjd, dtype=float)
                 projections = np.array(projections, dtype=float)
                 if len(times_mjd) == 0 or len(projections) == 0:
                     logger.debug(f"No valid data for baseline {pair} after combining, skipping")
                     continue
-                # Sort by time
+
                 time_indices = np.argsort(times_mjd)
                 times_mjd = times_mjd[time_indices]
                 projections = projections[time_indices]
-                # Filter NaN
                 valid_mask = ~np.isnan(projections)
                 if not np.any(valid_mask):
                     logger.debug(f"All projections for baseline {pair} are NaN, skipping")
@@ -1199,16 +1181,14 @@ class ScheduleVisualizer(Super):
                     logger.error(f"After filtering, times ({len(times_mjd)}) and projections ({len(projections)}) lengths mismatch for baseline {pair}")
                     continue
 
-                # Plot for each frequency
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
-                    # Scale projections
                     bl_scaled = np.array(projections, dtype=float)
                     if units == "wavelengths":
                         bl_scaled = bl_scaled / wavelength
                     else:
                         bl_scaled = (bl_scaled / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
-                    # Filter NaN after scaling
+
                     valid_mask = ~np.isnan(bl_scaled)
                     if not np.any(valid_mask):
                         logger.debug(f"All scaled projections for baseline {pair} at {freq_mhz:.2f} MHz are NaN, skipping")
@@ -1302,9 +1282,8 @@ class ScheduleVisualizer(Super):
             telescopes = attributes.get("telescopes", [])
             scans = attributes.get("scans", [])
             sources = attributes.get("sources", [])
-            max_points = attributes.get("max_points", 10000)  # Limit for performance
+            max_points = attributes.get("max_points", 10000)
 
-            # Create Mollweide projection
             ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
             ax.set_title(f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}")
 
@@ -1325,9 +1304,8 @@ class ScheduleVisualizer(Super):
             legend_handles = []
             legend_labels = []
 
-            # Plot sources only if explicitly specified in the filter
             source_colors = {}
-            if sources:  # Only plot sources if the filter is non-empty
+            if sources:
                 for idx, source_name in enumerate(metadata.get("sources", {}).keys()):
                     if source_name not in sources:
                         continue
@@ -1356,11 +1334,10 @@ class ScheduleVisualizer(Super):
                         logger.warning(f"Failed to plot source {source_name}: {str(e)}")
                         continue
 
-            # Process telescope tracks only if both telescopes and scans are specified
             result["scans"] = len(scans)
             all_tracks = {}
             total_points = 0
-            if telescopes and scans:  # Only process tracks if both telescopes and scans are non-empty
+            if telescopes and scans:
                 for scan_name in scans:
                     if scan_name not in scan_data:
                         logger.debug(f"Scan {scan_name} not found in mollweide_tracks data, skipping")
@@ -1416,7 +1393,6 @@ class ScheduleVisualizer(Super):
 
             result["telescopes"] = len(plotted_telescopes)
 
-            # Create grouped legend only for plotted elements
             if legend_handles:
                 grouped_legend = {"Sources": [], "Telescopes": []}
                 for handle, label in zip(legend_handles, legend_labels):
@@ -1429,7 +1405,7 @@ class ScheduleVisualizer(Super):
                 legend_texts = []
                 for group, items in [("Sources:", sorted(grouped_legend["Sources"], key=lambda x: x[1])),
                                     ("Telescopes:", sorted(grouped_legend["Telescopes"], key=lambda x: x[1]))]:
-                    if items:  # Only include groups with items
+                    if items:
                         legend_lines.append(Line2D([0], [0], linestyle="none", marker="none"))
                         legend_texts.append(group)
                         for handle, label in items:
@@ -1454,108 +1430,3 @@ class ScheduleVisualizer(Super):
                 )
 
             return result
-
-    def _visualize_telescopes(self, obj: Union[Telescope, SpaceTelescope, Telescopes], attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Visualize Telescope-related objects."""
-        with self._lock:
-            logger.debug(f"Visualizing telescopes for {type(obj).__name__}")
-            plot_type = attributes.get("plot_type")
-            if plot_type != "positions":
-                logger.warning(f"Unsupported plot_type '{plot_type}' for {type(obj).__name__}")
-                return {}
-
-            tels = obj.get_active_telescopes() if isinstance(obj, Telescopes) else [obj]
-            if not tels:
-                return {"telescopes": 0}
-
-            ax = self._setup_axes(fig, "telescopes", "Telescope Positions", projection="3d")
-            ax.set_xlabel("X, (m)")
-            ax.set_ylabel("Y, (m)")
-            ax.set_zlabel("Z, (m)")
-            ax.set_title("Telescope Positions")
-
-            for i, tel in enumerate(tels):
-                x, y, z = tel.get_coordinates()
-                ax.scatter(x, y, z, c=[self._style_config['colors'][i % len(self._style_config['colors'])]], label=tel.get_code())
-            
-            if tels:
-                ax.legend(**self._style_config['legend'])
-            return {"telescopes": len(tels)}
-
-    def _visualize_sources(self, obj: Union[Source, Sources], attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Visualize Source-related objects."""
-        with self._lock:
-            logger.debug(f"Visualizing sources for {type(obj).__name__}")
-            plot_type = attributes.get("plot_type")
-            if plot_type != "sky_position":
-                logger.warning(f"Unsupported plot_type '{plot_type}' for {type(obj).__name__}")
-                return {}
-
-            sources = obj.get_items() if isinstance(obj, Sources) else [obj]
-            if not sources:
-                return {"sources": 0}
-
-            ax = self._setup_axes(fig, "sources", "Source(s) Sky Position")
-            ax.set_xlabel("Relative Right Ascension, (deg)")
-            ax.set_ylabel("Relative Declination, (deg)")
-            ax.set_title("Source(s) Sky Position")
-
-            for i, source in enumerate(sources):
-                ax.scatter(source.get_ra_degrees(), source.get_dec_degrees(),
-                          c=[self._style_config['colors'][i % len(self._style_config['colors'])]], label=f"Source {i}")
-
-            if sources:
-                ax.legend(**self._style_config['legend'])
-            return {"sources": len(sources)}
-
-    def _visualize_scans(self, obj: Union[Scan, Scans], attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Visualize Scan-related objects."""
-        with self._lock:
-            logger.debug(f"Visualizing scans for {type(obj).__name__}")
-            plot_type = attributes.get("plot_type")
-            if plot_type != "timeline":
-                logger.warning(f"Unsupported plot_type '{plot_type}' for {type(obj).__name__}")
-                return {}
-
-            scans = obj.get_items() if isinstance(obj, Scans) else [obj]
-            if not scans:
-                return {"scans": 0}
-
-            ax = self._setup_axes(fig, "scans", "Scan Timeline")
-            ax.set_xlabel("Time, (MJD)")
-            ax.set_ylabel("Scan Index")
-            ax.set_title("Scan Timeline")
-
-            for i, scan in enumerate(scans):
-                start = Time(scan.get_start()).mjd
-                end = (Time(scan.get_start()) + scan.get_duration() * u.s).mjd
-                ax.plot([start, end], [i, i], label=f"Scan {i}",
-                        color=self._style_config['colors'][i % len(self._style_config['colors'])])
-
-            if scans:
-                ax.legend(**self._style_config['legend'])
-            return {"scans": len(scans)}
-
-    def _visualize_frequencies(self, obj: Union[IF, Frequencies], attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Visualize Frequency-related objects."""
-        with self._lock:
-            logger.debug(f"Visualizing frequencies for {type(obj).__name__}")
-            plot_type = attributes.get("plot_type")
-            if plot_type != "spectrum":
-                logger.warning(f"Unsupported plot_type '{plot_type}' for {type(obj).__name__}")
-                return {}
-
-            freqs = obj.get_items() if isinstance(obj, Frequencies) else [obj]
-            if not freqs:
-                return {"frequencies": 0}
-
-            ax = self._setup_axes(fig, "frequencies", "Frequency Spectrum")
-            ax.set_xlabel("Frequency, (MHz)")
-            ax.set_ylabel("Bandwidth, (MHz)")
-            ax.set_title("Frequency Spectrum")
-
-            for i, freq in enumerate(freqs):
-                ax.bar(freq.get_frequency(), freq.get_bandwidth(), width=0.1, align='center',
-                       color=self._style_config['colors'][i % len(self._style_config['colors'])])
-
-            return {"frequencies": len(freqs)}
