@@ -196,9 +196,9 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """Retrieve all items in the container with their names as keys.
 
         Returns:
-            Dict[str, T]: A copy of the items dictionary, mapping names to entities.
+            Dict[str, T]: the items dictionary, mapping names to entities.
         """
-        return self._items.copy()
+        return self._items
 
     def get_items(self) -> List[T]:
         """Retrieve all items in the container as a list, without their names.
