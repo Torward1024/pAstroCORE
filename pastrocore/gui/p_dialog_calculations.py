@@ -1,10 +1,11 @@
 # p_dialog_calculations.py
-from PySide6.QtWidgets import QDialog, QListWidgetItem, QProgressDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QListWidgetItem, QMessageBox
 from PySide6.QtCore import Qt, QThread, Signal
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_calculations import Ui_CalculationDialog
+from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
 import pastrocore.gui.rc_icons
 
 class CalculationThread(QThread):
@@ -19,6 +20,7 @@ class CalculationThread(QThread):
         self.targets = targets
         self.calc_types = calc_types
         self.params = params
+        self._cancelled = False  # Flag to track cancellation request
         logger.debug(f"CalculationThread initialized with calc_types: {self.calc_types}")
         # Validate calc_types
         valid_calcs = [
@@ -29,6 +31,11 @@ class CalculationThread(QThread):
         if invalid_calcs:
             logger.error(f"Invalid calculation types provided: {invalid_calcs}")
             raise ValueError(f"Invalid calculation types: {invalid_calcs}")
+
+    def cancel(self):
+        """Set cancellation flag to stop after current calculation."""
+        self._cancelled = True
+        logger.debug("CalculationThread cancellation requested")
 
     def run(self):
         """Execute calculations asynchronously and emit progress signals."""
@@ -41,6 +48,10 @@ class CalculationThread(QThread):
             for target in self.targets:
                 freqs = [f.name for f in target.frequencies.get_active_items()] if isinstance(target, Observation) else [None]
                 for calc_type in self.calc_types:
+                    if self._cancelled:
+                        logger.info("Calculation cancelled by user")
+                        self.error.emit("Calculation cancelled by user")
+                        return
                     calc_params = self.params.get(calc_type, {}).copy()
                     time_step = calc_params.get("time_step", 600)
                     logger.debug(f"Time step for {calc_type} on {target.code} set to '{time_step}'")
@@ -58,6 +69,10 @@ class CalculationThread(QThread):
                     # Process frequency-dependent calculations
                     if calc_type in freq_dependent_calcs:
                         for freq in freqs:
+                            if self._cancelled:
+                                logger.info("Calculation cancelled by user during frequency loop")
+                                self.error.emit("Calculation cancelled by user")
+                                return
                             freq_params = calc_params.copy()
                             freq_params["freq_name"] = freq
                             freq_params["store_key"] = f"{method}_{freq}"
@@ -100,9 +115,29 @@ class CalculationThread(QThread):
             logger.error(f"Calculation error in thread: {str(e)}")
             self.error.emit(str(e))
 
+class ProgressDialog(QDialog):
+    """Custom progress dialog for calculation progress."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.ui = Ui_ProgressDialog()
+        self.ui.setupUi(self)
+        self.setWindowTitle("Calculation Progress")
+        logger.debug("ProgressDialog initialized")
+
+    def update_progress(self, value, message):
+        """Update progress bar and label."""
+        self.ui.progressBar.setValue(value)
+        self.ui.label.setText(message)
+        logger.debug(f"ProgressDialog updated: value={value}, message={message}")
+
+    def cancel(self):
+        """Emit cancellation signal (handled by parent dialog)."""
+        logger.debug("ProgressDialog cancel requested")
+        self.reject()
+
 class CalculationDialog(QDialog):
     """Dialog for configuring and running multiple calculations."""
-    time_step_updated = Signal(int)  # Новый сигнал для обновления time_step
+    time_step_updated = Signal(int)
 
     def __init__(self, manipulator, project, targets=None, calc_type=None, time_step=600, parent=None):
         super().__init__(parent)
@@ -232,7 +267,7 @@ class CalculationDialog(QDialog):
     def run_calculation(self):
         """Run the selected calculations in a separate thread."""
         selected_calcs = [self.ui.calcList.item(i).text() for i in range(self.ui.calcList.count())
-                        if self.ui.calcList.item(i).checkState() == Qt.Checked]
+                          if self.ui.calcList.item(i).checkState() == Qt.Checked]
         selected_targets = [self.ui.targetList.item(i).data(Qt.UserRole) for i in range(self.ui.targetList.count())
                             if self.ui.targetList.item(i).checkState() == Qt.Checked]
         logger.debug(f"Selected calculations: {selected_calcs}")
@@ -260,17 +295,16 @@ class CalculationDialog(QDialog):
         logger.debug(f"CalculationDialog: params set to {params}")
         calc_params = {calc: params.copy() for calc in selected_calcs}
 
-        # Initialize and show progress dialog immediately
-        self.progress_dialog = QProgressDialog("Preparing calculations...", "Cancel", 0, 100, self)
-        self.progress_dialog.setWindowModality(Qt.WindowModal)
-        self.progress_dialog.setValue(0)
-        self.progress_dialog.show()  # Показываем диалог сразу
+        # Initialize and show custom progress dialog
+        self.progress_dialog = ProgressDialog(self)
+        self.progress_dialog.ui.pushButtonCancel.clicked.connect(self.cancel_calculation)
+        self.progress_dialog.update_progress(0, "Preparing calculations...")
+        self.progress_dialog.show()
 
         self.thread = CalculationThread(self.manipulator, selected_targets, selected_calcs, calc_params)
-        self.thread.progress.connect(self.update_progress)
+        self.thread.progress.connect(self.progress_dialog.update_progress)
         self.thread.finished.connect(self.calculation_finished)
         self.thread.error.connect(self.calculation_error)
-        self.progress_dialog.canceled.connect(self.cancel_calculation)  # Подключаем обработку отмены
         self.thread.start()
 
         # Emit time_step_updated signal if time_step changed
@@ -279,23 +313,15 @@ class CalculationDialog(QDialog):
             logger.debug(f"Emitted time_step_updated signal with value {self.ui.timeStepSpin.value()}")
 
     def update_progress(self, value, message):
-        """Update the progress dialog."""
-        self.progress_dialog.setValue(value)
-        self.progress_dialog.setLabelText(message)
-        if self.progress_dialog.wasCanceled():
-            logger.debug("Progress dialog canceled, requesting thread termination")
-            self.thread.terminate()
-            self.progress_dialog.close()
-            QMessageBox.information(self, "Cancelled", "Calculation was cancelled.")
-            self.reject()
-    
+        """Update the progress dialog (kept for compatibility, delegates to ProgressDialog)."""
+        self.progress_dialog.update_progress(value, message)
+
     def cancel_calculation(self):
         """Handle cancellation of the calculation thread."""
         logger.debug("Cancellation requested by user")
-        self.thread.terminate()
-        self.progress_dialog.close()
-        QMessageBox.information(self, "Cancelled", "Calculation was cancelled.")
-        self.reject()
+        self.thread.cancel()  # Set cancellation flag
+        self.progress_dialog.update_progress(self.progress_dialog.ui.progressBar.value(), "Cancelling after current calculation...")
+        # The thread will emit error signal with cancellation message when it stops
 
     def calculation_finished(self, results):
         """Handle calculation completion."""

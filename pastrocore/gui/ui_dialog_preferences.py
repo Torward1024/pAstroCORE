@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_preferenceslHwpJt.ui'
+## Form generated from reading UI file 'dialog_preferencesiBhrcx.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -361,9 +361,6 @@ class Ui_PreferencesDialog(object):
         self.gridLayout_4.addLayout(self.horizontalLayout, 0, 0, 1, 1)
 
         self.tabWidget.addTab(self.tab_2, "")
-        self.tab_3 = QWidget()
-        self.tab_3.setObjectName(u"tab_3")
-        self.tabWidget.addTab(self.tab_3, "")
 
         self.gridLayout.addWidget(self.tabWidget, 3, 0, 1, 5)
 
@@ -431,7 +428,6 @@ class Ui_PreferencesDialog(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("PreferencesDialog", u"Common", None))
         self.labelTimestep.setText(QCoreApplication.translate("PreferencesDialog", u"Time step (s):", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("PreferencesDialog", u"Calculations", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), QCoreApplication.translate("PreferencesDialog", u"Visualisations", None))
         self.cancelButton.setText(QCoreApplication.translate("PreferencesDialog", u"Cancel", None))
         self.okButton.setText(QCoreApplication.translate("PreferencesDialog", u"OK", None))
     # retranslateUi

@@ -407,11 +407,6 @@ QDoubleSpinBox::down-arrow {
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="tab_3">
-      <attribute name="title">
-       <string>Visualisations</string>
-      </attribute>
-     </widget>
     </widget>
    </item>
    <item row="5" column="4">
