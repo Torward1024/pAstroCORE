@@ -1008,6 +1008,72 @@ if __name__ == "__main__":
         QWidget {
             color: #333333;
         }
+        /* Vertical ScrollBar */
+        QScrollBar:vertical {
+            background-color: #f0f0f0;
+            width: 12px;
+            margin: 0px 0px 0px 0px;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:vertical {
+            background-color: #ffffff;
+            min-height: 20px;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:vertical:hover {
+            background-color: #0078d7;
+            border: 1px solid #0078d7;
+        }
+        QScrollBar::add-line:vertical {
+            background-color: #f0f0f0;
+            height: 0px;
+            subcontrol-position: bottom;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::sub-line:vertical {
+            background-color: #f0f0f0;
+            height: 0px;
+            subcontrol-position: top;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+            background-color: #f5f5f5;
+        }
+        /* Horizontal ScrollBar */
+        QScrollBar:horizontal {
+            background-color: #f0f0f0;
+            height: 12px;
+            margin: 0px 0px 0px 0px;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:horizontal {
+            background-color: #ffffff;
+            min-width: 20px;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:horizontal:hover {
+            background-color: #0078d7;
+            border: 1px solid #0078d7;
+        }
+        QScrollBar::add-line:horizontal {
+            background-color: #f0f0f0;
+            width: 0px;
+            subcontrol-position: right;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::sub-line:horizontal {
+            background-color: #f0f0f0;
+            width: 0px;
+            subcontrol-position: left;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+            background-color: #f5f5f5;
+        }
     """)
     window = PAstroCoreMainWindow()
     window.show()
