@@ -1,10 +1,11 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QFileDialog, QDialog
-from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
+from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
 from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
 from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
+from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
@@ -12,7 +13,6 @@ from pastrocore.base.telescope import Telescope
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.utils.catalogmanager import CatalogManager
 from common.utils.logging_setup import logger
-import pastrocore.gui.rc_icons
 import json
 import uuid
 
@@ -35,9 +35,9 @@ class TelescopesTab(QWidget):
         self.ui.search.setPlaceholderText("Search telescopes...")
 
         # Setup table
-        self.model = QStandardItemModel()
+        self.model = CustomStandardItemModel()
         self.model.setHorizontalHeaderLabels(["#", " ", "Code", "Name", "Type"])
-        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model = CustomSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterKeyColumn(-1)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
@@ -637,7 +637,8 @@ class TelescopesTab(QWidget):
                     ]
                     for item in row:
                         item.setEditable(False)
-                    row[0].setData(name, Qt.UserRole)  # Сохраняем имя телескопа в столбце "#"
+                    row[0].setData(name, Qt.UserRole)
+                    row[0].setData(idx, Qt.UserRole + 1)
                     self.model.appendRow(row)
                     idx += 1
 

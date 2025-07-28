@@ -1,13 +1,12 @@
-from PySide6.QtWidgets import QWidget, QTableView, QMessageBox, QMenu, QFileDialog
-from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PySide6.QtWidgets import QWidget, QMessageBox, QMenu
+from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
+from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
-import json
-import pastrocore.gui.rc_icons  # Импорт ресурсов
+from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 
 class ProjectInfoTab(QWidget):
     """Widget for displaying and editing project information in a tab."""
@@ -19,36 +18,32 @@ class ProjectInfoTab(QWidget):
         self.ui.setupUi(self)
         self.project = project
         self.manipulator = manipulator
-        self.parent_widget = parent  # Reference to PAstroCoreMainWindow
+        self.parent_widget = parent
         self.setup_table()
         self.setup_connections()
-        # Инициализация иконок из ресурсов
-        self.active_icon = QIcon(":/icons/active_icon.svg")  # Зелёный кружок
-        self.inactive_icon = QIcon(":/icons/inactive_icon.svg")  # Лососевый кружок
+        self.active_icon = QIcon(":/icons/active_icon.svg")
+        self.inactive_icon = QIcon(":/icons/inactive_icon.svg")
         self.ui.search.setPlaceholderText("Search observations...")
 
     def setup_table(self):
         """Set up the observations table with appropriate columns."""
-        self.model = QStandardItemModel()
+        self.model = CustomStandardItemModel()
         self.model.setHorizontalHeaderLabels([
             "#", " ", "Name", "Code", "Type", "Frequencies", "Start Time",
             "Duration", "Sources", "Telescopes", "Scans"
         ])
-        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model = CustomSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
-        self.proxy_model.setFilterKeyColumn(-1)  # Filter across all columns
+        self.proxy_model.setFilterKeyColumn(-1)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
         self.ui.projectInfoTable.setModel(self.proxy_model)
         self.ui.projectInfoTable.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.projectInfoTable.customContextMenuRequested.connect(self.show_context_menu)
-        # Disable editing in lineEdit by default
         self.ui.lineEdit.setReadOnly(True)
-        # Optimize table appearance
         self.ui.projectInfoTable.setAlternatingRowColors(True)
         self.ui.projectInfoTable.setSortingEnabled(True)
         self.ui.projectInfoTable.sortByColumn(0, Qt.AscendingOrder)
         self.ui.projectInfoTable.verticalHeader().setVisible(False)
-        # Устанавливаем ширину столбца Active для иконок
         self.ui.projectInfoTable.setColumnWidth(1, 24)
         self.ui.projectInfoTable.setColumnHidden(2, True)  # Скрываем столбец "Name"
 
@@ -140,15 +135,13 @@ class ProjectInfoTab(QWidget):
             if code_response["status"]:
                 current_codes.add(code_response["result"])
 
-        existing_codes = {self.model.item(i, 3).text() for i in range(self.model.rowCount()) if self.model.item(i, 3)}  # Изменено: столбец Code теперь 3
+        #existing_codes = {self.model.item(i, 3).text() for i in range(self.model.rowCount()) if self.model.item(i, 3)}  # Изменено: столбец Code теперь 3
 
-        # Remove rows for observations that no longer exist
         for i in range(self.model.rowCount() - 1, -1, -1):
-            obs_code = self.model.item(i, 3).text()  # Изменено: столбец Code теперь 3
+            obs_code = self.model.item(i, 3).text()
             if obs_code not in current_codes:
                 self.model.removeRow(i)
 
-        # Add or update rows for observations
         idx = 1
         for obs_name, obs in result.items():
             if not isinstance(obs, Observation):
@@ -258,7 +251,7 @@ class ProjectInfoTab(QWidget):
             row = [
                 QStandardItem(str(idx)),
                 active_item,
-                QStandardItem(obs_name),  # Новый столбец "Name"
+                QStandardItem(obs_name),
                 QStandardItem(obs_code),
                 QStandardItem(obs_type),
                 QStandardItem(freqs),
@@ -270,7 +263,9 @@ class ProjectInfoTab(QWidget):
             ]
             for item in row:
                 item.setEditable(False)
-            row[0].setData(obs_name, Qt.UserRole)  # Сохраняем имя наблюдения в столбце "#"
+                
+            row[0].setData(obs_name, Qt.UserRole)
+            row[0].setData(idx, Qt.UserRole + 1)
 
             if row_idx is None:
                 self.model.appendRow(row)
@@ -279,7 +274,6 @@ class ProjectInfoTab(QWidget):
                     self.model.setItem(row_idx, col, item)
             idx += 1
 
-        # Adjust column widths
         self.ui.projectInfoTable.resizeColumnsToContents()
 
     def show_context_menu(self, position: QPoint):
