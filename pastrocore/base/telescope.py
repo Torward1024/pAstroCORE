@@ -61,7 +61,6 @@ class Telescope(BaseEntity):
         if diameter <= 0:
             raise ValueError("Diameter must be positive")
         
-        # Обработка mount_type
         if isinstance(mount_type, str):
             try:
                 mount_type = MountType(mount_type.upper())
@@ -360,7 +359,6 @@ class Telescope(BaseEntity):
             "mount_type": self.mount_type.value,
             "elevation_range": list(self.elevation_range),
             "azimuth_range": list(self.azimuth_range),
-            # Convert float keys to strings for JSON compatibility
             "sefd_table": {str(k): v for k, v in self.sefd_table.items()},
             "surface_efficiency_table": {str(k): v for k, v in self.surface_efficiency_table.items()},
             "effective_area_table": {str(k): v for k, v in self.effective_area_table.items()},
@@ -371,25 +369,20 @@ class Telescope(BaseEntity):
     @classmethod
     def from_dict(cls, data: dict) -> 'Telescope':
         """Create a Telescope object from a dictionary."""
-        # Copy data to avoid modifying the input
         data = data.copy()
-        # Convert string keys back to floats for dictionary attributes
         for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
             if table in data and isinstance(data[table], dict):
                 data[table] = {float(k): v for k, v in data[table].items()}
-        # Convert lists back to tuples
         if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
             data["elevation_range"] = tuple(data["elevation_range"])
         if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
             data["azimuth_range"] = tuple(data["azimuth_range"])
-        # Handle mount_type
         if "mount_type" in data and isinstance(data["mount_type"], str):
             try:
                 data["mount_type"] = MountType(data["mount_type"].upper())
             except ValueError:
                 raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
         
-        # Ensure required fields have defaults if missing
         data.setdefault("name", f"tlsc_{uuid.uuid4().hex[:32]}")
         data.setdefault("code", data["code"])
         data.setdefault("type", data["type"])
