@@ -944,13 +944,13 @@ QDoubleSpinBox::down-arrow {
             <number>2</number>
            </property>
            <property name="minimum">
-            <double>0.010000000000000</double>
+            <double>1.000000000000000</double>
            </property>
            <property name="maximum">
             <double>1000.000000000000000</double>
            </property>
            <property name="value">
-            <double>1.000000000000000</double>
+            <double>20.000000000000000</double>
            </property>
           </widget>
          </item>

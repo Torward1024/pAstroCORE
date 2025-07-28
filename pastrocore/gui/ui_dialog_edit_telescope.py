@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_telescoperXjhju.ui'
+## Form generated from reading UI file 'dialog_editor_telescopevHGerz.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -844,9 +844,9 @@ class Ui_TelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.diameterEdit.setDecimals(2)
-        self.diameterEdit.setMinimum(0.010000000000000)
+        self.diameterEdit.setMinimum(1.000000000000000)
         self.diameterEdit.setMaximum(1000.000000000000000)
-        self.diameterEdit.setValue(1.000000000000000)
+        self.diameterEdit.setValue(20.000000000000000)
 
         self.formLayout.setWidget(8, QFormLayout.FieldRole, self.diameterEdit)
 

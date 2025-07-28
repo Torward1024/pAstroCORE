@@ -126,7 +126,7 @@ QPushButton:pressed {
           <font>
            <family>Arial</family>
            <pointsize>9</pointsize>
-           <bold>true</bold>
+           <bold>false</bold>
           </font>
          </property>
          <property name="text">
@@ -457,10 +457,13 @@ QDoubleSpinBox::down-arrow {
             <number>2</number>
            </property>
            <property name="minimum">
-            <double>0.010000000000000</double>
+            <double>1.000000000000000</double>
            </property>
            <property name="maximum">
             <double>1000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>10.000000000000000</double>
            </property>
           </widget>
          </item>
