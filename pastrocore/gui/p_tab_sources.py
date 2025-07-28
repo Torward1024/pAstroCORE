@@ -1,16 +1,15 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog
-from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
+from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.gui.p_dialog_edit_source import SourceEditorDialog
 from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
+from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
-from pastrocore.base.sources import Source
 from pastrocore.utils.catalogmanager import CatalogManager
 from common.utils.logging_setup import logger
-import pastrocore.gui.rc_icons
 import uuid
 
 class SourcesTab(QWidget):
@@ -25,17 +24,15 @@ class SourcesTab(QWidget):
         self.active_icon = QIcon(":/icons/active_icon.svg")
         self.inactive_icon = QIcon(":/icons/inactive_icon.svg")
         
-        # Настройка UI
         self.ui = Ui_observation_tab()
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search sources...")
 
-        # Настройка таблицы
-        self.model = QStandardItemModel()
+        self.model = CustomStandardItemModel()
         self.model.setHorizontalHeaderLabels(["#", " ", "Source Name", "Name J2000", "Alt. Name", "RA", "DEC"])
-        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model = CustomSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
-        self.proxy_model.setFilterKeyColumn(-1)  # Фильтр по всем столбцам
+        self.proxy_model.setFilterKeyColumn(-1)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
         self.ui.table.setModel(self.proxy_model)
         self.ui.table.setAlternatingRowColors(True)
@@ -43,12 +40,11 @@ class SourcesTab(QWidget):
         self.ui.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.table.verticalHeader().setVisible(False)
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
-        self.ui.table.setColumnWidth(1, 24)  # Узкий столбец для иконки
-        self.ui.table.setColumnWidth(0, 50)  # Столбец для номера
-        self.ui.table.setColumnWidth(5, 100)  # RA
-        self.ui.table.setColumnWidth(6, 100)  # DEC
+        self.ui.table.setColumnWidth(1, 24) 
+        self.ui.table.setColumnWidth(0, 50)
+        self.ui.table.setColumnWidth(5, 100)
+        self.ui.table.setColumnWidth(6, 100)
 
-        # Подключение сигналов
         self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
         self.update()
@@ -513,26 +509,25 @@ class SourcesTab(QWidget):
                     ra_s = attrs.get("ra_s", 0.0)
                     ra_str = f"{int(ra_h):02d}:{int(ra_m):02d}:{ra_s:05.1f}"
 
-                    # Форматирование DEC
                     de_d = attrs.get("de_d", 0.0)
                     de_m = attrs.get("de_m", 0.0)
                     de_s = attrs.get("de_s", 0.0)
                     dec_sign = "+" if de_d >= 0 else "-"
                     dec_str = f"{dec_sign}{abs(int(de_d)):02d}:{int(de_m):02d}:{de_s:05.1f}"
 
-                    # Формирование строки
                     row = [
-                        QStandardItem(str(idx)),  # #
-                        active_item,              # Иконка активности
-                        QStandardItem(source_name),  # Source Name
-                        QStandardItem(name_J2000),   # Name J2000
-                        QStandardItem(alt_name),     # Alt. Name
-                        QStandardItem(ra_str),       # RA
-                        QStandardItem(dec_str)       # DEC
+                        QStandardItem(str(idx)),
+                        active_item,             
+                        QStandardItem(source_name),
+                        QStandardItem(name_J2000),
+                        QStandardItem(alt_name),
+                        QStandardItem(ra_str),
+                        QStandardItem(dec_str)
                     ]
                     for item in row:
                         item.setEditable(False)
-                    row[0].setData(name, Qt.UserRole)  # Сохраняем имя источника для контекстного меню
+                    row[0].setData(name, Qt.UserRole)
+                    row[0].setData(idx, Qt.UserRole + 1)
                     self.model.appendRow(row)
                     idx += 1
 

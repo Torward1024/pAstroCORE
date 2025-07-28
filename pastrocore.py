@@ -1,10 +1,9 @@
-import sys
-import os
-import json
 from PySide6.QtWidgets import (
-    QMainWindow, QApplication, QFileDialog, QMessageBox,
-    QTreeView, QTabBar, QProgressDialog, QMenu
-)
+                                QMainWindow, 
+                                QApplication,
+                                QFileDialog, QMessageBox,
+                                QTreeView, QTabBar, QProgressDialog, QMenu
+                                )
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal, Slot, QPoint
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
@@ -24,11 +23,17 @@ from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from pastrocore.gui.p_dialog_visualize import VisualizationDialog
-from common.utils.logging_setup import logger, setup_logging, update_logging_level, update_logging_clear
+from common.utils.logging_setup import (
+                                        logger, 
+                                        setup_logging, 
+                                        update_logging_level, 
+                                        update_logging_clear
+                                        )
 import logging
 import gc
-
-import pastrocore.gui.rc_icons
+import sys
+import os
+import json
 
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
@@ -60,8 +65,18 @@ class PAstroCoreMainWindow(QMainWindow):
         self.setup_ui()
         self.setup_connections()
 
-    def clear_connections(self):
-        """Disconnect all action signals to prevent duplicates."""
+    def clear_connections(self, is_initial_setup: bool = False):
+        """
+        Disconnect all action signals to prevent duplicates.
+
+        Args:
+            is_initial_setup (bool): If True, skip disconnecting signals that may not be connected yet (used during initial setup).
+        """
+        # Skip disconnecting UI signals during initial setup to avoid warnings
+        if is_initial_setup:
+            logger.debug("Skipping UI signal disconnection during initial setup")
+            return
+        # Disconnect action signals
         for action, connection in self._action_connections.items():
             try:
                 action.triggered.disconnect(connection)
@@ -70,30 +85,31 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
         self._action_connections.clear()
 
+        # Disconnect project_updated signal
         try:
             self.project_updated.disconnect()
             logger.debug("Disconnected project_updated signal")
         except Exception as e:
             logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
 
+        # Disconnect project explorer clicked signal
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             try:
-                if project_explorer.receivers(project_explorer.clicked) > 0:
-                    project_explorer.clicked.disconnect(self.handle_project_explorer_click)
-                    logger.debug("Disconnected project explorer clicked signal")
+                project_explorer.clicked.disconnect(self.handle_project_explorer_click)
+                logger.debug("Disconnected project explorer clicked signal")
             except Exception as e:
-                logger.debug(f"No signal to disconnect for project explorer: {str(e)}")
+                logger.debug(f"No clicked signal to disconnect for project explorer: {str(e)}")
         else:
             logger.warning("Project explorer widget not found during clear_connections")
 
+        # Disconnect tabCloseRequested signal
         tab_container = self.ui.tabContainer
         try:
-            if tab_container.receivers(tab_container.tabCloseRequested) > 0:
-                tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
-                logger.debug("Disconnected tabCloseRequested signal")
+            tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
+            logger.debug("Disconnected tabCloseRequested signal")
         except Exception as e:
-            logger.debug(f"No signal to disconnect for tabCloseRequested: {str(e)}")
+            logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
@@ -150,7 +166,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
     def setup_connections(self):
         """Connect UI signals to slots, ensuring no duplicates."""
-        self.clear_connections()
+        self.clear_connections(is_initial_setup=True)  # Pass True during initial setup
 
         actions = [
             (self.ui.actionNewProject, self.new_project),
@@ -273,6 +289,16 @@ class PAstroCoreMainWindow(QMainWindow):
     def handle_observation_added(self, obs_code: str, obs_type: str):
         """Handle observation added signal."""
         logger.info(f"Observation '{obs_code}' (type: {obs_type}) added")
+        
+        obs_response = self.manipulator.process_request({
+            "operation": "inspect",
+            "obj": self.project,
+            "attributes": {"get_observation_by_code": obs_code}
+        })
+        if obs_response["status"] and obs_response["result"]:
+            logger.debug(f"Observation '{obs_code}' found in project after addition")
+        else:
+            logger.error(f"Observation '{obs_code}' not found in project after addition: {obs_response.get('error', 'Unknown error')}")
         self.project_updated.emit()
 
     @Slot(str)
@@ -981,6 +1007,72 @@ if __name__ == "__main__":
         }
         QWidget {
             color: #333333;
+        }
+        /* Vertical ScrollBar */
+        QScrollBar:vertical {
+            background-color: #f0f0f0;
+            width: 12px;
+            margin: 0px 0px 0px 0px;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:vertical {
+            background-color: #ffffff;
+            min-height: 20px;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:vertical:hover {
+            background-color: #0078d7;
+            border: 1px solid #0078d7;
+        }
+        QScrollBar::add-line:vertical {
+            background-color: #f0f0f0;
+            height: 0px;
+            subcontrol-position: bottom;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::sub-line:vertical {
+            background-color: #f0f0f0;
+            height: 0px;
+            subcontrol-position: top;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+            background-color: #f5f5f5;
+        }
+        /* Horizontal ScrollBar */
+        QScrollBar:horizontal {
+            background-color: #f0f0f0;
+            height: 12px;
+            margin: 0px 0px 0px 0px;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:horizontal {
+            background-color: #ffffff;
+            min-width: 20px;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:horizontal:hover {
+            background-color: #0078d7;
+            border: 1px solid #0078d7;
+        }
+        QScrollBar::add-line:horizontal {
+            background-color: #f0f0f0;
+            width: 0px;
+            subcontrol-position: right;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::sub-line:horizontal {
+            background-color: #f0f0f0;
+            width: 0px;
+            subcontrol-position: left;
+            subcontrol-origin: margin;
+        }
+        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+            background-color: #f5f5f5;
         }
     """)
     window = PAstroCoreMainWindow()

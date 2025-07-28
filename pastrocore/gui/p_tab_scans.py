@@ -11,8 +11,7 @@ from common.utils.logging_setup import logger
 from pastrocore.gui.p_tab_telescopes import TelescopesTab
 from pastrocore.gui.p_tab_frequencies import FrequenciesTab
 from pastrocore.gui.p_tab_sources import SourcesTab
-import pastrocore.gui.rc_icons
-import uuid
+from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 
 class ScansTab(QWidget):
     """Widget for displaying and managing scans in an observation."""
@@ -34,11 +33,11 @@ class ScansTab(QWidget):
         self.ui.search.setPlaceholderText("Search scans...")
         
         # Setup table
-        self.model = QStandardItemModel()
+        self.model = CustomStandardItemModel()
         self.model.setHorizontalHeaderLabels([
             "#", " ", "Scan ID", "Start Time", "Duration (s)", "Source", "Telescopes", "Frequencies"
         ])
-        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model = CustomSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterKeyColumn(-1)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
@@ -554,7 +553,6 @@ class ScansTab(QWidget):
             logger.error(f"Unknown sender for data_updated signal: {sender}")
             return
 
-        # Synchronize all scans with the observation
         scans_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation.get_scans(),
@@ -627,8 +625,6 @@ class ScansTab(QWidget):
                     duration = f"{attrs['duration']:.1f}" if attrs["duration"] else "N/A"
                     source_name = "OFF SOURCE" if attrs["is_off_source"] else (attrs["source"].name if attrs["source"] else "None")
                     telescopes = ", ".join(t.name for t in attrs["telescopes"]) if attrs["telescopes"] else "None"
-
-                    # Retrieve frequency values in MHz
                     frequencies = ", ".join(f"{f.frequency:.2f} MHz" for f in attrs["frequencies"]) if attrs["frequencies"] else "None"
 
                     row = [
@@ -644,6 +640,7 @@ class ScansTab(QWidget):
                     for item in row:
                         item.setEditable(False)
                     row[0].setData(name, Qt.UserRole)
+                    row[0].setData(idx, Qt.UserRole + 1)
                     self.model.appendRow(row)
                     idx += 1
 

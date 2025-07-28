@@ -1,14 +1,14 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog, QFileDialog
-from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
+from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
+from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from pastrocore.base.frequencies import IF
 from common.utils.logging_setup import logger
-import pastrocore.gui.rc_icons
 import uuid
 import json
 
@@ -30,11 +30,11 @@ class FrequenciesTab(QWidget):
         self.ui.search.setPlaceholderText("Search frequencies...")
 
         # Настройка таблицы
-        self.model = QStandardItemModel()
+        self.model = CustomStandardItemModel()
         self.model.setHorizontalHeaderLabels([
             "#", " ", "IF ID", "IF (MHz)", "λ (cm)", "Bandwidth (MHz)", "Polarizations"
         ])
-        self.proxy_model = QSortFilterProxyModel()
+        self.proxy_model = CustomSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterKeyColumn(-1)
         self.proxy_model.setFilterCaseSensitivity(Qt.CaseInsensitive)
@@ -614,7 +614,7 @@ class FrequenciesTab(QWidget):
                     row = [
                         QStandardItem(str(idx)),
                         active_item,
-                        QStandardItem(name),  # Новый столбец "Name"
+                        QStandardItem(name),
                         QStandardItem(f"{frequency:.0f}" if isinstance(frequency, (int, float)) else str(frequency)),
                         QStandardItem(f"{wavelength:.2f}" if isinstance(wavelength, (int, float)) else str(wavelength)),
                         QStandardItem(f"{bandwidth:.0f}" if isinstance(bandwidth, (int, float)) else str(bandwidth)),
@@ -622,7 +622,8 @@ class FrequenciesTab(QWidget):
                     ]
                     for item in row:
                         item.setEditable(False)
-                    row[0].setData(name, Qt.UserRole)  # Уже есть, оставляем без изменений
+                    row[0].setData(name, Qt.UserRole)
+                    row[0].setData(idx, Qt.UserRole + 1)
                     self.model.appendRow(row)
                     idx += 1
 

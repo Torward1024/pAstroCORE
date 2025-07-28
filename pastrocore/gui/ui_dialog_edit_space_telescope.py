@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_space_telescopewmIYwe.ui'
+## Form generated from reading UI file 'dialog_editor_space_telescopeiQFYlB.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -100,7 +100,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
         font = QFont()
         font.setFamilies([u"Arial"])
         font.setPointSize(9)
-        font.setBold(True)
+        font.setBold(False)
         self.labelSefdTable.setFont(font)
 
         self.gridLayout_3.addWidget(self.labelSefdTable, 2, 0, 1, 1)
@@ -383,8 +383,9 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.diameterEdit.setDecimals(2)
-        self.diameterEdit.setMinimum(0.010000000000000)
+        self.diameterEdit.setMinimum(1.000000000000000)
         self.diameterEdit.setMaximum(1000.000000000000000)
+        self.diameterEdit.setValue(10.000000000000000)
 
         self.formLayout.setWidget(2, QFormLayout.FieldRole, self.diameterEdit)
 
@@ -1779,11 +1780,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.labelEffectiveAreaTable = QLabel(self.tab_4)
         self.labelEffectiveAreaTable.setObjectName(u"labelEffectiveAreaTable")
-        font1 = QFont()
-        font1.setFamilies([u"Arial"])
-        font1.setPointSize(9)
-        font1.setBold(False)
-        self.labelEffectiveAreaTable.setFont(font1)
+        self.labelEffectiveAreaTable.setFont(font)
 
         self.gridLayout_2.addWidget(self.labelEffectiveAreaTable, 4, 0, 1, 1)
 
@@ -1921,7 +1918,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.labelSurfaceEfficiencyTable = QLabel(self.tab_4)
         self.labelSurfaceEfficiencyTable.setObjectName(u"labelSurfaceEfficiencyTable")
-        self.labelSurfaceEfficiencyTable.setFont(font1)
+        self.labelSurfaceEfficiencyTable.setFont(font)
 
         self.gridLayout_2.addWidget(self.labelSurfaceEfficiencyTable, 0, 0, 1, 1)
 
@@ -2129,7 +2126,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.labelSystemTemperatureTable = QLabel(self.tab_4)
         self.labelSystemTemperatureTable.setObjectName(u"labelSystemTemperatureTable")
-        self.labelSystemTemperatureTable.setFont(font1)
+        self.labelSystemTemperatureTable.setFont(font)
 
         self.gridLayout_2.addWidget(self.labelSystemTemperatureTable, 8, 0, 1, 1)
 

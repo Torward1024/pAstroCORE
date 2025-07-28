@@ -77,9 +77,9 @@ class ScheduleVisualizer(Super):
             },
             'legend': {
                 'loc': 'upper right',
-                'bbox_to_anchor': (0.95, 0.95),
-                'fontsize': 12,
-                'title_fontsize': 14
+                'bbox_to_anchor': (1.0, 0.95),
+                'fontsize': 11,
+                'title_fontsize': 12
             },
             'colors': [
                 (163/255, 193/255, 218/255),  # Light blue
