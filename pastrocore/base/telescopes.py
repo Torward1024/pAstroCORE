@@ -68,7 +68,6 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         name = item.name
         code = item.get_code()
         
-        # Validate name
         if not name or not isinstance(name, str):
             raise ValueError("Telescope name must be a non-empty string")
         if not re.match(r'^[a-zA-Z0-9_-]+$', name):
@@ -76,12 +75,11 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         if name in self._items and self._items[name] is not item:
             raise ValueError(f"Telescope with name '{name}' already exists")
 
-        # Validate code
         if not code or not isinstance(code, str):
             raise ValueError("Telescope code must be a non-empty string")
         if not re.match(r'^[a-zA-Z0-9_-]+$', code):
             raise ValueError(f"Telescope code '{code}' contains invalid characters")
-        # Check code uniqueness
+
         for existing_item in self._items.values():
             if existing_item is not item and existing_item.get_code() == code:
                 raise ValueError(f"Telescope with code '{code}' already exists")
@@ -179,7 +177,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             ValueError: If duplicate name or code is found, or if telescope data is invalid.
         """
         items = {}
-        codes = set()  # Track codes to ensure uniqueness
+        codes = set()
         for key, item_data in data.get("items", {}).items():
             try:
                 telescope_type = item_data.get("type", "Telescope")

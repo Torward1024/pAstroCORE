@@ -58,7 +58,6 @@ class Scan(BaseEntity):
         if observation:
             from pastrocore.base.observation import Observation
             check_type(observation, Observation, "Observation")
-            # Ensure source is the reference from observation
             if source is not None:
                 sources = observation.get_sources()
                 source_from_obs = sources.get(source.name)
@@ -87,8 +86,8 @@ class Scan(BaseEntity):
             start=self.start,
             duration=self.duration,
             source=self.source,
-            telescopes=self.telescopes.copy(),  # Shallow copy, as objects are managed by Observation
-            frequencies=self.frequencies.copy(),  # Shallow copy, as objects are managed by Observation
+            telescopes=self.telescopes.copy(),
+            frequencies=self.frequencies.copy(),
             is_off_source=self.is_off_source,
             isactive=self.isactive
         )
@@ -188,7 +187,6 @@ class Scan(BaseEntity):
         if observation:
             from pastrocore.base.observation import Observation
             check_type(observation, Observation, "Observation")
-            # Ensure source is the reference from observation
             if source is not None:
                 sources = observation.get_sources()
                 source_from_obs = sources.get(source.name)
@@ -249,12 +247,10 @@ class Scan(BaseEntity):
                 logger.warning(f"Source '{self.source.name}' not found in observation, setting scan '{self.name}' to off-source")
                 self.set({"source": None, "is_off_source": True, "isactive": False})
             else:
-                # Sync source reference
                 if self.source is not source_from_obs:
                     self.source = source_from_obs
                     logger.debug(f"Synced scan '{self.name}' source '{self.source.name}' with observation reference")
         
-        # Validate telescopes
         valid_telescopes = []
         observation_telescopes = observation.get_telescopes()
         for telescope in self.telescopes:
@@ -265,7 +261,6 @@ class Scan(BaseEntity):
                 logger.warning(f"Telescope '{telescope.name}' not found in observation, removed from scan '{self.name}'")
         self.set({"telescopes": valid_telescopes})
         
-        # Validate frequencies
         valid_frequencies = []
         observation_frequencies = observation.get_frequencies()
         for freq in self.frequencies:
@@ -276,13 +271,11 @@ class Scan(BaseEntity):
                 logger.warning(f"Frequency '{freq.name}' not found in observation, removed from scan '{self.name}'")
         self.set({"frequencies": valid_frequencies})
         
-        # Log warnings if no telescopes or frequencies
         if not valid_telescopes:
             logger.warning(f"Scan '{self.name}' has no valid telescopes assigned")
         if not valid_frequencies:
             logger.warning(f"Scan '{self.name}' has no valid frequencies assigned")
         
-        # Update activity status
         should_be_active = self._check_activity_status(observation)
         if should_be_active != self.isactive:
             self.set({"isactive": should_be_active})
@@ -313,7 +306,6 @@ class Scan(BaseEntity):
         check_type(observation, Observation, "Observation")
         logger.debug(f"Starting synchronization for scan '{self.name}' with observation '{observation.get_observation_code()}'")
 
-        # Synchronize source
         if self.source is not None and not self.is_off_source:
             sources = observation.get_sources()
             source_from_obs = sources.get(self.source.name)
@@ -324,7 +316,6 @@ class Scan(BaseEntity):
                 logger.warning(f"Source '{self.source.name}' not found in observation sources, setting scan '{self.name}' to off-source and deactivating")
                 self.set({"source": None, "is_off_source": True, "isactive": False})
 
-        # Synchronize telescopes
         observation_telescopes = observation.get_telescopes()
         valid_telescopes = []
         for telescope in self.telescopes:
@@ -336,7 +327,6 @@ class Scan(BaseEntity):
                 logger.warning(f"Telescope '{telescope.name}' not found in observation, removing from scan '{self.name}'")
         self.set({"telescopes": valid_telescopes})
 
-        # Synchronize frequencies
         observation_frequencies = observation.get_frequencies()
         valid_frequencies = []
         for frequency in self.frequencies:
@@ -433,7 +423,6 @@ class Scan(BaseEntity):
         is_off_source = data.pop("is_off_source", False)
         data.pop("type", None)
 
-        # Resolve source
         source = None
         if observation and source_name and not is_off_source:
             check_type(observation, Observation, "Observation")
@@ -448,7 +437,6 @@ class Scan(BaseEntity):
             logger.error(f"Cannot resolve source '{source_name}' without observation context")
             raise ValueError(f"Cannot resolve source '{source_name}' without observation context")
 
-        # Resolve telescopes
         telescopes = []
         if observation and telescope_names:
             all_telescopes = observation.get_telescopes()
@@ -462,7 +450,6 @@ class Scan(BaseEntity):
         elif telescope_names:
             logger.warning(f"No observation provided, cannot resolve telescopes: {telescope_names}")
 
-        # Resolve frequencies
         frequencies = []
         if observation and frequency_names:
             all_frequencies = observation.get_frequencies()
@@ -476,7 +463,6 @@ class Scan(BaseEntity):
         elif frequency_names:
             logger.warning(f"No observation provided, cannot resolve frequencies: {frequency_names}")
 
-        # Create Scan instance
         scan = cls(
             name=data.get("name", f"scan_{uuid.uuid4().hex[:32]}"),
             start=start_time,
@@ -488,7 +474,7 @@ class Scan(BaseEntity):
             isactive=data.get("isactive", True),
             observation=observation
         )
-        # Validate scan with observation to sync source reference and activity status
+        
         if observation:
             scan.validate_with_observation(observation)
             logger.debug(f"After validation: scan '{scan.name}' source={source_name}, "
@@ -679,15 +665,12 @@ class Scans(BaseContainer[Scan]):
                 active.append(scan)
                 continue
             check_type(observation, Observation, "Observation")
-            # Check source activity
             if scan.source is not None:
                 source = observation.get_sources().get(scan.source.name)
                 if source and not source.isactive:
                     continue
-            # Check telescope activity
             if any(not telescope.isactive for telescope in scan.telescopes):
                 continue
-            # Check frequency activity
             if any(not frequency.isactive for frequency in scan.frequencies):
                 continue
             active.append(scan)
