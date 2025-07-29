@@ -203,8 +203,6 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Failed to open calculation dialog: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
-
-    
     
     @Slot()
     def open_visualization_dialog(self):
