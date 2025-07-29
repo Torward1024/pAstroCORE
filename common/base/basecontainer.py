@@ -176,7 +176,8 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         logger.info(f"Removed item with name '{name}' from {self.__class__.__name__}")
 
     def get(self, name: str) -> Optional[T]:
-        """Retrieve an item from the container by its name.
+        """
+        Retrieve an item from the container by its name.
 
         Args:
             name (str): The name of the item to retrieve.
