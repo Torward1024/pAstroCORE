@@ -218,12 +218,10 @@ class Observation(BaseEntity):
                 if isinstance(obj, u.Quantity):
                     return obj.value.tolist() if hasattr(obj.value, 'tolist') else float(obj.value)
                 elif isinstance(obj, np.ndarray):
-                    # Handle numpy arrays, including object arrays and nested arrays
                     if obj.dtype == np.object_ or np.issubdtype(obj.dtype, np.ndarray):
                         return [convert_quantity(item) for item in obj]
                     return obj.tolist()
                 elif isinstance(obj, Time):
-                    # Handle astropy.time.Time, which may be a single time or array
                     return obj.isot if obj.isscalar else obj.isot.tolist()
                 elif isinstance(obj, (bool, int, float, str)):
                     return obj

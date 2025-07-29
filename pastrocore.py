@@ -72,11 +72,11 @@ class PAstroCoreMainWindow(QMainWindow):
         Args:
             is_initial_setup (bool): If True, skip disconnecting signals that may not be connected yet (used during initial setup).
         """
-        # Skip disconnecting UI signals during initial setup to avoid warnings
+        
         if is_initial_setup:
             logger.debug("Skipping UI signal disconnection during initial setup")
             return
-        # Disconnect action signals
+        
         for action, connection in self._action_connections.items():
             try:
                 action.triggered.disconnect(connection)
@@ -85,14 +85,12 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
         self._action_connections.clear()
 
-        # Disconnect project_updated signal
         try:
             self.project_updated.disconnect()
             logger.debug("Disconnected project_updated signal")
         except Exception as e:
             logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
 
-        # Disconnect project explorer clicked signal
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             try:
@@ -102,8 +100,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug(f"No clicked signal to disconnect for project explorer: {str(e)}")
         else:
             logger.warning("Project explorer widget not found during clear_connections")
-
-        # Disconnect tabCloseRequested signal
+        
         tab_container = self.ui.tabContainer
         try:
             tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
@@ -206,8 +203,6 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Failed to open calculation dialog: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
-
-    
     
     @Slot()
     def open_visualization_dialog(self):
