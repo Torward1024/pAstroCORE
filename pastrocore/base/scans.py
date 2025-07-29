@@ -369,14 +369,7 @@ class Scan(BaseEntity):
             dec_rad = np.radians(source.dec_degrees)
             lst = (time.sidereal_time('apparent', 'greenwich').degree + 280.46061837) % 360
             if isinstance(telescope, SpaceTelescope):
-                pos, _ = telescope.get_state_vector(time)
-                dist = np.linalg.norm(pos)
-                visible = dist < 1e9
-                pitch_range = telescope.get_pitch_range()
-                yaw_range = telescope.get_yaw_range()
-                visible = (visible and 
-                           pitch_range[0] <= 0 <= pitch_range[1] and 
-                           yaw_range[0] <= 0 <= yaw_range[1])
+                visible = True
             else:
                 x, y, z = telescope.get_coordinates()
                 lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
