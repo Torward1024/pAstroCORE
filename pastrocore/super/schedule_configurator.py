@@ -242,55 +242,88 @@ class ScheduleConfigurator(Super):
         return final_result
 
     def _configure_scheduleproject(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Any:
-        """Configure a ScheduleProject object, supporting nested Observation configuration."""
-        if "name" in attributes:
-            name = attributes["name"]
-            obs_obj = project_obj.get_observation(name)
-            if obs_obj is None:
-                logger.error(f"Observation '{name}' not found in ScheduleProject")
-                raise ValueError(f"Name '{name}' not found in ScheduleProject")
-            result = self._do_nested(
-                project_obj, attributes, "name", lambda k: project_obj.get_observation(k), self._configure_observation
-            )
-            if result["status"]:
-                logger.info(f"Configured nested Observation in ScheduleProject: name={attributes['name']}, result={result['result']}")
-                return result["result"]
-            logger.warning(f"Failed to configure nested Observation in ScheduleProject: name={attributes.get('name')}")
-            raise ValueError(result.get("error", "Operation not executed"))
-        valid_methods = self._get_methods(ScheduleProject)
+        """Configure a ScheduleProject object, supporting nested Observation configuration and observation generation."""
+        try:
+            if "generate_observations" in attributes:
+                result = self._generate_observations(project_obj, attributes["generate_observations"])
+                logger.info(f"Generated observations for ScheduleProject: {result}")
+                return result
+
+            if "name" in attributes:
+                name = attributes["name"]
+                obs_obj = project_obj.get_observation(name)
+                if obs_obj is None:
+                    logger.error(f"Observation '{name}' not found in ScheduleProject")
+                    raise ValueError(f"Name '{name}' not found in ScheduleProject")
+                result = self._do_nested(
+                    project_obj, attributes, "name", lambda k: project_obj.get_observation(k), self._configure_observation
+                )
+                if result["status"]:
+                    logger.info(f"Configured nested Observation in ScheduleProject: name={attributes['name']}, result={result['result']}")
+                    return result["result"]
+                logger.warning(f"Failed to configure nested Observation in ScheduleProject: name={attributes.get('name')}")
+                raise ValueError(result.get("error", "Operation not executed"))
+
+            valid_methods = self._get_methods(ScheduleProject)
+            applied = False
+            for method_name, method_args in attributes.items():
+                result = self._validate_and_apply_method(project_obj, method_name, method_args, valid_methods)
+                if result["status"]:
+                    applied = True
+                else:
+                    logger.warning(f"Invalid method '{method_name}' for ScheduleProject configuration: {result['error']}")
+                    raise ValueError(result["error"])
+            if not applied:
+                logger.warning("No valid methods applied for ScheduleProject configuration")
+                raise ValueError("No valid methods applied")
+            final_result = project_obj.get_name()
+            logger.info(f"Configured ScheduleProject: name='{final_result}', observations={len(project_obj.get_items())}, result={final_result}")
+            return final_result
+        except Exception as e:
+            logger.error(f"Error configuring ScheduleProject: {str(e)}")
+            raise ValueError(str(e))
+
+    def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:
+        """Configure an IF object and return its get() result."""
+        valid_methods = self._get_methods(IF)
         applied = False
         for method_name, method_args in attributes.items():
-            result = self._validate_and_apply_method(project_obj, method_name, method_args, valid_methods)
+            result = self._validate_and_apply_method(if_obj, method_name, method_args, valid_methods)
             if result["status"]:
                 applied = True
+            else:
+                logger.warning(f"Invalid method '{method_name}' for IF configuration: {result['error']}")
+                raise ValueError(result["error"])
         if not applied:
-            logger.warning("No valid methods applied for ScheduleProject configuration")
+            logger.warning("No valid methods applied for IF configuration")
             raise ValueError("No valid methods applied")
-        final_result = project_obj.get_name()
-        logger.info(f"Configured ScheduleProject: name='{final_result}', observations={len(project_obj.get_items())}, result={final_result}")
+        final_result = if_obj.get()
+        logger.info(f"Configured IF: frequency={if_obj.frequency}, bandwidth={if_obj.bandwidth}, result={final_result}")
         return final_result
 
     def _generate_observations(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate observations for each source with specified parameters.
+        """Generate observations for the project based on provided attributes.
+
+        Creates Scan and Scans objects for each source, builds an Observation object, and adds it to the project.
 
         Args:
             project_obj (ScheduleProject): The project to add observations to.
             attributes (Dict[str, Any]): Dictionary containing:
-                - sources: List[Source] - List of sources to create observations for.
-                - telescopes: List[Union[Telescope, SpaceTelescope]] - List of telescopes.
-                - frequencies: List[IF] - List of frequencies.
-                - observation_type: str - Type of observation ('VLBI' or 'SINGLE_DISH').
-                - time_range: Dict[str, datetime] - Dictionary with 'start' and 'end' datetime.
-                - scan_duration: float - Duration of each scan in seconds.
-                - num_scans: int - Number of scans per observation.
+                - sources (Sources): Sources object containing source items.
+                - telescopes (Telescopes): Telescopes object containing telescope items.
+                - frequencies (Frequencies): Frequencies object containing IF items.
+                - observation_type (str): Type of observation ('VLBI' or 'SINGLE_DISH').
+                - time_range (dict): Dictionary with 'start' and 'end' times (datetime).
+                - scan_duration (float): Duration of each scan in seconds.
+                - num_scans (int): Number of scans per observation.
 
         Returns:
-            Dict[str, Any]: Result dictionary with status and list of generated observation codes.
+            Dict[str, Any]: Dictionary with status, result (list of observation codes), and message or error.
         """
         try:
-            sources = attributes.get("sources", [])
-            telescopes = attributes.get("telescopes", [])
-            frequencies = attributes.get("frequencies", [])
+            sources = attributes.get("sources", Sources())
+            telescopes = attributes.get("telescopes", Telescopes())
+            frequencies = attributes.get("frequencies", Frequencies())
             observation_type = attributes.get("observation_type", "VLBI")
             time_range = attributes.get("time_range", {})
             scan_duration = attributes.get("scan_duration", 300.0)
@@ -300,15 +333,31 @@ class ScheduleConfigurator(Super):
                 logger.error(f"Invalid observation type: {observation_type}")
                 return {"status": False, "error": f"Invalid observation type: {observation_type}"}
 
-            if not sources or not telescopes or not frequencies:
-                logger.error("Empty input lists for sources, telescopes, or frequencies")
-                return {"status": False, "error": "Empty sources, telescopes, or frequencies"}
+            # Validate input objects
+            if not isinstance(sources, Sources):
+                logger.error(f"Expected Sources object, got {type(sources)}")
+                return {"status": False, "error": f"Expected Sources object, got {type(sources)}"}
+            if not isinstance(telescopes, Telescopes):
+                logger.error(f"Expected Telescopes object, got {type(telescopes)}")
+                return {"status": False, "error": f"Expected Telescopes object, got {type(telescopes)}"}
+            if not isinstance(frequencies, Frequencies):
+                logger.error(f"Expected Frequencies object, got {type(frequencies)}")
+                return {"status": False, "error": f"Expected Frequencies object, got {type(frequencies)}"}
+
+            if not sources.get_all():
+                logger.error("No sources provided")
+                return {"status": False, "error": "No sources provided"}
+            if not telescopes.get_all():
+                logger.error("No telescopes provided")
+                return {"status": False, "error": "No telescopes provided"}
+            if not frequencies.get_all():
+                logger.error("No frequencies provided")
+                return {"status": False, "error": "No frequencies provided"}
 
             if not time_range or "start" not in time_range or "end" not in time_range:
                 logger.error("Invalid time range: missing start or end")
                 return {"status": False, "error": "Invalid time range"}
 
-            # Convert datetime to astropy.time.Time
             try:
                 start_time = Time(time_range["start"])
                 end_time = Time(time_range["end"])
@@ -321,32 +370,12 @@ class ScheduleConfigurator(Super):
                 return {"status": False, "error": "Invalid time range"}
 
             generated_codes = []
-            for source in sources:
-                # Create a new observation
-                obs_code = f"OBS_{source.name}_{uuid.uuid4().hex[:8]}"
-                self._configure_scheduleproject(project_obj, {
-                    "create_item": {
-                        "item_code": obs_code,
-                        "isactive": True,
-                        "observation_type": observation_type
-                    }
-                })
+            source_items = sources.get_items()
+            telescope_items = telescopes.get_items()
+            frequency_items = frequencies.get_items()
 
-                # Get the created observation
-                obs = project_obj.get_observation_by_code(obs_code)
-                if not obs:
-                    logger.error(f"Failed to create observation for source '{source.name}'")
-                    continue
-
-                # Configure telescopes
-                for telescope in telescopes:
-                    self._configure_telescopes(obs.get_telescopes(), {"add": telescope})
-
-                # Configure frequencies
-                for frequency in frequencies:
-                    self._configure_frequencies(obs.get_frequencies(), {"add": frequency})
-
-                # Generate scans
+            for source in source_items:
+                scans = Scans(name=f"Scans_{source.name}_{uuid.uuid4().hex[:8]}")
                 total_duration = (end_time - start_time).sec
                 if total_duration < scan_duration * num_scans:
                     logger.warning(f"Time range too short for {num_scans} scans of {scan_duration}s for source '{source.name}'")
@@ -356,19 +385,46 @@ class ScheduleConfigurator(Super):
                 for i in range(num_scans):
                     scan_start = start_time + (i * time_step) * u.s
                     scan_name = f"scan_{source.name}_{i+1}_{uuid.uuid4().hex[:8]}"
-                    scan_config = {
-                        "add": {
-                            "name": scan_name,
-                            "source": source,
-                            "telescopes": telescopes,
-                            "frequencies": frequencies,
-                            "start": scan_start,
-                            "duration": scan_duration,
-                            "isactive": True
-                        },
-                        "observation": obs
-                    }
-                    self._configure_scans(obs.get_scans(), scan_config)
+                    scan = Scan(
+                        name=scan_name,
+                        source=source,
+                        telescopes=telescope_items,
+                        frequencies=frequency_items,
+                        start=scan_start,
+                        duration=scan_duration,
+                        isactive=True
+                    )
+                    scans.add(scan)
+                    logger.debug(f"Created scan '{scan_name}' for source '{source.name}'")
+
+                # Create Sources object with single source
+                src = Sources(name=f"Source_{source.name}_{uuid.uuid4().hex[:8]}")
+                src.add(source)
+
+                # Create Observation
+                obs_code = f"OBS_{source.name}_{uuid.uuid4().hex[:8]}"
+                obs = Observation(
+                    code=obs_code,
+                    name=obs_code,
+                    sources=src,
+                    telescopes=telescopes.copy(),
+                    frequencies=frequencies.copy(),
+                    scans=scans,
+                    observation_type=observation_type,
+                    isactive=True
+                )
+                logger.debug(f"Created observation '{obs_code}' for source '{source.name}'")
+
+                # Add Observation to ScheduleProject
+                self._configure_scheduleproject(project_obj, {
+                    "add_item": {"item": obs}
+                })
+
+                # Verify the observation was added
+                added_obs = project_obj.get_observation_by_code(obs_code)
+                if not added_obs:
+                    logger.error(f"Failed to add observation '{obs_code}' for source '{source.name}' to project")
+                    continue
 
                 generated_codes.append(obs_code)
                 logger.info(f"Generated observation '{obs_code}' for source '{source.name}' with {num_scans} scans")

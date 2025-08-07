@@ -2,6 +2,6 @@
     "sources_catalog_path": "catalogs\\sources.dat",
     "telescopes_catalog_path": "catalogs\\telescopes.dat",
     "log_level": "DEBUG",
-    "time_step": 600,
+    "time_step": 100,
     "clear_log_on_start": true
 }

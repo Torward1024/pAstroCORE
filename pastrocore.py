@@ -2,7 +2,8 @@ from PySide6.QtWidgets import (
                                 QMainWindow, 
                                 QApplication,
                                 QFileDialog, QMessageBox,
-                                QTreeView, QTabBar, QProgressDialog, QMenu
+                                QTreeView, QTabBar, QProgressDialog, QMenu,
+                                QDialog
                                 )
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal, Slot, QPoint
@@ -23,6 +24,8 @@ from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from pastrocore.gui.p_dialog_visualize import VisualizationDialog
+from pastrocore.gui.p_dialog_generate_observations import GenerateObservationsDialog
+
 from common.utils.logging_setup import (
                                         logger, 
                                         setup_logging, 
@@ -162,35 +165,34 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
 
     def setup_connections(self):
-        """Connect UI signals to slots, ensuring no duplicates."""
-        self.clear_connections(is_initial_setup=True)  # Pass True during initial setup
-
-        actions = [
-            (self.ui.actionNewProject, self.new_project),
-            (self.ui.actionOpenProject, self.open_project),
-            (self.ui.actionSaveProject, self.save_project),
-            (self.ui.actionSave_Project_As, self.save_project_as),
-            (self.ui.actionImport_Observation, self.import_new_observation),
-            (self.ui.actionExport_Observation, self.export_observation),
-            (self.ui.actionPreferences, self.open_preferences),
-            (self.ui.actionTelescope_Catalog_Manager, self.open_telescope_catalog_manager),
-            (self.ui.actionSource_Catalog_Manager, self.open_source_catalog_manager),
-            (self.ui.actionAbout, self.show_about),
-            (self.ui.actionCalculate, self.open_calculation_dialog),
-            (self.ui.actionVisualize, self.open_visualization_dialog),
-        ]
-        for action, slot in actions:
-            connection = action.triggered.connect(slot)
-            self._action_connections[action] = connection
+        """Setup UI signal connections."""
+        self.clear_connections(is_initial_setup=True)
+        
+        self._action_ = {
+            self.ui.actionNewProject: self.ui.actionNewProject.triggered.connect(self.new_project),
+            self.ui.actionOpenProject: self.ui.actionOpenProject.triggered.connect(self.open_project),
+            self.ui.actionSaveProject: self.ui.actionSaveProject.triggered.connect(self.save_project),
+            self.ui.actionSave_Project_As: self.ui.actionSave_Project_As.triggered.connect(self.save_project_as),
+            self.ui.actionExit: self.ui.actionExit.triggered.connect(self.close),
+            self.ui.actionPreferences: self.ui.actionPreferences.triggered.connect(self.open_preferences),
+            self.ui.actionAbout: self.ui.actionAbout.triggered.connect(self.show_about),
+            self.ui.actionSource_Catalog_Manager: self.ui.actionSource_Catalog_Manager.triggered.connect(self.open_source_catalog_manager),
+            self.ui.actionTelescope_Catalog_Manager: self.ui.actionTelescope_Catalog_Manager.triggered.connect(self.open_telescope_catalog_manager),
+            self.ui.actionCalculate: self.ui.actionCalculate.triggered.connect(self.open_calculation_dialog),
+            self.ui.actionVisualize: self.ui.actionVisualize.triggered.connect(self.open_visualization_dialog),
+            self.ui.actionGenerate_Observations: self.ui.actionGenerate_Observations.triggered.connect(self.handle_generate_observations)
+        }
 
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
-        else:
-            logger.error("Project explorer widget not found during setup_connections")
-
+            logger.debug("Connected project explorer clicked signal")
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
+        self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
+        
+        # Connect project_updated signal to update_project_explorer
         self.project_updated.connect(self.update_project_explorer)
+        logger.debug("Connected project_updated signal to update_project_explorer")
 
     @Slot()
     def open_calculation_dialog(self):
@@ -934,6 +936,31 @@ class PAstroCoreMainWindow(QMainWindow):
                     self.ui.actionProject_Explorer.setChecked(self._dock_was_visible)
                     logger.debug(f"Restored dockWidget visibility: {self._dock_was_visible}")
         super().changeEvent(event)
+    
+    @Slot()
+    def handle_generate_observations(self):
+        """Handle the Generate Observations action from the Tools menu."""
+        try:
+            dialog = GenerateObservationsDialog(self.project, self.manipulator, self.catalog_manager, self)
+            dialog.observation_generated.connect(self.handle_observation_generated)
+            if dialog.exec() == QDialog.Accepted:
+                logger.debug("Generate Observations dialog accepted")
+            else:
+                logger.debug("Generate Observations dialog rejected")
+        except Exception as e:
+            logger.error(f"Error opening Generate Observations dialog: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to open Generate Observations dialog: {str(e)}")
+
+    @Slot(list)
+    def handle_observation_generated(self, obs_codes: list):
+        """Handle observation generated signal."""
+        try:
+            logger.info(f"Generated observations: {obs_codes}")
+            self.update_project_explorer()
+            self.project_updated.emit()
+        except Exception as e:
+            logger.error(f"Error handling generated observations: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to handle generated observations: {str(e)}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

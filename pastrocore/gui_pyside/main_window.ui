@@ -169,6 +169,8 @@ QMenu::icon {
     </property>
     <addaction name="actionCalculate"/>
     <addaction name="actionVisualize"/>
+    <addaction name="separator"/>
+    <addaction name="actionGenerate_Observations"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -375,6 +377,11 @@ QMenu::icon {
    </property>
    <property name="text">
     <string>Visualize</string>
+   </property>
+  </action>
+  <action name="actionGenerate_Observations">
+   <property name="text">
+    <string>Generate Observations</string>
    </property>
   </action>
  </widget>
