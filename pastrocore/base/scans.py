@@ -82,7 +82,6 @@ class Scan(BaseEntity):
     def copy(self) -> 'Scan':
         """Create a deep copy of the Scan object."""
         return Scan(
-            name=self.name,
             start=self.start,
             duration=self.duration,
             source=self.source,

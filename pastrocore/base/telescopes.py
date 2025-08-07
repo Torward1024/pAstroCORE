@@ -156,7 +156,6 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         """Create a deep copy of the Telescopes object."""
         return Telescopes(
             items={name: item.copy() for name, item in self._items.items()},
-            name=self.name,
             isactive=self.isactive,
             use_cache=self._use_cache
         )
