@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_calc_progressFdnAas.ui'
+## Form generated from reading UI file 'dialog_calc_progressFRUefZ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -60,11 +60,6 @@ class Ui_ProgressDialog(object):
 "QProgressBar::chunk {\n"
 "    background-color: #0078d7; /* \u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0430\u043a\u0446\u0435\u043d\u0442\u043d\u044b\u0439 \u0446\u0432\u0435\u0442 */\n"
 "    border-radius: 2px; /* \u0421\u043a\u0440\u0443\u0433\u043b\u0435\u043d\u0438\u0435 \u0432\u043d\u0443\u0442\u0440\u0438, \u0447\u0442\u043e\u0431\u044b \u0443\u0447\u0438\u0442\u044b\u0432\u0430\u0442\u044c \u0433\u0440\u0430\u043d\u0438\u0446\u0443 */\n"
-"}\n"
-"/* \u0410\u043d\u0438\u043c\u0430\u0446\u0438\u044f \u0434\u043b\u044f \u043f\u043b\u0430\u0432\u043d\u043e\u0433\u043e \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u043f\u0440\u043e\u0433\u0440\u0435\u0441\u0441\u0430 */\n"
-"QProgressBar::chunk {\n"
-"    transition: width 0.2s ease-in-out; /* \u041f\u043b\u0430\u0432\u043d\u043e\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u0448\u0438\u0440\u0438\u043d\u044b \u0437\u0430\u043f\u043e"
-                        "\u043b\u043d\u0435\u043d\u0438\u044f */\n"
 "}")
         self.progressBar.setValue(25)
         self.progressBar.setTextVisible(True)
