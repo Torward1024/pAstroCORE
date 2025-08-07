@@ -304,7 +304,8 @@ class ScheduleConfigurator(Super):
     def _generate_observations(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Generate observations for the project based on provided attributes.
 
-        Creates Scan and Scans objects for each source, builds an Observation object, and adds it to the project.
+        Creates unique copies of Sources, Telescopes, Frequencies, and Scans for each observation.
+        Emits progress updates via an optional callback function.
 
         Args:
             project_obj (ScheduleProject): The project to add observations to.
@@ -316,11 +317,13 @@ class ScheduleConfigurator(Super):
                 - time_range (dict): Dictionary with 'start' and 'end' times (datetime).
                 - scan_duration (float): Duration of each scan in seconds.
                 - num_scans (int): Number of scans per observation.
+                - progress_callback (Callable, optional): Callback to report progress (value, message).
 
         Returns:
             Dict[str, Any]: Dictionary with status, result (list of observation codes), and message or error.
         """
         try:
+            # Validate input attributes
             sources = attributes.get("sources", Sources())
             telescopes = attributes.get("telescopes", Telescopes())
             frequencies = attributes.get("frequencies", Frequencies())
@@ -328,6 +331,7 @@ class ScheduleConfigurator(Super):
             time_range = attributes.get("time_range", {})
             scan_duration = attributes.get("scan_duration", 300.0)
             num_scans = attributes.get("num_scans", 5)
+            progress_callback = attributes.get("progress_callback", None)
 
             if observation_type not in ["VLBI", "SINGLE_DISH"]:
                 logger.error(f"Invalid observation type: {observation_type}")
@@ -371,42 +375,48 @@ class ScheduleConfigurator(Super):
 
             generated_codes = []
             source_items = sources.get_items()
-            telescope_items = telescopes.get_items()
-            frequency_items = frequencies.get_items()
+            total_sources = len(source_items)
 
-            for source in source_items:
+            for i, source in enumerate(source_items, 1):
+                # Check for cancellation
+                if attributes.get("cancelled", False):
+                    logger.info("Observation generation cancelled")
+                    return {"status": False, "error": "Observation generation cancelled"}
+
+                # Create unique Scans object
                 scans = Scans(name=f"Scans_{source.name}_{uuid.uuid4().hex[:8]}")
                 total_duration = (end_time - start_time).sec
                 if total_duration < scan_duration * num_scans:
                     logger.warning(f"Time range too short for {num_scans} scans of {scan_duration}s for source '{source.name}'")
                     continue
 
+                # Generate scans
                 time_step = total_duration / num_scans
-                for i in range(num_scans):
-                    scan_start = start_time + (i * time_step) * u.s
-                    scan_name = f"scan_{source.name}_{i+1}_{uuid.uuid4().hex[:8]}"
+                for j in range(num_scans):
+                    scan_start = start_time + (j * time_step) * u.s
+                    scan_name = f"scan_{source.name}_{j+1}_{uuid.uuid4().hex[:8]}"
                     scan = Scan(
                         name=scan_name,
-                        source=source,
-                        telescopes=telescope_items,
-                        frequencies=frequency_items,
+                        source=source.copy(),  
+                        telescopes=telescopes.copy(),
+                        frequencies=frequencies.copy(),
                         start=scan_start,
                         duration=scan_duration,
                         isactive=True
                     )
-                    scans.add(scan)
+                    scans.add(scan)  
                     logger.debug(f"Created scan '{scan_name}' for source '{source.name}'")
 
-                # Create Sources object with single source
-                src = Sources(name=f"Source_{source.name}_{uuid.uuid4().hex[:8]}")
-                src.add(source)
+                # Create unique Sources object with single source
+                sources_copy = Sources(name=f"Source_{source.name}_{uuid.uuid4().hex[:8]}")
+                sources_copy.add(source)
 
-                # Create Observation
+                # Create Observation with unique copies
                 obs_code = f"OBS_{source.name}_{uuid.uuid4().hex[:8]}"
                 obs = Observation(
                     code=obs_code,
                     name=obs_code,
-                    sources=src,
+                    sources=sources.copy(),
                     telescopes=telescopes.copy(),
                     frequencies=frequencies.copy(),
                     scans=scans,
@@ -428,6 +438,13 @@ class ScheduleConfigurator(Super):
 
                 generated_codes.append(obs_code)
                 logger.info(f"Generated observation '{obs_code}' for source '{source.name}' with {num_scans} scans")
+
+                # Emit progress update via callback
+                if progress_callback and callable(progress_callback):
+                    progress_value = int((i / total_sources) * 100)
+                    progress_message = f"Generated observation {i}/{total_sources}: {obs_code}"
+                    progress_callback(progress_value, progress_message)
+                    logger.debug(f"Progress callback: {progress_value}% - {progress_message}")
 
             return {
                 "status": True,
