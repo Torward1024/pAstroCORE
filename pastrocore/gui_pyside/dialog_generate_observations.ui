@@ -1,0 +1,625 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>GenerateObservationsDialog</class>
+ <widget class="QDialog" name="GenerateObservationsDialog">
+  <property name="windowModality">
+   <enum>Qt::WindowModality::WindowModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>637</width>
+    <height>553</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Generate Observations</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>:/icons/generate_observations.svg</normaloff>:/icons/generate_observations.svg</iconset>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <property name="modal">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <item>
+    <widget class="QLabel" name="labelObservations">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <bold>true</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>Observations Parameters:</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="labelSources">
+       <property name="text">
+        <string>Sources:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <layout class="QVBoxLayout" name="sourceButtonLayout">
+       <item>
+        <widget class="QPushButton" name="sourceSelectAllButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Select All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="sourceClearButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Clear</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="0" column="1">
+      <widget class="QListWidget" name="sourceList">
+       <property name="styleSheet">
+        <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="telescopeLayout">
+     <item>
+      <widget class="QLabel" name="labelTelescopes">
+       <property name="text">
+        <string>Telescopes:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QListWidget" name="telescopeList">
+       <property name="styleSheet">
+        <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="telescopeButtonLayout">
+       <item>
+        <widget class="QPushButton" name="telescopeSelectAllButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Select All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="telescopeClearButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Clear</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="frequencyLayout">
+     <item>
+      <widget class="QLabel" name="labelFrequencies">
+       <property name="text">
+        <string>Frequencies:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QListWidget" name="frequencyList">
+       <property name="styleSheet">
+        <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="frequencyButtonLayout">
+       <item>
+        <widget class="QPushButton" name="frequencySelectAllButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Select All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="frequencyClearButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Clear</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="observationTypeLayout">
+     <item>
+      <widget class="QLabel" name="labelObservationType">
+       <property name="text">
+        <string>Observation Type:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="observationTypeCombo">
+       <property name="styleSheet">
+        <string notr="true">QComboBox {
+    background-color: #f0f6ff;
+    border: 1px solid #0078d7;
+    padding: 4px;
+    border-radius: 3px;
+}
+QComboBox:hover {
+    border: 1px solid #1a8cff;
+}
+QComboBox:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}
+QComboBox::drop-down {
+    width: 20px;
+    border-left: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QComboBox::down-arrow {
+    image: url(:/icons/down_arrow_icon.svg);
+    width: 12px;
+    height: 12px;
+}</string>
+       </property>
+       <item>
+        <property name="text">
+         <string>VLBI</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>SINGLE_DISH</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="timeRangeLayout">
+     <item>
+      <widget class="QLabel" name="labelTimeRange">
+       <property name="text">
+        <string>Time Range:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="timeRangeFieldsLayout">
+       <item>
+        <layout class="QHBoxLayout" name="startTimeLayout">
+         <item>
+          <widget class="QLabel" name="labelStartTime">
+           <property name="text">
+            <string>Start:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDateTimeEdit" name="startTimeEdit">
+           <property name="styleSheet">
+            <string notr="true">QDateTimeEdit {
+    background-color: #f0f6ff;
+    border: 1px solid #0078d7;
+    padding: 4px;
+    border-radius: 3px;
+}
+QDateTimeEdit:hover {
+    border: 1px solid #1a8cff;
+}
+QDateTimeEdit:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+           </property>
+           <property name="displayFormat">
+            <string>yyyy-MM-dd HH:mm:ss</string>
+           </property>
+           <property name="calendarPopup">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="endTimeLayout">
+         <item>
+          <widget class="QLabel" name="labelEndTime">
+           <property name="text">
+            <string>End:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDateTimeEdit" name="endTimeEdit">
+           <property name="styleSheet">
+            <string notr="true">QDateTimeEdit {
+    background-color: #f0f6ff;
+    border: 1px solid #0078d7;
+    padding: 4px;
+    border-radius: 3px;
+}
+QDateTimeEdit:hover {
+    border: 1px solid #1a8cff;
+}
+QDateTimeEdit:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+           </property>
+           <property name="displayFormat">
+            <string>yyyy-MM-dd HH:mm:ss</string>
+           </property>
+           <property name="calendarPopup">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="scanDurationLayout">
+     <item>
+      <widget class="QLabel" name="labelScanDuration">
+       <property name="text">
+        <string>Scan Duration (s):</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="scanDurationSpinBox">
+       <property name="styleSheet">
+        <string notr="true">QDoubleSpinBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    padding-right: 20px;
+    border-radius: 3px;
+    background-color: #f0f6ff;
+    border: 1px solid #0078d7;
+}
+QDoubleSpinBox:hover {
+    border: 1px solid #1a8cff;
+}
+QDoubleSpinBox:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    width: 20px;
+    border-left: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+    background-color: #0078d7;
+}
+QDoubleSpinBox::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg);
+}
+QDoubleSpinBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg);
+}</string>
+       </property>
+       <property name="minimum">
+        <double>1.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>3600.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>300.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="numScansLayout">
+     <item>
+      <widget class="QLabel" name="labelNumScans">
+       <property name="text">
+        <string>Number of Scans:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="numScansSpinBox">
+       <property name="styleSheet">
+        <string notr="true">QSpinBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    padding-right: 20px;
+    border-radius: 3px;
+    background-color: #f0f6ff;
+    border: 1px solid #0078d7;
+}
+QSpinBox:hover {
+    border: 1px solid #1a8cff;
+}
+QSpinBox:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}
+QSpinBox::up-button, QSpinBox::down-button {
+    width: 20px;
+    border-left: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+    background-color: #0078d7;
+}
+QSpinBox::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg);
+}
+QSpinBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg);
+}</string>
+       </property>
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>100</number>
+       </property>
+       <property name="value">
+        <number>5</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="buttonLayout">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="generateButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Generate</string>
+       </property>
+       <property name="default">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cancelButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="../resources.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>cancelButton</sender>
+   <signal>clicked()</signal>
+   <receiver>GenerateObservationsDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>559</x>
+     <y>629</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>299</x>
+     <y>324</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
