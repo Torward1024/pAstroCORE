@@ -30,6 +30,8 @@ import os
 from scipy.interpolate import CubicSpline
 from numpy.polynomial import chebyshev
 
+from numba import jit
+
 from erfa import ErfaWarning
 import warnings
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -328,7 +330,6 @@ class ScheduleCalculator(Super):
                 if not time_data:
                     return {}
 
-                # Check for SpaceTelescopes with use_kep=False
                 has_orbit_telescopes = any(isinstance(tel, SpaceTelescope) and not tel.get("use_kep") for tel in telescopes)
                 orbit_data = {}
                 if has_orbit_telescopes:
@@ -400,7 +401,6 @@ class ScheduleCalculator(Super):
         kep_space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope) and tel.get("use_kep")]
         orbit_space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope) and not tel.get("use_kep")]
 
-        # Process ground telescopes
         if ground_tels:
             x = np.array([tel.get_coordinates()[0] for tel in ground_tels])
             y = np.array([tel.get_coordinates()[1] for tel in ground_tels])
@@ -545,13 +545,11 @@ class ScheduleCalculator(Super):
                         [0, 0, 1]
                     ])
                     R = R1 @ R2 @ R3
-                    # Transform to GCRS
                     pos = np.array([R @ p_i for p_i in p]) if not single_time else (R @ p[0])
                     if np.any(np.isnan(pos)):
                         logger.warning(f"Keplerian position for '{telescope.get_code()}' at {times[0].isot} contains NaN")
                     return pos[0] if single_time else pos
                 else:
-                    # Orbit file-based space telescope: positions should be precomputed
                     logger.warning(f"Orbit file position for '{telescope.get_code()}' at {times[0].isot} should be precomputed in interpolated_orbits")
                     return nan_result
 
@@ -559,7 +557,7 @@ class ScheduleCalculator(Super):
         except Exception as e:
             logger.warning(f"Unexpected error in computing position for '{telescope.get_code()}' at {times[0].isot}: {str(e)}")
             return np.full((3,) if single_time else (n_times, 3), np.nan, dtype=float)
-
+    
     @time_execution
     def _calculate_source_visibility(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate source visibility for all active scans in the observation or project.
@@ -615,7 +613,7 @@ class ScheduleCalculator(Super):
         except Exception as e:
             logger.error(f"Failed to calculate source visibility for '{obj.get_observation_code()}': {str(e)}")
             return {}
-
+            
     def _process_source_visibility(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process source visibility for a single scan using vectorized computations.

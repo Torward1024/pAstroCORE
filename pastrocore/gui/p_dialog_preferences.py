@@ -4,11 +4,10 @@ from PySide6.QtCore import Signal, Slot
 from pastrocore.gui.ui_dialog_preferences import Ui_PreferencesDialog
 from common.utils.logging_setup import logger
 import os
-import logging
 
 class PreferencesDialog(QDialog):
     """Dialog for configuring application settings, such as catalog paths, logging level, time step, and log clearing."""
-    settings_updated = Signal(dict, list)  # Signal emits updated settings and list of changed keys
+    settings_updated = Signal(dict, list)
 
     def __init__(self, settings: dict, parent=None):
         """Initialize the preferences dialog with current settings.
@@ -31,7 +30,7 @@ class PreferencesDialog(QDialog):
         self.ui.sourcesCatalogPath.setText(self.settings.get("sources_catalog_path", ""))
         self.ui.telescopesCatalogPath.setText(self.settings.get("telescopes_catalog_path", ""))
         self.ui.timeStepSpin.setValue(self.settings.get("time_step", 600))
-        self.ui.chkClearLog.setChecked(self.settings.get("clear_log_on_start", False))  # Initialize checkbox
+        self.ui.chkClearLog.setChecked(self.settings.get("clear_log_on_start", False))
         self.ui.sourcesCatalogPath.setReadOnly(True)
         self.ui.telescopesCatalogPath.setReadOnly(True)
         log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -79,7 +78,6 @@ class PreferencesDialog(QDialog):
         time_step = self.ui.timeStepSpin.value()
         clear_log_on_start = self.ui.chkClearLog.isChecked()
 
-        # Validate file existence if paths are non-empty
         if sources_path and not os.path.isfile(sources_path):
             logger.error(f"Invalid sources catalog path: {sources_path}")
             QMessageBox.critical(self, "Error", "Sources catalog file does not exist.")
@@ -97,7 +95,6 @@ class PreferencesDialog(QDialog):
             QMessageBox.critical(self, "Error", "Time step must be a positive number.")
             return
 
-        # Determine which settings have changed
         changed_keys = []
         if sources_path != self.original_settings.get("sources_catalog_path", ""):
             changed_keys.append("sources_catalog_path")
@@ -111,7 +108,6 @@ class PreferencesDialog(QDialog):
             changed_keys.append("clear_log_on_start")
 
         if changed_keys:
-            # Update settings only if there are changes
             self.settings["sources_catalog_path"] = sources_path
             self.settings["telescopes_catalog_path"] = telescopes_path
             self.settings["log_level"] = log_level

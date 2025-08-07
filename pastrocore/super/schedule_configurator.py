@@ -7,7 +7,9 @@ from pastrocore.base.scans import Scan, Scans
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from typing import Dict, Any, Union
-
+from astropy.time import Time
+import astropy.units as u
+import uuid
 
 class ScheduleConfigurator(Super):
     """Implementation of Configurator for configuring scheduling entities using the Super framework.
@@ -267,3 +269,116 @@ class ScheduleConfigurator(Super):
         final_result = project_obj.get_name()
         logger.info(f"Configured ScheduleProject: name='{final_result}', observations={len(project_obj.get_items())}, result={final_result}")
         return final_result
+
+    def _generate_observations(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate observations for each source with specified parameters.
+
+        Args:
+            project_obj (ScheduleProject): The project to add observations to.
+            attributes (Dict[str, Any]): Dictionary containing:
+                - sources: List[Source] - List of sources to create observations for.
+                - telescopes: List[Union[Telescope, SpaceTelescope]] - List of telescopes.
+                - frequencies: List[IF] - List of frequencies.
+                - observation_type: str - Type of observation ('VLBI' or 'SINGLE_DISH').
+                - time_range: Dict[str, datetime] - Dictionary with 'start' and 'end' datetime.
+                - scan_duration: float - Duration of each scan in seconds.
+                - num_scans: int - Number of scans per observation.
+
+        Returns:
+            Dict[str, Any]: Result dictionary with status and list of generated observation codes.
+        """
+        try:
+            sources = attributes.get("sources", [])
+            telescopes = attributes.get("telescopes", [])
+            frequencies = attributes.get("frequencies", [])
+            observation_type = attributes.get("observation_type", "VLBI")
+            time_range = attributes.get("time_range", {})
+            scan_duration = attributes.get("scan_duration", 300.0)
+            num_scans = attributes.get("num_scans", 5)
+
+            if observation_type not in ["VLBI", "SINGLE_DISH"]:
+                logger.error(f"Invalid observation type: {observation_type}")
+                return {"status": False, "error": f"Invalid observation type: {observation_type}"}
+
+            if not sources or not telescopes or not frequencies:
+                logger.error("Empty input lists for sources, telescopes, or frequencies")
+                return {"status": False, "error": "Empty sources, telescopes, or frequencies"}
+
+            if not time_range or "start" not in time_range or "end" not in time_range:
+                logger.error("Invalid time range: missing start or end")
+                return {"status": False, "error": "Invalid time range"}
+
+            # Convert datetime to astropy.time.Time
+            try:
+                start_time = Time(time_range["start"])
+                end_time = Time(time_range["end"])
+            except Exception as e:
+                logger.error(f"Invalid time format: {str(e)}")
+                return {"status": False, "error": f"Invalid time format: {str(e)}"}
+
+            if start_time >= end_time:
+                logger.error("Invalid time range: start time must be before end time")
+                return {"status": False, "error": "Invalid time range"}
+
+            generated_codes = []
+            for source in sources:
+                # Create a new observation
+                obs_code = f"OBS_{source.name}_{uuid.uuid4().hex[:8]}"
+                self._configure_scheduleproject(project_obj, {
+                    "create_item": {
+                        "item_code": obs_code,
+                        "isactive": True,
+                        "observation_type": observation_type
+                    }
+                })
+
+                # Get the created observation
+                obs = project_obj.get_observation_by_code(obs_code)
+                if not obs:
+                    logger.error(f"Failed to create observation for source '{source.name}'")
+                    continue
+
+                # Configure telescopes
+                for telescope in telescopes:
+                    self._configure_telescopes(obs.get_telescopes(), {"add": telescope})
+
+                # Configure frequencies
+                for frequency in frequencies:
+                    self._configure_frequencies(obs.get_frequencies(), {"add": frequency})
+
+                # Generate scans
+                total_duration = (end_time - start_time).sec
+                if total_duration < scan_duration * num_scans:
+                    logger.warning(f"Time range too short for {num_scans} scans of {scan_duration}s for source '{source.name}'")
+                    continue
+
+                time_step = total_duration / num_scans
+                for i in range(num_scans):
+                    scan_start = start_time + (i * time_step) * u.s
+                    scan_name = f"scan_{source.name}_{i+1}_{uuid.uuid4().hex[:8]}"
+                    scan_config = {
+                        "add": {
+                            "name": scan_name,
+                            "source": source,
+                            "telescopes": telescopes,
+                            "frequencies": frequencies,
+                            "start": scan_start,
+                            "duration": scan_duration,
+                            "isactive": True
+                        },
+                        "observation": obs
+                    }
+                    self._configure_scans(obs.get_scans(), scan_config)
+
+                generated_codes.append(obs_code)
+                logger.info(f"Generated observation '{obs_code}' for source '{source.name}' with {num_scans} scans")
+
+            return {
+                "status": True,
+                "result": generated_codes,
+                "message": f"Generated {len(generated_codes)} observations"
+            }
+
+        except Exception as e:
+            logger.error(f"Error generating observations: {str(e)}")
+            return {"status": False, "error": str(e)}
