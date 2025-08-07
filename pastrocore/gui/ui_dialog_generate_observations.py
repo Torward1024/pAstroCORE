@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_generate_observationsMmpFpR.ui'
+## Form generated from reading UI file 'dialog_generate_observationsBzGjvc.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -26,9 +26,9 @@ class Ui_GenerateObservationsDialog(object):
         if not GenerateObservationsDialog.objectName():
             GenerateObservationsDialog.setObjectName(u"GenerateObservationsDialog")
         GenerateObservationsDialog.setWindowModality(Qt.WindowModality.WindowModal)
-        GenerateObservationsDialog.resize(637, 553)
+        GenerateObservationsDialog.resize(599, 553)
         icon = QIcon()
-        icon.addFile(u":/icons/generate_observations.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u":/icons/preferences.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         GenerateObservationsDialog.setWindowIcon(icon)
         GenerateObservationsDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         GenerateObservationsDialog.setModal(True)
@@ -45,10 +45,9 @@ class Ui_GenerateObservationsDialog(object):
 
         self.gridLayout = QGridLayout()
         self.gridLayout.setObjectName(u"gridLayout")
-        self.labelSources = QLabel(GenerateObservationsDialog)
-        self.labelSources.setObjectName(u"labelSources")
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.gridLayout.addWidget(self.labelSources, 0, 0, 1, 1)
+        self.gridLayout.addItem(self.horizontalSpacer_2, 0, 0, 1, 1)
 
         self.sourceButtonLayout = QVBoxLayout()
         self.sourceButtonLayout.setObjectName(u"sourceButtonLayout")
@@ -93,20 +92,29 @@ class Ui_GenerateObservationsDialog(object):
         self.sourceButtonLayout.addWidget(self.sourceClearButton)
 
 
-        self.gridLayout.addLayout(self.sourceButtonLayout, 0, 2, 1, 1)
+        self.gridLayout.addLayout(self.sourceButtonLayout, 0, 6, 1, 1)
 
         self.sourceList = QListWidget(GenerateObservationsDialog)
         self.sourceList.setObjectName(u"sourceList")
         self.sourceList.setStyleSheet(u"border: 1px solid #d3d3d3; background-color: #ffffff;")
         self.sourceList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
 
-        self.gridLayout.addWidget(self.sourceList, 0, 1, 1, 1)
+        self.gridLayout.addWidget(self.sourceList, 0, 3, 1, 2)
+
+        self.labelSources = QLabel(GenerateObservationsDialog)
+        self.labelSources.setObjectName(u"labelSources")
+
+        self.gridLayout.addWidget(self.labelSources, 0, 1, 1, 1)
 
 
         self.mainLayout.addLayout(self.gridLayout)
 
         self.telescopeLayout = QHBoxLayout()
         self.telescopeLayout.setObjectName(u"telescopeLayout")
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.telescopeLayout.addItem(self.horizontalSpacer_3)
+
         self.labelTelescopes = QLabel(GenerateObservationsDialog)
         self.labelTelescopes.setObjectName(u"labelTelescopes")
 
@@ -169,6 +177,10 @@ class Ui_GenerateObservationsDialog(object):
 
         self.frequencyLayout = QHBoxLayout()
         self.frequencyLayout.setObjectName(u"frequencyLayout")
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.frequencyLayout.addItem(self.horizontalSpacer_4)
+
         self.labelFrequencies = QLabel(GenerateObservationsDialog)
         self.labelFrequencies.setObjectName(u"labelFrequencies")
 
@@ -514,9 +526,9 @@ class Ui_GenerateObservationsDialog(object):
     def retranslateUi(self, GenerateObservationsDialog):
         GenerateObservationsDialog.setWindowTitle(QCoreApplication.translate("GenerateObservationsDialog", u"Generate Observations", None))
         self.labelObservations.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Observations Parameters:", None))
-        self.labelSources.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Sources:", None))
         self.sourceSelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
         self.sourceClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
+        self.labelSources.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Sources:", None))
         self.labelTelescopes.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Telescopes:", None))
         self.telescopeSelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
         self.telescopeClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))

@@ -76,10 +76,6 @@ QProgressBar {
 QProgressBar::chunk {
     background-color: #0078d7; /* Основной акцентный цвет */
     border-radius: 2px; /* Скругление внутри, чтобы учитывать границу */
-}
-/* Анимация для плавного изменения прогресса */
-QProgressBar::chunk {
-    transition: width 0.2s ease-in-out; /* Плавное изменение ширины заполнения */
 }</string>
        </property>
        <property name="value">

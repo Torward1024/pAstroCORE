@@ -53,7 +53,7 @@ class VisualizationDialog(QDialog):
         self.ui.pushButton.clicked.connect(self.export_calculated_data)
         self.ui.closeButton.clicked.connect(self.reject)
         self.ui.tabWidget.tabCloseRequested.connect(self.close_tab)
-        self.ui.comboBoxObservation.currentIndexChanged.connect(self.on_observation_changed)
+        self.ui.comboBoxObservation.currentIndexChanged.connect(self.handle_observation_changed)
         logger.debug("VisualizationDialog connections set up")
 
     def populate_observations(self):
@@ -94,7 +94,7 @@ class VisualizationDialog(QDialog):
                                                 f"{response.get('error', 'Unknown error')}")
 
     @Slot()
-    def on_observation_changed(self):
+    def handle_observation_changed(self):
         """Handle observation change by clearing tabs and updating visualization types."""
         logger.debug("Observation changed, clearing all visualization tabs")
         self.clear_visualization_tabs()
