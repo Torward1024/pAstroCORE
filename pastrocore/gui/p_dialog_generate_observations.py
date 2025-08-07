@@ -9,13 +9,15 @@ from pastrocore.base.frequencies import IF, Frequencies
 from pastrocore.base.sources import Sources
 from pastrocore.base.telescopes import Telescopes
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
-from .ui_dialog_calc_progress import Ui_ProgressDialog  # Импортируем UI прогресс-бара
+from .ui_dialog_calc_progress import Ui_ProgressDialog
 from common.utils.logging_setup import logger
 import uuid
 import json
 
 class ProgressDialog(QDialog):
     """Dialog for displaying progress of observation generation."""
+    cancelRequested = Signal()  # Signal emitted when cancel is requested
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.ui = Ui_ProgressDialog()
@@ -32,11 +34,12 @@ class ProgressDialog(QDialog):
         logger.debug(f"Progress updated: {value}% - {message}")
 
     def cancel(self):
-        """Set cancellation flag."""
+        """Emit cancelRequested signal and update UI."""
         self.cancel_requested = True
         self.ui.pushButtonCancel.setEnabled(False)
         self.ui.label.setText("Cancelling after current observation...")
         logger.debug("Cancellation requested for observation generation")
+        self.cancelRequested.emit()
 
 class GenerationThread(QThread):
     """Thread for performing observation generation asynchronously."""
@@ -49,52 +52,32 @@ class GenerationThread(QThread):
         self.manipulator = manipulator
         self.project = project
         self.attributes = attributes
-        self._cancelled = False
+        self.attributes["cancelled"] = False  # Initialize cancellation flag
+        self.attributes["progress_callback"] = self._progress_callback  # Add callback
         logger.debug("GenerationThread initialized")
 
     def cancel(self):
         """Set cancellation flag to stop after current observation."""
-        self._cancelled = True
+        self.attributes["cancelled"] = True
         logger.debug("GenerationThread cancellation requested")
+
+    def _progress_callback(self, value: int, message: str):
+        """Callback to emit progress signal."""
+        self.progress.emit(value, message)
 
     def run(self):
         """Execute observation generation asynchronously and emit progress signals."""
         try:
-            sources = self.attributes.get("sources", Sources())
-            total_sources = len(sources.get_active_items())
-            if total_sources == 0:
-                self.error.emit("No active sources provided")
-                return
-
-            # Process request through manipulator
             response = self.manipulator.process_request({
                 "operation": "configure",
                 "obj": self.project,
                 "attributes": {"generate_observations": self.attributes}
             })
 
-            if self._cancelled:
-                self.error.emit("Observation generation cancelled by user")
-                return
-
-            if not response["status"]:
-                self.error.emit(response["error"])
-                return
-
-            # Emit progress for each source (assuming manipulator processes one observation per source)
-            generated_codes = response["result"]
-            for i, obs_code in enumerate(generated_codes, 1):
-                if self._cancelled:
-                    self.error.emit("Observation generation cancelled by user")
-                    break
-                progress_value = int((i / total_sources) * 100)
-                self.progress.emit(progress_value, f"Generated observation {i}/{total_sources}: {obs_code}")
-                logger.debug(f"Progress: {progress_value}% - Generated {obs_code}")
-
-            if not self._cancelled:
+            if response["status"]:
                 self.finished.emit(response)
             else:
-                self.error.emit("Observation generation cancelled by user")
+                self.error.emit(response["error"])
 
         except Exception as e:
             logger.error(f"Error in GenerationThread: {str(e)}")
@@ -112,31 +95,27 @@ class GenerateObservationsDialog(QDialog):
         self.project = project
         self.manipulator = manipulator
         self.catalog_manager = catalog_manager
-        self.frequencies = Frequencies(name="TempFrequencies")  # Initialize Frequencies object
+        self.frequencies = Frequencies(name="TempFrequencies")
         self.setup_ui()
         self.setup_connections()
 
     def setup_ui(self):
         """Populate lists and set up initial UI state."""
-        # Populate sources from catalog
         sources = self.catalog_manager.source_catalog.get_items()
         for source in sources:
             item = QListWidgetItem(source.name)
             item.setData(Qt.UserRole, source)
             self.ui.sourceList.addItem(item)
 
-        # Populate telescopes from catalog
         telescopes = self.catalog_manager.telescope_catalog.get_items()
         for telescope in telescopes:
             item = QListWidgetItem(telescope.get("name"))  # Correct as per requirement
             item.setData(Qt.UserRole, telescope)
             self.ui.telescopeList.addItem(item)
 
-        # Frequencies list is managed by self.frequencies; UI updated via update_frequency_list
         self.ui.frequencyList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.update_frequency_list()
 
-        # Set default time range (e.g., current time to 24 hours later)
         from datetime import datetime, timedelta
         current_time = datetime.now()
         self.ui.startTimeEdit.setDateTime(current_time)
@@ -159,7 +138,7 @@ class GenerateObservationsDialog(QDialog):
         for name, if_obj in self.frequencies.get_all().items():
             item = QListWidgetItem(f"{if_obj.frequency:.0f} MHz, BW: {if_obj.bandwidth:.0f} MHz, Pol: {', '.join(if_obj.polarizations)}")
             item.setData(Qt.UserRole, if_obj)
-            item.setData(Qt.UserRole + 1, name)  # Store IF name for editing/removal
+            item.setData(Qt.UserRole + 1, name)
             self.ui.frequencyList.addItem(item)
 
     @Slot(QPoint)
@@ -324,7 +303,8 @@ class GenerateObservationsDialog(QDialog):
                 "observation_type": observation_type,
                 "time_range": {"start": start_time, "end": end_time},
                 "scan_duration": scan_duration,
-                "num_scans": num_scans
+                "num_scans": num_scans,
+                "cancelled": False
             }
 
             # Create and start generation thread
@@ -333,18 +313,13 @@ class GenerateObservationsDialog(QDialog):
             self.thread.progress.connect(self.progress_dialog.update_progress)
             self.thread.finished.connect(self.generation_finished)
             self.thread.error.connect(self.generation_error)
-            self.progress_dialog.cancel_requested = False
+            self.progress_dialog.cancelRequested.connect(self.thread.cancel)  # Connect signal to thread cancel
             self.thread.start()
             self.progress_dialog.exec()
 
         except Exception as e:
             logger.error(f"Error during observation generation setup: {str(e)}")
             QMessageBox.critical(self, "Error", f"Error setting up observation generation: {str(e)}")
-
-    @Slot(int, str)
-    def update_progress(self, value, message):
-        """Update the progress dialog."""
-        self.progress_dialog.update_progress(value, message)
 
     @Slot(dict)
     def generation_finished(self, response):
