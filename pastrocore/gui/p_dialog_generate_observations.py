@@ -95,7 +95,7 @@ class GenerateObservationsDialog(QDialog):
         self.project = project
         self.manipulator = manipulator
         self.catalog_manager = catalog_manager
-        self.frequencies = Frequencies(name="TempFrequencies")
+        self.frequencies = Frequencies()
         self.setup_ui()
         self.setup_connections()
 
@@ -279,8 +279,8 @@ class GenerateObservationsDialog(QDialog):
             num_scans = self.ui.numScansSpinBox.value()
 
             # Create Sources and Telescopes objects
-            sources = Sources(name="TempSources", items={s.name: s for s in source_items})
-            telescopes = Telescopes(name="TempTelescopes", items={t.get("name"): t for t in telescope_items})
+            sources = Sources(items={s.name: s for s in source_items})
+            telescopes = Telescopes(items={t.get("name"): t for t in telescope_items})
 
             # Validate inputs
             if not sources.get_all():

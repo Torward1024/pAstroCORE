@@ -144,7 +144,6 @@ class Observation(BaseEntity):
     def copy(self) -> 'Observation':
         """Create a deep copy of the Observation object."""
         return Observation(
-            name=self.name,
             code=self.code,
             sources=self.sources.copy(),
             telescopes=self.telescopes.copy(),

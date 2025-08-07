@@ -335,7 +335,6 @@ class Frequencies(BaseContainer[IF]):
     def copy(self) -> 'Frequencies':
         """Create a deep copy of the Frequencies object."""
         return Frequencies(
-            name=self.name,
             items={name: item.copy() for name, item in self._items.items()},
             isactive=self.isactive,
             use_cache=self._use_cache
