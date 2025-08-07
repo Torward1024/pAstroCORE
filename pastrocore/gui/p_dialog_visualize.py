@@ -20,6 +20,7 @@ from typing import Dict, Optional, List, Any, Tuple, Iterator
 from astropy.time import Time
 import numpy as np
 
+
 class VisualizationDialog(QDialog):
     """Dialog for visualizing observation parameters using ScheduleVisualizer through ScheduleManipulator."""
 
@@ -41,7 +42,7 @@ class VisualizationDialog(QDialog):
 
         self.setup_connections()
         self.populate_observations()
-        self.ui.comboBoxObservation.currentIndexChanged.connect(self.update_visualization_types)
+        # Trigger initial validation for the first observation, if any
         if self.ui.comboBoxObservation.count() > 0:
             logger.debug("Triggering initial update_visualization_types for first observation")
             self.update_visualization_types()
@@ -52,11 +53,11 @@ class VisualizationDialog(QDialog):
         self.ui.pushButton.clicked.connect(self.export_calculated_data)
         self.ui.closeButton.clicked.connect(self.reject)
         self.ui.tabWidget.tabCloseRequested.connect(self.close_tab)
+        self.ui.comboBoxObservation.currentIndexChanged.connect(self.on_observation_changed)
         logger.debug("VisualizationDialog connections set up")
 
     def populate_observations(self):
         """Populate the observation combo box with available observations from the project."""
-        # Clear combo boxes and disable them initially
         self.ui.comboBoxObservation.clear()
         self.ui.comboBoxObservation.setEnabled(False)
         self.ui.comboBoxVisualizationType.clear()
@@ -82,18 +83,7 @@ class VisualizationDialog(QDialog):
                         self.ui.comboBoxObservation.addItem(code_response["result"], obs_name)
                     else:
                         logger.error(f"Failed to get code for observation '{obs_name}': "
-                                    f"{code_response.get('error', 'Unknown error')}")
-                    # Cache calculated data keys only
-                    calc_data_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": obs,
-                        "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "az_el", "sun_angles", "beam_pattern", "times", "time_on_source", "baseline_projections"]}}
-                    })
-                    if calc_data_response["status"]:
-                        self.cached_calc_data[obs_name] = calc_data_response["result"]
-                        logger.debug(f"Cached calculated data keys for observation '{obs_name}'")
-                    else:
-                        logger.error(f"Failed to cache data for '{obs_name}': {calc_data_response.get('error', 'Unknown error')}")
+                                     f"{code_response.get('error', 'Unknown error')}")
                 logger.info(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
                 self.ui.comboBoxObservation.setEnabled(True)
             else:
@@ -103,8 +93,32 @@ class VisualizationDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Failed to load observations: "
                                                 f"{response.get('error', 'Unknown error')}")
 
+    @Slot()
+    def on_observation_changed(self):
+        """Handle observation change by clearing tabs and updating visualization types."""
+        logger.debug("Observation changed, clearing all visualization tabs")
+        self.clear_visualization_tabs()
+        self.update_visualization_types()
+
+    def clear_visualization_tabs(self):
+        """Remove all visualization tabs and clear cached tabs."""
+        for vis_type in list(self.visualization_tabs.keys()):
+            index = -1
+            for i in range(self.ui.tabWidget.count()):
+                if self.ui.tabWidget.widget(i).property("vis_type") == vis_type:
+                    index = i
+                    break
+            if index >= 0:
+                tab_widget = self.ui.tabWidget.widget(index)
+                if hasattr(tab_widget, '_clear_canvas'):
+                    tab_widget._clear_canvas()
+                self.ui.tabWidget.removeTab(index)
+                tab_widget.deleteLater()
+        self.visualization_tabs.clear()
+        logger.debug("All visualization tabs cleared")
+
     def update_visualization_types(self):
-        """Update visualization types based on cached calculated data keys."""
+        """Update visualization types based on cached calculated data keys for the selected observation."""
         self.ui.comboBoxVisualizationType.clear()
         self.ui.comboBoxVisualizationType.setEnabled(False)
         self.ui.pushButtonVisualize.setEnabled(False)
@@ -113,6 +127,33 @@ class VisualizationDialog(QDialog):
         if not current_obs_name:
             logger.debug("No observation selected, visualization types cleared and disabled")
             return
+
+        # Check if calculated data is already cached
+        if current_obs_name not in self.cached_calc_data:
+            observation = self.cached_observations.get(current_obs_name)
+            if not observation:
+                logger.error(f"Observation '{current_obs_name}' not found in cache")
+                QMessageBox.critical(self, "Error", f"Failed to load observation: {current_obs_name}")
+                return
+            # Cache calculated data keys
+            calc_data_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": observation,
+                "attributes": {
+                    "get_calculated_data": {
+                        "keys": ["uv_coverage", "az_el", "sun_angles", "beam_pattern", "times",
+                                 "time_on_source", "baseline_projections", "mollweide_tracks"]
+                    }
+                }
+            })
+            if calc_data_response["status"]:
+                self.cached_calc_data[current_obs_name] = calc_data_response["result"]
+                logger.debug(f"Cached calculated data keys for observation '{current_obs_name}'")
+            else:
+                logger.error(f"Failed to cache data for '{current_obs_name}': "
+                             f"{calc_data_response.get('error', 'Unknown error')}")
+                self.cached_calc_data[current_obs_name] = {}
+                return
 
         calc_data = self.cached_calc_data.get(current_obs_name, {})
         if not calc_data:
@@ -128,7 +169,8 @@ class VisualizationDialog(QDialog):
             "baseline_projections": "Baseline Projections",
             "mollweide_tracks": "Mollweide Tracks"
         }
-        available_visualizations = [vis_name for calc_key, vis_name in visualization_map.items() if calc_key in calc_data]
+        available_visualizations = [vis_name for calc_key, vis_name in visualization_map.items()
+                                   if calc_key in calc_data]
 
         if available_visualizations:
             self.ui.comboBoxVisualizationType.addItems(available_visualizations)
@@ -169,11 +211,11 @@ class VisualizationDialog(QDialog):
                 logger.warning("No observation or visualization type selected")
                 QMessageBox.warning(self, "Warning", "Please select an observation and visualization type.")
                 return
-            
+
             if vis_type in self.visualization_tabs:
                 logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
                 tab_widget = self.visualization_tabs[vis_type]
-                tab_widget._clear_canvas()  # Clear existing canvas
+                tab_widget._clear_canvas()
                 tab_widget.update_visualization()
                 self.ui.tabWidget.setCurrentWidget(tab_widget)
                 return
@@ -194,18 +236,10 @@ class VisualizationDialog(QDialog):
                 "Mollweide Tracks": "mollweide_tracks"
             }
             vis_key = visualization_map.get(vis_type)
-            
+
             if not vis_key:
                 logger.error(f"Invalid visualization type: {vis_type}")
                 QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")
-                return
-
-            if vis_type in self.visualization_tabs:
-                logger.debug(f"Visualization tab for '{vis_type}' exists, updating visualization")
-                tab_widget = self.visualization_tabs[vis_type]
-                if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections", "Mollweide Tracks"]:
-                    tab_widget.update_visualization()
-                self.ui.tabWidget.setCurrentWidget(tab_widget)
                 return
 
             tab_widget = None
@@ -374,15 +408,16 @@ class VisualizationDialog(QDialog):
                     result = response.get("result", {})
                     if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
                         logger.debug("Empty visualization result, clearing tab")
-                        if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern", "Time on Source", "Baseline Projections", "Mollweide Tracks"]:
-                            tab_widget._clear_canvas()  # Call clear_canvas for all tabs
+                        if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern",
+                                        "Time on Source", "Baseline Projections", "Mollweide Tracks"]:
+                            tab_widget._clear_canvas()
                         logger.info(f"Cleared visualization tab for '{vis_type}' due to empty result")
                         return
                     figure = result.get("figure")
                     if not figure:
                         logger.error(f"No figure returned for visualization '{vis_type}'")
                         QMessageBox.critical(self, "Error", "No figure returned from visualizer")
-                        tab_widget._clear_canvas()  # Clear canvas on error
+                        tab_widget._clear_canvas()
                         return
 
                     tab_widget.embed_figure(figure)
@@ -391,11 +426,11 @@ class VisualizationDialog(QDialog):
                     logger.error(f"Failed to perform visualization '{vis_type}': {response.get('message', 'Unknown error')}")
                     QMessageBox.critical(self, "Error", f"Failed to perform visualization: "
                                                         f"{response.get('message', 'Unknown error')}")
-                    tab_widget._clear_canvas()  # Clear canvas on error
+                    tab_widget._clear_canvas()
             except Exception as e:
                 logger.error(f"Exception during visualization '{vis_type}': {str(e)}")
                 QMessageBox.critical(self, "Error", f"Visualization failed: {str(e)}")
-                tab_widget._clear_canvas()  # Clear canvas on exception
+                tab_widget._clear_canvas()
         finally:
             self.is_processing = False
             self.ui.pushButtonVisualize.setEnabled(True)
@@ -501,7 +536,6 @@ class VisualizationDialog(QDialog):
         QApplication.processEvents()
 
         try:
-            # Get current observation and visualization type
             obs_name = self.ui.comboBoxObservation.currentData()
             vis_type = self.ui.tabWidget.tabText(self.ui.tabWidget.currentIndex())
 
@@ -510,14 +544,12 @@ class VisualizationDialog(QDialog):
                 QMessageBox.warning(self, "Warning", "Please select an observation and open a visualization tab.")
                 return
 
-            # Get the visualization tab widget
             tab_widget = self.ui.tabWidget.currentWidget()
             if not tab_widget:
                 logger.error("No active visualization tab found")
                 QMessageBox.critical(self, "Error", "No active visualization tab found.")
                 return
 
-            # Map visualization type to data key
             visualization_map = {
                 "UV Coverage": "uv_coverage",
                 "Sun Angles": "sun_angles",
@@ -533,7 +565,6 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")
                 return
 
-            # Get cached data for the observation
             calc_data = self.cached_calc_data.get(obs_name, {}).get(data_key, {})
             times_data = self.cached_calc_data.get(obs_name, {}).get("times", {})
             if not calc_data:
@@ -545,7 +576,6 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"No times data available for {vis_type}.")
                 return
 
-            # Get filter selections from the tab
             filters = {}
             if vis_type in ["UV Coverage", "Baseline Projections"]:
                 filters["source_name"] = tab_widget.get_selected_source()
@@ -565,7 +595,6 @@ class VisualizationDialog(QDialog):
                 filters["scans"] = tab_widget.get_selected_scans()
                 filters["telescopes"] = tab_widget.get_selected_telescopes()
 
-            # Validate filters
             required_filters = {
                 "UV Coverage": ["source_name", "scans", "baselines", "frequencies", "units"],
                 "Baseline Projections": ["source_name", "scans", "baselines", "frequencies", "units"],
@@ -581,11 +610,9 @@ class VisualizationDialog(QDialog):
                 QMessageBox.warning(self, "Warning", f"Missing filters: {', '.join(missing_filters)}")
                 return
 
-            # Prepare data for export
             table_data = []
             headers = []
 
-            # Constants for scaling (from ScheduleVisualizer)
             SPEED_OF_LIGHT = 299792458.0  # m/s
             EARTH_DIAMETER = 12742000.0   # m
 
@@ -609,9 +636,8 @@ class VisualizationDialog(QDialog):
                     return
 
                 headers = ["Source", "Time (UTC)", "Baseline", "Frequency (MHz)", f"U ({units})", f"V ({units})"]
-                all_data = {pair: [] for pair in baselines}  # Store (time_isot, u, v) pairs
+                all_data = {pair: [] for pair in baselines}
 
-                # Collect all UV points with corresponding times
                 for source in filtered_data:
                     if source != source_name:
                         continue
@@ -636,16 +662,13 @@ class VisualizationDialog(QDialog):
                                 min_len = min(uv_points.shape[0], len(times))
                                 uv_points = uv_points[:min_len]
                                 times_isot = times_isot[:min_len]
-                            # Store time-UV pairs
                             for t, pt in zip(times_isot, uv_points):
                                 all_data[baseline].append((t, pt[0], pt[1]))
 
-                # Process data for export
                 for baseline in baselines:
                     if not all_data[baseline]:
                         logger.debug(f"No data for baseline {baseline}, skipping")
                         continue
-                    # Convert to arrays and filter NaN
                     times_isot, u_coords, v_coords = zip(*all_data[baseline]) if all_data[baseline] else ([], [], [])
                     times_isot = np.array(times_isot)
                     u_coords = np.array(u_coords, dtype=float)
@@ -653,13 +676,11 @@ class VisualizationDialog(QDialog):
                     if len(times_isot) == 0 or len(u_coords) == 0 or len(v_coords) == 0:
                         logger.debug(f"No valid data for baseline {baseline} after combining, skipping")
                         continue
-                    # Sort by time
                     times_mjd = np.array([Time(t).mjd for t in times_isot])
                     time_indices = np.argsort(times_mjd)
                     times_isot = times_isot[time_indices]
                     u_coords = u_coords[time_indices]
                     v_coords = v_coords[time_indices]
-                    # Filter NaN (both u and v must be valid)
                     valid_mask = ~(np.isnan(u_coords) | np.isnan(v_coords))
                     if not np.any(valid_mask):
                         logger.debug(f"All UV points for baseline {baseline} are NaN, skipping")
@@ -671,7 +692,6 @@ class VisualizationDialog(QDialog):
                         logger.error(f"After filtering, times ({len(times_isot)}), u ({len(u_coords)}), v ({len(v_coords)}) lengths mismatch for baseline {baseline}")
                         continue
 
-                    # Scale UV points for each frequency and add conjugate points
                     for freq_mhz in frequencies:
                         wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6)
                         u_scaled = u_coords.copy()
@@ -682,7 +702,6 @@ class VisualizationDialog(QDialog):
                         else:
                             u_scaled = (u_scaled / wavelength) / (EARTH_DIAMETER / ref_wavelength)
                             v_scaled = (v_scaled / wavelength) / (EARTH_DIAMETER / ref_wavelength)
-                        # Filter NaN after scaling
                         valid_mask = ~(np.isnan(u_scaled) | np.isnan(v_scaled))
                         if not np.any(valid_mask):
                             logger.debug(f"All scaled UV points for baseline {baseline} at {freq_mhz:.2f} MHz are NaN, skipping")
@@ -693,13 +712,10 @@ class VisualizationDialog(QDialog):
                         if len(valid_times_isot) != len(valid_u_scaled) or len(valid_u_scaled) != len(valid_v_scaled):
                             logger.error(f"After scaling, times ({len(valid_times_isot)}), u ({len(valid_u_scaled)}), v ({len(valid_v_scaled)}) lengths mismatch for baseline {baseline} at {freq_mhz:.2f} MHz")
                             continue
-                        # Add original and conjugate points
                         for t, u, v in zip(valid_times_isot, valid_u_scaled, valid_v_scaled):
-                            # Original point
                             table_data.append([
                                 source_name, t, baseline, f"{freq_mhz:.2f}", f"{u:.6f}", f"{v:.6f}"
                             ])
-                            # Conjugate point
                             table_data.append([
                                 source_name, t, baseline, f"{freq_mhz:.2f}", f"{-u:.6f}", f"{-v:.6f}"
                             ])
@@ -725,9 +741,8 @@ class VisualizationDialog(QDialog):
                     return
 
                 headers = ["Source", "Time (UTC)", "Baseline", "Frequency (MHz)", f"Projection ({units})"]
-                all_data = {pair: [] for pair in baselines}  # Store (time_isot, projection) pairs
+                all_data = {pair: [] for pair in baselines}
 
-                # Collect all baseline projections with corresponding times
                 for source in filtered_data:
                     if source != source_name:
                         continue
@@ -752,28 +767,23 @@ class VisualizationDialog(QDialog):
                                 min_len = min(projs.shape[0], len(times))
                                 projs = projs[:min_len]
                                 times_isot = times_isot[:min_len]
-                            # Store time-projection pairs
                             for t, proj in zip(times_isot, projs):
                                 all_data[baseline].append((t, proj))
 
-                # Process data for export
                 for baseline in baselines:
                     if not all_data[baseline]:
                         logger.debug(f"No data for baseline {baseline}, skipping")
                         continue
-                    # Convert to arrays and filter NaN
                     times_isot, projections = zip(*all_data[baseline]) if all_data[baseline] else ([], [])
                     times_isot = np.array(times_isot)
                     projections = np.array(projections, dtype=float)
                     if len(times_isot) == 0 or len(projections) == 0:
                         logger.debug(f"No valid data for baseline {baseline} after combining, skipping")
                         continue
-                    # Sort by time (using corresponding MJD for consistency)
                     times_mjd = np.array([Time(t).mjd for t in times_isot])
                     time_indices = np.argsort(times_mjd)
                     times_isot = times_isot[time_indices]
                     projections = projections[time_indices]
-                    # Filter NaN
                     valid_mask = ~np.isnan(projections)
                     if not np.any(valid_mask):
                         logger.debug(f"All projections for baseline {baseline} are NaN, skipping")
@@ -784,7 +794,6 @@ class VisualizationDialog(QDialog):
                         logger.error(f"After filtering, times ({len(times_isot)}) and projections ({len(projections)}) lengths mismatch for baseline {baseline}")
                         continue
 
-                    # Scale projections for each frequency
                     for freq_mhz in frequencies:
                         wavelength = SPEED_OF_LIGHT / (freq_mhz * 1e6)
                         proj_scaled = projections.copy()
@@ -792,7 +801,6 @@ class VisualizationDialog(QDialog):
                             proj_scaled = proj_scaled / wavelength
                         else:
                             proj_scaled = (proj_scaled / wavelength) / (EARTH_DIAMETER / ref_wavelength)
-                        # Filter NaN after scaling
                         valid_mask = ~np.isnan(proj_scaled)
                         if not np.any(valid_mask):
                             logger.debug(f"All scaled projections for baseline {baseline} at {freq_mhz:.2f} MHz are NaN, skipping")
@@ -802,7 +810,6 @@ class VisualizationDialog(QDialog):
                         if len(valid_times_isot) != len(valid_proj_scaled):
                             logger.error(f"After scaling, times ({len(valid_times_isot)}) and projections ({len(valid_proj_scaled)}) lengths mismatch for baseline {baseline} at {freq_mhz:.2f} MHz")
                             continue
-                        # Add to table
                         for t, proj in zip(valid_times_isot, valid_proj_scaled):
                             table_data.append([
                                 source_name, t, baseline, f"{freq_mhz:.2f}", f"{proj:.6f}"
@@ -986,7 +993,6 @@ class VisualizationDialog(QDialog):
                 QMessageBox.warning(self, "Warning", f"No data available to export for {vis_type}.")
                 return
 
-            # Open file dialog to get export path
             file_name, _ = QFileDialog.getSaveFileName(
                 self, "Export Calculated Data", "", "Text Files (*.txt);;All Files (*)"
             )
@@ -994,7 +1000,6 @@ class VisualizationDialog(QDialog):
                 logger.debug("Export cancelled by user")
                 return
 
-            # Write data to file
             try:
                 with open(file_name, 'w', encoding='utf-8') as f:
                     f.write('\t'.join(headers) + '\n')
