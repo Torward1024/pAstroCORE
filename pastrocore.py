@@ -168,7 +168,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Setup UI signal connections."""
         self.clear_connections(is_initial_setup=True)
         
-        self._action_ = {
+        self._action_connections = {
             self.ui.actionNewProject: self.ui.actionNewProject.triggered.connect(self.new_project),
             self.ui.actionOpenProject: self.ui.actionOpenProject.triggered.connect(self.open_project),
             self.ui.actionSaveProject: self.ui.actionSaveProject.triggered.connect(self.save_project),
