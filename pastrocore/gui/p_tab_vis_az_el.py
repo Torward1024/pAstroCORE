@@ -38,11 +38,10 @@ class AzElVisualizationTab(QWidget):
         self.toolbar = None
         self.figure = None
         self.cached_data = None
-        self.is_processing = False  # Flag to prevent concurrent updates
-        self.coord_type = "AzEl"  # Default coordinate type
+        self.is_processing = False
+        self.coord_type = "AzEl"
         logger.debug(f"AzElVisualizationTab initialized for observation id={id(observation)}")
 
-        # Populate UI elements
         self.ui.cmbSource.addItems(sources)
         for telescope in telescopes:
             item = QListWidgetItem(telescope)
@@ -50,7 +49,6 @@ class AzElVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listTelescopes.addItem(item)
 
-        # Populate scans
         for scan in scans:
             item = QListWidgetItem(scan)
             item.setData(Qt.UserRole, scan)
@@ -58,20 +56,17 @@ class AzElVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listScans.addItem(item)
 
-        # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         logger.debug("AzElVisualizationTab UI populated and ready for visualization")
 
-        # Connect signals for filter changes
         self.ui.cmbSource.currentIndexChanged.connect(self.filter_changed)
         self.ui.listScans.itemChanged.connect(self.filter_changed)
         self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
-        # Cache data immediately
         self._cache_calculated_data()
         if sources:
             self.update_scans_for_source(sources[0])
-            self.update_visualization()  # Trigger initial visualization
+            self.update_visualization()
     
     def _lock_ui(self):
         """Lock UI elements to prevent further changes during visualization."""
@@ -145,7 +140,6 @@ class AzElVisualizationTab(QWidget):
         """Aggressively clear the canvas, toolbar, and figure to release all resources."""
         logger.debug("Clearing canvas, toolbar, and figure")
 
-        # Remove and delete canvas
         if self.canvas:
             try:
                 self.layout.removeWidget(self.canvas)

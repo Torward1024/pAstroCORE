@@ -37,10 +37,9 @@ class MollweideVisualizationTab(QWidget):
         self.toolbar = None
         self.figure = None
         self.cached_data = None
-        self.is_processing = False  # Flag to prevent concurrent updates
+        self.is_processing = False
         logger.debug(f"MollweideVisualizationTab initialized for observation id={id(observation)}")
 
-        # Populate UI elements
         self.ui.listWidget.setObjectName("listSources")
         for source in sources:
             item = QListWidgetItem(source)
@@ -54,19 +53,14 @@ class MollweideVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listTelescopes.addItem(item)
 
-        # Initialize scans list
         self.ui.listScans.clear()
-
-        # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         logger.debug("MollweideVisualizationTab UI populated and ready for visualization")
 
-        # Connect signals for filter changes
         self.ui.listWidget.itemChanged.connect(self.filter_changed)
         self.ui.listScans.itemChanged.connect(self.filter_changed)
         self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
-        # Cache data and update scans
         self._cache_calculated_data()
         self.update_scans_for_source()
         if sources:

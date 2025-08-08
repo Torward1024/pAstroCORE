@@ -5,7 +5,7 @@ from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
 from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
 from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
-from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
@@ -20,10 +20,10 @@ class TelescopesTab(QWidget):
     """Widget for displaying and managing telescopes in an observation."""
     data_updated = Signal(str, bool, str)
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
+    def __init__(self, observation: Observation, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
         super().__init__(parent)
         self.observation = observation
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.manipulator = manipulator
         self.catalog_manager = catalog_manager
         self.active_icon = QIcon(":/icons/active_icon.svg")

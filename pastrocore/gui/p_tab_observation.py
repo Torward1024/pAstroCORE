@@ -15,22 +15,22 @@ import pastrocore.gui.rc_icons
 class ObservationTab(QWidget):
     observation_updated = Signal()
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
+    def __init__(self, observation: Observation, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
         super().__init__(parent)
         self.ui = Ui_ObservationInfoTab()
         self.ui.setupUi(self)
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.observation = observation
         self.manipulator = manipulator
         self.catalog_manager = catalog_manager
         self.parent_widget = parent
         self._updating = False
 
-        self.frequencies_tab = FrequenciesTab(observation, project, manipulator, self)
-        self.sources_tab = SourcesTab(self.observation, self.project, self.manipulator, self.catalog_manager, self)
-        self.telescopes_tab = TelescopesTab(observation, self.project, self.manipulator, self.catalog_manager, self)
+        self.frequencies_tab = FrequenciesTab(observation, manipulator, self)
+        self.sources_tab = SourcesTab(observation, manipulator, catalog_manager, self)
+        self.telescopes_tab = TelescopesTab(observation, manipulator, catalog_manager, self)
         self.scans_tab = ScansTab(
-            observation, project, manipulator,
+            observation, manipulator,
             telescopes_tab=self.telescopes_tab,
             frequencies_tab=self.frequencies_tab,
             sources_tab=self.sources_tab

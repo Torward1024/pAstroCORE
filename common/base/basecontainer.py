@@ -584,6 +584,12 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         except Exception as e:
             logger.error(f"Failed to resolve type hint {type_hint}: {str(e)}")
             raise TypeError(f"Type resolution failed for {type_hint} in {field_path or cls.__name__}: {str(e)}") from e
+    
+    def clear(self) -> None:
+        """Clear all items from the container and release references."""
+        self._items.clear()
+        self._invalidate_cache()
+        logger.info(f"Cleared all items from {self.__class__.__name__} with name={self.name}")
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over the items in the container.
@@ -692,3 +698,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         attrs.append(f"active={active_count}")
         attrs.append(f"inactive={len(self._items) - active_count}")
         return f"{self.__class__.__name__}({', '.join(attr for attr in attrs if attr)})"
+
+    def __del__(self) -> None:
+        """Ensure cleanup of references to prevent memory leaks."""
+        try:
+            self.clear()
+            logger.debug(f"Deleted {self.__class__.__name__} with name={self.name}")
+        except Exception as e:
+            logger.error(f"Error during cleanup of {self.__class__.__name__}: {str(e)}")

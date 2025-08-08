@@ -26,7 +26,7 @@ class BeamPatternVisualizationTab(QWidget):
         self.canvas = None
         self.toolbar = None
         self.figure = None
-        self.is_processing = False  # Flag to prevent concurrent updates
+        self.is_processing = False
         self.frequencies = self._get_frequencies()
         self.telescopes = self._get_telescopes()
         logger.debug(f"BeamPatternVisualizationTab initialized for observation id={id(observation)}")

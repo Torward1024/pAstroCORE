@@ -3,7 +3,7 @@ from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
 from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
-from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
@@ -16,20 +16,18 @@ class FrequenciesTab(QWidget):
     """Widget for displaying and managing frequencies in an observation."""
     data_updated = Signal(str, bool, str)
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+    def __init__(self, observation: Observation, manipulator: ScheduleManipulator, parent=None):
         super().__init__(parent)
         self.observation = observation
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.manipulator = manipulator
         self.active_icon = QIcon(":/icons/active_icon.svg")
         self.inactive_icon = QIcon(":/icons/inactive_icon.svg")
         
-        # Настройка UI
         self.ui = Ui_observation_tab()
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search frequencies...")
 
-        # Настройка таблицы
         self.model = CustomStandardItemModel()
         self.model.setHorizontalHeaderLabels([
             "#", " ", "IF ID", "IF (MHz)", "λ (cm)", "Bandwidth (MHz)", "Polarizations"
@@ -45,9 +43,7 @@ class FrequenciesTab(QWidget):
         self.ui.table.verticalHeader().setVisible(False)
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
         self.ui.table.setColumnWidth(1, 24)
-        self.ui.table.setColumnHidden(2, True)  # Скрываем столбец "Name"
-
-        # Подключение сигналов
+        self.ui.table.setColumnHidden(2, True)  
         self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
         self.update()
@@ -62,13 +58,11 @@ class FrequenciesTab(QWidget):
         """Show context menu for the frequencies table."""
         menu = QMenu(self)
         
-        # Always add "Add Frequency" and "Import New Frequency"
         add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Frequency")
         import_new_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import New Frequency")
         add_action.triggered.connect(self.add_frequency)
         import_new_action.triggered.connect(self.import_new_if)
 
-        # Check if there are any frequencies in the observation
         frequencies_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -86,7 +80,6 @@ class FrequenciesTab(QWidget):
             logger.info(f"No frequencies found in observation '{self.observation.code}'")
 
         if has_frequencies:
-            # Add bulk actions for frequencies
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
             deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
             drop_active_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Drop Active")
@@ -98,7 +91,6 @@ class FrequenciesTab(QWidget):
             drop_inactive_action.triggered.connect(self.drop_inactive_frequencies)
             clear_action.triggered.connect(self.clear_frequencies)
 
-        # Check if a specific row is selected
         index = self.ui.table.indexAt(position)
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
@@ -188,12 +180,9 @@ class FrequenciesTab(QWidget):
         try:
             with open(file_path, "r") as f:
                 data = json.load(f)
-            # Create new IF object
             imported_if = IF.from_dict(data)
-            # Generate unique name
             freq_name = f"freq_{uuid.uuid4().hex[:32]}"
             imported_if.name = freq_name
-            # Add frequency through Manipulator
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_frequencies(),
