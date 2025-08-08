@@ -7,13 +7,13 @@ from common.utils.logging_setup import logger
 
 class AddObservationDialog(QDialog):
     """Dialog for adding a new observation with code and type."""
-    observation_added = Signal(str, str)  # Signal with obs_code and obs_type
+    observation_added = Signal(str, str)
 
-    def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+    def __init__(self, manipulator: ScheduleManipulator, parent=None):
         super().__init__(parent)
         self.ui = Ui_AddObservationDialog()
         self.ui.setupUi(self)
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.manipulator = manipulator
         self.setup_dialog()
         self.setup_connections()
@@ -21,17 +21,18 @@ class AddObservationDialog(QDialog):
     def setup_dialog(self):
         """Initialize the dialog with default settings."""
         self.setWindowTitle("Add Observation")
-        # Populate observation types
+        
         self.ui.combo_obs_type.addItems(["VLBI", "SINGLE_DISH"])
-        self.ui.combo_obs_type.setCurrentText("VLBI")  # Default type
-        self.ui.obs_code.setText("OBS_DEFAULT")  # Default code
+        self.ui.combo_obs_type.setCurrentText("VLBI")
+        self.ui.obs_code.setText("OBS_DEFAULT")
+
         logger.info("AddObservationDialog initialized")
 
     def setup_connections(self):
         """Connect UI signals to slots."""
         self.ui.okButton.clicked.connect(self.accept)
         self.ui.closeButton.clicked.connect(self.reject)
-        # Explicitly connect QLineEdit and QComboBox signals
+
         self.ui.obs_code.textChanged.connect(self.obs_code_changed)
         self.ui.combo_obs_type.currentTextChanged.connect(self.obs_type_changed)
         logger.debug("AddObservationDialog connections set up")
@@ -56,7 +57,6 @@ class AddObservationDialog(QDialog):
             logger.error("Attempted to add observation with empty code")
             return
 
-        # Check if observation code is unique
         obs_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,

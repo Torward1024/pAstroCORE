@@ -841,7 +841,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 widget.update_tab()
                 tab_container.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
                 return
-        project_tab = ProjectInfoTab(self.project, self.manipulator, self)
+        project_tab = ProjectInfoTab(self.manipulator, self)
         project_tab.setObjectName("projectInfoTab")
         tab_container.addTab(project_tab, "Project")
         tab_container.setCurrentWidget(project_tab)

@@ -20,9 +20,8 @@ class CalculationThread(QThread):
         self.targets = targets
         self.calc_types = calc_types
         self.params = params
-        self._cancelled = False  # Flag to track cancellation request
+        self._cancelled = False
         logger.debug(f"CalculationThread initialized with calc_types: {self.calc_types}")
-        # Validate calc_types
         valid_calcs = [
             "UV Coverage", "Mollweide Tracks", "Baseline Projections",
             "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern"
@@ -55,7 +54,6 @@ class CalculationThread(QThread):
                     calc_params = self.params.get(calc_type, {}).copy()
                     time_step = calc_params.get("time_step", 600)
                     logger.debug(f"Time step for {calc_type} on {target.code} set to '{time_step}'")
-                    # Map dialog calc types to calculator methods
                     method_map = {
                         "UV Coverage": "uv_coverage",
                         "Mollweide Tracks": "mollweide_tracks",
@@ -66,7 +64,6 @@ class CalculationThread(QThread):
                         "Azimuth/Elevation": "az_el"
                     }
                     method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
-                    # Process frequency-dependent calculations
                     if calc_type in freq_dependent_calcs:
                         for freq in freqs:
                             if self._cancelled:
