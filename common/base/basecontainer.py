@@ -703,6 +703,5 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """Ensure cleanup of references to prevent memory leaks."""
         try:
             self.clear()
-            logger.debug(f"Deleted {self.__class__.__name__} with name={self.name}")
         except Exception as e:
             logger.error(f"Error during cleanup of {self.__class__.__name__}: {str(e)}")

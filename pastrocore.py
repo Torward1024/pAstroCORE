@@ -3,10 +3,11 @@ from PySide6.QtWidgets import (
                                 QApplication,
                                 QFileDialog, QMessageBox,
                                 QTreeView, QTabBar, QProgressDialog, QMenu,
-                                QDialog
+                                QDialog,
+                                QWidget
                                 )
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, Signal, Slot, QPoint
+from PySide6.QtCore import Qt, Signal, Slot, QPoint, QObject
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 # Core files
 from pastrocore.super.schedule_project import ScheduleProject
@@ -217,11 +218,41 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to open visualization dialog: {str(e)}")
 
     def handle_tab_close(self, index):
-        """Handle closing of tabs, prevent closing of project tab."""
+        """Handle closing of tabs, prevent closing of project tab, and clean up resources."""
         widget = self.ui.tabContainer.widget(index)
         if widget.objectName() == "projectInfoTab":
             return
+        self._cleanup_widget(widget)
         self.ui.tabContainer.removeTab(index)
+        logger.debug(f"Closed tab at index {index} and cleaned up resources")
+    
+    def _cleanup_widget(self, widget: QWidget):
+        """Clean up widget resources and disconnect signals."""
+        try:
+            widget.blockSignals(True)
+            if hasattr(widget, 'observation_updated'):
+                try:
+                    widget.observation_updated.disconnect()
+                    logger.debug(f"Disconnected observation_updated signal for {widget.objectName()}")
+                except Exception as e:
+                    logger.debug(f"No observation_updated signal to disconnect: {str(e)}")
+            if hasattr(widget, 'project_name_changed'):
+                try:
+                    widget.project_name_changed.disconnect()
+                    logger.debug(f"Disconnected project_name_changed signal for {widget.objectName()}")
+                except Exception as e:
+                    logger.debug(f"No project_name_changed signal to disconnect: {str(e)}")
+
+            for child in widget.findChildren(QObject):
+                child.blockSignals(True)
+                child.deleteLater()
+            widget.deleteLater()
+            logger.debug(f"Scheduled deletion of widget {widget.objectName()}")
+        except Exception as e:
+            logger.error(f"Error cleaning up widget {widget.objectName()}: {str(e)}")
+        finally:
+            gc.collect()
+            logger.debug(f"Garbage collection triggered after cleaning {widget.objectName()}")
 
     @Slot(dict)
     def handle_time_step_updated(self, time_step: int):
@@ -487,72 +518,44 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def new_project(self):
-        """Create a new project, ensuring all old project data is cleared."""
-        logger.info("Creating new project, clearing old data")
-
-        self.clear_connections()
-
-        for i in range(self.ui.tabContainer.count() - 1, -1, -1):
-            widget = self.ui.tabContainer.widget(i)
-            if widget:
-
-                try:
-                    widget.disconnect()
-                    logger.debug(f"Disconnected signals for widget {widget.objectName()}")
-                except Exception as e:
-                    logger.debug(f"No signals to disconnect for widget {widget.objectName()}: {str(e)}")
-                self.ui.tabContainer.removeTab(i)
-                widget.deleteLater()
-                logger.debug(f"Scheduled deletion for widget {widget.objectName()}")
-
-        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
-        if project_explorer:
-            project_explorer.setModel(None)
-            logger.debug("Cleared project explorer model")
-
-        old_project_id = id(self.project)
-        old_manipulator_id = id(self.manipulator)
-        self.project = ScheduleProject(name="Untitled Project")
-        self.manipulator.set_managing_object(self.project)
-        self.current_project_path = None
-        logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
-        logger.debug(f"Old project id: {old_project_id}, old manipulator id={old_manipulator_id}")
-
-        self.open_project_info_tab()
-        self.setup_connections()
-
-        gc.collect()
-        logger.debug("Garbage collection triggered")
-        self.update_project_explorer()
-        logger.debug("Project explorer updated synchronously")
+        """Create a new project, cleaning up the old one."""
+        try:
+            self._cleanup_project()
+            self._initialize_project()
+            self.current_project_path = None
+            self.open_project_info_tab()
+            self.update_project_explorer()
+            self.project_updated.emit()
+            logger.info("Created new project")
+        except Exception as e:
+            logger.error(f"Error creating new project: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to create new project: {str(e)}")
 
     @Slot()
     def open_project(self):
-        """Open an existing project from file."""
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Project", "", "pAstroCORE Project (*.pastro)")
-        if file_path:
-            progress = QProgressDialog("Opening project...", "Cancel", 0, 100, self)
-            progress.setWindowModality(Qt.WindowModal)
-            progress.setAutoClose(True)
-            progress.show()
-            try:
-                with open(file_path, "r") as f:
-                    data = json.load(f)
-                self.project.clear()
-                self.project = ScheduleProject.from_dict(data)
-                self.manipulator.set_managing_object(self.project)
-                logger.info(f"Project opened with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
-                self.current_project_path = file_path
-                self.project_updated.emit()
-                for i in range(self.ui.tabContainer.count() - 1, -1, -1):
-                    self.ui.tabContainer.removeTab(i)
-                    self.ui.tabContainer.clear()
-                self.open_project_info_tab()
-            except Exception as e:
-                logger.error(f"Failed to open project: {str(e)}")
-                QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
-            finally:
-                progress.close()
+        """Open a project from a file, cleaning up the old one."""
+        try:
+            file_name, _ = QFileDialog.getOpenFileName(
+                self, "Open Project", "", "pAstro Project Files (*.pastro)"
+            )
+            if not file_name:
+                logger.debug("Open project cancelled")
+                return
+            with open(file_name, 'r') as f:
+                data = json.load(f)
+            self._cleanup_project()
+            self.project = ScheduleProject.from_dict(data)
+            self.manipulator = ScheduleManipulator(self.project)
+            self.catalog_manager = self.initialize_catalog_manager()
+            self.current_project_path = file_name
+            self.open_project_info_tab()
+            self.update_project_explorer()
+            self.project_updated.emit()
+            logger.info(f"Opened project from {file_name}")
+        except Exception as e:
+            logger.error(f"Error opening project: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
+            self._initialize_project()
 
     @Slot()
     def save_project(self):
@@ -841,18 +844,17 @@ class PAstroCoreMainWindow(QMainWindow):
                 widget = tab_container.widget(i)
                 widget.update_tab()
                 tab_container.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
+                logger.debug("Reusing existing project info tab")
                 return
         project_tab = ProjectInfoTab(self.manipulator, self)
         project_tab.setObjectName("projectInfoTab")
         tab_container.addTab(project_tab, "Project")
         tab_container.setCurrentWidget(project_tab)
         project_tab.update_tab()
-        for i in range(tab_container.count()):
-            if tab_container.widget(i).objectName() == "projectInfoTab":
-                tab_container.tabBar().setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
-                break
+        tab_container.tabBar().setTabButton(tab_container.indexOf(project_tab), QTabBar.ButtonPosition.RightSide, None)
         project_tab.project_name_changed.connect(self.handle_projectInfoTab_project_name_changed)
         self.project_updated.connect(project_tab.update_tab)
+        logger.debug("Created new project info tab")
 
     @Slot(str)
     def handle_projectInfoTab_project_name_changed(self, name: str):
@@ -867,7 +869,6 @@ class PAstroCoreMainWindow(QMainWindow):
             if widget.objectName() == f"observationTab_{obs_code}":
                 tab_container.setCurrentIndex(i)
                 widget.setFocus()
-
                 widget.update_tab()
                 return
 
@@ -885,6 +886,7 @@ class PAstroCoreMainWindow(QMainWindow):
             observation_tab.setFocus()
             observation_tab.observation_updated.connect(self.handle_observationTab_observation_updated)
             self.project_updated.connect(observation_tab.update_tab)
+            logger.debug(f"Opened observation tab for code '{obs_code}'")
         else:
             logger.error(f"Failed to open observation tab for code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
             QMessageBox.critical(self, "Error", f"Failed to open observation tab: {obs_response.get('error', 'Unknown error')}")
@@ -962,6 +964,62 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error handling generated observations: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to handle generated observations: {str(e)}")
+
+    def _cleanup_tabs(self):
+        """Clean up all tabs in tabContainer."""
+        tab_container = self.ui.tabContainer
+        for i in range(tab_container.count() - 1, -1, -1):
+            widget = tab_container.widget(i)
+            if widget:
+                try:
+                    widget.blockSignals(True)
+                    if hasattr(widget, 'observation_updated'):
+                        widget.observation_updated.disconnect()
+                    if hasattr(widget, 'project_name_changed'):
+                        widget.project_name_changed.disconnect()
+                    if hasattr(widget, '_cleanup'):
+                        widget._cleanup()
+                    widget.deleteLater()
+                    tab_container.removeTab(i)
+                    logger.debug(f"Cleaned and removed tab {widget.objectName()}")
+                except Exception as e:
+                    logger.error(f"Error cleaning tab {widget.objectName()}: {str(e)}")
+        logger.debug("All tabs cleaned up")
+
+    def _cleanup_project(self):
+        """Clean up the current project and its dependencies."""
+        try:
+            if self.manipulator:
+                self.manipulator.clear_cache()
+                self.manipulator.clear_base_classes()
+                self.manipulator = None
+                logger.debug("Cleared manipulator")
+            if self.project:
+                self.project.clear()
+                self.project = None
+                logger.debug("Cleared project")
+            if self.catalog_manager:
+                self.catalog_manager = None
+                logger.debug("Cleared catalog manager")
+            # Очистка всех вкладок
+            self._cleanup_tabs()
+            # Отключение сигналов
+            try:
+                self.project_updated.disconnect()
+                logger.debug("Disconnected project_updated signal")
+            except Exception as e:
+                logger.debug(f"No project_updated signal to disconnect: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error cleaning up project: {str(e)}")
+        finally:
+            gc.collect()
+            logger.debug("Garbage collection triggered after project cleanup")
+    
+    def _initialize_project(self):
+        """Initialize a new project and its dependencies."""
+        self.project = ScheduleProject(name="Untitled Project")
+        self.manipulator = ScheduleManipulator(self.project)
+        logger.debug(f"Initialized new project with id: {id(self.project)}, manipulator id={id(self.manipulator)}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

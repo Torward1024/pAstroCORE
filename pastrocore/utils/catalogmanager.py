@@ -260,4 +260,8 @@ class CatalogManager:
         return (f"CatalogManager(sources={len(self.source_catalog)}, "
                 f"telescopes={len(self.telescope_catalog)})")
     
-    
+    def clear(self):
+        """Clear all catalog data."""
+        self._sources = None
+        self._telescopes = None
+        logger.debug("Cleared CatalogManager data")

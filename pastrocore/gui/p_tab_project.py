@@ -544,3 +544,41 @@ class ProjectInfoTab(QWidget):
             obs_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
             obs_code = self.model.item(source_index.row(), 3).text()
             self.edit_observation(obs_name, obs_code)
+
+    def _cleanup(self):
+        """Clean up resources associated with this tab."""
+        try:
+            # Отключение сигналов
+            self.blockSignals(True)
+            self.project_name_changed.disconnect()
+            logger.debug(f"Disconnected project_name_changed signal for {self.objectName()}")
+
+            # Очистка таблицы и моделей
+            self.ui.projectInfoTable.setModel(None)
+            self.model.clear()
+            self.proxy_model.deleteLater()
+            self.model.deleteLater()
+            logger.debug(f"Cleared table model and proxy model for {self.objectName()}")
+
+            self.ui.deleteLater()
+            logger.debug(f"Scheduled deletion of UI for {self.objectName()}")
+
+            self.project = None
+            self.manipulator = None
+            self.parent_widget = None
+            self.model = None
+            self.proxy_model = None
+        except Exception as e:
+            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+        finally:
+            logger.debug(f"Garbage collection triggered after cleaning {self.objectName()}")
+
+    def close_tab(self):
+        """Close the project info tab and clean up resources."""
+        tab_container = self.parent_widget.ui.tabContainer
+        for i in range(tab_container.count()):
+            if tab_container.widget(i) == self:
+                self._cleanup()
+                tab_container.removeTab(i)
+                logger.info(f"Closed and cleaned project info tab")
+                break
