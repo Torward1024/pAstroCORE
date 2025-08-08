@@ -465,7 +465,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             if key not in {"name", "isactive", "_use_cache", "_cached_to_dict"}:
                 super().__setattr__(key, None)
         self._invalidate_cache()
-        logger.info(f"Cleared attributes for {self.__class__.__name__} with name={self.name}")
 
     def __getitem__(self, key: str) -> Any:
         """Access an attribute using dictionary-like syntax.
