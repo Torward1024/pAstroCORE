@@ -1,6 +1,6 @@
 {
     "clear_log_on_start": true,
-    "log_level": "WARNING",
+    "log_level": "DEBUG",
     "sources_catalog_path": "catalogs\\sources.dat",
     "telescopes_catalog_path": "catalogs\\telescopes.dat",
     "time_step": 100.0

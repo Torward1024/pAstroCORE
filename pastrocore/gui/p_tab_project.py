@@ -12,11 +12,11 @@ class ProjectInfoTab(QWidget):
     """Widget for displaying and editing project information in a tab."""
     project_name_changed = Signal(str)
 
-    def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+    def __init__(self, manipulator: ScheduleManipulator, parent=None):
         super().__init__(parent)
         self.ui = Ui_ProjectInfoTab()
         self.ui.setupUi(self)
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.manipulator = manipulator
         self.parent_widget = parent
         self.setup_table()
