@@ -514,7 +514,7 @@ class PAstroCoreMainWindow(QMainWindow):
         old_project_id = id(self.project)
         old_manipulator_id = id(self.manipulator)
         self.project = ScheduleProject(name="Untitled Project")
-        self.manipulator = ScheduleManipulator(self.project)
+        self.manipulator.set_managing_object(self.project)
         self.current_project_path = None
         logger.info(f"New project created with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
         logger.debug(f"Old project id: {old_project_id}, old manipulator id={old_manipulator_id}")
