@@ -226,14 +226,9 @@ class Manipulator(ABC):
             logger.error(f"Invalid request type: expected dict, got {type(request).__name__}")
             raise TypeError(f"Request must be a dictionary, got {type(request).__name__}")
 
-        # Debug: Log request keys and types
-        logger.debug(f"Request keys and types: {[(k, type(v).__name__) for k, v in request.items()]}")
-
-        # Check if the request is a potential sequence (no 'operation' key and multiple keys)
         is_potential_sequence = len(request) > 0 and "operation" not in request
 
         if is_potential_sequence:
-            # Validate that all sub-requests are dictionaries
             invalid_sub_requests = [
                 (k, type(v).__name__) for k, v in request.items() if not isinstance(v, dict)
             ]
@@ -248,7 +243,6 @@ class Manipulator(ABC):
                     "error": error_msg
                 }
 
-            # If all sub-requests are dictionaries, process as sequence
             logger.info(f"Processing sequence of {len(request)} requests")
             results = {}
             for req_id, sub_request in request.items():
@@ -383,7 +377,7 @@ class Manipulator(ABC):
         self._registry = self._get_method_registry()
         logger.info(f"Cleared base classes for {self.__class__.__name__}")
     
-    def clear_operations(self):
+    def clear_ops(self):
         """Clear all registered operations and their handlers."""
         try:
             for op_name, op_instance in self._operations.items():
@@ -407,7 +401,7 @@ class Manipulator(ABC):
     def __del__(self):
         """Ensure cleanup of all resources to prevent memory leaks."""
         try:
-            self.clear_operations()
+            self.clear_ops()
             self.clear_cache()
             self.clear_base_classes()
             self._managing_object = None
