@@ -589,7 +589,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """Clear all items from the container and release references."""
         self._items.clear()
         self._invalidate_cache()
-        logger.info(f"Cleared all items from {self.__class__.__name__} with name={self.name}")
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over the items in the container.
