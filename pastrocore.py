@@ -110,7 +110,12 @@ class PAstroCoreMainWindow(QMainWindow):
             tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
             logger.debug("Disconnected tabCloseRequested signal")
         except Exception as e:
-            logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")
+            logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")       
+        try:
+            self.ui.dockWidget.visibilityChanged.disconnect(self.sync_project_explorer_action)
+            logger.debug("Disconnected visibilityChanged signal")
+        except Exception as e:
+            logger.debug(f"No visibilityChanged signal to disconnect: {str(e)}")
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
@@ -161,8 +166,6 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("Project explorer context menu connected")
         else:
             logger.error("Project explorer widget not found during setup_ui")
-
-        self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
         self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
 
     def setup_connections(self):
@@ -523,6 +526,8 @@ class PAstroCoreMainWindow(QMainWindow):
             self._cleanup_project()
             self._initialize_project()
             self.current_project_path = None
+            self.clear_connections(is_initial_setup=False)
+            self.setup_connections()
             self.open_project_info_tab()
             self.update_project_explorer()
             self.project_updated.emit()
@@ -921,23 +926,24 @@ class PAstroCoreMainWindow(QMainWindow):
         if event.type() == QtCore.QEvent.WindowStateChange:
             old_state = event.oldState()
             new_state = self.windowState()
+            
             if old_state & QtCore.Qt.WindowNoState and new_state & QtCore.Qt.WindowMinimized:
                 self._dock_was_visible = self.ui.dockWidget.isVisible()
                 try:
                     self.ui.dockWidget.visibilityChanged.disconnect(self.sync_project_explorer_action)
-                    logger.debug("Disconnected visibilityChanged signal during minimization")
-                except Exception as e:
-                    logger.debug(f"Could not disconnect visibilityChanged signal: {str(e)}")
+                except RuntimeError:
+                    pass
+            
             elif old_state & QtCore.Qt.WindowMinimized and new_state == QtCore.Qt.WindowNoState:
                 try:
                     self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
-                    logger.debug("Reconnected visibilityChanged signal after restoration")
-                except Exception as e:
-                    logger.debug(f"Could not reconnect visibilityChanged signal: {str(e)}")
+                except RuntimeError:
+                    pass
+                
                 if self.ui.dockWidget.isVisible() != self._dock_was_visible:
                     self.ui.dockWidget.setVisible(self._dock_was_visible)
                     self.ui.actionProject_Explorer.setChecked(self._dock_was_visible)
-                    logger.debug(f"Restored dockWidget visibility: {self._dock_was_visible}")
+        
         super().changeEvent(event)
     
     @Slot()
@@ -998,12 +1004,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.project.clear()
                 self.project = None
                 logger.debug("Cleared project")
-            if self.catalog_manager:
-                self.catalog_manager = None
-                logger.debug("Cleared catalog manager")
-            # Очистка всех вкладок
             self._cleanup_tabs()
-            # Отключение сигналов
             try:
                 self.project_updated.disconnect()
                 logger.debug("Disconnected project_updated signal")
