@@ -27,10 +27,9 @@ class SunAnglesVisualizationTab(QWidget):
         self.toolbar = None
         self.figure = None
         self.cached_data = None
-        self.is_processing = False  # Flag to prevent concurrent updates
+        self.is_processing = False
         logger.debug(f"SunAnglesVisualizationTab initialized for observation id={id(observation)}")
 
-        # Populate UI elements
         self.ui.cmbSource.addItems(sources)
         for telescope in telescopes:
             item = QListWidgetItem(telescope)

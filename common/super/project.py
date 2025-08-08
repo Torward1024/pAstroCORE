@@ -192,3 +192,11 @@ class Project(ABC):
     def __repr__(self) -> str:
         """Return a string representation of the Project."""
         return f"Project(name='{self.name}', items_count={len(self._items)})"
+    
+    def __del__(self) -> None:
+        """Ensure cleanup of references to prevent memory leaks."""
+        try:
+            self.clear()
+            logger.debug(f"Deleted Project with name={self.name}")
+        except Exception as e:
+            logger.error(f"Error during cleanup of Project '{self.name}': {str(e)}")

@@ -1,7 +1,7 @@
 # pastrocore/gui/p_tab_scans.py
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu, QDialog
-from PySide6.QtCore import Signal, Slot, Qt, QSortFilterProxyModel, QRegularExpression, QPoint
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
+from PySide6.QtGui import QStandardItem, QIcon
 from .ui_tab_observation_any import Ui_observation_tab
 from .p_dialog_edit_scan import ScanEditorDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -11,28 +11,26 @@ from common.utils.logging_setup import logger
 from pastrocore.gui.p_tab_telescopes import TelescopesTab
 from pastrocore.gui.p_tab_frequencies import FrequenciesTab
 from pastrocore.gui.p_tab_sources import SourcesTab
-from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 
 class ScansTab(QWidget):
     """Widget for displaying and managing scans in an observation."""
     data_updated = Signal()
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator,
+    def __init__(self, observation: Observation, manipulator: ScheduleManipulator,
                  telescopes_tab: 'TelescopesTab' = None, frequencies_tab: 'FrequenciesTab' = None,
                  sources_tab: 'SourcesTab' = None, parent=None):
         super().__init__(parent)
         self.observation = observation
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.manipulator = manipulator
         self.active_icon = QIcon(":/icons/active_icon.svg")
         self.inactive_icon = QIcon(":/icons/inactive_icon.svg")
 
-        # Setup UI
         self.ui = Ui_observation_tab()
         self.ui.setupUi(self)
         self.ui.search.setPlaceholderText("Search scans...")
         
-        # Setup table
         self.model = CustomStandardItemModel()
         self.model.setHorizontalHeaderLabels([
             "#", " ", "Scan ID", "Start Time", "Duration (s)", "Source", "Telescopes", "Frequencies"
@@ -49,13 +47,11 @@ class ScansTab(QWidget):
         self.ui.table.sortByColumn(0, Qt.AscendingOrder)
         self.ui.table.setColumnWidth(1, 24)
         self.ui.table.setColumnWidth(0, 50)
-        self.ui.table.setColumnHidden(2, True)  # Hide "Scan ID" column
-
-        # Connect signals
+        self.ui.table.setColumnHidden(2, True)  
+        
         self.ui.search.textChanged.connect(self.search_changed)
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
 
-        # Connect data_updated signals from other tabs
         if telescopes_tab:
             telescopes_tab.data_updated.connect(self.handle_data_updated)
         if frequencies_tab:
@@ -78,7 +74,6 @@ class ScansTab(QWidget):
         add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Scan")
         add_action.triggered.connect(self.add_scan)
 
-        # Check if there are any scans
         scans_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -107,7 +102,6 @@ class ScansTab(QWidget):
             drop_inactive_action.triggered.connect(self.drop_inactive_scans)
             clear_action.triggered.connect(self.clear_scans)
 
-        # Check if a specific row is selected
         index = self.ui.table.indexAt(position)
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
@@ -148,10 +142,8 @@ class ScansTab(QWidget):
     @Slot()
     def add_scan(self):
         """Add a new scan to the observation using ScanEditorDialog after checking prerequisites."""
-        # Check prerequisites: telescopes, sources, frequencies
         missing_components = []
 
-        # Check observation type
         obs_type_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -163,7 +155,6 @@ class ScansTab(QWidget):
             return
         obs_type = obs_type_response["result"]
 
-        # Check telescopes
         telescopes_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -188,7 +179,6 @@ class ScansTab(QWidget):
                 elif obs_type == "SINGLE_DISH" and telescope_count < 1:
                     missing_components.append("at least 1 telescope (required for SINGLE_DISH)")
 
-        # Check frequencies
         frequencies_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -207,7 +197,6 @@ class ScansTab(QWidget):
                 logger.error(f"No frequencies found: {frequencies_items_response.get('error', 'No frequencies available')}")
                 missing_components.append("at least 1 frequency")
 
-        # If there are missing components, show a message and return
         if missing_components:
             logger.warning(f"Cannot add scan: missing components: {', '.join(missing_components)}")
             QMessageBox.information(
@@ -218,7 +207,6 @@ class ScansTab(QWidget):
             )
             return
 
-        # Proceed with scan creation if all prerequisites are met
         dialog = ScanEditorDialog(self.observation, self.manipulator, scan=None, parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:

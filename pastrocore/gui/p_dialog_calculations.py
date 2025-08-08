@@ -6,7 +6,6 @@ from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_calculations import Ui_CalculationDialog
 from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
-import pastrocore.gui.rc_icons
 
 class CalculationThread(QThread):
     """Thread for performing calculations asynchronously."""
@@ -136,12 +135,12 @@ class CalculationDialog(QDialog):
     """Dialog for configuring and running multiple calculations."""
     time_step_updated = Signal(int)
 
-    def __init__(self, manipulator, project, targets=None, calc_type=None, time_step=600, parent=None):
+    def __init__(self, manipulator: ScheduleManipulator, targets=None, calc_type=None, time_step=600, parent=None):
         super().__init__(parent)
         self.ui = Ui_CalculationDialog()
         self.ui.setupUi(self)
         self.manipulator = manipulator
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.targets = targets or []
         self.calc_type = calc_type
         self.time_step = time_step

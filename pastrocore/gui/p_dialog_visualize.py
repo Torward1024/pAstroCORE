@@ -24,12 +24,12 @@ import numpy as np
 class VisualizationDialog(QDialog):
     """Dialog for visualizing observation parameters using ScheduleVisualizer through ScheduleManipulator."""
 
-    def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, parent=None):
+    def __init__(self, manipulator: ScheduleManipulator, parent=None):
         """Initialize the visualization dialog."""
         super().__init__(parent)
         self.ui = Ui_VisualizationDialog()
         self.ui.setupUi(self)
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.manipulator = manipulator
         self.visualization_tabs: Dict[str, QWidget] = {}
         self.cached_observations: Dict[str, Observation] = {}

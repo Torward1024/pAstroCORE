@@ -4,9 +4,8 @@ from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.gui.p_dialog_edit_source import SourceEditorDialog
 from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
-from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
 from common.utils.logging_setup import logger
@@ -15,10 +14,10 @@ import uuid
 class SourcesTab(QWidget):
     data_updated = Signal(str, bool, str)
 
-    def __init__(self, observation: Observation, project: ScheduleProject, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
+    def __init__(self, observation: Observation, manipulator: ScheduleManipulator, catalog_manager: CatalogManager, parent=None):
         super().__init__(parent)
         self.observation = observation
-        self.project = project
+        self.project = manipulator.get_managing_object()
         self.manipulator = manipulator
         self.catalog_manager = catalog_manager
         self.active_icon = QIcon(":/icons/active_icon.svg")
@@ -61,13 +60,11 @@ class SourcesTab(QWidget):
         """Show context menu for the sources table."""
         menu = QMenu(self)
         
-        # Always add "Add Source" and "Add Source from Catalog"
         add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Source")
         add_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add Source from Catalog")
         add_action.triggered.connect(self.add_source)
         add_catalog_action.triggered.connect(self.add_source_from_catalog)
 
-        # Check if there are any sources in the observation
         sources_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -85,7 +82,6 @@ class SourcesTab(QWidget):
             logger.error(f"Failed to inspect sources: {sources_response.get('error', 'Unknown error')}")
 
         if has_sources:
-            # Add bulk actions for sources
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
             deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
             drop_active_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Drop Active")
@@ -97,7 +93,6 @@ class SourcesTab(QWidget):
             drop_inactive_action.triggered.connect(self.drop_inactive_sources)
             clear_action.triggered.connect(self.clear_sources)
 
-        # Check if a specific row is selected
         index = self.ui.table.indexAt(position)
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)

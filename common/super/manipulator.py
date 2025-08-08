@@ -367,6 +367,11 @@ class Manipulator(ABC):
             List[str]: List of registered operation names.
         """
         return list(self._operations.keys())
+    
+    def clear_cache(self) -> None:
+        """Clear the method registry cache to free memory."""
+        self._get_method_registry.cache_clear()
+        logger.info(f"Cleared method registry cache for {self.__class__.__name__}")
 
     def __repr__(self) -> str:
         """Return a string representation of the Manipulator.

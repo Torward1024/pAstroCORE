@@ -6,7 +6,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
-from pastrocore.gui.p_cutsom_model import CustomStandardItemModel, CustomSortFilterProxyModel
+from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 
 class ProjectInfoTab(QWidget):
     """Widget for displaying and editing project information in a tab."""
@@ -45,7 +45,7 @@ class ProjectInfoTab(QWidget):
         self.ui.projectInfoTable.sortByColumn(0, Qt.AscendingOrder)
         self.ui.projectInfoTable.verticalHeader().setVisible(False)
         self.ui.projectInfoTable.setColumnWidth(1, 24)
-        self.ui.projectInfoTable.setColumnHidden(2, True)  # Скрываем столбец "Name"
+        self.ui.projectInfoTable.setColumnHidden(2, True)
 
     def setup_connections(self):
         """Connect signals to slots."""
@@ -100,7 +100,7 @@ class ProjectInfoTab(QWidget):
     @Slot()
     def update_tab(self):
         """Update the project info tab with current project data using Manipulator."""
-        # Update project name
+
         project_name_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
@@ -109,7 +109,6 @@ class ProjectInfoTab(QWidget):
         project_name = project_name_response["result"] if project_name_response["status"] and isinstance(project_name_response["result"], str) else "Untitled Project"
         self.ui.lineEdit.setText(project_name)
 
-        # Get current observations
         observations_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
@@ -124,7 +123,6 @@ class ProjectInfoTab(QWidget):
             logger.error(f"Expected dict for observations, got {type(result)}: {result}")
             return
 
-        # Create a set of current observation codes
         current_codes = set()
         for obs in result.values():
             code_response = self.manipulator.process_request({
@@ -134,8 +132,6 @@ class ProjectInfoTab(QWidget):
             })
             if code_response["status"]:
                 current_codes.add(code_response["result"])
-
-        #existing_codes = {self.model.item(i, 3).text() for i in range(self.model.rowCount()) if self.model.item(i, 3)}  # Изменено: столбец Code теперь 3
 
         for i in range(self.model.rowCount() - 1, -1, -1):
             obs_code = self.model.item(i, 3).text()
@@ -148,7 +144,6 @@ class ProjectInfoTab(QWidget):
                 logger.error(f"Invalid observation type for name '{obs_name}': {type(obs)}")
                 continue
 
-            # Fetch observation code
             code_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": obs,
@@ -159,14 +154,12 @@ class ProjectInfoTab(QWidget):
                 continue
             obs_code = code_response["result"]
 
-            # Check if row exists
             row_idx = None
             for i in range(self.model.rowCount()):
-                if self.model.item(i, 3).text() == obs_code:  # Изменено: столбец Code теперь 3
+                if self.model.item(i, 3).text() == obs_code:
                     row_idx = i
                     break
 
-            # Fetch observation data via Manipulator
             is_active_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": obs,
@@ -185,7 +178,6 @@ class ProjectInfoTab(QWidget):
             })
             obs_type = type_response["result"] if type_response["status"] and type_response["result"] in ["VLBI", "SINGLE_DISH"] else "N/A"
 
-            # Fetch frequencies by getting all IF objects
             frequencies_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": obs,
@@ -280,13 +272,11 @@ class ProjectInfoTab(QWidget):
         """Show context menu for the observations table."""
         menu = QMenu(self)
         
-        # Always add "Add Observation" and "Import New Observation"
         add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
         import_new_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import New Observation")
         add_action.triggered.connect(self.add_observation)
         import_new_action.triggered.connect(self.import_new_observation)
 
-        # Check if there are any observations in the project
         observations_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.project,
@@ -299,7 +289,6 @@ class ProjectInfoTab(QWidget):
             logger.error(f"Failed to inspect observations: {observations_response.get('error', 'Unknown error')}")
 
         if has_observations:
-            # Add bulk actions for observations
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
             deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
             drop_active_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Drop Active")
@@ -311,14 +300,13 @@ class ProjectInfoTab(QWidget):
             drop_active_action.triggered.connect(self.drop_active_observations)
             drop_inactive_action.triggered.connect(self.drop_inactive_observations)
 
-            # Check if a specific row is selected
             index = self.ui.projectInfoTable.indexAt(position)
             if index.isValid():
                 source_index = self.proxy_model.mapToSource(index)
                 obs_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
                 obs_code = self.model.item(source_index.row(), 3).text()
                 logger.info(f"BABA '{obs_name}'")
-                # Get observation state
+
                 obs_response = self.manipulator.process_request({
                     "operation": "inspect",
                     "obj": self.project,
@@ -336,7 +324,6 @@ class ProjectInfoTab(QWidget):
                 })
                 is_active = is_active_response["status"] and is_active_response["result"]
 
-                # Add Activate/Deactivate based on current state
                 menu.addSeparator()
                 if is_active:
                     deactivate_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate")
@@ -345,7 +332,6 @@ class ProjectInfoTab(QWidget):
                     activate_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate")
                     activate_action.triggered.connect(lambda: self.activate_observation(obs_name, obs_code))
 
-                # Add Import, Export, Remove, and Edit actions
                 menu.addSeparator()
                 import_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import Observation")
                 export_action = menu.addAction(QIcon(":/icons/export_icon.svg"), "Export Observation")
@@ -381,7 +367,6 @@ class ProjectInfoTab(QWidget):
     def activate_observation(self, obs_name: str, obs_code: str):
         """Activate the specified observation."""
         try:
-            # Получаем объект наблюдения
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
@@ -393,7 +378,7 @@ class ProjectInfoTab(QWidget):
                 return
 
             observation = obs_response["result"]
-            # Активируем наблюдение
+
             request = {
                 "operation": "configure",
                 "obj": observation,
@@ -402,8 +387,8 @@ class ProjectInfoTab(QWidget):
             response = self.manipulator.process_request(request)
             if response["status"]:
                 logger.info(f"Observation '{obs_code}' activated")
-                self.update_tab()  # Обновляем таблицу
-                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+                self.update_tab()
+                self.project_name_changed.emit(self.ui.lineEdit.text())
             else:
                 logger.error(f"Failed to activate observation '{obs_code}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to activate observation: {response.get('error', 'Unknown error')}")
@@ -415,7 +400,6 @@ class ProjectInfoTab(QWidget):
     def deactivate_observation(self, obs_name: str, obs_code: str):
         """Deactivate the specified observation."""
         try:
-            # Получаем объект наблюдения
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
@@ -427,7 +411,6 @@ class ProjectInfoTab(QWidget):
                 return
 
             observation = obs_response["result"]
-            # Деактивируем наблюдение
             request = {
                 "operation": "configure",
                 "obj": observation,
@@ -436,8 +419,8 @@ class ProjectInfoTab(QWidget):
             response = self.manipulator.process_request(request)
             if response["status"]:
                 logger.info(f"Observation '{obs_name}' deactivated")
-                self.update_tab()  # Обновляем таблицу
-                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+                self.update_tab()
+                self.project_name_changed.emit(self.ui.lineEdit.text())
             else:
                 logger.error(f"Failed to deactivate observation '{obs_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {response.get('error', 'Unknown error')}")
@@ -463,8 +446,8 @@ class ProjectInfoTab(QWidget):
             response = self.manipulator.process_request(request)
             if response["status"]:
                 logger.info("All observations activated")
-                self.update_tab()  # Обновляем таблицу
-                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+                self.update_tab()
+                self.project_name_changed.emit(self.ui.lineEdit.text())
             else:
                 logger.error(f"Failed to activate all observations: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to activate all observations: {response.get('error', 'Unknown error')}")
@@ -484,8 +467,8 @@ class ProjectInfoTab(QWidget):
             response = self.manipulator.process_request(request)
             if response["status"]:
                 logger.info("All observations deactivated")
-                self.update_tab()  # Обновляем таблицу
-                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+                self.update_tab()
+                self.project_name_changed.emit(self.ui.lineEdit.text())
             else:
                 logger.error(f"Failed to deactivate all observations: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to deactivate all observations: {response.get('error', 'Unknown error')}")
@@ -526,8 +509,8 @@ class ProjectInfoTab(QWidget):
             response = self.manipulator.process_request(request)
             if response["status"]:
                 logger.info("All inactive observations dropped")
-                self.update_tab()  # Обновляем таблицу
-                self.project_name_changed.emit(self.ui.lineEdit.text())  # Уведомляем о изменении
+                self.update_tab()
+                self.project_name_changed.emit(self.ui.lineEdit.text())
             else:
                 logger.error(f"Failed to drop inactive observations: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to drop inactive observations: {response.get('error', 'Unknown error')}")

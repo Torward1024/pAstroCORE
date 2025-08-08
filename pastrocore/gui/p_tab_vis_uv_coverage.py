@@ -42,7 +42,6 @@ class UVVisualizationTab(QWidget):
         self.frequencies = self._get_frequencies()
         logger.debug(f"UVVisualizationTab initialized for observation id={id(observation)}")
 
-        # Populate UI elements
         self.ui.comboBox.addItems(sources)
         for baseline in baselines:
             item = QListWidgetItem(baseline)
@@ -50,7 +49,6 @@ class UVVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listBaselines.addItem(item)
 
-        # Populate frequencies
         for freq in self.frequencies:
             item = QListWidgetItem(f"{freq:.2f} MHz")
             item.setData(Qt.UserRole, freq)
@@ -58,25 +56,20 @@ class UVVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listFrequencies.addItem(item)
 
-        # Populate units combo box
         self.ui.comboBox_2.addItems(["Wavelengths", "Earth Diameters"])
-
-        # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         logger.debug("UVVisualizationTab UI populated and ready for visualization")
 
-        # Connect signals for filter changes
         self.ui.comboBox.currentIndexChanged.connect(self.filter_changed)
         self.ui.listScans.itemChanged.connect(self.filter_changed)
         self.ui.listBaselines.itemChanged.connect(self.filter_changed)
         self.ui.listFrequencies.itemChanged.connect(self.filter_changed)
         self.ui.comboBox_2.currentIndexChanged.connect(self.filter_changed)
 
-        # Cache data immediately
         self._cache_calculated_data()
         if sources:
             self.update_scans_for_source(sources[0])
-            self.update_visualization()  # Trigger initial visualization
+            self.update_visualization()
 
     def _lock_ui(self):
         """Lock UI elements to prevent further changes during visualization."""

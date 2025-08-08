@@ -190,7 +190,6 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
         self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
         
-        # Connect project_updated signal to update_project_explorer
         self.project_updated.connect(self.update_project_explorer)
         logger.debug("Connected project_updated signal to update_project_explorer")
 
@@ -198,7 +197,7 @@ class PAstroCoreMainWindow(QMainWindow):
     def open_calculation_dialog(self):
         """Open the calculation dialog with time_step from settings."""
         try:
-            dialog = CalculationDialog(self.manipulator, self.project, time_step=self.settings.get("time_step", 600), parent=self)
+            dialog = CalculationDialog(self.manipulator, time_step=self.settings.get("time_step", 600), parent=self)
             dialog.time_step_updated.connect(self.handle_time_step_updated)
             dialog.exec()
             logger.info("Calculation dialog opened and closed")
@@ -210,7 +209,7 @@ class PAstroCoreMainWindow(QMainWindow):
     def open_visualization_dialog(self):
         """Open the visualization dialog for the current project."""
         try:
-            dialog = VisualizationDialog(self.project, self.manipulator, parent=self)
+            dialog = VisualizationDialog(self.manipulator, parent=self)
             dialog.exec()
             logger.info("Visualization dialog opened and closed")
         except Exception as e:
@@ -278,7 +277,7 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def add_observation(self):
         """Add a new observation to the project via ScheduleManipulator."""
-        dialog = AddObservationDialog(self.project, self.manipulator, self)
+        dialog = AddObservationDialog(self.manipulator, self)
         dialog.observation_added.connect(self.handle_observation_added)
         dialog.exec()
 
@@ -539,13 +538,15 @@ class PAstroCoreMainWindow(QMainWindow):
             try:
                 with open(file_path, "r") as f:
                     data = json.load(f)
+                self.project.clear()
                 self.project = ScheduleProject.from_dict(data)
-                self.manipulator = ScheduleManipulator(self.project)
+                self.manipulator.set_managing_object(self.project)
                 logger.info(f"Project opened with project id: {id(self.project)}, manipulator id={id(self.manipulator)}")
                 self.current_project_path = file_path
                 self.project_updated.emit()
                 for i in range(self.ui.tabContainer.count() - 1, -1, -1):
                     self.ui.tabContainer.removeTab(i)
+                    self.ui.tabContainer.clear()
                 self.open_project_info_tab()
             except Exception as e:
                 logger.error(f"Failed to open project: {str(e)}")
@@ -877,7 +878,7 @@ class PAstroCoreMainWindow(QMainWindow):
         })
         if obs_response["status"]:
             observation = obs_response["result"]
-            observation_tab = ObservationTab(observation, self.project, self.manipulator, self.catalog_manager, self)
+            observation_tab = ObservationTab(observation, self.manipulator, self.catalog_manager, self)
             observation_tab.setObjectName(f"observationTab_{obs_code}")
             tab_container.addTab(observation_tab, f"Observation: {obs_code}")
             tab_container.setCurrentWidget(observation_tab)
