@@ -120,10 +120,18 @@ class Project(ABC):
         logger.info(f"Retrieved project configuration for '{self.name}' with {len(self._items)} items")
         return result
     
-    def clear(self) -> None:
-        "Clear all items from container."
-        self._items.clear()
-        logger.info(f"Removed from project '{self.name}' all {len(self._items)} items")
+    def clear(self):
+        """Clear all observations and their resources."""
+        try:
+            for obs in self._items.get_all().values():
+                try:
+                    obs.clear_calculated_data()
+                except Exception as e:
+                    logger.debug(f"Error clearing observation {obs.get_observation_code()}: {str(e)}")
+            self._items.clear()
+            logger.info(f"Cleared all observations from project '{self.name}'")
+        except Exception as e:
+            logger.error(f"Error clearing project '{self.name}': {str(e)}")
     
     def activate_all(self) -> None:
         """Activate all items in the container.
@@ -197,6 +205,5 @@ class Project(ABC):
         """Ensure cleanup of references to prevent memory leaks."""
         try:
             self.clear()
-            logger.debug(f"Deleted Project with name={self.name}")
         except Exception as e:
             logger.error(f"Error during cleanup of Project '{self.name}': {str(e)}")

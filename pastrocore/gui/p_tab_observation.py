@@ -3,14 +3,12 @@ from PySide6.QtCore import Signal, Slot
 from pastrocore.utils.catalogmanager import CatalogManager
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from .p_tab_frequencies import FrequenciesTab
 from .p_tab_sources import SourcesTab
 from .p_tab_telescopes import TelescopesTab
 from .p_tab_scans import ScansTab
-import pastrocore.gui.rc_icons
 
 class ObservationTab(QWidget):
     observation_updated = Signal()
@@ -242,3 +240,45 @@ class ObservationTab(QWidget):
         if not self._updating:
             logger.info(f"Observation changed, emitting observation_updated for code '{self.observation.get_observation_code()}'")
             self.observation_updated.emit()
+    
+    def close_tab(self):
+        """Close the current observation tab and clean up resources."""
+        tab_container = self.parent_widget.ui.tabContainer
+        for i in range(tab_container.count()):
+            if tab_container.widget(i) == self:
+                self._cleanup()
+                tab_container.removeTab(i)
+                logger.info(f"Closed and cleaned observation tab for code '{self.observation.get_observation_code()}'")
+                break
+    
+    def _cleanup(self):
+        """Clean up resources associated with this tab."""
+        try:
+            self.blockSignals(True)
+            self.observation_updated.disconnect()
+            logger.debug(f"Disconnected observation_updated signal for {self.objectName()}")
+
+            for tab in [self.frequencies_tab, self.sources_tab, self.telescopes_tab, self.scans_tab]:
+                if tab:
+                    tab.blockSignals(True)
+                    if hasattr(tab, 'data_updated'):
+                        tab.data_updated.disconnect()
+                    tab.deleteLater()
+                    logger.debug(f"Scheduled deletion of {tab.objectName()}")
+
+            self.ui.tabWidget.clear()
+            self.ui.deleteLater()
+            logger.debug(f"Scheduled deletion of UI for {self.objectName()}")
+
+            self.frequencies_tab = None
+            self.sources_tab = None
+            self.telescopes_tab = None
+            self.scans_tab = None
+            self.observation = None
+            self.manipulator = None
+            self.catalog_manager = None
+            self.parent_widget = None
+        except Exception as e:
+            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+        finally:
+            logger.debug(f"Garbage collection triggered after cleaning {self.objectName()}")

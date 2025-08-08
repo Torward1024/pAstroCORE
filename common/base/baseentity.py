@@ -458,6 +458,14 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         except Exception as e:
             logger.error(f"Failed to resolve type hint {type_hint}: {str(e)}")
             raise TypeError(f"Type resolution failed for {type_hint} in {cls.__name__}: {str(e)}")
+    
+    def clear(self) -> None:
+        """Clear all non-internal attributes to release references."""
+        for key in self._fields:
+            if key not in {"name", "isactive", "_use_cache", "_cached_to_dict"}:
+                super().__setattr__(key, None)
+        self._invalidate_cache()
+        logger.info(f"Cleared attributes for {self.__class__.__name__} with name={self.name}")
 
     def __getitem__(self, key: str) -> Any:
         """Access an attribute using dictionary-like syntax.
@@ -559,3 +567,10 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                 else:
                     attrs.append(f"{k}={value!r}")
         return f"{self.__class__.__name__}({', '.join(attr for attr in attrs if attr)})"
+    
+    def __del__(self) -> None:
+        """Ensure cleanup of references to prevent memory leaks."""
+        try:
+            self.clear()
+        except Exception as e:
+            logger.error(f"Error during cleanup of {self.__class__.__name__}: {str(e)}")

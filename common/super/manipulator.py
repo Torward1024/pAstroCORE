@@ -372,6 +372,28 @@ class Manipulator(ABC):
         """Clear the method registry cache to free memory."""
         self._get_method_registry.cache_clear()
         logger.info(f"Cleared method registry cache for {self.__class__.__name__}")
+    
+    def clear_base_classes(self) -> None:
+        """Clear the list of base classes and update the method registry.
+
+        This method removes all registered base classes and refreshes the method
+        registry to prevent memory retention of class references.
+        """
+        self._base_classes.clear()
+        self._registry = self._get_method_registry()
+        logger.info(f"Cleared base classes for {self.__class__.__name__}")
+    
+    def clear_operations(self):
+        """Clear all registered operations and their handlers."""
+        try:
+            for op_name, op_instance in self._operations.items():
+                if hasattr(op_instance, 'deleteLater'):
+                    op_instance.deleteLater()
+                logger.debug(f"Cleared operation {op_name}")
+            self._operations.clear()
+            logger.debug("All operations cleared")
+        except Exception as e:
+            logger.error(f"Error clearing operations: {str(e)}")
 
     def __repr__(self) -> str:
         """Return a string representation of the Manipulator.
@@ -381,3 +403,14 @@ class Manipulator(ABC):
         """
         obj_type = type(self._managing_object).__name__ if self._managing_object else "None"
         return f"Manipulator(managing_object='{obj_type}', operations={list(self._operations.keys())})"
+    
+    def __del__(self):
+        """Ensure cleanup of all resources to prevent memory leaks."""
+        try:
+            self.clear_operations()
+            self.clear_cache()
+            self.clear_base_classes()
+            self._managing_object = None
+        except Exception as e:
+            logger.error(f"Error during cleanup of ScheduleManipulator: {str(e)}")
+        

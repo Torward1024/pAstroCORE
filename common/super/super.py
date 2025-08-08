@@ -312,6 +312,22 @@ class Super(ABC):
         except Exception as e:
             logger.error(f"Unexpected error in execute for '{self._operation}': {str(e)}")
             return self._build_response(obj, False, None, None, str(e))
+        
+    def clear_cache(self) -> None:
+        """Clear the method cache to free memory."""
+        self._method_cache.clear()
+        logger.info(f"Cleared method cache for {self.__class__.__name__}")
+
+    def clear(self) -> None:
+        """Clear all references to prevent memory leaks.
+
+        This method clears the manipulator reference, method registry, and cache
+        to break potential reference cycles and aid garbage collection.
+        """
+        self._manipulator = None
+        self._methods.clear()
+        self.clear_cache()
+        logger.info(f"Cleared references for {self.__class__.__name__}")
 
     def _default_result(self, obj: Any) -> Dict[str, Any]:
         """Provide a default result when an operation cannot be executed.
@@ -342,3 +358,10 @@ class Super(ABC):
             str: A formatted string with the class name.
         """
         return f"{self.__class__.__name__}()"
+
+    def __del__(self) -> None:
+        """Ensure cleanup of references to prevent memory leaks."""
+        try:
+            self.clear()
+        except Exception as e:
+            logger.error(f"Error during cleanup of {self.__class__.__name__}: {str(e)}")
