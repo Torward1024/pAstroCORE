@@ -91,11 +91,10 @@ class PAstroCoreMainWindow(QMainWindow):
         self._action_connections.clear()
 
         try:
-            if self.project_updated.receivers() > 0:
-                self.project_updated.disconnect()
-                logger.debug("Disconnected project_updated signal")
-        except Exception as e:
-            logger.debug(f"Error disconnecting project_updated: {str(e)}")
+            self.project_updated.disconnect()
+            logger.debug("Disconnected project_updated signal")
+        except TypeError:
+            logger.debug("No connections to disconnect for project_updated")
 
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
@@ -349,6 +348,15 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.info(f"Deletion of observation '{obs_code}' cancelled")
             return
 
+        tab_container = self.ui.tabContainer
+        for i in range(tab_container.count()):
+            widget = tab_container.widget(i)
+            if widget.objectName() == f"observationTab_{obs_code}":
+                self._cleanup_widget(widget)
+                tab_container.removeTab(i)
+                logger.debug(f"Closed observation tab for code '{obs_code}'")
+                break
+
         try:
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
@@ -371,14 +379,6 @@ class PAstroCoreMainWindow(QMainWindow):
             if response["status"]:
                 logger.info(f"Observation with code '{obs_code}' and name '{obs_name}' removed from project '{self.project.get_name()}'")
                 self.project_updated.emit()
-
-                tab_container = self.ui.tabContainer
-                for i in range(tab_container.count()):
-                    widget = tab_container.widget(i)
-                    if widget.objectName() == f"observationTab_{obs_code}":
-                        tab_container.removeTab(i)
-                        break
-                QMessageBox.information(self, "Success", f"Observation '{obs_code}' removed successfully.")
             else:
                 logger.error(f"Failed to remove observation '{obs_code}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to remove observation: {response.get('error', 'Unknown error')}")
@@ -397,6 +397,12 @@ class PAstroCoreMainWindow(QMainWindow):
         if reply != QMessageBox.Yes:
             logger.info(f"Deletion of observations cancelled")
             return
+        
+        tab_container = self.ui.tabContainer
+        for i in range(self.ui.tabContainer.count() - 1, -1, -1):
+            widget = self.ui.tabContainer.widget(i)
+            if widget.objectName() != "projectInfoTab":
+                self.ui.tabContainer.removeTab(i)
 
         try:
             request = {
@@ -410,12 +416,6 @@ class PAstroCoreMainWindow(QMainWindow):
             if response["status"]:
                 logger.info(f"All observations were removed from project '{self.project.get_name()}'")
                 self.project_updated.emit()
-
-                tab_container = self.ui.tabContainer
-                for i in range(self.ui.tabContainer.count() - 1, -1, -1):
-                    widget = self.ui.tabContainer.widget(i)
-                    if widget.objectName() != "projectInfoTab":
-                        self.ui.tabContainer.removeTab(i)
             else:
                 logger.error(f"Failed to remove observations: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to remove observations: {response.get('error', 'Unknown error')}")

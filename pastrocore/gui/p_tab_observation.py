@@ -140,6 +140,10 @@ class ObservationTab(QWidget):
     @Slot()
     def update_tab(self):
         """Update the observation tab with current observation data."""
+        if self.observation is None:
+            logger.debug("Observation is None, closing tab")
+            self.close_tab()
+            return
         if self._updating:
             logger.debug(f"Skipping update_tab for code '{self.observation.get_observation_code()}' as it is already updating")
             return
@@ -225,15 +229,6 @@ class ObservationTab(QWidget):
         finally:
             self._updating = False
 
-    def close_tab(self):
-        """Close the current observation tab."""
-        tab_container = self.parent_widget.ui.tabContainer
-        for i in range(tab_container.count()):
-            if tab_container.widget(i) == self:
-                tab_container.removeTab(i)
-                break
-        logger.info(f"Closed observation tab for code '{self.observation.get_observation_code()}'")
-
     @Slot()
     def observation_changed(self):
         """Handle changes in observation data."""
@@ -256,7 +251,6 @@ class ObservationTab(QWidget):
         try:
             self.blockSignals(True)
             self.observation_updated.disconnect()
-            logger.debug(f"Disconnected observation_updated signal for {self.objectName()}")
 
             for tab in [self.frequencies_tab, self.sources_tab, self.telescopes_tab, self.scans_tab]:
                 if tab:
@@ -264,11 +258,8 @@ class ObservationTab(QWidget):
                     if hasattr(tab, 'data_updated'):
                         tab.data_updated.disconnect()
                     tab.deleteLater()
-                    logger.debug(f"Scheduled deletion of {tab.objectName()}")
 
             self.ui.tabWidget.clear()
-            self.ui.deleteLater()
-            logger.debug(f"Scheduled deletion of UI for {self.objectName()}")
 
             self.frequencies_tab = None
             self.sources_tab = None
@@ -280,8 +271,6 @@ class ObservationTab(QWidget):
             self.parent_widget = None
         except Exception as e:
             logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
-        finally:
-            logger.debug(f"Garbage collection triggered after cleaning {self.objectName()}")
     
     def closeEvent(self, event: QEvent):
         """Override closeEvent to perform cleanup before closing."""

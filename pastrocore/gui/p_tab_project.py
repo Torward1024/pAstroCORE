@@ -549,16 +549,11 @@ class ProjectInfoTab(QWidget):
         try:
             self.blockSignals(True)
             self.project_name_changed.disconnect()
-            logger.debug(f"Disconnected project_name_changed signal for {self.objectName()}")
 
             self.ui.projectInfoTable.setModel(None)
             self.model.clear()
             self.proxy_model.deleteLater()
             self.model.deleteLater()
-            logger.debug(f"Cleared table model and proxy model for {self.objectName()}")
-
-            self.ui.deleteLater()
-            logger.debug(f"Scheduled deletion of UI for {self.objectName()}")
 
             self.project = None
             self.manipulator = None
@@ -567,8 +562,6 @@ class ProjectInfoTab(QWidget):
             self.proxy_model = None
         except Exception as e:
             logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
-        finally:
-            logger.debug(f"Garbage collection triggered after cleaning {self.objectName()}")
 
     def closeEvent(self, event: QEvent):
         """Override closeEvent to perform cleanup before closing."""
