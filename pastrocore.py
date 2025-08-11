@@ -551,17 +551,20 @@ class PAstroCoreMainWindow(QMainWindow):
             if not file_name:
                 logger.debug("Open project cancelled")
                 return
+            
+            self._cleanup_project()
             with open(file_name, 'r') as f:
                 data = json.load(f)
-            self._cleanup_project()
+                
             self.project = ScheduleProject.from_dict(data)
             self.manipulator = ScheduleManipulator(self.project)
-            self.catalog_manager = self.initialize_catalog_manager()
+            
             self.current_project_path = file_name
             self.open_project_info_tab()
             self.update_project_explorer()
             self.project_updated.emit()
             logger.info(f"Opened project from {file_name}")
+            
         except Exception as e:
             logger.error(f"Error opening project: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
@@ -997,26 +1000,31 @@ class PAstroCoreMainWindow(QMainWindow):
     def _cleanup_project(self):
         """Clean up the current project and its dependencies."""
         try:
-            if self.manipulator:
-                self.manipulator.clear_cache()
-                self.manipulator.clear_base_classes()
-                self.manipulator = None
-                logger.debug("Cleared manipulator")
-            if self.project:
-                self.project.clear()
-                self.project = None
-                logger.debug("Cleared project")
             self._cleanup_tabs()
+            
             try:
                 self.project_updated.disconnect()
                 logger.debug("Disconnected project_updated signal")
             except Exception as e:
                 logger.debug(f"No project_updated signal to disconnect: {str(e)}")
+            
+            if self.manipulator:
+                self.manipulator.clear_cache()
+                self.manipulator.clear_base_classes()
+                self.manipulator = None
+                logger.debug("Cleared manipulator")
+                
+            if self.project:
+                self.project.clear()
+                self.project = None
+                logger.debug("Cleared project")
+                
         except Exception as e:
             logger.error(f"Error cleaning up project: {str(e)}")
         finally:
             gc.collect()
-    
+            logger.debug("Garbage collection triggered after project cleanup")
+
     def _initialize_project(self):
         """Initialize a new project and its dependencies."""
         self.project = ScheduleProject(name="Untitled Project")
