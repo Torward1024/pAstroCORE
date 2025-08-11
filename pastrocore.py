@@ -49,6 +49,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.setupUi(self)
         self.settings = self.load_settings()
         self._dock_was_visible = True
+        self._sync_in_progress = False 
     
         log_level_str = self.settings.get("log_level", "INFO")
         log_level = getattr(logging, log_level_str, logging.INFO)
@@ -111,6 +112,19 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("Disconnected tabCloseRequested signal")
         except Exception as e:
             logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")       
+            
+        # ДОБАВЛЕНО: Отключаем сигналы связанные с док-виджетом
+        try:
+            self.ui.actionProject_Explorer.toggled.disconnect()
+            logger.debug("Disconnected actionProject_Explorer.toggled signal")
+        except Exception as e:
+            logger.debug(f"No toggled signal to disconnect for actionProject_Explorer: {str(e)}")
+            
+        try:
+            self.ui.dockWidget.visibilityChanged.disconnect()
+            logger.debug("Disconnected dockWidget.visibilityChanged signal")
+        except Exception as e:
+            logger.debug(f"No visibilityChanged signal to disconnect for dockWidget: {str(e)}")       
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
@@ -906,12 +920,22 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot(bool)
     def sync_project_explorer_action(self, visible: bool):
         """Synchronize the Project Explorer menu action with dockWidget visibility."""
-        if self.windowState() & QtCore.Qt.WindowMinimized:
-            logger.debug("Skipping sync_project_explorer_action during minimization")
+        if self._sync_in_progress:
             return
-        self.ui.actionProject_Explorer.setChecked(visible)
-        self._dock_was_visible = visible
-        logger.debug(f"Project Explorer action synchronized: checked={visible}")
+            
+        self._sync_in_progress = True
+        try:
+            if self.windowState() & QtCore.Qt.WindowMinimized:
+                logger.debug("Skipping sync during minimization")
+                return
+                
+            if self.ui.actionProject_Explorer.isChecked() != visible:
+                logger.debug(f"Syncing action state to: {visible}")
+                self.ui.actionProject_Explorer.setChecked(visible)
+                
+            self._dock_was_visible = visible
+        finally:
+            self._sync_in_progress = False
     
     def changeEvent(self, event):
         """Handle window state changes, such as minimization and restoration."""
