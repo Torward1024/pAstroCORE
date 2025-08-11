@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QVBoxLayout
-from PySide6.QtCore import Signal, Slot
+from PySide6.QtCore import Signal, Slot, QEvent
 from pastrocore.utils.catalogmanager import CatalogManager
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -282,3 +282,8 @@ class ObservationTab(QWidget):
             logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
         finally:
             logger.debug(f"Garbage collection triggered after cleaning {self.objectName()}")
+    
+    def closeEvent(self, event: QEvent):
+        """Override closeEvent to perform cleanup before closing."""
+        self._cleanup()
+        super().closeEvent(event)

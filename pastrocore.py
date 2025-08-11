@@ -1021,6 +1021,11 @@ class PAstroCoreMainWindow(QMainWindow):
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
         logger.debug(f"Initialized new project with id: {id(self.project)}, manipulator id={id(self.manipulator)}")
+    
+    def closeEvent(self, event):
+        self.clear_connections()
+        self._cleanup_project()
+        super().closeEvent(event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
