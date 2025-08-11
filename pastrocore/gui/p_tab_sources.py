@@ -527,3 +527,41 @@ class SourcesTab(QWidget):
                     idx += 1
 
         self.ui.table.resizeColumnsToContents()
+
+    def _cleanup(self):
+        """Clean up resources associated with this tab."""
+        try:
+            self.blockSignals(True)
+            self.data_updated.disconnect()
+            logger.debug(f"Disconnected data_updated signal for {self.objectName()}")
+
+            self.ui.search.textChanged.disconnect(self.search_changed)
+            self.ui.table.customContextMenuRequested.disconnect(self.show_context_menu)
+            logger.debug(f"Disconnected UI signals for {self.objectName()}")
+
+            self.ui.table.setModel(None)
+            self.model.clear()
+            self.proxy_model.deleteLater()
+            self.model.deleteLater()
+            logger.debug(f"Cleared table model and proxy model for {self.objectName()}")
+
+            self.ui.deleteLater()
+            logger.debug(f"Scheduled deletion of UI for {self.objectName()}")
+
+            self.observation = None
+            self.project = None
+            self.manipulator = None
+            self.catalog_manager = None
+            self.active_icon = None
+            self.inactive_icon = None
+        except Exception as e:
+            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+        finally:
+            self.deleteLater()
+            logger.debug(f"Scheduled deletion of {self.objectName()}")
+
+    def closeEvent(self, event):
+        """Override closeEvent to perform cleanup before closing."""
+        self._cleanup()
+        super().closeEvent(event)
+        logger.debug(f"closeEvent handled for {self.objectName()}")

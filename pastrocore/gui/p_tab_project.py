@@ -1,9 +1,8 @@
 from PySide6.QtWidgets import QWidget, QMessageBox, QMenu
-from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint
+from PySide6.QtCore import Signal, Slot, Qt, QRegularExpression, QPoint, QEvent
 from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
@@ -573,12 +572,8 @@ class ProjectInfoTab(QWidget):
         finally:
             logger.debug(f"Garbage collection triggered after cleaning {self.objectName()}")
 
-    def close_tab(self):
-        """Close the project info tab and clean up resources."""
-        tab_container = self.parent_widget.ui.tabContainer
-        for i in range(tab_container.count()):
-            if tab_container.widget(i) == self:
-                self._cleanup()
-                tab_container.removeTab(i)
-                logger.info(f"Closed and cleaned project info tab")
-                break
+    def closeEvent(self, event: QEvent):
+        """Override closeEvent to perform cleanup before closing."""
+        self._cleanup()
+        super().closeEvent(event)
+    
