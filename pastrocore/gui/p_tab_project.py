@@ -547,12 +547,10 @@ class ProjectInfoTab(QWidget):
     def _cleanup(self):
         """Clean up resources associated with this tab."""
         try:
-            # Отключение сигналов
             self.blockSignals(True)
             self.project_name_changed.disconnect()
             logger.debug(f"Disconnected project_name_changed signal for {self.objectName()}")
 
-            # Очистка таблицы и моделей
             self.ui.projectInfoTable.setModel(None)
             self.model.clear()
             self.proxy_model.deleteLater()

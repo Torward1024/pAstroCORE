@@ -365,7 +365,6 @@ class Manipulator(ABC):
     def clear_cache(self) -> None:
         """Clear the method registry cache to free memory."""
         self._get_method_registry.cache_clear()
-        logger.info(f"Cleared method registry cache for {self.__class__.__name__}")
     
     def clear_base_classes(self) -> None:
         """Clear the list of base classes and update the method registry.
@@ -375,7 +374,6 @@ class Manipulator(ABC):
         """
         self._base_classes.clear()
         self._registry = self._get_method_registry()
-        logger.info(f"Cleared base classes for {self.__class__.__name__}")
     
     def clear_ops(self):
         """Clear all registered operations and their handlers."""
@@ -383,9 +381,7 @@ class Manipulator(ABC):
             for op_name, op_instance in self._operations.items():
                 if hasattr(op_instance, 'deleteLater'):
                     op_instance.deleteLater()
-                logger.debug(f"Cleared operation {op_name}")
             self._operations.clear()
-            logger.debug("All operations cleared")
         except Exception as e:
             logger.error(f"Error clearing operations: {str(e)}")
 
