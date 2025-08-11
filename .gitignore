@@ -1,5 +1,4 @@
-pvcore.log
-final_orbit370.txt
+.code-workspace
 
 # Игнорировать папку vs/, создаваемую Visual Studio
 .vs/
