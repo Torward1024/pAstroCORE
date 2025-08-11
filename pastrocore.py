@@ -113,7 +113,6 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")       
             
-        # ДОБАВЛЕНО: Отключаем сигналы связанные с док-виджетом
         try:
             self.ui.actionProject_Explorer.toggled.disconnect()
             logger.debug("Disconnected actionProject_Explorer.toggled signal")
