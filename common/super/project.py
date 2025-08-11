@@ -205,5 +205,6 @@ class Project(ABC):
         """Ensure cleanup of references to prevent memory leaks."""
         try:
             self.clear()
+            logger.debug(f"ScheduleProject {id(self)} deleted")
         except Exception as e:
             logger.error(f"Error during cleanup of Project '{self.name}': {str(e)}")

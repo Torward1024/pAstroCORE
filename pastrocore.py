@@ -91,10 +91,11 @@ class PAstroCoreMainWindow(QMainWindow):
         self._action_connections.clear()
 
         try:
-            self.project_updated.disconnect()
-            logger.debug("Disconnected project_updated signal")
+            if self.project_updated.receivers() > 0:
+                self.project_updated.disconnect()
+                logger.debug("Disconnected project_updated signal")
         except Exception as e:
-            logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
+            logger.debug(f"Error disconnecting project_updated: {str(e)}")
 
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
@@ -789,7 +790,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please set a valid telescopes catalog path in Preferences.")
             return
 
-        telescopes = self.catalog_manager.telescope_catalog.get_items()  # Используем get_items()
+        telescopes = self.catalog_manager.telescope_catalog.get_items()
         if not telescopes:
             logger.warning("Telescopes catalog is empty")
             QMessageBox.warning(self, "Warning", "Telescopes catalog is empty. Check the catalog file or reload in Preferences.")
@@ -984,14 +985,27 @@ class PAstroCoreMainWindow(QMainWindow):
             if widget:
                 try:
                     widget.blockSignals(True)
-                    if hasattr(widget, 'observation_updated'):
-                        widget.observation_updated.disconnect()
-                    if hasattr(widget, 'project_name_changed'):
-                        widget.project_name_changed.disconnect()
+                    
+                    if isinstance(widget, ProjectInfoTab):
+                        try:
+                            widget.project_name_changed.disconnect()
+                        except Exception:
+                            pass
+                    elif isinstance(widget, ObservationTab):
+                        try:
+                            widget.observation_updated.disconnect()
+                        except Exception:
+                            pass
+                    
                     if hasattr(widget, '_cleanup'):
                         widget._cleanup()
-                    widget.deleteLater()
+                
+                    for child in widget.children():
+                        if isinstance(child, QtCore.QObject):
+                            child.deleteLater()
                     tab_container.removeTab(i)
+                    widget.deleteLater()
+                    
                     logger.debug(f"Cleaned and removed tab {widget.objectName()}")
                 except Exception as e:
                     logger.error(f"Error cleaning tab {widget.objectName()}: {str(e)}")
@@ -1004,26 +1018,35 @@ class PAstroCoreMainWindow(QMainWindow):
             
             try:
                 self.project_updated.disconnect()
-                logger.debug("Disconnected project_updated signal")
-            except Exception as e:
-                logger.debug(f"No project_updated signal to disconnect: {str(e)}")
+            except Exception:
+                pass
             
             if self.manipulator:
                 self.manipulator.clear_cache()
                 self.manipulator.clear_base_classes()
-                self.manipulator = None
-                logger.debug("Cleared manipulator")
                 
+                if hasattr(self.manipulator, '_project'):
+                    self.manipulator._project = None
+                self.manipulator = None
+            
             if self.project:
                 self.project.clear()
-                self.project = None
-                logger.debug("Cleared project")
                 
+                for obs in self.project.get_items().values():
+                    if hasattr(obs, 'cleanup'):
+                        obs.cleanup()
+                    for attr in ['_project', '_manipulator', '_parent']:
+                        if hasattr(obs, attr):
+                            setattr(obs, attr, None)
+                
+                self.project = None
+            
         except Exception as e:
             logger.error(f"Error cleaning up project: {str(e)}")
         finally:
             gc.collect()
             logger.debug("Garbage collection triggered after project cleanup")
+            QtCore.QTimer.singleShot(100, gc.collect)
 
     def _initialize_project(self):
         """Initialize a new project and its dependencies."""

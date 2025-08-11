@@ -646,7 +646,6 @@ class ScansTab(QWidget):
             self.ui.table.customContextMenuRequested.disconnect(self.show_context_menu)
             logger.debug(f"Disconnected UI signals for {self.objectName()}")
 
-            # Disconnect signals from other tabs if connected
             if self.sender() and hasattr(self.sender(), 'data_updated'):
                 self.sender().data_updated.disconnect(self.handle_data_updated)
             logger.debug(f"Disconnected external data_updated signals for {self.objectName()}")

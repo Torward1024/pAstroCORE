@@ -401,6 +401,7 @@ class Manipulator(ABC):
             self.clear_cache()
             self.clear_base_classes()
             self._managing_object = None
+            logger.debug(f"ScheduleManipulator {id(self)} deleted")
         except Exception as e:
             logger.error(f"Error during cleanup of ScheduleManipulator: {str(e)}")
         
