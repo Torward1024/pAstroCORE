@@ -64,7 +64,6 @@ class TelescopesTab(QWidget):
         """Show context menu for the telescopes table."""
         menu = QMenu(self)
         
-        # Always add actions for adding telescopes
         add_telescope_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Telescope")
         add_space_telescope_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Space Telescope")
         add_from_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add Telescope from Catalog")
@@ -74,7 +73,6 @@ class TelescopesTab(QWidget):
         add_from_catalog_action.triggered.connect(self.add_from_catalog)
         import_new_action.triggered.connect(self.import_new_telescope)
 
-        # Check if there are any telescopes in the observation
         telescopes_response = self.manipulator.process_request({
             "operation": "inspect",
             "obj": self.observation,
@@ -89,10 +87,9 @@ class TelescopesTab(QWidget):
             })
             has_telescopes = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
         else:
-            logger.error(f"Failed to inspect telescopes: {telescopes_response.get('error', 'Unknown error')}")
+            logger.debug(f"No telescopes found in observation '{self.observation.code}'")
 
         if has_telescopes:
-            # Add bulk actions for telescopes
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
             deactivate_all_action = menu.addAction(QIcon(":/icons/inactive_icon.svg"), "Deactivate All")
             drop_active_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Drop Active")
@@ -104,7 +101,6 @@ class TelescopesTab(QWidget):
             drop_inactive_action.triggered.connect(self.drop_inactive_telescopes)
             clear_action.triggered.connect(self.clear_telescopes)
 
-        # Check if a specific row is selected
         index = self.ui.table.indexAt(position)
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
@@ -288,7 +284,6 @@ class TelescopesTab(QWidget):
             with open(file_path, "r") as f:
                 data = json.load(f)
             telescope_type = data.get("type", "Telescope")
-            # Remove type key from data to avoid passing it to from_dict
             data.pop("type", None)
             if telescope_type == "SpaceTelescope":
                 telescope = SpaceTelescope.from_dict(data)
@@ -386,14 +381,12 @@ class TelescopesTab(QWidget):
             if dialog.exec() == QDialog.Accepted:
                 try:
                     telescope_data = dialog.get_telescope_data()
-                    # Update the existing telescope's attributes
                     for key, value in telescope_data.items():
                         if hasattr(telescope, key):
                             setattr(telescope, key, value)
                         else:
                             logger.warning(f"Attribute '{key}' not found in telescope object")
                     
-                    # Reassign the updated telescope to ensure persistence
                     request = {
                         "operation": "configure",
                         "obj": self.observation.get_telescopes(),

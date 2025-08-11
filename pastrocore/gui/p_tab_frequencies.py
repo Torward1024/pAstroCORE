@@ -77,7 +77,7 @@ class FrequenciesTab(QWidget):
             })
             has_frequencies = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
         else:
-            logger.info(f"No frequencies found in observation '{self.observation.code}'")
+            logger.debug(f"No frequencies found in observation '{self.observation.code}'")
 
         if has_frequencies:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")

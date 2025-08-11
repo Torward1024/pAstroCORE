@@ -88,7 +88,7 @@ class ScansTab(QWidget):
             })
             has_scans = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
         else:
-            logger.error(f"Failed to inspect scans: {scans_response.get('error', 'Unknown error')}")
+            logger.debug(f"No scans found in observation '{self.observation.code}'")
 
         if has_scans:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")

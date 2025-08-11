@@ -79,7 +79,7 @@ class SourcesTab(QWidget):
             })
             has_sources = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
         else:
-            logger.error(f"Failed to inspect sources: {sources_response.get('error', 'Unknown error')}")
+            logger.debug(f"No sources found in observation '{self.observation.code}'")
 
         if has_sources:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
@@ -463,7 +463,6 @@ class SourcesTab(QWidget):
             if items_response["status"] and isinstance(items_response["result"], dict):
                 idx = 1
                 for name, source_obj in items_response["result"].items():
-                    # Получение активности источника
                     is_active_response = self.manipulator.process_request({
                         "operation": "inspect",
                         "obj": source_obj,
@@ -471,13 +470,11 @@ class SourcesTab(QWidget):
                     })
                     is_active = is_active_response["status"] and bool(is_active_response["result"])
 
-                    # Создание элемента для иконки активности
                     active_item = QStandardItem()
                     active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
                     active_item.setToolTip("Active" if is_active else "Inactive")
                     active_item.setTextAlignment(Qt.AlignCenter)
 
-                    # Получение данных источника
                     attrs_response = self.manipulator.process_request({
                         "operation": "inspect",
                         "obj": source_obj,
@@ -498,7 +495,6 @@ class SourcesTab(QWidget):
                     name_J2000 = attrs.get("name_J2000", "") or ""
                     alt_name = attrs.get("alt_name", "") or ""
 
-                    # Форматирование RA
                     ra_h = attrs.get("ra_h", 0.0)
                     ra_m = attrs.get("ra_m", 0.0)
                     ra_s = attrs.get("ra_s", 0.0)
