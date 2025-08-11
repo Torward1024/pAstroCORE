@@ -111,11 +111,6 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("Disconnected tabCloseRequested signal")
         except Exception as e:
             logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")       
-        try:
-            self.ui.dockWidget.visibilityChanged.disconnect(self.sync_project_explorer_action)
-            logger.debug("Disconnected visibilityChanged signal")
-        except Exception as e:
-            logger.debug(f"No visibilityChanged signal to disconnect: {str(e)}")
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
@@ -163,7 +158,6 @@ class PAstroCoreMainWindow(QMainWindow):
         if project_explorer:
             project_explorer.setContextMenuPolicy(Qt.CustomContextMenu)
             project_explorer.customContextMenuRequested.connect(self.show_context_menu)
-            logger.debug("Project explorer context menu connected")
         else:
             logger.error("Project explorer widget not found during setup_ui")
         self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
@@ -190,12 +184,10 @@ class PAstroCoreMainWindow(QMainWindow):
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             project_explorer.clicked.connect(self.handle_project_explorer_click)
-            logger.debug("Connected project explorer clicked signal")
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
+        self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
         self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
-        
         self.project_updated.connect(self.update_project_explorer)
-        logger.debug("Connected project_updated signal to update_project_explorer")
 
     @Slot()
     def open_calculation_dialog(self):
@@ -924,25 +916,12 @@ class PAstroCoreMainWindow(QMainWindow):
     def changeEvent(self, event):
         """Handle window state changes, such as minimization and restoration."""
         if event.type() == QtCore.QEvent.WindowStateChange:
-            old_state = event.oldState()
             new_state = self.windowState()
             
-            if old_state & QtCore.Qt.WindowNoState and new_state & QtCore.Qt.WindowMinimized:
-                self._dock_was_visible = self.ui.dockWidget.isVisible()
-                try:
-                    self.ui.dockWidget.visibilityChanged.disconnect(self.sync_project_explorer_action)
-                except RuntimeError:
-                    pass
-            
-            elif old_state & QtCore.Qt.WindowMinimized and new_state == QtCore.Qt.WindowNoState:
-                try:
-                    self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
-                except RuntimeError:
-                    pass
-                
+            if new_state == QtCore.Qt.WindowNoState:
                 if self.ui.dockWidget.isVisible() != self._dock_was_visible:
                     self.ui.dockWidget.setVisible(self._dock_was_visible)
-                    self.ui.actionProject_Explorer.setChecked(self._dock_was_visible)
+                    self.sync_project_explorer_action(self._dock_was_visible)
         
         super().changeEvent(event)
     
@@ -1014,7 +993,6 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.error(f"Error cleaning up project: {str(e)}")
         finally:
             gc.collect()
-            logger.debug("Garbage collection triggered after project cleanup")
     
     def _initialize_project(self):
         """Initialize a new project and its dependencies."""
@@ -1024,7 +1002,6 @@ class PAstroCoreMainWindow(QMainWindow):
     
     def closeEvent(self, event):
         self.clear_connections()
-        self._cleanup_project()
         super().closeEvent(event)
 
 if __name__ == "__main__":
