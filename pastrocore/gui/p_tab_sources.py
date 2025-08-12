@@ -175,30 +175,10 @@ class SourcesTab(QWidget):
 
     @Slot()
     def add_source_from_catalog(self):
-        """Add a source from the catalog to the observation."""
+        """Add multiple sources from the catalog to the observation."""
         dialog = SourcesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
-        if dialog.exec() == QDialog.Accepted and dialog.selected_source:
-            try:
-                source = dialog.selected_source.copy()
-                source_name = source.name
-                request = {
-                    "operation": "configure",
-                    "obj": self.observation.get_sources(),
-                    "attributes": {
-                        "add": source
-                    }
-                }
-                response = self.manipulator.process_request(request)
-                if response["status"]:
-                    logger.info(f"Added source '{source_name}' from catalog to observation '{self.observation.code}'")
-                    self.update()
-                    self.data_updated.emit(source_name, None, "add")
-                else:
-                    logger.error(f"Failed to add source from catalog: {response.get('error', 'Unknown error')}")
-                    QMessageBox.critical(self, "Error", f"Failed to add source: {response.get('error', 'Unknown error')}")
-            except Exception as e:
-                logger.error(f"Exception while adding source from catalog: {str(e)}")
-                QMessageBox.critical(self, "Error", f"Failed to add source: {str(e)}")
+        dialog.sources_selected.connect(self.handle_sources_selected)
+        dialog.exec()
 
     @Slot(str)
     def remove_source(self, source_name: str):
@@ -523,6 +503,60 @@ class SourcesTab(QWidget):
                     idx += 1
 
         self.ui.table.resizeColumnsToContents()
+
+    @Slot(list)
+    def handle_sources_selected(self, sources: list):
+        """Handle the addition of multiple selected sources from the catalog.
+
+        Skips sources that already exist in the observation by name.
+
+        Args:
+            sources (list): List of selected Source objects.
+        """
+        try:
+            existing_sources_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_sources(),
+                "attributes": {"get_all": None}
+            })
+            existing_names = set()
+            if existing_sources_response["status"] and isinstance(existing_sources_response["result"], dict):
+                existing_names = set(existing_sources_response["result"].keys())
+
+            unique_sources = []
+            skipped_sources = []
+            for source in sources:
+                if source.name in existing_names:
+                    skipped_sources.append(source.name)
+                    logger.info(f"Skipped source '{source.name}' as it already exists in observation '{self.observation.code}'")
+                    continue
+                unique_sources.append(source)
+
+            if not unique_sources:
+                logger.warning(f"No new sources to add to observation '{self.observation.code}'")
+                QMessageBox.warning(self, "Warning", f"No new sources to add. Skipped: {', '.join(skipped_sources) if skipped_sources else 'None'}")
+                return
+
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_sources(),
+                "attributes": {"add": unique_sources}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                for source in unique_sources:
+                    logger.info(f"Added source '{source.name}' from catalog to observation '{self.observation.code}'")
+                self.data_updated.emit(None, None, "add_multiple")
+                self.update()
+                QMessageBox.information(self, "Success", f"Successfully added {len(unique_sources)} source(s) to observation.")
+                if skipped_sources:
+                    QMessageBox.information(self, "Note", f"Skipped {len(skipped_sources)} source(s) already in observation: {', '.join(skipped_sources)}")
+            else:
+                logger.error(f"Failed to add sources: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to add sources: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while adding sources from catalog: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to add sources: {str(e)}")
 
     def _cleanup(self):
         """Clean up resources associated with this tab."""

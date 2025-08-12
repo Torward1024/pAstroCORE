@@ -336,10 +336,8 @@ class Sources(BaseContainer[Source]):
         if name not in self._items:
             raise KeyError(f"Source '{name}' not found in Sources")
 
-        # Get the existing source
         existing_source = self._items[name]
 
-        # Prepare parameters, using existing values if not provided
         params = {
             "name": name,
             "ra_h": ra_h if ra_h is not None else existing_source.ra_h,
@@ -355,10 +353,8 @@ class Sources(BaseContainer[Source]):
             "isactive": isactive if isactive is not None else existing_source.isactive,
         }
 
-        # Create a new Source object to validate parameters
         updated_source = Source(**params)
 
-        # Update the source in the collection
         self._items[name] = updated_source
         self._key_cache = list(self._items.keys())
         logger.info(f"Updated source '{name}' in Sources with params: {params}")

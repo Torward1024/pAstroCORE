@@ -6,8 +6,8 @@ from pastrocore.utils.catalogmanager import CatalogManager
 from common.utils.logging_setup import logger
 
 class SourcesCatalogDialog(QDialog):
-    """Dialog for browsing the sources catalog."""
-    source_selected = Signal(object)  # Signal to emit selected source
+    """Dialog for browsing and selecting sources from the catalog."""
+    sources_selected = Signal(list)  # Signal to emit list of selected sources
 
     def __init__(self, catalog_manager: CatalogManager, parent=None, allow_selection: bool = False):
         """Initialize the sources catalog dialog.
@@ -23,7 +23,6 @@ class SourcesCatalogDialog(QDialog):
         self.catalog_manager = catalog_manager
         self.model = QStandardItemModel(self)
         self.allow_selection = allow_selection
-        self.selected_source = None
         self.setWindowTitle("Sources Catalog Browser")
         self.setup_ui()
         self.setup_connections()
@@ -37,10 +36,9 @@ class SourcesCatalogDialog(QDialog):
         self.ui.lbl_search.setText("Search by Name:")
         
         if self.allow_selection:
-            self.ui.catalogTable.setSelectionMode(QAbstractItemView.SingleSelection)
+            self.ui.catalogTable.setSelectionMode(QAbstractItemView.MultiSelection)
             self.ui.catalogTable.setSelectionBehavior(QAbstractItemView.SelectRows)
-            # Add 'Add' button
-            self.add_button = QPushButton("Add", self)
+            self.add_button = QPushButton("Add Selected", self)
             self.add_button.setStyleSheet("""
                 QPushButton {
                     background-color: #0078d7;
@@ -58,11 +56,8 @@ class SourcesCatalogDialog(QDialog):
                     padding-bottom: 5px;
                 }
             """)
-            # Remove horizontalSpacer from gridLayout to free up space
             self.ui.gridLayout.removeItem(self.ui.horizontalSpacer)
-            # Add 'Add' button to gridLayout at position (1, 2)
             self.ui.gridLayout.addWidget(self.add_button, 1, 2, 1, 1)
-            # Move closeButton to (1, 3) (it should already be there, but ensure consistency)
             self.ui.gridLayout.addWidget(self.ui.closeButton, 1, 3, 1, 1)
 
     def setup_connections(self):
@@ -70,7 +65,7 @@ class SourcesCatalogDialog(QDialog):
         self.ui.closeButton.clicked.connect(self.reject)
         self.ui.search.textChanged.connect(self.filter_sources)
         if self.allow_selection:
-            self.add_button.clicked.connect(self.select_source)
+            self.add_button.clicked.connect(self.select_sources)
 
     def populate_table(self):
         """Populate the table with sources from the catalog manager."""
@@ -95,6 +90,7 @@ class SourcesCatalogDialog(QDialog):
             ]
             for item in items:
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            items[0].setData(source, Qt.UserRole)  # Store source object in first column
             self.model.appendRow(items)
 
         logger.info(f"Populated sources catalog table with {len(sources)} sources")
@@ -126,28 +122,30 @@ class SourcesCatalogDialog(QDialog):
                 ]
                 for item in items:
                     item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                items[0].setData(source, Qt.UserRole)
                 self.model.appendRow(items)
 
         logger.info(f"Filtered sources catalog with search text '{text}', {self.model.rowCount()} sources displayed")
 
     @Slot()
-    def select_source(self):
-        """Handle selection of a source for adding to observation."""
-        selected = self.ui.catalogTable.selectionModel().selectedRows()
-        if not selected:
-            logger.warning("No source selected for adding")
-            QMessageBox.warning(self, "Warning", "Please select a source to add.")
+    def select_sources(self):
+        """Handle selection of multiple sources for adding to observation."""
+        selected_rows = self.ui.catalogTable.selectionModel().selectedRows()
+        if not selected_rows:
+            logger.warning("No sources selected for adding")
+            QMessageBox.warning(self, "Warning", "Please select one or more sources to add.")
             return
 
-        row = selected[0].row()
-        source_name = self.model.item(row, 0).text()
-        sources = self.catalog_manager.source_catalog.get_items()
-        for source in sources:
-            if source.name == source_name:
-                self.selected_source = source
-                self.source_selected.emit(source)
-                self.accept()
-                logger.info(f"Selected source '{source_name}' for adding to observation")
-                return
-        logger.error(f"Source '{source_name}' not found in catalog")
-        QMessageBox.critical(self, "Error", f"Source '{source_name}' not found in catalog.")
+        selected_sources = []
+        for index in selected_rows:
+            source = self.model.item(index.row(), 0).data(Qt.UserRole)
+            if source:
+                selected_sources.append(source)
+
+        if selected_sources:
+            self.sources_selected.emit(selected_sources)
+            self.accept()
+            logger.info(f"Selected {len(selected_sources)} sources for adding to observation")
+        else:
+            logger.error("No valid sources found in selection")
+            QMessageBox.critical(self, "Error", "No valid sources found in selection.")

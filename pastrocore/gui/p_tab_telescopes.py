@@ -66,11 +66,11 @@ class TelescopesTab(QWidget):
         
         add_telescope_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Telescope")
         add_space_telescope_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Space Telescope")
-        add_from_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add Telescope from Catalog")
+        add_telescope_from_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add Telescope from Catalog")
         import_new_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import New Telescope")
         add_telescope_action.triggered.connect(self.add_telescope)
         add_space_telescope_action.triggered.connect(self.add_space_telescope)
-        add_from_catalog_action.triggered.connect(self.add_from_catalog)
+        add_telescope_from_catalog_action.triggered.connect(self.add_telescope_from_catalog)
         import_new_action.triggered.connect(self.import_new_telescope)
 
         telescopes_response = self.manipulator.process_request({
@@ -200,41 +200,75 @@ class TelescopesTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to add space telescope: {str(e)}")
 
     @Slot()
-    def add_from_catalog(self):
-        """Add a telescope from the catalog to the observation."""
+    def add_telescope_from_catalog(self):
+        """Add multiple telescopes from the catalog to the observation."""
         dialog = TelescopesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
-        if dialog.exec() == QDialog.Accepted and dialog.selected_telescope:
-            try:
-                telescope = dialog.selected_telescope.copy()
-                telescope_code = telescope.code
-                telescope_name = telescope.name
-                # Ensure unique code to avoid conflicts
-                existing_telescopes = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": self.observation.get_telescopes(),
-                    "attributes": {"get_all": None}
-                })
-                if existing_telescopes["status"] and telescope_name in existing_telescopes["result"] and telescope_code in existing_telescopes['result']:
-                    telescope_name = f"{telescope_name}_{uuid.uuid4().int[:2]}"
-                    telescope_code = f"{telescope_code}_{uuid.uuid4().int[:2]}"
-                    telescope_code = telescope_code
-                    telescope.name = telescope_name
-                request = {
-                    "operation": "configure",
-                    "obj": self.observation.get_telescopes(),
-                    "attributes": {"add": telescope}
-                }
-                response = self.manipulator.process_request(request)
-                if response["status"]:
-                    logger.info(f"Added telescope '{telescope_code}' from catalog to observation '{self.observation.code}'")
-                    self.update()
-                    self.data_updated.emit(telescope_name, None, "add")
-                else:
-                    logger.error(f"Failed to add telescope from catalog: {response.get('error', 'Unknown error')}")
-                    QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
-            except Exception as e:
-                logger.error(f"Exception while adding telescope from catalog: {str(e)}")
-                QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
+        dialog.telescopes_selected.connect(self.handle_telescopes_selected)
+        dialog.exec()
+
+    @Slot(list)
+    def handle_telescopes_selected(self, telescopes: list):
+        """Handle the addition of multiple selected telescopes from the catalog.
+
+        Skips telescopes that already exist in the observation by name or code.
+
+        Args:
+            telescopes (list): List of selected Telescope or SpaceTelescope objects.
+        """
+        try:
+            existing_telescopes_response = self.manipulator.process_request({
+                "operation": "inspect",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"get_all": None}
+            })
+            existing_codes = set()
+            existing_names = set()
+            if existing_telescopes_response["status"] and isinstance(existing_telescopes_response["result"], dict):
+                for name, telescope in existing_telescopes_response["result"].items():
+                    code_response = self.manipulator.process_request({
+                        "operation": "inspect",
+                        "obj": telescope,
+                        "attributes": {"get": "code"}
+                    })
+                    if code_response["status"]:
+                        existing_codes.add(code_response["result"])
+                    existing_names.add(name)
+
+            unique_telescopes = []
+            skipped_telescopes = []
+            for telescope in telescopes:
+                if telescope.name in existing_names or telescope.code in existing_codes:
+                    skipped_telescopes.append(telescope.name)
+                    logger.info(f"Skipped telescope '{telescope.name}' (code: '{telescope.code}') as it already exists in observation '{self.observation.code}'")
+                    continue
+                unique_telescopes.append(telescope)
+
+            if not unique_telescopes:
+                logger.warning(f"No new telescopes to add to observation '{self.observation.code}'")
+                QMessageBox.warning(self, "Warning", f"No new telescopes to add. Skipped: {', '.join(skipped_telescopes) if skipped_telescopes else 'None'}")
+                return
+
+            # Add telescopes using BaseContainer.add (copying handled internally)
+            request = {
+                "operation": "configure",
+                "obj": self.observation.get_telescopes(),
+                "attributes": {"add": unique_telescopes}
+            }
+            response = self.manipulator.process_request(request)
+            if response["status"]:
+                for telescope in unique_telescopes:
+                    logger.info(f"Added telescope '{telescope.code}' from catalog to observation '{self.observation.code}'")
+                self.data_updated.emit(None, None, "add_multiple")  # Single emit for all additions
+                self.update()
+                QMessageBox.information(self, "Success", f"Successfully added {len(unique_telescopes)} telescope(s) to observation.")
+                if skipped_telescopes:
+                    QMessageBox.information(self, "Note", f"Skipped {len(skipped_telescopes)} telescope(s) already in observation: {', '.join(skipped_telescopes)}")
+            else:
+                logger.error(f"Failed to add telescopes: {response.get('error', 'Unknown error')}")
+                QMessageBox.critical(self, "Error", f"Failed to add telescopes: {response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Exception while adding telescopes from catalog: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to add telescopes: {str(e)}")
 
     @Slot()
     def import_new_telescope(self):
