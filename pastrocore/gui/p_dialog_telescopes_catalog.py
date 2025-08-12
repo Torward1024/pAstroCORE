@@ -6,8 +6,8 @@ from pastrocore.utils.catalogmanager import CatalogManager
 from common.utils.logging_setup import logger
 
 class TelescopesCatalogDialog(QDialog):
-    """Dialog for browsing the telescopes catalog."""
-    telescope_selected = Signal(object)  # Signal to emit selected telescope
+    """Dialog for browsing and selecting telescopes from the catalog."""
+    telescopes_selected = Signal(list)  # Signal to emit list of selected telescopes
 
     def __init__(self, catalog_manager: CatalogManager, parent=None, allow_selection: bool = False):
         """Initialize the telescopes catalog dialog.
@@ -23,7 +23,6 @@ class TelescopesCatalogDialog(QDialog):
         self.catalog_manager = catalog_manager
         self.model = QStandardItemModel(self)
         self.allow_selection = allow_selection
-        self.selected_telescope = None
         self.setWindowTitle("Telescopes Catalog Browser")
         self.setup_ui()
         self.setup_connections()
@@ -37,10 +36,9 @@ class TelescopesCatalogDialog(QDialog):
         self.ui.lbl_search.setText("Search by Code or Name:")
         
         if self.allow_selection:
-            self.ui.catalogTable.setSelectionMode(QAbstractItemView.SingleSelection)
+            self.ui.catalogTable.setSelectionMode(QAbstractItemView.MultiSelection)
             self.ui.catalogTable.setSelectionBehavior(QAbstractItemView.SelectRows)
-            # Add 'Add' button
-            self.add_button = QPushButton("Add", self)
+            self.add_button = QPushButton("Add Selected", self)
             self.add_button.setStyleSheet("""
                 QPushButton {
                     background-color: #0078d7;
@@ -58,11 +56,8 @@ class TelescopesCatalogDialog(QDialog):
                     padding-bottom: 5px;
                 }
             """)
-            # Remove horizontalSpacer from gridLayout to free up space
             self.ui.gridLayout.removeItem(self.ui.horizontalSpacer)
-            # Add 'Add' button to gridLayout at position (1, 2)
             self.ui.gridLayout.addWidget(self.add_button, 1, 2, 1, 1)
-            # Move closeButton to (1, 3) (it should already be there, but ensure consistency)
             self.ui.gridLayout.addWidget(self.ui.closeButton, 1, 3, 1, 1)
 
     def setup_connections(self):
@@ -70,7 +65,7 @@ class TelescopesCatalogDialog(QDialog):
         self.ui.closeButton.clicked.connect(self.reject)
         self.ui.search.textChanged.connect(self.filter_telescopes)
         if self.allow_selection:
-            self.add_button.clicked.connect(self.select_telescope)
+            self.add_button.clicked.connect(self.select_telescopes)
 
     def populate_table(self):
         """Populate the table with telescopes from the catalog manager."""
@@ -82,7 +77,6 @@ class TelescopesCatalogDialog(QDialog):
             QMessageBox.warning(self, "Warning", "Telescopes catalog is empty.")
             return
 
-        # Проверка уникальности имени
         names = [telescope.name for telescope in telescopes if telescope.name]
         unique_names = set(names)
         if len(names) != len(unique_names):
@@ -100,6 +94,7 @@ class TelescopesCatalogDialog(QDialog):
             ]
             for item in items:
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            items[0].setData(telescope, Qt.UserRole)  # Store telescope object in first column
             self.model.appendRow(items)
 
         logger.info(f"Populated telescopes catalog table with {len(telescopes)} telescopes")
@@ -128,34 +123,30 @@ class TelescopesCatalogDialog(QDialog):
                 ]
                 for item in items:
                     item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                items[0].setData(telescope, Qt.UserRole)
                 self.model.appendRow(items)
 
         logger.info(f"Filtered telescopes catalog with search text '{text}', {self.model.rowCount()} telescopes displayed")
 
     @Slot()
-    def select_telescope(self):
-        """Handle selection of a telescope for adding to observation."""
-        selected = self.ui.catalogTable.selectionModel().selectedRows()
-        if not selected:
-            logger.warning("No telescope selected for adding")
-            QMessageBox.warning(self, "Warning", "Please select a telescope to add.")
+    def select_telescopes(self):
+        """Handle selection of multiple telescopes for adding to observation."""
+        selected_rows = self.ui.catalogTable.selectionModel().selectedRows()
+        if not selected_rows:
+            logger.warning("No telescopes selected for adding")
+            QMessageBox.warning(self, "Warning", "Please select one or more telescopes to add.")
             return
 
-        row = selected[0].row()
-        telescope_name = self.model.item(row, 1).text()  # Извлекаем name (второй столбец)
-        telescopes = self.catalog_manager.telescope_catalog.get_items()
-        matching_telescopes = [t for t in telescopes if t.name == telescope_name]
+        selected_telescopes = []
+        for index in selected_rows:
+            telescope = self.model.item(index.row(), 0).data(Qt.UserRole)
+            if telescope:
+                selected_telescopes.append(telescope)
 
-        if not matching_telescopes:
-            logger.error(f"Telescope with name '{telescope_name}' not found in catalog")
-            QMessageBox.critical(self, "Error", f"Telescope '{telescope_name}' not found in catalog.")
-            return
-
-        if len(matching_telescopes) > 1:
-            logger.warning(f"Multiple telescopes with name '{telescope_name}' found in catalog")
-            QMessageBox.warning(self, "Warning", f"Multiple telescopes with name '{telescope_name}' found. Selecting the first one.")
-
-        self.selected_telescope = matching_telescopes[0]
-        self.telescope_selected.emit(self.selected_telescope)
-        self.accept()
-        logger.info(f"Selected telescope '{telescope_name}' for adding to observation")
+        if selected_telescopes:
+            self.telescopes_selected.emit(selected_telescopes)
+            self.accept()
+            logger.info(f"Selected {len(selected_telescopes)} telescopes for adding to observation")
+        else:
+            logger.error("No valid telescopes found in selection")
+            QMessageBox.critical(self, "Error", "No valid telescopes found in selection.")

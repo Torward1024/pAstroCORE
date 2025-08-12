@@ -1,5 +1,6 @@
 # base/basecontainer.py
 from abc import ABC
+from copy import deepcopy
 from typing import Dict, TypeVar, Generic, Any, Optional, List, Iterator, Union, get_type_hints, get_args, get_origin
 from common.base.baseentity import BaseEntity
 from common.utils.logging_setup import logger
@@ -61,29 +62,26 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             TypeError: If items or its values do not match expected types.
             ValueError: If an item's name does not match its dictionary key.
         """
-        # workaround for Generic[T] breaking EntityMeta's _fields setup
+        
         if not hasattr(self.__class__, '_fields'):
             self.__class__._fields = get_type_hints(self.__class__)
         
-        # prepare items with type validation
         initial_items = items or {}
         if not isinstance(initial_items, dict):
             raise TypeError(f"'items' must be a dict, got {type(initial_items)}")
         
-        # extract T from Generic[T] and validate each item
         generic_base = self.__orig_bases__[0]
-        item_type = self._resolve_type(generic_base.__args__[0])  # Resolve T to actual type (e.g., TestEntity)
+        item_type = self._resolve_type(generic_base.__args__[0])
         for key, item in initial_items.items():
             if not isinstance(key, str):
                 raise TypeError(f"Keys in '_items' must be str, got {type(key)}")
             self._validate_type(f"_items[{key}]", item, item_type)
         
-        # pass the resolved type to BaseEntity
         resolved_items_type = Dict[str, item_type]
-        self._fields["_items"] = resolved_items_type  # update _fields with resolved type
+        self._fields["_items"] = resolved_items_type
         
         generic_base = self.__orig_bases__[0]
-        self._item_type = self._resolve_type(generic_base.__args__[0])  # Кэшируем тип
+        self._item_type = self._resolve_type(generic_base.__args__[0])
         super().__init__(name=name, isactive=isactive, _items=initial_items, _use_cache=use_cache, _cached_to_dict=None)
         self._validate_items(self._items)
         logger.info(f"Initialized {self.__class__.__name__} with name={name}, isactive={isactive}, item_count={len(self._items)}")
@@ -118,28 +116,70 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """
         pass
 
-    def add(self, item: T) -> None:
-        """Add an item to the collection using its name as the key.
+    def add(self, item: Union[T, List[T], 'BaseContainer[T]'], copy_items: bool = True) -> None:
+        """Add one or more items to the collection using their names as keys.
+
+        Supports adding a single item, a list of items, or items from another BaseContainer of the same item type.
+        By default, creates deep copies of items to prevent unintended modifications of original objects.
 
         Args:
-            item (T): The item to add to the container.
+            item (Union[T, List[T], BaseContainer[T]]): A single item, a list of items, or a BaseContainer
+                containing items of type T to add to the container.
+            copy_items (bool): If True, creates deep copies of items to ensure isolation. Defaults to True.
 
         Raises:
-            ValueError: If the item's name is None or already exists in the container.
-            TypeError: If the item's type does not match the expected type T.
+            ValueError: If any item's name is None, already exists in the container, or does not match its key.
+            TypeError: If any item's type does not match the expected type T, or if the input type is unsupported.
+            AttributeError: If an item or container lacks a 'copy' method when copy_items is True.
         """
         generic_base = self.__orig_bases__[0]
         item_type = self._resolve_type(generic_base.__args__[0])
-        if not isinstance(item, item_type):
-            raise TypeError(f"Item must be of type {item_type.__name__}, got {type(item).__name__}")
-        if item.name is None:
-            raise ValueError(f"Cannot add item with no name to {self.__class__.__name__}")
-        self._validate_item(item)
-        if item.name in self._items:
-            raise ValueError(f"Item with name '{item.name}' already exists in {self.__class__.__name__}")
-        self._items[item.name] = item
+
+        # Handle single item
+        if isinstance(item, item_type):
+            item_to_add = deepcopy(item) if copy_items else item
+            if item_to_add.name is None:
+                raise ValueError(f"Cannot add item with no name to {self.__class__.__name__}")
+            self._validate_item(item_to_add)
+            if item_to_add.name in self._items:
+                raise ValueError(f"Item with name '{item_to_add.name}' already exists in {self.__class__.__name__}")
+            self._items[item_to_add.name] = item_to_add
+            logger.info(f"Added item with name '{item_to_add.name}' to {self.__class__.__name__}")
+
+        # Handle list of items
+        elif isinstance(item, list):
+            for i, single_item in enumerate(item):
+                item_to_add = deepcopy(single_item) if copy_items else single_item
+                if not isinstance(item_to_add, item_type):
+                    raise TypeError(f"Item at index {i} must be of type {item_type.__name__}, got {type(single_item).__name__}")
+                if item_to_add.name is None:
+                    raise ValueError(f"Cannot add item at index {i} with no name to {self.__class__.__name__}")
+                self._validate_item(item_to_add)
+                if item_to_add.name in self._items:
+                    raise ValueError(f"Item with name '{item_to_add.name}' at index {i} already exists in {self.__class__.__name__}")
+                self._items[item_to_add.name] = item_to_add
+                logger.info(f"Added item with name '{item_to_add.name}' to {self.__class__.__name__}")
+
+        # Handle BaseContainer
+        elif isinstance(item, BaseContainer):
+            other_generic_base = item.__orig_bases__[0]
+            other_item_type = item._resolve_type(other_generic_base.__args__[0])
+            if other_item_type != item_type:
+                raise TypeError(f"BaseContainer items must be of type {item_type.__name__}, got {other_item_type.__name__}")
+            for single_item in item.get_items():
+                item_to_add = deepcopy(single_item) if copy_items else single_item
+                if item_to_add.name is None:
+                    raise ValueError(f"Cannot add item with no name from BaseContainer to {self.__class__.__name__}")
+                self._validate_item(item_to_add)
+                if item_to_add.name in self._items:
+                    raise ValueError(f"Item with name '{item_to_add.name}' from BaseContainer already exists in {self.__class__.__name__}")
+                self._items[item_to_add.name] = item_to_add
+                logger.info(f"Added item with name '{item_to_add.name}' from BaseContainer to {self.__class__.__name__}")
+
+        else:
+            raise TypeError(f"Item must be of type {item_type.__name__}, List[{item_type.__name__}], or BaseContainer[{item_type.__name__}], got {type(item).__name__}")
+
         self._invalidate_cache()
-        logger.info(f"Added item with name '{item.name}' to {self.__class__.__name__}")
 
     def set_item(self, name: str, item: T) -> None:
         """Set or replace an item in the container by its name.
@@ -465,7 +505,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         if item_types is Any:
             raise TypeError("Cannot instantiate items with unresolved type 'Any'")
 
-        # Handle Union types by resolving to a list of possible types
         is_union = get_origin(item_type_hint) is Union
         if is_union:
             item_types = get_args(item_type_hint)
