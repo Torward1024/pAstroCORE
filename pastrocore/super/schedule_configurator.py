@@ -10,6 +10,7 @@ from typing import Dict, Any, Union
 from astropy.time import Time
 import astropy.units as u
 import uuid
+import random
 
 class ScheduleConfigurator(Super):
     """Implementation of Configurator for configuring scheduling entities using the Super framework.
@@ -318,6 +319,11 @@ class ScheduleConfigurator(Super):
                 - time_range (dict): Dictionary with 'start' and 'end' times (datetime).
                 - scan_duration (float): Duration of each scan in seconds.
                 - num_scans (int): Number of scans per observation.
+                - pattern (dict): Pattern settings including:
+                    - add_off_source (bool): Add off-source scans.
+                    - randomize_order (bool): Randomize scan order.
+                    - interval_min (int): Interval between scans in minutes.
+                    - naming_mask (str): Naming pattern for observation codes.
                 - progress_callback (Callable, optional): Callback to report progress (value, message).
 
         Returns:
@@ -331,8 +337,14 @@ class ScheduleConfigurator(Super):
             time_range = attributes.get("time_range", {})
             scan_duration = attributes.get("scan_duration", 300.0)
             num_scans = attributes.get("num_scans", 5)
+            pattern = attributes.get("pattern", {})
+            add_off_source = pattern.get("add_off_source", False)
+            randomize_order = pattern.get("randomize_order", False)
+            interval_sec = pattern.get("interval_min", 5) * 60
+            naming_mask = pattern.get("naming_mask", "OBS_{s}_{uuid}")
             progress_callback = attributes.get("progress_callback", None)
 
+            # Validate observation type
             if observation_type not in ["VLBI", "SINGLE_DISH"]:
                 logger.error(f"Invalid observation type: {observation_type}")
                 return {"status": False, "error": f"Invalid observation type: {observation_type}"}
@@ -348,33 +360,46 @@ class ScheduleConfigurator(Super):
                 logger.error(f"Expected Frequencies object, got {type(frequencies)}")
                 return {"status": False, "error": f"Expected Frequencies object, got {type(frequencies)}"}
 
-            if not sources.get_all():
+            # Validate non-empty collections
+            source_items = sources.get_items()
+            telescope_items = telescopes.get_items()
+            frequency_items = frequencies.get_items()
+            logger.debug(f"Input collections: sources={len(source_items)} ({[s.name for s in source_items]}), "
+                        f"telescopes={len(telescope_items)} ({[t.name for t in telescope_items]}), "
+                        f"frequencies={len(frequency_items)} ({[f.name for f in frequency_items]})")
+            if not source_items:
                 logger.error("No sources provided")
                 return {"status": False, "error": "No sources provided"}
-            if not telescopes.get_all():
+            if not telescope_items:
                 logger.error("No telescopes provided")
                 return {"status": False, "error": "No telescopes provided"}
-            if not frequencies.get_all():
+            if not frequency_items:
                 logger.error("No frequencies provided")
                 return {"status": False, "error": "No frequencies provided"}
 
+            # Validate time range
             if not time_range or "start" not in time_range or "end" not in time_range:
                 logger.error("Invalid time range: missing start or end")
                 return {"status": False, "error": "Invalid time range"}
-
             try:
                 start_time = Time(time_range["start"])
                 end_time = Time(time_range["end"])
             except Exception as e:
                 logger.error(f"Invalid time format: {str(e)}")
                 return {"status": False, "error": f"Invalid time format: {str(e)}"}
-
             if start_time >= end_time:
                 logger.error("Invalid time range: start time must be before end time")
                 return {"status": False, "error": "Invalid time range"}
 
+            # For SINGLE_DISH, limit to one telescope
+            if observation_type == "SINGLE_DISH":
+                if not telescope_items:
+                    logger.error("No telescopes available for SINGLE_DISH")
+                    return {"status": False, "error": "No telescopes available for SINGLE_DISH"}
+                telescopes = Telescopes(items={telescope_items[0].name: telescope_items[0].copy()})
+                logger.debug(f"SINGLE_DISH mode: selected telescope '{telescope_items[0].name}'")
+
             generated_codes = []
-            source_items = sources.get_items()
             total_sources = len(source_items)
 
             for i, source in enumerate(source_items, 1):
@@ -383,43 +408,107 @@ class ScheduleConfigurator(Super):
                     return {"status": False, "error": "Observation generation cancelled"}
 
                 # Create unique Sources object with a copy of the current source
-                sources_copy = Sources(name=f"Source_{source.name}_{uuid.uuid4().hex[:8]}")
+                sources_copy = Sources(name=f"srcs_{source.name}_{uuid.uuid4().hex[:8]}")
                 sources_copy.add(source.copy())
+                logger.debug(f"Created sources_copy with {len(sources_copy.get_items())} sources: {[s.name for s in sources_copy.get_items()]}")
 
-                # Create Observation with copied objects
-                obs_code = f"OBS_{source.name}_{uuid.uuid4().hex[:8]}"
+                # Generate observation code using naming mask
+                try:
+                    iso_time = start_time.iso
+                    time_parts = iso_time.split('T') if 'T' in iso_time else [iso_time, '']
+                    obs_code = naming_mask.format(
+                        i=i,
+                        s=source.name,
+                        dt=iso_time,
+                        t=time_parts[1],
+                        d=time_parts[0],
+                        uuid=uuid.uuid4().hex[:8]
+                    )
+                except KeyError as e:
+                    logger.error(f"Invalid naming mask: unknown placeholder {str(e)}")
+                    return {"status": False, "error": f"Invalid naming mask: unknown placeholder {str(e)}"}
+                except IndexError as e:
+                    logger.error(f"Error formatting time in naming mask: {str(e)}")
+                    return {"status": False, "error": f"Error formatting time in naming mask: {str(e)}"}
+
+                # Create Observation with validated copies
+                obs_telescopes = telescopes.copy()
+                obs_frequencies = frequencies.copy()
+                obs_telescopes_items = obs_telescopes.get_items()
+                obs_frequencies_items = obs_frequencies.get_items()
+                logger.debug(f"Observation '{obs_code}': telescopes={len(obs_telescopes_items)} ({[t.name for t in obs_telescopes_items]}), "
+                            f"frequencies={len(obs_frequencies_items)} ({[f.name for f in obs_frequencies_items]})")
+                if not obs_telescopes_items or not obs_frequencies_items:
+                    logger.error(f"Empty telescopes or frequencies for observation '{obs_code}'")
+                    continue
+
                 obs = Observation(
                     code=obs_code,
                     name=obs_code,
                     sources=sources_copy,
-                    telescopes=telescopes.copy(),
-                    frequencies=frequencies.copy(),
-                    scans=Scans(name=f"Scans_{source.name}_{uuid.uuid4().hex[:8]}"),
+                    telescopes=obs_telescopes,
+                    frequencies=obs_frequencies,
+                    scans=Scans(name=f"scans_{source.name}_{uuid.uuid4().hex[:8]}"),
                     observation_type=observation_type,
                     isactive=True
                 )
                 logger.debug(f"Created observation '{obs_code}' for source '{source.name}'")
 
+                # Validate total duration for scans
                 total_duration = (end_time - start_time).sec
-                if total_duration < scan_duration * num_scans:
+                required_duration = scan_duration * (num_scans * (2 if add_off_source else 1))
+                if total_duration < required_duration:
                     logger.warning(f"Time range too short for {num_scans} scans of {scan_duration}s for source '{source.name}'")
                     continue
 
-                time_step = total_duration / num_scans
+                # Create scans
+                time_step = (total_duration / num_scans) + interval_sec
+                scans_list = []
                 for j in range(num_scans):
                     scan_start = start_time + (j * time_step) * u.s
                     scan_name = f"scan_{source.name}_{j+1}_{uuid.uuid4().hex[:8]}"
+                    scan_telescopes = obs.telescopes.get_items()
+                    scan_frequencies = obs.frequencies.get_items()
+                    if not scan_telescopes or not scan_frequencies:
+                        logger.error(f"Empty telescopes or frequencies for scan '{scan_name}' in observation '{obs_code}'")
+                        continue
                     scan = Scan(
                         name=scan_name,
-                        source=obs.sources.get_items()[0],
-                        telescopes=obs.telescopes.get_items(),
-                        frequencies=obs.frequencies.get_items(),
+                        source=source,
+                        telescopes=scan_telescopes,
+                        frequencies=scan_frequencies,
                         start=scan_start,
                         duration=scan_duration,
-                        isactive=True
+                        is_off_source=False,
+                        isactive=True,
+                        observation=obs
                     )
+                    scans_list.append(scan)
+
+                    if add_off_source:
+                        off_scan_name = f"off_scan_{source.name}_{j+1}_{uuid.uuid4().hex[:8]}"
+                        off_scan = Scan(
+                            name=off_scan_name,
+                            source=source,
+                            telescopes=scan_telescopes,
+                            frequencies=scan_frequencies,
+                            start=scan_start + scan_duration * u.s,
+                            duration=scan_duration,
+                            is_off_source=True,
+                            isactive=True,
+                            observation=obs
+                        )
+                        scans_list.append(off_scan)
+
+                if not scans_list:
+                    logger.error(f"No scans generated for observation '{obs_code}'")
+                    continue
+
+                if randomize_order:
+                    random.shuffle(scans_list)
+
+                for scan in scans_list:
                     obs.scans.add(scan)
-                    logger.debug(f"Created scan '{scan_name}' for source '{source.name}'")
 
                 self._configure_scheduleproject(project_obj, {
                     "add_item": {"item": obs}
@@ -431,13 +520,17 @@ class ScheduleConfigurator(Super):
                     continue
 
                 generated_codes.append(obs_code)
-                logger.info(f"Generated observation '{obs_code}' for source '{source.name}' with {num_scans} scans")
+                logger.info(f"Generated observation '{obs_code}' for source '{source.name}' with {len(scans_list)} scans")
 
                 if progress_callback and callable(progress_callback):
                     progress_value = int((i / total_sources) * 100)
                     progress_message = f"Generated observation {i}/{total_sources}: {obs_code}"
                     progress_callback(progress_value, progress_message)
                     logger.debug(f"Progress callback: {progress_value}% - {progress_message}")
+
+            if not generated_codes:
+                logger.error("No observations generated")
+                return {"status": False, "error": "No observations generated"}
 
             return {
                 "status": True,

@@ -288,9 +288,13 @@ class PAstroCoreMainWindow(QMainWindow):
         menu = QMenu(self)
 
         if item_type == "project":
-            add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
             menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "New Project")
-            menu.addAction(QIcon(":/icons/edit_project_icon.svg"), "Edit Project")
+            menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Project")
+            menu.addSeparator()
+            add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
+            add_obs_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Observations")
+            menu.addSeparator()
+            remove_action = menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "Remove Observations")
         elif item_type == "observations" or item_type == "observation":
             add_action = menu.addAction(QIcon(":/icons/add_observation_icon.svg"), "Add Observation")
             if item_type == "observation":
@@ -301,16 +305,15 @@ class PAstroCoreMainWindow(QMainWindow):
                 remove_action.triggered.connect(lambda: self.remove_observation(obs_name, obs_code))
                 edit_action.triggered.connect(lambda: self.edit_observation(obs_name, obs_code))
             else:
+                add_obs_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Observations")
+                menu.addSeparator()
                 remove_action = menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "Remove Observations")
-                remove_action.triggered.connect(lambda: self.remove_observations())
         else:
             return
 
         add_action.triggered.connect(self.add_observation)
-        for action in menu.actions():
-            if action.text() not in ["Add Observation", "Remove Observation", "Remove Observations", "Edit Observation"]:
-                action.triggered.connect(lambda: QMessageBox.information(self, "Info", f"{action.text()} not implemented yet."))
-
+        add_obs_action.triggered.connect(lambda: self.handle_generate_observations())
+        remove_action.triggered.connect(lambda: self.remove_observations())
         menu.exec(project_explorer.viewport().mapToGlobal(position))
 
     @Slot()
