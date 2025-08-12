@@ -82,7 +82,7 @@ class Telescope(BaseEntity):
                          surface_efficiency_table=surface_efficiency_table,
                          effective_area_table=effective_area_table,
                          system_temperature_table=system_temperature_table)
-        logger.info(f"Initialized Telescope '{code}' at ({x}, {y}, {z}) m, diameter={diameter} m")
+        logger.debug(f"Initialized Telescope '{code}' at ({x}, {y}, {z}) m, diameter={diameter} m")
 
     def set(self, params: Dict[str, Any]) -> None:
         """Set entity attributes from a dictionary with type validation, handling mount_type."""

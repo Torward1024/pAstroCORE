@@ -61,9 +61,9 @@ class SpaceTelescope(Telescope):
 
         if use_kep and kepler_elements is not None:
             self._validate_kepler_elements(kepler_elements)
-            logger.info(f"Initialized SpaceTelescope '{code}' with Keplerian elements, diameter={diameter} m")
+            logger.debug(f"Initialized SpaceTelescope '{code}' with Keplerian elements, diameter={diameter} m")
         elif not use_kep and orbit_file and os.path.isfile(orbit_file):
-            logger.info(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
+            logger.debug(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
         else:
             logger.warning(f"Initialized SpaceTelescope '{code}' without orbit data or Keplerian elements")
 
@@ -148,7 +148,7 @@ class SpaceTelescope(Telescope):
         if method not in valid_methods:
             raise ValueError(f"Interpolation method must be one of {valid_methods}")
         self.interpolation_method = method
-        logger.info(f"Set interpolation method to '{method}' for SpaceTelescope '{self.code}'")
+        logger.debug(f"Set interpolation method to '{method}' for SpaceTelescope '{self.code}'")
 
     def set_keplerian(self, a: float, e: float, i: float, raan: float, argp: float, nu: float, epoch: Time, mu: float = 398600.4418e9) -> None:
         """Set Keplerian elements for orbit calculation."""
@@ -158,7 +158,7 @@ class SpaceTelescope(Telescope):
         }
         self._validate_kepler_elements(kepler_elements)
         self.set({"kepler_elements": kepler_elements, "orbit_file": None, "use_kep": True})
-        logger.info(f"Set Keplerian elements for SpaceTelescope '{self.code}'")
+        logger.debug(f"Set Keplerian elements for SpaceTelescope '{self.code}'")
 
     def to_dict(self) -> dict:
         """Convert the SpaceTelescope object to a dictionary for serialization."""
