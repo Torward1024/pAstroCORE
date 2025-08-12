@@ -463,11 +463,9 @@ class GenerateObservationsDialog(QDialog):
             num_scans = self.ui.numScansSpinBox.value()
             naming_mask = self.ui.namingMaskEdit.text()
 
-            # Create Sources and Telescopes objects
             sources = Sources(items={s.name: s for s in source_items})
             telescopes = Telescopes(items={t.name: t for t in telescope_items})
 
-            # Validate inputs
             if not sources.get_all():
                 raise ValueError("No sources selected")
             if not telescopes.get_all():
@@ -483,12 +481,10 @@ class GenerateObservationsDialog(QDialog):
             if not naming_mask:
                 raise ValueError("Naming mask cannot be empty")
 
-            # Log input collections
             logger.debug(f"Generating with: sources={len(source_items)} ({[s.name for s in source_items]}), "
                         f"telescopes={len(telescope_items)} ({[t.name for t in telescope_items]}), "
                         f"frequencies={len(self.frequencies.get_items())} ({[f.name for f in self.frequencies.get_items()]})")
 
-            # Collect pattern settings
             pattern_attributes = {
                 "add_off_source": self.ui.addOffSourceCheck.isChecked(),
                 "randomize_order": self.ui.randomizeOrderCheck.isChecked(),
@@ -508,7 +504,6 @@ class GenerateObservationsDialog(QDialog):
                 "cancelled": False
             }
 
-            # Create and start generation thread
             self.thread = GenerationThread(self.manipulator, self.project, attributes)
             self.progress_dialog = ProgressDialog(self)
             self.thread.progress.connect(self.progress_dialog.update_progress)

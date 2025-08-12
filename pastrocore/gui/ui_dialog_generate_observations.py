@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_generate_observationsQkxhEq.ui'
+## Form generated from reading UI file 'dialog_generate_observationshgtQtB.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -16,16 +16,16 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QDateTimeEdit, QDialog, QDoubleSpinBox, QHBoxLayout,
-    QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QPushButton, QSizePolicy, QSpacerItem, QSpinBox,
-    QTabWidget, QVBoxLayout, QWidget)
+    QDateTimeEdit, QDialog, QDoubleSpinBox, QGridLayout,
+    QHBoxLayout, QLabel, QLineEdit, QListWidget,
+    QListWidgetItem, QPushButton, QSizePolicy, QSpacerItem,
+    QSpinBox, QTabWidget, QVBoxLayout, QWidget)
 
 class Ui_GenerateObservationsDialog(object):
     def setupUi(self, GenerateObservationsDialog):
         if not GenerateObservationsDialog.objectName():
             GenerateObservationsDialog.setObjectName(u"GenerateObservationsDialog")
-        GenerateObservationsDialog.resize(750, 685)
+        GenerateObservationsDialog.resize(548, 725)
         icon = QIcon()
         icon.addFile(u":/icons/preferences.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         GenerateObservationsDialog.setWindowIcon(icon)
@@ -37,246 +37,8 @@ class Ui_GenerateObservationsDialog(object):
         self.tabWidget.setObjectName(u"tabWidget")
         self.tabBasic = QWidget()
         self.tabBasic.setObjectName(u"tabBasic")
-        self.verticalLayoutBasic = QVBoxLayout(self.tabBasic)
-        self.verticalLayoutBasic.setObjectName(u"verticalLayoutBasic")
-        self.horizontalLayoutSources = QHBoxLayout()
-        self.horizontalLayoutSources.setObjectName(u"horizontalLayoutSources")
-        self.sourceSelectAllButton = QPushButton(self.tabBasic)
-        self.sourceSelectAllButton.setObjectName(u"sourceSelectAllButton")
-        self.sourceSelectAllButton.setMinimumSize(QSize(40, 20))
-        self.sourceSelectAllButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
-
-        self.horizontalLayoutSources.addWidget(self.sourceSelectAllButton)
-
-        self.sourceClearButton = QPushButton(self.tabBasic)
-        self.sourceClearButton.setObjectName(u"sourceClearButton")
-        self.sourceClearButton.setMinimumSize(QSize(40, 20))
-        self.sourceClearButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
-
-        self.horizontalLayoutSources.addWidget(self.sourceClearButton)
-
-        self.sourceUpButton = QPushButton(self.tabBasic)
-        self.sourceUpButton.setObjectName(u"sourceUpButton")
-        self.sourceUpButton.setMinimumSize(QSize(40, 20))
-        self.sourceUpButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
-
-        self.horizontalLayoutSources.addWidget(self.sourceUpButton)
-
-        self.sourceDownButton = QPushButton(self.tabBasic)
-        self.sourceDownButton.setObjectName(u"sourceDownButton")
-        self.sourceDownButton.setMinimumSize(QSize(40, 20))
-        self.sourceDownButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
-
-        self.horizontalLayoutSources.addWidget(self.sourceDownButton)
-
-
-        self.verticalLayoutBasic.addLayout(self.horizontalLayoutSources)
-
-        self.labelSources = QLabel(self.tabBasic)
-        self.labelSources.setObjectName(u"labelSources")
-
-        self.verticalLayoutBasic.addWidget(self.labelSources)
-
-        self.sourceList = QListWidget(self.tabBasic)
-        self.sourceList.setObjectName(u"sourceList")
-        self.sourceList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.sourceList.setStyleSheet(u"border: 1px solid #d3d3d3; background-color: #ffffff;")
-        self.sourceList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
-
-        self.verticalLayoutBasic.addWidget(self.sourceList)
-
-        self.horizontalLayoutTelescopes = QHBoxLayout()
-        self.horizontalLayoutTelescopes.setObjectName(u"horizontalLayoutTelescopes")
-        self.telescopeSelectAllButton = QPushButton(self.tabBasic)
-        self.telescopeSelectAllButton.setObjectName(u"telescopeSelectAllButton")
-        self.telescopeSelectAllButton.setMinimumSize(QSize(40, 20))
-        self.telescopeSelectAllButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
-
-        self.horizontalLayoutTelescopes.addWidget(self.telescopeSelectAllButton)
-
-        self.telescopeClearButton = QPushButton(self.tabBasic)
-        self.telescopeClearButton.setObjectName(u"telescopeClearButton")
-        self.telescopeClearButton.setMinimumSize(QSize(40, 20))
-        self.telescopeClearButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
-
-        self.horizontalLayoutTelescopes.addWidget(self.telescopeClearButton)
-
-
-        self.verticalLayoutBasic.addLayout(self.horizontalLayoutTelescopes)
-
-        self.labelTelescopes = QLabel(self.tabBasic)
-        self.labelTelescopes.setObjectName(u"labelTelescopes")
-
-        self.verticalLayoutBasic.addWidget(self.labelTelescopes)
-
-        self.telescopeList = QListWidget(self.tabBasic)
-        self.telescopeList.setObjectName(u"telescopeList")
-        self.telescopeList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.telescopeList.setStyleSheet(u"border: 1px solid #d3d3d3; background-color: #ffffff;")
-        self.telescopeList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
-
-        self.verticalLayoutBasic.addWidget(self.telescopeList)
-
-        self.horizontalLayoutFrequencies = QHBoxLayout()
-        self.horizontalLayoutFrequencies.setObjectName(u"horizontalLayoutFrequencies")
-        self.frequencySelectAllButton = QPushButton(self.tabBasic)
-        self.frequencySelectAllButton.setObjectName(u"frequencySelectAllButton")
-        self.frequencySelectAllButton.setMinimumSize(QSize(40, 20))
-        self.frequencySelectAllButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
-
-        self.horizontalLayoutFrequencies.addWidget(self.frequencySelectAllButton)
-
-        self.frequencyClearButton = QPushButton(self.tabBasic)
-        self.frequencyClearButton.setObjectName(u"frequencyClearButton")
-        self.frequencyClearButton.setMinimumSize(QSize(40, 20))
-        self.frequencyClearButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
-
-        self.horizontalLayoutFrequencies.addWidget(self.frequencyClearButton)
-
-
-        self.verticalLayoutBasic.addLayout(self.horizontalLayoutFrequencies)
-
-        self.labelFrequencies = QLabel(self.tabBasic)
-        self.labelFrequencies.setObjectName(u"labelFrequencies")
-
-        self.verticalLayoutBasic.addWidget(self.labelFrequencies)
-
-        self.frequencyList = QListWidget(self.tabBasic)
-        self.frequencyList.setObjectName(u"frequencyList")
-        self.frequencyList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.frequencyList.setStyleSheet(u"border: 1px solid #d3d3d3; background-color: #ffffff;")
-        self.frequencyList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
-
-        self.verticalLayoutBasic.addWidget(self.frequencyList)
-
+        self.gridLayout = QGridLayout(self.tabBasic)
+        self.gridLayout.setObjectName(u"gridLayout")
         self.horizontalLayoutNaming = QHBoxLayout()
         self.horizontalLayoutNaming.setObjectName(u"horizontalLayoutNaming")
         self.labelNamingMask = QLabel(self.tabBasic)
@@ -305,7 +67,245 @@ class Ui_GenerateObservationsDialog(object):
         self.horizontalLayoutNaming.addWidget(self.namingMaskEdit)
 
 
-        self.verticalLayoutBasic.addLayout(self.horizontalLayoutNaming)
+        self.gridLayout.addLayout(self.horizontalLayoutNaming, 9, 0, 1, 1)
+
+        self.frequencyList = QListWidget(self.tabBasic)
+        self.frequencyList.setObjectName(u"frequencyList")
+        self.frequencyList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.frequencyList.setStyleSheet(u"border: 1px solid #d3d3d3; background-color: #ffffff;")
+        self.frequencyList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+
+        self.gridLayout.addWidget(self.frequencyList, 8, 0, 1, 1)
+
+        self.sourceList = QListWidget(self.tabBasic)
+        self.sourceList.setObjectName(u"sourceList")
+        self.sourceList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.sourceList.setStyleSheet(u"border: 1px solid #d3d3d3; background-color: #ffffff;")
+        self.sourceList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+
+        self.gridLayout.addWidget(self.sourceList, 2, 0, 1, 1)
+
+        self.labelFrequencies = QLabel(self.tabBasic)
+        self.labelFrequencies.setObjectName(u"labelFrequencies")
+
+        self.gridLayout.addWidget(self.labelFrequencies, 7, 0, 1, 1)
+
+        self.telescopeList = QListWidget(self.tabBasic)
+        self.telescopeList.setObjectName(u"telescopeList")
+        self.telescopeList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.telescopeList.setStyleSheet(u"border: 1px solid #d3d3d3; background-color: #ffffff;")
+        self.telescopeList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+
+        self.gridLayout.addWidget(self.telescopeList, 5, 0, 1, 1)
+
+        self.labelTelescopes = QLabel(self.tabBasic)
+        self.labelTelescopes.setObjectName(u"labelTelescopes")
+
+        self.gridLayout.addWidget(self.labelTelescopes, 4, 0, 1, 1)
+
+        self.labelSources = QLabel(self.tabBasic)
+        self.labelSources.setObjectName(u"labelSources")
+
+        self.gridLayout.addWidget(self.labelSources, 1, 0, 1, 1)
+
+        self.gridLayout_2 = QGridLayout()
+        self.gridLayout_2.setObjectName(u"gridLayout_2")
+        self.sourceSelectAllButton = QPushButton(self.tabBasic)
+        self.sourceSelectAllButton.setObjectName(u"sourceSelectAllButton")
+        self.sourceSelectAllButton.setMinimumSize(QSize(40, 20))
+        self.sourceSelectAllButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.gridLayout_2.addWidget(self.sourceSelectAllButton, 2, 0, 1, 1)
+
+        self.sourceUpButton = QPushButton(self.tabBasic)
+        self.sourceUpButton.setObjectName(u"sourceUpButton")
+        self.sourceUpButton.setMinimumSize(QSize(40, 20))
+        self.sourceUpButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.gridLayout_2.addWidget(self.sourceUpButton, 0, 0, 1, 1)
+
+        self.sourceClearButton = QPushButton(self.tabBasic)
+        self.sourceClearButton.setObjectName(u"sourceClearButton")
+        self.sourceClearButton.setMinimumSize(QSize(40, 20))
+        self.sourceClearButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.gridLayout_2.addWidget(self.sourceClearButton, 3, 0, 1, 1)
+
+        self.sourceDownButton = QPushButton(self.tabBasic)
+        self.sourceDownButton.setObjectName(u"sourceDownButton")
+        self.sourceDownButton.setMinimumSize(QSize(40, 20))
+        self.sourceDownButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.gridLayout_2.addWidget(self.sourceDownButton, 1, 0, 1, 1)
+
+
+        self.gridLayout.addLayout(self.gridLayout_2, 2, 1, 1, 1)
+
+        self.gridLayout_3 = QGridLayout()
+        self.gridLayout_3.setObjectName(u"gridLayout_3")
+        self.telescopeClearButton = QPushButton(self.tabBasic)
+        self.telescopeClearButton.setObjectName(u"telescopeClearButton")
+        self.telescopeClearButton.setMinimumSize(QSize(40, 20))
+        self.telescopeClearButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.gridLayout_3.addWidget(self.telescopeClearButton, 1, 1, 1, 1)
+
+        self.telescopeSelectAllButton = QPushButton(self.tabBasic)
+        self.telescopeSelectAllButton.setObjectName(u"telescopeSelectAllButton")
+        self.telescopeSelectAllButton.setMinimumSize(QSize(40, 20))
+        self.telescopeSelectAllButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.gridLayout_3.addWidget(self.telescopeSelectAllButton, 0, 1, 1, 1)
+
+
+        self.gridLayout.addLayout(self.gridLayout_3, 5, 1, 1, 1)
+
+        self.gridLayout_4 = QGridLayout()
+        self.gridLayout_4.setObjectName(u"gridLayout_4")
+        self.frequencyClearButton = QPushButton(self.tabBasic)
+        self.frequencyClearButton.setObjectName(u"frequencyClearButton")
+        self.frequencyClearButton.setMinimumSize(QSize(40, 20))
+        self.frequencyClearButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.gridLayout_4.addWidget(self.frequencyClearButton, 1, 1, 1, 1)
+
+        self.frequencySelectAllButton = QPushButton(self.tabBasic)
+        self.frequencySelectAllButton.setObjectName(u"frequencySelectAllButton")
+        self.frequencySelectAllButton.setMinimumSize(QSize(40, 20))
+        self.frequencySelectAllButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.gridLayout_4.addWidget(self.frequencySelectAllButton, 0, 1, 1, 1)
+
+
+        self.gridLayout.addLayout(self.gridLayout_4, 8, 1, 1, 1)
 
         self.tabWidget.addTab(self.tabBasic, "")
         self.tabPattern = QWidget()
@@ -314,40 +314,14 @@ class Ui_GenerateObservationsDialog(object):
         self.verticalLayoutPattern.setObjectName(u"verticalLayoutPattern")
         self.addOffSourceCheck = QCheckBox(self.tabPattern)
         self.addOffSourceCheck.setObjectName(u"addOffSourceCheck")
-        self.addOffSourceCheck.setStyleSheet(u"\n"
-"           QCheckBox {\n"
-"            color: #333333;\n"
-"            padding: 4px;\n"
-"           }\n"
-"           QCheckBox::indicator {\n"
-"            width: 16px;\n"
-"            height: 16px;\n"
-"           }\n"
-"           QCheckBox::indicator:checked {\n"
-"            background-color: #0078d7;\n"
-"            border: 1px solid #0078d7;\n"
-"           }\n"
-"          ")
+        self.addOffSourceCheck.setStyleSheet(u"")
         self.addOffSourceCheck.setChecked(False)
 
         self.verticalLayoutPattern.addWidget(self.addOffSourceCheck)
 
         self.randomizeOrderCheck = QCheckBox(self.tabPattern)
         self.randomizeOrderCheck.setObjectName(u"randomizeOrderCheck")
-        self.randomizeOrderCheck.setStyleSheet(u"\n"
-"           QCheckBox {\n"
-"            color: #333333;\n"
-"            padding: 4px;\n"
-"           }\n"
-"           QCheckBox::indicator {\n"
-"            width: 16px;\n"
-"            height: 16px;\n"
-"           }\n"
-"           QCheckBox::indicator:checked {\n"
-"            background-color: #0078d7;\n"
-"            border: 1px solid #0078d7;\n"
-"           }\n"
-"          ")
+        self.randomizeOrderCheck.setStyleSheet(u"")
         self.randomizeOrderCheck.setChecked(False)
 
         self.verticalLayoutPattern.addWidget(self.randomizeOrderCheck)
@@ -899,19 +873,19 @@ class Ui_GenerateObservationsDialog(object):
 
     def retranslateUi(self, GenerateObservationsDialog):
         GenerateObservationsDialog.setWindowTitle(QCoreApplication.translate("GenerateObservationsDialog", u"Generate Observations", None))
-        self.sourceSelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
-        self.sourceClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
-        self.sourceUpButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Up", None))
-        self.sourceDownButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Down", None))
-        self.labelSources.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Sources:", None))
-        self.telescopeSelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
-        self.telescopeClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
-        self.labelTelescopes.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Telescopes:", None))
-        self.frequencySelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
-        self.frequencyClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
-        self.labelFrequencies.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Frequencies:", None))
         self.labelNamingMask.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Naming Mask:", None))
         self.namingMaskEdit.setPlaceholderText(QCoreApplication.translate("GenerateObservationsDialog", u"Observation_{i}_{s}_{dt}_{t}_{d}", None))
+        self.labelFrequencies.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Frequencies:", None))
+        self.labelTelescopes.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Telescopes:", None))
+        self.labelSources.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Sources:", None))
+        self.sourceSelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
+        self.sourceUpButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Up", None))
+        self.sourceClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
+        self.sourceDownButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Down", None))
+        self.telescopeClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
+        self.telescopeSelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
+        self.frequencyClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
+        self.frequencySelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabBasic), QCoreApplication.translate("GenerateObservationsDialog", u"Basic Settings", None))
         self.addOffSourceCheck.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Add Off-Source Scans", None))
         self.randomizeOrderCheck.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Randomize Scan Order", None))

@@ -6,15 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>750</width>
-    <height>685</height>
+    <width>548</width>
+    <height>725</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Generate Observations</string>
   </property>
   <property name="windowIcon">
-   <iconset>
+   <iconset resource="../icons/icons.qrc">
     <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
   </property>
   <property name="styleSheet">
@@ -33,336 +33,8 @@
       <attribute name="title">
        <string>Basic Settings</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayoutBasic">
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayoutSources">
-         <item>
-          <widget class="QPushButton" name="sourceSelectAllButton">
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
-           <property name="text">
-            <string>Select All</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="sourceClearButton">
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
-           <property name="text">
-            <string>Clear</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="sourceUpButton">
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
-           <property name="text">
-            <string>Up</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="sourceDownButton">
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
-           <property name="text">
-            <string>Down</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="labelSources">
-         <property name="text">
-          <string>Sources:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QListWidget" name="sourceList">
-         <property name="contextMenuPolicy">
-          <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
-         </property>
-         <property name="selectionMode">
-          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayoutTelescopes">
-         <item>
-          <widget class="QPushButton" name="telescopeSelectAllButton">
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
-           <property name="text">
-            <string>Select All</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="telescopeClearButton">
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
-           <property name="text">
-            <string>Clear</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="labelTelescopes">
-         <property name="text">
-          <string>Telescopes:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QListWidget" name="telescopeList">
-         <property name="contextMenuPolicy">
-          <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
-         </property>
-         <property name="selectionMode">
-          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayoutFrequencies">
-         <item>
-          <widget class="QPushButton" name="frequencySelectAllButton">
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
-           <property name="text">
-            <string>Select All</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="frequencyClearButton">
-           <property name="minimumSize">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
-           <property name="text">
-            <string>Clear</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="labelFrequencies">
-         <property name="text">
-          <string>Frequencies:</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QListWidget" name="frequencyList">
-         <property name="contextMenuPolicy">
-          <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
-         </property>
-         <property name="selectionMode">
-          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
-         </property>
-        </widget>
-       </item>
-       <item>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="9" column="0">
         <layout class="QHBoxLayout" name="horizontalLayoutNaming">
          <item>
           <widget class="QLabel" name="labelNamingMask">
@@ -397,6 +69,334 @@
          </item>
         </layout>
        </item>
+       <item row="8" column="0">
+        <widget class="QListWidget" name="frequencyList">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QListWidget" name="sourceList">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="labelFrequencies">
+         <property name="text">
+          <string>Frequencies:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QListWidget" name="telescopeList">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="labelTelescopes">
+         <property name="text">
+          <string>Telescopes:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="labelSources">
+         <property name="text">
+          <string>Sources:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="2" column="0">
+          <widget class="QPushButton" name="sourceSelectAllButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QPushButton" name="sourceUpButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Up</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QPushButton" name="sourceClearButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QPushButton" name="sourceDownButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Down</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="5" column="1">
+        <layout class="QGridLayout" name="gridLayout_3">
+         <item row="1" column="1">
+          <widget class="QPushButton" name="telescopeClearButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QPushButton" name="telescopeSelectAllButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="8" column="1">
+        <layout class="QGridLayout" name="gridLayout_4">
+         <item row="1" column="1">
+          <widget class="QPushButton" name="frequencyClearButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QPushButton" name="frequencySelectAllButton">
+           <property name="minimumSize">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tabPattern">
@@ -407,20 +407,7 @@
        <item>
         <widget class="QCheckBox" name="addOffSourceCheck">
          <property name="styleSheet">
-          <string notr="true">
-           QCheckBox {
-            color: #333333;
-            padding: 4px;
-           }
-           QCheckBox::indicator {
-            width: 16px;
-            height: 16px;
-           }
-           QCheckBox::indicator:checked {
-            background-color: #0078d7;
-            border: 1px solid #0078d7;
-           }
-          </string>
+          <string notr="true"/>
          </property>
          <property name="text">
           <string>Add Off-Source Scans</string>
@@ -433,20 +420,7 @@
        <item>
         <widget class="QCheckBox" name="randomizeOrderCheck">
          <property name="styleSheet">
-          <string notr="true">
-           QCheckBox {
-            color: #333333;
-            padding: 4px;
-           }
-           QCheckBox::indicator {
-            width: 16px;
-            height: 16px;
-           }
-           QCheckBox::indicator:checked {
-            background-color: #0078d7;
-            border: 1px solid #0078d7;
-           }
-          </string>
+          <string notr="true"/>
          </property>
          <property name="text">
           <string>Randomize Scan Order</string>
@@ -1072,7 +1046,9 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../icons/icons.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>cancelButton</sender>
