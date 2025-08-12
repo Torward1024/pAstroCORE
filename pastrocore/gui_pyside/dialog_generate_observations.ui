@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>548</width>
-    <height>725</height>
+    <height>687</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -27,7 +27,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tabBasic">
       <attribute name="title">
@@ -403,8 +403,8 @@
       <attribute name="title">
        <string>Pattern Settings</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayoutPattern">
-       <item>
+      <layout class="QGridLayout" name="gridLayout_5">
+       <item row="0" column="0">
         <widget class="QCheckBox" name="addOffSourceCheck">
          <property name="styleSheet">
           <string notr="true"/>
@@ -417,7 +417,7 @@
          </property>
         </widget>
        </item>
-       <item>
+       <item row="1" column="0">
         <widget class="QCheckBox" name="randomizeOrderCheck">
          <property name="styleSheet">
           <string notr="true"/>
@@ -430,7 +430,7 @@
          </property>
         </widget>
        </item>
-       <item>
+       <item row="2" column="0">
         <layout class="QHBoxLayout" name="horizontalLayoutInterval">
          <item>
           <widget class="QLabel" name="labelInterval">
@@ -493,14 +493,14 @@
          </item>
         </layout>
        </item>
-       <item>
+       <item row="3" column="0">
         <widget class="QLabel" name="labelPreset">
          <property name="text">
           <string>Preset:</string>
          </property>
         </widget>
        </item>
-       <item>
+       <item row="4" column="0">
         <widget class="QComboBox" name="presetCombo">
          <property name="styleSheet">
           <string notr="true">
@@ -583,7 +583,7 @@
          </item>
         </widget>
        </item>
-       <item>
+       <item row="5" column="0">
         <layout class="QHBoxLayout" name="horizontalLayoutPresetButtons">
          <item>
           <widget class="QPushButton" name="savePresetButton">
@@ -754,8 +754,7 @@
        <item>
         <widget class="QDateTimeEdit" name="startTimeEdit">
          <property name="styleSheet">
-          <string notr="true">
-           QDateTimeEdit {
+          <string notr="true">           QDateTimeEdit {
             background-color: #f0f6ff;
             border: 1px solid #0078d7;
             padding: 4px;
@@ -805,8 +804,7 @@
        <item>
         <widget class="QDateTimeEdit" name="endTimeEdit">
          <property name="styleSheet">
-          <string notr="true">
-           QDateTimeEdit {
+          <string notr="true">           QDateTimeEdit {
             background-color: #f0f6ff;
             border: 1px solid #0078d7;
             padding: 4px;
@@ -858,8 +856,7 @@
      <item>
       <widget class="QDoubleSpinBox" name="scanDurationSpinBox">
        <property name="styleSheet">
-        <string notr="true">
-         QDoubleSpinBox {
+        <string notr="true">         QDoubleSpinBox {
           font-family: Arial;
           font-size: 9pt;
           color: #333333;
@@ -921,8 +918,7 @@
      <item>
       <widget class="QSpinBox" name="numScansSpinBox">
        <property name="styleSheet">
-        <string notr="true">
-         QSpinBox {
+        <string notr="true">         QSpinBox {
           font-family: Arial;
           font-size: 9pt;
           color: #333333;

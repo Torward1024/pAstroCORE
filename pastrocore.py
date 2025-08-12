@@ -258,9 +258,6 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug(f"Scheduled deletion of widget {widget.objectName()}")
         except Exception as e:
             logger.error(f"Error cleaning up widget {widget.objectName()}: {str(e)}")
-        finally:
-            gc.collect()
-            logger.debug(f"Garbage collection triggered after cleaning {widget.objectName()}")
 
     @Slot(dict)
     def handle_time_step_updated(self, time_step: int):
@@ -1046,10 +1043,6 @@ class PAstroCoreMainWindow(QMainWindow):
             
         except Exception as e:
             logger.error(f"Error cleaning up project: {str(e)}")
-        finally:
-            gc.collect()
-            logger.debug("Garbage collection triggered after project cleanup")
-            QtCore.QTimer.singleShot(100, gc.collect)
 
     def _initialize_project(self):
         """Initialize a new project and its dependencies."""
