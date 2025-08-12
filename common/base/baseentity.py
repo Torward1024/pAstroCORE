@@ -92,7 +92,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         if unknown_attrs:
             raise ValueError(f"Unknown attributes provided for {self.__class__.__name__}: {unknown_attrs}")
         
-        logger.info(f"Initialized {self.__class__.__name__} instance with name={name}, isactive={isactive}")
+        logger.debug(f"Initialized {self.__class__.__name__} instance with name={name}, isactive={isactive}")
     
     def _invalidate_cache(self) -> None:
         """Invalidate the cache of the entity."""
@@ -210,7 +210,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             else:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
         self._invalidate_cache()
-        logger.info(f"Updated attributes of {self.__class__.__name__}: {params.keys}")
+        logger.debug(f"Updated attributes of {self.__class__.__name__}: {params.keys}")
 
     def get(self, key: Union[str, List[str], None] = None) -> Union[Any, Dict[str, Any]]:
         """Retrieve one or more attributes of the entity.
@@ -268,7 +268,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """
         self.isactive = True
         self._invalidate_cache()
-        logger.info(f"Activated {self.__class__.__name__} instance")
+        logger.debug(f"Activated {self.__class__.__name__} instance")
 
     def deactivate(self) -> None:
         """Deactivate the entity, setting its status to inactive.
@@ -278,7 +278,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """
         self.isactive = False
         self._invalidate_cache()
-        logger.info(f"Deactivated {self.__class__.__name__} instance")
+        logger.debug(f"Deactivated {self.__class__.__name__} instance")
     
     def has_attribute(self, key: str) -> bool:
         """Check if the entity has a specific attribute.
@@ -499,7 +499,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         self._validate_type(key, value, expected_type)
         setattr(self, key, value)
         self._invalidate_cache()
-        logger.info(f"Set attribute '{key}' of {self.__class__.__name__}")
+        logger.debug(f"Set attribute '{key}' of {self.__class__.__name__}")
 
     def __eq__(self, other: Any) -> bool:
         """Compare two entities for equality based on their attributes and state.
@@ -546,7 +546,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             self._validate_type(key, value, expected_type)
             super().__setattr__(key, value)
             self._invalidate_cache()
-            logger.info(f"Set attribute '{key}' of {self.__class__.__name__}")
+            logger.debug(f"Set attribute '{key}' of {self.__class__.__name__}")
         else:
             raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
 

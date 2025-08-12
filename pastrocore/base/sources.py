@@ -68,7 +68,7 @@ class Source(BaseEntity):
         )
         self._validate_coordinates()
         self._validate_flux_table()
-        logger.info(f"Initialized Source '{name}' at RA={ra_h}h{ra_m}m{ra_s}s, DEC={de_d}d{de_m}m{de_s}s")
+        logger.debug(f"Initialized Source '{name}' at RA={ra_h}h{ra_m}m{ra_s}s, DEC={de_d}d{de_m}m{de_s}s")
 
     def _validate_coordinates(self) -> None:
         """Validate coordinate ranges."""
@@ -140,7 +140,7 @@ class Source(BaseEntity):
             raise ValueError(f"RA degrees must be in range [0, 360], got {ra_deg}")
         ra_hours = ra_deg / 15
         self.set({"ra_h": ra_hours, "ra_m": ((ra_hours % 1) * 60), "ra_s": ((ra_hours % 1) * 60 % 1) * 60})
-        logger.info(f"Set RA={ra_deg} deg for source '{self.name}'")
+        logger.debug(f"Set RA={ra_deg} deg for source '{self.name}'")
 
     def set_dec_degrees(self, dec_deg: float) -> None:
         """Set Declination from decimal degrees."""
@@ -155,7 +155,7 @@ class Source(BaseEntity):
                 "de_s": ((dec_abs % 1) * 60 % 1) * 60,
             }
         )
-        logger.info(f"Set DEC={dec_deg} deg for source '{self.name}'")
+        logger.debug(f"Set DEC={dec_deg} deg for source '{self.name}'")
 
     def add_flux(self, frequency: float, flux: float) -> None:
         """Add a flux value for a specific frequency."""
@@ -166,7 +166,7 @@ class Source(BaseEntity):
         new_flux_table = self.flux_table.copy()
         new_flux_table[frequency] = flux
         self.set({"flux_table": new_flux_table})
-        logger.info(f"Added flux={flux} Jy for frequency {frequency} MHz to source '{self.name}'")
+        logger.debug(f"Added flux={flux} Jy for frequency {frequency} MHz to source '{self.name}'")
 
     def remove_flux(self, frequency: float) -> None:
         """Remove a flux value for a specific frequency."""
@@ -176,14 +176,14 @@ class Source(BaseEntity):
         if frequency in new_flux_table:
             del new_flux_table[frequency]
             self.set({"flux_table": new_flux_table})
-            logger.info(f"Removed flux for frequency {frequency} MHz from source '{self.name}'")
+            logger.debug(f"Removed flux for frequency {frequency} MHz from source '{self.name}'")
         else:
             logger.warning(f"No flux value found for frequency {frequency} MHz in source '{self.name}'")
 
     def clear_flux_table(self) -> None:
         """Clear all entries from the flux table."""
         self.set({"flux_table": {}})
-        logger.info(f"Cleared flux table for source '{self.name}'")
+        logger.debug(f"Cleared flux table for source '{self.name}'")
     
     def copy(self) -> 'Source':
         """Create a deep copy of the Source object."""
@@ -263,7 +263,7 @@ class Sources(BaseContainer[Source]):
             name = f"srcs_{uuid.uuid4().hex[:32]}"
         super().__init__(items=items, name=name, isactive=isactive)
         self._key_cache = list(self._items.keys()) if items else []
-        logger.info(f"Initialized Sources with name={name}, {len(self._items)} sources")
+        logger.debug(f"Initialized Sources with name={name}, {len(self._items)} sources")
 
     def create_source(
         self,
@@ -296,7 +296,7 @@ class Sources(BaseContainer[Source]):
             isactive=isactive,
         )
         self.add(new_source)
-        logger.info(f"Created and added source '{name}' to Sources")
+        logger.debug(f"Created and added source '{name}' to Sources")
     
     def set_source(
         self,
@@ -357,7 +357,7 @@ class Sources(BaseContainer[Source]):
 
         self._items[name] = updated_source
         self._key_cache = list(self._items.keys())
-        logger.info(f"Updated source '{name}' in Sources with params: {params}")
+        logger.debug(f"Updated source '{name}' in Sources with params: {params}")
     
     def activate_item(self, name: str) -> None:
         """Activate a specific source by its name.

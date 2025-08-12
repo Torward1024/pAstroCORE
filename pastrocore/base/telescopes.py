@@ -52,7 +52,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         if name is None:
             name = f"tlscs_{uuid.uuid4().hex[:32]}"
         super().__init__(items=items, name=name, isactive=isactive, use_cache=use_cache)
-        logger.info(f"Initialized Telescopes with {len(self._items)} telescopes")
+        logger.debug(f"Initialized Telescopes with {len(self._items)} telescopes")
 
     def _validate_item(self, item: Union[Telescope, SpaceTelescope]) -> None:
         """Validate that the item is a Telescope or SpaceTelescope and has a valid and unique name and code.
@@ -124,7 +124,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             mount_type=mount_type, isactive=isactive
         )
         self.add(new_telescope)
-        logger.info(f"Created and added telescope '{code}'")
+        logger.debug(f"Created and added telescope '{code}'")
 
     def activate_item(self, name: str) -> None:
         """Activate a specific telescope by its name.
