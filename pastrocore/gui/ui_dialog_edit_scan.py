@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_scanfzhhbn.ui'
+## Form generated from reading UI file 'dialog_editor_scanCkWhsf.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -377,7 +377,10 @@ class Ui_ScanEditorDialog(object):
 "    border: 1px solid #005bb5;\n"
 "    background-color: #ffffff;\n"
 "}")
+        self.durationEdit.setInputMask(u"")
+        self.durationEdit.setText(u"")
         self.durationEdit.setMaxLength(999999999)
+        self.durationEdit.setPlaceholderText(u"")
 
         self.gridLayout.addWidget(self.durationEdit, 6, 1, 1, 3)
 

@@ -431,7 +431,7 @@ class ScheduleConfigurator(Super):
                     logger.error(f"Error formatting time in naming mask: {str(e)}")
                     return {"status": False, "error": f"Error formatting time in naming mask: {str(e)}"}
 
-                # Create Observation with validated copies
+                # create Observation with validated copies
                 obs_telescopes = telescopes.copy()
                 obs_frequencies = frequencies.copy()
                 obs_telescopes_items = obs_telescopes.get_items()

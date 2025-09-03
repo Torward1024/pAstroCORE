@@ -34,10 +34,10 @@ from common.utils.logging_setup import (
                                         update_logging_clear
                                         )
 import logging
-import gc
 import sys
 import os
 import json
+import pastrocore.gui.rc_icons
 
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""

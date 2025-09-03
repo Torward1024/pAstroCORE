@@ -102,7 +102,7 @@ class ScheduleVisualizer(Super):
             },
             'intersection_color': (255/255, 165/255, 0/255),  # Orange for intersections
             'markers': {
-                'default_size': 10,
+                'default_size': 50,
                 'source_style': '*',
                 'track_style': 'o',
                 'track_size': 0.5,
@@ -1513,7 +1513,7 @@ class ScheduleVisualizer(Super):
                             marker=self._style_config['markers']['source_style'], 
                             s=self._style_config['markers']['default_size'],
                             label=source_name if source_name not in plotted_sources else None,
-                            zorder=3, edgecolors="black"
+                            zorder=3, edgecolors="none"
                         )
                         if source_name not in plotted_sources:
                             legend_handles.append(handle)
