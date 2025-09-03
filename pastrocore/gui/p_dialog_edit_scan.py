@@ -1,14 +1,13 @@
 # pastrocore/gui/p_dialog_edit_scan.py
-from PySide6.QtWidgets import QDialog, QMessageBox, QTableView, QHeaderView
+from PySide6.QtWidgets import QDialog, QMessageBox, QHeaderView
 from PySide6.QtCore import Slot, Qt, QDateTime
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIntValidator, QIcon
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QDoubleValidator, QIcon
 from .ui_dialog_edit_scan import Ui_ScanEditorDialog
 from pastrocore.base.observation import Observation
 from pastrocore.base.scans import Scan
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from common.utils.logging_setup import logger
 from astropy.time import Time
-from datetime import datetime
 import uuid
 import pastrocore.gui.rc_icons
 
@@ -76,7 +75,8 @@ class ScanEditorDialog(QDialog):
         self.frequencies_model.itemChanged.connect(self.debug_item_changed)
 
         self.ui.startTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        validator = QIntValidator(1, 99999, self)
+        validator = QDoubleValidator(1.0, 2147483647.0, 0, self)  # Allow integers up to 2^31 - 1
+        validator.setNotation(QDoubleValidator.StandardNotation)
         self.ui.durationEdit.setValidator(validator)
 
         self.selected_telescopes = set()
@@ -450,7 +450,7 @@ class ScanEditorDialog(QDialog):
                 raise ValueError("Duration must be positive")
         except ValueError as e:
             logger.error(f"Invalid duration: {str(e)}")
-            raise ValueError("Duration must be a positive number")
+            raise ValueError("Duration must be a positive integer number")
 
         is_off_source = self.ui.chk_offsource.isChecked()
         source = None if is_off_source else self.ui.sourceCombo.currentData()

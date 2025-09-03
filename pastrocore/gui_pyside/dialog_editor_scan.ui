@@ -434,8 +434,17 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     background-color: #ffffff;
 }</string>
      </property>
+     <property name="inputMask">
+      <string notr="true"/>
+     </property>
+     <property name="text">
+      <string notr="true"/>
+     </property>
      <property name="maxLength">
       <number>999999999</number>
+     </property>
+     <property name="placeholderText">
+      <string notr="true"/>
      </property>
     </widget>
    </item>
