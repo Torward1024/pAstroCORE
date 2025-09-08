@@ -45,7 +45,82 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="19" column="0" colspan="4">
+   <item row="2" column="0">
+    <widget class="QLabel" name="lbl_offsource">
+     <property name="text">
+      <string>Off source scan:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0" colspan="4">
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1" colspan="3">
+    <widget class="QLineEdit" name="durationEdit">
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+     </property>
+     <property name="inputMask">
+      <string notr="true"/>
+     </property>
+     <property name="text">
+      <string notr="true"/>
+     </property>
+     <property name="maxLength">
+      <number>999999999</number>
+     </property>
+     <property name="placeholderText">
+      <string notr="true"/>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1">
+    <widget class="QCheckBox" name="chk_active">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QCheckBox" name="chk_offsource">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="20" column="0" colspan="4">
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="21" column="0" colspan="4">
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <spacer name="horizontalSpacer">
@@ -122,123 +197,81 @@ QPushButton:pressed {
      </item>
     </layout>
    </item>
-   <item row="2" column="1">
-    <widget class="QCheckBox" name="chk_offsource">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="8" column="0" colspan="4">
-    <widget class="Line" name="line">
-     <property name="orientation">
-      <enum>Qt::Orientation::Horizontal</enum>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1" colspan="3">
-    <widget class="QDateTimeEdit" name="startTimeEdit">
-     <property name="styleSheet">
-      <string notr="true">/* Base style for QDoubleSpinBox */
-QDateTime {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    padding-right: 20px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
-    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
-}
-
-/* Editable state */
-QDateTime:editable {
-    background-color: #f0f6ff; /* Matches editable QComboBox background */
-    border: 1px solid #0078d7; /* Matches editable QComboBox border */
-}
-
-/* Editable hover state */
-QDateTime:editable:hover {
-    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
-}
-
-/* Editable focus state */
-QDoubleSpinBox:editable:focus {
-    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
-    background-color: #ffffff; /* Matches editable QComboBox:focus background */
-}
-
-/* Non-editable state */
-QDateTime:!editable {
-    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
-    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
-}
-
-/* Non-editable hover state */
-QDateTime:!editable:hover {
-    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
-}
-
-/* Non-editable focus state */
-QDateTime:!editable:focus {
-    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
-    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
-}
-
-/* Styling for up/down buttons */
-QDateTime::up-button, QDateTime::down-button {
-    subcontrol-origin: padding;
-    width: 20px;
-    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
-    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
-}
-/* Hover state for up/down buttons */
-QDateTime::up-button:hover, QDoubleSpinBox::down-button:hover {
-    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
-}
-
-/* Up arrow styling */
-QDateTime::up-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
-}
-/* Down arrow styling */
-QDateTime::down-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
-}</string>
-     </property>
-     <property name="minimumDateTime">
-      <datetime>
-       <hour>0</hour>
-       <minute>0</minute>
-       <second>0</second>
-       <year>2000</year>
-       <month>1</month>
-       <day>1</day>
-      </datetime>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="labelStartTime">
-     <property name="text">
-      <string>Start Time:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="0">
-    <widget class="QLabel" name="lbl_active">
-     <property name="text">
-      <string>Active:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="14" column="0" colspan="4">
+   <item row="16" column="0" colspan="4">
     <layout class="QGridLayout" name="gridLayout_2">
-     <item row="1" column="0">
+     <item row="2" column="1">
+      <widget class="QPushButton" name="btnClearAllTelescopes">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Clear</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QPushButton" name="btnSelectAllFrequencies">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Select All</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QPushButton" name="btnSelectAllTelescopes">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Select All</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0" colspan="2">
       <widget class="QTableView" name="tab_telescopes">
        <property name="styleSheet">
         <string notr="true">/* QTableView and QHeaderView styles for pAstroCORE */
@@ -305,14 +338,38 @@ QHeaderView::section:hover {
        </property>
       </widget>
      </item>
-     <item row="0" column="0">
+     <item row="0" column="0" colspan="2">
       <widget class="QLabel" name="label">
        <property name="text">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Telescopes:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
       </widget>
      </item>
-     <item row="1" column="1">
+     <item row="2" column="4">
+      <widget class="QPushButton" name="btnClearAllFrequencies">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Clear</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="3" colspan="2">
       <widget class="QTableView" name="tab_frequencies">
        <property name="styleSheet">
         <string notr="true">/* QTableView and QHeaderView styles for pAstroCORE */
@@ -371,7 +428,7 @@ QHeaderView::section:hover {
        </property>
       </widget>
      </item>
-     <item row="0" column="1">
+     <item row="0" column="3" colspan="2">
       <widget class="QLabel" name="label_2">
        <property name="text">
         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Frequencies:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -380,10 +437,10 @@ QHeaderView::section:hover {
      </item>
     </layout>
    </item>
-   <item row="7" column="1">
-    <widget class="QCheckBox" name="chk_active">
+   <item row="8" column="0">
+    <widget class="QLabel" name="labelDuration">
      <property name="text">
-      <string/>
+      <string>Duration (s):</string>
      </property>
     </widget>
    </item>
@@ -394,57 +451,10 @@ QHeaderView::section:hover {
      </property>
     </widget>
    </item>
-   <item row="6" column="0">
-    <widget class="QLabel" name="labelDuration">
+   <item row="9" column="0">
+    <widget class="QLabel" name="lbl_active">
      <property name="text">
-      <string>Duration (s):</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="lbl_offsource">
-     <property name="text">
-      <string>Off source scan:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="1" colspan="3">
-    <widget class="QLineEdit" name="durationEdit">
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
-     </property>
-     <property name="inputMask">
-      <string notr="true"/>
-     </property>
-     <property name="text">
-      <string notr="true"/>
-     </property>
-     <property name="maxLength">
-      <number>999999999</number>
-     </property>
-     <property name="placeholderText">
-      <string notr="true"/>
+      <string>Active:</string>
      </property>
     </widget>
    </item>
@@ -533,12 +543,185 @@ QComboBox QAbstractItemView::item:hover {
      </property>
     </widget>
    </item>
-   <item row="18" column="0" colspan="4">
-    <widget class="Line" name="line_2">
-     <property name="orientation">
-      <enum>Qt::Orientation::Horizontal</enum>
-     </property>
-    </widget>
+   <item row="4" column="0" rowspan="2" colspan="4">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="labelStartTime">
+       <property name="text">
+        <string>Start Time:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDateTimeEdit" name="startTimeEdit">
+       <property name="styleSheet">
+        <string notr="true">/* Base style for QDoubleSpinBox */
+QDateTime {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    padding-right: 20px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
+    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
+}
+
+/* Editable state */
+QDateTime:editable {
+    background-color: #f0f6ff; /* Matches editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches editable QComboBox border */
+}
+
+/* Editable hover state */
+QDateTime:editable:hover {
+    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
+}
+
+/* Editable focus state */
+QDateTime:editable:focus {
+    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches editable QComboBox:focus background */
+}
+
+/* Non-editable state */
+QDateTime:!editable {
+    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
+}
+
+/* Non-editable hover state */
+QDateTime:!editable:hover {
+    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
+}
+
+/* Non-editable focus state */
+QDateTime:!editable:focus {
+    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
+}
+
+/* Styling for up/down buttons */
+QDateTime::up-button, QDateTime::down-button {
+    subcontrol-origin: padding;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
+    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
+}
+/* Hover state for up/down buttons */
+QDateTime::up-button:hover, QDateTime::down-button:hover {
+    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
+}
+
+/* Up arrow styling */
+QDateTime::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
+}
+/* Down arrow styling */
+QDateTime::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
+}</string>
+       </property>
+       <property name="minimumDateTime">
+        <datetime>
+         <hour>0</hour>
+         <minute>0</minute>
+         <second>0</second>
+         <year>2000</year>
+         <month>1</month>
+         <day>1</day>
+        </datetime>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="labelEndTime">
+       <property name="text">
+        <string>End Time:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDateTimeEdit" name="endTimeEdit">
+       <property name="styleSheet">
+        <string notr="true">/* Base style for QDoubleSpinBox */
+QDateTime {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    padding-right: 20px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
+    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
+}
+
+/* Editable state */
+QDateTime:editable {
+    background-color: #f0f6ff; /* Matches editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches editable QComboBox border */
+}
+
+/* Editable hover state */
+QDateTime:editable:hover {
+    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
+}
+
+/* Editable focus state */
+QDateTime:editable:focus {
+    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches editable QComboBox:focus background */
+}
+
+/* Non-editable state */
+QDateTime:!editable {
+    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
+}
+
+/* Non-editable hover state */
+QDateTime:!editable:hover {
+    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
+}
+
+/* Non-editable focus state */
+QDateTime:!editable:focus {
+    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
+}
+
+/* Styling for up/down buttons */
+QDateTime::up-button, QDateTime::down-button {
+    subcontrol-origin: padding;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
+    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
+}
+/* Hover state for up/down buttons */
+QDateTime::up-button:hover, QDateTime::down-button:hover {
+    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
+}
+
+/* Up arrow styling */
+QDateTime::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
+}
+/* Down arrow styling */
+QDateTime::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
+}</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
