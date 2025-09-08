@@ -126,6 +126,53 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         self.add(new_telescope)
         logger.debug(f"Created and added telescope '{code}'")
 
+    def create_space_telescope(self, code: str = "TS", name: str = "Temporary Space Telescope",
+                          orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
+                          sefd_table: Optional[Dict[float, float]] = None,
+                          pitch_range: Tuple[float, float] = (-90.0, 90.0),
+                          yaw_range: Tuple[float, float] = (-180.0, 180.0),
+                          isactive: bool = True, use_kep: bool = True,
+                          kepler_elements: Optional[dict] = None,
+                          interpolation_method: str = "chebyshev",
+                          surface_accuracy: Optional[float] = None,
+                          surface_efficiency_table: Optional[Dict[float, float]] = None,
+                          effective_area_table: Optional[Dict[float, float]] = None,
+                          system_temperature_table: Optional[Dict[float, float]] = None) -> None:
+        """Create and add a new SpaceTelescope object to the collection.
+
+        Args:
+            code (str): Unique short name. Defaults to "TS".
+            name (str): Full name (set to code for consistency). Defaults to "Temporary Space Telescope".
+            orbit_file (str): Path to the orbit file. Defaults to "dummy_orbit.oem".
+            diameter (float): Antenna diameter in meters. Defaults to 1.0.
+            sefd_table (Optional[Dict[float, float]]): SEFD table (MHz: Jy). Defaults to None.
+            pitch_range (Tuple[float, float]): Min and max pitch in degrees. Defaults to (-90.0, 90.0).
+            yaw_range (Tuple[float, float]): Min and max yaw in degrees. Defaults to (-180.0, 180.0).
+            isactive (bool): Whether the telescope is active. Defaults to True.
+            use_kep (bool): Use Keplerian elements for orbit calculation. Defaults to True.
+            kepler_elements (Optional[dict]): Keplerian elements for orbit calculation. Defaults to None.
+            interpolation_method (str): Interpolation method for orbit data ('linear', 'chebyshev', 'cubic_spline'). Defaults to "chebyshev".
+            surface_accuracy (Optional[float]): Surface accuracy in meters. Defaults to None.
+            surface_efficiency_table (Optional[Dict[float, float]]): Surface efficiency table (MHz: efficiency). Defaults to None.
+            effective_area_table (Optional[Dict[float, float]]): Effective area table (MHz: area). Defaults to None.
+            system_temperature_table (Optional[Dict[float, float]]): System temperature table (MHz: Kelvin). Defaults to None.
+
+        Raises:
+            TypeError: If inputs are of incorrect type.
+            ValueError: If code or name is a duplicate, invalid, or other SpaceTelescope initialization errors occur.
+        """
+        if not re.match(r'^[a-zA-Z0-9_-]+$', code):
+            raise ValueError(f"Invalid space telescope code '{code}' (use alphanumeric, underscore, or hyphen)")
+        new_telescope = SpaceTelescope(
+            code=code, name=code, orbit_file=orbit_file, diameter=diameter, sefd_table=sefd_table,
+            pitch_range=pitch_range, yaw_range=yaw_range, isactive=isactive, use_kep=use_kep,
+            kepler_elements=kepler_elements, interpolation_method=interpolation_method,
+            surface_accuracy=surface_accuracy, surface_efficiency_table=surface_efficiency_table,
+            effective_area_table=effective_area_table, system_temperature_table=system_temperature_table
+        )
+        self.add(new_telescope)
+        logger.debug(f"Created and added space telescope '{code}'")
+
     def activate_item(self, name: str) -> None:
         """Activate a specific telescope by its name.
 
