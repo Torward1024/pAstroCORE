@@ -8,6 +8,7 @@ from pastrocore.base.scans import Scan
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from common.utils.logging_setup import logger
 from astropy.time import Time
+from datetime import timedelta
 import uuid
 import pastrocore.gui.rc_icons
 
@@ -66,6 +67,10 @@ class ScanEditorDialog(QDialog):
         # Connect buttons
         self.ui.pushButton.clicked.connect(self.accept)
         self.ui.pushButton_2.clicked.connect(self.reject)
+        self.ui.btnSelectAllTelescopes.clicked.connect(self.select_all_telescopes)
+        self.ui.btnClearAllTelescopes.clicked.connect(self.clear_all_telescopes)
+        self.ui.btnSelectAllFrequencies.clicked.connect(self.select_all_frequencies)
+        self.ui.btnClearAllFrequencies.clicked.connect(self.clear_all_frequencies)
 
         # Connect checkbox signals
         self.ui.chk_offsource.stateChanged.connect(self.offsource_changed)
@@ -74,10 +79,18 @@ class ScanEditorDialog(QDialog):
         self.telescopes_model.itemChanged.connect(self.debug_item_changed)
         self.frequencies_model.itemChanged.connect(self.debug_item_changed)
 
+        # Time and duration setup
         self.ui.startTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        self.ui.endTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        self.ui.endTimeEdit.setReadOnly(False)  # Ensure editable
         validator = QDoubleValidator(1.0, 2147483647.0, 0, self)  # Allow integers up to 2^31 - 1
         validator.setNotation(QDoubleValidator.StandardNotation)
         self.ui.durationEdit.setValidator(validator)
+
+        # Connect signals for time synchronization
+        self.ui.startTimeEdit.dateTimeChanged.connect(self.update_from_start_or_duration)
+        self.ui.durationEdit.textChanged.connect(self.update_from_start_or_duration)
+        self.ui.endTimeEdit.dateTimeChanged.connect(self.update_from_end_time)
 
         self.selected_telescopes = set()
         self.selected_frequencies = set()
@@ -114,7 +127,7 @@ class ScanEditorDialog(QDialog):
                         logger.debug(f"Processing scan '{scan_name}': start={scan_start.isot}, duration={scan_duration}")
                         try:
                             # Calculate end time using TimeDelta
-                            scan_end = scan_start + (scan_duration * 1.0 / 86400.0)  # Convert seconds to days
+                            scan_end = scan_start + timedelta(seconds=scan_duration)
                             logger.debug(f"Calculated end time for scan '{scan_name}': {scan_end.isot}")
                             if latest_end_time is None or scan_end > latest_end_time:
                                 latest_end_time = scan_end
@@ -125,33 +138,33 @@ class ScanEditorDialog(QDialog):
                 if latest_end_time and latest_duration is not None:
                     try:
                         start_dt = latest_end_time.to_datetime()
-                        start_qdt = QDateTime(start_dt)
+                        start_qdt = QDateTime.fromMSecsSinceEpoch(int(start_dt.timestamp() * 1000))
                         self.ui.startTimeEdit.setDateTime(start_qdt)
                         logger.debug(f"Set start time for new scan to end of latest scan: {start_dt}")
                         self.ui.durationEdit.setText(str(int(latest_duration)))
+                        self.update_from_start_or_duration()  # Update endTime immediately
                         logger.debug(f"Set duration for new scan to match latest scan: {latest_duration}")
                     except Exception as e:
                         logger.error(f"Error converting latest end time to QDateTime: {str(e)}")
-                        current_time = QDateTime.currentDateTime()
-                        self.ui.startTimeEdit.setDateTime(current_time)
-                        self.ui.durationEdit.setText("1")
-                        logger.debug(f"Fallback to current time and default duration (1s) due to conversion error: {current_time.toString(Qt.ISODate)}")
+                        self._set_default_time()
                 else:
-                    current_time = QDateTime.currentDateTime()
-                    self.ui.startTimeEdit.setDateTime(current_time)
-                    self.ui.durationEdit.setText("1")
-                    logger.debug(f"No valid scans found, set start time to current time: {current_time.toString(Qt.ISODate)}, duration to default: 600")
+                    self._set_default_time()
             else:
-                current_time = QDateTime.currentDateTime()
-                self.ui.startTimeEdit.setDateTime(current_time)
-                self.ui.durationEdit.setText("600")
-                logger.debug(f"No scans available, deliberately set start time to current time: {current_time.toString(Qt.ISODate)}, duration to default: 600")
+                self._set_default_time()
         else:
             self._load_scan_data()
 
         self.ui.chk_active.setChecked(self._check_scan_conditions())
         logger.debug(f"Set chk_active for {'new scan' if self.is_new else f'scan {self.scan.name}'} based on conditions: {self.ui.chk_active.isChecked()}")
         logger.debug(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan.name}'} in observation '{self.observation.code}'")
+
+    def _set_default_time(self):
+        """Set default start time to current and duration to 600s, update endTime."""
+        current_time = QDateTime.currentDateTime()
+        self.ui.startTimeEdit.setDateTime(current_time)
+        self.ui.durationEdit.setText("600")
+        self.update_from_start_or_duration()
+        logger.debug(f"No scans available, set start time to current: {current_time.toString(Qt.ISODate)}, duration to default: 600")
 
     def debug_item_changed(self, item):
         """Debug signal for item changes in the model."""
@@ -366,7 +379,7 @@ class ScanEditorDialog(QDialog):
         try:
             start_time = self.scan.start
             start_dt = start_time.to_datetime()
-            self.ui.startTimeEdit.setDateTime(QDateTime(start_dt))
+            self.ui.startTimeEdit.setDateTime(QDateTime.fromMSecsSinceEpoch(int(start_dt.timestamp() * 1000)))
             logger.info(f"Set start time to: {start_dt}")
         except Exception as e:
             logger.error(f"Failed to load start time '{self.scan.start.isot}': {str(e)}")
@@ -376,6 +389,7 @@ class ScanEditorDialog(QDialog):
 
         self.ui.durationEdit.setText(str(int(self.scan.duration)))
         logger.info(f"Set duration: {int(self.scan.duration)}")
+        self.update_from_start_or_duration()  # Update endTime based on loaded data
 
         self.ui.chk_offsource.setChecked(self.scan.is_off_source)
         if self.scan.is_off_source:
@@ -426,6 +440,62 @@ class ScanEditorDialog(QDialog):
             self.frequencies_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
         self.ui.tab_frequencies.viewport().update()
 
+    @Slot()
+    def select_all_telescopes(self):
+        """Select all telescopes in the table."""
+        for row in range(self.telescopes_model.rowCount()):
+            check_item = self.telescopes_model.item(row, 1)
+            name_item = self.telescopes_model.item(row, 3)
+            if check_item and name_item:
+                check_item.setCheckState(Qt.Checked)
+                self.selected_telescopes.add(name_item.text())
+                self.telescopes_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
+        self.ui.tab_telescopes.viewport().update()
+        self.ui.chk_active.setChecked(self._check_scan_conditions())
+        logger.debug("Selected all telescopes")
+
+    @Slot()
+    def clear_all_telescopes(self):
+        """Clear selection of all telescopes in the table."""
+        for row in range(self.telescopes_model.rowCount()):
+            check_item = self.telescopes_model.item(row, 1)
+            name_item = self.telescopes_model.item(row, 3)
+            if check_item and name_item:
+                check_item.setCheckState(Qt.Unchecked)
+                self.selected_telescopes.discard(name_item.text())
+                self.telescopes_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
+        self.ui.tab_telescopes.viewport().update()
+        self.ui.chk_active.setChecked(self._check_scan_conditions())
+        logger.debug("Cleared all telescopes selection")
+
+    @Slot()
+    def select_all_frequencies(self):
+        """Select all frequencies in the table."""
+        for row in range(self.frequencies_model.rowCount()):
+            check_item = self.frequencies_model.item(row, 1)
+            name_item = self.frequencies_model.item(row, 3)
+            if check_item and name_item:
+                check_item.setCheckState(Qt.Checked)
+                self.selected_frequencies.add(name_item.text())
+                self.frequencies_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
+        self.ui.tab_frequencies.viewport().update()
+        self.ui.chk_active.setChecked(self._check_scan_conditions())
+        logger.debug("Selected all frequencies")
+
+    @Slot()
+    def clear_all_frequencies(self):
+        """Clear selection of all frequencies in the table."""
+        for row in range(self.frequencies_model.rowCount()):
+            check_item = self.frequencies_model.item(row, 1)
+            name_item = self.frequencies_model.item(row, 3)
+            if check_item and name_item:
+                check_item.setCheckState(Qt.Unchecked)
+                self.selected_frequencies.discard(name_item.text())
+                self.frequencies_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
+        self.ui.tab_frequencies.viewport().update()
+        self.ui.chk_active.setChecked(self._check_scan_conditions())
+        logger.debug("Cleared all frequencies selection")
+
     @Slot(int)
     def offsource_changed(self, state):
         """Handle OFF SOURCE checkbox state change."""
@@ -436,6 +506,48 @@ class ScanEditorDialog(QDialog):
         logger.debug(f"OFF SOURCE changed to: {is_off_source}, sourceCombo enabled: {self.ui.sourceCombo.isEnabled()}, selected: {self.ui.sourceCombo.currentText()}")
         self.ui.chk_active.setChecked(self._check_scan_conditions())
         logger.debug(f"Updated chk_active after offsource change: {self.ui.chk_active.isChecked()}")
+
+    @Slot()
+    def update_from_start_or_duration(self):
+        """Update endTime based on startTime and duration."""
+        start_qdt = self.ui.startTimeEdit.dateTime()
+        try:
+            duration = float(self.ui.durationEdit.text())
+            if duration <= 0:
+                raise ValueError("Duration must be positive")
+            end_dt = start_qdt.addSecs(int(duration))
+            self.ui.endTimeEdit.blockSignals(True)  # Prevent recursive signals
+            self.ui.endTimeEdit.setDateTime(end_dt)
+            self.ui.endTimeEdit.blockSignals(False)
+            logger.debug(f"Updated endTime from start/duration: {end_dt.toString(Qt.ISODate)}")
+        except ValueError:
+            logger.warning("Invalid duration during update, skipping endTime update")
+            pass  # Don't update if invalid
+
+    @Slot()
+    def update_from_end_time(self):
+        """Update duration based on startTime and endTime, validate end > start."""
+        start_qdt = self.ui.startTimeEdit.dateTime()
+        end_qdt = self.ui.endTimeEdit.dateTime()
+        if end_qdt <= start_qdt:
+            QMessageBox.warning(self, "Invalid Time", "End time must be after start time.")
+            # Reset to previous valid (add duration or 1s if invalid)
+            try:
+                duration = float(self.ui.durationEdit.text())
+                if duration <= 0:
+                    raise ValueError
+                end_qdt = start_qdt.addSecs(int(duration))
+            except ValueError:
+                end_qdt = start_qdt.addSecs(1)
+            self.ui.endTimeEdit.blockSignals(True)
+            self.ui.endTimeEdit.setDateTime(end_qdt)
+            self.ui.endTimeEdit.blockSignals(False)
+            logger.warning(f"End time invalid, reset to start + {int(duration) if duration > 0 else 1}s")
+        duration = start_qdt.secsTo(end_qdt)
+        self.ui.durationEdit.blockSignals(True)  # Prevent recursive signals
+        self.ui.durationEdit.setText(str(duration))
+        self.ui.durationEdit.blockSignals(False)
+        logger.debug(f"Updated duration from endTime: {duration}s")
 
     def get_scan_data(self):
         """Retrieve scan data from the dialog."""
@@ -451,6 +563,13 @@ class ScanEditorDialog(QDialog):
         except ValueError as e:
             logger.error(f"Invalid duration: {str(e)}")
             raise ValueError("Duration must be a positive integer number")
+
+        # Validate endTime consistency (though signals should keep it synced)
+        end_time = self.ui.endTimeEdit.dateTime()
+        calculated_duration = self.ui.startTimeEdit.dateTime().secsTo(end_time)
+        if calculated_duration != int(duration):
+            logger.warning(f"Duration ({duration}s) and endTime ({end_time.toString(Qt.ISODate)}) mismatch, using duration")
+            # Prioritize duration as per spec
 
         is_off_source = self.ui.chk_offsource.isChecked()
         source = None if is_off_source else self.ui.sourceCombo.currentData()
