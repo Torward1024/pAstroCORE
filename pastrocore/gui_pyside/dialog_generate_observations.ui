@@ -897,7 +897,7 @@
         <double>1.000000000000000</double>
        </property>
        <property name="maximum">
-        <double>3600.000000000000000</double>
+        <double>9999999999999.000000000000000</double>
        </property>
        <property name="value">
         <double>300.000000000000000</double>
@@ -980,6 +980,13 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="chkParallel">
+     <property name="text">
+      <string>Observations Parallel in Time</string>
+     </property>
+    </widget>
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayoutButtons">

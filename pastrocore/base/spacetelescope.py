@@ -66,6 +66,27 @@ class SpaceTelescope(Telescope):
             logger.debug(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
         else:
             logger.warning(f"Initialized SpaceTelescope '{code}' without orbit data or Keplerian elements")
+    
+    def copy(self) -> 'SpaceTelescope':
+        """Create a deep copy of the SpaceTelescope object, preserving all attributes."""
+        return SpaceTelescope(
+            code=self.code,
+            name=self.name,
+            type=self.type,
+            orbit_file=self.orbit_file,
+            diameter=self.diameter,
+            sefd_table=deepcopy(self.sefd_table),
+            pitch_range=self.pitch_range,
+            yaw_range=self.yaw_range,
+            isactive=self.isactive,
+            use_kep=self.use_kep,
+            kepler_elements=deepcopy(self.kepler_elements) if self.kepler_elements else None,
+            interpolation_method=self.interpolation_method,
+            surface_accuracy=self.surface_accuracy,
+            surface_efficiency_table=deepcopy(self.surface_efficiency_table),
+            effective_area_table=deepcopy(self.effective_area_table),
+            system_temperature_table=deepcopy(self.system_temperature_table)
+        )
 
     def _validate_type(self, key: str, value: Any, expected_type: Any) -> None:
         """Validate attribute types, with custom checks for SpaceTelescope attributes."""

@@ -6,11 +6,14 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.utils.catalogmanager import CatalogManager
 from pastrocore.base.frequencies import IF, Frequencies
-from pastrocore.base.sources import Sources
-from pastrocore.base.telescopes import Telescopes
+from pastrocore.base.sources import Source, Sources
+from pastrocore.base.telescopes import Telescope, SpaceTelescope, Telescopes
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
 from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
 from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
+from pastrocore.gui.p_dialog_edit_source import SourceEditorDialog
+from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
+from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
 from .ui_dialog_calc_progress import Ui_ProgressDialog
 from common.utils.logging_setup import logger
 import uuid
@@ -97,24 +100,17 @@ class GenerateObservationsDialog(QDialog):
         self.manipulator = manipulator
         self.catalog_manager = catalog_manager
         self.frequencies = Frequencies()
+        self.sources = Sources()
+        self.telescopes = Telescopes()
+        self._source_order = []
+        self._telescope_order = []
+        self._frequency_order = []  # Для частот, если нужно, но кнопок up/down нет, так что по добавлению
         self.setup_ui()
         self.setup_connections()
 
     def setup_ui(self):
         """Populate lists and set up initial UI state."""
-        # Populate source list
-        sources = self.catalog_manager.source_catalog.get_items()
-        for source in sources:
-            item = QListWidgetItem(source.name)
-            item.setData(Qt.UserRole, source)
-            self.ui.sourceList.addItem(item)
-
-        # Populate telescope list
-        telescopes = self.catalog_manager.telescope_catalog.get_items()
-        for telescope in telescopes:
-            item = QListWidgetItem(telescope.get("name"))
-            item.setData(Qt.UserRole, telescope)
-            self.ui.telescopeList.addItem(item)
+        # Source, telescope and frequency lists are initially empty; populate manually via context menu
 
         # Set context menu policies
         self.ui.sourceList.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -136,8 +132,11 @@ class GenerateObservationsDialog(QDialog):
         current_time = datetime.now()
         self.ui.startTimeEdit.setDateTime(current_time)
         self.ui.endTimeEdit.setDateTime(current_time + timedelta(hours=24))
+        self.ui.chkParallel.setChecked(True)
         
         self.update_frequency_list()
+        self.update_source_list()
+        self.update_telescope_list()
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -160,110 +159,40 @@ class GenerateObservationsDialog(QDialog):
     def update_frequency_list(self):
         """Update the frequency list UI from self.frequencies."""
         self.ui.frequencyList.clear()
-        for name, if_obj in self.frequencies.get_all().items():
-            item = QListWidgetItem(f"{if_obj.frequency:.0f} MHz, BW: {if_obj.bandwidth:.0f} MHz, Pol: {', '.join(if_obj.polarizations)}")
-            item.setData(Qt.UserRole, if_obj)
-            item.setData(Qt.UserRole + 1, name)
-            self.ui.frequencyList.addItem(item)
+        for name in self._frequency_order:
+            if name in self.frequencies.get_all():
+                if_obj = self.frequencies.get_all()[name]
+                item = QListWidgetItem(f"{if_obj.frequency:.0f} MHz, BW: {if_obj.bandwidth:.0f} MHz, Pol: {', '.join(if_obj.polarizations)}")
+                item.setData(Qt.UserRole, if_obj)
+                item.setData(Qt.UserRole + 1, name)
+                self.ui.frequencyList.addItem(item)
 
-    @Slot(QPoint)
-    def show_source_context_menu(self, position: QPoint):
-        """Show context menu for the sources list."""
-        menu = QMenu(self)
-        add_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add from Catalog")
-        add_catalog_action.triggered.connect(self.add_sources_from_catalog)
-        index = self.ui.sourceList.indexAt(position)
-        if index.isValid():
-            menu.addSeparator()
-            remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Source")
-            remove_action.triggered.connect(lambda: self.remove_source(index.row()))
-        menu.exec(self.ui.sourceList.viewport().mapToGlobal(position))
-
-    @Slot()
-    def add_sources_from_catalog(self):
-        """Add sources from catalog to sourceList."""
-        dialog = SourcesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
-        dialog.sources_selected.connect(self.handle_sources_selected)
-        dialog.exec()
-
-    @Slot(list)
-    def handle_sources_selected(self, sources: list):
-        """Handle sources selected from catalog."""
-        existing_names = {self.ui.sourceList.item(i).data(Qt.UserRole).name for i in range(self.ui.sourceList.count())}
-        added_count = 0
-        for source in sources:
-            if source.name not in existing_names:
-                item = QListWidgetItem(source.name)
+    def update_source_list(self):
+        """Update the source list UI from self.sources, respecting _source_order."""
+        self.ui.sourceList.clear()
+        for name in self._source_order:
+            if name in self.sources.get_all():
+                source = self.sources.get_all()[name]
+                item = QListWidgetItem(name)
                 item.setData(Qt.UserRole, source)
                 self.ui.sourceList.addItem(item)
-                added_count += 1
-                logger.info(f"Added source '{source.name}' from catalog to source list")
-        if added_count:
-            QMessageBox.information(self, "Success", f"Added {added_count} source(s) from catalog.")
-        else:
-            QMessageBox.warning(self, "Warning", "No new sources added (all selected sources already in list).")
 
-    @Slot(int)
-    def remove_source(self, row: int):
-        """Remove a source from sourceList."""
-        item = self.ui.sourceList.takeItem(row)
-        logger.info(f"Removed source '{item.data(Qt.UserRole).name}' from source list")
-
-    @Slot(QPoint)
-    def show_telescope_context_menu(self, position: QPoint):
-        """Show context menu for the telescopes list."""
-        menu = QMenu(self)
-        add_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add from Catalog")
-        add_catalog_action.triggered.connect(self.add_telescopes_from_catalog)
-        index = self.ui.telescopeList.indexAt(position)
-        if index.isValid():
-            menu.addSeparator()
-            remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Telescope")
-            remove_action.triggered.connect(lambda: self.remove_telescope(index.row()))
-        menu.exec(self.ui.telescopeList.viewport().mapToGlobal(position))
-
-    @Slot()
-    def add_telescopes_from_catalog(self):
-        """Add telescopes from catalog to telescopeList."""
-        dialog = TelescopesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
-        dialog.telescopes_selected.connect(self.handle_telescopes_selected)
-        dialog.exec()
-
-    @Slot(list)
-    def handle_telescopes_selected(self, telescopes: list):
-        """Handle telescopes selected from catalog."""
-        existing_names = {self.ui.telescopeList.item(i).data(Qt.UserRole).get("name") for i in range(self.ui.telescopeList.count())}
-        added_count = 0
-        for telescope in telescopes:
-            name = telescope.get("name")
-            if name not in existing_names:
+    def update_telescope_list(self):
+        """Update the telescope list UI from self.telescopes, respecting _telescope_order."""
+        self.ui.telescopeList.clear()
+        for name in self._telescope_order:
+            if name in self.telescopes.get_all():
+                telescope = self.telescopes.get_all()[name]
                 item = QListWidgetItem(name)
                 item.setData(Qt.UserRole, telescope)
                 self.ui.telescopeList.addItem(item)
-                added_count += 1
-                logger.info(f"Added telescope '{name}' from catalog to telescope list")
-        if added_count:
-            QMessageBox.information(self, "Success", f"Added {added_count} telescope(s) from catalog.")
-        else:
-            QMessageBox.warning(self, "Warning", "No new telescopes added (all selected telescopes already in list).")
-
-    @Slot(int)
-    def remove_telescope(self, row: int):
-        """Remove a telescope from telescopeList."""
-        item = self.ui.telescopeList.takeItem(row)
-        logger.info(f"Removed telescope '{item.data(Qt.UserRole).get('name')}' from telescope list")
 
     @Slot(QPoint)
     def show_frequency_context_menu(self, position: QPoint):
-        """Show context menu for the frequencies list."""
+        """Show context menu for the frequency list."""
         menu = QMenu(self)
         add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Frequency")
-        import_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import Frequency")
-        export_action = menu.addAction(QIcon(":/icons/export_icon.svg"), "Export All Frequencies")
         add_action.triggered.connect(self.add_frequency)
-        import_action.triggered.connect(self.import_frequency)
-        export_action.triggered.connect(self.export_frequencies)
-
         index = self.ui.frequencyList.indexAt(position)
         if index.isValid():
             menu.addSeparator()
@@ -271,7 +200,6 @@ class GenerateObservationsDialog(QDialog):
             remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Frequency")
             edit_action.triggered.connect(lambda: self.edit_frequency(index.row()))
             remove_action.triggered.connect(lambda: self.remove_frequency(index.row()))
-
         menu.exec(self.ui.frequencyList.viewport().mapToGlobal(position))
 
     @Slot()
@@ -281,181 +209,313 @@ class GenerateObservationsDialog(QDialog):
         if dialog.exec() == QDialog.Accepted:
             try:
                 if_data = dialog.get_if_data()
-                if_id = f"IF_{uuid.uuid4().hex[:8]}"
-                if_obj = IF(
-                    name=if_id,
-                    frequency=if_data["frequency"],
-                    bandwidth=if_data["bandwidth"],
-                    polarizations=if_data["polarizations"],
-                    isactive=if_data["isactive"]
-                )
+                if_data['name'] = f"freq_{uuid.uuid4().hex[:32]}"
+                if_obj = IF(**if_data)
                 self.frequencies.add(if_obj)
+                self._frequency_order.append(if_obj.name)
                 self.update_frequency_list()
-                logger.info(f"Added frequency '{if_id}' with {if_data['frequency']} MHz")
+                logger.info(f"Added frequency '{if_obj.name}' manually to frequencies collection")
+                QMessageBox.information(self, "Success", f"Added frequency '{if_obj.name}'.")
             except Exception as e:
-                logger.error(f"Failed to add frequency: {str(e)}")
+                logger.error(f"Failed to add frequency manually: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(e)}")
 
     @Slot(int)
     def edit_frequency(self, row: int):
-        """Edit an existing frequency using IFEditorDialog."""
+        """Edit a frequency using IFEditorDialog."""
         item = self.ui.frequencyList.item(row)
-        if_obj = item.data(Qt.UserRole)
-        if_name = item.data(Qt.UserRole + 1)
-        dialog = IFEditorDialog(if_obj=if_obj, parent=self)
-        if dialog.exec() == QDialog.Accepted:
-            try:
-                if_data = dialog.get_if_data()
-                self.frequencies.update_item(
-                    name=if_name,
-                    frequency=if_data["frequency"],
-                    bandwidth=if_data["bandwidth"],
-                    polarizations=if_data["polarizations"],
-                    isactive=if_data["isactive"]
-                )
-                self.update_frequency_list()
-                logger.info(f"Edited frequency '{if_name}' with {if_data['frequency']} MHz")
-            except Exception as e:
-                logger.error(f"Failed to edit frequency: {str(e)}")
-                QMessageBox.critical(self, "Error", f"Failed to edit frequency: {str(e)}")
+        if item:
+            if_obj = item.data(Qt.UserRole)
+            dialog = IFEditorDialog(if_obj=if_obj, parent=self)
+            if dialog.exec() == QDialog.Accepted:
+                try:
+                    if_data = dialog.get_if_data()
+                    if_obj.set(if_data)
+                    self.update_frequency_list()
+                    logger.info(f"Edited frequency '{if_obj.name}'")
+                    QMessageBox.information(self, "Success", f"Edited frequency '{if_obj.name}'.")
+                except Exception as e:
+                    logger.error(f"Failed to edit frequency: {str(e)}")
+                    QMessageBox.critical(self, "Error", f"Failed to edit frequency: {str(e)}")
 
     @Slot(int)
     def remove_frequency(self, row: int):
-        """Remove a frequency from the list."""
+        """Remove a frequency from frequencies collection."""
         item = self.ui.frequencyList.item(row)
-        if_name = item.data(Qt.UserRole + 1)
-        self.frequencies.drop_item(if_name)
-        self.update_frequency_list()
-        logger.info(f"Removed frequency '{if_name}'")
-
-    @Slot()
-    def import_frequency(self):
-        """Import a frequency from a JSON file."""
-        file_name, _ = QFileDialog.getOpenFileName(
-            self, "Import Frequency", "", "JSON Files (*.json);;All Files (*)"
-        )
-        if file_name:
-            try:
-                with open(file_name, 'r') as f:
-                    if_data = json.load(f)
-                if_id = f"IF_{uuid.uuid4().hex[:8]}"
-                if_obj = IF(
-                    name=if_id,
-                    frequency=if_data.get("frequency", 1000.0),
-                    bandwidth=if_data.get("bandwidth", 16.0),
-                    polarizations=if_data.get("polarizations", []),
-                    isactive=if_data.get("isactive", True)
-                )
-                self.frequencies.add(if_obj)
-                self.update_frequency_list()
-                logger.info(f"Imported frequency '{if_id}' from {file_name}")
-            except Exception as e:
-                logger.error(f"Failed to import frequency: {str(e)}")
-                QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
-
-    @Slot()
-    def export_frequencies(self):
-        """Export all frequencies to a JSON file."""
-        file_name, _ = QFileDialog.getSaveFileName(
-            self, "Export Frequencies", "", "JSON Files (*.json);;All Files (*)"
-        )
-        if file_name:
-            try:
-                freq_data = []
-                for name, if_obj in self.frequencies.get_all().items():
-                    freq_data.append({
-                        "name": name,
-                        "frequency": if_obj.frequency,
-                        "bandwidth": if_obj.bandwidth,
-                        "polarizations": if_obj.polarizations,
-                        "isactive": if_obj.isactive
-                    })
-                with open(file_name, 'w') as f:
-                    json.dump(freq_data, f, indent=4)
-                logger.info(f"Exported {len(freq_data)} frequencies to {file_name}")
-            except Exception as e:
-                logger.error(f"Failed to export frequencies: {str(e)}")
-                QMessageBox.critical(self, "Error", f"Failed to export frequencies: {str(e)}")
+        if item:
+            name = item.data(Qt.UserRole + 1)
+            self.frequencies.remove(name)
+            self._frequency_order.remove(name)
+            self.update_frequency_list()
+            logger.info(f"Removed frequency '{name}' from frequencies collection")
 
     @Slot()
     def move_source_up(self):
-        """Move selected source up in sourceList."""
-        current = self.ui.sourceList.currentRow()
-        if current > 0:
-            item = self.ui.sourceList.takeItem(current)
-            self.ui.sourceList.insertItem(current - 1, item)
-            self.ui.sourceList.setCurrentRow(current - 1)
-            logger.debug(f"Moved source '{item.data(Qt.UserRole).name}' up to position {current - 1}")
+        """Move the selected source up in the list."""
+        current_row = self.ui.sourceList.currentRow()
+        if current_row > 0:
+            self._source_order[current_row], self._source_order[current_row - 1] = (
+                self._source_order[current_row - 1], self._source_order[current_row]
+            )
+            self.update_source_list()
+            self.ui.sourceList.setCurrentRow(current_row - 1)
+            logger.debug(f"Moved source '{self._source_order[current_row - 1]}' up to position {current_row}")
 
     @Slot()
     def move_source_down(self):
-        """Move selected source down in sourceList."""
-        current = self.ui.sourceList.currentRow()
-        if current < self.ui.sourceList.count() - 1:
-            item = self.ui.sourceList.takeItem(current)
-            self.ui.sourceList.insertItem(current + 1, item)
-            self.ui.sourceList.setCurrentRow(current + 1)
-            logger.debug(f"Moved source '{item.data(Qt.UserRole).name}' down to position {current + 1}")
+        """Move the selected source down in the list."""
+        current_row = self.ui.sourceList.currentRow()
+        if current_row < self.ui.sourceList.count() - 1 and current_row >= 0:
+            self._source_order[current_row], self._source_order[current_row + 1] = (
+                self._source_order[current_row + 1], self._source_order[current_row]
+            )
+            self.update_source_list()
+            self.ui.sourceList.setCurrentRow(current_row + 1)
+            logger.debug(f"Moved source '{self._source_order[current_row + 1]}' down to position {current_row + 2}")
+
+    @Slot(QPoint)
+    def show_source_context_menu(self, position: QPoint):
+        """Show context menu for the sources list."""
+        menu = QMenu(self)
+        add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Source")
+        add_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add from Catalog")
+        add_action.triggered.connect(self.add_source)
+        add_catalog_action.triggered.connect(self.add_sources_from_catalog)
+        index = self.ui.sourceList.indexAt(position)
+        if index.isValid():
+            menu.addSeparator()
+            remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Source")
+            remove_action.triggered.connect(lambda: self.remove_source(index.row()))
+        menu.exec(self.ui.sourceList.viewport().mapToGlobal(position))
+
+    @Slot()
+    def add_source(self):
+        """Add a new source manually using SourceEditorDialog."""
+        dialog = SourceEditorDialog(parent=self)
+        if dialog.exec() == QDialog.Accepted:
+            try:
+                source_data = dialog.get_source_data()
+                source = Source(**source_data)
+                self.sources.add(source)
+                self._source_order.append(source.name)
+                self.update_source_list()
+                logger.info(f"Added source '{source.name}' manually to sources collection")
+                QMessageBox.information(self, "Success", f"Added source '{source.name}'.")
+            except Exception as e:
+                logger.error(f"Failed to add source manually: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to add source: {str(e)}")
+
+    @Slot()
+    def add_sources_from_catalog(self):
+        """Add sources from catalog."""
+        dialog = SourcesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
+        dialog.sources_selected.connect(self.handle_sources_selected)
+        dialog.exec()
+
+    @Slot(list)
+    def handle_sources_selected(self, sources: list):
+        """Handle sources selected from catalog."""
+        added_count = 0
+        skipped_sources = []
+        for source in sources:
+            if source.name in self.sources.get_all():
+                skipped_sources.append(source.name)
+                logger.info(f"Skipped source '{source.name}' as it already exists in sources collection")
+                continue
+            self.sources.add(source)
+            self._source_order.append(source.name)
+            added_count += 1
+            logger.info(f"Added source '{source.name}' from catalog to sources collection")
+        self.update_source_list()
+        if added_count:
+            QMessageBox.information(self, "Success", f"Added {added_count} source(s) from catalog.")
+        if skipped_sources:
+            QMessageBox.information(self, "Note", f"Skipped {len(skipped_sources)} source(s) already in collection: {', '.join(skipped_sources)}")
+        if not added_count and not skipped_sources:
+            QMessageBox.warning(self, "Warning", "No sources added.")
 
     @Slot(int)
-    def load_preset(self, index):
-        """Load preset settings based on combo box selection."""
-        preset = self.ui.presetCombo.currentText()
-        if preset == "Standard VLBI":
-            self.ui.addOffSourceCheck.setChecked(False)
-            self.ui.randomizeOrderCheck.setChecked(False)
-            self.ui.intervalSpinBox.setValue(10)
-            logger.debug("Loaded Standard VLBI preset")
-        elif preset == "Quick Single Dish":
-            self.ui.addOffSourceCheck.setChecked(True)
-            self.ui.randomizeOrderCheck.setChecked(True)
-            self.ui.intervalSpinBox.setValue(2)
-            logger.debug("Loaded Quick Single Dish preset")
+    def remove_source(self, row: int):
+        """Remove a source from sources collection."""
+        item = self.ui.sourceList.item(row)
+        if item:
+            name = item.text()
+            self.sources.remove(name)
+            self._source_order.remove(name)
+            self.update_source_list()
+            logger.info(f"Removed source '{name}' from sources collection")
+
+    @Slot(QPoint)
+    def show_telescope_context_menu(self, position: QPoint):
+        """Show context menu for the telescopes list."""
+        menu = QMenu(self)
+        add_telescope_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Telescope")
+        add_space_telescope_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Space Telescope")
+        add_catalog_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Add from Catalog")
+        add_telescope_action.triggered.connect(self.add_telescope)
+        add_space_telescope_action.triggered.connect(self.add_space_telescope)
+        add_catalog_action.triggered.connect(self.add_telescopes_from_catalog)
+        index = self.ui.telescopeList.indexAt(position)
+        if index.isValid():
+            menu.addSeparator()
+            remove_action = menu.addAction(QIcon(":/icons/remove_icon.svg"), "Remove Telescope")
+            remove_action.triggered.connect(lambda: self.remove_telescope(index.row()))
+        menu.exec(self.ui.telescopeList.viewport().mapToGlobal(position))
+
+    @Slot()
+    def add_telescope(self):
+        """Add a new ground-based telescope manually using TelescopeEditorDialog."""
+        dialog = TelescopeEditorDialog(parent=self)
+        if dialog.exec() == QDialog.Accepted:
+            try:
+                telescope_data = dialog.get_telescope_data()
+                telescope = Telescope(**telescope_data)
+                self.telescopes.add(telescope)
+                self._telescope_order.append(telescope.name)
+                self.update_telescope_list()
+                logger.info(f"Added telescope '{telescope.name}' manually to telescopes collection")
+                QMessageBox.information(self, "Success", f"Added telescope '{telescope.name}'.")
+            except Exception as e:
+                logger.error(f"Failed to add telescope manually: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
+
+    @Slot()
+    def add_space_telescope(self):
+        """Add a new space telescope manually using SpaceTelescopeEditorDialog."""
+        dialog = SpaceTelescopeEditorDialog(parent=self)
+        if dialog.exec() == QDialog.Accepted:
+            try:
+                telescope_data = dialog.get_telescope_data()
+                telescope = SpaceTelescope(**telescope_data)
+                self.telescopes.add(telescope)
+                self._telescope_order.append(telescope.name)
+                self.update_telescope_list()
+                logger.info(f"Added space telescope '{telescope.name}' manually to telescopes collection")
+                QMessageBox.information(self, "Success", f"Added space telescope '{telescope.name}'.")
+            except Exception as e:
+                logger.error(f"Failed to add space telescope manually: {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to add space telescope: {str(e)}")
+
+    @Slot()
+    def add_telescopes_from_catalog(self):
+        """Add telescopes from catalog."""
+        dialog = TelescopesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
+        dialog.telescopes_selected.connect(self.handle_telescopes_selected)
+        dialog.exec()
+
+    @Slot(list)
+    def handle_telescopes_selected(self, telescopes: list):
+        """Handle telescopes selected from catalog."""
+        added_count = 0
+        skipped_telescopes = []
+        for telescope in telescopes:
+            name = telescope.name
+            if name in self.telescopes.get_all():
+                skipped_telescopes.append(name)
+                logger.info(f"Skipped telescope '{name}' as it already exists in telescopes collection")
+                continue
+            self.telescopes.add(telescope)
+            self._telescope_order.append(name)
+            added_count += 1
+            logger.info(f"Added telescope '{name}' from catalog to telescopes collection")
+        self.update_telescope_list()
+        if added_count:
+            QMessageBox.information(self, "Success", f"Added {added_count} telescope(s) from catalog.")
+        if skipped_telescopes:
+            QMessageBox.information(self, "Note", f"Skipped {len(skipped_telescopes)} telescope(s) already in collection: {', '.join(skipped_telescopes)}")
+        if not added_count and not skipped_telescopes:
+            QMessageBox.warning(self, "Warning", "No telescopes added.")
+
+    @Slot(int)
+    def remove_telescope(self, row: int):
+        """Remove a telescope from telescopes collection."""
+        item = self.ui.telescopeList.item(row)
+        if item:
+            name = item.text()
+            self.telescopes.remove(name)
+            self._telescope_order.remove(name)
+            self.update_telescope_list()
+            logger.info(f"Removed telescope '{name}' from telescopes collection")
 
     @Slot()
     def save_preset(self):
-        """Save current pattern settings as a JSON preset."""
-        preset_data = {
-            "add_off_source": self.ui.addOffSourceCheck.isChecked(),
-            "randomize_order": self.ui.randomizeOrderCheck.isChecked(),
-            "interval_min": self.ui.intervalSpinBox.value()
-        }
+        """Save current settings as a preset to a file."""
         file_name, _ = QFileDialog.getSaveFileName(self, "Save Preset", "", "JSON Files (*.json)")
         if file_name:
             try:
+                preset_data = {
+                    "observation_type": self.ui.observationTypeCombo.currentText(),
+                    "start_time": self.ui.startTimeEdit.dateTime().toString("yyyy-MM-dd HH:mm:ss"),
+                    "end_time": self.ui.endTimeEdit.dateTime().toString("yyyy-MM-dd HH:mm:ss"),
+                    "scan_duration": self.ui.scanDurationSpinBox.value(),
+                    "num_scans": self.ui.numScansSpinBox.value(),
+                    "naming_mask": self.ui.namingMaskEdit.text(),
+                    "add_off_source": self.ui.addOffSourceCheck.isChecked(),
+                    "randomize_order": self.ui.randomizeOrderCheck.isChecked(),
+                    "interval_min": self.ui.intervalSpinBox.value(),
+                    "parallel": self.ui.chkParallel.isChecked()
+                }
                 with open(file_name, 'w') as f:
-                    json.dump(preset_data, f, indent=4)
+                    json.dump(preset_data, f)
                 logger.info(f"Saved preset to {file_name}")
+                QMessageBox.information(self, "Success", "Preset saved successfully.")
             except Exception as e:
                 logger.error(f"Failed to save preset: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to save preset: {str(e)}")
 
     @Slot()
     def load_preset_from_file(self):
-        """Load pattern settings from a JSON preset file."""
+        """Load preset from a file."""
         file_name, _ = QFileDialog.getOpenFileName(self, "Load Preset", "", "JSON Files (*.json)")
         if file_name:
             try:
                 with open(file_name, 'r') as f:
                     preset_data = json.load(f)
+                self.ui.observationTypeCombo.setCurrentText(preset_data.get("observation_type", "VLBI"))
+                self.ui.startTimeEdit.setDateTime(QDateTime.fromString(preset_data.get("start_time", datetime.now().strftime("yyyy-MM-dd HH:mm:ss")), "yyyy-MM-dd HH:mm:ss"))
+                self.ui.endTimeEdit.setDateTime(QDateTime.fromString(preset_data.get("end_time", (datetime.now() + timedelta(hours=24)).strftime("yyyy-MM-dd HH:mm:ss")), "yyyy-MM-dd HH:mm:ss"))
+                self.ui.scanDurationSpinBox.setValue(preset_data.get("scan_duration", 300))
+                self.ui.numScansSpinBox.setValue(preset_data.get("num_scans", 5))
+                self.ui.namingMaskEdit.setText(preset_data.get("naming_mask", "Observation_{i}_{s}_{dt}"))
                 self.ui.addOffSourceCheck.setChecked(preset_data.get("add_off_source", False))
                 self.ui.randomizeOrderCheck.setChecked(preset_data.get("randomize_order", False))
                 self.ui.intervalSpinBox.setValue(preset_data.get("interval_min", 5))
+                self.ui.chkParallel.setChecked(preset_data.get("parallel", True))
                 logger.info(f"Loaded preset from {file_name}")
+                QMessageBox.information(self, "Success", "Preset loaded successfully.")
             except Exception as e:
                 logger.error(f"Failed to load preset: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to load preset: {str(e)}")
+
+    @Slot(int)
+    def load_preset(self, index: int):
+        """Load a predefined preset based on combo box selection."""
+        preset = self.ui.presetCombo.currentText()
+        if preset == "Standard VLBI":
+            self.ui.observationTypeCombo.setCurrentText("VLBI")
+            self.ui.scanDurationSpinBox.setValue(300)
+            self.ui.numScansSpinBox.setValue(10)
+            self.ui.addOffSourceCheck.setChecked(False)
+            self.ui.randomizeOrderCheck.setChecked(False)
+            self.ui.intervalSpinBox.setValue(5)
+            self.ui.chkParallel.setChecked(True)
+        elif preset == "Quick Single Dish":
+            self.ui.observationTypeCombo.setCurrentText("SINGLE_DISH")
+            self.ui.scanDurationSpinBox.setValue(60)
+            self.ui.numScansSpinBox.setValue(5)
+            self.ui.addOffSourceCheck.setChecked(True)
+            self.ui.randomizeOrderCheck.setChecked(True)
+            self.ui.intervalSpinBox.setValue(1)
+            self.ui.chkParallel.setChecked(False)
+        logger.info(f"Loaded preset '{preset}'")
 
     @Slot()
     def generate(self):
         """Generate observations based on user inputs and start the generation thread."""
         try:
-            # Clear previous observations in the project
-            # self.project.clear()
-            # logger.debug("Cleared previous observations in ScheduleProject")
-
             source_items = [item.data(Qt.UserRole) for item in self.ui.sourceList.selectedItems()]
             telescope_items = [item.data(Qt.UserRole) for item in self.ui.telescopeList.selectedItems()]
+            frequency_items = [item.data(Qt.UserRole) for item in self.ui.frequencyList.selectedItems()]
             observation_type = self.ui.observationTypeCombo.currentText()
             start_time = self.ui.startTimeEdit.dateTime().toPython()
             end_time = self.ui.endTimeEdit.dateTime().toPython()
@@ -463,14 +523,19 @@ class GenerateObservationsDialog(QDialog):
             num_scans = self.ui.numScansSpinBox.value()
             naming_mask = self.ui.namingMaskEdit.text()
 
+            # Логируем типы телескопов для отладки
+            for telescope in telescope_items:
+                logger.debug(f"Telescope: {telescope.name}, Type: {type(telescope).__name__}")
+
             sources = Sources(items={s.name: s for s in source_items})
             telescopes = Telescopes(items={t.name: t for t in telescope_items})
+            frequencies = Frequencies(items={f.name: f for f in frequency_items})
 
             if not sources.get_all():
                 raise ValueError("No sources selected")
             if not telescopes.get_all():
                 raise ValueError("No telescopes selected")
-            if not self.frequencies.get_all():
+            if not frequencies.get_all():
                 raise ValueError("No frequencies added")
             if start_time >= end_time:
                 raise ValueError("Start time must be before end time")
@@ -482,8 +547,8 @@ class GenerateObservationsDialog(QDialog):
                 raise ValueError("Naming mask cannot be empty")
 
             logger.debug(f"Generating with: sources={len(source_items)} ({[s.name for s in source_items]}), "
-                        f"telescopes={len(telescope_items)} ({[t.name for t in telescope_items]}), "
-                        f"frequencies={len(self.frequencies.get_items())} ({[f.name for f in self.frequencies.get_items()]})")
+                        f"telescopes={len(telescope_items)} ({[t.name for t in telescope_items]}, Types: {[type(t).__name__ for t in telescope_items]}), "
+                        f"frequencies={len(frequency_items)} ({[f.name for f in frequency_items]})")
 
             pattern_attributes = {
                 "add_off_source": self.ui.addOffSourceCheck.isChecked(),
@@ -495,13 +560,14 @@ class GenerateObservationsDialog(QDialog):
             attributes = {
                 "sources": sources,
                 "telescopes": telescopes,
-                "frequencies": self.frequencies,
+                "frequencies": frequencies,
                 "observation_type": observation_type,
                 "time_range": {"start": start_time, "end": end_time},
                 "scan_duration": scan_duration,
                 "num_scans": num_scans,
                 "pattern": pattern_attributes,
-                "cancelled": False
+                "cancelled": False,
+                "parallel": self.ui.chkParallel.isChecked()
             }
 
             self.thread = GenerationThread(self.manipulator, self.project, attributes)

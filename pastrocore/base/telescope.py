@@ -312,6 +312,7 @@ class Telescope(BaseEntity):
             effective_area_table=deepcopy(self.effective_area_table),
             system_temperature_table=deepcopy(self.system_temperature_table)
         )
+    
     def _check_sefd(self, frequency: float, sefd: float) -> bool:
         """Check if an SEFD value is a duplicate with a different value.
 

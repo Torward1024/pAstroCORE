@@ -307,6 +307,8 @@ class ScheduleConfigurator(Super):
 
         Creates unique copies of Sources, Telescopes, Frequencies, and Scans for each observation.
         Scans use the source, telescopes, and frequencies from the created Observation object.
+        Supports parallel (all observations start at the same time) or sequential (one after another) modes.
+        Uses fixed interval between scan groups (on+off pairs or single scans).
         Emits progress updates via an optional callback function.
 
         Args:
@@ -319,6 +321,7 @@ class ScheduleConfigurator(Super):
                 - time_range (dict): Dictionary with 'start' and 'end' times (datetime).
                 - scan_duration (float): Duration of each scan in seconds.
                 - num_scans (int): Number of scans per observation.
+                - parallel (bool): If True, generate observations in parallel (all start at the same time); else sequential.
                 - pattern (dict): Pattern settings including:
                     - add_off_source (bool): Add off-source scans.
                     - randomize_order (bool): Randomize scan order.
@@ -337,6 +340,7 @@ class ScheduleConfigurator(Super):
             time_range = attributes.get("time_range", {})
             scan_duration = attributes.get("scan_duration", 300.0)
             num_scans = attributes.get("num_scans", 5)
+            parallel = attributes.get("parallel", False)
             pattern = attributes.get("pattern", {})
             add_off_source = pattern.get("add_off_source", False)
             randomize_order = pattern.get("randomize_order", False)
@@ -399,13 +403,33 @@ class ScheduleConfigurator(Super):
                 telescopes = Telescopes(items={telescope_items[0].name: telescope_items[0].copy()})
                 logger.debug(f"SINGLE_DISH mode: selected telescope '{telescope_items[0].name}'")
 
+            # Calculate scan group parameters
+            multiplier = 2 if add_off_source else 1
+            scan_group_duration = multiplier * scan_duration
+            step_sec = scan_group_duration + interval_sec
+            required_duration_sec = scan_group_duration + (num_scans - 1) * step_sec if num_scans > 0 else 0
+            total_duration_sec = (end_time - start_time).sec
+
             generated_codes = []
             total_sources = len(source_items)
+            current_start = start_time
 
             for i, source in enumerate(source_items, 1):
                 if attributes.get("cancelled", False):
                     logger.info("Observation generation cancelled")
                     return {"status": False, "error": "Observation generation cancelled"}
+
+                # Determine observation start time
+                if parallel:
+                    obs_start = start_time
+                else:
+                    obs_start = current_start
+
+                # Check if there's enough time for this observation
+                obs_end = obs_start + required_duration_sec * u.s
+                if obs_end > end_time:
+                    logger.warning(f"Insufficient time for observation on source '{source.name}' (required: {required_duration_sec}s, available up to end_time)")
+                    continue
 
                 # Create unique Sources object with a copy of the current source
                 sources_copy = Sources(name=f"srcs_{source.name}_{uuid.uuid4().hex[:8]}")
@@ -414,8 +438,8 @@ class ScheduleConfigurator(Super):
 
                 # Generate observation code using naming mask
                 try:
-                    iso_time = start_time.iso
-                    time_parts = iso_time.split('T') if 'T' in iso_time else [iso_time, '']
+                    iso_time = obs_start.iso
+                    time_parts = iso_time.split(' ') if ' ' in iso_time else [iso_time, '']
                     obs_code = naming_mask.format(
                         i=i,
                         s=source.name,
@@ -431,7 +455,7 @@ class ScheduleConfigurator(Super):
                     logger.error(f"Error formatting time in naming mask: {str(e)}")
                     return {"status": False, "error": f"Error formatting time in naming mask: {str(e)}"}
 
-                # create Observation with validated copies
+                # Create Observation with validated copies
                 obs_telescopes = telescopes.copy()
                 obs_frequencies = frequencies.copy()
                 obs_telescopes_items = obs_telescopes.get_items()
@@ -454,18 +478,10 @@ class ScheduleConfigurator(Super):
                 )
                 logger.debug(f"Created observation '{obs_code}' for source '{source.name}'")
 
-                # Validate total duration for scans
-                total_duration = (end_time - start_time).sec
-                required_duration = scan_duration * (num_scans * (2 if add_off_source else 1))
-                if total_duration < required_duration:
-                    logger.warning(f"Time range too short for {num_scans} scans of {scan_duration}s for source '{source.name}'")
-                    continue
-
                 # Create scans
-                time_step = (total_duration / num_scans) + interval_sec
                 scans_list = []
                 for j in range(num_scans):
-                    scan_start = start_time + (j * time_step) * u.s
+                    scan_start = obs_start + (j * step_sec) * u.s
                     scan_name = f"scan_{source.name}_{j+1}_{uuid.uuid4().hex[:8]}"
                     scan_telescopes = obs.telescopes.get_items()
                     scan_frequencies = obs.frequencies.get_items()
@@ -487,12 +503,13 @@ class ScheduleConfigurator(Super):
 
                     if add_off_source:
                         off_scan_name = f"off_scan_{source.name}_{j+1}_{uuid.uuid4().hex[:8]}"
+                        off_start = scan_start + scan_duration * u.s
                         off_scan = Scan(
                             name=off_scan_name,
                             source=source,
                             telescopes=scan_telescopes,
                             frequencies=scan_frequencies,
-                            start=scan_start + scan_duration * u.s,
+                            start=off_start,
                             duration=scan_duration,
                             is_off_source=True,
                             isactive=True,
@@ -521,6 +538,10 @@ class ScheduleConfigurator(Super):
 
                 generated_codes.append(obs_code)
                 logger.info(f"Generated observation '{obs_code}' for source '{source.name}' with {len(scans_list)} scans")
+
+                # Update current_start for sequential mode
+                if not parallel:
+                    current_start = obs_end
 
                 if progress_callback and callable(progress_callback):
                     progress_value = int((i / total_sources) * 100)

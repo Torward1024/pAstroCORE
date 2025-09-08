@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_generate_observationshgtQtB.ui'
+## Form generated from reading UI file 'dialog_generate_observationsxIrRzN.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -25,7 +25,7 @@ class Ui_GenerateObservationsDialog(object):
     def setupUi(self, GenerateObservationsDialog):
         if not GenerateObservationsDialog.objectName():
             GenerateObservationsDialog.setObjectName(u"GenerateObservationsDialog")
-        GenerateObservationsDialog.resize(548, 725)
+        GenerateObservationsDialog.resize(548, 687)
         icon = QIcon()
         icon.addFile(u":/icons/preferences.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         GenerateObservationsDialog.setWindowIcon(icon)
@@ -310,21 +310,21 @@ class Ui_GenerateObservationsDialog(object):
         self.tabWidget.addTab(self.tabBasic, "")
         self.tabPattern = QWidget()
         self.tabPattern.setObjectName(u"tabPattern")
-        self.verticalLayoutPattern = QVBoxLayout(self.tabPattern)
-        self.verticalLayoutPattern.setObjectName(u"verticalLayoutPattern")
+        self.gridLayout_5 = QGridLayout(self.tabPattern)
+        self.gridLayout_5.setObjectName(u"gridLayout_5")
         self.addOffSourceCheck = QCheckBox(self.tabPattern)
         self.addOffSourceCheck.setObjectName(u"addOffSourceCheck")
         self.addOffSourceCheck.setStyleSheet(u"")
         self.addOffSourceCheck.setChecked(False)
 
-        self.verticalLayoutPattern.addWidget(self.addOffSourceCheck)
+        self.gridLayout_5.addWidget(self.addOffSourceCheck, 0, 0, 1, 1)
 
         self.randomizeOrderCheck = QCheckBox(self.tabPattern)
         self.randomizeOrderCheck.setObjectName(u"randomizeOrderCheck")
         self.randomizeOrderCheck.setStyleSheet(u"")
         self.randomizeOrderCheck.setChecked(False)
 
-        self.verticalLayoutPattern.addWidget(self.randomizeOrderCheck)
+        self.gridLayout_5.addWidget(self.randomizeOrderCheck, 1, 0, 1, 1)
 
         self.horizontalLayoutInterval = QHBoxLayout()
         self.horizontalLayoutInterval.setObjectName(u"horizontalLayoutInterval")
@@ -380,12 +380,12 @@ class Ui_GenerateObservationsDialog(object):
         self.horizontalLayoutInterval.addWidget(self.intervalSpinBox)
 
 
-        self.verticalLayoutPattern.addLayout(self.horizontalLayoutInterval)
+        self.gridLayout_5.addLayout(self.horizontalLayoutInterval, 2, 0, 1, 1)
 
         self.labelPreset = QLabel(self.tabPattern)
         self.labelPreset.setObjectName(u"labelPreset")
 
-        self.verticalLayoutPattern.addWidget(self.labelPreset)
+        self.gridLayout_5.addWidget(self.labelPreset, 3, 0, 1, 1)
 
         self.presetCombo = QComboBox(self.tabPattern)
         self.presetCombo.addItem("")
@@ -461,7 +461,7 @@ class Ui_GenerateObservationsDialog(object):
 "           }\n"
 "          ")
 
-        self.verticalLayoutPattern.addWidget(self.presetCombo)
+        self.gridLayout_5.addWidget(self.presetCombo, 4, 0, 1, 1)
 
         self.horizontalLayoutPresetButtons = QHBoxLayout()
         self.horizontalLayoutPresetButtons.setObjectName(u"horizontalLayoutPresetButtons")
@@ -510,7 +510,7 @@ class Ui_GenerateObservationsDialog(object):
         self.horizontalLayoutPresetButtons.addWidget(self.loadPresetButton)
 
 
-        self.verticalLayoutPattern.addLayout(self.horizontalLayoutPresetButtons)
+        self.gridLayout_5.addLayout(self.horizontalLayoutPresetButtons, 5, 0, 1, 1)
 
         self.tabWidget.addTab(self.tabPattern, "")
 
@@ -613,8 +613,7 @@ class Ui_GenerateObservationsDialog(object):
 
         self.startTimeEdit = QDateTimeEdit(GenerateObservationsDialog)
         self.startTimeEdit.setObjectName(u"startTimeEdit")
-        self.startTimeEdit.setStyleSheet(u"\n"
-"           QDateTimeEdit {\n"
+        self.startTimeEdit.setStyleSheet(u"           QDateTimeEdit {\n"
 "            background-color: #f0f6ff;\n"
 "            border: 1px solid #0078d7;\n"
 "            padding: 4px;\n"
@@ -657,8 +656,7 @@ class Ui_GenerateObservationsDialog(object):
 
         self.endTimeEdit = QDateTimeEdit(GenerateObservationsDialog)
         self.endTimeEdit.setObjectName(u"endTimeEdit")
-        self.endTimeEdit.setStyleSheet(u"\n"
-"           QDateTimeEdit {\n"
+        self.endTimeEdit.setStyleSheet(u"           QDateTimeEdit {\n"
 "            background-color: #f0f6ff;\n"
 "            border: 1px solid #0078d7;\n"
 "            padding: 4px;\n"
@@ -704,8 +702,7 @@ class Ui_GenerateObservationsDialog(object):
 
         self.scanDurationSpinBox = QDoubleSpinBox(GenerateObservationsDialog)
         self.scanDurationSpinBox.setObjectName(u"scanDurationSpinBox")
-        self.scanDurationSpinBox.setStyleSheet(u"\n"
-"         QDoubleSpinBox {\n"
+        self.scanDurationSpinBox.setStyleSheet(u"         QDoubleSpinBox {\n"
 "          font-family: Arial;\n"
 "          font-size: 9pt;\n"
 "          color: #333333;\n"
@@ -733,9 +730,9 @@ class Ui_GenerateObservationsDialog(object):
 "         QDoubleSpinBox::up-arrow {\n"
 "          width: 12px;\n"
 "          height: 12px;\n"
-"          image: url(:/icons/up_arrow_icon.sv"
-                        "g);\n"
-"         }\n"
+"          image: url(:/icons/up_arrow_icon.svg);\n"
+""
+                        "         }\n"
 "         QDoubleSpinBox::down-arrow {\n"
 "          width: 12px;\n"
 "          height: 12px;\n"
@@ -743,7 +740,7 @@ class Ui_GenerateObservationsDialog(object):
 "         }\n"
 "        ")
         self.scanDurationSpinBox.setMinimum(1.000000000000000)
-        self.scanDurationSpinBox.setMaximum(3600.000000000000000)
+        self.scanDurationSpinBox.setMaximum(9999999999999.000000000000000)
         self.scanDurationSpinBox.setValue(300.000000000000000)
 
         self.horizontalLayoutScanDuration.addWidget(self.scanDurationSpinBox)
@@ -760,8 +757,7 @@ class Ui_GenerateObservationsDialog(object):
 
         self.numScansSpinBox = QSpinBox(GenerateObservationsDialog)
         self.numScansSpinBox.setObjectName(u"numScansSpinBox")
-        self.numScansSpinBox.setStyleSheet(u"\n"
-"         QSpinBox {\n"
+        self.numScansSpinBox.setStyleSheet(u"         QSpinBox {\n"
 "          font-family: Arial;\n"
 "          font-size: 9pt;\n"
 "          color: #333333;\n"
@@ -791,8 +787,8 @@ class Ui_GenerateObservationsDialog(object):
 "          height: 12px;\n"
 "          image: url(:/icons/up_arrow_icon.svg);\n"
 "         }\n"
-"         QSpinBox::down-a"
-                        "rrow {\n"
+"         QSpinBox::down-arrow "
+                        "{\n"
 "          width: 12px;\n"
 "          height: 12px;\n"
 "          image: url(:/icons/down_arrow_icon.svg);\n"
@@ -810,6 +806,11 @@ class Ui_GenerateObservationsDialog(object):
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.verticalLayout.addItem(self.verticalSpacer)
+
+        self.chkParallel = QCheckBox(GenerateObservationsDialog)
+        self.chkParallel.setObjectName(u"chkParallel")
+
+        self.verticalLayout.addWidget(self.chkParallel)
 
         self.horizontalLayoutButtons = QHBoxLayout()
         self.horizontalLayoutButtons.setObjectName(u"horizontalLayoutButtons")
@@ -864,7 +865,7 @@ class Ui_GenerateObservationsDialog(object):
         self.retranslateUi(GenerateObservationsDialog)
         self.cancelButton.clicked.connect(GenerateObservationsDialog.reject)
 
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
         self.generateButton.setDefault(True)
 
 
@@ -908,6 +909,7 @@ class Ui_GenerateObservationsDialog(object):
         self.endTimeEdit.setDisplayFormat(QCoreApplication.translate("GenerateObservationsDialog", u"yyyy-MM-dd HH:mm:ss", None))
         self.labelScanDuration.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Scan Duration (s):", None))
         self.labelNumScans.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Number of Scans:", None))
+        self.chkParallel.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Observations Parallel in Time", None))
         self.generateButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Generate", None))
         self.cancelButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Cancel", None))
     # retranslateUi
