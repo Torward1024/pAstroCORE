@@ -95,7 +95,7 @@ class ExportThread(QThread):
                                     "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source"] else [],
                                     "scans": scans,
                                     "frequencies": frequencies if key in ["uv_coverage", "baseline_projections"] else [],
-                                    "units": "wavelengths" if key in ["uv_coverage", "baseline_projections"] else None
+                                    "units": "earth_diameters" if key in ["uv_coverage", "baseline_projections"] else None
                                 }
                                 request = {
                                     "operation": "visualize",
