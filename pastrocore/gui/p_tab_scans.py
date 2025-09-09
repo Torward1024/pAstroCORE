@@ -5,7 +5,6 @@ from PySide6.QtGui import QStandardItem, QIcon
 from .ui_tab_observation_any import Ui_observation_tab
 from .p_dialog_edit_scan import ScanEditorDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from pastrocore.gui.p_tab_telescopes import TelescopesTab

@@ -10,7 +10,6 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
-import astropy.units as u
 import matplotlib.pyplot as plt
 import gc
 

@@ -5,7 +5,6 @@ from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
 from pastrocore.gui.ui_tab_observation_any import Ui_observation_tab
 from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from pastrocore.base.frequencies import IF
 from common.utils.logging_setup import logger

@@ -17,8 +17,6 @@ import numpy as np
 from astropy.time import Time
 import threading
 import os
-import seaborn as sns
-import astropy.units as u
 import warnings
 from erfa import ErfaWarning
 import gc

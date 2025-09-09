@@ -1,10 +1,8 @@
-from abc import ABC
 from common.super.super import Super
 from common.utils.logging_setup import logger
 
-from pastrocore.base.frequencies import Frequencies, IF
-from pastrocore.base.sources import Sources, Source
-from pastrocore.base.telescopes import Telescope, SpaceTelescope, Telescopes
+from pastrocore.base.sources import Source
+from pastrocore.base.telescopes import Telescope, SpaceTelescope
 from pastrocore.base.scans import Scan
 from pastrocore.base.observation import Observation
 from pastrocore.super.schedule_project import ScheduleProject
@@ -12,7 +10,6 @@ from pastrocore.super.schedule_project import ScheduleProject
 from typing import Dict, Any, Optional, Tuple, List, Callable
 from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
-from scipy.fft import fft2, fftshift
 from functools import wraps
 
 import astropy.units as u
@@ -22,15 +19,12 @@ from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, SkyCoord, A
 import numpy as np
 
 import threading
-import math
 import time
 import re
 import os
 
 from scipy.interpolate import CubicSpline
 from numpy.polynomial import chebyshev
-
-from numba import jit
 
 from erfa import ErfaWarning
 import warnings

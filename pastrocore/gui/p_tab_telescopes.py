@@ -7,14 +7,12 @@ from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDia
 from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
 from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from pastrocore.base.telescope import Telescope
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.utils.catalogmanager import CatalogManager
 from common.utils.logging_setup import logger
 import json
-import uuid
 
 class TelescopesTab(QWidget):
     """Widget for displaying and managing telescopes in an observation."""

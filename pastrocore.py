@@ -1,3 +1,4 @@
+# PySide6 files
 from PySide6.QtWidgets import (
                                 QMainWindow, 
                                 QApplication,
@@ -38,6 +39,7 @@ import logging
 import sys
 import os
 import json
+# GUI resource file
 import pastrocore.gui.rc_icons
 
 class PAstroCoreMainWindow(QMainWindow):
