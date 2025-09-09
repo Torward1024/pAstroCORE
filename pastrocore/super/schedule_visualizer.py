@@ -499,7 +499,7 @@ class ScheduleVisualizer(Super):
             output_dir = os.path.dirname(output_file)
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
-            fig.savefig(output_file, dpi=self._style_config['dpi'], bbox_inches='tight')
+            fig.savefig(output_file, dpi=self._style_config['figure']['dpi'], bbox_inches='tight')
             logger.info(f"Visualization saved to '{output_file}'")
 
         if show:
@@ -558,14 +558,25 @@ class ScheduleVisualizer(Super):
 
     def _visualize_project_or_observation(self, obj: Union[ScheduleProject, Observation], attributes: Dict[str, Any], fig: Figure = None) -> Dict[str, Any]:
         """Visualize a ScheduleProject or Observation object."""
+        logger.debug(f"Visualizing {type(obj).__name__} with attributes: {attributes}")
         plot_type = attributes.get("plot_type")
+        output_file = attributes.get("output_file")
+        dpi = attributes.get("dpi", self._style_config['figure']['dpi'])  # Use default dpi from config if not specified
+
+        # Validate dpi
+        if not isinstance(dpi, (int, float)):
+            logger.error(f"Invalid dpi type: expected int or float, got {type(dpi)}: {dpi}")
+            raise ValueError(f"dpi must be a number, got {type(dpi)}: {dpi}")
+
+        logger.debug(f"Using dpi={dpi} for visualization of plot_type={plot_type}")
+
         if isinstance(obj, ScheduleProject):
             observations = obj.get_observations()
             if not observations:
                 logger.warning(f"No observations in ScheduleProject '{obj.get_name()}'")
                 return {}
             with ThreadPoolExecutor() as executor:
-                futures = {executor.submit(self._visualize, obs, attributes): obs.get_observation_code() for obs in observations}
+                futures = {executor.submit(self._visualize, obs, attributes, None): obs.get_observation_code() for obs in observations}
                 results = {code: future.result() for future, code in futures.items() if future.result() is not None}
             return results
         
@@ -574,7 +585,29 @@ class ScheduleVisualizer(Super):
             logger.warning(f"Unsupported plot_type '{plot_type}' for {type(obj).__name__}")
             return {}
         
-        return plot_func(obj, attributes, fig=fig)
+        result = plot_func(obj, attributes, fig=fig)
+        
+        # Validate result
+        if not isinstance(result, dict):
+            logger.error(f"Plot function {plot_type} returned invalid result: {type(result)}")
+            return {"status": False, "message": f"Invalid result from {plot_type}"}
+        
+        # Save figure to output_file if specified
+        if output_file and result.get("status", False):
+            try:
+                with self._lock:
+                    fig = result.get("figure", plt.gcf())
+                    logger.debug(f"Saving visualization to {output_file} with dpi={dpi}")
+                    fig.savefig(output_file, dpi=float(dpi), bbox_inches="tight")
+                    logger.info(f"Saved visualization to {output_file} with dpi={dpi}")
+                    plt.close(fig)
+                    gc.collect()  # Clean up memory
+            except Exception as e:
+                logger.error(f"Failed to save visualization to {output_file}: {str(e)}")
+                result["status"] = False
+                result["message"] = f"Failed to save visualization: {str(e)}"
+        
+        return result
 
     def _filter_data(self, data: Dict[str, Any], times_data: Dict[str, Any], source_name: Optional[str],
                  scans: Optional[List[str]], time_range: Optional[Tuple[float, float]]) -> Tuple[Dict, Dict, List[str]]:

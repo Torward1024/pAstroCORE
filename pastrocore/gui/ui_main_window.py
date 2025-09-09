@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowcLenbe.ui'
+## Form generated from reading UI file 'main_windowCzPAqh.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -100,6 +100,9 @@ class Ui_MainWindow(object):
         self.actionVisualize.setIcon(icon12)
         self.actionGenerate_Observations = QAction(MainWindow)
         self.actionGenerate_Observations.setObjectName(u"actionGenerate_Observations")
+        self.actionExport_Calulcated_Data = QAction(MainWindow)
+        self.actionExport_Calulcated_Data.setObjectName(u"actionExport_Calulcated_Data")
+        self.actionExport_Calulcated_Data.setIcon(icon10)
         self.mainCentralWidget = QWidget(MainWindow)
         self.mainCentralWidget.setObjectName(u"mainCentralWidget")
         self.mainLayout = QHBoxLayout(self.mainCentralWidget)
@@ -234,6 +237,8 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionSaveProject)
         self.menuFile.addAction(self.actionSave_Project_As)
         self.menuFile.addSeparator()
+        self.menuFile.addAction(self.actionExport_Calulcated_Data)
+        self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionExit)
         self.menuOptions.addAction(self.actionPreferences)
         self.menuOptions.addSeparator()
@@ -270,6 +275,7 @@ class Ui_MainWindow(object):
         self.actionCalculate.setText(QCoreApplication.translate("MainWindow", u"Calculate", None))
         self.actionVisualize.setText(QCoreApplication.translate("MainWindow", u"Visualize", None))
         self.actionGenerate_Observations.setText(QCoreApplication.translate("MainWindow", u"Generate Observations", None))
+        self.actionExport_Calulcated_Data.setText(QCoreApplication.translate("MainWindow", u"Export Calulcated Data", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Select item from Project Explorer.", None))
         self.tabContainer.setTabText(self.tabContainer.indexOf(self.tabWelcome), QCoreApplication.translate("MainWindow", u"Welcome", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))

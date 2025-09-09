@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ExportCalculatedDataDialog</class>
+ <widget class="QDialog" name="ExportCalculatedDataDialog">
+  <property name="windowModality">
+   <enum>Qt::WindowModality::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>450</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>600</width>
+    <height>450</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>600</width>
+    <height>450</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Export Calculated Data</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <property name="modal">
+   <bool>true</bool>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="7" column="0">
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <layout class="QHBoxLayout" name="buttonLayout">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="exportButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Calculate</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cancelButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+       <property name="autoDefault">
+        <bool>true</bool>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="labelParameters">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>Parameters:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QCheckBox" name="chkExportVisualizations">
+     <property name="text">
+      <string>Export Visualizations</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="6" column="2">
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <spacer name="horizontalSpacer_3">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="selectAllCalcButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Select All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="clearAllCalcButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Clear</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="3" column="3">
+      <widget class="QListWidget" name="targetList">
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="3">
+      <widget class="QLabel" name="labelTargets">
+       <property name="text">
+        <string>Observations:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QLabel" name="labelCalc">
+       <property name="text">
+        <string>Calculations:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QListWidget" name="calcList"/>
+     </item>
+     <item row="6" column="3">
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <spacer name="horizontalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="selectAllObsButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Select All</string>
+         </property>
+         <property name="flat">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="clearAllObsButton">
+         <property name="styleSheet">
+          <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+         </property>
+         <property name="text">
+          <string>Clear</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item row="6" column="0">
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QLabel" name="lblPath">
+       <property name="text">
+        <string>Path:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEdit">
+       <property name="styleSheet">
+        <string notr="true">QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly=&quot;true&quot;] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly=&quot;false&quot;] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly=&quot;false&quot;]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Browse</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="4" column="0">
+    <widget class="QCheckBox" name="chkExportData">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Export Data</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>
