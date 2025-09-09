@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QDialog, QMessageBox, QTableView, QHeaderView
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Slot
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from pastrocore.gui.ui_dialog_edit_source import Ui_SourceEditorDialog
 from pastrocore.base.sources import Source

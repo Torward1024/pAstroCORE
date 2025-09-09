@@ -7,7 +7,7 @@ from pastrocore.base.scans import Scan, Scans
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from common.utils.validation import check_type
-from typing import Dict, Any, Union
+from typing import Dict, Any
 
 
 class ScheduleInspector(Super):

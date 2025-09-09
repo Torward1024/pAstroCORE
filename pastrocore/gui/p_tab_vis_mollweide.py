@@ -8,7 +8,7 @@ from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from typing import List, Optional
+from typing import List
 import matplotlib.pyplot as plt
 import gc
 from astropy.time import Time

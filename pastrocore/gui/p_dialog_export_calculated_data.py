@@ -2,15 +2,12 @@
 from PySide6.QtWidgets import QDialog, QListWidgetItem, QMessageBox, QFileDialog
 from PySide6.QtCore import Qt, QThread, Signal
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_export_calculated_data import Ui_ExportCalculatedDataDialog
 from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
 
 from typing import Dict, Optional
 import os
-import numpy as np
-from astropy.time import Time
 
 class ProgressDialog(QDialog):
     """Custom progress dialog for export progress."""

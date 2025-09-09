@@ -13,8 +13,6 @@ from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from typing import Dict, Optional, List, Any, Tuple, Iterator
 from astropy.time import Time
 import numpy as np

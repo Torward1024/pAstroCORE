@@ -10,7 +10,6 @@ from common.utils.logging_setup import logger
 from astropy.time import Time
 from datetime import timedelta
 import uuid
-import pastrocore.gui.rc_icons
 
 class ScanEditorDialog(QDialog):
     """Dialog for creating or editing a scan in an observation."""

@@ -1,7 +1,6 @@
 from copy import deepcopy
 from .telescope import Telescope
 from common.utils.logging_setup import logger
-import numpy as np
 from typing import Optional, Dict, Tuple, Any
 from astropy.time import Time
 from enum import Enum

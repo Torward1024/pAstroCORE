@@ -2,7 +2,6 @@
 from abc import ABC, ABCMeta
 from typing import Dict, Union, List, Any, Union, get_origin, get_args
 from common.utils.logging_setup import logger
-import numpy as np
 
 class EntityMeta(ABCMeta):
     """Metaclass for BaseEntity to handle type annotations and enforce attribute validation.
