@@ -134,6 +134,8 @@ QMenu::icon {
     <addaction name="actionSaveProject"/>
     <addaction name="actionSave_Project_As"/>
     <addaction name="separator"/>
+    <addaction name="actionExport_Calulcated_Data"/>
+    <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuOptions">
@@ -382,6 +384,15 @@ QMenu::icon {
   <action name="actionGenerate_Observations">
    <property name="text">
     <string>Generate Observations</string>
+   </property>
+  </action>
+  <action name="actionExport_Calulcated_Data">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Export Calulcated Data</string>
    </property>
   </action>
  </widget>

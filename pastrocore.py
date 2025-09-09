@@ -26,6 +26,7 @@ from pastrocore.gui.p_tab_observation import ObservationTab
 from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from pastrocore.gui.p_dialog_visualize import VisualizationDialog
 from pastrocore.gui.p_dialog_generate_observations import GenerateObservationsDialog
+from pastrocore.gui.p_dialog_export_calculated_data import ExportCalculatedDataDialog
 
 from common.utils.logging_setup import (
                                         logger, 
@@ -191,7 +192,8 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionTelescope_Catalog_Manager: self.ui.actionTelescope_Catalog_Manager.triggered.connect(self.open_telescope_catalog_manager),
             self.ui.actionCalculate: self.ui.actionCalculate.triggered.connect(self.open_calculation_dialog),
             self.ui.actionVisualize: self.ui.actionVisualize.triggered.connect(self.open_visualization_dialog),
-            self.ui.actionGenerate_Observations: self.ui.actionGenerate_Observations.triggered.connect(self.handle_generate_observations)
+            self.ui.actionGenerate_Observations: self.ui.actionGenerate_Observations.triggered.connect(self.handle_generate_observations),
+            self.ui.actionExport_Calulcated_Data: self.ui.actionExport_Calulcated_Data.triggered.connect(self.open_export_dialog)
         }
 
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
@@ -200,7 +202,21 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
         self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
         self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
+        
         self.project_updated.connect(self.update_project_explorer)
+
+    @Slot()
+    def open_export_dialog(self):
+        """Open the Export Calculated Data dialog."""
+        try:
+            dialog = ExportCalculatedDataDialog(self.manipulator, self)
+            if dialog.exec() == QDialog.Accepted:
+                logger.debug("Export Calculated Data dialog accepted")
+            else:
+                logger.debug("Export Calculated Data dialog rejected")
+        except Exception as e:
+            logger.error(f"Error opening Export Calculated Data dialog: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to open Export Calculated Data dialog: {str(e)}")
 
     @Slot()
     def open_calculation_dialog(self):

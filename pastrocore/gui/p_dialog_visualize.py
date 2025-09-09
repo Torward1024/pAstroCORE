@@ -11,7 +11,6 @@ from .p_tab_vis_time_on_source import TimeOnSourceVisualizationTab
 from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab
 
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.observation import Observation
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
