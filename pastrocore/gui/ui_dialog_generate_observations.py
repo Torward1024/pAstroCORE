@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_generate_observationsxIrRzN.ui'
+## Form generated from reading UI file 'dialog_generate_observationsKvluxp.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -865,7 +865,7 @@ class Ui_GenerateObservationsDialog(object):
         self.retranslateUi(GenerateObservationsDialog)
         self.cancelButton.clicked.connect(GenerateObservationsDialog.reject)
 
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
         self.generateButton.setDefault(True)
 
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_export_calculated_datacjnlnr.ui'
+## Form generated from reading UI file 'dialog_export_calculated_dataPkDjnJ.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -319,7 +319,7 @@ class Ui_ExportCalculatedDataDialog(object):
 
     def retranslateUi(self, ExportCalculatedDataDialog):
         ExportCalculatedDataDialog.setWindowTitle(QCoreApplication.translate("ExportCalculatedDataDialog", u"Export Calculated Data", None))
-        self.exportButton.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Calculate", None))
+        self.exportButton.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Export", None))
         self.cancelButton.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Cancel", None))
         self.labelParameters.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Parameters:", None))
         self.chkExportVisualizations.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Export Visualizations", None))
