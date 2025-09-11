@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_scanasYBNN.ui'
+## Form generated from reading UI file 'dialog_editor_scanZjyRGE.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -226,30 +226,22 @@ class Ui_ScanEditorDialog(object):
 "    font-family: Arial, sans-serif;\n"
 "    font-size: 9pt;\n"
 "    border: 1px solid #d3d3d3; /* External border for table */\n"
-"    padding: 0; /* Ensure no default padding */\n"
-"}\n"
-"\n"
-"QTableView::item, QTableWidget::item {\n"
-"    padding: 4px; /* Consistent padding for normal state */\n"
 "}\n"
 "\n"
 "QTableView::item:selected, QTableWidget::item:selected {\n"
 "    background-color: #0078d7;\n"
 "    color: #ffffff;\n"
-"    padding: 4px; /* Consistent padding for selected state */\n"
 "}\n"
 "\n"
 "QTableView::item:hover, QTableWidget::item:hover {\n"
 "    background-color: #1a8cff;\n"
 "    color: #ffffff;\n"
-"    padding: 4px; /* Explicitly set same padding to avoid shift */\n"
 "}\n"
 "\n"
 "/* Header View */\n"
 "QHeaderView {\n"
 "    background-color: #f9f9f9;\n"
-"    border: none; /* No external bord"
-                        "er to avoid doubling with QTableView */\n"
+"    border: none; /* No external border to avoid doubling with QTableView */\n"
 "    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
 "}\n"
 "\n"
@@ -257,7 +249,8 @@ class Ui_ScanEditorDialog(object):
 "    background-color: #f9f9f9;\n"
 "    color: #333333;\n"
 "    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
-"    border-right: none; /* Avoid doubling with adjacent sections */\n"
+"   "
+                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
 "    border-left: none; /* Clean look */\n"
 "    border-top: none; /* Clean look */\n"
 "    padding: 4px;\n"
@@ -276,7 +269,6 @@ class Ui_ScanEditorDialog(object):
 "QHeaderView::section:hover {\n"
 "    background-color: #1a8cff;\n"
 "    color: #ffffff;\n"
-"    padding: 4px; /* Explicitly set same padding to avoid shift */\n"
 "}")
 
         self.gridLayout_2.addWidget(self.tab_telescopes, 1, 0, 1, 2)
