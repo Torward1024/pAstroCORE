@@ -267,7 +267,7 @@ class PAstroCoreMainWindow(QMainWindow):
     def handle_tab_close(self, index):
         """Handle closing of tabs, prevent closing of project tab, and clean up resources."""
         widget = self.ui.tabContainer.widget(index)
-        if widget.objectName() == "projectInfoTab":
+        if widget and widget.objectName() == "projectInfoTab":
             return
         self._cleanup_widget(widget)
         self.ui.tabContainer.removeTab(index)
