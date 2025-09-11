@@ -86,11 +86,6 @@ class ScanEditorDialog(QDialog):
         validator.setNotation(QDoubleValidator.StandardNotation)
         self.ui.durationEdit.setValidator(validator)
 
-        # Connect signals for time synchronization
-        self.ui.startTimeEdit.dateTimeChanged.connect(self.update_from_start_or_duration)
-        self.ui.durationEdit.textChanged.connect(self.update_from_start_or_duration)
-        self.ui.endTimeEdit.dateTimeChanged.connect(self.update_from_end_time)
-
         self.selected_telescopes = set()
         self.selected_frequencies = set()
 
@@ -141,7 +136,7 @@ class ScanEditorDialog(QDialog):
                         self.ui.startTimeEdit.setDateTime(start_qdt)
                         logger.debug(f"Set start time for new scan to end of latest scan: {start_dt}")
                         self.ui.durationEdit.setText(str(int(latest_duration)))
-                        self.update_from_start_or_duration()  # Update endTime immediately
+                        self.update_from_start_or_duration()
                         logger.debug(f"Set duration for new scan to match latest scan: {latest_duration}")
                     except Exception as e:
                         logger.error(f"Error converting latest end time to QDateTime: {str(e)}")
@@ -154,6 +149,11 @@ class ScanEditorDialog(QDialog):
             self._load_scan_data()
 
         self.ui.chk_active.setChecked(self._check_scan_conditions())
+        # Connect signals for time synchronization
+        self.ui.startTimeEdit.dateTimeChanged.connect(self.update_from_start_or_duration)
+        self.ui.durationEdit.textChanged.connect(self.update_from_start_or_duration)
+        self.ui.endTimeEdit.dateTimeChanged.connect(self.update_from_end_time)
+
         logger.debug(f"Set chk_active for {'new scan' if self.is_new else f'scan {self.scan.name}'} based on conditions: {self.ui.chk_active.isChecked()}")
         logger.debug(f"Initialized ScanEditorDialog for {'new scan' if self.is_new else f'scan {self.scan.name}'} in observation '{self.observation.code}'")
 
@@ -169,7 +169,7 @@ class ScanEditorDialog(QDialog):
         """Debug signal for item changes in the model."""
         row = item.row()
         col = item.column()
-        if col == 1:  # Check column
+        if col == 1:
             model = item.model()
             name_item = model.item(row, 3) if model == self.telescopes_model else model.item(row, 3)
             if name_item and name_item.text():
@@ -185,7 +185,7 @@ class ScanEditorDialog(QDialog):
             else:
                 target_set.discard(name)
             logger.debug(f"Current selected {'telescopes' if model == self.telescopes_model else 'frequencies'}: {target_set}")
-            # Update chk_active when selection changes
+
             self.ui.chk_active.setChecked(self._check_scan_conditions())
             logger.debug(f"Updated chk_active after selection change: {self.ui.chk_active.isChecked()}")
 
@@ -388,7 +388,7 @@ class ScanEditorDialog(QDialog):
 
         self.ui.durationEdit.setText(str(int(self.scan.duration)))
         logger.info(f"Set duration: {int(self.scan.duration)}")
-        self.update_from_start_or_duration()  # Update endTime based on loaded data
+        self.update_from_start_or_duration()
 
         self.ui.chk_offsource.setChecked(self.scan.is_off_source)
         if self.scan.is_off_source:
@@ -515,13 +515,13 @@ class ScanEditorDialog(QDialog):
             if duration <= 0:
                 raise ValueError("Duration must be positive")
             end_dt = start_qdt.addSecs(int(duration))
-            self.ui.endTimeEdit.blockSignals(True)  # Prevent recursive signals
+            self.ui.endTimeEdit.blockSignals(True)
             self.ui.endTimeEdit.setDateTime(end_dt)
             self.ui.endTimeEdit.blockSignals(False)
             logger.debug(f"Updated endTime from start/duration: {end_dt.toString(Qt.ISODate)}")
         except ValueError:
             logger.warning("Invalid duration during update, skipping endTime update")
-            pass  # Don't update if invalid
+            pass 
 
     @Slot()
     def update_from_end_time(self):
@@ -530,7 +530,6 @@ class ScanEditorDialog(QDialog):
         end_qdt = self.ui.endTimeEdit.dateTime()
         if end_qdt <= start_qdt:
             QMessageBox.warning(self, "Invalid Time", "End time must be after start time.")
-            # Reset to previous valid (add duration or 1s if invalid)
             try:
                 duration = float(self.ui.durationEdit.text())
                 if duration <= 0:

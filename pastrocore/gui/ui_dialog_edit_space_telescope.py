@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_space_telescopelgKPAi.ui'
+## Form generated from reading UI file 'dialog_editor_space_telescopenPFROj.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -2157,8 +2157,10 @@ class Ui_SpaceTelescopeEditorDialog(object):
         self.saveButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Cancel", None))
         self.labelCode.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Code:", None))
+        self.codeEdit.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"ST", None))
         self.codeEdit.setPlaceholderText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Enter telescope code", None))
         self.labelName.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Name:", None))
+        self.nameEdit.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"SPACETELESCOPE", None))
         self.nameEdit.setPlaceholderText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Enter telescope name", None))
         self.labelDiameter.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Diameter (m):", None))
         self.labelSurfaceAccuracy.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Surface Accuracy (\u00b5m):", None))

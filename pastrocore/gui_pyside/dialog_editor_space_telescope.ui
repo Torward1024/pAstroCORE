@@ -155,6 +155,9 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     background-color: #ffffff;
 }</string>
            </property>
+           <property name="text">
+            <string>ST</string>
+           </property>
            <property name="placeholderText">
             <string>Enter telescope code</string>
            </property>
@@ -192,6 +195,9 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
     border: 1px solid #005bb5;
     background-color: #ffffff;
 }</string>
+           </property>
+           <property name="text">
+            <string>SPACETELESCOPE</string>
            </property>
            <property name="placeholderText">
             <string>Enter telescope name</string>
