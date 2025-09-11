@@ -594,10 +594,11 @@ class PAstroCoreMainWindow(QMainWindow):
                 return
                        
             # Load new project from file
-            with open(file_name, 'r') as f:
-                data = json.load(f)
+            #with open(file_name, 'r') as f:
+            #    data = json.load(f)
             
-            new_project = ScheduleProject.from_dict(data)
+
+            new_project = ScheduleProject.from_file(file_name)
 
             # Clean up the current project
             self._cleanup_project()
@@ -630,8 +631,9 @@ class PAstroCoreMainWindow(QMainWindow):
             progress.setAutoClose(True)
             progress.show()
             try:
-                with open(self.current_project_path, "w") as f:
-                    json.dump(self.project.to_dict(), f, indent=4)
+                #with open(self.current_project_path, "w") as f:
+                #    json.dump(self.project.to_dict(), f, indent=4)
+                self.project.to_file(self.current_project_path)
                 logger.info(f"Project saved to '{self.current_project_path}'")
             except Exception as e:
                 logger.error(f"Failed to save project: {str(e)}")
