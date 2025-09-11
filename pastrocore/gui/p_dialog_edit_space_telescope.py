@@ -206,13 +206,8 @@ class SpaceTelescopeEditorDialog(QDialog):
             self.ui.argpEdit.setValue(self.telescope.kepler_elements["argp"])
             self.ui.nuEdit.setValue(self.telescope.kepler_elements["nu"])
 
-            # Предполагается, что self.telescope.kepler_elements["epoch"] — это объект astropy.time.Time
             epoch_time = self.telescope.kepler_elements["epoch"]
-
-            # Преобразование astropy.time.Time в Python datetime
-            epoch_datetime = epoch_time.datetime  # Получаем объект datetime
-
-            # Преобразование datetime в QDateTime
+            epoch_datetime = epoch_time.datetime
             qdatetime = QDateTime(
                 epoch_datetime.year,
                 epoch_datetime.month,
