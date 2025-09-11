@@ -5,6 +5,7 @@ from common.super.project import Project
 from common.utils.validation import check_type, check_non_empty_string
 from common.utils.logging_setup import logger
 import uuid
+import json
 
 class ScheduleProject(Project):
     """Container for managing multiple observations, inheriting from Project.
@@ -210,3 +211,96 @@ class ScheduleProject(Project):
             str: A string in the format "ScheduleProject(name='{name}', observations_count={count})".
         """
         return f"ScheduleProject(name='{self.name}', observations_count={len(self._items)})"
+    
+    def to_file(self, file_path: str, compact: bool = False) -> None:
+        """Serialize ScheduleProject to a JSON file without loading the full dictionary into memory.
+
+        Args:
+            file_path (str): Path to the output JSON file.
+            compact (bool): If True, write compact JSON without indentation. Defaults to False.
+
+        Raises:
+            ValueError: If file_path is not a non-empty string.
+            IOError: If there are issues with file writing.
+        """
+        check_non_empty_string(file_path, "File path")
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                indent = None if compact else 4
+                # Start JSON object
+                f.write('{' if compact else '{\n')
+                # Write project name
+                name_line = f'"name": "{json.dumps(self.name)[1:-1]}"' if compact else f'  "name": "{json.dumps(self.name)[1:-1]}",\n'
+                f.write(name_line)
+                # Write items
+                items_line = ',' if compact else ',\n'
+                f.write('"items": {' if compact else '  "items": {\n')
+                items = self._items.get_all().items()
+                items_count = len(self._items)
+                for i, (name, observation) in enumerate(items):
+                    # Serialize each observation individually
+                    obs_dict = observation.to_dict()
+                    name_prefix = '' if compact else '    '
+                    f.write(f'{name_prefix}"{json.dumps(name)[1:-1]}": ')
+                    json.dump(obs_dict, f, indent=indent)
+                    # Add comma if not the last item
+                    if i < items_count - 1:
+                        f.write(items_line)
+                    else:
+                        f.write('' if compact else '\n')
+                f.write('}' if compact else '  }\n')
+                # End JSON object
+                f.write('}' if compact else '}\n')
+            logger.info(f"Serialized ScheduleProject '{self.name}' to file '{file_path}' with {len(self._items)} observations (compact={compact})")
+        except IOError as e:
+            logger.error(f"Failed to write ScheduleProject to file '{file_path}': {str(e)}")
+            raise IOError(f"Error writing to file '{file_path}': {str(e)}") from e
+        
+    @classmethod
+    def from_file(cls, file_path: str) -> 'ScheduleProject':
+        """Deserialize a ScheduleProject from a JSON file with minimal memory usage.
+
+        Args:
+            file_path (str): Path to the input JSON file.
+
+        Returns:
+            ScheduleProject: A new ScheduleProject instance populated with the data from the file.
+
+        Raises:
+            ValueError: If file_path is not a non-empty string or the JSON data is invalid.
+            IOError: If there are issues with file reading.
+        """
+        check_non_empty_string(file_path, "File path")
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                # Load JSON data
+                data = json.load(f)
+                logger.debug(f"Read JSON data from file '{file_path}'")
+            
+            # Validate and extract project data
+            name = data.get("name")
+            check_non_empty_string(name, "Project name")
+            items = {}
+            
+            if "items" in data:
+                if not data["items"]:
+                    logger.warning(f"Creating ScheduleProject '{name}' with empty items dictionary from file '{file_path}'")
+                else:
+                    for item_name, item_data in data["items"].items():
+                        items[item_name] = Observation.from_dict(item_data)
+                        logger.debug(f"Imported observation '{item_name}' for project '{name}' from file '{file_path}'")
+            else:
+                raise ValueError("No 'items' key found in JSON data")
+            
+            project = cls(name=name, items=items)
+            logger.info(f"Deserialized ScheduleProject '{name}' from file '{file_path}' with {len(items)} observations")
+            return project
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON from file '{file_path}': {str(e)}")
+            raise ValueError(f"Invalid JSON format in file '{file_path}': {str(e)}") from e
+        except IOError as e:
+            logger.error(f"Failed to read file '{file_path}': {str(e)}")
+            raise IOError(f"Error reading file '{file_path}': {str(e)}") from e
+        except (KeyError, TypeError, ValueError) as e:
+            logger.error(f"Failed to deserialize ScheduleProject from file '{file_path}': {str(e)}")
+            raise ValueError(f"Invalid ScheduleProject data in file '{file_path}': {str(e)}") from e
