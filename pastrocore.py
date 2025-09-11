@@ -619,7 +619,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def open_project(self):
-        """Open a project from a file, cleaning up the old one."""
+        """Open a project from a file, preserving current project and signals on failure."""
         try:
             file_name, _ = QFileDialog.getOpenFileName(
                 self, "Open Project", "", "pAstro Project Files (*.pastro)"
@@ -628,22 +628,26 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug("Open project cancelled")
                 return
             
-            # Clean up the current project
-            self._cleanup_project()
-            
-            # Load new project from file
+            # Load new project data
             with open(file_name, 'r') as f:
                 data = json.load(f)
             
+            # Store references to old project and manipulator
+            old_project = self.project
+            old_manipulator = self.manipulator
+            
+            # Create new project and manipulator
             self.project = ScheduleProject.from_dict(data)
             self.manipulator = ScheduleManipulator(self.project)
-            
             self.current_project_path = file_name
+            
+            # Clean up old project and tabs after successful creation of new project
+            self._cleanup_project(old_project, old_manipulator)
             
             # Clear existing connections and set up new ones
             self.clear_connections(is_initial_setup=False)
             self.setup_connections()
-                       
+            
             # Open project info tab and update project explorer
             self.open_project_info_tab()
             self.update_project_explorer()
@@ -653,7 +657,8 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error opening project: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
-            self._initialize_project()
+            # Do not modify current project, manipulator, or signals
+            logger.debug("Preserving current project and signals due to load failure")
 
     @Slot()
     def save_project(self):
