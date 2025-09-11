@@ -548,18 +548,30 @@ class ProjectInfoTab(QWidget):
         """Clean up resources associated with this tab."""
         try:
             self.blockSignals(True)
-            self.project_name_changed.disconnect()
+            
+            # Disconnect project_name_changed signal safely to avoid RuntimeWarning
+            try:
+                self.project_name_changed.disconnect()
+                logger.debug(f"Disconnected project_name_changed signal for {self.objectName()}")
+            except TypeError as e:
+                logger.debug(f"No connections to disconnect for project_name_changed signal in {self.objectName()}: {str(e)}")
 
+            # Clean up table model and proxy
             self.ui.projectInfoTable.setModel(None)
-            self.model.clear()
-            self.proxy_model.deleteLater()
-            self.model.deleteLater()
+            if self.model:
+                self.model.clear()
+                self.model.deleteLater()
+            if self.proxy_model:
+                self.proxy_model.deleteLater()
 
+            # Clear references
             self.project = None
             self.manipulator = None
             self.parent_widget = None
             self.model = None
             self.proxy_model = None
+            
+            logger.debug(f"Cleaned up resources for {self.objectName()}")
         except Exception as e:
             logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
 
