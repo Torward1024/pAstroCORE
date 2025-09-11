@@ -147,43 +147,7 @@ class PAstroCoreMainWindow(QMainWindow):
             else:
                 logger.debug("No active connections for dockWidget visibilityChanged signal")
         except Exception as e:
-            logger.debug(f"No visibilityChanged signal to disconnect for dockWidget: {str(e)}")
-
-    def _cleanup_project(self):
-        """Clean up the current project and its dependencies."""
-        try:
-            self._cleanup_tabs()
-            
-            # Disconnect project_updated signal if it has active connections
-            try:
-                if self.receivers(self.project_updated) > 0:
-                    self.project_updated.disconnect()
-                    logger.debug("Disconnected project_updated signal in _cleanup_project")
-                else:
-                    logger.debug("No active connections for project_updated in _cleanup_project")
-            except Exception as e:
-                logger.debug(f"No connections to disconnect for project_updated in _cleanup_project: {str(e)}")
-            
-            if self.manipulator:
-                self.manipulator.clear_cache()
-                self.manipulator.clear_base_classes()
-                if hasattr(self.manipulator, '_project'):
-                    self.manipulator._project = None
-                self.manipulator = None
-            
-            if self.project:
-                self.project.clear()
-                for obs in self.project.get_items().values():
-                    if hasattr(obs, 'cleanup'):
-                        obs.cleanup()
-                    for attr in ['_project', '_manipulator', '_parent']:
-                        if hasattr(obs, attr):
-                            setattr(obs, attr, None)
-                self.project = None
-            
-            logger.debug("Project cleanup completed")
-        except Exception as e:
-            logger.error(f"Error cleaning up project: {str(e)}")       
+            logger.debug(f"No visibilityChanged signal to disconnect for dockWidget: {str(e)}")     
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
@@ -619,7 +583,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def open_project(self):
-        """Open a project from a file, preserving current project and signals on failure."""
+        """Open a project from a file, cleaning up the old one."""
         try:
             file_name, _ = QFileDialog.getOpenFileName(
                 self, "Open Project", "", "pAstro Project Files (*.pastro)"
@@ -627,27 +591,25 @@ class PAstroCoreMainWindow(QMainWindow):
             if not file_name:
                 logger.debug("Open project cancelled")
                 return
-            
-            # Load new project data
+                       
+            # Load new project from file
             with open(file_name, 'r') as f:
                 data = json.load(f)
             
-            # Store references to old project and manipulator
-            old_project = self.project
-            old_manipulator = self.manipulator
-            
-            # Create new project and manipulator
-            self.project = ScheduleProject.from_dict(data)
+            new_project = ScheduleProject.from_dict(data)
+
+            # Clean up the current project
+            self._cleanup_project()
+
+            self.project = new_project
             self.manipulator = ScheduleManipulator(self.project)
-            self.current_project_path = file_name
             
-            # Clean up old project and tabs after successful creation of new project
-            self._cleanup_project(old_project, old_manipulator)
+            self.current_project_path = file_name
             
             # Clear existing connections and set up new ones
             self.clear_connections(is_initial_setup=False)
             self.setup_connections()
-            
+                       
             # Open project info tab and update project explorer
             self.open_project_info_tab()
             self.update_project_explorer()
@@ -657,8 +619,6 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Error opening project: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
-            # Do not modify current project, manipulator, or signals
-            logger.debug("Preserving current project and signals due to load failure")
 
     @Slot()
     def save_project(self):
