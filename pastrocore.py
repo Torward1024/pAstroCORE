@@ -80,11 +80,11 @@ class PAstroCoreMainWindow(QMainWindow):
         Args:
             is_initial_setup (bool): If True, skip disconnecting signals that may not be connected yet (used during initial setup).
         """
-        
         if is_initial_setup:
             logger.debug("Skipping UI signal disconnection during initial setup")
             return
-        
+
+        # Disconnect action signals
         for action, connection in self._action_connections.items():
             try:
                 action.triggered.disconnect(connection)
@@ -93,40 +93,97 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
         self._action_connections.clear()
 
+        # Disconnect project_updated signal if it has active connections
         try:
-            self.project_updated.disconnect()
-            logger.debug("Disconnected project_updated signal")
-        except TypeError:
-            logger.debug("No connections to disconnect for project_updated")
+            if self.receivers(self.project_updated) > 0:
+                self.project_updated.disconnect()
+                logger.debug("Disconnected project_updated signal")
+            else:
+                logger.debug("No active connections for project_updated signal")
+        except TypeError as e:
+            logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
 
+        # Disconnect project explorer signals
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             try:
-                project_explorer.clicked.disconnect(self.handle_project_explorer_click)
-                logger.debug("Disconnected project explorer clicked signal")
+                if project_explorer.receivers(project_explorer.clicked) > 0:
+                    project_explorer.clicked.disconnect(self.handle_project_explorer_click)
+                    logger.debug("Disconnected project explorer clicked signal")
+                else:
+                    logger.debug("No active connections for project explorer clicked signal")
             except Exception as e:
                 logger.debug(f"No clicked signal to disconnect for project explorer: {str(e)}")
         else:
-            logger.warning("Project explorer widget not found during clear_connections")
-        
+            logger.debug("Project explorer widget not found during clear_connections")
+
+        # Disconnect tab container signals
         tab_container = self.ui.tabContainer
+        if tab_container:
+            try:
+                if tab_container.receivers(tab_container.tabCloseRequested) > 0:
+                    tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
+                    logger.debug("Disconnected tabCloseRequested signal")
+                else:
+                    logger.debug("No active connections for tabCloseRequested signal")
+            except Exception as e:
+                logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")
+
+        # Disconnect actionProject_Explorer toggled signal
         try:
-            tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
-            logger.debug("Disconnected tabCloseRequested signal")
-        except Exception as e:
-            logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")       
-            
-        try:
-            self.ui.actionProject_Explorer.toggled.disconnect()
-            logger.debug("Disconnected actionProject_Explorer.toggled signal")
+            if self.ui.actionProject_Explorer.receivers(self.ui.actionProject_Explorer.toggled) > 0:
+                self.ui.actionProject_Explorer.toggled.disconnect()
+                logger.debug("Disconnected actionProject_Explorer.toggled signal")
+            else:
+                logger.debug("No active connections for actionProject_Explorer toggled signal")
         except Exception as e:
             logger.debug(f"No toggled signal to disconnect for actionProject_Explorer: {str(e)}")
-            
+
+        # Disconnect dockWidget visibilityChanged signal
         try:
-            self.ui.dockWidget.visibilityChanged.disconnect()
-            logger.debug("Disconnected dockWidget.visibilityChanged signal")
+            if self.ui.dockWidget.receivers(self.ui.dockWidget.visibilityChanged) > 0:
+                self.ui.dockWidget.visibilityChanged.disconnect()
+                logger.debug("Disconnected dockWidget.visibilityChanged signal")
+            else:
+                logger.debug("No active connections for dockWidget visibilityChanged signal")
         except Exception as e:
-            logger.debug(f"No visibilityChanged signal to disconnect for dockWidget: {str(e)}")       
+            logger.debug(f"No visibilityChanged signal to disconnect for dockWidget: {str(e)}")
+
+    def _cleanup_project(self):
+        """Clean up the current project and its dependencies."""
+        try:
+            self._cleanup_tabs()
+            
+            # Disconnect project_updated signal if it has active connections
+            try:
+                if self.receivers(self.project_updated) > 0:
+                    self.project_updated.disconnect()
+                    logger.debug("Disconnected project_updated signal in _cleanup_project")
+                else:
+                    logger.debug("No active connections for project_updated in _cleanup_project")
+            except Exception as e:
+                logger.debug(f"No connections to disconnect for project_updated in _cleanup_project: {str(e)}")
+            
+            if self.manipulator:
+                self.manipulator.clear_cache()
+                self.manipulator.clear_base_classes()
+                if hasattr(self.manipulator, '_project'):
+                    self.manipulator._project = None
+                self.manipulator = None
+            
+            if self.project:
+                self.project.clear()
+                for obs in self.project.get_items().values():
+                    if hasattr(obs, 'cleanup'):
+                        obs.cleanup()
+                    for attr in ['_project', '_manipulator', '_parent']:
+                        if hasattr(obs, attr):
+                            setattr(obs, attr, None)
+                self.project = None
+            
+            logger.debug("Project cleanup completed")
+        except Exception as e:
+            logger.error(f"Error cleaning up project: {str(e)}")       
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
@@ -571,14 +628,23 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug("Open project cancelled")
                 return
             
+            # Clean up the current project
             self._cleanup_project()
+            
+            # Load new project from file
             with open(file_name, 'r') as f:
                 data = json.load(f)
-                
+            
             self.project = ScheduleProject.from_dict(data)
             self.manipulator = ScheduleManipulator(self.project)
             
             self.current_project_path = file_name
+            
+            # Clear existing connections and set up new ones
+            self.clear_connections(is_initial_setup=False)
+            self.setup_connections()
+                       
+            # Open project info tab and update project explorer
             self.open_project_info_tab()
             self.update_project_explorer()
             self.project_updated.emit()
@@ -1003,18 +1069,7 @@ class PAstroCoreMainWindow(QMainWindow):
             if widget:
                 try:
                     widget.blockSignals(True)
-                    
-                    if isinstance(widget, ProjectInfoTab):
-                        try:
-                            widget.project_name_changed.disconnect()
-                        except Exception:
-                            pass
-                    elif isinstance(widget, ObservationTab):
-                        try:
-                            widget.observation_updated.disconnect()
-                        except Exception:
-                            pass
-                    
+                                        
                     if hasattr(widget, '_cleanup'):
                         widget._cleanup()
                 
