@@ -28,7 +28,7 @@ from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
 from pastrocore.gui.p_dialog_visualize import VisualizationDialog
 from pastrocore.gui.p_dialog_generate_observations import GenerateObservationsDialog
 from pastrocore.gui.p_dialog_export_calculated_data import ExportCalculatedDataDialog
-
+# Common/utils files
 from common.utils.logging_setup import (
                                         logger, 
                                         setup_logging, 
@@ -66,7 +66,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self.manipulator = ScheduleManipulator(self.project)
         self.catalog_manager = self.initialize_catalog_manager()
     
-        logger.debug(f"PAstroCoreMainWindow initialized with project id: {id(self.project)}, manipulator id={id(self.manipulator)}, catalog_manager id={id(self.catalog_manager)}")
+        logger.debug(f"pAstroCORE initialized with project id: {id(self.project)}, manipulator id={id(self.manipulator)}, catalog_manager id={id(self.catalog_manager)}")
     
         self.current_project_path = None
         self._action_connections = {}
