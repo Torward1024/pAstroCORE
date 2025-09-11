@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_scanZjyRGE.ui'
+## Form generated from reading UI file 'dialog_editor_scanyXgsEt.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -361,6 +361,13 @@ class Ui_ScanEditorDialog(object):
         self.label_2.setObjectName(u"label_2")
 
         self.gridLayout_2.addWidget(self.label_2, 0, 3, 1, 2)
+
+        self.line_3 = QFrame(ScanEditorDialog)
+        self.line_3.setObjectName(u"line_3")
+        self.line_3.setFrameShape(QFrame.Shape.VLine)
+        self.line_3.setFrameShadow(QFrame.Shadow.Sunken)
+
+        self.gridLayout_2.addWidget(self.line_3, 0, 2, 3, 1)
 
 
         self.gridLayout.addLayout(self.gridLayout_2, 16, 0, 1, 4)
