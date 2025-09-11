@@ -39,6 +39,7 @@ import logging
 import sys
 import os
 import json
+import joblib
 # GUI resource file
 import pastrocore.gui.rc_icons
 
