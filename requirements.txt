@@ -1,5 +1,5 @@
 astropy==7.0.1
-astropy-iers-data==0.2025.3.10.0.29.26
+astropy-iers-data>=0.2025.3.10.0.29.26
 asttokens==3.0.0
 attrs==25.1.0
 ipython==8.12.3
@@ -14,5 +14,4 @@ PySide6_Addons==6.8.2.1
 PySide6_Essentials==6.8.2.1
 python-dateutil==2.9.0.post0
 python-json-logger==3.2.1
-python-telegram-bot==21.10
 scipy==1.15.1
