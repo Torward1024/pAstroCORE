@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_aboutSCGluf.ui'
+## Form generated from reading UI file 'dialog_aboutKnXCkB.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -149,8 +149,8 @@ class Ui_AboutDialog(object):
         AboutDialog.setStyleSheet(QCoreApplication.translate("AboutDialog", u"background-color: #ffffff; font-family: Arial;", None))
         self.labelTitle.setText(QCoreApplication.translate("AboutDialog", u"pAstroCORE", None))
         self.label_2.setText("")
-        self.label.setText(QCoreApplication.translate("AboutDialog", u"Ballistics Laboratory\n"
-"Astro Space Center LPI, 2018-2025", None))
+        self.label.setText(QCoreApplication.translate("AboutDialog", u"Alexey Rudnitskiy\n"
+"(E-mail: almax1024@gmail.com)", None))
         self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
         self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for  radio astronomical observations\n"
 " planning and visualization.", None))
