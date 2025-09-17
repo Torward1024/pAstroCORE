@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_export_calculated_dataPkDjnJ.ui'
+## Form generated from reading UI file 'dialog_export_calculated_dataousaiY.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -306,8 +306,8 @@ class Ui_ExportCalculatedDataDialog(object):
 
         self.chkExportData = QCheckBox(ExportCalculatedDataDialog)
         self.chkExportData.setObjectName(u"chkExportData")
-        self.chkExportData.setEnabled(False)
-        self.chkExportData.setChecked(False)
+        self.chkExportData.setEnabled(True)
+        self.chkExportData.setChecked(True)
 
         self.gridLayout_2.addWidget(self.chkExportData, 4, 0, 1, 1)
 

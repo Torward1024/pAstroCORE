@@ -5,9 +5,12 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from common.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_export_calculated_data import Ui_ExportCalculatedDataDialog
 from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
+from pastrocore.base.observation import Observation
 
 from typing import Dict, Optional
 import os
+import numpy as np
+from astropy.time import Time
 
 class ProgressDialog(QDialog):
     """Custom progress dialog for export progress."""
@@ -63,33 +66,58 @@ class ExportThread(QThread):
                 telescopes = [telescope.get_code() for telescope in target.get_telescopes()._items.values()]  # All telescope codes
                 scans = [scan.name for scan in target.get_scans().get_items()]  # All scan names
                 frequencies = [if_obj.frequency for if_obj in target.get_frequencies().get_items()]  # All IF frequencies
-                baselines = [f"{t1}-{t2}" for i, t1 in enumerate(telescopes) for t2 in telescopes[i+1:]]
+                baselines = [f"{t1}-{t2}" for i, t1 in enumerate(telescopes) for t2 in telescopes[i+1:]]  # All possible baselines
 
                 for calc_type in self.calc_types:
-                    key = calc_type.lower().replace(" ", "_")
+                    key = calc_type.lower().replace(" ", "_").replace("/", "_")  # Handle Azimuth/Elevation
                     data = target.get_calculated_data_by_key(key)
                     if not data:
                         logger.debug(f"No data for {calc_type} in {obs_code}, skipping")
                         continue
+                    
+                    # Define per-source keys
+                    per_source_keys = [
+                        "uv_coverage", "baseline_projections", "time_on_source",
+                        "sun_angles", "az_el", "source_visibility"
+                    ]
+                    
                     # Export data if checked
                     if self.export_data:
-                        file_name = f"{calc_type.replace(' ', '_')}_{obs_code}"
-                        source_name = self._get_source_name_from_data(data, calc_type)
-                        if source_name:
-                            file_name += f"_{source_name}"
-                        txt_path = os.path.join(self.export_path, f"{file_name}.txt")
-                        self._export_data_to_txt(data, calc_type, txt_path, obs_code)
-                    # Export visualization if checked
+                        if key in per_source_keys:
+                            for source_name in data["data"].keys():
+                                file_prefix = calc_type.replace(" ", "_").replace("/", "_")
+                                file_name = f"{file_prefix}_{obs_code}_{source_name}"
+                                txt_path = os.path.join(self.export_path, f"{file_name}.txt")
+                                self._export_data_to_txt(data, calc_type, txt_path, obs_code, source_name=source_name, target=target)
+                        else:
+                            if calc_type == "Beam Pattern":
+                                file_prefix = "Beam_Pattern"
+                            elif calc_type == "Mollweide Tracks":
+                                file_prefix = "Mollweide"
+                            else:
+                                file_prefix = calc_type.replace(" ", "_").replace("/", "_")
+                            file_name = f"{file_prefix}_{obs_code}"
+                            txt_path = os.path.join(self.export_path, f"{file_name}.txt")
+                            self._export_data_to_txt(data, calc_type, txt_path, obs_code, source_name=None, target=target)
+                    
+                    # Export visualization if checked and type is visualizable
                     if self.export_vis:
-                        # For plot_types requiring single source, iterate over all sources
-                        if key in ["uv_coverage", "sun_angles", "az_el", "time_on_source", "baseline_projections"]:
+                        visualizable_keys = [
+                            "uv_coverage", "baseline_projections", "time_on_source",
+                            "sun_angles", "az_el", "mollweide_tracks", "beam_pattern"
+                        ]
+                        if key not in visualizable_keys:
+                            logger.debug(f"Skipping visualization for {calc_type} as it is not visualizable")
+                            continue
+                        if key in per_source_keys:
                             for source_name in sources:
-                                file_name = f"{calc_type.replace(' ', '_')}_{obs_code}_{source_name}"
+                                file_prefix = calc_type.replace(" ", "_").replace("/", "_")
+                                file_name = f"{file_prefix}_{obs_code}_{source_name}"
                                 png_path = os.path.join(self.export_path, f"{file_name}.png")
                                 attributes = {
                                     "plot_type": key,
                                     "output_file": png_path,
-                                    "dpi": 76,  # Explicitly set dpi as number
+                                    "dpi": 76,
                                     "source_name": source_name,
                                     "baselines": baselines if key in ["uv_coverage", "baseline_projections"] else [],
                                     "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source"] else [],
@@ -105,40 +133,22 @@ class ExportThread(QThread):
                                 result = self.manipulator.process_request(request)
                                 if not result.get("status", False):
                                     raise ValueError(f"Visualization export failed for {calc_type} in {obs_code} for source {source_name}: {result.get('message')}")
-                        # For plot_types supporting multiple sources
-                        elif key == "mollweide_tracks":
-                            file_name = f"{calc_type.replace(' ', '_')}_{obs_code}"
-                            source_name = self._get_source_name_from_data(data, calc_type)
-                            if source_name:
-                                file_name += f"_{source_name}"
+                        else:
+                            if calc_type == "Beam Pattern":
+                                file_prefix = "Beam_Pattern"
+                            elif calc_type == "Mollweide Tracks":
+                                file_prefix = "Mollweide"
+                            else:
+                                file_prefix = calc_type.replace(" ", "_").replace("/", "_")
+                            file_name = f"{file_prefix}_{obs_code}"
                             png_path = os.path.join(self.export_path, f"{file_name}.png")
                             attributes = {
                                 "plot_type": key,
                                 "output_file": png_path,
-                                "dpi": 76,  # Explicitly set dpi as number
+                                "dpi": 76,
                                 "telescopes": telescopes,
                                 "scans": scans,
-                                "sources": sources
-                            }
-                            request = {
-                                "operation": "visualize",
-                                "attributes": attributes,
-                                "obj": target
-                            }
-                            result = self.manipulator.process_request(request)
-                            if not result.get("status", False):
-                                raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {result.get('message')}")
-                        # For other plot_types (e.g., beam_pattern)
-                        else:
-                            file_name = f"{calc_type.replace(' ', '_')}_{obs_code}"
-                            source_name = self._get_source_name_from_data(data, calc_type)
-                            if source_name:
-                                file_name += f"_{source_name}"
-                            png_path = os.path.join(self.export_path, f"{file_name}.png")
-                            attributes = {
-                                "plot_type": key,
-                                "output_file": png_path,
-                                "telescopes": telescopes,
+                                "sources": sources if key == "mollweide_tracks" else [],
                                 "freq_names": frequencies if key == "beam_pattern" else []
                             }
                             request = {
@@ -156,31 +166,221 @@ class ExportThread(QThread):
             logger.error(f"Export error in thread: {str(e)}")
             self.error.emit(str(e))
 
-    def _get_source_name_from_data(self, data: Dict, calc_type: str) -> Optional[str]:
-        """Extract source name if applicable for the calculation type."""
-        if "data" in data and isinstance(data["data"], dict) and data["data"]:
-            return next(iter(data["data"].keys()))  # First source key
-        return None
+    def _export_data_to_txt(self, data: Dict, calc_type: str, path: str, obs_code: str, source_name: Optional[str], target: Observation):
+        """Export calculated data to tab-separated TXT file.
 
-    def _export_data_to_txt(self, data: Dict, calc_type: str, path: str, obs_code: str):
-        """Export calculated data to tab-separated TXT file."""
+        Handles different calculation types with appropriate table structures.
+        Uses 'times' from calculated_data for time alignment where applicable.
+        Excludes 'Scan' column from output as it is not informative.
+        """
         try:
-            # Ensure directory exists
             os.makedirs(os.path.dirname(path), exist_ok=True)
+            times_data = target.get_calculated_data_by_key("times")
+            times = times_data["data"] if times_data else None
+
             with open(path, 'w', encoding='utf-8') as f:
-                # Implement specific export logic for each calc_type (stub for now; expand as in visualize export)
-                if calc_type == "UV Coverage":
-                    headers = ["Time (UTC)", "Telescope Pair", "U (m)", "V (m)"]
+                key = calc_type.lower().replace(" ", "_").replace("/", "_")
+                
+                if key == "uv_coverage":
+                    # Per source: Time, Baseline, U (m), V (m), W (m)
+                    headers = ["Time (UTC)", "Baseline", "U (m)", "V (m)", "W (m)"]
                     f.write('\t'.join(headers) + '\n')
-                    # Extract rows from data["data"]...
-                    pass  # Add extraction logic
-                elif calc_type == "Mollweide Tracks":
+                    scans_data = data["data"][source_name]
+                    for scan_name in sorted(scans_data):
+                        uvw_dict = scans_data[scan_name]
+                        scan_times = times[source_name][scan_name] if times else []
+                        for baseline in sorted(uvw_dict):
+                            uvw = uvw_dict[baseline]
+                            for i, t in enumerate(scan_times):
+                                row = [t.isot, baseline, uvw[i, 0], uvw[i, 1], uvw[i, 2]]
+                                f.write('\t'.join(map(str, row)) + '\n')
+                
+                elif key == "baseline_projections":
+                    # Per source: Time, Baseline, Projection (m)
+                    headers = ["Time (UTC)", "Baseline", "Projection (m)"]
+                    f.write('\t'.join(headers) + '\n')
+                    scans_data = data["data"][source_name]
+                    for scan_name in sorted(scans_data):
+                        proj_dict = scans_data[scan_name]
+                        scan_times = times[source_name][scan_name] if times else []
+                        for baseline in sorted(proj_dict):
+                            proj = proj_dict[baseline]
+                            for i, t in enumerate(scan_times):
+                                value = proj[i] if proj.ndim == 1 else proj[i, 0]
+                                row = [t.isot, baseline, value]
+                                f.write('\t'.join(map(str, row)) + '\n')
+                
+                elif key == "time_on_source":
+                    # Per source: Telescope, Start (UTC), End (UTC), Duration (s)
+                    headers = ["Telescope", "Start (UTC)", "End (UTC)", "Duration (s)"]
+                    f.write('\t'.join(headers) + '\n')
+                    scans_data = data["data"][source_name]
+                    all_blocks = {}  # Collect all blocks for Total calculation
+                    for scan_name in sorted(scans_data):
+                        tels_dict = scans_data[scan_name]
+                        for tel_code in sorted(tels_dict):
+                            blocks = tels_dict[tel_code]
+                            if isinstance(blocks, np.ndarray):
+                                blocks = blocks.tolist()
+                            if not blocks:
+                                continue
+                            if tel_code not in all_blocks:
+                                all_blocks[tel_code] = []
+                            for block in blocks:
+                                try:
+                                    # Convert start/end times if they are numeric (assuming MJD)
+                                    start_time = block[0]
+                                    end_time = block[1]
+                                    if isinstance(start_time, (float, np.floating)):
+                                        start_time = Time(start_time, format='mjd')
+                                    if isinstance(end_time, (float, np.floating)):
+                                        end_time = Time(end_time, format='mjd')
+                                    if not isinstance(start_time, Time) or not isinstance(end_time, Time):
+                                        logger.debug(f"Invalid time format for scan '{scan_name}', telescope '{tel_code}', skipping")
+                                        continue
+                                    duration = float(block[2])
+                                    row = [tel_code, start_time.isot, end_time.isot, duration]
+                                    f.write('\t'.join(map(str, row)) + '\n')
+                                    all_blocks[tel_code].append((start_time.mjd, end_time.mjd, duration))
+                                except (ValueError, TypeError) as e:
+                                    logger.debug(f"Failed to process time_on_source for scan '{scan_name}', telescope '{tel_code}': {str(e)}")
+                                    continue
+                    
+                    # Calculate Total (intersection of all telescope blocks)
+                    tel_list = sorted(all_blocks.keys())
+                    if tel_list:
+                        all_times = [[(start, end) for start, end, _ in all_blocks[tel]] for tel in tel_list]
+                        if all_times and all(all_times):
+                            time_points = sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end)))
+                            intersection_times = []
+                            for i in range(len(time_points) - 1):
+                                start, end = time_points[i], time_points[i + 1]
+                                all_active = all(any(start_t <= start and end <= end_t for start_t, end_t in tel_times)
+                                                for tel_times in all_times)
+                                if all_active:
+                                    intersection_times.append((start, end))
+                            
+                            # Write Total rows
+                            for start_mjd, end_mjd in intersection_times:
+                                try:
+                                    start_time = Time(start_mjd, format='mjd')
+                                    end_time = Time(end_mjd, format='mjd')
+                                    duration = (end_mjd - start_mjd) * 86400.0
+                                    row = ["Total", start_time.isot, end_time.isot, duration]
+                                    f.write('\t'.join(map(str, row)) + '\n')
+                                    logger.debug(f"Added Total block: start={start_time.isot}, end={end_time.isot}, duration={duration}s")
+                                except (ValueError, TypeError) as e:
+                                    logger.debug(f"Failed to process Total block: {str(e)}")
+                                    continue
+                            if not intersection_times:
+                                logger.debug(f"No intersection times found for Total in source '{source_name}'")
+                
+                elif key == "sun_angles":
+                    # Per source: Time, Telescope, Angle (deg)
+                    headers = ["Time (UTC)", "Telescope", "Angle (deg)"]
+                    f.write('\t'.join(headers) + '\n')
+                    scans_data = data["data"][source_name]
+                    for scan_name in sorted(scans_data):
+                        tels_dict = scans_data[scan_name]
+                        scan_times = times[source_name][scan_name] if times else []
+                        for tel_code in sorted(tels_dict):
+                            angles = tels_dict[tel_code]
+                            for i, t in enumerate(scan_times):
+                                row = [t.isot, tel_code, angles[i]]
+                                f.write('\t'.join(map(str, row)) + '\n')
+                
+                elif key == "az_el":
+                    # Per source: Time, Telescope, Az (deg), El (deg)
+                    headers = ["Time (UTC)", "Telescope", "Az (deg)", "El (deg)"]
+                    f.write('\t'.join(headers) + '\n')
+                    scans_data = data["data"][source_name]
+                    for scan_name in sorted(scans_data):
+                        tels_dict = scans_data[scan_name]
+                        scan_times = times[source_name][scan_name] if times else []
+                        for tel_code in sorted(tels_dict):
+                            azel = tels_dict[tel_code]
+                            for i, t in enumerate(scan_times):
+                                row = [t.isot, tel_code, azel[i, 0], azel[i, 1]]
+                                f.write('\t'.join(map(str, row)) + '\n')
+                
+                elif key == "source_visibility":
+                    # Per source: Time, Telescope, Visible
+                    headers = ["Time (UTC)", "Telescope", "Visible"]
+                    f.write('\t'.join(headers) + '\n')
+                    scans_data = data["data"][source_name]
+                    for scan_name in sorted(scans_data):
+                        tels_dict = scans_data[scan_name]
+                        scan_times = times[source_name][scan_name] if times else []
+                        for tel_code in sorted(tels_dict):
+                            vis = tels_dict[tel_code]
+                            for i, t in enumerate(scan_times):
+                                row = [t.isot, tel_code, bool(vis[i])]
+                                f.write('\t'.join(map(str, row)) + '\n')
+                
+                elif key == "beam_pattern":
+                    # No source/time: Telescope, Theta (arcsec), Pattern (normalized)
+                    headers = ["Telescope", "Theta (arcsec)", "Pattern (normalized)"]
+                    f.write('\t'.join(headers) + '\n')
+                    beam_data = data["data"]
+                    for tel_code in sorted(beam_data):
+                        beam = beam_data[tel_code]
+                        theta = beam["theta"]
+                        pattern = beam["pattern"]
+                        for i in range(len(theta)):
+                            row = [tel_code, theta[i], pattern[i]]
+                            f.write('\t'.join(map(str, row)) + '\n')
+                
+                elif key == "mollweide_tracks":
+                    # No source: Time, Telescope, Longitude (deg), Latitude (deg)
                     headers = ["Time (UTC)", "Telescope", "Longitude (deg)", "Latitude (deg)"]
                     f.write('\t'.join(headers) + '\n')
-                    # Extract from data...
-                    pass
-                # Add for other types: Baseline Projections, Time on Source, etc.
-                logger.info(f"Exported data to {path}")
+                    scans_data = data["data"]
+                    for scan_name in sorted(scans_data):
+                        scan = target.get_scans().get(scan_name)
+                        if not scan:
+                            logger.debug(f"Scan '{scan_name}' not found, skipping")
+                            continue
+                        src = scan.get_source(observation=target)
+                        src_name_local = src.name if src else None
+                        if not src_name_local:
+                            logger.debug(f"No source name for scan '{scan_name}', skipping")
+                            continue
+                        scan_times = times.get(src_name_local, {}).get(scan_name, []) if times else []
+                        tels_dict = scans_data[scan_name]
+                        for tel_code in sorted(tels_dict):
+                            tracks = tels_dict[tel_code]
+                            for i, t in enumerate(scan_times):
+                                row = [t.isot, tel_code, tracks[i, 0], tracks[i, 1]]
+                                f.write('\t'.join(map(str, row)) + '\n')
+                
+                elif key == "telescope_positions":
+                    # No source: Time, Telescope, X (m), Y (m), Z (m)
+                    headers = ["Time (UTC)", "Telescope", "X (m)", "Y (m)", "Z (m)"]
+                    f.write('\t'.join(headers) + '\n')
+                    scans_data = data["data"]
+                    for scan_name in sorted(scans_data):
+                        scan = target.get_scans().get(scan_name)
+                        if not scan:
+                            logger.debug(f"Scan '{scan_name}' not found, skipping")
+                            continue
+                        src = scan.get_source(observation=target)
+                        src_name_local = src.name if src else None
+                        if not src_name_local:
+                            logger.debug(f"No source name for scan '{scan_name}', skipping")
+                            continue
+                        scan_times = times.get(src_name_local, {}).get(scan_name, []) if times else []
+                        tels_dict = scans_data[scan_name]
+                        for tel_code in sorted(tels_dict):
+                            pos = tels_dict[tel_code]
+                            for i, t in enumerate(scan_times):
+                                row = [t.isot, tel_code, pos[i, 0], pos[i, 1], pos[i, 2]]
+                                f.write('\t'.join(map(str, row)) + '\n')
+                
+                else:
+                    logger.warning(f"Unsupported calc_type for TXT export: {calc_type}")
+                    return
+
+            logger.info(f"Exported data to {path}")
         except Exception as e:
             logger.error(f"Failed to export data to {path}: {str(e)}")
             raise
@@ -213,7 +413,8 @@ class ExportCalculatedDataDialog(QDialog):
         """Populate the calculation list."""
         calc_types = [
             "UV Coverage", "Mollweide Tracks", "Baseline Projections",
-            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern"
+            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern",
+            "Source Visibility", "Telescope Positions"
         ]
         self.ui.calcList.clear()
         for calc_type in calc_types:

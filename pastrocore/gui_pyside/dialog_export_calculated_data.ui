@@ -386,13 +386,13 @@ QPushButton:pressed {
    <item row="4" column="0">
     <widget class="QCheckBox" name="chkExportData">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="text">
       <string>Export Data</string>
      </property>
      <property name="checked">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
     </widget>
    </item>
