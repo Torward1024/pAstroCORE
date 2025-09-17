@@ -41,7 +41,7 @@ class ExportThread(QThread):
         self.export_data = export_data
         self.export_vis = export_vis
         self.export_path = export_path
-        self.units = units  # UV units for visualizations: "wavelengths" or "earth_diameters"
+        self.units = units
         self._cancelled = False
         logger.debug(f"ExportThread initialized with calc_types: {self.calc_types}, export_data={export_data}, export_vis={export_vis}, units={self.units}")
 
@@ -66,7 +66,6 @@ class ExportThread(QThread):
                 obs_code = target.code
                 self.progress.emit(int(current_step / total_steps * 100), f"Exporting for {obs_code}...")
 
-                # Collect filters from Observation (без изменений)
                 sources = list(target.get_sources()._items.keys())
                 telescopes = [telescope.get_code() for telescope in target.get_telescopes()._items.values()]
                 scans = [scan.name for scan in target.get_scans().get_items()]
@@ -84,13 +83,11 @@ class ExportThread(QThread):
                         logger.debug(f"No data for {calc_type} in {obs_code}, skipping")
                         continue
 
-                    # Define per-source keys (без изменений)
                     per_source_keys = [
                         "uv_coverage", "baseline_projections", "time_on_source",
                         "sun_angles", "az_el", "source_visibility"
                     ]
 
-                    # Export data if checked
                     if self.export_data:
                         if key in per_source_keys:
                             for source_name in data["data"].keys():
@@ -111,7 +108,6 @@ class ExportThread(QThread):
                         current_step += 1
                         self.progress.emit(int(current_step / total_steps * 100), f"Exported data for {calc_type} in {obs_code}")
 
-                    # Export visualization if checked and type is visualizable
                     if self.export_vis:
                         visualizable_keys = [
                             "uv_coverage", "baseline_projections", "time_on_source",
@@ -208,7 +204,6 @@ class ExportThread(QThread):
                                 f.write('\t'.join(map(str, row)) + '\n')
                 
                 elif key == "baseline_projections":
-                    # Per source: Time, Baseline, Projection (m)
                     headers = ["Time (UTC)", "Baseline", "Projection (m)"]
                     f.write('\t'.join(headers) + '\n')
                     scans_data = data["data"][source_name]
@@ -223,11 +218,10 @@ class ExportThread(QThread):
                                 f.write('\t'.join(map(str, row)) + '\n')
                 
                 elif key == "time_on_source":
-                    # Per source: Telescope, Start (UTC), End (UTC), Duration (s)
                     headers = ["Telescope", "Start (UTC)", "End (UTC)", "Duration (s)"]
                     f.write('\t'.join(headers) + '\n')
                     scans_data = data["data"][source_name]
-                    all_blocks = {}  # Collect all blocks for Total calculation
+                    all_blocks = {}
                     for scan_name in sorted(scans_data):
                         tels_dict = scans_data[scan_name]
                         for tel_code in sorted(tels_dict):
@@ -240,7 +234,6 @@ class ExportThread(QThread):
                                 all_blocks[tel_code] = []
                             for block in blocks:
                                 try:
-                                    # Convert start/end times if they are numeric (assuming MJD)
                                     start_time = block[0]
                                     end_time = block[1]
                                     if isinstance(start_time, (float, np.floating)):
@@ -258,7 +251,6 @@ class ExportThread(QThread):
                                     logger.debug(f"Failed to process time_on_source for scan '{scan_name}', telescope '{tel_code}': {str(e)}")
                                     continue
                     
-                    # Calculate Total (intersection of all telescope blocks)
                     tel_list = sorted(all_blocks.keys())
                     if tel_list:
                         all_times = [[(start, end) for start, end, _ in all_blocks[tel]] for tel in tel_list]
@@ -272,7 +264,6 @@ class ExportThread(QThread):
                                 if all_active:
                                     intersection_times.append((start, end))
                             
-                            # Write Total rows
                             for start_mjd, end_mjd in intersection_times:
                                 try:
                                     start_time = Time(start_mjd, format='mjd')
@@ -288,7 +279,6 @@ class ExportThread(QThread):
                                 logger.debug(f"No intersection times found for Total in source '{source_name}'")
                 
                 elif key == "sun_angles":
-                    # Per source: Time, Telescope, Angle (deg)
                     headers = ["Time (UTC)", "Telescope", "Angle (deg)"]
                     f.write('\t'.join(headers) + '\n')
                     scans_data = data["data"][source_name]
@@ -302,7 +292,6 @@ class ExportThread(QThread):
                                 f.write('\t'.join(map(str, row)) + '\n')
                 
                 elif key == "az_el":
-                    # Per source: Time, Telescope, Az (deg), El (deg)
                     headers = ["Time (UTC)", "Telescope", "Az (deg)", "El (deg)"]
                     f.write('\t'.join(headers) + '\n')
                     scans_data = data["data"][source_name]
@@ -316,7 +305,6 @@ class ExportThread(QThread):
                                 f.write('\t'.join(map(str, row)) + '\n')
                 
                 elif key == "source_visibility":
-                    # Per source: Time, Telescope, Visible
                     headers = ["Time (UTC)", "Telescope", "Visible"]
                     f.write('\t'.join(headers) + '\n')
                     scans_data = data["data"][source_name]
@@ -330,7 +318,6 @@ class ExportThread(QThread):
                                 f.write('\t'.join(map(str, row)) + '\n')
                 
                 elif key == "beam_pattern":
-                    # No source/time: Telescope, Theta (arcsec), Pattern (normalized)
                     headers = ["Telescope", "Theta (arcsec)", "Pattern (normalized)"]
                     f.write('\t'.join(headers) + '\n')
                     beam_data = data["data"]
@@ -343,7 +330,6 @@ class ExportThread(QThread):
                             f.write('\t'.join(map(str, row)) + '\n')
                 
                 elif key == "mollweide_tracks":
-                    # No source: Time, Telescope, Longitude (deg), Latitude (deg)
                     headers = ["Time (UTC)", "Telescope", "Longitude (deg)", "Latitude (deg)"]
                     f.write('\t'.join(headers) + '\n')
                     scans_data = data["data"]
@@ -366,7 +352,6 @@ class ExportThread(QThread):
                                 f.write('\t'.join(map(str, row)) + '\n')
                 
                 elif key == "telescope_positions":
-                    # No source: Time, Telescope, X (m), Y (m), Z (m)
                     headers = ["Time (UTC)", "Telescope", "X (m)", "Y (m)", "Z (m)"]
                     f.write('\t'.join(headers) + '\n')
                     scans_data = data["data"]
@@ -406,7 +391,6 @@ class ExportCalculatedDataDialog(QDialog):
         self.ui.setupUi(self)
         self.manipulator = manipulator
         self.project = manipulator.get_managing_object()
-        # Get default export path: project folder if saved, else current working dir
         self.default_export_path = parent.current_project_path if parent and hasattr(parent, 'current_project_path') and parent.current_project_path else os.getcwd()
         if self.default_export_path and os.path.isfile(self.default_export_path):
             self.default_export_path = os.path.dirname(self.default_export_path)
@@ -418,9 +402,7 @@ class ExportCalculatedDataDialog(QDialog):
         """Initialize the dialog UI."""
         self.populate_calc_list()
         self.populate_targets()
-        # Set default path in lineEdit
         self.ui.lineEdit.setText(self.default_export_path)
-        # Populate units combo box for UV visualizations
         self.ui.cmbUnits.addItems(["Wavelengths", "Earth Diameters"])
         self.ui.cmbUnits.setCurrentText("Earth Diameters")  # Default
         logger.debug("UV units combo box populated with Wavelengths and Earth Diameters")

@@ -31,7 +31,6 @@ class SourceEditorDialog(QDialog):
         self.ui.fluxTable.setSelectionMode(QTableView.SingleSelection)
         self.ui.fluxTable.setSelectionBehavior(QTableView.SelectRows)
 
-        # Set validators for spin boxes
         self.ui.raHEdit.setRange(0, 23)
         self.ui.raMEdit.setRange(0, 59)
         self.ui.raSEdit.setRange(0, 59.999)
@@ -140,8 +139,7 @@ class SourceEditorDialog(QDialog):
                 "isactive": self.ui.isActiveCheckBox.isChecked()
             }
 
-            # Validate coordinates
-            Source(**source_data)  # This will raise ValueError if coordinates are invalid
+            Source(**source_data)
             self._source_data = source_data
             self.accept()
             logger.info(f"Validated and saved source data for '{name}'")

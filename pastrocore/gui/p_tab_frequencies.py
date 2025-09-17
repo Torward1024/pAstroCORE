@@ -213,7 +213,7 @@ class FrequenciesTab(QWidget):
         try:
             with open(file_path, "r") as f:
                 data = json.load(f)
-            # Get existing frequency
+
             freq_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.observation.get_frequencies(),
@@ -224,11 +224,9 @@ class FrequenciesTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
                 return
 
-            # Create new IF object from file data
             imported_if = IF.from_dict(data)
-            # Preserve existing name
             imported_if.name = freq_name
-            # Update frequency through Manipulator
+    
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_frequencies(),

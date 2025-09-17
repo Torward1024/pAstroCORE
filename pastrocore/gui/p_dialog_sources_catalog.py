@@ -90,7 +90,7 @@ class SourcesCatalogDialog(QDialog):
             ]
             for item in items:
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            items[0].setData(source, Qt.UserRole)  # Store source object in first column
+            items[0].setData(source, Qt.UserRole)
             self.model.appendRow(items)
 
         logger.info(f"Populated sources catalog table with {len(sources)} sources")

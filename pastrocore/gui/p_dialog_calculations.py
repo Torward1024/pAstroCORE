@@ -273,7 +273,6 @@ class CalculationDialog(QDialog):
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
             return
 
-        # Clear cache for all selected targets if recalculate is checked
         if self.ui.recalculateCheck.isChecked():
             for target in selected_targets:
                 try:
@@ -291,7 +290,6 @@ class CalculationDialog(QDialog):
         logger.debug(f"CalculationDialog: params set to {params}")
         calc_params = {calc: params.copy() for calc in selected_calcs}
 
-        # Initialize and show custom progress dialog
         self.progress_dialog = ProgressDialog(self)
         self.progress_dialog.ui.pushButtonCancel.clicked.connect(self.cancel_calculation)
         self.progress_dialog.update_progress(0, "Preparing calculations...")
@@ -303,7 +301,6 @@ class CalculationDialog(QDialog):
         self.thread.error.connect(self.calculation_error)
         self.thread.start()
 
-        # Emit time_step_updated signal if time_step changed
         if self.ui.timeStepSpin.value() != self.time_step:
             self.time_step_updated.emit(self.ui.timeStepSpin.value())
             logger.debug(f"Emitted time_step_updated signal with value {self.ui.timeStepSpin.value()}")
@@ -315,9 +312,8 @@ class CalculationDialog(QDialog):
     def cancel_calculation(self):
         """Handle cancellation of the calculation thread."""
         logger.debug("Cancellation requested by user")
-        self.thread.cancel()  # Set cancellation flag
+        self.thread.cancel()
         self.progress_dialog.update_progress(self.progress_dialog.ui.progressBar.value(), "Cancelling after current calculation...")
-        # The thread will emit error signal with cancellation message when it stops
 
     def calculation_finished(self, results):
         """Handle calculation completion."""

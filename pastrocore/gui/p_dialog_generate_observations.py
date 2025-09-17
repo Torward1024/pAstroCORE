@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QDialog, QMessageBox, QMenu, QFileDialog, QListWidgetItem
-from PySide6.QtCore import Signal, Slot, Qt, QPoint, QThread, QRegularExpression
+from PySide6.QtCore import Signal, Slot, Qt, QPoint, QThread, QRegularExpression, QDateTime
 from PySide6.QtGui import QIcon, QRegularExpressionValidator
 from .ui_dialog_generate_observations import Ui_GenerateObservationsDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -104,31 +104,27 @@ class GenerateObservationsDialog(QDialog):
         self.telescopes = Telescopes()
         self._source_order = []
         self._telescope_order = []
-        self._frequency_order = []  # Для частот, если нужно, но кнопок up/down нет, так что по добавлению
+        self._frequency_order = []
         self.setup_ui()
         self.setup_connections()
 
     def setup_ui(self):
         """Populate lists and set up initial UI state."""
-        # Source, telescope and frequency lists are initially empty; populate manually via context menu
 
-        # Set context menu policies
         self.ui.sourceList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.telescopeList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.frequencyList.setContextMenuPolicy(Qt.CustomContextMenu)
         
-        # Set default naming mask
+
         self.ui.namingMaskEdit.setText("Observation_{i}_{s}_{dt}")
-        # Add validator for naming mask
+
         mask_validator = QRegularExpressionValidator(QRegularExpression(r'^[a-zA-Z0-9_{}]+$'))
         self.ui.namingMaskEdit.setValidator(mask_validator)
         
-        # Set pattern defaults
         self.ui.addOffSourceCheck.setChecked(False)
         self.ui.randomizeOrderCheck.setChecked(False)
         self.ui.intervalSpinBox.setValue(5)
-        
-        # Set default time range
+
         current_time = datetime.now()
         self.ui.startTimeEdit.setDateTime(current_time)
         self.ui.endTimeEdit.setDateTime(current_time + timedelta(hours=24))
@@ -214,10 +210,9 @@ class GenerateObservationsDialog(QDialog):
                 self.frequencies.add(if_obj)
                 self._frequency_order.append(if_obj.name)
                 self.update_frequency_list()
-                logger.info(f"Added frequency '{if_obj.name}' manually to frequencies collection")
-                QMessageBox.information(self, "Success", f"Added frequency '{if_obj.name}'.")
+                logger.info(f"Added frequency '{if_obj.name}' to frequencies collection")
             except Exception as e:
-                logger.error(f"Failed to add frequency manually: {str(e)}")
+                logger.error(f"Failed to add frequency: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(e)}")
 
     @Slot(int)
@@ -233,7 +228,6 @@ class GenerateObservationsDialog(QDialog):
                     if_obj.set(if_data)
                     self.update_frequency_list()
                     logger.info(f"Edited frequency '{if_obj.name}'")
-                    QMessageBox.information(self, "Success", f"Edited frequency '{if_obj.name}'.")
                 except Exception as e:
                     logger.error(f"Failed to edit frequency: {str(e)}")
                     QMessageBox.critical(self, "Error", f"Failed to edit frequency: {str(e)}")
@@ -300,7 +294,6 @@ class GenerateObservationsDialog(QDialog):
                 self._source_order.append(source.name)
                 self.update_source_list()
                 logger.info(f"Added source '{source.name}' manually to sources collection")
-                QMessageBox.information(self, "Success", f"Added source '{source.name}'.")
             except Exception as e:
                 logger.error(f"Failed to add source manually: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to add source: {str(e)}")
@@ -522,10 +515,6 @@ class GenerateObservationsDialog(QDialog):
             scan_duration = self.ui.scanDurationSpinBox.value()
             num_scans = self.ui.numScansSpinBox.value()
             naming_mask = self.ui.namingMaskEdit.text()
-
-            # Логируем типы телескопов для отладки
-            for telescope in telescope_items:
-                logger.debug(f"Telescope: {telescope.name}, Type: {type(telescope).__name__}")
 
             sources = Sources(items={s.name: s for s in source_items})
             telescopes = Telescopes(items={t.name: t for t in telescope_items})

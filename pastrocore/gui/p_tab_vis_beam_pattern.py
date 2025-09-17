@@ -30,7 +30,6 @@ class BeamPatternVisualizationTab(QWidget):
         self.telescopes = self._get_telescopes()
         logger.debug(f"BeamPatternVisualizationTab initialized for observation id={id(observation)}")
 
-        # Populate frequencies
         logger.debug(f"Populating frequencies: {self.frequencies}")
         for freq in self.frequencies:
             item = QListWidgetItem(f"{freq:.2f} MHz")
@@ -39,7 +38,6 @@ class BeamPatternVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listFrequencies.addItem(item)
 
-        # Populate telescopes
         logger.debug(f"Populating telescopes: {self.telescopes}")
         for tel in self.telescopes:
             item = QListWidgetItem(tel)
@@ -47,15 +45,12 @@ class BeamPatternVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listTelescopes.addItem(item)
 
-        # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         logger.debug("BeamPatternVisualizationTab UI populated and ready for visualization")
 
-        # Connect signals for filter changes
         self.ui.listFrequencies.itemChanged.connect(self.filter_changed)
         self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
-        # Cache data immediately
         self._cache_calculated_data()
     
     def _lock_ui(self):
@@ -142,7 +137,6 @@ class BeamPatternVisualizationTab(QWidget):
         """Aggressively clear the canvas, toolbar, and figure to release all resources."""
         logger.debug("Clearing canvas, toolbar, and figure")
         
-        # Remove and delete canvas
         if self.canvas:
             try:
                 self.layout.removeWidget(self.canvas)
@@ -154,7 +148,6 @@ class BeamPatternVisualizationTab(QWidget):
             finally:
                 self.canvas = None
 
-        # Remove and delete toolbar
         if self.toolbar:
             try:
                 self.layout.removeWidget(self.toolbar)
@@ -180,13 +173,12 @@ class BeamPatternVisualizationTab(QWidget):
             finally:
                 self.figure = None
 
-        # Force garbage collection and log open figures
         gc.collect(2)
         logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
     def embed_figure(self, figure: Figure):
         """Embed a Matplotlib figure into the widget."""
-        self._clear_canvas()  # Clear existing resources first
+        self._clear_canvas()
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -202,7 +194,7 @@ class BeamPatternVisualizationTab(QWidget):
             logger.debug("Filter change ignored, visualization is processing")
             return
         self.is_processing = True
-        self._lock_ui()  # Lock UI immediately to prevent new signals
+        self._lock_ui()
         try:
             self.update_visualization()
         finally:
