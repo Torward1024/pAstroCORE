@@ -33,7 +33,7 @@ class ExportThread(QThread):
     finished = Signal()
     error = Signal(str)
 
-    def __init__(self, manipulator, targets, calc_types, export_data, export_vis, export_path):
+    def __init__(self, manipulator, targets, calc_types, export_data, export_vis, export_path, units: str):
         super().__init__()
         self.manipulator = manipulator
         self.targets = targets
@@ -41,8 +41,9 @@ class ExportThread(QThread):
         self.export_data = export_data
         self.export_vis = export_vis
         self.export_path = export_path
+        self.units = units  # UV units for visualizations: "wavelengths" or "earth_diameters"
         self._cancelled = False
-        logger.debug(f"ExportThread initialized with calc_types: {self.calc_types}, export_data={export_data}, export_vis={export_vis}")
+        logger.debug(f"ExportThread initialized with calc_types: {self.calc_types}, export_data={export_data}, export_vis={export_vis}, units={self.units}")
 
     def cancel(self):
         """Set cancellation flag."""
@@ -123,7 +124,7 @@ class ExportThread(QThread):
                                     "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source"] else [],
                                     "scans": scans,
                                     "frequencies": frequencies if key in ["uv_coverage", "baseline_projections"] else [],
-                                    "units": "earth_diameters" if key in ["uv_coverage", "baseline_projections"] else None
+                                    "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
                                 }
                                 request = {
                                     "operation": "visualize",
@@ -394,6 +395,11 @@ class ExportCalculatedDataDialog(QDialog):
         self.ui.setupUi(self)
         self.manipulator = manipulator
         self.project = manipulator.get_managing_object()
+        # Get default export path: project folder if saved, else current working dir
+        self.default_export_path = parent.current_project_path if parent and hasattr(parent, 'current_project_path') and parent.current_project_path else os.getcwd()
+        if self.default_export_path and os.path.isfile(self.default_export_path):
+            self.default_export_path = os.path.dirname(self.default_export_path)
+        logger.debug(f"Default export path set to: {self.default_export_path}")
         self.init_ui()
         logger.debug("ExportCalculatedDataDialog initialized")
 
@@ -401,6 +407,12 @@ class ExportCalculatedDataDialog(QDialog):
         """Initialize the dialog UI."""
         self.populate_calc_list()
         self.populate_targets()
+        # Set default path in lineEdit
+        self.ui.lineEdit.setText(self.default_export_path)
+        # Populate units combo box for UV visualizations
+        self.ui.cmbUnits.addItems(["Wavelengths", "Earth Diameters"])
+        self.ui.cmbUnits.setCurrentText("Earth Diameters")  # Default
+        logger.debug("UV units combo box populated with Wavelengths and Earth Diameters")
         self.ui.selectAllCalcButton.clicked.connect(self.select_all_calcs)
         self.ui.clearAllCalcButton.clicked.connect(self.clear_all_calcs)
         self.ui.selectAllObsButton.clicked.connect(self.select_all_targets)
@@ -467,7 +479,7 @@ class ExportCalculatedDataDialog(QDialog):
 
     def browse_path(self):
         """Browse for export directory."""
-        path = QFileDialog.getExistingDirectory(self, "Select Export Directory")
+        path = QFileDialog.getExistingDirectory(self, "Select Export Directory", self.default_export_path)
         if path:
             self.ui.lineEdit.setText(path)
             logger.debug(f"Selected export path: {path}")
@@ -482,13 +494,15 @@ class ExportCalculatedDataDialog(QDialog):
         if not selected_calcs or not selected_targets or not export_path or not os.path.isdir(export_path):
             QMessageBox.warning(self, "Warning", "Please select calculations, targets, and a valid export path.")
             return
+        # Get selected UV units (lowercase, replace spaces)
+        units = self.ui.cmbUnits.currentText().lower().replace(" ", "_")
 
         self.progress_dialog = ProgressDialog(self)
         self.progress_dialog.ui.pushButtonCancel.clicked.connect(self.cancel_export)
         self.progress_dialog.show()
 
         self.thread = ExportThread(self.manipulator, selected_targets, selected_calcs,
-                                   self.ui.chkExportData.isChecked(), self.ui.chkExportVisualizations.isChecked(), export_path)
+                                   self.ui.chkExportData.isChecked(), self.ui.chkExportVisualizations.isChecked(), export_path, units)
         self.thread.progress.connect(self.progress_dialog.update_progress)
         self.thread.finished.connect(self.export_finished)
         self.thread.error.connect(self.export_error)
