@@ -554,72 +554,74 @@ QComboBox QAbstractItemView::item:hover {
      <item>
       <widget class="QDateTimeEdit" name="startTimeEdit">
        <property name="styleSheet">
-        <string notr="true">/* Base style for QDoubleSpinBox */
-QDateTime {
+        <string notr="true">/* Base style for QDateTimeEdit */
+QDateTimeEdit {
     font-family: Arial;
     font-size: 9pt;
     color: #333333;
     padding: 1px;
-    padding-right: 20px;
+    padding-right: 20px; /* Space for up/down buttons */
     border-radius: 3px;
     background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
     border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
 }
 
 /* Editable state */
-QDateTime:editable {
+QDateTimeEdit:editable {
     background-color: #f0f6ff; /* Matches editable QComboBox background */
     border: 1px solid #0078d7; /* Matches editable QComboBox border */
 }
 
 /* Editable hover state */
-QDateTime:editable:hover {
+QDateTimeEdit:editable:hover {
     border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
 }
 
 /* Editable focus state */
-QDateTime:editable:focus {
+QDateTimeEdit:editable:focus {
     border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
     background-color: #ffffff; /* Matches editable QComboBox:focus background */
 }
 
 /* Non-editable state */
-QDateTime:!editable {
+QDateTimeEdit:!editable {
     background-color: #f0f6ff; /* Matches non-editable QComboBox background */
     border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
 }
 
 /* Non-editable hover state */
-QDateTime:!editable:hover {
+QDateTimeEdit:!editable:hover {
     border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
 }
 
 /* Non-editable focus state */
-QDateTime:!editable:focus {
+QDateTimeEdit:!editable:focus {
     border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
     background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
 }
 
 /* Styling for up/down buttons */
-QDateTime::up-button, QDateTime::down-button {
+QDateTimeEdit::up-button, QDateTimeEdit::down-button {
     subcontrol-origin: padding;
     width: 20px;
     border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
     background-color: #f9f9f9; /* Matches QComboBox drop-down background */
 }
+
 /* Hover state for up/down buttons */
-QDateTime::up-button:hover, QDateTime::down-button:hover {
+QDateTimeEdit::up-button:hover, QDateTimeEdit::down-button:hover {
     background-color: #0078d7; /* Matches QComboBox drop-down:hover */
 }
 
 /* Up arrow styling */
-QDateTime::up-arrow {
+QDateTimeEdit::up-arrow {
     width: 12px;
     height: 12px;
     image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
 }
+
 /* Down arrow styling */
-QDateTime::down-arrow {
+QDateTimeEdit::down-arrow {
     width: 12px;
     height: 12px;
     image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
@@ -647,72 +649,74 @@ QDateTime::down-arrow {
      <item>
       <widget class="QDateTimeEdit" name="endTimeEdit">
        <property name="styleSheet">
-        <string notr="true">/* Base style for QDoubleSpinBox */
-QDateTime {
+        <string notr="true">/* Base style for QDateTimeEdit */
+QDateTimeEdit {
     font-family: Arial;
     font-size: 9pt;
     color: #333333;
     padding: 1px;
-    padding-right: 20px;
+    padding-right: 20px; /* Space for up/down buttons */
     border-radius: 3px;
     background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
     border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
 }
 
 /* Editable state */
-QDateTime:editable {
+QDateTimeEdit:editable {
     background-color: #f0f6ff; /* Matches editable QComboBox background */
     border: 1px solid #0078d7; /* Matches editable QComboBox border */
 }
 
 /* Editable hover state */
-QDateTime:editable:hover {
+QDateTimeEdit:editable:hover {
     border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
 }
 
 /* Editable focus state */
-QDateTime:editable:focus {
+QDateTimeEdit:editable:focus {
     border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
     background-color: #ffffff; /* Matches editable QComboBox:focus background */
 }
 
 /* Non-editable state */
-QDateTime:!editable {
+QDateTimeEdit:!editable {
     background-color: #f0f6ff; /* Matches non-editable QComboBox background */
     border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
 }
 
 /* Non-editable hover state */
-QDateTime:!editable:hover {
+QDateTimeEdit:!editable:hover {
     border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
 }
 
 /* Non-editable focus state */
-QDateTime:!editable:focus {
+QDateTimeEdit:!editable:focus {
     border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
     background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
 }
 
 /* Styling for up/down buttons */
-QDateTime::up-button, QDateTime::down-button {
+QDateTimeEdit::up-button, QDateTimeEdit::down-button {
     subcontrol-origin: padding;
     width: 20px;
     border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
     background-color: #f9f9f9; /* Matches QComboBox drop-down background */
 }
+
 /* Hover state for up/down buttons */
-QDateTime::up-button:hover, QDateTime::down-button:hover {
+QDateTimeEdit::up-button:hover, QDateTimeEdit::down-button:hover {
     background-color: #0078d7; /* Matches QComboBox drop-down:hover */
 }
 
 /* Up arrow styling */
-QDateTime::up-arrow {
+QDateTimeEdit::up-arrow {
     width: 12px;
     height: 12px;
     image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
 }
+
 /* Down arrow styling */
-QDateTime::down-arrow {
+QDateTimeEdit::down-arrow {
     width: 12px;
     height: 12px;
     image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */

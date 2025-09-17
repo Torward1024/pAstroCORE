@@ -125,8 +125,8 @@
      <item row="9" column="0" colspan="2">
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>Ballistics Laboratory
-Astro Space Center LPI, 2018-2025</string>
+        <string>Alexey Rudnitskiy
+(E-mail: almax1024@gmail.com)</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignmentFlag::AlignCenter</set>
