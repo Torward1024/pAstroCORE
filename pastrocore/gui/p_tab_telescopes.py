@@ -246,7 +246,6 @@ class TelescopesTab(QWidget):
                 QMessageBox.warning(self, "Warning", f"No new telescopes to add. Skipped: {', '.join(skipped_telescopes) if skipped_telescopes else 'None'}")
                 return
 
-            # Add telescopes using BaseContainer.add (copying handled internally)
             request = {
                 "operation": "configure",
                 "obj": self.observation.get_telescopes(),
@@ -256,7 +255,7 @@ class TelescopesTab(QWidget):
             if response["status"]:
                 for telescope in unique_telescopes:
                     logger.info(f"Added telescope '{telescope.code}' from catalog to observation '{self.observation.code}'")
-                self.data_updated.emit(None, None, "add_multiple")  # Single emit for all additions
+                self.data_updated.emit(None, None, "add_multiple")
                 self.update()
                 QMessageBox.information(self, "Success", f"Successfully added {len(unique_telescopes)} telescope(s) to observation.")
                 if skipped_telescopes:
@@ -296,7 +295,6 @@ class TelescopesTab(QWidget):
                 logger.info(f"New telescope '{telescope.name}' imported successfully to observation '{self.observation.code}'")
                 self.update()
                 self.data_updated.emit(telescope.name, None, "add")
-                QMessageBox.information(self, "Success", f"Telescope '{telescope.name}' imported successfully.")
             else:
                 logger.error(f"Failed to import telescope: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to import telescope: {response.get('error', 'Unknown error')}")
@@ -332,7 +330,6 @@ class TelescopesTab(QWidget):
                 logger.info(f"Telescope '{telescope_name}' overwritten successfully in observation '{self.observation.code}'")
                 self.update()
                 self.data_updated.emit()
-                QMessageBox.information(self, "Success", f"Telescope '{telescope_name}' imported successfully.")
             else:
                 logger.error(f"Failed to overwrite telescope '{telescope_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to import telescope: {response.get('error', 'Unknown error')}")
@@ -364,7 +361,6 @@ class TelescopesTab(QWidget):
             with open(file_path, "w") as f:
                 json.dump(telescope.to_dict(), f, indent=4)
             logger.info(f"Telescope '{telescope_name}' exported to '{file_path}'")
-            QMessageBox.information(self, "Success", f"Telescope '{telescope_name}' exported successfully.")
         except Exception as e:
             logger.error(f"Exception while exporting telescope '{telescope_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to export telescope: {str(e)}")

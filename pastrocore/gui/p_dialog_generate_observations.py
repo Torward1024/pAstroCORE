@@ -366,7 +366,7 @@ class GenerateObservationsDialog(QDialog):
                 self.telescopes.add(telescope)
                 self._telescope_order.append(telescope.name)
                 self.update_telescope_list()
-                logger.info(f"Added telescope '{telescope.name}' manually to telescopes collection")
+                logger.info(f"Added telescope '{telescope.name}' to telescopes collection")
                 QMessageBox.information(self, "Success", f"Added telescope '{telescope.name}'.")
             except Exception as e:
                 logger.error(f"Failed to add telescope manually: {str(e)}")
@@ -383,7 +383,7 @@ class GenerateObservationsDialog(QDialog):
                 self.telescopes.add(telescope)
                 self._telescope_order.append(telescope.name)
                 self.update_telescope_list()
-                logger.info(f"Added space telescope '{telescope.name}' manually to telescopes collection")
+                logger.info(f"Added space telescope '{telescope.name}' to telescopes collection")
                 QMessageBox.information(self, "Success", f"Added space telescope '{telescope.name}'.")
             except Exception as e:
                 logger.error(f"Failed to add space telescope manually: {str(e)}")
@@ -451,7 +451,6 @@ class GenerateObservationsDialog(QDialog):
                 with open(file_name, 'w') as f:
                     json.dump(preset_data, f)
                 logger.info(f"Saved preset to {file_name}")
-                QMessageBox.information(self, "Success", "Preset saved successfully.")
             except Exception as e:
                 logger.error(f"Failed to save preset: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to save preset: {str(e)}")
@@ -475,7 +474,6 @@ class GenerateObservationsDialog(QDialog):
                 self.ui.intervalSpinBox.setValue(preset_data.get("interval_min", 5))
                 self.ui.chkParallel.setChecked(preset_data.get("parallel", True))
                 logger.info(f"Loaded preset from {file_name}")
-                QMessageBox.information(self, "Success", "Preset loaded successfully.")
             except Exception as e:
                 logger.error(f"Failed to load preset: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to load preset: {str(e)}")
@@ -579,7 +577,6 @@ class GenerateObservationsDialog(QDialog):
         if response["status"]:
             logger.info(f"Generated {len(response['result'])} observations")
             self.observation_generated.emit(response["result"])
-            QMessageBox.information(self, "Success", "Observations generated successfully.")
             self.accept()
         else:
             logger.error(f"Generation failed: {response['error']}")

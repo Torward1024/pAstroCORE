@@ -194,7 +194,6 @@ class FrequenciesTab(QWidget):
                 logger.info(f"New frequency '{freq_name}' imported successfully to observation '{self.observation.code}'")
                 self.update()
                 self.data_updated.emit(freq_name, None, "add")
-                QMessageBox.information(self, "Success", f"Frequency '{freq_name}' imported successfully.")
             else:
                 logger.error(f"Failed to import frequency: {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to import frequency: {response.get('error', 'Unknown error')}")
@@ -239,7 +238,6 @@ class FrequenciesTab(QWidget):
                 logger.info(f"Frequency '{freq_name}' overwritten successfully in observation '{self.observation.code}'")
                 self.update()
                 self.data_updated.emit()
-                QMessageBox.information(self, "Success", f"Frequency '{freq_name}' imported successfully.")
             else:
                 logger.error(f"Failed to overwrite frequency '{freq_name}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to import frequency: {response.get('error', 'Unknown error')}")
@@ -273,7 +271,6 @@ class FrequenciesTab(QWidget):
             with open(file_path, "w") as f:
                 json.dump(if_obj.to_dict(), f, indent=4)
             logger.info(f"Frequency '{freq_name}' exported to '{file_path}'")
-            QMessageBox.information(self, "Success", f"Frequency '{freq_name}' exported successfully.")
         except Exception as e:
             logger.error(f"Exception while exporting frequency '{freq_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to export frequency: {str(e)}")

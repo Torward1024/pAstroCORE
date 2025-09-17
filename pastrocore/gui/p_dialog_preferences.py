@@ -118,10 +118,6 @@ class PreferencesDialog(QDialog):
                         f"time_step={time_step}, clear_log_on_start={clear_log_on_start}")
             if "clear_log_on_start" in changed_keys:
                 logger.info("Log file clearing setting changed and applied immediately.")
-                QMessageBox.information(
-                    self, "Info",
-                    "Log file clearing setting changed and applied immediately. This will also take effect on the next application start."
-                )
             self.settings_updated.emit(self.settings, changed_keys)
         else:
             logger.info("No changes in settings detected. Skipping update.")

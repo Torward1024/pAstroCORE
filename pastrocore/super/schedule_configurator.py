@@ -348,12 +348,10 @@ class ScheduleConfigurator(Super):
             naming_mask = pattern.get("naming_mask", "OBS_{s}_{uuid}")
             progress_callback = attributes.get("progress_callback", None)
 
-            # Validate observation type
             if observation_type not in ["VLBI", "SINGLE_DISH"]:
                 logger.error(f"Invalid observation type: {observation_type}")
                 return {"status": False, "error": f"Invalid observation type: {observation_type}"}
 
-            # Validate input objects
             if not isinstance(sources, Sources):
                 logger.error(f"Expected Sources object, got {type(sources)}")
                 return {"status": False, "error": f"Expected Sources object, got {type(sources)}"}
@@ -364,7 +362,6 @@ class ScheduleConfigurator(Super):
                 logger.error(f"Expected Frequencies object, got {type(frequencies)}")
                 return {"status": False, "error": f"Expected Frequencies object, got {type(frequencies)}"}
 
-            # Validate non-empty collections
             source_items = sources.get_items()
             telescope_items = telescopes.get_items()
             frequency_items = frequencies.get_items()
@@ -381,7 +378,6 @@ class ScheduleConfigurator(Super):
                 logger.error("No frequencies provided")
                 return {"status": False, "error": "No frequencies provided"}
 
-            # Validate time range
             if not time_range or "start" not in time_range or "end" not in time_range:
                 logger.error("Invalid time range: missing start or end")
                 return {"status": False, "error": "Invalid time range"}
@@ -395,7 +391,6 @@ class ScheduleConfigurator(Super):
                 logger.error("Invalid time range: start time must be before end time")
                 return {"status": False, "error": "Invalid time range"}
 
-            # For SINGLE_DISH, limit to one telescope
             if observation_type == "SINGLE_DISH":
                 if not telescope_items:
                     logger.error("No telescopes available for SINGLE_DISH")
@@ -403,7 +398,6 @@ class ScheduleConfigurator(Super):
                 telescopes = Telescopes(items={telescope_items[0].name: telescope_items[0].copy()})
                 logger.debug(f"SINGLE_DISH mode: selected telescope '{telescope_items[0].name}'")
 
-            # Calculate scan group parameters
             multiplier = 2 if add_off_source else 1
             scan_group_duration = multiplier * scan_duration
             step_sec = scan_group_duration + interval_sec
@@ -419,24 +413,20 @@ class ScheduleConfigurator(Super):
                     logger.info("Observation generation cancelled")
                     return {"status": False, "error": "Observation generation cancelled"}
 
-                # Determine observation start time
                 if parallel:
                     obs_start = start_time
                 else:
                     obs_start = current_start
 
-                # Check if there's enough time for this observation
                 obs_end = obs_start + required_duration_sec * u.s
                 if obs_end > end_time:
                     logger.warning(f"Insufficient time for observation on source '{source.name}' (required: {required_duration_sec}s, available up to end_time)")
                     continue
 
-                # Create unique Sources object with a copy of the current source
                 sources_copy = Sources(name=f"srcs_{source.name}_{uuid.uuid4().hex[:8]}")
                 sources_copy.add(source.copy())
                 logger.debug(f"Created sources_copy with {len(sources_copy.get_items())} sources: {[s.name for s in sources_copy.get_items()]}")
 
-                # Generate observation code using naming mask
                 try:
                     iso_time = obs_start.iso
                     time_parts = iso_time.split(' ') if ' ' in iso_time else [iso_time, '']
@@ -455,7 +445,6 @@ class ScheduleConfigurator(Super):
                     logger.error(f"Error formatting time in naming mask: {str(e)}")
                     return {"status": False, "error": f"Error formatting time in naming mask: {str(e)}"}
 
-                # Create Observation with validated copies
                 obs_telescopes = telescopes.copy()
                 obs_frequencies = frequencies.copy()
                 obs_telescopes_items = obs_telescopes.get_items()
@@ -478,7 +467,6 @@ class ScheduleConfigurator(Super):
                 )
                 logger.debug(f"Created observation '{obs_code}' for source '{source.name}'")
 
-                # Create scans
                 scans_list = []
                 for j in range(num_scans):
                     scan_start = obs_start + (j * step_sec) * u.s
@@ -539,7 +527,6 @@ class ScheduleConfigurator(Super):
                 generated_codes.append(obs_code)
                 logger.info(f"Generated observation '{obs_code}' for source '{source.name}' with {len(scans_list)} scans")
 
-                # Update current_start for sequential mode
                 if not parallel:
                     current_start = obs_end
 

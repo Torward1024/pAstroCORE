@@ -238,18 +238,15 @@ class ScheduleProject(Project):
                 items = self._items.get_all().items()
                 items_count = len(self._items)
                 for i, (name, observation) in enumerate(items):
-                    # Serialize each observation individually
                     obs_dict = observation.to_dict()
                     name_prefix = '' if compact else '    '
                     f.write(f'{name_prefix}"{json.dumps(name)[1:-1]}": ')
                     json.dump(obs_dict, f, indent=indent)
-                    # Add comma if not the last item
                     if i < items_count - 1:
                         f.write(items_line)
                     else:
                         f.write('' if compact else '\n')
                 f.write('}' if compact else '  }\n')
-                # End JSON object
                 f.write('}' if compact else '}\n')
             logger.info(f"Serialized ScheduleProject '{self.name}' to file '{file_path}' with {len(self._items)} observations (compact={compact})")
         except IOError as e:
@@ -273,11 +270,9 @@ class ScheduleProject(Project):
         check_non_empty_string(file_path, "File path")
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                # Load JSON data
                 data = json.load(f)
                 logger.debug(f"Read JSON data from file '{file_path}'")
             
-            # Validate and extract project data
             name = data.get("name")
             check_non_empty_string(name, "Project name")
             items = {}
