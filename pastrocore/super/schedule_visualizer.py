@@ -416,7 +416,7 @@ class ScheduleVisualizer(Super):
                 if plot_type == "az_el" and n_tels > 1:
                     fig.text(0.5, 0.04, "Time, (MJD)", ha='center', fontsize=self._style_config['font']['label_size'])
                     fig.text(0.04, 0.5, y_label, va='center', rotation='vertical', fontsize=self._style_config['font']['label_size'])
-                    fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
+                    fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", fontsize=self._style_config['font']['title_size'])
                     if legend_handles:
                         grouped_legend = {}
                         for handle, label in zip(legend_handles, legend_labels):
@@ -445,7 +445,7 @@ class ScheduleVisualizer(Super):
                 else:
                     axes[0].set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
                     axes[0].set_ylabel(y_label, fontsize=self._style_config['font']['label_size'])
-                    axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}", 
+                    axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", 
                                     fontsize=self._style_config['font']['title_size'])
                     axes[0].tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
@@ -900,7 +900,7 @@ class ScheduleVisualizer(Super):
                 )
 
             ax.invert_xaxis()
-            ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
+            ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", fontsize=self._style_config['font']['title_size'])
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
             result["baselines"] = len(plotted_pairs)
             return result
@@ -1007,7 +1007,7 @@ class ScheduleVisualizer(Super):
             ax = self._setup_axes(fig, "time_on_source", obj.get_observation_code())
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
             ax.set_ylabel("Telescope", fontsize=self._style_config['font']['label_size'])
-            ax.set_title(f"Time on {source_name or 'Source'}\nObs. code: {obj.get_observation_code()}", 
+            ax.set_title(f"Time on {source_name or 'Source'}\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", 
                         fontsize=self._style_config['font']['title_size'])
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
@@ -1313,7 +1313,7 @@ class ScheduleVisualizer(Super):
             ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f'{int(x)}'))
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
             ax.set_ylabel(f"Baseline Length, ({units})", fontsize=self._style_config['font']['label_size'])
-            ax.set_title(f"Baseline Projections\nObs. code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
+            ax.set_title(f"Baseline Projections\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", fontsize=self._style_config['font']['title_size'])
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
