@@ -84,10 +84,10 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("Skipping UI signal disconnection during initial setup")
             return
 
-        # Disconnect action signals
-        for action, connection in self._action_connections.items():
+        # Disconnect action signals using stored slots
+        for action, slot in self._action_connections.items():
             try:
-                action.triggered.disconnect(connection)
+                action.triggered.disconnect(slot)
                 logger.debug(f"Disconnected signal for action {action.objectName()}")
             except Exception as e:
                 logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
@@ -203,21 +203,26 @@ class PAstroCoreMainWindow(QMainWindow):
         """Setup UI signal connections."""
         self.clear_connections(is_initial_setup=True)
         
+        # Store slots (functions) in _action_connections before connecting
         self._action_connections = {
-            self.ui.actionNewProject: self.ui.actionNewProject.triggered.connect(self.new_project),
-            self.ui.actionOpenProject: self.ui.actionOpenProject.triggered.connect(self.open_project),
-            self.ui.actionSaveProject: self.ui.actionSaveProject.triggered.connect(self.save_project),
-            self.ui.actionSave_Project_As: self.ui.actionSave_Project_As.triggered.connect(self.save_project_as),
-            self.ui.actionExit: self.ui.actionExit.triggered.connect(self.close),
-            self.ui.actionPreferences: self.ui.actionPreferences.triggered.connect(self.open_preferences),
-            self.ui.actionAbout: self.ui.actionAbout.triggered.connect(self.show_about),
-            self.ui.actionSource_Catalog_Manager: self.ui.actionSource_Catalog_Manager.triggered.connect(self.open_source_catalog_manager),
-            self.ui.actionTelescope_Catalog_Manager: self.ui.actionTelescope_Catalog_Manager.triggered.connect(self.open_telescope_catalog_manager),
-            self.ui.actionCalculate: self.ui.actionCalculate.triggered.connect(self.open_calculation_dialog),
-            self.ui.actionVisualize: self.ui.actionVisualize.triggered.connect(self.open_visualization_dialog),
-            self.ui.actionGenerate_Observations: self.ui.actionGenerate_Observations.triggered.connect(self.handle_generate_observations),
-            self.ui.actionExport_Calulcated_Data: self.ui.actionExport_Calulcated_Data.triggered.connect(self.open_export_dialog)
+            self.ui.actionNewProject: self.new_project,
+            self.ui.actionOpenProject: self.open_project,
+            self.ui.actionSaveProject: self.save_project,
+            self.ui.actionSave_Project_As: self.save_project_as,
+            self.ui.actionExit: self.close,
+            self.ui.actionPreferences: self.open_preferences,
+            self.ui.actionAbout: self.show_about,
+            self.ui.actionSource_Catalog_Manager: self.open_source_catalog_manager,
+            self.ui.actionTelescope_Catalog_Manager: self.open_telescope_catalog_manager,
+            self.ui.actionCalculate: self.open_calculation_dialog,
+            self.ui.actionVisualize: self.open_visualization_dialog,
+            self.ui.actionGenerate_Observations: self.handle_generate_observations,
+            self.ui.actionExport_Calulcated_Data: self.open_export_dialog
         }
+
+        # Now connect the signals using the stored slots
+        for action, slot in self._action_connections.items():
+            action.triggered.connect(slot)
 
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
@@ -235,6 +240,7 @@ class PAstroCoreMainWindow(QMainWindow):
             dialog = ExportCalculatedDataDialog(self.manipulator, self)
             if dialog.exec() == QDialog.Accepted:
                 logger.debug("Export Calculated Data dialog accepted")
+                QMessageBox.information(self, "Success", "Export completed successfully.")
             else:
                 logger.debug("Export Calculated Data dialog rejected")
         except Exception as e:

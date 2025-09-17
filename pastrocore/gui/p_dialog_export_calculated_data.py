@@ -53,35 +53,43 @@ class ExportThread(QThread):
     def run(self):
         """Execute export asynchronously."""
         try:
-            total = len(self.targets)
-            current = 0
+            num_data_steps = 1 if self.export_data else 0
+            num_vis_steps = 1 if self.export_vis else 0
+            steps_per_target = len(self.calc_types) * (num_data_steps + num_vis_steps)
+            total_steps = len(self.targets) * steps_per_target if steps_per_target > 0 else 1
+            current_step = 0
+
             for target in self.targets:
                 if self._cancelled:
                     self.error.emit("Export cancelled by user")
                     return
                 obs_code = target.code
-                self.progress.emit(int(current / total * 100), f"Exporting for {obs_code}...")
-                
-                # Collect filters from Observation
-                sources = list(target.get_sources()._items.keys())  # All source names
-                telescopes = [telescope.get_code() for telescope in target.get_telescopes()._items.values()]  # All telescope codes
-                scans = [scan.name for scan in target.get_scans().get_items()]  # All scan names
-                frequencies = [if_obj.frequency for if_obj in target.get_frequencies().get_items()]  # All IF frequencies
-                baselines = [f"{t1}-{t2}" for i, t1 in enumerate(telescopes) for t2 in telescopes[i+1:]]  # All possible baselines
+                self.progress.emit(int(current_step / total_steps * 100), f"Exporting for {obs_code}...")
+
+                # Collect filters from Observation (без изменений)
+                sources = list(target.get_sources()._items.keys())
+                telescopes = [telescope.get_code() for telescope in target.get_telescopes()._items.values()]
+                scans = [scan.name for scan in target.get_scans().get_items()]
+                frequencies = [if_obj.frequency for if_obj in target.get_frequencies().get_items()]
+                baselines = [f"{t1}-{t2}" for i, t1 in enumerate(telescopes) for t2 in telescopes[i+1:]]
 
                 for calc_type in self.calc_types:
-                    key = calc_type.lower().replace(" ", "_").replace("/", "_")  # Handle Azimuth/Elevation
+                    if self._cancelled:
+                        self.error.emit("Export cancelled by user")
+                        return
+
+                    key = calc_type.lower().replace(" ", "_").replace("/", "_")
                     data = target.get_calculated_data_by_key(key)
                     if not data:
                         logger.debug(f"No data for {calc_type} in {obs_code}, skipping")
                         continue
-                    
-                    # Define per-source keys
+
+                    # Define per-source keys (без изменений)
                     per_source_keys = [
                         "uv_coverage", "baseline_projections", "time_on_source",
                         "sun_angles", "az_el", "source_visibility"
                     ]
-                    
+
                     # Export data if checked
                     if self.export_data:
                         if key in per_source_keys:
@@ -100,7 +108,9 @@ class ExportThread(QThread):
                             file_name = f"{file_prefix}_{obs_code}"
                             txt_path = os.path.join(self.export_path, f"{file_name}.txt")
                             self._export_data_to_txt(data, calc_type, txt_path, obs_code, source_name=None, target=target)
-                    
+                        current_step += 1
+                        self.progress.emit(int(current_step / total_steps * 100), f"Exported data for {calc_type} in {obs_code}")
+
                     # Export visualization if checked and type is visualizable
                     if self.export_vis:
                         visualizable_keys = [
@@ -160,8 +170,9 @@ class ExportThread(QThread):
                             result = self.manipulator.process_request(request)
                             if not result.get("status", False):
                                 raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {result.get('message')}")
-                current += 1
-                self.progress.emit(int(current / total * 100), f"Exported {obs_code}")
+                        current_step += 1
+                        self.progress.emit(int(current_step / total_steps * 100), f"Exported vis for {calc_type} in {obs_code}")
+
             self.finished.emit()
         except Exception as e:
             logger.error(f"Export error in thread: {str(e)}")
@@ -514,7 +525,6 @@ class ExportCalculatedDataDialog(QDialog):
 
     def export_finished(self):
         self.progress_dialog.close()
-        QMessageBox.information(self, "Success", "Export completed successfully.")
         self.accept()
 
     def export_error(self, error):
