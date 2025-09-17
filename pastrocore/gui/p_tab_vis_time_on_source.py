@@ -37,10 +37,9 @@ class TimeOnSourceVisualizationTab(QWidget):
         self.toolbar = None
         self.figure = None
         self.cached_data = None
-        self.is_processing = False  # Flag to prevent concurrent updates
+        self.is_processing = False
         logger.debug(f"TimeOnSourceVisualizationTab initialized for observation id={id(observation)}")
 
-        # Populate UI elements
         self.ui.cmbSource.addItems(sources)
         for telescope in telescopes:
             item = QListWidgetItem(telescope)
@@ -48,7 +47,6 @@ class TimeOnSourceVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listTelescopes.addItem(item)
 
-        # Populate scans
         for scan in scans:
             item = QListWidgetItem(scan)
             item.setData(Qt.UserRole, scan)
@@ -56,20 +54,17 @@ class TimeOnSourceVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listScans.addItem(item)
 
-        # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         logger.debug("TimeOnSourceVisualizationTab UI populated and ready for visualization")
 
-        # Connect signals for filter changes
         self.ui.cmbSource.currentIndexChanged.connect(self.filter_changed)
         self.ui.listScans.itemChanged.connect(self.filter_changed)
         self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
-        # Cache data immediately
         self._cache_calculated_data()
         if sources:
             self.update_scans_for_source(sources[0])
-            self.update_visualization()  # Trigger initial visualization
+            self.update_visualization()
     
     def _lock_ui(self):
         """Lock UI elements to prevent further changes during visualization."""
@@ -143,7 +138,6 @@ class TimeOnSourceVisualizationTab(QWidget):
         """Aggressively clear the canvas, toolbar, and figure to release all resources."""
         logger.debug("Clearing canvas, toolbar, and figure")
 
-        # Remove and delete canvas
         if self.canvas:
             try:
                 self.layout.removeWidget(self.canvas)
@@ -155,7 +149,6 @@ class TimeOnSourceVisualizationTab(QWidget):
             finally:
                 self.canvas = None
 
-        # Remove and delete toolbar
         if self.toolbar:
             try:
                 self.layout.removeWidget(self.toolbar)
@@ -167,7 +160,6 @@ class TimeOnSourceVisualizationTab(QWidget):
             finally:
                 self.toolbar = None
 
-        # Clear and close figure
         if self.figure:
             try:
                 for ax in self.figure.axes:
@@ -181,7 +173,6 @@ class TimeOnSourceVisualizationTab(QWidget):
             finally:
                 self.figure = None
 
-        # Force garbage collection and log open figures
         gc.collect(2)
         logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
@@ -192,7 +183,7 @@ class TimeOnSourceVisualizationTab(QWidget):
         Args:
             figure: Matplotlib Figure object to embed.
         """
-        self._clear_canvas()  # Clear existing resources first
+        self._clear_canvas()
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -208,7 +199,7 @@ class TimeOnSourceVisualizationTab(QWidget):
             logger.debug("Filter change ignored, visualization is processing")
             return
         self.is_processing = True
-        self._lock_ui()  # Lock UI immediately to prevent new signals
+        self._lock_ui()
         try:
             source_name = self.get_selected_source()
             logger.debug(f"Filter changed, updating scans for source '{source_name}'")

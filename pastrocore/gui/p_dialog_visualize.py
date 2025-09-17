@@ -39,7 +39,7 @@ class VisualizationDialog(QDialog):
 
         self.setup_connections()
         self.populate_observations()
-        # Trigger initial validation for the first observation, if any
+
         if self.ui.comboBoxObservation.count() > 0:
             logger.debug("Triggering initial update_visualization_types for first observation")
             self.update_visualization_types()
@@ -125,14 +125,13 @@ class VisualizationDialog(QDialog):
             logger.debug("No observation selected, visualization types cleared and disabled")
             return
 
-        # Check if calculated data is already cached
         if current_obs_name not in self.cached_calc_data:
             observation = self.cached_observations.get(current_obs_name)
             if not observation:
                 logger.error(f"Observation '{current_obs_name}' not found in cache")
                 QMessageBox.critical(self, "Error", f"Failed to load observation: {current_obs_name}")
                 return
-            # Cache calculated data keys
+            
             calc_data_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": observation,

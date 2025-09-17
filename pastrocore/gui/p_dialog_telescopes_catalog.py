@@ -94,7 +94,7 @@ class TelescopesCatalogDialog(QDialog):
             ]
             for item in items:
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-            items[0].setData(telescope, Qt.UserRole)  # Store telescope object in first column
+            items[0].setData(telescope, Qt.UserRole)
             self.model.appendRow(items)
 
         logger.info(f"Populated telescopes catalog table with {len(telescopes)} telescopes")

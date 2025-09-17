@@ -44,16 +44,13 @@ class SunAnglesVisualizationTab(QWidget):
             item.setCheckState(Qt.Checked)
             self.ui.listScans.addItem(item)
 
-        # Initialize Matplotlib canvas
         self.layout = QVBoxLayout(self.ui.widget)
         logger.debug("SunAnglesVisualizationTab UI populated and ready for visualization")
 
-        # Connect signals for filter changes
         self.ui.cmbSource.currentIndexChanged.connect(self.filter_changed)
         self.ui.listScans.itemChanged.connect(self.filter_changed)
         self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
-        # Cache data immediately
         self._cache_calculated_data()
         if sources:
             self.update_scans_for_source(sources[0])
@@ -94,7 +91,6 @@ class SunAnglesVisualizationTab(QWidget):
         logger.debug("Clearing canvas, toolbar, and figure")
         if self.canvas:
             try:
-                # Prevent any pending draw operations
                 if hasattr(self.canvas, 'draw_idle'):
                     self.canvas.draw_idle = lambda: None
                 self.layout.removeWidget(self.canvas)
@@ -162,7 +158,7 @@ class SunAnglesVisualizationTab(QWidget):
             logger.debug("Filter change ignored, visualization is processing")
             return
         self.is_processing = True
-        self._lock_ui()  # Lock UI immediately to prevent new signals
+        self._lock_ui()
         try:
             source_name = self.get_selected_source()
             logger.debug(f"Filter changed, updating scans for source '{source_name}'")

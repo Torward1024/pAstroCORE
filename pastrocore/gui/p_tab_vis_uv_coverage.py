@@ -189,7 +189,6 @@ class UVVisualizationTab(QWidget):
         """Aggressively clear the canvas, toolbar, and figure to release all resources."""
         logger.debug("Clearing canvas, toolbar, and figure")
 
-        # Remove and delete canvas
         if self.canvas:
             try:
                 self.layout.removeWidget(self.canvas)
@@ -201,7 +200,6 @@ class UVVisualizationTab(QWidget):
             finally:
                 self.canvas = None
 
-        # Remove and delete toolbar
         if self.toolbar:
             try:
                 self.layout.removeWidget(self.toolbar)
@@ -213,7 +211,6 @@ class UVVisualizationTab(QWidget):
             finally:
                 self.toolbar = None
 
-        # Clear and close figure
         if self.figure:
             try:
                 for ax in self.figure.axes:
@@ -227,7 +224,6 @@ class UVVisualizationTab(QWidget):
             finally:
                 self.figure = None
 
-        # Force garbage collection and log open figures
         gc.collect(2)
         logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
@@ -254,7 +250,7 @@ class UVVisualizationTab(QWidget):
             logger.debug("Filter change ignored, visualization is processing")
             return
         self.is_processing = True
-        self._lock_ui()  # Lock UI immediately to prevent new signals
+        self._lock_ui()
         try:
             source_name = self.get_selected_source()
             logger.debug(f"Filter changed, updating scans for source '{source_name}'")

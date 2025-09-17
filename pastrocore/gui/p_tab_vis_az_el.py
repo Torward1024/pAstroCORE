@@ -150,7 +150,6 @@ class AzElVisualizationTab(QWidget):
             finally:
                 self.canvas = None
 
-        # Remove and delete toolbar
         if self.toolbar:
             try:
                 self.layout.removeWidget(self.toolbar)
@@ -162,7 +161,6 @@ class AzElVisualizationTab(QWidget):
             finally:
                 self.toolbar = None
 
-        # Clear and close figure
         if self.figure:
             try:
                 for ax in self.figure.axes:
@@ -176,7 +174,6 @@ class AzElVisualizationTab(QWidget):
             finally:
                 self.figure = None
 
-        # Force garbage collection and log open figures
         gc.collect(2)
         logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
@@ -187,7 +184,7 @@ class AzElVisualizationTab(QWidget):
         Args:
             figure: Matplotlib Figure object to embed.
         """
-        self._clear_canvas()  # Clear existing resources first
+        self._clear_canvas()
         self.figure = figure
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -203,7 +200,7 @@ class AzElVisualizationTab(QWidget):
             logger.debug("Filter change ignored, visualization is processing")
             return
         self.is_processing = True
-        self._lock_ui()  # Lock UI immediately to prevent new signals
+        self._lock_ui()
         try:
             source_name = self.get_selected_source()
             logger.debug(f"Filter changed, updating scans for source '{source_name}'")
@@ -267,7 +264,6 @@ class AzElVisualizationTab(QWidget):
         telescopes = self.get_selected_telescopes()
         logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
 
-        # Check if any required filters are missing
         if not source_name or not scans or not telescopes:
             logger.debug("Missing required filters (source, scans, or telescopes), clearing canvas")
             self._clear_canvas()

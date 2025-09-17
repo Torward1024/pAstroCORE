@@ -31,17 +31,14 @@ class ScanEditorDialog(QDialog):
         self.scan = scan
         self.is_new = scan is None
 
-        # Icons for active/inactive status
         self.active_icon = QIcon(":/icons/active_icon.svg")
         self.inactive_icon = QIcon(":/icons/inactive_icon.svg")
 
-        # Initialize models for QTableView
         self.telescopes_model = QStandardItemModel()
         self.frequencies_model = QStandardItemModel()
         self.ui.tab_telescopes.setModel(self.telescopes_model)
         self.ui.tab_frequencies.setModel(self.frequencies_model)
 
-        # Configure telescopes table
         self.telescopes_model.setHorizontalHeaderLabels(["#", " ", " ", "Name"])
         self.ui.tab_telescopes.setAlternatingRowColors(True)
         self.ui.tab_telescopes.setSortingEnabled(False)
@@ -51,7 +48,6 @@ class ScanEditorDialog(QDialog):
         self.ui.tab_telescopes.setColumnWidth(2, 24)  # Active column
         self.ui.tab_telescopes.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
 
-        # Configure frequencies table
         self.frequencies_model.setHorizontalHeaderLabels(["#", " ", " ", "Frequency (MHz)", "Bandwidth (MHz)", "Polarizations"])
         self.ui.tab_frequencies.setAlternatingRowColors(True)
         self.ui.tab_frequencies.setSortingEnabled(False)
@@ -63,7 +59,6 @@ class ScanEditorDialog(QDialog):
         self.ui.tab_frequencies.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
         self.ui.tab_frequencies.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
 
-        # Connect buttons
         self.ui.pushButton.clicked.connect(self.accept)
         self.ui.pushButton_2.clicked.connect(self.reject)
         self.ui.btnSelectAllTelescopes.clicked.connect(self.select_all_telescopes)
@@ -71,34 +66,28 @@ class ScanEditorDialog(QDialog):
         self.ui.btnSelectAllFrequencies.clicked.connect(self.select_all_frequencies)
         self.ui.btnClearAllFrequencies.clicked.connect(self.clear_all_frequencies)
 
-        # Connect checkbox signals
         self.ui.chk_offsource.stateChanged.connect(self.offsource_changed)
 
-        # Connect model signals for debugging
         self.telescopes_model.itemChanged.connect(self.debug_item_changed)
         self.frequencies_model.itemChanged.connect(self.debug_item_changed)
 
-        # Time and duration setup
         self.ui.startTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
         self.ui.endTimeEdit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        self.ui.endTimeEdit.setReadOnly(False)  # Ensure editable
-        validator = QDoubleValidator(1.0, 2147483647.0, 0, self)  # Allow integers up to 2^31 - 1
+        self.ui.endTimeEdit.setReadOnly(False)
+        validator = QDoubleValidator(1.0, 2147483647.0, 0, self) 
         validator.setNotation(QDoubleValidator.StandardNotation)
         self.ui.durationEdit.setValidator(validator)
 
         self.selected_telescopes = set()
         self.selected_frequencies = set()
 
-        # Log available telescopes
         telescopes = self.observation.get_telescopes().get_items()
         logger.debug(f"Available telescopes in observation: {telescopes}")
 
-        # Populate UI
         self._populate_sources()
         self._populate_telescopes()
         self._populate_frequencies()
 
-        # Set start time and duration for new scans based on the last scan's end time and duration
         if self.is_new:
             scans_response = self.manipulator.process_request({
                 "operation": "inspect",
@@ -106,7 +95,6 @@ class ScanEditorDialog(QDialog):
                 "attributes": {"get_all": None}
             })
             if scans_response["status"] and isinstance(scans_response["result"], dict) and scans_response["result"]:
-                # Find the last scan by start time + duration
                 latest_end_time = None
                 latest_duration = None
                 for scan_name, scan_obj in scans_response["result"].items():
@@ -149,7 +137,7 @@ class ScanEditorDialog(QDialog):
             self._load_scan_data()
 
         self.ui.chk_active.setChecked(self._check_scan_conditions())
-        # Connect signals for time synchronization
+
         self.ui.startTimeEdit.dateTimeChanged.connect(self.update_from_start_or_duration)
         self.ui.durationEdit.textChanged.connect(self.update_from_start_or_duration)
         self.ui.endTimeEdit.dateTimeChanged.connect(self.update_from_end_time)
@@ -252,7 +240,7 @@ class ScanEditorDialog(QDialog):
                 row[2].setTextAlignment(Qt.AlignCenter)
                 for item in row:
                     item.setEditable(False)
-                row[0].setData(telescope, Qt.UserRole)  # Store Telescope/SpaceTelescope object
+                row[0].setData(telescope, Qt.UserRole)  # Telescope/SpaceTelescope object
                 row[3].setData(telescope, Qt.UserRole)
                 self.telescopes_model.appendRow(row)
                 self.selected_telescopes.add(name)  # Add to selected set
@@ -314,7 +302,7 @@ class ScanEditorDialog(QDialog):
                 row[2].setTextAlignment(Qt.AlignCenter)
                 for item in row:
                     item.setEditable(False)
-                row[0].setData(if_obj, Qt.UserRole)  # Store IF object
+                row[0].setData(if_obj, Qt.UserRole)  # IF object
                 row[3].setData(if_obj, Qt.UserRole)
                 self.frequencies_model.appendRow(row)
                 self.selected_frequencies.add(name)  # Add to selected set
@@ -562,12 +550,10 @@ class ScanEditorDialog(QDialog):
             logger.error(f"Invalid duration: {str(e)}")
             raise ValueError("Duration must be a positive integer number")
 
-        # Validate endTime consistency (though signals should keep it synced)
         end_time = self.ui.endTimeEdit.dateTime()
         calculated_duration = self.ui.startTimeEdit.dateTime().secsTo(end_time)
         if calculated_duration != int(duration):
             logger.warning(f"Duration ({duration}s) and endTime ({end_time.toString(Qt.ISODate)}) mismatch, using duration")
-            # Prioritize duration as per spec
 
         is_off_source = self.ui.chk_offsource.isChecked()
         source = None if is_off_source else self.ui.sourceCombo.currentData()

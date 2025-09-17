@@ -202,7 +202,7 @@ class MollweideVisualizationTab(QWidget):
             logger.debug("Filter change ignored, visualization is processing")
             return
         self.is_processing = True
-        self._lock_ui()  # Lock UI immediately to prevent new signals
+        self._lock_ui()
         try:
             logger.debug("Filter changed, updating visualization")
             self.update_scans_for_source()

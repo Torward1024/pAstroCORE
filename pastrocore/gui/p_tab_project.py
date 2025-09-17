@@ -549,14 +549,12 @@ class ProjectInfoTab(QWidget):
         try:
             self.blockSignals(True)
             
-            # Disconnect project_name_changed signal safely to avoid RuntimeWarning
             try:
                 self.project_name_changed.disconnect()
                 logger.debug(f"Disconnected project_name_changed signal for {self.objectName()}")
             except TypeError as e:
                 logger.debug(f"No connections to disconnect for project_name_changed signal in {self.objectName()}: {str(e)}")
 
-            # Clean up table model and proxy
             self.ui.projectInfoTable.setModel(None)
             if self.model:
                 self.model.clear()
@@ -564,7 +562,6 @@ class ProjectInfoTab(QWidget):
             if self.proxy_model:
                 self.proxy_model.deleteLater()
 
-            # Clear references
             self.project = None
             self.manipulator = None
             self.parent_widget = None

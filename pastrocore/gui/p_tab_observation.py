@@ -150,7 +150,6 @@ class ObservationTab(QWidget):
         self._updating = True
         logger.debug(f"Starting update_tab for observation with code '{self.observation.get_observation_code()}'")
         try:
-            # Check if observation still exists in project using Manipulator
             obs_code_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.observation,

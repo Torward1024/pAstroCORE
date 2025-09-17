@@ -84,7 +84,6 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("Skipping UI signal disconnection during initial setup")
             return
 
-        # Disconnect action signals using stored slots
         for action, slot in self._action_connections.items():
             try:
                 action.triggered.disconnect(slot)
@@ -93,7 +92,6 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
         self._action_connections.clear()
 
-        # Disconnect project_updated signal if it has active connections
         try:
             if self.receivers(self.project_updated) > 0:
                 self.project_updated.disconnect()
@@ -103,7 +101,6 @@ class PAstroCoreMainWindow(QMainWindow):
         except TypeError as e:
             logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
 
-        # Disconnect project explorer signals
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             try:
@@ -117,7 +114,6 @@ class PAstroCoreMainWindow(QMainWindow):
         else:
             logger.debug("Project explorer widget not found during clear_connections")
 
-        # Disconnect tab container signals
         tab_container = self.ui.tabContainer
         if tab_container:
             try:
@@ -129,7 +125,6 @@ class PAstroCoreMainWindow(QMainWindow):
             except Exception as e:
                 logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")
 
-        # Disconnect actionProject_Explorer toggled signal
         try:
             if self.ui.actionProject_Explorer.receivers(self.ui.actionProject_Explorer.toggled) > 0:
                 self.ui.actionProject_Explorer.toggled.disconnect()
@@ -139,7 +134,6 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.debug(f"No toggled signal to disconnect for actionProject_Explorer: {str(e)}")
 
-        # Disconnect dockWidget visibilityChanged signal
         try:
             if self.ui.dockWidget.receivers(self.ui.dockWidget.visibilityChanged) > 0:
                 self.ui.dockWidget.visibilityChanged.disconnect()
@@ -203,7 +197,6 @@ class PAstroCoreMainWindow(QMainWindow):
         """Setup UI signal connections."""
         self.clear_connections(is_initial_setup=True)
         
-        # Store slots (functions) in _action_connections before connecting
         self._action_connections = {
             self.ui.actionNewProject: self.new_project,
             self.ui.actionOpenProject: self.open_project,
@@ -220,7 +213,6 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionExport_Calulcated_Data: self.open_export_dialog
         }
 
-        # Now connect the signals using the stored slots
         for action, slot in self._action_connections.items():
             action.triggered.connect(slot)
 
@@ -240,7 +232,6 @@ class PAstroCoreMainWindow(QMainWindow):
             dialog = ExportCalculatedDataDialog(self.manipulator, self)
             if dialog.exec() == QDialog.Accepted:
                 logger.debug("Export Calculated Data dialog accepted")
-                QMessageBox.information(self, "Success", "Export completed successfully.")
             else:
                 logger.debug("Export Calculated Data dialog rejected")
         except Exception as e:
@@ -597,27 +588,18 @@ class PAstroCoreMainWindow(QMainWindow):
             if not file_name:
                 logger.debug("Open project cancelled")
                 return
-                       
-            # Load new project from file
-            #with open(file_name, 'r') as f:
-            #    data = json.load(f)
-            
-
+                                 
             new_project = ScheduleProject.from_file(file_name)
 
-            # Clean up the current project
             self._cleanup_project()
 
             self.project = new_project
             self.manipulator = ScheduleManipulator(self.project)
-            
             self.current_project_path = file_name
             
-            # Clear existing connections and set up new ones
             self.clear_connections(is_initial_setup=False)
             self.setup_connections()
-                       
-            # Open project info tab and update project explorer
+            
             self.open_project_info_tab()
             self.update_project_explorer()
             self.project_updated.emit()
@@ -636,8 +618,6 @@ class PAstroCoreMainWindow(QMainWindow):
             progress.setAutoClose(True)
             progress.show()
             try:
-                #with open(self.current_project_path, "w") as f:
-                #    json.dump(self.project.to_dict(), f, indent=4)
                 self.project.to_file(self.current_project_path)
                 logger.info(f"Project saved to '{self.current_project_path}'")
             except Exception as e:
@@ -694,7 +674,6 @@ class PAstroCoreMainWindow(QMainWindow):
             if response["status"]:
                 logger.info(f"New observation '{imported_observation.code}' imported successfully")
                 self.project_updated.emit()
-                QMessageBox.information(self, "Success", f"Observation '{imported_observation.code}' imported successfully.")
             else:
                 logger.error(f"Failed to set observation data for '{imported_observation.code}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to import observation: {response.get('error', 'Unknown error')}")
@@ -742,7 +721,6 @@ class PAstroCoreMainWindow(QMainWindow):
             if response["status"]:
                 logger.info(f"Observation '{obs_code}' overwritten successfully")
                 self.project_updated.emit()
-                QMessageBox.information(self, "Success", f"Observation '{obs_code}' imported successfully.")
             else:
                 logger.error(f"Failed to overwrite observation '{obs_code}': {response.get('error', 'Unknown error')}")
                 QMessageBox.critical(self, "Error", f"Failed to import observation: {response.get('error', 'Unknown error')}")
@@ -775,7 +753,6 @@ class PAstroCoreMainWindow(QMainWindow):
             with open(file_path, "w") as f:
                 json.dump(observation.to_dict(), f, indent=4)
             logger.info(f"Observation '{obs_code}' exported to '{file_path}'")
-            QMessageBox.information(self, "Success", f"Observation '{obs_code}' exported successfully.")
         except Exception as e:
             logger.error(f"Exception while exporting observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to export observation: {str(e)}")
