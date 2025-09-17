@@ -68,7 +68,7 @@ class ScheduleCalculator(Super):
         >>> manipulator = ScheduleManipulator()
         >>> calculator = ScheduleCalculator(manipulator)
         >>> obs = Observation()
-        >>> result = calculator.calculate(obs, {"store_key": "uv_coverage_f0", "freq_name": 0})
+        >>> result = calculator.calculate(obs, {"store_key": "uv_coverage", "freq_name": 0})
         >>> print(result)
         {'0': {'uv_points': {...}}}
     """
