@@ -199,7 +199,7 @@ class CalculationDialog(QDialog):
         self.ui.targetList.clear()
         if observations_response["status"]:
             if not observations_response["result"]:
-                logger.warning("No observations found in the project.")
+                logger.debug("No observations found in the project.")
                 return
             for _, obs in observations_response["result"].items():
                 item = QListWidgetItem(obs.code)

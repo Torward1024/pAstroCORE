@@ -57,76 +57,42 @@
      <item row="0" column="1">
       <widget class="QDoubleSpinBox" name="frequencyEdit">
        <property name="styleSheet">
-        <string notr="true">/* Base style for QDoubleSpinBox */
-QDoubleSpinBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    padding-right: 20px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
-    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
-}
-
-/* Editable state */
-QDoubleSpinBox:editable {
-    background-color: #f0f6ff; /* Matches editable QComboBox background */
-    border: 1px solid #0078d7; /* Matches editable QComboBox border */
-}
-
-/* Editable hover state */
-QDoubleSpinBox:editable:hover {
-    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
-}
-
-/* Editable focus state */
-QDoubleSpinBox:editable:focus {
-    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
-    background-color: #ffffff; /* Matches editable QComboBox:focus background */
-}
-
-/* Non-editable state */
-QDoubleSpinBox:!editable {
-    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
-    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
-}
-
-/* Non-editable hover state */
-QDoubleSpinBox:!editable:hover {
-    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
-}
-
-/* Non-editable focus state */
-QDoubleSpinBox:!editable:focus {
-    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
-    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
-}
-
-/* Styling for up/down buttons */
-QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-    subcontrol-origin: padding;
-    width: 20px;
-    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
-    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
-}
-/* Hover state for up/down buttons */
-QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
-}
-
-/* Up arrow styling */
-QDoubleSpinBox::up-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
-}
-/* Down arrow styling */
-QDoubleSpinBox::down-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
-}</string>
+        <string notr="true">         QDoubleSpinBox {
+          font-family: Arial;
+          font-size: 9pt;
+          color: #333333;
+          padding: 1px;
+          padding-right: 20px;
+          border-radius: 3px;
+          background-color: #f0f6ff;
+          border: 1px solid #0078d7;
+         }
+         QDoubleSpinBox:hover {
+          border: 1px solid #1a8cff;
+         }
+         QDoubleSpinBox:focus {
+          border: 1px solid #005bb5;
+          background-color: #ffffff;
+         }
+         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+          width: 20px;
+          border-left: 1px solid #d3d3d3;
+          background-color: #f9f9f9;
+         }
+         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+          background-color: #0078d7;
+         }
+         QDoubleSpinBox::up-arrow {
+          width: 12px;
+          height: 12px;
+          image: url(:/icons/up_arrow_icon.svg);
+         }
+         QDoubleSpinBox::down-arrow {
+          width: 12px;
+          height: 12px;
+          image: url(:/icons/down_arrow_icon.svg);
+         }
+        </string>
        </property>
        <property name="decimals">
         <number>3</number>
@@ -186,76 +152,42 @@ QDoubleSpinBox::down-arrow {
      <item row="2" column="1">
       <widget class="QDoubleSpinBox" name="bandwidthEdit">
        <property name="styleSheet">
-        <string notr="true">/* Base style for QDoubleSpinBox */
-QDoubleSpinBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    padding-right: 20px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
-    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
-}
-
-/* Editable state */
-QDoubleSpinBox:editable {
-    background-color: #f0f6ff; /* Matches editable QComboBox background */
-    border: 1px solid #0078d7; /* Matches editable QComboBox border */
-}
-
-/* Editable hover state */
-QDoubleSpinBox:editable:hover {
-    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
-}
-
-/* Editable focus state */
-QDoubleSpinBox:editable:focus {
-    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
-    background-color: #ffffff; /* Matches editable QComboBox:focus background */
-}
-
-/* Non-editable state */
-QDoubleSpinBox:!editable {
-    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
-    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
-}
-
-/* Non-editable hover state */
-QDoubleSpinBox:!editable:hover {
-    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
-}
-
-/* Non-editable focus state */
-QDoubleSpinBox:!editable:focus {
-    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
-    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
-}
-
-/* Styling for up/down buttons */
-QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-    subcontrol-origin: padding;
-    width: 20px;
-    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
-    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
-}
-/* Hover state for up/down buttons */
-QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
-}
-
-/* Up arrow styling */
-QDoubleSpinBox::up-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
-}
-/* Down arrow styling */
-QDoubleSpinBox::down-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
-}</string>
+        <string notr="true">         QDoubleSpinBox {
+          font-family: Arial;
+          font-size: 9pt;
+          color: #333333;
+          padding: 1px;
+          padding-right: 20px;
+          border-radius: 3px;
+          background-color: #f0f6ff;
+          border: 1px solid #0078d7;
+         }
+         QDoubleSpinBox:hover {
+          border: 1px solid #1a8cff;
+         }
+         QDoubleSpinBox:focus {
+          border: 1px solid #005bb5;
+          background-color: #ffffff;
+         }
+         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+          width: 20px;
+          border-left: 1px solid #d3d3d3;
+          background-color: #f9f9f9;
+         }
+         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+          background-color: #0078d7;
+         }
+         QDoubleSpinBox::up-arrow {
+          width: 12px;
+          height: 12px;
+          image: url(:/icons/up_arrow_icon.svg);
+         }
+         QDoubleSpinBox::down-arrow {
+          width: 12px;
+          height: 12px;
+          image: url(:/icons/down_arrow_icon.svg);
+         }
+        </string>
        </property>
        <property name="decimals">
         <number>3</number>
@@ -280,6 +212,85 @@ QDoubleSpinBox::down-arrow {
      </item>
      <item row="3" column="1">
       <widget class="QCheckBox" name="isActiveCheckBox">
+       <property name="styleSheet">
+        <string notr="true">/* Основной стиль QCheckBox */
+QCheckBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    spacing: 6px;
+    padding: 2px;
+    outline: none;
+}
+
+QCheckBox::item {
+    padding: 2px;
+}
+
+/* Индикатор чекбокса */
+QCheckBox::indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+
+/* Unchecked состояние */
+QCheckBox::indicator:unchecked {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+    image: none;
+}
+
+QCheckBox::indicator:unchecked:hover {
+    border: 1px solid #1a8cff;
+    background-color: #f0f6ff;
+    image: none;
+}
+
+QCheckBox::indicator:unchecked:focus {
+    border: 1px solid #005bb5;
+    background-color: #f0f6ff;
+    image: none;
+}
+
+/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
+QCheckBox::indicator:checked {
+    border: 1px solid #0078d7;
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon.svg);
+}
+
+QCheckBox::indicator:checked:hover {
+    border: 1px solid #1a8cff; /* Стандартная толщина */
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon_hover.svg);
+}
+
+QCheckBox::indicator:checked:focus {
+    border: 1px solid #005bb5; /* Стандартная толщина */
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon.svg);
+}
+
+/* Disabled состояния */
+QCheckBox::indicator:unchecked:disabled {
+    border: 1px solid #e0e0e0;
+    background-color: #f5f5f5;
+    image: none;
+}
+
+QCheckBox::indicator:checked:disabled {
+    border: 1px solid #cccccc;
+    background-color: #f0f0f0; /* Светло-серый фон */
+    image: url(:/icons/check_icon_disabled.svg);
+}
+
+QCheckBox:disabled {
+    color: #999999;
+}</string>
+       </property>
        <property name="checked">
         <bool>true</bool>
        </property>
