@@ -108,7 +108,6 @@ class ScanEditorDialog(QDialog):
                         scan_duration = scan_attrs_response["result"]["duration"]
                         logger.debug(f"Processing scan '{scan_name}': start={scan_start.isot}, duration={scan_duration}")
                         try:
-                            # Calculate end time using TimeDelta
                             scan_end = scan_start + timedelta(seconds=scan_duration)
                             logger.debug(f"Calculated end time for scan '{scan_name}': {scan_end.isot}")
                             if latest_end_time is None or scan_end > latest_end_time:
@@ -124,7 +123,7 @@ class ScanEditorDialog(QDialog):
                         self.ui.startTimeEdit.setDateTime(start_qdt)
                         logger.debug(f"Set start time for new scan to end of latest scan: {start_dt}")
                         self.ui.durationEdit.setText(str(int(latest_duration)))
-                        self.update_from_start_or_duration()
+                        self.update_from_duration()
                         logger.debug(f"Set duration for new scan to match latest scan: {latest_duration}")
                     except Exception as e:
                         logger.error(f"Error converting latest end time to QDateTime: {str(e)}")
@@ -138,8 +137,8 @@ class ScanEditorDialog(QDialog):
 
         self.ui.chk_active.setChecked(self._check_scan_conditions())
 
-        self.ui.startTimeEdit.dateTimeChanged.connect(self.update_from_start_or_duration)
-        self.ui.durationEdit.textChanged.connect(self.update_from_start_or_duration)
+        self.ui.startTimeEdit.dateTimeChanged.connect(self.update_from_start_time)
+        self.ui.durationEdit.textChanged.connect(self.update_from_duration)
         self.ui.endTimeEdit.dateTimeChanged.connect(self.update_from_end_time)
 
         logger.debug(f"Set chk_active for {'new scan' if self.is_new else f'scan {self.scan.name}'} based on conditions: {self.ui.chk_active.isChecked()}")
@@ -150,7 +149,7 @@ class ScanEditorDialog(QDialog):
         current_time = QDateTime.currentDateTime()
         self.ui.startTimeEdit.setDateTime(current_time)
         self.ui.durationEdit.setText("600")
-        self.update_from_start_or_duration()
+        self.update_from_duration()
         logger.debug(f"No scans available, set start time to current: {current_time.toString(Qt.ISODate)}, duration to default: 600")
 
     def debug_item_changed(self, item):
@@ -376,7 +375,7 @@ class ScanEditorDialog(QDialog):
 
         self.ui.durationEdit.setText(str(int(self.scan.duration)))
         logger.info(f"Set duration: {int(self.scan.duration)}")
-        self.update_from_start_or_duration()
+        self.update_from_start_time()
 
         self.ui.chk_offsource.setChecked(self.scan.is_off_source)
         if self.scan.is_off_source:
@@ -495,8 +494,39 @@ class ScanEditorDialog(QDialog):
         logger.debug(f"Updated chk_active after offsource change: {self.ui.chk_active.isChecked()}")
 
     @Slot()
-    def update_from_start_or_duration(self):
-        """Update endTime based on startTime and duration."""
+    def update_from_start_time(self):
+        """Update duration based on new start time to keep end time fixed."""
+        end_qdt = self.ui.endTimeEdit.dateTime()
+        new_start_qdt = self.ui.startTimeEdit.dateTime()
+        
+        if new_start_qdt >= end_qdt:
+            try:
+                duration = float(self.ui.durationEdit.text())
+                if duration <= 0:
+                    duration = 600
+                    logger.debug("Using default duration 600s for auto-adjustment")
+                end_qdt = new_start_qdt.addSecs(int(duration))
+                self.ui.endTimeEdit.blockSignals(True)
+                self.ui.endTimeEdit.setDateTime(end_qdt)
+                self.ui.endTimeEdit.blockSignals(False)
+                logger.debug(f"Auto-adjusted end time to {end_qdt.toString(Qt.ISODate)} (start + duration {duration}s)")
+            except ValueError:
+                end_qdt = new_start_qdt.addSecs(1)
+                self.ui.endTimeEdit.blockSignals(True)
+                self.ui.endTimeEdit.setDateTime(end_qdt)
+                self.ui.endTimeEdit.blockSignals(False)
+                logger.debug("Auto-adjusted end time to start + 1s (invalid duration)")
+            return
+        
+        new_duration = new_start_qdt.secsTo(end_qdt)
+        self.ui.durationEdit.blockSignals(True)
+        self.ui.durationEdit.setText(str(new_duration))
+        self.ui.durationEdit.blockSignals(False)
+        logger.debug(f"Updated duration from start change: {new_duration}s, end remains {end_qdt.toString(Qt.ISODate)}")
+    
+    @Slot()
+    def update_from_duration(self):
+        """Update end time based on start time and duration."""
         start_qdt = self.ui.startTimeEdit.dateTime()
         try:
             duration = float(self.ui.durationEdit.text())
@@ -506,31 +536,37 @@ class ScanEditorDialog(QDialog):
             self.ui.endTimeEdit.blockSignals(True)
             self.ui.endTimeEdit.setDateTime(end_dt)
             self.ui.endTimeEdit.blockSignals(False)
-            logger.debug(f"Updated endTime from start/duration: {end_dt.toString(Qt.ISODate)}")
+            logger.debug(f"Updated endTime from duration: {end_dt.toString(Qt.ISODate)}")
         except ValueError:
             logger.warning("Invalid duration during update, skipping endTime update")
-            pass 
 
     @Slot()
     def update_from_end_time(self):
-        """Update duration based on startTime and endTime, validate end > start."""
+        """Update duration based on start time and end time."""
         start_qdt = self.ui.startTimeEdit.dateTime()
         end_qdt = self.ui.endTimeEdit.dateTime()
+        
         if end_qdt <= start_qdt:
-            QMessageBox.warning(self, "Invalid Time", "End time must be after start time.")
             try:
                 duration = float(self.ui.durationEdit.text())
                 if duration <= 0:
-                    raise ValueError
+                    duration = 600
+                    logger.debug("Using default duration 600s for auto-adjustment")
                 end_qdt = start_qdt.addSecs(int(duration))
+                self.ui.endTimeEdit.blockSignals(True)
+                self.ui.endTimeEdit.setDateTime(end_qdt)
+                self.ui.endTimeEdit.blockSignals(False)
+                logger.debug(f"Auto-adjusted end time to {end_qdt.toString(Qt.ISODate)} (start + duration {duration}s)")
             except ValueError:
                 end_qdt = start_qdt.addSecs(1)
-            self.ui.endTimeEdit.blockSignals(True)
-            self.ui.endTimeEdit.setDateTime(end_qdt)
-            self.ui.endTimeEdit.blockSignals(False)
-            logger.warning(f"End time invalid, reset to start + {int(duration) if duration > 0 else 1}s")
+                self.ui.endTimeEdit.blockSignals(True)
+                self.ui.endTimeEdit.setDateTime(end_qdt)
+                self.ui.endTimeEdit.blockSignals(False)
+                logger.debug("Auto-adjusted end time to start + 1s (invalid duration)")
+            return
+        
         duration = start_qdt.secsTo(end_qdt)
-        self.ui.durationEdit.blockSignals(True)  # Prevent recursive signals
+        self.ui.durationEdit.blockSignals(True)
         self.ui.durationEdit.setText(str(duration))
         self.ui.durationEdit.blockSignals(False)
         logger.debug(f"Updated duration from endTime: {duration}s")
