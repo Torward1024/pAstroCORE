@@ -152,6 +152,14 @@ class GenerateObservationsDialog(QDialog):
         self.ui.savePresetButton.clicked.connect(self.save_preset)
         self.ui.loadPresetButton.clicked.connect(self.load_preset_from_file)
 
+        self.ui.startTimeEdit.dateTimeChanged.connect(self.update_end_time)
+        self.ui.scanDurationSpinBox.valueChanged.connect(self.update_end_time)
+        self.ui.intervalSpinBox.valueChanged.connect(self.update_end_time)
+        self.ui.numScansSpinBox.valueChanged.connect(self.update_end_time)
+        self.ui.chkParallel.stateChanged.connect(self.update_end_time)
+        self.ui.sourceList.itemSelectionChanged.connect(self.update_end_time)
+        self.ui.endTimeEdit.dateTimeChanged.connect(self.update_scan_duration_from_end)
+
     def update_frequency_list(self):
         """Update the frequency list UI from self.frequencies."""
         self.ui.frequencyList.clear()
@@ -540,7 +548,7 @@ class GenerateObservationsDialog(QDialog):
             pattern_attributes = {
                 "add_off_source": self.ui.addOffSourceCheck.isChecked(),
                 "randomize_order": self.ui.randomizeOrderCheck.isChecked(),
-                "interval_min": self.ui.intervalSpinBox.value(),
+                "interval_sec": self.ui.intervalSpinBox.value(),
                 "naming_mask": naming_mask
             }
 
@@ -590,3 +598,66 @@ class GenerateObservationsDialog(QDialog):
         logger.error(f"Generation error: {error}")
         QMessageBox.critical(self, "Error", f"Generation failed: {error}")
         self.reject()
+
+    def update_end_time(self):
+        """Update end time based on current parameters."""
+        start_qdt = self.ui.startTimeEdit.dateTime()
+        scan_duration = self.ui.scanDurationSpinBox.value()
+        num_scans = self.ui.numScansSpinBox.value()
+        gap = self.ui.intervalSpinBox.value()
+        is_parallel = self.ui.chkParallel.isChecked()
+        num_sources = len(self.ui.sourceList.selectedItems()) if not is_parallel else 1
+
+        if num_scans <= 0 or scan_duration <= 0 or gap < 0 or num_sources <= 0:
+            logger.debug("Invalid parameters for end time update, skipping")
+            return
+
+        # Учитываем add_off_source для точного расчёта
+        add_off_source = self.ui.addOffSourceCheck.isChecked()
+        multiplier = 2 if add_off_source else 1
+        scans_block = (scan_duration * multiplier + gap) * num_scans - gap
+        total_seconds = scans_block if is_parallel else scans_block * num_sources
+        end_qdt = start_qdt.addSecs(int(total_seconds))
+        self.ui.endTimeEdit.blockSignals(True)
+        self.ui.endTimeEdit.setDateTime(end_qdt)
+        self.ui.endTimeEdit.blockSignals(False)
+        logger.debug(f"Updated end time: parallel={is_parallel}, num_sources={num_sources}, "
+                    f"add_off={add_off_source}, total_seconds={total_seconds}, end={end_qdt.toString(Qt.ISODate)}")
+    
+    @Slot()
+    def update_scan_duration_from_end(self):
+        """Update scan duration to fit the end time based on other parameters."""
+        start_qdt = self.ui.startTimeEdit.dateTime()
+        end_qdt = self.ui.endTimeEdit.dateTime()
+        if end_qdt <= start_qdt:
+            QMessageBox.warning(self, "Invalid Time", "End time must be after start time.")
+            self.update_end_time()
+            return
+
+        total_seconds = start_qdt.secsTo(end_qdt)
+        num_scans = self.ui.numScansSpinBox.value()
+        gap = self.ui.intervalSpinBox.value()
+        is_parallel = self.ui.chkParallel.isChecked()
+        num_sources = len(self.ui.sourceList.selectedItems()) if not is_parallel else 1
+
+        if num_scans <= 0 or gap < 0 or num_sources <= 0:
+            logger.debug("Invalid parameters for duration update, skipping")
+            return
+
+        gap_total = gap * (num_scans - 1) * num_sources if not is_parallel else gap * (num_scans - 1)
+        remaining_seconds = total_seconds - gap_total
+        if remaining_seconds <= 0:
+            QMessageBox.warning(self, "Invalid Duration", "Total time too short for gaps.")
+            self.update_end_time()
+            return
+
+        new_duration = remaining_seconds / (num_scans * num_sources if not is_parallel else num_scans)
+        if new_duration <= 0:
+            QMessageBox.warning(self, "Invalid Duration", "Calculated duration not positive.")
+            self.update_end_time()
+            return
+
+        self.ui.scanDurationSpinBox.blockSignals(True)
+        self.ui.scanDurationSpinBox.setValue(new_duration)
+        self.ui.scanDurationSpinBox.blockSignals(False)
+        logger.debug(f"Updated scan duration from end: new_duration={new_duration}, total_seconds={total_seconds}")
