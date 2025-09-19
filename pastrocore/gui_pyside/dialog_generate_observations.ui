@@ -14,7 +14,7 @@
    <string>Generate Observations</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="../icons/icons.qrc">
+   <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
   </property>
   <property name="styleSheet">
@@ -27,7 +27,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tabBasic">
       <attribute name="title">
@@ -404,96 +404,69 @@
        <string>Pattern Settings</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_5">
-       <item row="0" column="0">
-        <widget class="QCheckBox" name="addOffSourceCheck">
-         <property name="styleSheet">
-          <string notr="true">/* Основной стиль QCheckBox */
-QCheckBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    spacing: 6px;
-    padding: 2px;
-    outline: none;
-}
-
-QCheckBox::item {
-    padding: 2px;
-}
-
-/* Индикатор чекбокса */
-QCheckBox::indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-
-/* Unchecked состояние */
-QCheckBox::indicator:unchecked {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:hover {
-    border: 1px solid #1a8cff;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:focus {
-    border: 1px solid #005bb5;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
-QCheckBox::indicator:checked {
-    border: 1px solid #0078d7;
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-QCheckBox::indicator:checked:hover {
-    border: 1px solid #1a8cff; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon_hover.svg);
-}
-
-QCheckBox::indicator:checked:focus {
-    border: 1px solid #005bb5; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-/* Disabled состояния */
-QCheckBox::indicator:unchecked:disabled {
-    border: 1px solid #e0e0e0;
-    background-color: #f5f5f5;
-    image: none;
-}
-
-QCheckBox::indicator:checked:disabled {
-    border: 1px solid #cccccc;
-    background-color: #f0f0f0; /* Светло-серый фон */
-    image: url(:/icons/check_icon_disabled.svg);
-}
-
-QCheckBox:disabled {
-    color: #999999;
-}</string>
-         </property>
-         <property name="text">
-          <string>Add Off-Source Scans</string>
-         </property>
-         <property name="checked">
-          <bool>false</bool>
-         </property>
-        </widget>
+       <item row="6" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayoutPresetButtons">
+         <item>
+          <widget class="QPushButton" name="savePresetButton">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Save Preset</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="loadPresetButton">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">
+             QPushButton {
+              background-color: #0078d7;
+              color: #ffffff;
+              padding: 6px;
+              border-radius: 3px;
+              border: none;
+             }
+             QPushButton:hover {
+              background-color: #1a8cff;
+             }
+             QPushButton:pressed {
+              background-color: #005bb5;
+              padding-top: 7px;
+              padding-bottom: 5px;
+             }
+            </string>
+           </property>
+           <property name="text">
+            <string>Load Preset</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
-       <item row="1" column="0">
+       <item row="2" column="0">
         <widget class="QCheckBox" name="randomizeOrderCheck">
          <property name="styleSheet">
           <string notr="true">/* Основной стиль QCheckBox */
@@ -582,73 +555,106 @@ QCheckBox:disabled {
          </property>
         </widget>
        </item>
-       <item row="2" column="0">
-        <layout class="QHBoxLayout" name="horizontalLayoutInterval">
-         <item>
-          <widget class="QLabel" name="labelInterval">
-           <property name="text">
-            <string>Interval between Scans (s):</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QDoubleSpinBox" name="intervalSpinBox">
-           <property name="styleSheet">
-            <string notr="true">         QDoubleSpinBox {
-          font-family: Arial;
-          font-size: 9pt;
-          color: #333333;
-          padding: 1px;
-          padding-right: 20px;
-          border-radius: 3px;
-          background-color: #f0f6ff;
-          border: 1px solid #0078d7;
-         }
-         QDoubleSpinBox:hover {
-          border: 1px solid #1a8cff;
-         }
-         QDoubleSpinBox:focus {
-          border: 1px solid #005bb5;
-          background-color: #ffffff;
-         }
-         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-          width: 20px;
-          border-left: 1px solid #d3d3d3;
-          background-color: #f9f9f9;
-         }
-         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-          background-color: #0078d7;
-         }
-         QDoubleSpinBox::up-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/up_arrow_icon.svg);
-         }
-         QDoubleSpinBox::down-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/down_arrow_icon.svg);
-         }
-        </string>
-           </property>
-           <property name="maximum">
-            <double>100000000000.000000000000000</double>
-           </property>
-           <property name="value">
-            <double>5.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-        </layout>
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="addOffSourceCheck">
+         <property name="styleSheet">
+          <string notr="true">/* Основной стиль QCheckBox */
+QCheckBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    spacing: 6px;
+    padding: 2px;
+    outline: none;
+}
+
+QCheckBox::item {
+    padding: 2px;
+}
+
+/* Индикатор чекбокса */
+QCheckBox::indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+
+/* Unchecked состояние */
+QCheckBox::indicator:unchecked {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+    image: none;
+}
+
+QCheckBox::indicator:unchecked:hover {
+    border: 1px solid #1a8cff;
+    background-color: #f0f6ff;
+    image: none;
+}
+
+QCheckBox::indicator:unchecked:focus {
+    border: 1px solid #005bb5;
+    background-color: #f0f6ff;
+    image: none;
+}
+
+/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
+QCheckBox::indicator:checked {
+    border: 1px solid #0078d7;
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon.svg);
+}
+
+QCheckBox::indicator:checked:hover {
+    border: 1px solid #1a8cff; /* Стандартная толщина */
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon_hover.svg);
+}
+
+QCheckBox::indicator:checked:focus {
+    border: 1px solid #005bb5; /* Стандартная толщина */
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon.svg);
+}
+
+/* Disabled состояния */
+QCheckBox::indicator:unchecked:disabled {
+    border: 1px solid #e0e0e0;
+    background-color: #f5f5f5;
+    image: none;
+}
+
+QCheckBox::indicator:checked:disabled {
+    border: 1px solid #cccccc;
+    background-color: #f0f0f0; /* Светло-серый фон */
+    image: url(:/icons/check_icon_disabled.svg);
+}
+
+QCheckBox:disabled {
+    color: #999999;
+}</string>
+         </property>
+         <property name="text">
+          <string>Add Off-Source Scans</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
-       <item row="3" column="0">
+       <item row="4" column="0">
         <widget class="QLabel" name="labelPreset">
          <property name="text">
           <string>Preset:</string>
          </property>
         </widget>
        </item>
-       <item row="4" column="0">
+       <item row="5" column="0">
         <widget class="QComboBox" name="presetCombo">
          <property name="styleSheet">
           <string notr="true">
@@ -731,61 +737,77 @@ QCheckBox:disabled {
          </item>
         </widget>
        </item>
-       <item row="5" column="0">
-        <layout class="QHBoxLayout" name="horizontalLayoutPresetButtons">
+       <item row="0" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayoutInterval">
          <item>
-          <widget class="QPushButton" name="savePresetButton">
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
+          <widget class="QLabel" name="labelInterval">
            <property name="text">
-            <string>Save Preset</string>
+            <string>Interval between Scans (s):</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="loadPresetButton">
+          <widget class="QDoubleSpinBox" name="intervalSpinBox">
            <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
+            <string notr="true">         QDoubleSpinBox {
+          font-family: Arial;
+          font-size: 9pt;
+          color: #333333;
+          padding: 1px;
+          padding-right: 20px;
+          border-radius: 3px;
+          background-color: #f0f6ff;
+          border: 1px solid #0078d7;
+         }
+         QDoubleSpinBox:hover {
+          border: 1px solid #1a8cff;
+         }
+         QDoubleSpinBox:focus {
+          border: 1px solid #005bb5;
+          background-color: #ffffff;
+         }
+         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+          width: 20px;
+          border-left: 1px solid #d3d3d3;
+          background-color: #f9f9f9;
+         }
+         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+          background-color: #0078d7;
+         }
+         QDoubleSpinBox::up-arrow {
+          width: 12px;
+          height: 12px;
+          image: url(:/icons/up_arrow_icon.svg);
+         }
+         QDoubleSpinBox::down-arrow {
+          width: 12px;
+          height: 12px;
+          image: url(:/icons/down_arrow_icon.svg);
+         }
+        </string>
            </property>
-           <property name="text">
-            <string>Load Preset</string>
+           <property name="maximum">
+            <double>100000000000.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.000000000000000</double>
            </property>
           </widget>
          </item>
         </layout>
+       </item>
+       <item row="3" column="0">
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>
@@ -1107,7 +1129,7 @@ QCheckBox:disabled {
         <number>1</number>
        </property>
        <property name="maximum">
-        <number>100</number>
+        <number>99999</number>
        </property>
        <property name="value">
         <number>5</number>
@@ -1277,7 +1299,7 @@ QCheckBox:disabled {
   </layout>
  </widget>
  <resources>
-  <include location="../icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc"/>
  </resources>
  <connections>
   <connection>

@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QDialog, QMessageBox, QMenu, QFileDialog, QListWidgetItem
-from PySide6.QtCore import Signal, Slot, Qt, QPoint, QThread, QRegularExpression, QDateTime
+from PySide6.QtCore import Signal, Slot, Qt, QPoint, QThread, QRegularExpression, QDateTime, QTime, QDate
 from PySide6.QtGui import QIcon, QRegularExpressionValidator
 from .ui_dialog_generate_observations import Ui_GenerateObservationsDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -123,11 +123,13 @@ class GenerateObservationsDialog(QDialog):
         
         self.ui.addOffSourceCheck.setChecked(False)
         self.ui.randomizeOrderCheck.setChecked(False)
-        self.ui.intervalSpinBox.setValue(5)
+        self.ui.intervalSpinBox.setValue(0)
 
-        current_time = datetime.now()
-        self.ui.startTimeEdit.setDateTime(current_time)
-        self.ui.endTimeEdit.setDateTime(current_time + timedelta(hours=24))
+        current_date = datetime.now().date()
+        start_qdt = QDateTime(QDate(current_date.year, current_date.month, current_date.day), QTime(0, 0, 0))
+        end_qdt = start_qdt.addSecs(86400)
+        self.ui.startTimeEdit.setDateTime(start_qdt)
+        self.ui.endTimeEdit.setDateTime(end_qdt)
         self.ui.chkParallel.setChecked(True)
         
         self.update_frequency_list()
@@ -158,6 +160,7 @@ class GenerateObservationsDialog(QDialog):
         self.ui.numScansSpinBox.valueChanged.connect(self.update_end_time)
         self.ui.chkParallel.stateChanged.connect(self.update_end_time)
         self.ui.sourceList.itemSelectionChanged.connect(self.update_end_time)
+        self.ui.addOffSourceCheck.stateChanged.connect(self.update_end_time)
         self.ui.endTimeEdit.dateTimeChanged.connect(self.update_scan_duration_from_end)
 
     def update_frequency_list(self):
@@ -612,7 +615,6 @@ class GenerateObservationsDialog(QDialog):
             logger.debug("Invalid parameters for end time update, skipping")
             return
 
-        # Учитываем add_off_source для точного расчёта
         add_off_source = self.ui.addOffSourceCheck.isChecked()
         multiplier = 2 if add_off_source else 1
         scans_block = (scan_duration * multiplier + gap) * num_scans - gap
@@ -638,7 +640,9 @@ class GenerateObservationsDialog(QDialog):
         num_scans = self.ui.numScansSpinBox.value()
         gap = self.ui.intervalSpinBox.value()
         is_parallel = self.ui.chkParallel.isChecked()
-        num_sources = len(self.ui.sourceList.selectedItems()) if not is_parallel else 1
+        add_off_source = self.ui.addOffSourceCheck.isChecked()
+        multiplier = 2 if add_off_source else 1
+        num_sources = len(self.ui.sourceList.selectedItems()) if not is_parallel else 1  # Factor for sequential
 
         if num_scans <= 0 or gap < 0 or num_sources <= 0:
             logger.debug("Invalid parameters for duration update, skipping")
@@ -651,7 +655,7 @@ class GenerateObservationsDialog(QDialog):
             self.update_end_time()
             return
 
-        new_duration = remaining_seconds / (num_scans * num_sources if not is_parallel else num_scans)
+        new_duration = remaining_seconds / (multiplier * num_scans * num_sources if not is_parallel else multiplier * num_scans)
         if new_duration <= 0:
             QMessageBox.warning(self, "Invalid Duration", "Calculated duration not positive.")
             self.update_end_time()
@@ -660,4 +664,5 @@ class GenerateObservationsDialog(QDialog):
         self.ui.scanDurationSpinBox.blockSignals(True)
         self.ui.scanDurationSpinBox.setValue(new_duration)
         self.ui.scanDurationSpinBox.blockSignals(False)
-        logger.debug(f"Updated scan duration from end: new_duration={new_duration}, total_seconds={total_seconds}")
+        logger.debug(f"Updated scan duration from end: new_duration={new_duration}, total_seconds={total_seconds}, "
+                     f"multiplier={multiplier}, num_sources={num_sources}")
