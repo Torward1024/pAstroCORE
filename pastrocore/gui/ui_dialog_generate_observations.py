@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_generate_observationssmIiGF.ui'
+## Form generated from reading UI file 'dialog_generate_observationscUkcsG.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -312,90 +312,56 @@ class Ui_GenerateObservationsDialog(object):
         self.tabPattern.setObjectName(u"tabPattern")
         self.gridLayout_5 = QGridLayout(self.tabPattern)
         self.gridLayout_5.setObjectName(u"gridLayout_5")
-        self.addOffSourceCheck = QCheckBox(self.tabPattern)
-        self.addOffSourceCheck.setObjectName(u"addOffSourceCheck")
-        self.addOffSourceCheck.setStyleSheet(u"/* \u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u0442\u0438\u043b\u044c QCheckBox */\n"
-"QCheckBox {\n"
-"    font-family: Arial;\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    spacing: 6px;\n"
-"    padding: 2px;\n"
-"    outline: none;\n"
-"}\n"
-"\n"
-"QCheckBox::item {\n"
-"    padding: 2px;\n"
-"}\n"
-"\n"
-"/* \u0418\u043d\u0434\u0438\u043a\u0430\u0442\u043e\u0440 \u0447\u0435\u043a\u0431\u043e\u043a\u0441\u0430 */\n"
-"QCheckBox::indicator {\n"
-"    width: 12px;\n"
-"    height: 12px;\n"
-"    border-radius: 3px;\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"}\n"
-"\n"
-"/* Unchecked \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 */\n"
-"QCheckBox::indicator:unchecked {\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"    image: none;\n"
-"}\n"
-"\n"
-"QCheckBox::indicator:unchecked:hover {\n"
-"    border: 1px solid #1a8cff;\n"
-"    background-color: #f0f6ff;\n"
-"    image: none;\n"
-"}\n"
-"\n"
-"QCheckBox::indicator:unchecked:focus {\n"
-"    b"
-                        "order: 1px solid #005bb5;\n"
-"    background-color: #f0f6ff;\n"
-"    image: none;\n"
-"}\n"
-"\n"
-"/* Checked \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 - \u0411\u0415\u041b\u042b\u0419 \u0424\u041e\u041d, \u0441\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u0430\u044f \u0433\u0440\u0430\u043d\u0438\u0446\u0430 */\n"
-"QCheckBox::indicator:checked {\n"
-"    border: 1px solid #0078d7;\n"
-"    background-color: #ffffff; /* \u0411\u0435\u043b\u044b\u0439 \u0444\u043e\u043d */\n"
-"    image: url(:/icons/check_icon.svg);\n"
-"}\n"
-"\n"
-"QCheckBox::indicator:checked:hover {\n"
-"    border: 1px solid #1a8cff; /* \u0421\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u0430\u044f \u0442\u043e\u043b\u0449\u0438\u043d\u0430 */\n"
-"    background-color: #ffffff; /* \u0411\u0435\u043b\u044b\u0439 \u0444\u043e\u043d */\n"
-"    image: url(:/icons/check_icon_hover.svg);\n"
-"}\n"
-"\n"
-"QCheckBox::indicator:checked:focus {\n"
-"    border: 1px solid #005bb5; /* \u0421\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u0430"
-                        "\u044f \u0442\u043e\u043b\u0449\u0438\u043d\u0430 */\n"
-"    background-color: #ffffff; /* \u0411\u0435\u043b\u044b\u0439 \u0444\u043e\u043d */\n"
-"    image: url(:/icons/check_icon.svg);\n"
-"}\n"
-"\n"
-"/* Disabled \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f */\n"
-"QCheckBox::indicator:unchecked:disabled {\n"
-"    border: 1px solid #e0e0e0;\n"
-"    background-color: #f5f5f5;\n"
-"    image: none;\n"
-"}\n"
-"\n"
-"QCheckBox::indicator:checked:disabled {\n"
-"    border: 1px solid #cccccc;\n"
-"    background-color: #f0f0f0; /* \u0421\u0432\u0435\u0442\u043b\u043e-\u0441\u0435\u0440\u044b\u0439 \u0444\u043e\u043d */\n"
-"    image: url(:/icons/check_icon_disabled.svg);\n"
-"}\n"
-"\n"
-"QCheckBox:disabled {\n"
-"    color: #999999;\n"
-"}")
-        self.addOffSourceCheck.setChecked(False)
+        self.horizontalLayoutPresetButtons = QHBoxLayout()
+        self.horizontalLayoutPresetButtons.setObjectName(u"horizontalLayoutPresetButtons")
+        self.savePresetButton = QPushButton(self.tabPattern)
+        self.savePresetButton.setObjectName(u"savePresetButton")
+        self.savePresetButton.setEnabled(False)
+        self.savePresetButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
 
-        self.gridLayout_5.addWidget(self.addOffSourceCheck, 0, 0, 1, 1)
+        self.horizontalLayoutPresetButtons.addWidget(self.savePresetButton)
+
+        self.loadPresetButton = QPushButton(self.tabPattern)
+        self.loadPresetButton.setObjectName(u"loadPresetButton")
+        self.loadPresetButton.setEnabled(False)
+        self.loadPresetButton.setStyleSheet(u"\n"
+"             QPushButton {\n"
+"              background-color: #0078d7;\n"
+"              color: #ffffff;\n"
+"              padding: 6px;\n"
+"              border-radius: 3px;\n"
+"              border: none;\n"
+"             }\n"
+"             QPushButton:hover {\n"
+"              background-color: #1a8cff;\n"
+"             }\n"
+"             QPushButton:pressed {\n"
+"              background-color: #005bb5;\n"
+"              padding-top: 7px;\n"
+"              padding-bottom: 5px;\n"
+"             }\n"
+"            ")
+
+        self.horizontalLayoutPresetButtons.addWidget(self.loadPresetButton)
+
+
+        self.gridLayout_5.addLayout(self.horizontalLayoutPresetButtons, 6, 0, 1, 1)
 
         self.randomizeOrderCheck = QCheckBox(self.tabPattern)
         self.randomizeOrderCheck.setObjectName(u"randomizeOrderCheck")
@@ -480,66 +446,98 @@ class Ui_GenerateObservationsDialog(object):
 "}")
         self.randomizeOrderCheck.setChecked(False)
 
-        self.gridLayout_5.addWidget(self.randomizeOrderCheck, 1, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.randomizeOrderCheck, 2, 0, 1, 1)
 
-        self.horizontalLayoutInterval = QHBoxLayout()
-        self.horizontalLayoutInterval.setObjectName(u"horizontalLayoutInterval")
-        self.labelInterval = QLabel(self.tabPattern)
-        self.labelInterval.setObjectName(u"labelInterval")
+        self.addOffSourceCheck = QCheckBox(self.tabPattern)
+        self.addOffSourceCheck.setObjectName(u"addOffSourceCheck")
+        self.addOffSourceCheck.setStyleSheet(u"/* \u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u0442\u0438\u043b\u044c QCheckBox */\n"
+"QCheckBox {\n"
+"    font-family: Arial;\n"
+"    font-size: 9pt;\n"
+"    color: #333333;\n"
+"    spacing: 6px;\n"
+"    padding: 2px;\n"
+"    outline: none;\n"
+"}\n"
+"\n"
+"QCheckBox::item {\n"
+"    padding: 2px;\n"
+"}\n"
+"\n"
+"/* \u0418\u043d\u0434\u0438\u043a\u0430\u0442\u043e\u0440 \u0447\u0435\u043a\u0431\u043e\u043a\u0441\u0430 */\n"
+"QCheckBox::indicator {\n"
+"    width: 12px;\n"
+"    height: 12px;\n"
+"    border-radius: 3px;\n"
+"    border: 1px solid #d3d3d3;\n"
+"    background-color: #f9f9f9;\n"
+"}\n"
+"\n"
+"/* Unchecked \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 */\n"
+"QCheckBox::indicator:unchecked {\n"
+"    border: 1px solid #d3d3d3;\n"
+"    background-color: #f9f9f9;\n"
+"    image: none;\n"
+"}\n"
+"\n"
+"QCheckBox::indicator:unchecked:hover {\n"
+"    border: 1px solid #1a8cff;\n"
+"    background-color: #f0f6ff;\n"
+"    image: none;\n"
+"}\n"
+"\n"
+"QCheckBox::indicator:unchecked:focus {\n"
+"    b"
+                        "order: 1px solid #005bb5;\n"
+"    background-color: #f0f6ff;\n"
+"    image: none;\n"
+"}\n"
+"\n"
+"/* Checked \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 - \u0411\u0415\u041b\u042b\u0419 \u0424\u041e\u041d, \u0441\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u0430\u044f \u0433\u0440\u0430\u043d\u0438\u0446\u0430 */\n"
+"QCheckBox::indicator:checked {\n"
+"    border: 1px solid #0078d7;\n"
+"    background-color: #ffffff; /* \u0411\u0435\u043b\u044b\u0439 \u0444\u043e\u043d */\n"
+"    image: url(:/icons/check_icon.svg);\n"
+"}\n"
+"\n"
+"QCheckBox::indicator:checked:hover {\n"
+"    border: 1px solid #1a8cff; /* \u0421\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u0430\u044f \u0442\u043e\u043b\u0449\u0438\u043d\u0430 */\n"
+"    background-color: #ffffff; /* \u0411\u0435\u043b\u044b\u0439 \u0444\u043e\u043d */\n"
+"    image: url(:/icons/check_icon_hover.svg);\n"
+"}\n"
+"\n"
+"QCheckBox::indicator:checked:focus {\n"
+"    border: 1px solid #005bb5; /* \u0421\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u0430"
+                        "\u044f \u0442\u043e\u043b\u0449\u0438\u043d\u0430 */\n"
+"    background-color: #ffffff; /* \u0411\u0435\u043b\u044b\u0439 \u0444\u043e\u043d */\n"
+"    image: url(:/icons/check_icon.svg);\n"
+"}\n"
+"\n"
+"/* Disabled \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u044f */\n"
+"QCheckBox::indicator:unchecked:disabled {\n"
+"    border: 1px solid #e0e0e0;\n"
+"    background-color: #f5f5f5;\n"
+"    image: none;\n"
+"}\n"
+"\n"
+"QCheckBox::indicator:checked:disabled {\n"
+"    border: 1px solid #cccccc;\n"
+"    background-color: #f0f0f0; /* \u0421\u0432\u0435\u0442\u043b\u043e-\u0441\u0435\u0440\u044b\u0439 \u0444\u043e\u043d */\n"
+"    image: url(:/icons/check_icon_disabled.svg);\n"
+"}\n"
+"\n"
+"QCheckBox:disabled {\n"
+"    color: #999999;\n"
+"}")
+        self.addOffSourceCheck.setCheckable(True)
+        self.addOffSourceCheck.setChecked(False)
 
-        self.horizontalLayoutInterval.addWidget(self.labelInterval)
-
-        self.intervalSpinBox = QDoubleSpinBox(self.tabPattern)
-        self.intervalSpinBox.setObjectName(u"intervalSpinBox")
-        self.intervalSpinBox.setStyleSheet(u"         QDoubleSpinBox {\n"
-"          font-family: Arial;\n"
-"          font-size: 9pt;\n"
-"          color: #333333;\n"
-"          padding: 1px;\n"
-"          padding-right: 20px;\n"
-"          border-radius: 3px;\n"
-"          background-color: #f0f6ff;\n"
-"          border: 1px solid #0078d7;\n"
-"         }\n"
-"         QDoubleSpinBox:hover {\n"
-"          border: 1px solid #1a8cff;\n"
-"         }\n"
-"         QDoubleSpinBox:focus {\n"
-"          border: 1px solid #005bb5;\n"
-"          background-color: #ffffff;\n"
-"         }\n"
-"         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
-"          width: 20px;\n"
-"          border-left: 1px solid #d3d3d3;\n"
-"          background-color: #f9f9f9;\n"
-"         }\n"
-"         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {\n"
-"          background-color: #0078d7;\n"
-"         }\n"
-"         QDoubleSpinBox::up-arrow {\n"
-"          width: 12px;\n"
-"          height: 12px;\n"
-"          image: url(:/icons/up_arrow_icon.svg);\n"
-""
-                        "         }\n"
-"         QDoubleSpinBox::down-arrow {\n"
-"          width: 12px;\n"
-"          height: 12px;\n"
-"          image: url(:/icons/down_arrow_icon.svg);\n"
-"         }\n"
-"        ")
-        self.intervalSpinBox.setMaximum(100000000000.000000000000000)
-        self.intervalSpinBox.setValue(5.000000000000000)
-
-        self.horizontalLayoutInterval.addWidget(self.intervalSpinBox)
-
-
-        self.gridLayout_5.addLayout(self.horizontalLayoutInterval, 2, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.addOffSourceCheck, 1, 0, 1, 1)
 
         self.labelPreset = QLabel(self.tabPattern)
         self.labelPreset.setObjectName(u"labelPreset")
 
-        self.gridLayout_5.addWidget(self.labelPreset, 3, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.labelPreset, 4, 0, 1, 1)
 
         self.presetCombo = QComboBox(self.tabPattern)
         self.presetCombo.addItem("")
@@ -615,56 +613,65 @@ class Ui_GenerateObservationsDialog(object):
 "           }\n"
 "          ")
 
-        self.gridLayout_5.addWidget(self.presetCombo, 4, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.presetCombo, 5, 0, 1, 1)
 
-        self.horizontalLayoutPresetButtons = QHBoxLayout()
-        self.horizontalLayoutPresetButtons.setObjectName(u"horizontalLayoutPresetButtons")
-        self.savePresetButton = QPushButton(self.tabPattern)
-        self.savePresetButton.setObjectName(u"savePresetButton")
-        self.savePresetButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
+        self.horizontalLayoutInterval = QHBoxLayout()
+        self.horizontalLayoutInterval.setObjectName(u"horizontalLayoutInterval")
+        self.labelInterval = QLabel(self.tabPattern)
+        self.labelInterval.setObjectName(u"labelInterval")
 
-        self.horizontalLayoutPresetButtons.addWidget(self.savePresetButton)
+        self.horizontalLayoutInterval.addWidget(self.labelInterval)
 
-        self.loadPresetButton = QPushButton(self.tabPattern)
-        self.loadPresetButton.setObjectName(u"loadPresetButton")
-        self.loadPresetButton.setStyleSheet(u"\n"
-"             QPushButton {\n"
-"              background-color: #0078d7;\n"
-"              color: #ffffff;\n"
-"              padding: 6px;\n"
-"              border-radius: 3px;\n"
-"              border: none;\n"
-"             }\n"
-"             QPushButton:hover {\n"
-"              background-color: #1a8cff;\n"
-"             }\n"
-"             QPushButton:pressed {\n"
-"              background-color: #005bb5;\n"
-"              padding-top: 7px;\n"
-"              padding-bottom: 5px;\n"
-"             }\n"
-"            ")
+        self.intervalSpinBox = QDoubleSpinBox(self.tabPattern)
+        self.intervalSpinBox.setObjectName(u"intervalSpinBox")
+        self.intervalSpinBox.setStyleSheet(u"         QDoubleSpinBox {\n"
+"          font-family: Arial;\n"
+"          font-size: 9pt;\n"
+"          color: #333333;\n"
+"          padding: 1px;\n"
+"          padding-right: 20px;\n"
+"          border-radius: 3px;\n"
+"          background-color: #f0f6ff;\n"
+"          border: 1px solid #0078d7;\n"
+"         }\n"
+"         QDoubleSpinBox:hover {\n"
+"          border: 1px solid #1a8cff;\n"
+"         }\n"
+"         QDoubleSpinBox:focus {\n"
+"          border: 1px solid #005bb5;\n"
+"          background-color: #ffffff;\n"
+"         }\n"
+"         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {\n"
+"          width: 20px;\n"
+"          border-left: 1px solid #d3d3d3;\n"
+"          background-color: #f9f9f9;\n"
+"         }\n"
+"         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {\n"
+"          background-color: #0078d7;\n"
+"         }\n"
+"         QDoubleSpinBox::up-arrow {\n"
+"          width: 12px;\n"
+"          height: 12px;\n"
+"          image: url(:/icons/up_arrow_icon.svg);\n"
+""
+                        "         }\n"
+"         QDoubleSpinBox::down-arrow {\n"
+"          width: 12px;\n"
+"          height: 12px;\n"
+"          image: url(:/icons/down_arrow_icon.svg);\n"
+"         }\n"
+"        ")
+        self.intervalSpinBox.setMaximum(100000000000.000000000000000)
+        self.intervalSpinBox.setValue(0.000000000000000)
 
-        self.horizontalLayoutPresetButtons.addWidget(self.loadPresetButton)
+        self.horizontalLayoutInterval.addWidget(self.intervalSpinBox)
 
 
-        self.gridLayout_5.addLayout(self.horizontalLayoutPresetButtons, 5, 0, 1, 1)
+        self.gridLayout_5.addLayout(self.horizontalLayoutInterval, 0, 0, 1, 1)
+
+        self.verticalSpacer_2 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayout_5.addItem(self.verticalSpacer_2, 3, 0, 1, 1)
 
         self.tabWidget.addTab(self.tabPattern, "")
 
@@ -949,7 +956,7 @@ class Ui_GenerateObservationsDialog(object):
 "         }\n"
 "        ")
         self.numScansSpinBox.setMinimum(1)
-        self.numScansSpinBox.setMaximum(100)
+        self.numScansSpinBox.setMaximum(99999)
         self.numScansSpinBox.setValue(5)
 
         self.horizontalLayoutNumScans.addWidget(self.numScansSpinBox)
@@ -1121,15 +1128,15 @@ class Ui_GenerateObservationsDialog(object):
         self.frequencyClearButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Clear", None))
         self.frequencySelectAllButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Select All", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabBasic), QCoreApplication.translate("GenerateObservationsDialog", u"Basic Settings", None))
-        self.addOffSourceCheck.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Add Off-Source Scans", None))
+        self.savePresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Save Preset", None))
+        self.loadPresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Load Preset", None))
         self.randomizeOrderCheck.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Randomize Scan Order", None))
-        self.labelInterval.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Interval between Scans (s):", None))
+        self.addOffSourceCheck.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Add Off-Source Scans", None))
         self.labelPreset.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Preset:", None))
         self.presetCombo.setItemText(0, QCoreApplication.translate("GenerateObservationsDialog", u"Standard VLBI", None))
         self.presetCombo.setItemText(1, QCoreApplication.translate("GenerateObservationsDialog", u"Quick Single Dish", None))
 
-        self.savePresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Save Preset", None))
-        self.loadPresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Load Preset", None))
+        self.labelInterval.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Interval between Scans (s):", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabPattern), QCoreApplication.translate("GenerateObservationsDialog", u"Pattern Settings", None))
         self.labelObservationType.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Observation Type:", None))
         self.observationTypeCombo.setItemText(0, QCoreApplication.translate("GenerateObservationsDialog", u"VLBI", None))
