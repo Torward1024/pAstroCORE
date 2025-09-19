@@ -325,7 +325,7 @@ class ScheduleConfigurator(Super):
                 - pattern (dict): Pattern settings including:
                     - add_off_source (bool): Add off-source scans.
                     - randomize_order (bool): Randomize scan order.
-                    - interval_min (int): Interval between scans in minutes.
+                    - interval_sec (int): Interval between scans in minutes.
                     - naming_mask (str): Naming pattern for observation codes.
                 - progress_callback (Callable, optional): Callback to report progress (value, message).
 
@@ -344,7 +344,7 @@ class ScheduleConfigurator(Super):
             pattern = attributes.get("pattern", {})
             add_off_source = pattern.get("add_off_source", False)
             randomize_order = pattern.get("randomize_order", False)
-            interval_sec = pattern.get("interval_min", 5) * 60
+            interval_sec = pattern.get("interval_sec", 300)
             naming_mask = pattern.get("naming_mask", "OBS_{s}_{uuid}")
             progress_callback = attributes.get("progress_callback", None)
 
