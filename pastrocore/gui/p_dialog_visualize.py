@@ -84,7 +84,7 @@ class VisualizationDialog(QDialog):
                 logger.info(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
                 self.ui.comboBoxObservation.setEnabled(True)
             else:
-                logger.info("No observations found in project")
+                logger.debug("No observations found in project")
         else:
             logger.error(f"Failed to retrieve observations: {response.get('error', 'Unknown error')}")
             QMessageBox.critical(self, "Error", f"Failed to load observations: "
