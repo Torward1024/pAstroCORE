@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_generate_observationscUkcsG.ui'
+## Form generated from reading UI file 'dialog_generate_observationsHxWzNS.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
