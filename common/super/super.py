@@ -25,6 +25,9 @@ class Super(ABC):
         - Results are returned as dictionaries with keys: status (bool), object (str), method (str | None),
           result (Any), error (str | None, included only if status=False).
     """
+
+    OPERATION: Optional[str] = None # Default operation name for auto-registration
+
     def __init__(self, manipulator: 'Manipulator' = None, methods: Optional[Dict[Type, Dict[str, Callable]]] = None,
                  cache_size: int = 2048):
         """Initialize a Super instance with an optional Manipulator and method registry.
@@ -36,7 +39,7 @@ class Super(ABC):
         """
         self._manipulator = manipulator
         self._methods = methods or {}
-        self._method_cache = OrderedDict()  # Оставляем для совместимости, но не используем
+        self._method_cache = OrderedDict()
         self._cache_size = cache_size
 
     def _build_response(self, obj: Any, status: bool, method: str = None, result: Any = None,

@@ -57,9 +57,9 @@ class ScheduleManipulator(Manipulator):
         
         super().__init__(managing_object=project, base_classes=base_classes)
         
-        self.register_operation("configure", ScheduleConfigurator(self))
-        self.register_operation("inspect", ScheduleInspector(self))
-        self.register_operation("calculate", ScheduleCalculator(self))
-        self.register_operation("visualize", ScheduleVisualizer(self))
+        self.register_operation(ScheduleConfigurator(self))
+        self.register_operation(ScheduleInspector(self))
+        self.register_operation(ScheduleCalculator(self))
+        self.register_operation(ScheduleVisualizer(self))
         
         logger.info("Initialized ScheduleManipulator!")

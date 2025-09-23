@@ -30,6 +30,8 @@ class ScheduleVisualizer(Super):
     SPEED_OF_LIGHT: float = 299792458.0  # Speed of light in m/s
     EARTH_DIAMETER: float = 12742000.0   # Earth diameter in meters
 
+    OPERATION = "visualize"
+
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator)
         logger.info("Initialized Scheduling Visualizer")
