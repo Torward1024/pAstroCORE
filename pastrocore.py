@@ -719,17 +719,7 @@ class PAstroCoreMainWindow(QMainWindow):
             file_path += ".pastrod"
 
         try:
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_item": obs_name}
-            })
-            if not obs_response["status"] or not obs_response["result"]:
-                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
-                return
-
-            observation = obs_response["result"]
+            observation = self.manipulator.inspect(self.project, get_item=obs_name)
             with open(file_path, "w") as f:
                 json.dump(observation.to_dict(), f, indent=4)
             logger.info(f"Observation '{obs_code}' exported to '{file_path}'")
@@ -851,17 +841,12 @@ class PAstroCoreMainWindow(QMainWindow):
             self.open_project_info_tab()
         elif item_type == "observation":
             obs_code = text
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
-            })
-            obs_name = obs_response["result"].name
-            if obs_response["status"]:
-                self.open_observation_tab(obs_name, obs_code)
-            else:
-                logger.error(f"Failed to get observation with code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+            try:
+                obs_response = self.manipulator.inspect(self.project, get_observation_by_code=obs_code)
+                self.open_observation_tab(obs_response.name, obs_code)
+            except:
+                logger.error(f"Failed to get observation with code '{obs_code}'!")
+                QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}'!")
 
     def open_project_info_tab(self):
         """Open or switch to ProjectInfoTab."""
