@@ -381,7 +381,7 @@ class PAstroCoreMainWindow(QMainWindow):
             else:
                 logger.error(f"Observation '{obs_code}' not found in project after addition")
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found in project after addition")
-        except ValueError as e:
+        except Exception as e:
             logger.error(f"Failed to inspect observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to inspect observation: {str(e)}")
         
@@ -895,7 +895,7 @@ class PAstroCoreMainWindow(QMainWindow):
             else:
                 logger.error(f"Failed to open observation tab for code '{obs_code}': Observation not found")
                 QMessageBox.critical(self, "Error", f"Failed to open observation tab: Observation not found")
-        except ValueError as e:
+        except Exception as e:
             logger.error(f"Failed to open observation tab for code '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open observation tab: {str(e)}")
 
