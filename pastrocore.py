@@ -358,20 +358,24 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot(str, str)
     def handle_observation_added(self, obs_code: str, obs_type: str):
-        """Handle observation added signal."""
-        logger.info(f"Observation '{obs_code}' (type: {obs_type}) added")
-        
-        obs_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_observation_by_code": obs_code}
-        })
-        if obs_response["status"] and obs_response["result"]:
-            logger.debug(f"Observation '{obs_code}' found in project after addition")
-        else:
-            logger.error(f"Observation '{obs_code}' not found in project after addition: {obs_response.get('error', 'Unknown error')}")
-        self.project_updated.emit()
+        """Handle the observation added signal from AddObservationDialog.
 
+        Args:
+            obs_name (str): Code of the added observation.
+            obs_type (str): Type of added observation.
+        """
+        try:
+            observation = self.manipulator.inspect(self.project, get_observation_by_code=obs_code)
+            if observation is not None:
+                logger.debug(f"Observation '{obs_code}' found in project after addition")
+                self.project_updated.emit()
+            else:
+                logger.error(f"Observation '{obs_code}' not found in project after addition")
+                QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found in project after addition")
+        except ValueError as e:
+            logger.error(f"Failed to inspect observation '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to inspect observation: {str(e)}")
+        
     @Slot(str)
     def remove_observation(self, obs_name: str, obs_code: str):
         """Remove an observation from the project via ScheduleManipulator."""
@@ -920,24 +924,23 @@ class PAstroCoreMainWindow(QMainWindow):
                 widget.update_tab()
                 return
 
-        obs_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_item": obs_name}
-        })
-        if obs_response["status"]:
-            observation = obs_response["result"]
-            observation_tab = ObservationTab(observation, self.manipulator, self.catalog_manager, self)
-            observation_tab.setObjectName(f"observationTab_{obs_code}")
-            tab_container.addTab(observation_tab, f"Observation: {obs_code}")
-            tab_container.setCurrentWidget(observation_tab)
-            observation_tab.setFocus()
-            observation_tab.observation_updated.connect(self.handle_observationTab_observation_updated)
-            self.project_updated.connect(observation_tab.update_tab)
-            logger.debug(f"Opened observation tab for code '{obs_code}'")
-        else:
-            logger.error(f"Failed to open observation tab for code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to open observation tab: {obs_response.get('error', 'Unknown error')}")
+        try:
+            observation = self.manipulator.inspect(self.project, get_item=obs_name)
+            if observation is not None:
+                observation_tab = ObservationTab(observation, self.manipulator, self.catalog_manager, self)
+                observation_tab.setObjectName(f"observationTab_{obs_code}")
+                tab_container.addTab(observation_tab, f"Observation: {obs_code}")
+                tab_container.setCurrentWidget(observation_tab)
+                observation_tab.setFocus()
+                observation_tab.observation_updated.connect(self.handle_observationTab_observation_updated)
+                self.project_updated.connect(observation_tab.update_tab)
+                logger.debug(f"Opened observation tab for code '{obs_code}'")
+            else:
+                logger.error(f"Failed to open observation tab for code '{obs_code}': Observation not found")
+                QMessageBox.critical(self, "Error", "Observation not found")
+        except ValueError as e:
+            logger.error(f"Failed to open observation tab for code '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to open observation tab: {str(e)}")
 
     @Slot()
     def handle_observationTab_observation_updated(self):

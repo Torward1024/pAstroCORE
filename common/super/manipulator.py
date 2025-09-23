@@ -204,12 +204,10 @@ class Manipulator(ABC):
             result = self.process_request(request)
             if not result["status"]:
                 raise ValueError(result.get("error", "Unknown error"))
-            return result["result"]
+            return result['result']
 
-        # Set docstring on the function before binding
         facade_wrapper.__doc__ = facade_wrapper.__doc__.format(operation=operation)
         
-        # Bind as method
         bound_method = types.MethodType(facade_wrapper, self)
         setattr(self, operation, bound_method)
         logger.debug(f"Added facade method '{operation}' to Manipulator with docstring: {bound_method.__doc__}")
