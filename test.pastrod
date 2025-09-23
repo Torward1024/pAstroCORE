@@ -1,0 +1,32 @@
+{
+    "name": "obs_c525a67a8a3f46eca3398e4757d5aa82",
+    "isactive": true,
+    "type": "Observation",
+    "code": "OBS_DEFAULT",
+    "observation_type": "VLBI",
+    "sources": {
+        "name": "srcs_62cf2b274f1f42119defbbbbebdd9258",
+        "isactive": true,
+        "type": "Sources",
+        "items": {}
+    },
+    "telescopes": {
+        "name": "tlscs_8939eb96f0d84a32875ea13a6b10f711",
+        "isactive": true,
+        "type": "Telescopes",
+        "items": {}
+    },
+    "frequencies": {
+        "name": "fqs_d097acefb6fb45b1a6b009d99890e405",
+        "isactive": true,
+        "type": "Frequencies",
+        "items": {}
+    },
+    "scans": {
+        "name": "scans_7e0a562417b14d908d1fdcd503399144",
+        "isactive": true,
+        "type": "Scans",
+        "items": {}
+    },
+    "calculated_data": {}
+}

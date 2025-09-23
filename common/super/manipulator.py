@@ -184,30 +184,32 @@ class Manipulator(ABC):
     
     def _add_facade(self, operation: str) -> None:
         """Dynamically add a facade method for the given operation."""
-        def facade_wrapper(self, obj: Optional[Any] = None, method: Optional[str] = None, **attributes) -> Any:
+        def facade_wrapper(self, obj: Optional[Any] = None, method: Optional[str] = None, raise_on_error: bool = True, **attributes) -> Any:
             """Facade for {operation}.
 
             Args:
                 obj (Optional[Any]): The object to operate on. Defaults to managing_object.
                 method (Optional[str]): Specific method to call.
+                raise_on_error (bool): If True, raise ValueError on error; if False, return dict with status/result/error.
                 **attributes: Additional attributes as kwargs.
 
             Returns:
-                Any: The result of the operation.
+                Any: If raise_on_error=True, returns the result or raises ValueError. If False, returns dict {'status': bool, 'result': Any, 'error': str}.
 
             Raises:
-                ValueError: If the operation fails.
+                ValueError: If raise_on_error=True and operation fails.
             """
             request = {"operation": operation, "obj": obj, "attributes": attributes}
             if method:
                 request["method"] = method
             result = self.process_request(request)
+            if not raise_on_error:
+                return result
             if not result["status"]:
                 raise ValueError(result.get("error", "Unknown error"))
-            return result['result']
+            return result["result"]
 
         facade_wrapper.__doc__ = facade_wrapper.__doc__.format(operation=operation)
-        
         bound_method = types.MethodType(facade_wrapper, self)
         setattr(self, operation, bound_method)
         logger.debug(f"Added facade method '{operation}' to Manipulator with docstring: {bound_method.__doc__}")
