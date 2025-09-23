@@ -366,12 +366,12 @@ class PAstroCoreMainWindow(QMainWindow):
         dialog.exec()
 
     @Slot(str, str)
-    def handle_observation_added(self, obs_code: str, obs_type: str):
+    def handle_observation_added(self, obs_name: str, obs_code: str):
         """Handle the observation added signal from AddObservationDialog.
 
         Args:
-            obs_name (str): Code of the added observation.
-            obs_type (str): Type of added observation.
+            obs_name (str): Name of the added observation.
+            obs_code (str): Code of the added observation.
         """
         try:
             observation = self.manipulator.inspect(self.project, get_observation_by_code=obs_code)
@@ -471,11 +471,7 @@ class PAstroCoreMainWindow(QMainWindow):
         observations_item.setData("observations", Qt.UserRole)
         project_item.appendRow(observations_item)
 
-        observations_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_items": None}
-        })
+        observations_response = self.manipulator.inspect(self.project, get_items=None, raise_on_error=False)
         if observations_response["status"]:
             result = observations_response["result"]
             if isinstance(result, dict):
@@ -898,7 +894,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug(f"Opened observation tab for code '{obs_code}'")
             else:
                 logger.error(f"Failed to open observation tab for code '{obs_code}': Observation not found")
-                QMessageBox.critical(self, "Error", "Observation not found")
+                QMessageBox.critical(self, "Error", f"Failed to open observation tab: Observation not found")
         except ValueError as e:
             logger.error(f"Failed to open observation tab for code '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open observation tab: {str(e)}")
