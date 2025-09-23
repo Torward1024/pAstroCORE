@@ -432,20 +432,8 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.ui.tabContainer.removeTab(i)
 
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {
-                    "clear": None
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All observations were removed from project '{self.project.get_name()}'")
-                self.project_updated.emit()
-            else:
-                logger.error(f"Failed to remove observations: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to remove observations: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.project, clear=None)
+            self.project_updated.emit()
         except Exception as e:
             logger.error(f"Exception while removing observations: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove observations: {str(e)}")
@@ -467,13 +455,13 @@ class PAstroCoreMainWindow(QMainWindow):
         model.setHorizontalHeaderLabels(["Project Explorer"])
         root = model.invisibleRootItem()
 
-        project_name_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_name": None}
-        })
-        project_name = project_name_response["result"] if project_name_response["status"] else "Untitled Project"
-        logger.debug(f"Updating project explorer: project id={id(self.project)}, name={project_name}")
+        try:
+            project_name_response = self.manipulator.inspect(self.project, get_name=None)
+            project_name = project_name_response
+            logger.debug(f"Updating project explorer: project id={id(self.project)}, name={project_name}")
+        except:
+            project_name = "Untitled Project"
+            logger.debug(f"Updating project explorer: project id={id(self.project)}, name={project_name}")
 
         project_item = QStandardItem(f"Project: {project_name}")
         project_item.setData("project", Qt.UserRole)
