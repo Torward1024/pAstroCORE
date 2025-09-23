@@ -72,6 +72,8 @@ class ScheduleCalculator(Super):
         >>> print(result)
         {'0': {'uv_points': {...}}}
     """
+    OPERATION = "calculate"
+    
     def __init__(self, manipulator: 'Manipulator'):
         """Initialize the ScheduleCalculator.
 

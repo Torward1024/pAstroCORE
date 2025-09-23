@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional, Callable, List, Type
 from common.utils.logging_setup import logger
 from functools import lru_cache
 import inspect
+import types
 
 class Manipulator(ABC):
     """Abstract class for managing and processing operations on objects.
@@ -48,8 +49,12 @@ class Manipulator(ABC):
         if managing_object is not None and type(managing_object) not in self._base_classes:
             self._base_classes.append(type(managing_object))
         self._operations = operations or {}
+        if self._operations:
+            for op_name, super_inst in list(self._operations.items()):
+                self.register_operation(super_inst, operation=op_name)
         self._registry = self._get_method_registry()
         logger.info(f"Initialized Manipulator with {len(self._operations)} initial operations")
+        self._create_facades()
 
     def set_managing_object(self, obj: Any) -> None:
         """Set the central managing object.
@@ -126,22 +131,37 @@ class Manipulator(ABC):
         self._registry = self._get_method_registry()
         logger.info(f"Registry updated with {len(self._registry)} types")
 
-    def register_operation(self, operation: str, super_instance: Callable) -> None:
+    def register_operation(self, super_instance: Callable, operation: Optional[str] = None) -> None:
         """Register an operation with its super-instance handler.
 
+        If operation is not provided, it is taken from super_instance.OPERATION if available.
+
         Args:
-            operation (str): The name of the operation.
             super_instance (Callable): The super-instance with an 'execute' method.
+            operation (Optional[str]): The name of the operation. Defaults to None (auto from super_instance.OPERATION).
 
         Raises:
-            ValueError: If the operation name is invalid or the super-instance lacks an 'execute' method.
+            ValueError: If the operation name is invalid, duplicate, or the super-instance lacks an 'execute' method.
         """
+        if not hasattr(super_instance, "execute"):
+            logger.error(f"Super-instance must have 'execute' method")
+            raise ValueError(f"Super-instance must have 'execute' method")
+
+        if operation is None:
+            if hasattr(super_instance, 'OPERATION') and super_instance.OPERATION:
+                operation = super_instance.OPERATION
+            else:
+                logger.error("No operation name provided and no OPERATION attribute in super_instance")
+                raise ValueError("Operation name required or set OPERATION in super_instance")
+
         if not isinstance(operation, str) or not operation:
             logger.error("Operation name must be a non-empty string")
             raise ValueError("Operation name must be a non-empty string")
-        if not hasattr(super_instance, "execute"):
-            logger.error(f"Super-instance for '{operation}' must have 'execute' method")
-            raise ValueError(f"Super-instance for '{operation}' must have 'execute' method")
+
+        if operation in self._operations:
+            logger.error(f"Operation '{operation}' already registered")
+            raise ValueError(f"Operation '{operation}' already registered")
+
         super_instance._operation = operation
         self._operations[operation] = super_instance
 
@@ -154,6 +174,45 @@ class Manipulator(ABC):
             self._registry[super_type] = methods
             logger.debug(f"Registered {len(methods)} methods for {super_type.__name__}")
         logger.info(f"Registered operation '{operation}' with {type(super_instance).__name__}")
+
+        self._add_facade(operation)
+    
+    def _create_facades(self) -> None:
+        """Create facade methods for all registered operations."""
+        for op in self._operations:
+            self._add_facade(op)
+    
+    def _add_facade(self, operation: str) -> None:
+        """Dynamically add a facade method for the given operation."""
+        def facade_wrapper(self, obj: Optional[Any] = None, method: Optional[str] = None, **attributes) -> Any:
+            """Facade for {operation}.
+
+            Args:
+                obj (Optional[Any]): The object to operate on. Defaults to managing_object.
+                method (Optional[str]): Specific method to call.
+                **attributes: Additional attributes as kwargs.
+
+            Returns:
+                Any: The result of the operation.
+
+            Raises:
+                ValueError: If the operation fails.
+            """
+            request = {"operation": operation, "obj": obj, "attributes": attributes}
+            if method:
+                request["method"] = method
+            result = self.process_request(request)
+            if not result["status"]:
+                raise ValueError(result.get("error", "Unknown error"))
+            return result["result"]
+
+        # Set docstring on the function before binding
+        facade_wrapper.__doc__ = facade_wrapper.__doc__.format(operation=operation)
+        
+        # Bind as method
+        bound_method = types.MethodType(facade_wrapper, self)
+        setattr(self, operation, bound_method)
+        logger.debug(f"Added facade method '{operation}' to Manipulator with docstring: {bound_method.__doc__}")
 
     @lru_cache(maxsize=2048)
     def _get_method_registry(self, validate_annotations: bool = False) -> Dict[Type, Dict[str, Callable]]:

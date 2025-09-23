@@ -36,6 +36,8 @@ class ScheduleInspector(Super):
         >>> result = inspector.execute(project, {"name": "OBS001", "get": "code"})
         {'status': True, 'object': <Observation>, 'method': '_inspect_observation', 'result': 'OBS001'}
     """
+    OPERATION = "inspect"
+
     def __init__(self, manipulator: 'Manipulator'):
         """Initialize the ScheduleInspector.
 
@@ -43,7 +45,6 @@ class ScheduleInspector(Super):
             manipulator: The Manipulator instance providing method validation and execution capabilities.
         """
         super().__init__(manipulator=manipulator)
-        self._operation = "inspect"
         logger.info("Initialized ScheduleInspector")
 
     def _inspect_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:

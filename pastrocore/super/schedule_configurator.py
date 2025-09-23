@@ -25,9 +25,10 @@ class ScheduleConfigurator(Super):
     Returns:
         Dict[str, Any]: A dictionary with results of the configuration operation, managed by Super.execute.
     """
+    OPERATION = "configure"
+
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator=manipulator)
-        self._operation = "configure"
         logger.info("Initialized ScheduleConfigurator")
 
     def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:
