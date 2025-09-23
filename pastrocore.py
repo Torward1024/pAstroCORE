@@ -319,6 +319,10 @@ class PAstroCoreMainWindow(QMainWindow):
         item_type = item.data(Qt.UserRole)
         text = item.text()
         menu = QMenu(self)
+        add_action = None
+        add_obs_action = None
+        remove_action = None
+        edit_action = None
 
         if item_type == "project":
             menu.addAction(QIcon(":/icons/remove_project_icon.svg"), "New Project")
@@ -333,8 +337,9 @@ class PAstroCoreMainWindow(QMainWindow):
             if item_type == "observation":
                 obs_name = item.data(Qt.UserRole + 1)
                 obs_code = text
-                remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
                 edit_action = menu.addAction(QIcon(":/icons/edit_observation_icon.svg"), "Edit Observation")
+                menu.addSeparator()
+                remove_action = menu.addAction(QIcon(":/icons/remove_observation_icon.svg"), "Remove Observation")
                 remove_action.triggered.connect(lambda: self.remove_observation(obs_name, obs_code))
                 edit_action.triggered.connect(lambda: self.edit_observation(obs_name, obs_code))
             else:
@@ -344,9 +349,13 @@ class PAstroCoreMainWindow(QMainWindow):
         else:
             return
 
-        add_action.triggered.connect(self.add_observation)
-        add_obs_action.triggered.connect(lambda: self.handle_generate_observations())
-        remove_action.triggered.connect(lambda: self.remove_observations())
+        if add_action:
+            add_action.triggered.connect(self.add_observation)
+        if add_obs_action:
+            add_obs_action.triggered.connect(self.handle_generate_observations)
+        if remove_action and item_type in ["project", "observations"]:
+            remove_action.triggered.connect(self.remove_observations)
+
         menu.exec(project_explorer.viewport().mapToGlobal(position))
 
     @Slot()
@@ -398,30 +407,8 @@ class PAstroCoreMainWindow(QMainWindow):
                 break
 
         try:
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_item": obs_name}
-            })
-            if not obs_response["status"]:
-                logger.error(f"Failed to find observation with code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
-                return
-
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {
-                    "remove_item": obs_name
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation with code '{obs_code}' and name '{obs_name}' removed from project '{self.project.get_name()}'")
-                self.project_updated.emit()
-            else:
-                logger.error(f"Failed to remove observation '{obs_code}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to remove observation: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.project, remove_item=obs_name)
+            self.project_updated.emit()
         except Exception as e:
             logger.error(f"Exception while removing observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove observation: {str(e)}")
