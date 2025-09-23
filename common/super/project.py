@@ -83,7 +83,7 @@ class Project(ABC):
     def get_item(self, name: str) -> BaseEntity:
         """Retrieve an item from the project by its name."""
         item = self._items.get(name)
-        logger.info(f"Retrieved item '{name}' from project '{self.name}'")
+        logger.debug(f"Retrieved item '{name}' from project '{self.name}'")
         return item
 
     def get_items(self) -> Dict[str, BaseEntity]:
@@ -92,7 +92,7 @@ class Project(ABC):
 
     def get_name(self) -> str:
         """Retrieve the project's name."""
-        logger.info(f"Retrieved name '{self.name}' for project")
+        logger.debug(f"Retrieved name '{self.name}' for project")
         return self.name
 
     def set_name(self, name: str) -> None:

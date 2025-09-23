@@ -115,7 +115,7 @@ class ScheduleCalculator(Super):
         existing_data = obj.get_calculated_data_by_key(store_key)
         if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
             if existing_data["data"]:
-                logger.info(f"Retrieved cached data for '{store_key}' in '{obj_name}'")
+                logger.debug(f"Retrieved cached data for '{store_key}' in '{obj_name}'")
                 return existing_data["data"]
             logger.warning(f"Cached data for '{store_key}' in '{obj_name}' is empty; recalculating")
 

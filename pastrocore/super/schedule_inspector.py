@@ -90,7 +90,7 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for IF inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected IF: frequency={if_obj.get('frequency')} MHz, result={final_result}")
+        logger.debug(f"Inspected IF: frequency={if_obj.get('frequency')} MHz, result={final_result}")
         return final_result
 
     def _inspect_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> Any:
@@ -117,7 +117,7 @@ class ScheduleInspector(Super):
                 freq_obj, attributes, "name", lambda k: freq_obj.get(k), self._inspect_if
             )
             if result["status"]:
-                logger.info(f"Inspected nested IF in Frequencies: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested IF in Frequencies: name={name}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to inspect nested IF in Frequencies: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
@@ -151,7 +151,7 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Frequencies inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected Frequencies: name={freq_obj.name}, result={final_result}")
+        logger.debug(f"Inspected Frequencies: name={freq_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_source(self, source_obj: Source, attributes: Dict[str, Any]) -> Any:
@@ -186,7 +186,7 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Source inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected Source: name='{source_obj.name}', result={final_result}")
+        logger.debug(f"Inspected Source: name='{source_obj.name}', result={final_result}")
         return final_result
 
     def _inspect_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> Any:
@@ -213,7 +213,7 @@ class ScheduleInspector(Super):
                 sources_obj, attributes, "name", lambda k: sources_obj.get(k), self._inspect_source
             )
             if result["status"]:
-                logger.info(f"Inspected nested Source in Sources: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested Source in Sources: name={name}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to inspect nested Source in Sources: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
@@ -247,7 +247,7 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Sources inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected Sources: name={sources_obj.name}, result={final_result}")
+        logger.debug(f"Inspected Sources: name={sources_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_telescope(self, telescope_obj: Telescope, attributes: Dict[str, Any]) -> str:
@@ -283,7 +283,7 @@ class ScheduleInspector(Super):
             logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
+        logger.debug(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
         return final_result
     
     def _inspect_spacetelescope(self, telescope_obj: SpaceTelescope, attributes: Dict[str, Any]) -> str:
@@ -319,7 +319,7 @@ class ScheduleInspector(Super):
             logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
+        logger.debug(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
         return final_result
 
     def _inspect_telescopes(self, telescopes_obj: Telescopes, attributes: Dict[str, Any]) -> Any:
@@ -346,7 +346,7 @@ class ScheduleInspector(Super):
                 telescopes_obj, attributes, "name", lambda k: telescopes_obj.get(k), self._inspect_telescope
             )
             if result["status"]:
-                logger.info(f"Inspected nested Telescope in Telescopes: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested Telescope in Telescopes: name={name}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to inspect nested Telescope in Telescopes: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
@@ -380,7 +380,7 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Telescopes inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected Telescopes: name={telescopes_obj.name}, result={final_result}")
+        logger.debug(f"Inspected Telescopes: name={telescopes_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> Any:
@@ -431,7 +431,7 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Scan inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected Scan: start={scan_obj.get('start').isot}, result={final_result}")
+        logger.debug(f"Inspected Scan: start={scan_obj.get('start').isot}, result={final_result}")
         return final_result
 
     def _inspect_scans(self, scans_obj: Scans, attributes: Dict[str, Any]) -> Any:
@@ -461,7 +461,7 @@ class ScheduleInspector(Super):
                 scans_obj, attributes, "name", lambda k: scans_obj.get(k), self._inspect_scan
             )
             if result["status"]:
-                logger.info(f"Inspected nested Scan in Scans: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested Scan in Scans: name={name}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to inspect nested Scan in Scans: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
@@ -499,7 +499,7 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Scans inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected Scans: name={scans_obj.name}, result={final_result}")
+        logger.debug(f"Inspected Scans: name={scans_obj.name}, result={final_result}")
         return final_result
 
     def _inspect_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> str:
@@ -534,7 +534,6 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for Observation inspection")
             raise ValueError("No valid getters applied")
         
-        logger.info(f"Inspected Observation: code='{obs_obj.get_observation_code()}'")
         logger.debug(f"Inspected Observation: code='{obs_obj.get_observation_code()}', result={final_result}")
         return final_result
 
@@ -562,7 +561,7 @@ class ScheduleInspector(Super):
                 project_obj, attributes, "name", lambda k: project_obj.get_observation(k), self._inspect_observation
             )
             if result["status"]:
-                logger.info(f"Inspected nested Observation in ScheduleProject: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested Observation in ScheduleProject: name={name}, result={result['result']}")
                 return result["result"]
             logger.warning(f"Failed to inspect nested Observation in ScheduleProject: name={name}")
             raise ValueError(result.get("error", "Operation not executed"))
@@ -596,5 +595,5 @@ class ScheduleInspector(Super):
             logger.warning("No valid getters applied for ScheduleProject inspection")
             raise ValueError("No valid getters applied")
 
-        logger.info(f"Inspected ScheduleProject: name='{project_obj.get_name()}', result={final_result}")
+        logger.debug(f"Inspected ScheduleProject: name='{project_obj.get_name()}', result={final_result}")
         return final_result

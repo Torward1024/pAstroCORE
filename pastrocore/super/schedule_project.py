@@ -104,7 +104,7 @@ class ScheduleProject(Project):
             KeyError: If the observation name is not found.
         """
         observation = self.get_item(name)
-        logger.info(f"Retrieved observation '{name}' from project '{self.name}'")
+        logger.debug(f"Retrieved observation '{name}' from project '{self.name}'")
         return observation
     
     def get_observation_by_code(self, code: str) -> Observation:
@@ -122,9 +122,9 @@ class ScheduleProject(Project):
         check_non_empty_string(code, "Observation code")
         for name, observation in self._items.get_all().items():
             if observation.get_observation_code() == code:
-                logger.info(f"Retrieved observation with code='{code}' from project '{self.name}'")
+                logger.debug(f"Retrieved observation with code='{code}' from project '{self.name}'")
                 return observation
-        logger.info(f"There is no Observation with code='{code}' in project '{self.name}'")
+        logger.warning(f"There is no Observation with code='{code}' in project '{self.name}'")
 
     def set_project(self, name: str, items: Dict[str, Observation]) -> None:
         """Set the entire project configuration, replacing name and observations.
@@ -150,7 +150,7 @@ class ScheduleProject(Project):
         """
         result = super().get_project()
         result["observations"] = [obs.to_dict() for obs in self._items.get_items()]
-        logger.info(f"Retrieved project configuration for '{self.name}' with {len(self._items)} observations")
+        logger.debug(f"Retrieved project configuration for '{self.name}' with {len(self._items)} observations")
         return result
     
     def clear_calculated_data(self):
@@ -166,7 +166,7 @@ class ScheduleProject(Project):
             Dict[str, Any]: A dictionary with the project name and observations.
         """
         result = super().to_dict()
-        logger.info(f"Serialized ScheduleProject '{self.name}' with {len(self._items)} observations")
+        logger.debug(f"Serialized ScheduleProject '{self.name}' with {len(self._items)} observations")
         return result
 
     @classmethod
@@ -227,12 +227,9 @@ class ScheduleProject(Project):
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
                 indent = None if compact else 4
-                # Start JSON object
                 f.write('{' if compact else '{\n')
-                # Write project name
                 name_line = f'"name": "{json.dumps(self.name)[1:-1]}"' if compact else f'  "name": "{json.dumps(self.name)[1:-1]}",\n'
                 f.write(name_line)
-                # Write items
                 items_line = ',' if compact else ',\n'
                 f.write('"items": {' if compact else '  "items": {\n')
                 items = self._items.get_all().items()
@@ -248,7 +245,7 @@ class ScheduleProject(Project):
                         f.write('' if compact else '\n')
                 f.write('}' if compact else '  }\n')
                 f.write('}' if compact else '}\n')
-            logger.info(f"Serialized ScheduleProject '{self.name}' to file '{file_path}' with {len(self._items)} observations (compact={compact})")
+            logger.info(f"Saved ScheduleProject '{self.name}' to file '{file_path}' with {len(self._items)} observations (compact={compact})")
         except IOError as e:
             logger.error(f"Failed to write ScheduleProject to file '{file_path}': {str(e)}")
             raise IOError(f"Error writing to file '{file_path}': {str(e)}") from e
@@ -288,7 +285,7 @@ class ScheduleProject(Project):
                 raise ValueError("No 'items' key found in JSON data")
             
             project = cls(name=name, items=items)
-            logger.info(f"Deserialized ScheduleProject '{name}' from file '{file_path}' with {len(items)} observations")
+            logger.info(f"Loaded ScheduleProject '{name}' from file '{file_path}' with {len(items)} observations")
             return project
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON from file '{file_path}': {str(e)}")

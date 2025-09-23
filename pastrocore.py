@@ -632,6 +632,7 @@ class PAstroCoreMainWindow(QMainWindow):
             imported_observation = Observation.from_dict(data)
             if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in ["VLBI", "SINGLE_DISH"]:
                 imported_observation.observation_type = "VLBI"
+            
             obs_response = self.manipulator.process_request({
                 "operation": "inspect",
                 "obj": self.project,
