@@ -245,7 +245,6 @@ class PAstroCoreMainWindow(QMainWindow):
             dialog = CalculationDialog(self.manipulator, time_step=self.settings.get("time_step", 600), parent=self)
             dialog.time_step_updated.connect(self.handle_time_step_updated)
             dialog.exec()
-            logger.info("Calculation dialog opened and closed")
         except Exception as e:
             logger.error(f"Failed to open calculation dialog: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
@@ -256,7 +255,6 @@ class PAstroCoreMainWindow(QMainWindow):
         try:
             dialog = VisualizationDialog(self.manipulator, parent=self)
             dialog.exec()
-            logger.info("Visualization dialog opened and closed")
         except Exception as e:
             logger.error(f"Failed to open visualization dialog: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to open visualization dialog: {str(e)}")
@@ -300,7 +298,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Handle time_step updated signal from CalculationDialog."""
         self.settings["time_step"] = time_step
         self.save_settings(self.settings)
-        logger.info(f"time_step updated to {time_step} and saved to settings")
+        logger.debug(f"time_step updated to {time_step} and saved to settings")
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for Project Explorer."""
@@ -376,10 +374,9 @@ class PAstroCoreMainWindow(QMainWindow):
         Raises:
             Exception: If the observation cannot be retrieved from the project.
         """
-        logger.info(f"Observation '{obs_code}' (type: {obs_type}) added")
         
         try:
-            observation = self.manipulator.inspect(
+            self.manipulator.inspect(
                 obj=self.project,
                 method="get_observation_by_code",
                 get_observation_by_code=obs_code
@@ -795,9 +792,9 @@ class PAstroCoreMainWindow(QMainWindow):
                 QMessageBox.warning(self, "Warning", f"Failed to reload telescopes catalog: {str(e)}")
 
         if changed_keys:
-            logger.info(f"Settings updated: {', '.join(changed_keys)}")
+            logger.debug(f"Settings updated: {', '.join(changed_keys)}")
         else:
-            logger.info("No settings changes detected")
+            logger.debug("No settings changes detected")
 
     @Slot()
     def open_telescope_catalog_manager(self):
@@ -816,7 +813,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
         dialog = TelescopesCatalogDialog(self.catalog_manager, self)
         dialog.exec()
-        logger.info("Telescopes catalog browser dialog opened")
+        logger.debug("Telescopes catalog browser dialog opened")
 
     @Slot()
     def open_source_catalog_manager(self):
@@ -835,7 +832,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
         dialog = SourcesCatalogDialog(self.catalog_manager, self)
         dialog.exec()
-        logger.info("Sources catalog browser dialog opened")
+        logger.debug("Sources catalog browser dialog opened")
 
     @Slot()
     def show_about(self):
@@ -940,7 +937,7 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def handle_observationTab_observation_updated(self):
         """Handle observation update signal."""
-        logger.info("Observation updated")
+        logger.debug("Observation updated")
         self.project_updated.emit()
 
     @Slot()
@@ -950,7 +947,7 @@ class PAstroCoreMainWindow(QMainWindow):
             widget = self.ui.tabContainer.widget(i)
             if hasattr(widget, 'update_tab'):
                 widget.update_tab()
-        logger.info("All tabs updated")
+        logger.debug("All tabs updated")
     
     @Slot(bool)
     def sync_project_explorer_action(self, visible: bool):

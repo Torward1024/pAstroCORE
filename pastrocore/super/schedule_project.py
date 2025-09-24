@@ -123,7 +123,7 @@ class ScheduleProject(Project):
             if observation.get_observation_code() == code:
                 logger.debug(f"Retrieved observation with code='{code}' from project '{self.name}'")
                 return observation
-        logger.warning(f"There is no Observation with code='{code}' in project '{self.name}'")
+        logger.debug(f"No Observation found with code='{code}' in project '{self.name}'")
 
     def set_project(self, name: str, items: Dict[str, Observation]) -> None:
         """Set the entire project configuration, replacing name and observations.

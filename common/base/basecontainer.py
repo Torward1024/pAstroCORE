@@ -135,7 +135,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         generic_base = self.__orig_bases__[0]
         item_type = self._resolve_type(generic_base.__args__[0])
 
-        # Handle single item
         if isinstance(item, item_type):
             item_to_add = deepcopy(item) if copy_items else item
             if item_to_add.name is None:
@@ -146,7 +145,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             self._items[item_to_add.name] = item_to_add
             logger.debug(f"Added item with name '{item_to_add.name}' to {self.__class__.__name__}")
 
-        # Handle list of items
         elif isinstance(item, list):
             for i, single_item in enumerate(item):
                 item_to_add = deepcopy(single_item) if copy_items else single_item
@@ -160,7 +158,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 self._items[item_to_add.name] = item_to_add
                 logger.debug(f"Added item with name '{item_to_add.name}' to {self.__class__.__name__}")
 
-        # Handle BaseContainer
         elif isinstance(item, BaseContainer):
             other_generic_base = item.__orig_bases__[0]
             other_item_type = item._resolve_type(other_generic_base.__args__[0])

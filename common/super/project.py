@@ -47,7 +47,7 @@ class Project(ABC):
         if self._items.has_item(item.name):
             raise ValueError(f"Item with name '{item.name}' already exists in project '{self.name}'")
         self._items.add(item)
-        logger.info(f"Added item '{item.name}' to project '{self.name}'")
+        logger.debug(f"Added item '{item.name}' to project '{self.name}'")
 
     @abstractmethod
     def create_item(self, item_code: str = "ITEM_DEFAULT", isactive: bool = True) -> None:
