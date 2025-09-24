@@ -132,14 +132,10 @@ class ExportThread(QThread):
                                     "frequencies": frequencies if key in ["uv_coverage", "baseline_projections"] else [],
                                     "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
                                 }
-                                request = {
-                                    "operation": "visualize",
-                                    "attributes": attributes,
-                                    "obj": target
-                                }
-                                result = self.manipulator.process_request(request)
-                                if not result.get("status", False):
-                                    raise ValueError(f"Visualization export failed for {calc_type} in {obs_code} for source {source_name}: {result.get('message')}")
+                                try:
+                                    self.manipulator.visualize(obj=target, **attributes)
+                                except Exception as e:
+                                    raise ValueError(f"Visualization export failed for {calc_type} in {obs_code} for source {source_name}: {str(e)}")
                         else:
                             if calc_type == "Beam Pattern":
                                 file_prefix = "Beam_Pattern"
@@ -158,14 +154,10 @@ class ExportThread(QThread):
                                 "sources": sources if key == "mollweide_tracks" else [],
                                 "freq_names": frequencies if key == "beam_pattern" else []
                             }
-                            request = {
-                                "operation": "visualize",
-                                "attributes": attributes,
-                                "obj": target
-                            }
-                            result = self.manipulator.process_request(request)
-                            if not result.get("status", False):
-                                raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {result.get('message')}")
+                            try:
+                                self.manipulator.visualize(obj=target, **attributes)
+                            except Exception as e:
+                                raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
                         current_step += 1
                         self.progress.emit(int(current_step / total_steps * 100), f"Exported vis for {calc_type} in {obs_code}")
 
@@ -431,20 +423,18 @@ class ExportCalculatedDataDialog(QDialog):
 
     def populate_targets(self):
         """Populate the target list with project observations."""
-        observations_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_items": None}
-        })
-        self.ui.targetList.clear()
-        if observations_response["status"]:
-            for _, obs in observations_response["result"].items():
+        try:
+            observations = self.manipulator.inspect(obj=self.project, get_items=None)
+            self.ui.targetList.clear()
+            for _, obs in observations.items():
                 item = QListWidgetItem(obs.code)
                 item.setData(Qt.UserRole, obs)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(Qt.Checked)
                 self.ui.targetList.addItem(item)
             logger.debug(f"Populated {self.ui.targetList.count()} observations")
+        except Exception as e:
+            logger.error(f"Failed to retrieve observations: {str(e)}")
 
     def select_all_calcs(self):
         """Select all calculations in the list."""
