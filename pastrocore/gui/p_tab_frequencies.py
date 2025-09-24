@@ -421,19 +421,10 @@ class FrequenciesTab(QWidget):
     def activate_all_frequencies(self):
         """Activate all frequencies in the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"activate_all": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All frequencies activated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "activate_all")
-            else:
-                logger.error(f"Failed to activate all frequencies: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate all frequencies: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_frequencies(), activate_all=None)
+            self.update()
+            self.data_updated.emit(None, None, "activate_all")
+            logger.info(f"All frequencies activated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while activating all frequencies: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate all frequencies: {str(e)}")
@@ -442,19 +433,10 @@ class FrequenciesTab(QWidget):
     def deactivate_all_frequencies(self):
         """Deactivate all frequencies in the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"deactivate_all": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All frequencies deactivated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "deactivate_all")
-            else:
-                logger.error(f"Failed to deactivate all frequencies: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate all frequencies: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_frequencies(), deactivate_all=None)
+            self.update()
+            self.data_updated.emit(None, None, "deactivate_all")
+            logger.info(f"All frequencies deactivated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while deactivating all frequencies: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate all frequencies: {str(e)}")
@@ -463,19 +445,10 @@ class FrequenciesTab(QWidget):
     def drop_active_frequencies(self):
         """Remove all active frequencies from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"drop_active": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All active frequencies dropped from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "drop_active")
-            else:
-                logger.error(f"Failed to drop active frequencies: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to drop active frequencies: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_frequencies(), drop_active=None)
+            self.update()
+            self.data_updated.emit(None, None, "drop_active")
+            logger.info(f"All active frequencies dropped from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while dropping active frequencies: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to drop active frequencies: {str(e)}")
@@ -484,19 +457,10 @@ class FrequenciesTab(QWidget):
     def drop_inactive_frequencies(self):
         """Remove all inactive frequencies from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"drop_inactive": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All inactive frequencies dropped from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "drop_inactive")
-            else:
-                logger.error(f"Failed to drop inactive frequencies: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to drop inactive frequencies: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_frequencies(), drop_inactive=None)
+            self.update()
+            self.data_updated.emit(None, None, "drop_inactive")
+            logger.info(f"All inactive frequencies dropped from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while dropping inactive frequencies: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to drop inactive frequencies: {str(e)}")
@@ -505,19 +469,10 @@ class FrequenciesTab(QWidget):
     def clear_frequencies(self):
         """Clear all frequencies from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"clear": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All frequencies cleared from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "clear")
-            else:
-                logger.error(f"Failed to clear frequencies: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to clear frequencies: {response.get('error', 'Unknown error')}")
+            self.manipulator.process_request(self.observation.get_frequencies(), clear=None)
+            self.update()
+            self.data_updated.emit(None, None, "clear")
+            logger.info(f"All frequencies cleared from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while clearing frequencies: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to clear frequencies: {str(e)}")

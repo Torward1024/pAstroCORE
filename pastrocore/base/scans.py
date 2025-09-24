@@ -238,7 +238,6 @@ class Scan(BaseEntity):
         from pastrocore.base.observation import Observation
         check_type(observation, Observation, "Observation")
         
-        # Check source validity
         if self.source is not None and not self.is_off_source:
             sources = observation.get_sources()
             source_from_obs = sources.get(self.source.name)
@@ -337,16 +336,12 @@ class Scan(BaseEntity):
                 logger.warning(f"Frequency '{frequency.name}' not found in observation, removing from scan '{self.name}'")
         self.set({"frequencies": valid_frequencies})
 
-        # Validate and update activity status
         is_valid = self.validate_with_observation(observation)
         if not is_valid:
             logger.error(f"Synchronization failed for scan '{self.name}': validation against observation '{observation.get_observation_code()}' failed")
             return False
 
-        logger.info(f"Successfully synchronized scan '{self.name}' with observation '{observation.get_observation_code()}', "
-                    f"is_off_source={self.is_off_source}, isactive={self.isactive}, "
-                    f"telescopes={[t.name for t in valid_telescopes]}, "
-                    f"frequencies={[f.name for f in valid_frequencies]}")
+        logger.info(f"Successfully synchronized scan '{self.name}' with observation '{observation.get_observation_code()}'")
         return True
 
     def check_telescope_availability(self, observation: 'Observation', time: Time = None) -> dict[str, bool]:
