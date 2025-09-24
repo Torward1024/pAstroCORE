@@ -190,14 +190,14 @@ class Manipulator(ABC):
             Args:
                 obj (Optional[Any]): The object to operate on. Defaults to managing_object.
                 method (Optional[str]): Specific method to call.
-                raise_on_error (bool): If True, raise ValueError on error; if False, return dict with status/result/error.
+                raise_on_error (bool): If True, raise Exception on error; if False, return dict with status/result/error.
                 **attributes: Additional attributes as kwargs.
 
             Returns:
-                Any: If raise_on_error=True, returns the result or raises ValueError. If False, returns dict {'status': bool, 'result': Any, 'error': str}.
+                Any: If raise_on_error=True, returns the result or raises Exception. If False, returns dict {'status': bool, 'result': Any, 'error': str}.
 
             Raises:
-                ValueError: If raise_on_error=True and operation fails.
+                Exception: If raise_on_error=True and operation fails.
             """
             request = {"operation": operation, "obj": obj, "attributes": attributes}
             if method:
@@ -206,7 +206,7 @@ class Manipulator(ABC):
             if not raise_on_error:
                 return result
             if not result["status"]:
-                raise ValueError(result.get("error", "Unknown error"))
+                raise Exception(result.get("error", "Unknown error"))
             return result["result"]
 
         facade_wrapper.__doc__ = facade_wrapper.__doc__.format(operation=operation)
