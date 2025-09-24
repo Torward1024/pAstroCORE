@@ -347,35 +347,10 @@ class FrequenciesTab(QWidget):
     def activate_frequency(self, freq_name: str):
         """Activate the specified frequency."""
         try:
-            freq_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"get": freq_name}
-            })
-            if not freq_response["status"] or not freq_response["result"]:
-                logger.error(f"Failed to get frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate frequency: {freq_response.get('error', 'Unknown error')}")
-                return
-
-            if_obj = freq_response["result"]
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {
-                    "set_if": {
-                        "name": freq_name,
-                        "isactive": True
-                    }
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Frequency '{freq_name}' activated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(freq_name, True, "activate")
-            else:
-                logger.error(f"Failed to activate frequency '{freq_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate frequency: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_frequencies(), activate_item=freq_name)
+            self.update()
+            self.data_updated.emit(freq_name, True, "activate")
+            logger.info(f"Frequency '{freq_name}' activated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while activating frequency '{freq_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate frequency: {str(e)}")
@@ -384,35 +359,10 @@ class FrequenciesTab(QWidget):
     def deactivate_frequency(self, freq_name: str):
         """Deactivate the specified frequency."""
         try:
-            freq_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"get": freq_name}
-            })
-            if not freq_response["status"] or not freq_response["result"]:
-                logger.error(f"Failed to get frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate frequency: {freq_response.get('error', 'Unknown error')}")
-                return
-
-            if_obj = freq_response["result"]
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {
-                    "set_if": {
-                        "name": freq_name,
-                        "isactive": False
-                    }
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Frequency '{freq_name}' deactivated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(freq_name, False, "deactivate")
-            else:
-                logger.error(f"Failed to deactivate frequency '{freq_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate frequency: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_frequencies(), deactivate_item=freq_name)
+            self.update()
+            self.data_updated.emit(freq_name, False, "deactivate")
+            logger.info(f"Frequency '{freq_name}' deactivated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while deactivating frequency '{freq_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate frequency: {str(e)}")

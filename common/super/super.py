@@ -319,7 +319,7 @@ class Super(ABC):
     def clear_cache(self) -> None:
         """Clear the method cache to free memory."""
         self._method_cache.clear()
-        logger.info(f"Cleared method cache for {self.__class__.__name__}")
+        logger.debug(f"Cleared method cache for {self.__class__.__name__}")
 
     def clear(self) -> None:
         """Clear all references to prevent memory leaks.
@@ -330,7 +330,7 @@ class Super(ABC):
         self._manipulator = None
         self._methods.clear()
         self.clear_cache()
-        logger.info(f"Cleared references for {self.__class__.__name__}")
+        logger.debug(f"Cleared references for {self.__class__.__name__}")
 
     def _default_result(self, obj: Any) -> Dict[str, Any]:
         """Provide a default result when an operation cannot be executed.
