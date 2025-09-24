@@ -91,36 +91,23 @@ class UVVisualizationTab(QWidget):
         logger.debug("UI unlocked in UVVisualizationTab")
 
     def _get_frequencies(self) -> List[float]:
-        """Retrieve the list of frequencies (in MHz) from the observation.
-
-        Returns:
-            List of frequencies in MHz.
-        """
-        response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_frequencies": None}
-        })
-        if response["status"]:
-            frequencies = response["result"].get_items()
-            freq_list = [float(f.get("frequency")) for f in frequencies]
+        """Retrieve the list of frequencies (in MHz) from the observation."""
+        try:
+            frequencies = self.manipulator.inspect(obj=self.observation, get_frequencies=None)
+            freq_list = [float(f.get("frequency")) for f in frequencies.get_items()]
             logger.debug(f"Retrieved frequencies: {freq_list}")
             return freq_list
-        logger.error(f"Failed to retrieve frequencies: {response.get('error', 'Unknown error')}")
-        return []
+        except Exception as e:
+            logger.error(f"Failed to retrieve frequencies: {str(e)}")
+            return []
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
-        calc_data_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["uv_coverage", "times"]}}
-        })
-        if calc_data_response["status"]:
-            self.cached_data = calc_data_response["result"]
+        try:
+            self.cached_data = self.manipulator.inspect(obj=self.observation, get_calculated_data={"keys": ["uv_coverage", "times"]})
             logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
-        else:
-            logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Failed to cache calculated data: {str(e)}")
             self.cached_data = {}
 
     def get_selected_source(self) -> Optional[str]:
@@ -282,16 +269,11 @@ class UVVisualizationTab(QWidget):
         scans = []
         if source_name in self.cached_data["uv_coverage"]["data"]:
             scan_data = self.cached_data["uv_coverage"]["data"][source_name]
-            scans_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation,
-                "attributes": {"get_scans": None}
-            })
-            if not scans_response["status"]:
-                logger.error(f"Failed to retrieve scans: {scans_response.get('error', 'Unknown error')}")
+            try:
+                scan_objects = self.manipulator.inspect(obj=self.observation, get_scans=None).get_items()
+            except Exception as e:
+                logger.error(f"Failed to retrieve scans: {str(e)}")
                 return
-
-            scan_objects = scans_response["result"].get_items()
             for scan in scan_objects:
                 scan_name = scan.get("name")
                 if scan_name in scan_data:
@@ -334,27 +316,18 @@ class UVVisualizationTab(QWidget):
         }
 
         try:
-            response = self.manipulator.process_request({
-                "operation": "visualize",
-                "obj": self.observation,
-                "attributes": vis_attributes
-            })
-            logger.debug(f"Visualization response: {response}")
-            if response["status"]:
-                result = response.get("result", {})
-                if not result or (result.get("baselines", 0) == 0 and result.get("frequencies", 0) == 0):
-                    logger.debug("Empty visualization result, clearing canvas")
-                    self._clear_canvas()
-                    return
-                figure = result.get("figure")
-                if figure:
-                    self.embed_figure(figure)
-                    logger.debug(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
-                else:
-                    logger.error("No figure returned from visualizer, clearing canvas")
-                    self._clear_canvas()
+            result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
+            logger.debug(f"Visualization result: {result}")
+            if not result or (result.get("baselines", 0) == 0 and result.get("frequencies", 0) == 0):
+                logger.debug("Empty visualization result, clearing canvas")
+                self._clear_canvas()
+                return
+            figure = result.get("figure")
+            if figure:
+                self.embed_figure(figure)
+                logger.debug(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
             else:
-                logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                logger.error("No figure returned from visualizer, clearing canvas")
                 self._clear_canvas()
         except Exception as e:
             logger.error(f"Exception during UV coverage visualization update: {str(e)}")
