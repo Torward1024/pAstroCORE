@@ -671,7 +671,15 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot(str)
     def import_observation(self, obs_name: str, obs_code: str):
-        """Import an observation to overwrite an existing one."""
+        """Import an observation to overwrite an existing one.
+
+        Args:
+            obs_name (str): The name of the observation to overwrite.
+            obs_code (str): The code of the observation to overwrite.
+
+        Raises:
+            Exception: If the observation cannot be found, imported, or overwritten.
+        """
         file_path, _ = QFileDialog.getOpenFileName(self, "Import Observation", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
             logger.info(f"Import observation '{obs_code}' cancelled: No file selected")
@@ -680,17 +688,13 @@ class PAstroCoreMainWindow(QMainWindow):
         try:
             with open(file_path, "r") as f:
                 data = json.load(f)
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_item": obs_name}
-            })
-            if not obs_response["status"] or not obs_response["result"]:
-                logger.error(f"Failed to find observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+
+            existing_observation = self.manipulator.inspect(obj=self.project, get_item=obs_name)
+            if existing_observation is None:
+                logger.error(f"Observation '{obs_code}' not found")
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
                 return
 
-            existing_observation = obs_response["result"]
             existing_name = existing_observation.name
             existing_code = existing_observation.code
 
@@ -698,22 +702,11 @@ class PAstroCoreMainWindow(QMainWindow):
             imported_observation.name = existing_name
             imported_observation.code = existing_code
 
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {
-                    "set_item": {"name": existing_name, "item": imported_observation}
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation '{obs_code}' overwritten successfully")
-                self.project_updated.emit()
-            else:
-                logger.error(f"Failed to overwrite observation '{obs_code}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to import observation: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(obj=self.project, set_item={"name": existing_name, "item": imported_observation})
+            logger.info(f"Observation '{obs_code}' overwritten successfully")
+            self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Exception while importing observation '{obs_code}': {str(e)}")
+            logger.error(f"Failed to import observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
 
     @Slot(str)
