@@ -75,7 +75,8 @@ class TelescopesTab(QWidget):
             "operation": "inspect",
             "obj": self.observation,
             "attributes": {"get_telescopes": None}
-        })
+        })   
+
         has_telescopes = False
         if telescopes_response["status"] and telescopes_response["result"]:
             items_response = self.manipulator.process_request({
@@ -482,19 +483,10 @@ class TelescopesTab(QWidget):
     def activate_all_telescopes(self):
         """Activate all telescopes in the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"activate_all": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All telescopes activated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "activate_all")
-            else:
-                logger.error(f"Failed to activate all telescopes: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate all telescopes: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), activate_all=None)
+            self.update()
+            self.data_updated.emit(None, None, "activate_all")
+            logger.info(f"All telescopes activated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while activating all telescopes: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate all telescopes: {str(e)}")
@@ -503,19 +495,10 @@ class TelescopesTab(QWidget):
     def deactivate_all_telescopes(self):
         """Deactivate all telescopes in the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"deactivate_all": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All telescopes deactivated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "deactivate_all")
-            else:
-                logger.error(f"Failed to deactivate all telescopes: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate all telescopes: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), deactivate_all=None)
+            self.update()
+            self.data_updated.emit(None, None, "deactivate_all")
+            logger.info(f"All telescopes deactivated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while deactivating all telescopes: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate all telescopes: {str(e)}")
@@ -524,19 +507,10 @@ class TelescopesTab(QWidget):
     def clear_telescopes(self):
         """Clear all telescopes from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"clear": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All telescopes cleared from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "clear")
-            else:
-                logger.error(f"Failed to clear telescopes: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to clear telescopes: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), clear=None)
+            self.update()
+            self.data_updated.emit(None, None, "clear")
+            logger.info(f"All telescopes cleared from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while clearing telescopes: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to clear telescopes: {str(e)}")
@@ -546,19 +520,10 @@ class TelescopesTab(QWidget):
     def drop_active_telescopes(self):
         """Remove all active telescopes from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"drop_active": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All active telescopes dropped from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "drop_active")
-            else:
-                logger.error(f"Failed to drop active telescopes: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to drop active telescopes: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), drop_active=None)
+            self.update()
+            self.data_updated.emit(None, None, "drop_active")
+            logger.info(f"All active telescopes dropped from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while dropping active telescopes: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to drop active telescopes: {str(e)}")
@@ -567,19 +532,10 @@ class TelescopesTab(QWidget):
     def drop_inactive_telescopes(self):
         """Remove all inactive telescopes from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"drop_inactive": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All inactive telescopes dropped from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "drop_inactive")
-            else:
-                logger.error(f"Failed to drop inactive telescopes: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to drop inactive telescopes: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), drop_inactive=None)
+            self.update()
+            self.data_updated.emit(None, None, "drop_inactive")
+            logger.info(f"All inactive telescopes dropped from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while dropping inactive telescopes: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to drop inactive telescopes: {str(e)}")
@@ -603,30 +559,27 @@ class TelescopesTab(QWidget):
             if items_response["status"] and isinstance(items_response["result"], dict):
                 idx = 1
                 for name, telescope in items_response["result"].items():
-                    is_active_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": telescope,
-                        "attributes": {"get": "isactive"}
-                    })
-                    is_active = is_active_response["status"] and bool(is_active_response["result"])
+                    try:
+                        is_active = self.manipulator.inspect(telescope, get="isactive")
+                    except Exception as e:
+                        logger.error(f"Failed to retrieve isactive from telescope '{telescope}': {str(e)}")
+
                     active_item = QStandardItem()
                     active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
                     active_item.setToolTip("Active" if is_active else "Inactive")
                     active_item.setTextAlignment(Qt.AlignCenter)
 
-                    code_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": telescope,
-                        "attributes": {"get": "code"}
-                    })
-                    code = code_response["result"] if code_response["status"] else "N/A"
+                    try:
+                        code = self.manipulator.inspect(telescope, get="code")
+                    except Exception as e:
+                        code = "N/A"
+                        logger.error(f"Failed to retrieve code from telescope '{telescope}': {str(e)}")
 
-                    name_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": telescope,
-                        "attributes": {"get": "name"}
-                    })
-                    name = name_response["result"] if name_response["status"] else "N/A"
+                    try:
+                        name = self.manipulator.inspect(telescope, get="name")
+                    except Exception as e:
+                        name = "N/A"
+                        logger.error(f"Failed to retrieve name from telescope '{telescope}': {str(e)}")
 
                     telescope_type = "Space Telescope" if isinstance(telescope, SpaceTelescope) else "Ground Telescope"
 

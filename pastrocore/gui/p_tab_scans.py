@@ -415,19 +415,10 @@ class ScansTab(QWidget):
     def activate_all_scans(self):
         """Activate all scans in the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_scans(),
-                "attributes": {"activate_all": self.observation}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All scans activated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to activate all scans: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate all scans: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_scans(), activate_all=self.observation)
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"All scans activated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while activating all scans: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate all scans: {str(e)}")
@@ -436,19 +427,10 @@ class ScansTab(QWidget):
     def deactivate_all_scans(self):
         """Deactivate all scans in the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_scans(),
-                "attributes": {"deactivate_all": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All scans deactivated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to deactivate all scans: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate all scans: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_scans(), deactivate_all=None)
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"All scans deactivated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while deactivating all scans: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate all scans: {str(e)}")
@@ -457,19 +439,10 @@ class ScansTab(QWidget):
     def drop_active_scans(self):
         """Remove all active scans from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_scans(),
-                "attributes": {"drop_active": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All active scans dropped from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to drop active scans: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to drop active scans: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_scans(), drop_active=None)
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"All active scans dropped from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while dropping active scans: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to drop active scans: {str(e)}")
@@ -478,19 +451,10 @@ class ScansTab(QWidget):
     def drop_inactive_scans(self):
         """Remove all inactive scans from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_scans(),
-                "attributes": {"drop_inactive": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All inactive scans dropped from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to drop inactive scans: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to drop inactive scans: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_scans(), drop_inactive=None)
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"All inactive scans dropped from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while dropping inactive scans: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to drop inactive scans: {str(e)}")
@@ -499,19 +463,10 @@ class ScansTab(QWidget):
     def clear_scans(self):
         """Clear all scans from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_scans(),
-                "attributes": {"clear": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All scans cleared from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to clear scans: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to clear scans: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_scans(), clear=None)
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"All scans cleared from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while clearing scans: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to clear scans: {str(e)}")

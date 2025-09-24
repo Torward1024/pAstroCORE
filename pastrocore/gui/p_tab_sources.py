@@ -323,19 +323,10 @@ class SourcesTab(QWidget):
     def activate_all_sources(self):
         """Activate all sources in the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"activate_all": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All sources activated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "activate_all")
-            else:
-                logger.error(f"Failed to activate all sources: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate all sources: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_sources(), activate_all=None)
+            self.update()
+            self.data_updated.emit(None, None, "activate_all")
+            logger.info(f"All sources activated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while activating all sources: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate all sources: {str(e)}")
@@ -344,19 +335,10 @@ class SourcesTab(QWidget):
     def deactivate_all_sources(self):
         """Deactivate all sources in the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"deactivate_all": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All sources deactivated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "deactivate_all")
-            else:
-                logger.error(f"Failed to deactivate all sources: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate all sources: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_sources(), deactivate_all=None)
+            self.update()
+            self.data_updated.emit(None, None, "deactivate_all")
+            logger.info(f"All sources deactivated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while deactivating all sources: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate all sources: {str(e)}")
@@ -365,19 +347,10 @@ class SourcesTab(QWidget):
     def drop_active_sources(self):
         """Remove all active sources from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"drop_active": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All active sources dropped from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "drop_active")
-            else:
-                logger.error(f"Failed to drop active sources: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to drop active sources: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_sources(), drop_active=None)
+            self.update()
+            self.data_updated.emit(None, None, "drop_active")
+            logger.info(f"All active sources dropped from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while dropping active sources: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to drop active sources: {str(e)}")
@@ -386,19 +359,10 @@ class SourcesTab(QWidget):
     def drop_inactive_sources(self):
         """Remove all inactive sources from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"drop_inactive": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All inactive sources dropped from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "drop_inactive")
-            else:
-                logger.error(f"Failed to drop inactive sources: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to drop inactive sources: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_sources(), drop_inactive=None)
+            self.update()
+            self.data_updated.emit(None, None, "drop_inactive")
+            logger.info(f"All inactive sources dropped from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while dropping inactive sources: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to drop inactive sources: {str(e)}")
@@ -407,19 +371,10 @@ class SourcesTab(QWidget):
     def clear_sources(self):
         """Clear all sources from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"clear": None}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All sources cleared from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(None, None, "clear")
-            else:
-                logger.error(f"Failed to clear sources: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to clear sources: {response.get('error', 'Unknown error')}")
+            response = self.manipulator.configure(self.observation.get_sources(), clear=None)
+            self.update()
+            self.data_updated.emit(None, None, "clear")
+            logger.info(f"All sources cleared from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while clearing sources: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to clear sources: {str(e)}")
