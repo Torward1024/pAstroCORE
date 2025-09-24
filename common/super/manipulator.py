@@ -199,12 +199,11 @@ class Manipulator(ABC):
                 Exception: If raise_on_error=True and operation fails.
             """
             request_attributes = attributes.copy()
-
             if method:
                 request_attributes["method"] = method
             elif "method" in request_attributes:
                 pass
-
+            
             request = {"operation": operation, "obj": obj, "attributes": request_attributes}
             logger.debug(f"Facade request for {operation}: {request}")
             result = self.process_request(request)

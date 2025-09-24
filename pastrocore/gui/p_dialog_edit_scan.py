@@ -89,48 +89,47 @@ class ScanEditorDialog(QDialog):
         self._populate_frequencies()
 
         if self.is_new:
-            scans_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_scans(),
-                "attributes": {"get_all": None}
-            })
-            if scans_response["status"] and isinstance(scans_response["result"], dict) and scans_response["result"]:
-                latest_end_time = None
-                latest_duration = None
-                for scan_name, scan_obj in scans_response["result"].items():
-                    scan_attrs_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": scan_obj,
-                        "attributes": {"get": ["start", "duration"]}
-                    })
-                    if scan_attrs_response["status"]:
-                        scan_start = scan_attrs_response["result"]["start"]
-                        scan_duration = scan_attrs_response["result"]["duration"]
-                        logger.debug(f"Processing scan '{scan_name}': start={scan_start.isot}, duration={scan_duration}")
+            try:
+                scans = self.manipulator.inspect(obj=self.observation.get_scans(), get_all=None)
+                if isinstance(scans, dict) and scans:
+                    latest_end_time = None
+                    latest_duration = None
+                    for scan_name, scan_obj in scans.items():
                         try:
-                            scan_end = scan_start + timedelta(seconds=scan_duration)
-                            logger.debug(f"Calculated end time for scan '{scan_name}': {scan_end.isot}")
-                            if latest_end_time is None or scan_end > latest_end_time:
-                                latest_end_time = scan_end
-                                latest_duration = scan_duration
+                            scan_attrs = self.manipulator.inspect(obj=scan_obj, get=["start", "duration"])
+                            scan_start = scan_attrs["start"]
+                            scan_duration = scan_attrs["duration"]
+                            logger.debug(f"Processing scan '{scan_name}': start={scan_start.isot}, duration={scan_duration}")
+                            try:
+                                scan_end = scan_start + timedelta(seconds=scan_duration)
+                                logger.debug(f"Calculated end time for scan '{scan_name}': {scan_end.isot}")
+                                if latest_end_time is None or scan_end > latest_end_time:
+                                    latest_end_time = scan_end
+                                    latest_duration = scan_duration
+                            except Exception as e:
+                                logger.error(f"Error calculating end time for scan '{scan_name}': {str(e)}")
+                                continue
                         except Exception as e:
-                            logger.error(f"Error calculating end time for scan '{scan_name}': {str(e)}")
+                            logger.error(f"Failed to get attributes for scan '{scan_name}': {str(e)}")
                             continue
-                if latest_end_time and latest_duration is not None:
-                    try:
-                        start_dt = latest_end_time.to_datetime()
-                        start_qdt = QDateTime.fromMSecsSinceEpoch(int(start_dt.timestamp() * 1000))
-                        self.ui.startTimeEdit.setDateTime(start_qdt)
-                        logger.debug(f"Set start time for new scan to end of latest scan: {start_dt}")
-                        self.ui.durationEdit.setText(str(int(latest_duration)))
-                        self.update_from_duration()
-                        logger.debug(f"Set duration for new scan to match latest scan: {latest_duration}")
-                    except Exception as e:
-                        logger.error(f"Error converting latest end time to QDateTime: {str(e)}")
+                    if latest_end_time and latest_duration is not None:
+                        try:
+                            start_dt = latest_end_time.to_datetime()
+                            start_qdt = QDateTime.fromMSecsSinceEpoch(int(start_dt.timestamp() * 1000))
+                            self.ui.startTimeEdit.setDateTime(start_qdt)
+                            logger.debug(f"Set start time for new scan to end of latest scan: {start_dt}")
+                            self.ui.durationEdit.setText(str(int(latest_duration)))
+                            self.update_from_duration()
+                            logger.debug(f"Set duration for new scan to match latest scan: {latest_duration}")
+                        except Exception as e:
+                            logger.error(f"Error converting latest end time to QDateTime: {str(e)}")
+                            self._set_default_time()
+                    else:
                         self._set_default_time()
                 else:
                     self._set_default_time()
-            else:
+            except Exception as e:
+                logger.error(f"Failed to retrieve scans: {str(e)}")
                 self._set_default_time()
         else:
             self._load_scan_data()
@@ -178,31 +177,32 @@ class ScanEditorDialog(QDialog):
 
     def _populate_sources(self):
         """Populate the source combo box with available sources."""
-        sources_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation.get_sources(),
-            "attributes": {"get_all": None}
-        })
-        logger.debug(f"Sources response: {sources_response}")
-        self.ui.sourceCombo.clear()
-        if sources_response["status"] and isinstance(sources_response["result"], dict) and sources_response["result"]:
-            for name, source in sources_response["result"].items():
-                is_active_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": source,
-                    "attributes": {"get": "isactive"}
-                })
-                is_active = is_active_response["status"] and bool(is_active_response["result"])
-                logger.debug(f"Source {name} isactive: {is_active}")
-                self.ui.sourceCombo.addItem(name, source)  # Store Source object as user data
-                if not is_active:
-                    index = self.ui.sourceCombo.findData(source)
-                    self.ui.sourceCombo.model().item(index).setEnabled(False)
-            self.ui.sourceCombo.setCurrentIndex(0)
-            self.ui.chk_offsource.setChecked(False)
-            self.ui.sourceCombo.setEnabled(True)
-            logger.debug(f"Populated {len(sources_response['result'])} sources, selected first: {self.ui.sourceCombo.currentText()}")
-        else:
+        try:
+            sources = self.manipulator.inspect(obj=self.observation.get_sources(), get_all=None)
+            logger.debug(f"Sources retrieved: {sources}")
+            self.ui.sourceCombo.clear()
+            if isinstance(sources, dict) and sources:
+                for name, source in sources.items():
+                    try:
+                        is_active = bool(self.manipulator.inspect(obj=source, get="isactive"))
+                        logger.debug(f"Source {name} isactive: {is_active}")
+                        self.ui.sourceCombo.addItem(name, source)  # Store Source object as user data
+                        if not is_active:
+                            index = self.ui.sourceCombo.findData(source)
+                            self.ui.sourceCombo.model().item(index).setEnabled(False)
+                    except Exception as e:
+                        logger.error(f"Failed to get isactive for source '{name}': {str(e)}")
+                        continue
+                self.ui.sourceCombo.setCurrentIndex(0)
+                self.ui.chk_offsource.setChecked(False)
+                self.ui.sourceCombo.setEnabled(True)
+                logger.debug(f"Populated {len(sources)} sources, selected first: {self.ui.sourceCombo.currentText()}")
+            else:
+                self.ui.chk_offsource.setChecked(True)
+                self.ui.sourceCombo.setEnabled(False)
+                logger.debug("No sources available, set OFF SOURCE to True and disabled sourceCombo")
+        except Exception as e:
+            logger.error(f"Failed to retrieve sources: {str(e)}")
             self.ui.chk_offsource.setChecked(True)
             self.ui.sourceCombo.setEnabled(False)
             logger.debug("No sources available, set OFF SOURCE to True and disabled sourceCombo")
@@ -210,106 +210,87 @@ class ScanEditorDialog(QDialog):
     def _populate_telescopes(self):
         """Populate the telescopes table with available telescopes, all checked by default."""
         self.telescopes_model.removeRows(0, self.telescopes_model.rowCount())
-        telescopes_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation.get_telescopes(),
-            "attributes": {"get_all": None}
-        })
-        logger.debug(f"Telescopes response: {telescopes_response}")
-        if telescopes_response["status"] and isinstance(telescopes_response["result"], dict):
-            idx = 1
-            for name, telescope in telescopes_response["result"].items():
-                is_active_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": telescope,
-                    "attributes": {"get": "isactive"}
-                })
-                is_active = is_active_response["status"] and bool(is_active_response["result"])
-                logger.debug(f"Telescope {name} isactive: {is_active}")
-                row = [
-                    QStandardItem(str(idx)),  # #
-                    QStandardItem(),  # Check
-                    QStandardItem(),  # Active
-                    QStandardItem(name)  # Name
-                ]
-                row[1].setCheckable(True)
-                row[1].setCheckState(Qt.Checked)  # Check by default
-                row[2].setIcon(self.active_icon if is_active else self.inactive_icon)
-                row[2].setToolTip("Active" if is_active else "Inactive")
-                row[2].setTextAlignment(Qt.AlignCenter)
-                for item in row:
-                    item.setEditable(False)
-                row[0].setData(telescope, Qt.UserRole)  # Telescope/SpaceTelescope object
-                row[3].setData(telescope, Qt.UserRole)
-                self.telescopes_model.appendRow(row)
-                self.selected_telescopes.add(name)  # Add to selected set
-                logger.debug(f"Added telescope: {name}, checkable: True, active: {is_active}, checked: True")
-                idx += 1
-            logger.debug(f"Populated {self.telescopes_model.rowCount()} telescopes")
-        else:
-            logger.error(f"Failed to populate telescopes: {telescopes_response.get('error', 'Unknown error')}")
+        try:
+            telescopes = self.manipulator.inspect(obj=self.observation.get_telescopes(), get_all=None)
+            logger.debug(f"Telescopes retrieved: {telescopes}")
+            if isinstance(telescopes, dict):
+                idx = 1
+                for name, telescope in telescopes.items():
+                    try:
+                        is_active = bool(self.manipulator.inspect(obj=telescope, get="isactive"))
+                        logger.debug(f"Telescope {name} isactive: {is_active}")
+                        row = [
+                            QStandardItem(str(idx)),  # #
+                            QStandardItem(),  # Check
+                            QStandardItem(),  # Active
+                            QStandardItem(name)  # Name
+                        ]
+                        row[1].setCheckable(True)
+                        row[1].setCheckState(Qt.Checked)  # Check by default
+                        row[2].setIcon(self.active_icon if is_active else self.inactive_icon)
+                        row[2].setToolTip("Active" if is_active else "Inactive")
+                        row[2].setTextAlignment(Qt.AlignCenter)
+                        for item in row:
+                            item.setEditable(False)
+                        row[0].setData(telescope, Qt.UserRole)  # Telescope/SpaceTelescope object
+                        row[3].setData(telescope, Qt.UserRole)
+                        self.telescopes_model.appendRow(row)
+                        self.selected_telescopes.add(name)  # Add to selected set
+                        logger.debug(f"Added telescope: {name}, checkable: True, active: {is_active}, checked: True")
+                        idx += 1
+                    except Exception as e:
+                        logger.error(f"Failed to get isactive for telescope '{name}': {str(e)}")
+                        continue
+                logger.debug(f"Populated {self.telescopes_model.rowCount()} telescopes")
+            else:
+                logger.error("Failed to populate telescopes: Invalid response format")
+        except Exception as e:
+            logger.error(f"Failed to retrieve telescopes: {str(e)}")
 
     def _populate_frequencies(self):
         """Populate the frequencies table with available frequencies, all checked by default."""
         self.frequencies_model.removeRows(0, self.frequencies_model.rowCount())
-        frequencies_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation.get_frequencies(),
-            "attributes": {"get_all": None}
-        })
-        logger.debug(f"Frequencies response: {frequencies_response}")
-        if frequencies_response["status"] and isinstance(frequencies_response["result"], dict):
-            idx = 1
-            for name, if_obj in frequencies_response["result"].items():
-                freq_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": if_obj,
-                    "attributes": {"get": "frequency"}
-                })
-                frequency = freq_response["result"] if freq_response["status"] else "N/A"
-                is_active_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": if_obj,
-                    "attributes": {"get": "isactive"}
-                })
-                is_active = is_active_response["status"] and bool(is_active_response["result"])
-                logger.debug(f"Frequency {name} isactive: {is_active}")
-                bandwidth_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": if_obj,
-                    "attributes": {"get": "bandwidth"}
-                })
-                bandwidth = bandwidth_response["result"] if bandwidth_response["status"] else "N/A"
-                polarizations_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": if_obj,
-                    "attributes": {"get": "polarizations"}
-                })
-                polarizations = ", ".join(polarizations_response["result"]) if polarizations_response["status"] and polarizations_response["result"] else "N/A"
-                row = [
-                    QStandardItem(str(idx)),  # #
-                    QStandardItem(),  # Check
-                    QStandardItem(),  # Active
-                    QStandardItem(f"{float(frequency):.0f}" if isinstance(frequency, (int, float)) else str(frequency)),  # Frequency
-                    QStandardItem(f"{float(bandwidth):.0f}" if isinstance(bandwidth, (int, float)) else str(bandwidth)),  # Bandwidth
-                    QStandardItem(polarizations)  # Polarizations
-                ]
-                row[1].setCheckable(True)
-                row[1].setCheckState(Qt.Checked)  # Check by default
-                row[2].setIcon(self.active_icon if is_active else self.inactive_icon)
-                row[2].setToolTip("Active" if is_active else "Inactive")
-                row[2].setTextAlignment(Qt.AlignCenter)
-                for item in row:
-                    item.setEditable(False)
-                row[0].setData(if_obj, Qt.UserRole)  # IF object
-                row[3].setData(if_obj, Qt.UserRole)
-                self.frequencies_model.appendRow(row)
-                self.selected_frequencies.add(name)  # Add to selected set
-                logger.debug(f"Added frequency: {name}, checkable: True, active: {is_active}, checked: True")
-                idx += 1
-            logger.debug(f"Populated {self.frequencies_model.rowCount()} frequencies")
-        else:
-            logger.error(f"Failed to populate frequencies: {frequencies_response.get('error', 'Unknown error')}")
+        try:
+            frequencies = self.manipulator.inspect(obj=self.observation.get_frequencies(), get_all=None)
+            logger.debug(f"Frequencies retrieved: {frequencies}")
+            if isinstance(frequencies, dict):
+                idx = 1
+                for name, if_obj in frequencies.items():
+                    try:
+                        frequency = self.manipulator.inspect(obj=if_obj, get="frequency")
+                        is_active = bool(self.manipulator.inspect(obj=if_obj, get="isactive"))
+                        logger.debug(f"Frequency {name} isactive: {is_active}")
+                        bandwidth = self.manipulator.inspect(obj=if_obj, get="bandwidth")
+                        polarizations = self.manipulator.inspect(obj=if_obj, get="polarizations")
+                        row = [
+                            QStandardItem(str(idx)),  # #
+                            QStandardItem(),  # Check
+                            QStandardItem(),  # Active
+                            QStandardItem(f"{float(frequency):.0f}" if isinstance(frequency, (int, float)) else str(frequency)),  # Frequency
+                            QStandardItem(f"{float(bandwidth):.0f}" if isinstance(bandwidth, (int, float)) else str(bandwidth)),  # Bandwidth
+                            QStandardItem(", ".join(polarizations) if polarizations else "N/A")  # Polarizations
+                        ]
+                        row[1].setCheckable(True)
+                        row[1].setCheckState(Qt.Checked)  # Check by default
+                        row[2].setIcon(self.active_icon if is_active else self.inactive_icon)
+                        row[2].setToolTip("Active" if is_active else "Inactive")
+                        row[2].setTextAlignment(Qt.AlignCenter)
+                        for item in row:
+                            item.setEditable(False)
+                        row[0].setData(if_obj, Qt.UserRole)  # IF object
+                        row[3].setData(if_obj, Qt.UserRole)
+                        self.frequencies_model.appendRow(row)
+                        self.selected_frequencies.add(name)  # Add to selected set
+                        logger.debug(f"Added frequency: {name}, checkable: True, active: {is_active}, checked: True")
+                        idx += 1
+                    except Exception as e:
+                        logger.error(f"Failed to get attributes for frequency '{name}': {str(e)}")
+                        continue
+                logger.debug(f"Populated {self.frequencies_model.rowCount()} frequencies")
+            else:
+                logger.error("Failed to populate frequencies: Invalid response format")
+        except Exception as e:
+            logger.error(f"Failed to retrieve frequencies: {str(e)}")
 
     def _check_scan_conditions(self):
         """Check if scan conditions for activation are met (2 active telescopes, 1 active frequency, active source)."""
@@ -366,7 +347,7 @@ class ScanEditorDialog(QDialog):
             start_time = self.scan.start
             start_dt = start_time.to_datetime()
             self.ui.startTimeEdit.setDateTime(QDateTime.fromMSecsSinceEpoch(int(start_dt.timestamp() * 1000)))
-            logger.info(f"Set start time to: {start_dt}")
+            logger.debug(f"Set start time to: {start_dt}")
         except Exception as e:
             logger.error(f"Failed to load start time '{self.scan.start.isot}': {str(e)}")
             current_time = QDateTime.currentDateTime()
@@ -374,7 +355,7 @@ class ScanEditorDialog(QDialog):
             logger.info(f"Fallback to current time: {current_time.toString(Qt.ISODate)}")
 
         self.ui.durationEdit.setText(str(int(self.scan.duration)))
-        logger.info(f"Set duration: {int(self.scan.duration)}")
+        logger.debug(f"Set duration: {int(self.scan.duration)}")
         self.update_from_start_time()
 
         self.ui.chk_offsource.setChecked(self.scan.is_off_source)
@@ -387,14 +368,14 @@ class ScanEditorDialog(QDialog):
             if index >= 0:
                 self.ui.sourceCombo.setCurrentIndex(index)
                 self.ui.sourceCombo.setEnabled(True)
-                logger.info(f"Set source: {self.scan.source.name}")
+                logger.debug(f"Set source: {self.scan.source.name}")
             else:
                 logger.warning(f"Source '{self.scan.source.name}' not found in combo box")
                 self.ui.sourceCombo.setCurrentIndex(0)
                 self.ui.sourceCombo.setEnabled(True)
 
         self.ui.chk_active.setChecked(self._check_scan_conditions())
-        logger.info(f"Set active status based on conditions: {self.ui.chk_active.isChecked()} (original scan.isactive: {self.scan.isactive})")
+        logger.debug(f"Set active status based on conditions: {self.ui.chk_active.isChecked()} (original scan.isactive: {self.scan.isactive})")
 
         self.selected_telescopes.clear()
         for row in range(self.telescopes_model.rowCount()):
@@ -404,10 +385,10 @@ class ScanEditorDialog(QDialog):
             if telescope in self.scan.telescopes:
                 check_item.setCheckState(Qt.Checked)
                 self.selected_telescopes.add(telescope.name)
-                logger.info(f"Checked telescope: {telescope.name}, check_state: {check_item.checkState()}")
+                logger.debug(f"Checked telescope: {telescope.name}, check_state: {check_item.checkState()}")
             else:
                 check_item.setCheckState(Qt.Unchecked)
-                logger.info(f"Unchecked telescope: {telescope.name if telescope else None}, check_state: {check_item.checkState()}")
+                logger.debug(f"Unchecked telescope: {telescope.name if telescope else None}, check_state: {check_item.checkState()}")
             self.telescopes_model.dataChanged.emit(check_item.index(), check_item.index(), [Qt.CheckStateRole])
         self.ui.tab_telescopes.viewport().update()
 
