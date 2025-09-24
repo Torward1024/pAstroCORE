@@ -117,7 +117,7 @@ class CatalogManager:
             if failed_count > 0:
                 logger.warning(f"Loaded {len(self.source_catalog)} sources from '{source_file}', {failed_count} failed")
             else:
-                logger.info(f"Successfully loaded {len(self.source_catalog)} sources from '{source_file}'")
+                logger.debug(f"Successfully loaded {len(self.source_catalog)} sources from '{source_file}'")
         except FileNotFoundError:
             raise FileNotFoundError(f"Source catalog file '{source_file}' not found!")
         except ValueError as e:
@@ -213,7 +213,7 @@ class CatalogManager:
             if failed_count > 0:
                 logger.warning(f"Loaded {len(self.telescope_catalog)} telescopes from '{telescope_file}', {failed_count} failed")
             else:
-                logger.info(f"Successfully loaded {len(self.telescope_catalog)} telescopes from '{telescope_file}'")
+                logger.debug(f"Successfully loaded {len(self.telescope_catalog)} telescopes from '{telescope_file}'")
         except FileNotFoundError:
             raise FileNotFoundError(f"Telescope catalog file '{telescope_file}' not found!")
         except ValueError as e:

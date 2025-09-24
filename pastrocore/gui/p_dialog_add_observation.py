@@ -25,7 +25,7 @@ class AddObservationDialog(QDialog):
         self.ui.combo_obs_type.setCurrentText("VLBI")
         self.ui.obs_code.setText("OBS_DEFAULT")
 
-        logger.info("AddObservationDialog initialized")
+        logger.debug("AddObservationDialog initialized")
 
     def setup_connections(self):
         """Connect UI signals to slots."""

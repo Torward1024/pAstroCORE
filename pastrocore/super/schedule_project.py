@@ -42,7 +42,6 @@ class ScheduleProject(Project):
             for obs in items.values():
                 check_type(obs, Observation, "Observation in items")
         super().__init__(name, items)
-        logger.info(f"Initialized ScheduleProject '{name}' with {len(self._items)} observations")
 
     def add_item(self, item: Observation) -> None:
         """Add an observation to the project.
