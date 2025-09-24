@@ -711,7 +711,15 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot(str)
     def export_observation(self, obs_name: str, obs_code: str):
-        """Export an observation by prompting for observation code."""
+        """Export an observation by prompting for observation code.
+
+        Args:
+            obs_name (str): The name of the observation to export.
+            obs_code (str): The code of the observation to export.
+
+        Raises:
+            Exception: If the observation cannot be found or exported.
+        """
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Observation", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
             logger.info(f"Export observation '{obs_code}' cancelled: No file selected")
@@ -720,22 +728,17 @@ class PAstroCoreMainWindow(QMainWindow):
             file_path += ".pastrod"
 
         try:
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_item": obs_name}
-            })
-            if not obs_response["status"] or not obs_response["result"]:
-                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+            observation = self.manipulator.inspect(obj=self.project, get_item=obs_name)
+            if observation is None:
+                logger.error(f"Observation '{obs_code}' not found")
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
                 return
 
-            observation = obs_response["result"]
             with open(file_path, "w") as f:
                 json.dump(observation.to_dict(), f, indent=4)
             logger.info(f"Observation '{obs_code}' exported to '{file_path}'")
         except Exception as e:
-            logger.error(f"Exception while exporting observation '{obs_code}': {str(e)}")
+            logger.error(f"Failed to export observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to export observation: {str(e)}")
 
     @Slot()
@@ -842,7 +845,14 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def handle_project_explorer_click(self, index):
-        """Handle clicks on Project Explorer."""
+        """Handle clicks on Project Explorer.
+
+        Args:
+            index: The index of the clicked item in the Project Explorer.
+
+        Raises:
+            Exception: If the observation cannot be retrieved by code.
+        """
         item = self.ui.projectExplorer.model().itemFromIndex(index)
         if not item:
             return
@@ -852,17 +862,17 @@ class PAstroCoreMainWindow(QMainWindow):
             self.open_project_info_tab()
         elif item_type == "observation":
             obs_code = text
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
-            })
-            obs_name = obs_response["result"].name
-            if obs_response["status"]:
+            try:
+                observation = self.manipulator.inspect(obj=self.project, get_observation_by_code=obs_code)
+                if observation is None:
+                    logger.error(f"Observation with code '{obs_code}' not found")
+                    QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': Observation not found")
+                    return
+                obs_name = observation.name
                 self.open_observation_tab(obs_name, obs_code)
-            else:
-                logger.error(f"Failed to get observation with code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
+            except Exception as e:
+                logger.error(f"Failed to get observation with code '{obs_code}': {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': {str(e)}")
 
     def open_project_info_tab(self):
         """Open or switch to ProjectInfoTab."""
@@ -891,7 +901,15 @@ class PAstroCoreMainWindow(QMainWindow):
         self.project_updated.emit()
 
     def open_observation_tab(self, obs_name: str, obs_code: str):
-        """Open or switch to a tab for editing an observation."""
+        """Open or switch to a tab for editing an observation.
+
+        Args:
+            obs_name (str): The name of the observation to open.
+            obs_code (str): The code of the observation to open.
+
+        Raises:
+            Exception: If the observation cannot be retrieved.
+        """
         tab_container = self.ui.tabContainer
         for i in range(tab_container.count()):
             widget = tab_container.widget(i)
@@ -901,13 +919,12 @@ class PAstroCoreMainWindow(QMainWindow):
                 widget.update_tab()
                 return
 
-        obs_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_item": obs_name}
-        })
-        if obs_response["status"]:
-            observation = obs_response["result"]
+        try:
+            observation = self.manipulator.inspect(obj=self.project, get_item=obs_name)
+            if observation is None:
+                logger.error(f"Observation '{obs_code}' not found")
+                QMessageBox.critical(self, "Error", f"Failed to open observation tab: Observation not found")
+                return
             observation_tab = ObservationTab(observation, self.manipulator, self.catalog_manager, self)
             observation_tab.setObjectName(f"observationTab_{obs_code}")
             tab_container.addTab(observation_tab, f"Observation: {obs_code}")
@@ -916,9 +933,9 @@ class PAstroCoreMainWindow(QMainWindow):
             observation_tab.observation_updated.connect(self.handle_observationTab_observation_updated)
             self.project_updated.connect(observation_tab.update_tab)
             logger.debug(f"Opened observation tab for code '{obs_code}'")
-        else:
-            logger.error(f"Failed to open observation tab for code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to open observation tab: {obs_response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Failed to open observation tab for code '{obs_code}': {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to open observation tab: {str(e)}")
 
     @Slot()
     def handle_observationTab_observation_updated(self):
