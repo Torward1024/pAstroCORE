@@ -322,12 +322,11 @@ class ScanEditorDialog(QDialog):
         source = self.ui.sourceCombo.currentData()
         source_active = True
         if not is_off_source and source:
-            is_active_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": source,
-                "attributes": {"get": "isactive"}
-            })
-            source_active = is_active_response["status"] and bool(is_active_response["result"])
+            try:
+                source_active = bool(self.manipulator.inspect(obj=source, get="isactive"))
+            except Exception as e:
+                logger.error(f"Failed to get isactive for source '{source.name if source else None}': {str(e)}")
+                source_active = False
         logger.debug(f"Source {source.name if source else None} active: {source_active}, is_off_source: {is_off_source}")
 
         conditions_met = (
