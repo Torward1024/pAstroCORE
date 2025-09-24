@@ -56,40 +56,23 @@ class AddObservationDialog(QDialog):
             logger.error("Attempted to add observation with empty code")
             return
 
-        obs_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_observation_by_code": obs_code}
-        })
-        if obs_response["status"] and obs_response["result"] is not None:
-            QMessageBox.critical(self, "Error", f"Observation code '{obs_code}' already exists.")
-            logger.error(f"Observation code '{obs_code}' already exists")
-            return
-        else:
+        try:
+            observation = self.manipulator.inspect(obj=self.project, get_observation_by_code=obs_code)
+            if observation is not None:
+                QMessageBox.critical(self, "Error", f"Observation code '{obs_code}' already exists.")
+                logger.error(f"Observation code '{obs_code}' already exists")
+                return
             logger.debug(f"Observation code '{obs_code}' is unique")
 
-        try:
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {
-                    "create_item": {
-                        "item_code": obs_code,
-                        "isactive": True,
-                        "observation_type": obs_type
-                    }
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation '{obs_code}' (type: {obs_type}) added to project '{self.project.get_name()}'")
-                self.observation_added.emit(obs_code, obs_type)
-                super().accept()
-            else:
-                logger.error(f"Failed to add observation '{obs_code}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to add observation: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(
+                obj=self.project,
+                create_item={"item_code": obs_code, "isactive": True, "observation_type": obs_type}
+            )
+            logger.info(f"Observation '{obs_code}' (type: {obs_type}) added to project '{self.project.get_name()}'")
+            self.observation_added.emit(obs_code, obs_type)
+            super().accept()
         except Exception as e:
-            logger.error(f"Exception while adding observation '{obs_code}': {str(e)}")
+            logger.error(f"Failed to add observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to add observation: {str(e)}")
 
     def reject(self):
