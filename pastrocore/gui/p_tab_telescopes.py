@@ -421,29 +421,10 @@ class TelescopesTab(QWidget):
     def activate_telescope(self, telescope_name: str):
         """Activate the specified telescope."""
         try:
-            telescope_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"get": telescope_name}
-            })
-            if not telescope_response["status"] or not telescope_response["result"]:
-                logger.error(f"Failed to get telescope '{telescope_name}': {telescope_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate telescope: {telescope_response.get('error', 'Unknown error')}")
-                return
-
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"activate_item": telescope_name}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Telescope '{telescope_name}' activated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(telescope_name, True, "activate")
-            else:
-                logger.error(f"Failed to activate telescope '{telescope_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate telescope: {response.get('error', 'Unknown error')}")
+            response = self.manipulator.configure(self.observation.get_telescopes(), activate_item=telescope_name)
+            logger.info(f"Telescope '{telescope_name}' activated in observation '{self.observation.code}'")
+            self.update()
+            self.data_updated.emit(telescope_name, True, "activate")
         except Exception as e:
             logger.error(f"Exception while activating telescope '{telescope_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate telescope: {str(e)}")
@@ -452,29 +433,10 @@ class TelescopesTab(QWidget):
     def deactivate_telescope(self, telescope_name: str):
         """Deactivate the specified telescope."""
         try:
-            telescope_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"get": telescope_name}
-            })
-            if not telescope_response["status"] or not telescope_response["result"]:
-                logger.error(f"Failed to get telescope '{telescope_name}': {telescope_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate telescope: {telescope_response.get('error', 'Unknown error')}")
-                return
-
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"deactivate_item": telescope_name}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Telescope '{telescope_name}' deactivated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(telescope_name, False, "deactivate")
-            else:
-                logger.error(f"Failed to deactivate telescope '{telescope_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate telescope: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), deactivate_item=telescope_name)
+            self.update()
+            self.data_updated.emit(telescope_name, False, "deactivate")
+            logger.info(f"Telescope '{telescope_name}' deactivated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while deactivating telescope '{telescope_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate telescope: {str(e)}")

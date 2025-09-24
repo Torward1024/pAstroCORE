@@ -259,30 +259,10 @@ class SourcesTab(QWidget):
     def activate_source(self, source_name: str):
         """Activate the specified source."""
         try:
-            source_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_sources(),
-                "attributes": {"get": source_name}
-            })
-            if not source_response["status"] or not source_response["result"]:
-                logger.error(f"Failed to get source '{source_name}': {source_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate source: {source_response.get('error', 'Unknown error')}")
-                return
-
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"activate_item": source_name}
-                }
-            
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Source '{source_name}' activated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(source_name, True, "activate")
-            else:
-                logger.error(f"Failed to activate source '{source_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate source: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_sources(), activate_item=source_name)
+            self.update()
+            self.data_updated.emit(source_name, True, "activate")
+            logger.info(f"Source '{source_name}' activated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while activating source '{source_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate source: {str(e)}")
@@ -291,30 +271,10 @@ class SourcesTab(QWidget):
     def deactivate_source(self, source_name: str):
         """Deactivate the specified source."""
         try:
-            source_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_sources(),
-                "attributes": {"get": source_name}
-            })
-            if not source_response["status"] or not source_response["result"]:
-                logger.error(f"Failed to get source '{source_name}': {source_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate source: {source_response.get('error', 'Unknown error')}")
-                return
-
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"deactivate_item": source_name}
-                }
-            
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Source '{source_name}' deactivated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(source_name, False, "deactivate")
-            else:
-                logger.error(f"Failed to deactivate source '{source_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate source: {response.get('error', 'Unknown error')}")
+            self.manipulator.inspect(self.observation.get_sources(), deactivate_item=source_name)
+            self.update()
+            self.data_updated.emit(source_name, False, "deactivate")
+            logger.info(f"Source '{source_name}' deactivated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while deactivating source '{source_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate source: {str(e)}")

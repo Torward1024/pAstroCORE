@@ -378,35 +378,10 @@ class ScansTab(QWidget):
     def deactivate_scan(self, scan_name: str):
         """Deactivate the specified scan."""
         try:
-            scan_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_scans(),
-                "attributes": {"get": scan_name}
-            })
-            if not scan_response["status"] or not scan_response["result"]:
-                logger.error(f"Failed to get scan '{scan_name}': {scan_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate scan: {scan_response.get('error', 'Unknown error')}")
-                return
-
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_scans(),
-                "attributes": {
-                    "set_scan": {
-                        "name": scan_name,
-                        "isactive": False,
-                        "observation": self.observation
-                    }
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Scan '{scan_name}' deactivated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to deactivate scan '{scan_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate scan: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_scans(), activate_item=scan_name)
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"Scan '{scan_name}' deactivated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while deactivating scan '{scan_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate scan: {str(e)}")
