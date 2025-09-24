@@ -69,47 +69,34 @@ class BeamPatternVisualizationTab(QWidget):
 
     def _get_frequencies(self) -> List[float]:
         """Retrieve the list of frequencies (in MHz) from observation."""
-        response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_frequencies": None}
-        })
-        if response["status"]:
-            frequencies = response["result"].get_items()
-            freq_list = [float(f.get("frequency")) for f in frequencies]
+        try:
+            frequencies = self.manipulator.inspect(obj=self.observation, get_frequencies=None)
+            freq_list = [float(f.get("frequency")) for f in frequencies.get_items()]
             logger.debug(f"Retrieved frequencies from observation: {freq_list}")
             return freq_list
-        logger.error(f"Failed to retrieve frequencies: {response.get('error', 'Unknown error')}")
-        return []
+        except Exception as e:
+            logger.error(f"Failed to retrieve frequencies: {str(e)}")
+            return []
 
     def _get_telescopes(self) -> List[str]:
         """Retrieve the list of telescope codes from beam pattern data."""
-        response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["beam_pattern"]}}
-        })
-        if response["status"]:
-            beam_data = response["result"].get("beam_pattern", {}).get("data", {})
-            telescopes = list(beam_data.keys())
+        try:
+            beam_data = self.manipulator.inspect(obj=self.observation, get_calculated_data={"keys": ["beam_pattern"]})
+            telescopes = list(beam_data.get("beam_pattern", {}).get("data", {}).keys())
             tel_list = sorted(telescopes)
             logger.debug(f"Retrieved telescopes from beam pattern data: {tel_list}")
             return tel_list
-        logger.error(f"Failed to retrieve telescopes: {response.get('error', 'Unknown error')}")
-        return []
+        except Exception as e:
+            logger.error(f"Failed to retrieve telescopes: {str(e)}")
+            return []
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
-        calc_data_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["beam_pattern", "times"]}}
-        })
-        if calc_data_response["status"]:
-            self.cached_data = calc_data_response["result"]
+        try:
+            self.cached_data = self.manipulator.inspect(obj=self.observation, get_calculated_data={"keys": ["beam_pattern", "times"]})
             logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
-        else:
-            logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Failed to cache calculated data: {str(e)}")
             self.cached_data = {}
 
     def get_selected_frequencies(self) -> List[float]:
@@ -222,27 +209,18 @@ class BeamPatternVisualizationTab(QWidget):
         }
 
         try:
-            response = self.manipulator.process_request({
-                "operation": "visualize",
-                "obj": self.observation,
-                "attributes": vis_attributes
-            })
-            logger.debug(f"Visualization response: {response}")
-            if response["status"]:
-                result = response.get("result", {})
-                if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
-                    logger.debug("Empty visualization result, clearing canvas")
-                    self._clear_canvas()
-                    return
-                figure = result.get("figure")
-                if figure:
-                    self.embed_figure(figure)
-                    logger.debug("Beam pattern visualization updated successfully")
-                else:
-                    logger.error("No figure returned from visualizer, clearing canvas")
-                    self._clear_canvas()
+            result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
+            logger.debug(f"Visualization result: {result}")
+            if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
+                logger.debug("Empty visualization result, clearing canvas")
+                self._clear_canvas()
+                return
+            figure = result.get("figure")
+            if figure:
+                self.embed_figure(figure)
+                logger.debug("Beam pattern visualization updated successfully")
             else:
-                logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                logger.error("No figure returned from visualizer, clearing canvas")
                 self._clear_canvas()
         except Exception as e:
             logger.error(f"Exception during beam pattern visualization update: {str(e)}")
