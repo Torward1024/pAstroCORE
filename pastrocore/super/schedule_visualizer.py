@@ -129,7 +129,7 @@ class ScheduleVisualizer(Super):
             "mollweide_tracks": self._plot_mollweide_tracks,
         }
         
-        logger.debug("Initialized Scheduling Visualizer")
+        logger.debug("Initialized ScheduleVisualizer")
 
     def _apply_style_config(self) -> None:
         """Apply the style configuration to matplotlib."""

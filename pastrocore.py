@@ -159,7 +159,7 @@ class PAstroCoreMainWindow(QMainWindow):
             catalog_manager = CatalogManager(source_file=sources_path, telescope_file=telescopes_path)
             sources_count = len(catalog_manager.source_catalog.get_items())
             telescopes_count = len(catalog_manager.telescope_catalog.get_items())
-            logger.info(f"CatalogManager initialized with {sources_count} sources and {telescopes_count} telescopes")
+            logger.info(f"Catalog initialized with {sources_count} sources and {telescopes_count} telescopes")
             return catalog_manager
         except Exception as e:
             logger.error(f"Failed to initialize CatalogManager with sources='{sources_path}', telescopes='{telescopes_path}': {str(e)}")
