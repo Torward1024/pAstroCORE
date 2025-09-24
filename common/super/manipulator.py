@@ -190,11 +190,10 @@ class Manipulator(ABC):
             Args:
                 obj (Optional[Any]): The object to operate on. Defaults to managing_object.
                 method (Optional[str]): Specific method to call.
-                raise_on_error (bool): If True, raise Exception on error; if False, return dict with status/result/error.
-                **attributes: Additional attributes as kwargs.
+                raise_on_error (bool): If True, raise Exception on error; if False, return dict with {{status: bool, result: Any, error: str}}.
 
             Returns:
-                Any: If raise_on_error=True, returns the result or raises Exception. If False, returns dict {'status': bool, 'result': Any, 'error': str}.
+                Any: If raise_on_error=True, returns the result or raises Exception. If False, returns dict {{status: bool, result: Any, error: str}}.
 
             Raises:
                 Exception: If raise_on_error=True and operation fails.

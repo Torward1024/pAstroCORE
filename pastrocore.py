@@ -367,23 +367,39 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot(str, str)
     def handle_observation_added(self, obs_code: str, obs_type: str):
-        """Handle observation added signal."""
+        """Handle observation added signal.
+
+        Args:
+            obs_code (str): The code of the added observation.
+            obs_type (str): The type of the added observation.
+
+        Raises:
+            Exception: If the observation cannot be retrieved from the project.
+        """
         logger.info(f"Observation '{obs_code}' (type: {obs_type}) added")
         
-        obs_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_observation_by_code": obs_code}
-        })
-        if obs_response["status"] and obs_response["result"]:
+        try:
+            observation = self.manipulator.inspect(
+                obj=self.project,
+                method="get_observation_by_code",
+                get_observation_by_code=obs_code
+            )
             logger.debug(f"Observation '{obs_code}' found in project after addition")
-        else:
-            logger.error(f"Observation '{obs_code}' not found in project after addition: {obs_response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Observation '{obs_code}' not found in project after addition: {str(e)}")
         self.project_updated.emit()
 
     @Slot(str)
     def remove_observation(self, obs_name: str, obs_code: str):
-        """Remove an observation from the project via ScheduleManipulator."""
+        """Remove an observation from the project via ScheduleManipulator.
+
+        Args:
+            obs_name (str): The name of the observation to remove.
+            obs_code (str): The code of the observation to remove.
+
+        Raises:
+            Exception: If the observation cannot be found or removed.
+        """
         reply = QMessageBox.question(
             self, "Confirm Delete",
             f"Are you sure you want to delete observation '{obs_code}'?",
@@ -403,37 +419,27 @@ class PAstroCoreMainWindow(QMainWindow):
                 break
 
         try:
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_item": obs_name}
-            })
-            if not obs_response["status"]:
-                logger.error(f"Failed to find observation with code '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
-                return
-
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {
-                    "remove_item": obs_name
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation with code '{obs_code}' and name '{obs_name}' removed from project '{self.project.get_name()}'")
-                self.project_updated.emit()
-            else:
-                logger.error(f"Failed to remove observation '{obs_code}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to remove observation: {response.get('error', 'Unknown error')}")
+            self.manipulator.inspect(
+                obj=self.project,
+                get_item=obs_name
+            )
+            self.manipulator.configure(
+                obj=self.project,
+                remove_item=obs_name
+            )
+            logger.info(f"Observation with code '{obs_code}' and name '{obs_name}' removed from project '{self.project.get_name()}'")
+            self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Exception while removing observation '{obs_code}': {str(e)}")
+            logger.error(f"Failed to remove observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove observation: {str(e)}")
 
     @Slot()
     def remove_observations(self):
-        """Remove all observations from the project via ScheduleManipulator."""
+        """Remove all observations from the project via ScheduleManipulator.
+
+        Raises:
+            Exception: If the observations cannot be removed.
+        """
         reply = QMessageBox.question(
             self, "Confirm Delete",
             f"Are you sure you want to delete all observations?",
@@ -450,22 +456,11 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.ui.tabContainer.removeTab(i)
 
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {
-                    "clear": None
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"All observations were removed from project '{self.project.get_name()}'")
-                self.project_updated.emit()
-            else:
-                logger.error(f"Failed to remove observations: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to remove observations: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(obj=self.project, clear=None)
+            logger.info(f"All observations were removed from project '{self.project.get_name()}'")
+            self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Exception while removing observations: {str(e)}")
+            logger.error(f"Failed to remove observations: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove observations: {str(e)}")
 
     @Slot(str)
@@ -475,7 +470,11 @@ class PAstroCoreMainWindow(QMainWindow):
         self.open_observation_tab(obs_name, obs_code)
 
     def update_project_explorer(self):
-        """Update Project Explorer tree using ScheduleInspector."""
+        """Update Project Explorer tree using ScheduleInspector.
+
+        Raises:
+            Exception: If project name or observations cannot be retrieved.
+        """
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if not project_explorer:
             logger.error("Project explorer widget not found")
@@ -485,12 +484,11 @@ class PAstroCoreMainWindow(QMainWindow):
         model.setHorizontalHeaderLabels(["Project Explorer"])
         root = model.invisibleRootItem()
 
-        project_name_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_name": None}
-        })
-        project_name = project_name_response["result"] if project_name_response["status"] else "Untitled Project"
+        try:
+            project_name = self.manipulator.inspect(obj=self.project, get_name=None)
+        except Exception as e:
+            logger.error(f"Failed to get project name: {str(e)}")
+            project_name = "Untitled Project"
         logger.debug(f"Updating project explorer: project id={id(self.project)}, name={project_name}")
 
         project_item = QStandardItem(f"Project: {project_name}")
@@ -501,35 +499,26 @@ class PAstroCoreMainWindow(QMainWindow):
         observations_item.setData("observations", Qt.UserRole)
         project_item.appendRow(observations_item)
 
-        observations_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_items": None}
-        })
-        if observations_response["status"]:
-            result = observations_response["result"]
-            if isinstance(result, dict):
-                if result:
-                    for obs_name, obs in result.items():
-                        code_response = self.manipulator.process_request({
-                            "operation": "inspect",
-                            "obj": obs,
-                            "attributes": {"get_observation_code": None}
-                        })
-                        if code_response["status"]:
-                            obs_item = QStandardItem(code_response["result"])
+        try:
+            observations = self.manipulator.inspect(obj=self.project, get_items=None)
+            if isinstance(observations, dict):
+                if observations:
+                    for obs_name, obs in observations.items():
+                        try:
+                            obs_code = self.manipulator.inspect(obj=obs, get_observation_code=None)
+                            obs_item = QStandardItem(obs_code)
                             obs_item.setData("observation", Qt.UserRole)
                             obs_item.setData(obs_name, Qt.UserRole + 1)
                             observations_item.appendRow(obs_item)
-                            logger.debug(f"Added observation '{code_response['result']}' to Project Explorer")
-                        else:
-                            logger.error(f"Failed to get code for observation '{obs_name}': {code_response.get('error', 'Unknown error')}")
+                            logger.debug(f"Added observation '{obs_code}' to Project Explorer")
+                        except Exception as e:
+                            logger.error(f"Failed to get code for observation '{obs_name}': {str(e)}")
                 else:
                     logger.debug("No observations found in project")
             else:
-                logger.error(f"Expected dict for observations, got {type(result)}: {result}")
-        else:
-            logger.error(f"Failed to inspect observations: {observations_response.get('error', 'Unknown error')}")
+                logger.error(f"Expected dict for observations, got {type(observations)}: {observations}")
+        except Exception as e:
+            logger.error(f"Failed to inspect observations: {str(e)}")
 
         project_explorer.setModel(model)
         project_explorer.expandAll()
@@ -649,7 +638,11 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def import_new_observation(self):
-        """Import a new observation into the project."""
+        """Import a new observation into the project.
+
+        Raises:
+            Exception: If the observation cannot be imported or an error occurs during file loading.
+        """
         file_path, _ = QFileDialog.getOpenFileName(self, "Import New Observation", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
             logger.info("Import new observation cancelled: No file selected")
@@ -662,32 +655,18 @@ class PAstroCoreMainWindow(QMainWindow):
             imported_observation = Observation.from_dict(data)
             if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in ["VLBI", "SINGLE_DISH"]:
                 imported_observation.observation_type = "VLBI"
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_observation_by_code": imported_observation.code}
-            })
-            if obs_response["status"] and obs_response["result"] is not None:
+
+            observation = self.manipulator.inspect(obj=self.project, get_observation_by_code=imported_observation.code)
+            if observation is not None:
                 logger.error(f"Observation code '{imported_observation.code}' already exists")
                 QMessageBox.critical(self, "Error", f"Observation code '{imported_observation.code}' already exists.")
                 return
 
-            request = {
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {
-                    "add_item": imported_observation
-                    }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"New observation '{imported_observation.code}' imported successfully")
-                self.project_updated.emit()
-            else:
-                logger.error(f"Failed to set observation data for '{imported_observation.code}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to import observation: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(obj=self.project, add_item=imported_observation)
+            logger.info(f"New observation '{imported_observation.code}' imported successfully")
+            self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Exception while importing new observation: {str(e)}")
+            logger.error(f"Failed to import observation '{imported_observation.code if 'imported_observation' in locals() else ''}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
 
     @Slot(str)
