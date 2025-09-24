@@ -74,16 +74,11 @@ class SunAnglesVisualizationTab(QWidget):
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
-        calc_data_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["sun_angles", "times"]}}
-        })
-        if calc_data_response["status"]:
-            self.cached_data = calc_data_response["result"]
+        try:
+            self.cached_data = self.manipulator.inspect(obj=self.observation, get_calculated_data={"keys": ["sun_angles", "times"]})
             logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
-        else:
-            logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Failed to cache calculated data: {str(e)}")
             self.cached_data = {}
 
     def _clear_canvas(self):
@@ -212,16 +207,11 @@ class SunAnglesVisualizationTab(QWidget):
         scans = []
         if source_name in self.cached_data["sun_angles"]["data"]:
             scan_data = self.cached_data["sun_angles"]["data"][source_name]
-            scans_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation,
-                "attributes": {"get_scans": None}
-            })
-            if not scans_response["status"]:
-                logger.error(f"Failed to retrieve scans: {scans_response.get('error', 'Unknown error')}")
+            try:
+                scan_objects = self.manipulator.inspect(obj=self.observation, get_scans=None).get_items()
+            except Exception as e:
+                logger.error(f"Failed to retrieve scans: {str(e)}")
                 return
-
-            scan_objects = scans_response["result"].get_items()
             for scan in scan_objects:
                 scan_name = scan.get("name")
                 if scan_name in scan_data:
@@ -259,27 +249,18 @@ class SunAnglesVisualizationTab(QWidget):
         }
 
         try:
-            response = self.manipulator.process_request({
-                "operation": "visualize",
-                "obj": self.observation,
-                "attributes": vis_attributes
-            })
-            logger.debug(f"Visualization response: {response}")
-            if response["status"]:
-                result = response.get("result", {})
-                if not result or (result.get("telescopes", 0) == 0):
-                    logger.debug("Empty visualization result, clearing canvas")
-                    self._clear_canvas()
-                    return
-                figure = result.get("figure")
-                if figure:
-                    self.embed_figure(figure)
-                    logger.debug(f"Sun angles visualization updated for source '{source_name}'")
-                else:
-                    logger.error("No figure returned from visualizer, clearing canvas")
-                    self._clear_canvas()
+            result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
+            logger.debug(f"Visualization result: {result}")
+            if not result or (result.get("telescopes", 0) == 0):
+                logger.debug("Empty visualization result, clearing canvas")
+                self._clear_canvas()
+                return
+            figure = result.get("figure")
+            if figure:
+                self.embed_figure(figure)
+                logger.debug(f"Sun angles visualization updated for source '{source_name}'")
             else:
-                logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                logger.error("No figure returned from visualizer, clearing canvas")
                 self._clear_canvas()
         except Exception as e:
             logger.error(f"Exception during Sun angles visualization update: {str(e)}")
