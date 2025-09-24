@@ -68,7 +68,7 @@ class MollweideVisualizationTab(QWidget):
         else:
             logger.warning("No sources provided, visualization will show only telescope tracks")
             self._create_empty_mollweide()
-    
+
     def _lock_ui(self):
         """Lock UI elements to prevent further changes during visualization."""
         QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -87,16 +87,11 @@ class MollweideVisualizationTab(QWidget):
 
     def _cache_calculated_data(self):
         """Cache calculated data for the observation to optimize performance."""
-        calc_data_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_calculated_data": {"keys": ["mollweide_tracks", "times"]}}
-        })
-        if calc_data_response["status"]:
-            self.cached_data = calc_data_response["result"]
+        try:
+            self.cached_data = self.manipulator.inspect(obj=self.observation, get_calculated_data={"keys": ["mollweide_tracks", "times"]})
             logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
-        else:
-            logger.error(f"Failed to cache calculated data: {calc_data_response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Failed to cache calculated data: {str(e)}")
             self.cached_data = {}
 
     def get_selected_sources(self) -> List[str]:
@@ -187,13 +182,20 @@ class MollweideVisualizationTab(QWidget):
             figure: Matplotlib Figure object to embed.
         """
         self._clear_canvas()
+        if figure is None:
+            logger.error("Attempted to embed a None figure")
+            return
         self.figure = figure
-        self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.layout.addWidget(self.toolbar)
-        self.layout.addWidget(self.canvas)
-        self.canvas.draw()
-        logger.debug(f"Embedded Matplotlib figure {id(figure)} in MollweideVisualizationTab")
+        try:
+            self.canvas = FigureCanvas(self.figure)
+            self.toolbar = NavigationToolbar(self.canvas, self)
+            self.layout.addWidget(self.toolbar)
+            self.layout.addWidget(self.canvas)
+            self.canvas.draw()
+            logger.debug(f"Embedded Matplotlib figure {id(figure)} in MollweideVisualizationTab")
+        except Exception as e:
+            logger.error(f"Failed to embed figure {id(figure)}: {str(e)}")
+            self._create_empty_mollweide()
 
     @Slot()
     def filter_changed(self):
@@ -207,6 +209,9 @@ class MollweideVisualizationTab(QWidget):
             logger.debug("Filter changed, updating visualization")
             self.update_scans_for_source()
             self.update_visualization()
+        except Exception as e:
+            logger.error(f"Error in filter_changed: {str(e)}")
+            self._create_empty_mollweide()
         finally:
             self.is_processing = False
             self._unlock_ui()
@@ -223,17 +228,12 @@ class MollweideVisualizationTab(QWidget):
             self.ui.listScans.addItem(QListWidgetItem("No track data available"))
             return
 
-        scans_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_scans": None}
-        })
-        if not scans_response["status"]:
-            logger.error(f"Failed to retrieve scans: {scans_response.get('error', 'Unknown error')}")
+        try:
+            scan_objects = self.manipulator.inspect(obj=self.observation, get_scans=None).get_items()
+        except Exception as e:
+            logger.error(f"Failed to retrieve scans: {str(e)}")
             self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
             return
-
-        scan_objects = scans_response["result"].get_items()
         logger.debug(f"Retrieved {len(scan_objects)} scan objects")
         scans = set()
         available_scans = set(self.cached_data["mollweide_tracks"]["data"].keys())
@@ -275,23 +275,14 @@ class MollweideVisualizationTab(QWidget):
         }
 
         try:
-            response = self.manipulator.process_request({
-                "operation": "visualize",
-                "obj": self.observation,
-                "attributes": vis_attributes
-            })
-            logger.debug(f"Visualization response: {response}")
-            if response["status"]:
-                result = response.get("result", {})
-                figure = result.get("figure")
-                if figure:
-                    self.embed_figure(figure)
-                    logger.debug("Mollweide tracks visualization updated")
-                else:
-                    logger.error("No figure returned from visualizer, embedding empty plot")
-                    self._create_empty_mollweide()
+            result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
+            logger.debug(f"Visualization result: {result}")
+            figure = result.get("figure")
+            if figure:
+                self.embed_figure(figure)
+                logger.debug("Mollweide tracks visualization updated")
             else:
-                logger.error(f"Failed to update visualization: {response.get('message', 'Unknown error')}")
+                logger.warning("No figure returned from visualizer, embedding empty plot")
                 self._create_empty_mollweide()
         except Exception as e:
             logger.error(f"Exception during Mollweide tracks visualization update: {str(e)}")
@@ -301,11 +292,23 @@ class MollweideVisualizationTab(QWidget):
         """Create and embed an empty Mollweide projection plot."""
         logger.debug("Creating empty Mollweide projection")
         self._clear_canvas()
-        self.figure = Figure(figsize=self.ui.widget.size().toTuple())
-        ax = self.figure.add_subplot(111, projection="mollweide")
-        ax.set_title(f"Mollweide Tracks\nObs. code: {self.observation.get_observation_code()}")
-        self.figure.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
-        self.embed_figure(self.figure)
+        try:
+            widget_size = self.ui.widget.size()
+            width, height = widget_size.width(), widget_size.height()
+            logger.debug(f"Widget size: width={width}, height={height}")
+            if width <= 0 or height <= 0:
+                logger.error("Invalid widget size, using default size")
+                width, height = 800, 600  # Fallback to reasonable defaults
+            dpi = self.ui.widget.physicalDpiX() or 100  # Fallback DPI
+            figsize = (width / dpi, height / dpi)
+            self.figure = Figure(figsize=figsize, dpi=dpi)
+            ax = self.figure.add_subplot(111, projection="mollweide")
+            ax.set_title(f"Mollweide Tracks\nObs. code: {self.observation.get_observation_code()}")
+            self.figure.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
+            self.embed_figure(self.figure)
+        except Exception as e:
+            logger.error(f"Failed to create empty Mollweide plot: {str(e)}")
+            self.figure = None  # Ensure figure is reset on failure
 
     def closeEvent(self, event):
         """Ensure resources are cleaned up when the widget is closed."""
