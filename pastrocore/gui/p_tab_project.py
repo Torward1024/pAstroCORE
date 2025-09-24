@@ -90,37 +90,32 @@ class ProjectInfoTab(QWidget):
     def update_tab(self):
         """Update the project info tab with current project data using Manipulator."""
 
-        project_name_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_name": None}
-        })
-        project_name = project_name_response["result"] if project_name_response["status"] and isinstance(project_name_response["result"], str) else "Untitled Project"
+        try:
+            project_name = self.manipulator.inspect(self.project, get_name=None)
+        except Exception as e:
+            project_name = "Untitled Project"
+
         self.ui.lineEdit.setText(project_name)
 
-        observations_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_items": None}
-        })
-        if not observations_response["status"]:
-            logger.error(f"Failed to inspect observations: {observations_response.get('error', 'Unknown error')}")
+        try:
+            observations_response = self.manipulator.inspect(self.project, get_items=None)
+        except Exception as e:
+            logger.error(f"Failed to inspect observations: {str(e)}")
             return
 
-        result = observations_response["result"]
+        result = observations_response
         if not isinstance(result, dict):
             logger.error(f"Expected dict for observations, got {type(result)}: {result}")
             return
 
         current_codes = set()
         for obs in result.values():
-            code_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_observation_code": None}
-            })
-            if code_response["status"]:
-                current_codes.add(code_response["result"])
+            try:
+                code_response = self.manipulator.inspect(obs, get_observation_code=None)
+                current_codes.add(code_response)
+            except Exception as e:
+                logger.error(f"Failed to get code for observation with name '{obs.name}': {str(e)}")
+                continue
 
         for i in range(self.model.rowCount() - 1, -1, -1):
             obs_code = self.model.item(i, 3).text()
@@ -133,14 +128,12 @@ class ProjectInfoTab(QWidget):
                 logger.error(f"Invalid observation type for name '{obs_name}': {type(obs)}")
                 continue
 
-            code_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_observation_code": None}
-            })
-            if not code_response["status"]:
-                logger.error(f"Failed to get code for observation with name '{obs_name}': {code_response.get('error', 'Unknown error')}")
+            try:
+                code_response = self.manipulator.inspect(obs, get_observation_code=None)
+            except Exception as e:
+                logger.error(f"Failed to get code for observation with name '{obs_name}': {str(e)}")
                 continue
+
             obs_code = code_response["result"]
 
             row_idx = None
@@ -148,13 +141,13 @@ class ProjectInfoTab(QWidget):
                 if self.model.item(i, 3).text() == obs_code:
                     row_idx = i
                     break
+            
+            try:
+                is_active = self.manipulator.inspect(obs, get="isactive")
+            except Exception as e:
+                logger.error(f"Failed to get isactivite for observation with name '{obs_name}': {str(e)}")
+                continue
 
-            is_active_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get": "isactive"}
-            })
-            is_active = is_active_response["status"] and is_active_response["result"]
             active_item = QStandardItem()
             active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
             active_item.setToolTip("Active" if is_active else "Inactive")
