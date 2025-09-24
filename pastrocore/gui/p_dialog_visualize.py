@@ -61,34 +61,23 @@ class VisualizationDialog(QDialog):
         self.ui.comboBoxVisualizationType.setEnabled(False)
         self.ui.pushButtonVisualize.setEnabled(False)
 
-        response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_items": None}
-        })
-        if response["status"]:
-            observations = response["result"]
+        try:
+            observations = self.manipulator.inspect(obj=self.project, get_items=None)
             if observations:
                 for obs_name, obs in observations.items():
                     self.cached_observations[obs_name] = obs
-                    code_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": obs,
-                        "attributes": {"get_observation_code": None}
-                    })
-                    if code_response["status"]:
-                        self.ui.comboBoxObservation.addItem(code_response["result"], obs_name)
-                    else:
-                        logger.error(f"Failed to get code for observation '{obs_name}': "
-                                     f"{code_response.get('error', 'Unknown error')}")
-                logger.info(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
+                    try:
+                        obs_code = self.manipulator.inspect(obj=obs, get_observation_code=None)
+                        self.ui.comboBoxObservation.addItem(obs_code, obs_name)
+                    except Exception as e:
+                        logger.error(f"Failed to get code for observation '{obs_name}': {str(e)}")
+                logger.debug(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
                 self.ui.comboBoxObservation.setEnabled(True)
             else:
                 logger.debug("No observations found in project")
-        else:
-            logger.error(f"Failed to retrieve observations: {response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to load observations: "
-                                                f"{response.get('error', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Failed to retrieve observations: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to load observations: {str(e)}")
 
     @Slot()
     def handle_observation_changed(self):
@@ -132,22 +121,18 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"Failed to load observation: {current_obs_name}")
                 return
             
-            calc_data_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": observation,
-                "attributes": {
-                    "get_calculated_data": {
+            try:
+                calc_data = self.manipulator.inspect(
+                    obj=observation,
+                    get_calculated_data={
                         "keys": ["uv_coverage", "az_el", "sun_angles", "beam_pattern", "times",
-                                 "time_on_source", "baseline_projections", "mollweide_tracks"]
+                                "time_on_source", "baseline_projections", "mollweide_tracks"]
                     }
-                }
-            })
-            if calc_data_response["status"]:
-                self.cached_calc_data[current_obs_name] = calc_data_response["result"]
+                )
+                self.cached_calc_data[current_obs_name] = calc_data
                 logger.debug(f"Cached calculated data keys for observation '{current_obs_name}'")
-            else:
-                logger.error(f"Failed to cache data for '{current_obs_name}': "
-                             f"{calc_data_response.get('error', 'Unknown error')}")
+            except Exception as e:
+                logger.error(f"Failed to cache data for '{current_obs_name}': {str(e)}")
                 self.cached_calc_data[current_obs_name] = {}
                 return
 
@@ -172,7 +157,7 @@ class VisualizationDialog(QDialog):
             self.ui.comboBoxVisualizationType.addItems(available_visualizations)
             self.ui.comboBoxVisualizationType.setEnabled(True)
             self.ui.pushButtonVisualize.setEnabled(True)
-            logger.info(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
+            logger.debug(f"Populated {len(available_visualizations)} visualization types for observation '{current_obs_name}'")
         else:
             logger.debug(f"No valid calculated data keys for visualization in observation '{current_obs_name}'")
 
@@ -394,35 +379,24 @@ class VisualizationDialog(QDialog):
                 logger.debug(f"Updated vis_attributes for Mollweide Tracks: {vis_attributes}")
 
             try:
-                response = self.manipulator.process_request({
-                    "operation": "visualize",
-                    "obj": observation,
-                    "attributes": vis_attributes
-                })
-                logger.debug(f"Visualization response: {response}")
-                if response["status"]:
-                    result = response.get("result", {})
-                    if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
-                        logger.debug("Empty visualization result, clearing tab")
-                        if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern",
-                                        "Time on Source", "Baseline Projections", "Mollweide Tracks"]:
-                            tab_widget._clear_canvas()
-                        logger.info(f"Cleared visualization tab for '{vis_type}' due to empty result")
-                        return
-                    figure = result.get("figure")
-                    if not figure:
-                        logger.error(f"No figure returned for visualization '{vis_type}'")
-                        QMessageBox.critical(self, "Error", "No figure returned from visualizer")
+                result = self.manipulator.visualize(obj=observation, **vis_attributes)
+                logger.debug(f"Visualization result: {result}")
+                if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
+                    logger.debug("Empty visualization result, clearing tab")
+                    if vis_type in ["UV Coverage", "Sun Angles", "Az/El or HA/Dec", "Beam Pattern",
+                                    "Time on Source", "Baseline Projections", "Mollweide Tracks"]:
                         tab_widget._clear_canvas()
-                        return
-
-                    tab_widget.embed_figure(figure)
-                    logger.info(f"Performed visualization '{vis_type}' for observation '{obs_name}'")
-                else:
-                    logger.error(f"Failed to perform visualization '{vis_type}': {response.get('message', 'Unknown error')}")
-                    QMessageBox.critical(self, "Error", f"Failed to perform visualization: "
-                                                        f"{response.get('message', 'Unknown error')}")
+                    logger.info(f"Cleared visualization tab for '{vis_type}' due to empty result")
+                    return
+                figure = result.get("figure")
+                if not figure:
+                    logger.error(f"No figure returned for visualization '{vis_type}'")
+                    QMessageBox.critical(self, "Error", "No figure returned from visualizer")
                     tab_widget._clear_canvas()
+                    return
+
+                tab_widget.embed_figure(figure)
+                logger.info(f"Performed visualization '{vis_type}' for observation '{obs_name}'")
             except Exception as e:
                 logger.error(f"Exception during visualization '{vis_type}': {str(e)}")
                 QMessageBox.critical(self, "Error", f"Visualization failed: {str(e)}")
