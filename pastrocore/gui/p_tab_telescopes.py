@@ -151,19 +151,10 @@ class TelescopesTab(QWidget):
             try:
                 telescope_data = dialog.get_telescope_data()
                 telescope = Telescope(**telescope_data)
-                request = {
-                    "operation": "configure",
-                    "obj": self.observation.get_telescopes(),
-                    "attributes": {"add": telescope}
-                }
-                response = self.manipulator.process_request(request)
-                if response["status"]:
-                    logger.info(f"Added telescope '{telescope_data['code']}' to observation '{self.observation.code}'")
-                    self.update()
-                    self.data_updated.emit(telescope_data['name'], None, "add")
-                else:
-                    logger.error(f"Failed to add telescope: {response.get('error', 'Unknown error')}")
-                    QMessageBox.critical(self, "Error", f"Failed to add telescope: {response.get('error', 'Unknown error')}")
+                self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
+                self.update()
+                self.data_updated.emit(telescope_data['name'], None, "add")
+                logger.info(f"Added telescope '{telescope_data['code']}' to observation '{self.observation.code}'")
             except Exception as e:
                 logger.error(f"Exception while adding telescope: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
