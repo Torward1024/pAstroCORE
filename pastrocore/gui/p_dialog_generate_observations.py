@@ -74,15 +74,8 @@ class GenerationThread(QThread):
     def run(self):
         """Execute observation generation asynchronously and emit progress signals."""
         try:
-            response = self.manipulator.process_request({
-                "operation": "configure",
-                "obj": self.project,
-                "attributes": {"generate_observations": self.attributes}
-            })
-            if response["status"]:
-                self.finished.emit(response)
-            else:
-                self.error.emit(response["error"])
+            result = self.manipulator.configure(obj=self.project, generate_observations=self.attributes)
+            self.finished.emit({"status": True, "result": result})
         except Exception as e:
             logger.error(f"Error in GenerationThread: {str(e)}")
             self.error.emit(str(e))
@@ -586,12 +579,12 @@ class GenerateObservationsDialog(QDialog):
         """Handle generation completion."""
         self.progress_dialog.close()
         if response["status"]:
-            logger.info(f"Generated {len(response['result'])} observations")
             self.observation_generated.emit(response["result"])
             self.accept()
         else:
-            logger.error(f"Generation failed: {response['error']}")
-            QMessageBox.critical(self, "Error", f"Generation failed: {response['error']}")
+            logger.error(f"Generation failed: {response.get('error', 'Unknown error')}. "
+                        f"Partial results: {len(response.get('result', []))} observations")
+            QMessageBox.critical(self, "Error", f"Generation failed: {response.get('error', 'Unknown error')}")
             self.reject()
 
     @Slot(str)
@@ -618,7 +611,7 @@ class GenerateObservationsDialog(QDialog):
         add_off_source = self.ui.addOffSourceCheck.isChecked()
         multiplier = 2 if add_off_source else 1
         scans_block = (scan_duration * multiplier + gap) * num_scans - gap
-        total_seconds = scans_block if is_parallel else scans_block * num_sources
+        total_seconds = round(scans_block if is_parallel else scans_block * num_sources)
         end_qdt = start_qdt.addSecs(int(total_seconds))
         self.ui.endTimeEdit.blockSignals(True)
         self.ui.endTimeEdit.setDateTime(end_qdt)
