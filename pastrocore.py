@@ -1002,7 +1002,6 @@ class PAstroCoreMainWindow(QMainWindow):
     def handle_observation_generated(self, obs_codes: list):
         """Handle observation generated signal."""
         try:
-            logger.info(f"Generated observations: {obs_codes}")
             self.update_project_explorer()
             self.project_updated.emit()
         except Exception as e:
