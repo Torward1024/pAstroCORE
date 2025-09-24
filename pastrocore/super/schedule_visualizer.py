@@ -34,7 +34,6 @@ class ScheduleVisualizer(Super):
 
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator)
-        logger.info("Initialized Scheduling Visualizer")
         self._lock = threading.Lock()
         
         # Default style configuration
@@ -129,6 +128,8 @@ class ScheduleVisualizer(Super):
             "baseline_projections": self._plot_baseline_projections,
             "mollweide_tracks": self._plot_mollweide_tracks,
         }
+        
+        logger.debug("Initialized Scheduling Visualizer")
 
     def _apply_style_config(self) -> None:
         """Apply the style configuration to matplotlib."""
