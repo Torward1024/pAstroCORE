@@ -173,7 +173,7 @@ class Manipulator(ABC):
             }
             self._registry[super_type] = methods
             logger.debug(f"Registered {len(methods)} methods for {super_type.__name__}")
-        logger.info(f"Registered operation '{operation}' with {type(super_instance).__name__}")
+        logger.debug(f"Registered operation '{operation}' with {type(super_instance).__name__}")
 
         self._add_facade(operation)
     

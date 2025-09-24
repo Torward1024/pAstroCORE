@@ -29,7 +29,7 @@ class ScheduleConfigurator(Super):
 
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator=manipulator)
-        logger.info("Initialized ScheduleConfigurator")
+        logger.debug("Initialized ScheduleConfigurator")
 
     def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:
         """Configure an IF object and return its get() result."""

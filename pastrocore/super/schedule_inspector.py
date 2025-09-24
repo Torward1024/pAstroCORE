@@ -45,7 +45,7 @@ class ScheduleInspector(Super):
             manipulator: The Manipulator instance providing method validation and execution capabilities.
         """
         super().__init__(manipulator=manipulator)
-        logger.info("Initialized ScheduleInspector")
+        logger.debug("Initialized ScheduleInspector")
 
     def _inspect_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:
         """Inspect an IF object and return its get() result with requested attributes.

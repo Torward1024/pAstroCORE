@@ -84,7 +84,7 @@ class ScheduleCalculator(Super):
         self._lock = threading.Lock()
         self._orbit_cache = {} 
         self._orbit_cache_lock = threading.Lock()
-        logger.info("Initialized Scheduling Calculator")
+        logger.debug("Initialized Scheduling Calculator")
     
     def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Retrieve cached data or perform calculation and cache the result.
