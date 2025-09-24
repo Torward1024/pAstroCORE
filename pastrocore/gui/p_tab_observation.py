@@ -93,24 +93,15 @@ class ObservationTab(QWidget):
             self.ui.obs_name_edit.setReadOnly(True)
             return
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation,
-                "attributes": {"set": {"params": {"code": new_code}}}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation code changed from '{old_code}' to '{new_code}'")
-                self.observation.code = new_code
-                self.observation_updated.emit()
-            else:
-                logger.error(f"Failed to change observation code: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to change observation code: {response.get('error', 'Unknown error')}")
-                self.update_tab()
+            self.manipulator.configure(obj=self.observation, set={"params": {"code": new_code}})
+            logger.info(f"Observation code changed from '{old_code}' to '{new_code}'")
+            self.observation.code = new_code
+            self.observation_updated.emit()
         except Exception as e:
-            logger.error(f"Exception while changing observation code: {str(e)}")
+            logger.error(f"Failed to change observation code: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to change observation code: {str(e)}")
             self.observation.code = old_code
+            self.update_tab()
         finally:
             self.ui.obs_name_edit.setReadOnly(True)
 
@@ -120,22 +111,13 @@ class ObservationTab(QWidget):
         if not text or self._updating:
             return
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation,
-                "attributes": {"set": {"params": {"observation_type": text}}}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation type changed to '{text}' for code '{self.observation.get_observation_code()}'")
-                self.observation_updated.emit()
-            else:
-                logger.error(f"Failed to change observation type: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to change observation type: {response.get('error', 'Unknown error')}")
-                self.update_tab()
+            self.manipulator.configure(obj=self.observation, set={"params": {"observation_type": text}})
+            logger.info(f"Observation type changed to '{text}' for code '{self.observation.get_observation_code()}'")
+            self.observation_updated.emit()
         except Exception as e:
-            logger.error(f"Exception while changing observation type: {str(e)}")
+            logger.error(f"Failed to change observation type: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to change observation type: {str(e)}")
+            self.update_tab()
 
     @Slot()
     def update_tab(self):
@@ -150,28 +132,18 @@ class ObservationTab(QWidget):
         self._updating = True
         logger.debug(f"Starting update_tab for observation with code '{self.observation.get_observation_code()}'")
         try:
-            obs_code_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation,
-                "attributes": {"get_observation_code": None}
-            })
-            if not obs_code_response["status"]:
-                logger.error(f"Failed to get observation code: {obs_code_response.get('error', 'Unknown error')}")
+            obs_code = self.manipulator.inspect(obj=self.observation, get_observation_code=None)
+            if not obs_code:
+                logger.error("Failed to get observation code")
                 self.close_tab()
                 return
-            obs_code = obs_code_response["result"]
 
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_observation_by_code": obs_code}
-            })
-            if not obs_response["status"] or not obs_response["result"]:
+            new_observation = self.manipulator.inspect(obj=self.project, get_observation_by_code=obs_code)
+            if not new_observation:
                 logger.info(f"Observation with code '{obs_code}' no longer exists, closing tab")
                 self.close_tab()
                 return
 
-            new_observation = obs_response["result"]
             if new_observation != self.observation:
                 logger.debug(f"Observation with code '{obs_code}' data updated, refreshing local reference")
                 self.observation = new_observation
@@ -187,12 +159,8 @@ class ObservationTab(QWidget):
                     self.parent_widget.ui.tabContainer.setTabText(i, f"Observation: {obs_code}")
                     break
 
-            type_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation,
-                "attributes": {"get": "observation_type"}
-            })
-            obs_type = type_response["result"] if type_response["status"] and type_response["result"] in ["VLBI", "SINGLE_DISH"] else "VLBI"
+            obs_type = self.manipulator.inspect(obj=self.observation, get="observation_type")
+            obs_type = obs_type if obs_type in ["VLBI", "SINGLE_DISH"] else "VLBI"
             if self.ui.combo_obs_type.currentText() != obs_type:
                 self.ui.combo_obs_type.blockSignals(True)
                 self.ui.combo_obs_type.clear()
@@ -200,19 +168,11 @@ class ObservationTab(QWidget):
                 self.ui.combo_obs_type.setCurrentText(obs_type)
                 self.ui.combo_obs_type.blockSignals(False)
 
-            start_time_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation,
-                "attributes": {"get_start_datetime": None}
-            })
-            start_time = start_time_response["result"].strftime("%d.%m.%Y %H:%M:%S") if start_time_response["status"] and start_time_response["result"] else "N/A"
+            start_time = self.manipulator.inspect(obj=self.observation, get_start_datetime=None)
+            start_time = start_time.strftime("%d.%m.%Y %H:%M:%S") if start_time else "N/A"
 
-            duration_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation,
-                "attributes": {"get_duration": None}
-            })
-            duration = str(duration_response["result"]) if duration_response["status"] and duration_response["result"] else "N/A"
+            duration = self.manipulator.inspect(obj=self.observation, get_duration=None)
+            duration = str(duration) if duration else "N/A"
 
             self.ui.lbl_obs_info.setText(f"Start Time/Date: {start_time} Duration: {duration} sec.")
 
