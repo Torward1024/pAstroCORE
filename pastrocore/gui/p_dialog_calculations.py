@@ -73,39 +73,25 @@ class CalculationThread(QThread):
                             freq_params["freq_name"] = freq
                             freq_params["store_key"] = f"{method}_{freq}"
                             freq_params["time_step"] = time_step
-                            request = {
-                                "operation": "calculate",
-                                "attributes": {
-                                    "method": method,
-                                    **freq_params
-                                },
-                                "obj": target
-                            }
                             logger.debug(f"Executing calculation request for {calc_type} on {target.code} at {freq} with params: {freq_params}")
-                            result = self.manipulator.process_request(request)
-                            if not result.get("status", False):
-                                raise ValueError(f"Calculation {calc_type} failed for {target.code} at {freq}: {result.get('message', 'Unknown error')}")
-                            results[f"{target.code}_{calc_type}_{freq}"] = result["result"]
-                            current += 1
-                            self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code} at {freq}")
+                            try:
+                                result = self.manipulator.calculate(obj=target, method=method, **freq_params)
+                                results[f"{target.code}_{calc_type}_{freq}"] = result
+                                current += 1
+                                self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code} at {freq}")
+                            except Exception as e:
+                                raise ValueError(f"Calculation {calc_type} failed for {target.code} at {freq}: {str(e)}")
                     else:
                         calc_params["store_key"] = f"{method}"
                         calc_params["time_step"] = time_step
-                        request = {
-                            "operation": "calculate",
-                            "attributes": {
-                                "method": method,
-                                **calc_params
-                            },
-                            "obj": target
-                        }
                         logger.debug(f"Executing calculation request for {calc_type} on {target.code} with params: {calc_params}")
-                        result = self.manipulator.process_request(request)
-                        if not result.get("status", False):
-                            raise ValueError(f"Calculation {calc_type} failed for {target.code}: {result.get('message', 'Unknown error')}")
-                        results[f"{target.code}_{calc_type}"] = result["result"]
-                        current += 1
-                        self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code}")
+                        try:
+                            result = self.manipulator.calculate(obj=target, method=method, **calc_params)
+                            results[f"{target.code}_{calc_type}"] = result
+                            current += 1
+                            self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code}")
+                        except Exception as e:
+                            raise ValueError(f"Calculation {calc_type} failed for {target.code}: {str(e)}")
             self.finished.emit(results)
         except Exception as e:
             logger.error(f"Calculation error in thread: {str(e)}")
@@ -191,25 +177,21 @@ class CalculationDialog(QDialog):
 
     def populate_targets(self):
         """Populate the target list with project observations using observation code."""
-        observations_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_items": None}
-        })
-        self.ui.targetList.clear()
-        if observations_response["status"]:
-            if not observations_response["result"]:
+        try:
+            observations = self.manipulator.inspect(obj=self.project, get_items=None)
+            self.ui.targetList.clear()
+            if not observations:
                 logger.debug("No observations found in the project.")
                 return
-            for _, obs in observations_response["result"].items():
+            for _, obs in observations.items():
                 item = QListWidgetItem(obs.code)
                 item.setData(Qt.UserRole, obs)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(Qt.Checked)
                 self.ui.targetList.addItem(item)
             logger.debug(f"Populated {self.ui.targetList.count()} observations, all checked.")
-        else:
-            logger.error(f"Failed to retrieve observations: {observations_response.get('message', 'Unknown error')}")
+        except Exception as e:
+            logger.error(f"Failed to retrieve observations: {str(e)}")
             QMessageBox.critical(self, "Error", "Failed to load observations. Please check the project data.")
 
     def select_all_calcs(self):
