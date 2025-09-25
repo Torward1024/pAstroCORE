@@ -143,57 +143,36 @@ class ScansTab(QWidget):
         """Add a new scan to the observation using ScanEditorDialog after checking prerequisites."""
         missing_components = []
 
-        obs_type_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get": "observation_type"}
-        })
-        if not obs_type_response["status"]:
-            logger.error(f"Failed to get observation type: {obs_type_response.get('error', 'Unknown error')}")
-            QMessageBox.critical(self, "Error", f"Failed to get observation type: {obs_type_response.get('error', 'Unknown error')}")
+        obs_type = self.manipulator.inspect(self.observation, get="observation_type")
+        if not obs_type:
+            logger.error(f"Failed to get observation type: No result returned")
+            QMessageBox.critical(self, "Error", f"Failed to get observation type: No result returned")
             return
-        obs_type = obs_type_response["result"]
 
-        telescopes_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_telescopes": None}
-        })
-        if not telescopes_response["status"] or not telescopes_response["result"]:
-            logger.error(f"Failed to get telescopes: {telescopes_response.get('error', 'Unknown error')}")
+        telescopes = self.manipulator.inspect(self.observation, get_telescopes=None)
+        if not telescopes:
+            logger.warning(f"No telescopes found in observation")
             missing_components.append("telescopes")
         else:
-            telescopes_items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": telescopes_response["result"],
-                "attributes": {"get_all": None}
-            })
-            if not telescopes_items_response["status"] or not isinstance(telescopes_items_response["result"], dict):
-                logger.error(f"Failed to get telescope items: {telescopes_items_response.get('error', 'Unknown error')}")
+            telescopes_items = self.manipulator.inspect(telescopes, get_all=None)
+            if not telescopes_items:
+                logger.warning(f"No telescopes found in observation")
                 missing_components.append("telescopes")
             else:
-                telescope_count = len(telescopes_items_response["result"])
+                telescope_count = len(telescopes_items)
                 if obs_type == "VLBI" and telescope_count < 2:
                     missing_components.append("at least 2 telescopes (required for VLBI)")
                 elif obs_type == "SINGLE_DISH" and telescope_count < 1:
                     missing_components.append("at least 1 telescope (required for SINGLE_DISH)")
 
-        frequencies_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_frequencies": None}
-        })
-        if not frequencies_response["status"] or not frequencies_response["result"]:
-            logger.error(f"Failed to get frequencies: {frequencies_response.get('error', 'Unknown error')}")
+        frequencies = self.manipulator.inspect(self.observation, get_frequencies=None)
+        if not frequencies:
+            logger.warning(f"No frequencies found in observation")
             missing_components.append("frequencies")
         else:
-            frequencies_items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": frequencies_response["result"],
-                "attributes": {"get_all": None}
-            })
-            if not frequencies_items_response["status"] or not isinstance(frequencies_items_response["result"], dict) or len(frequencies_items_response["result"]) < 1:
-                logger.error(f"No frequencies found: {frequencies_items_response.get('error', 'No frequencies available')}")
+            frequencies_items = self.manipulator.inspect(frequencies, get_all=None)
+            if not frequencies_items or len(frequencies_items) < 1:
+                logger.error(f"No frequencies found found in observation")
                 missing_components.append("at least 1 frequency")
 
         if missing_components:
@@ -209,33 +188,11 @@ class ScansTab(QWidget):
         dialog = ScanEditorDialog(self.observation, self.manipulator, scan=None, parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:
-                scan_data = dialog.get_scan_data()
-                request = {
-                    "operation": "configure",
-                    "obj": self.observation.get_scans(),
-                    "attributes": {
-                        "create_scan": {
-                            "name": scan_data["name"],
-                            "start": scan_data["start"],
-                            "duration": scan_data["duration"],
-                            "source": scan_data["source"],
-                            "telescopes": scan_data["telescopes"],
-                            "frequencies": scan_data["frequencies"],
-                            "is_off_source": scan_data["is_off_source"],
-                            "isactive": scan_data["isactive"],
-                            "observation": self.observation
-                        }
-                    }
-                }
-                logger.info(f"Sending create_scan request: {request}")
-                response = self.manipulator.process_request(request)
-                if response["status"]:
-                    logger.info(f"Added scan '{scan_data['name']}' to observation '{self.observation.code}'")
-                    self.update()
-                    self.data_updated.emit()
-                else:
-                    logger.error(f"Failed to add scan: {response.get('error', 'Unknown error')}")
-                    QMessageBox.critical(self, "Error", f"Failed to add scan: {response.get('error', 'Unknown error')}")
+                scan = dialog.get_scan_object()
+                self.manipulator.configure(self.observation.get_scans(), add=scan)
+                self.update()
+                self.data_updated.emit()
+                logger.info(f"Added scan '{scan.name}' to observation '{self.observation.code}'")
             except ValueError as ve:
                 logger.error(f"Validation error while adding scan: {str(ve)}")
                 QMessageBox.critical(self, "Error", f"Failed to add scan: {str(ve)}")
@@ -247,47 +204,20 @@ class ScansTab(QWidget):
     def edit_scan(self, scan_name: str):
         """Edit an existing scan using ScanEditorDialog."""
         try:
-            scan_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_scans(),
-                "attributes": {"get": scan_name}
-            })
-            if not scan_response["status"]:
-                logger.error(f"Failed to retrieve scan '{scan_name}': {scan_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to retrieve scan: {scan_response.get('error', 'Unknown error')}")
+            scan = self.manipulator.inspect(self.observation.get_scans(), get=scan_name)
+            if not scan:
+                logger.error(f"Failed to retrieve scan '{scan_name}': No result returned")
+                QMessageBox.critical(self, "Error", f"Failed to retrieve scan: No result returned")
                 return
             
-            scan_obj = scan_response["result"]
-            dialog = ScanEditorDialog(self.observation, self.manipulator, scan=scan_obj, parent=self)
+            dialog = ScanEditorDialog(self.observation, self.manipulator, scan=scan, parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
-                    scan_data = dialog.get_scan_data()
-                    request = {
-                        "operation": "configure",
-                        "obj": self.observation.get_scans(),
-                        "attributes": {
-                            "set_scan": {
-                                "name": scan_name,
-                                "start": scan_data["start"],
-                                "duration": scan_data["duration"],
-                                "source": scan_data["source"],
-                                "telescopes": scan_data["telescopes"],
-                                "frequencies": scan_data["frequencies"],
-                                "is_off_source": scan_data["is_off_source"],
-                                "isactive": scan_data["isactive"],
-                                "observation": self.observation
-                            }
-                        }
-                    }
-                    logger.info(f"Sending set_scan request for '{scan_name}': {request}")
-                    response = self.manipulator.process_request(request)
-                    if response["status"]:
-                        logger.info(f"Updated scan '{scan_name}' in observation '{self.observation.code}' with start={scan_data['start'].isot}")
-                        self.update()
-                        self.data_updated.emit()
-                    else:
-                        logger.error(f"Failed to update scan: {response.get('error', 'Unknown error')}")
-                        QMessageBox.critical(self, "Error", f"Failed to update scan: {response.get('error', 'Unknown error')}")
+                    scan = dialog.get_scan_object()
+                    self.manipulator.configure(self.observation.get_scans(), set_item={"name": scan_name, "item": scan})
+                    self.update()
+                    self.data_updated.emit()
+                    logger.info(f"Updated scan '{scan_name}' in observation '{self.observation.code}' with start={scan.start.isot}")
                 except ValueError as ve:
                     logger.error(f"Validation error while updating scan: {str(ve)}")
                     QMessageBox.critical(self, "Error", f"Failed to update scan: {str(ve)}")

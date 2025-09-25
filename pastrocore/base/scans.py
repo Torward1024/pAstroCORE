@@ -53,7 +53,7 @@ class Scan(BaseEntity):
             telescopes=telescopes,
             frequencies=frequencies,
             is_off_source=source is None or is_off_source,
-            isactive=isactive,
+            isactive=isactive
         )
         if observation:
             from pastrocore.base.observation import Observation
