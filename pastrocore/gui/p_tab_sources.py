@@ -65,20 +65,17 @@ class SourcesTab(QWidget):
         add_action.triggered.connect(self.add_source)
         add_catalog_action.triggered.connect(self.add_source_from_catalog)
 
-        sources_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_sources": None}
-        })
-        has_sources = False
-        if sources_response["status"] and sources_response["result"]:
-            items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": sources_response["result"],
-                "attributes": {"get_all": None}
-            })
-            has_sources = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
-        else:
+        try:
+            sources = self.manipulator.inspect(self.observation, get_sources=None)
+            has_sources = False
+            if sources:
+                items = self.manipulator.inspect(sources, get_all=None)
+                has_sources = isinstance(items, dict) and len(items) > 0
+            else:
+                logger.debug(f"No sources found in observation '{self.observation.code}'")
+        except Exception as e:
+            logger.error(f"Exception while inspecting sources: {str(e)}")
+            has_sources = False
             logger.debug(f"No sources found in observation '{self.observation.code}'")
 
         if has_sources:
@@ -97,22 +94,15 @@ class SourcesTab(QWidget):
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
             source_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
-            source_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_sources(),
-                "attributes": {"get": source_name}
-            })
-            if not source_response["status"] or not source_response["result"]:
-                logger.error(f"Failed to get source '{source_name}': {source_response.get('error', 'Unknown error')}")
+            try:
+                source_obj = self.manipulator.inspect(self.observation.get_sources(), get=source_name)
+                if not source_obj:
+                    logger.error(f"Failed to get source '{source_name}': No result returned")
+                    return
+                is_active = bool(self.manipulator.inspect(source_obj, get="isactive"))
+            except Exception as e:
+                logger.error(f"Exception while inspecting source '{source_name}': {str(e)}")
                 return
-            source_obj = source_response["result"]
-            
-            is_active_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": source_obj,
-                "attributes": {"get": "isactive"}
-            })
-            is_active = is_active_response["status"] and bool(is_active_response["result"])
 
             menu.addSeparator()
             if is_active:
@@ -138,11 +128,9 @@ class SourcesTab(QWidget):
             try:
                 source_data = dialog.get_source_data()
                 source_name = source_data["name"] or f"source_{uuid.uuid4().hex[:32]}"
-                request = {
-                    "operation": "configure",
-                    "obj": self.observation.get_sources(),
-                    "attributes": {
-                        "create_source": {
+                self.manipulator.configure(
+                    self.observation.get_sources(),
+                    create_source={
                             "name": source_name,
                             "ra_h": source_data["ra_h"],
                             "ra_m": source_data["ra_m"],
@@ -156,16 +144,10 @@ class SourcesTab(QWidget):
                             "spectral_index": source_data["spectral_index"],
                             "isactive": source_data["isactive"]
                         }
-                    }
-                }
-                response = self.manipulator.process_request(request)
-                if response["status"]:
-                    logger.info(f"Added source '{source_name}' to observation '{self.observation.code}'")
-                    self.update()
-                    self.data_updated.emit(source_name, None, "add")
-                else:
-                    logger.error(f"Failed to add source: {response.get('error', 'Unknown error')}")
-                    QMessageBox.critical(self, "Error", f"Failed to add source: {response.get('error', 'Unknown error')}")
+                    )
+                self.update()
+                self.data_updated.emit(source_name, None, "add")
+                logger.info(f"Added source '{source_name}' to observation '{self.observation.code}'")
             except ValueError as ve:
                 logger.error(f"Validation error while adding source: {str(ve)}")
                 QMessageBox.critical(self, "Error", f"Failed to add source: {str(ve)}")
@@ -196,49 +178,36 @@ class SourcesTab(QWidget):
     def edit_source(self, source_name: str):
         """Edit an existing source using SourceEditorDialog."""
         try:
-            source_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_sources(),
-                "attributes": {"get": source_name}
-            })
-            if not source_response["status"]:
-                logger.error(f"Failed to retrieve source '{source_name}': {source_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to retrieve source: {source_response.get('error', 'Unknown error')}")
+            source_obj = self.manipulator.inspect(self.observation.get_sources(), get=source_name)
+            if not source_obj:
+                logger.error(f"Failed to retrieve source '{source_name}': No result returned")
+                QMessageBox.critical(self, "Error", f"Failed to retrieve source: No result returned")
                 return
             
-            source_obj = source_response["result"]
             dialog = SourceEditorDialog(source_obj=source_obj, parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
                     source_data = dialog.get_source_data()
-                    request = {
-                        "operation": "configure",
-                        "obj": self.observation.get_sources(),
-                        "attributes": {
-                            "set_source": {
-                                "name": source_name,
-                                "ra_h": source_data["ra_h"],
-                                "ra_m": source_data["ra_m"],
-                                "ra_s": source_data["ra_s"],
-                                "de_d": source_data["de_d"],
-                                "de_m": source_data["de_m"],
-                                "de_s": source_data["de_s"],
-                                "name_J2000": source_data["name_J2000"],
-                                "alt_name": source_data["alt_name"],
-                                "flux_table": source_data["flux_table"],
-                                "spectral_index": source_data["spectral_index"],
-                                "isactive": source_data["isactive"]
-                            }
+                    self.manipulator.configure(
+                        self.observation.get_sources(),
+                        set_source={
+                            "name": source_name,
+                            "ra_h": source_data["ra_h"],
+                            "ra_m": source_data["ra_m"],
+                            "ra_s": source_data["ra_s"],
+                            "de_d": source_data["de_d"],
+                            "de_m": source_data["de_m"],
+                            "de_s": source_data["de_s"],
+                            "name_J2000": source_data["name_J2000"],
+                            "alt_name": source_data["alt_name"],
+                            "flux_table": source_data["flux_table"],
+                            "spectral_index": source_data["spectral_index"],
+                            "isactive": source_data["isactive"]
                         }
-                    }
-                    response = self.manipulator.process_request(request)
-                    if response["status"]:
-                        logger.info(f"Updated source '{source_name}' in observation '{self.observation.code}'")
-                        self.update()
-                        self.data_updated.emit(source_name, source_data["isactive"], "edit")
-                    else:
-                        logger.error(f"Failed to update source: {response.get('error', 'Unknown error')}")
-                        QMessageBox.critical(self, "Error", f"Failed to update source: {response.get('error', 'Unknown error')}")
+                    )
+                    logger.info(f"Updated source '{source_name}' in observation '{self.observation.code}'")
+                    self.update()
+                    self.data_updated.emit(source_name, source_data["isactive"], "edit")
                 except ValueError as ve:
                     logger.error(f"Validation error while updating source: {str(ve)}")
                     QMessageBox.critical(self, "Error", f"Failed to update source: {str(ve)}")
@@ -334,49 +303,32 @@ class SourcesTab(QWidget):
     def update(self):
         """Update the sources table."""
         self.model.removeRows(0, self.model.rowCount())
-        sources_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_sources": None}
-        })
-        if sources_response["status"] and sources_response["result"]:
-            sources = sources_response["result"]
-            items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": sources,
-                "attributes": {"get_all": None}
-            })
-            if items_response["status"] and isinstance(items_response["result"], dict):
-                idx = 1
-                for name, source_obj in items_response["result"].items():
-                    is_active_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": source_obj,
-                        "attributes": {"get": "isactive"}
-                    })
-                    is_active = is_active_response["status"] and bool(is_active_response["result"])
+        try:
+            sources = self.manipulator.inspect(self.observation, get_sources=None)
+            if not sources:
+                return
+            items = self.manipulator.inspect(sources, get_all=None)
+            if not isinstance(items, dict):
+                return
 
+            idx = 1
+            for name, source_obj in items.items():
+                try:
+                    is_active = bool(self.manipulator.inspect(source_obj, get="isactive"))
                     active_item = QStandardItem()
                     active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
                     active_item.setToolTip("Active" if is_active else "Inactive")
                     active_item.setTextAlignment(Qt.AlignCenter)
 
-                    attrs_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": source_obj,
-                        "attributes": {
-                            "get": [
-                                "name", "name_J2000", "alt_name",
-                                "ra_h", "ra_m", "ra_s",
-                                "de_d", "de_m", "de_s"
-                            ]
-                        }
-                    })
-                    if not attrs_response["status"]:
-                        logger.error(f"Failed to get attributes for source '{name}': {attrs_response.get('error', 'Unknown error')}")
+                    attrs = self.manipulator.inspect(source_obj, get=[
+                        "name", "name_J2000", "alt_name",
+                        "ra_h", "ra_m", "ra_s",
+                        "de_d", "de_m", "de_s"
+                    ])
+                    if not attrs:
+                        logger.error(f"Failed to get attributes for source '{name}': No result returned")
                         continue
 
-                    attrs = attrs_response["result"]
                     source_name = attrs.get("name", "N/A")
                     name_J2000 = attrs.get("name_J2000", "") or ""
                     alt_name = attrs.get("alt_name", "") or ""
@@ -394,7 +346,7 @@ class SourcesTab(QWidget):
 
                     row = [
                         QStandardItem(str(idx)),
-                        active_item,             
+                        active_item,
                         QStandardItem(source_name),
                         QStandardItem(name_J2000),
                         QStandardItem(alt_name),
@@ -407,8 +359,13 @@ class SourcesTab(QWidget):
                     row[0].setData(idx, Qt.UserRole + 1)
                     self.model.appendRow(row)
                     idx += 1
+                except Exception as e:
+                    logger.error(f"Exception while processing source '{name}': {str(e)}")
+                    continue
 
-        self.ui.table.resizeColumnsToContents()
+            self.ui.table.resizeColumnsToContents()
+        except Exception as e:
+            logger.error(f"Exception while updating sources table: {str(e)}")
 
     @Slot(list)
     def handle_sources_selected(self, sources: list):
@@ -420,14 +377,8 @@ class SourcesTab(QWidget):
             sources (list): List of selected Source objects.
         """
         try:
-            existing_sources_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_sources(),
-                "attributes": {"get_all": None}
-            })
-            existing_names = set()
-            if existing_sources_response["status"] and isinstance(existing_sources_response["result"], dict):
-                existing_names = set(existing_sources_response["result"].keys())
+            existing_sources = self.manipulator.inspect(self.observation.get_sources(), get_all=None)
+            existing_names = set(existing_sources.keys()) if isinstance(existing_sources, dict) else set()
 
             unique_sources = []
             skipped_sources = []
@@ -443,23 +394,14 @@ class SourcesTab(QWidget):
                 QMessageBox.warning(self, "Warning", f"No new sources to add. Skipped: {', '.join(skipped_sources) if skipped_sources else 'None'}")
                 return
 
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"add": unique_sources}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                for source in unique_sources:
-                    logger.info(f"Added source '{source.name}' from catalog to observation '{self.observation.code}'")
-                self.data_updated.emit(None, None, "add_multiple")
-                self.update()
-                QMessageBox.information(self, "Success", f"Successfully added {len(unique_sources)} source(s) to observation.")
-                if skipped_sources:
-                    QMessageBox.information(self, "Note", f"Skipped {len(skipped_sources)} source(s) already in observation: {', '.join(skipped_sources)}")
-            else:
-                logger.error(f"Failed to add sources: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to add sources: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_sources(), add=unique_sources)
+            for source in unique_sources:
+                logger.info(f"Added source '{source.name}' from catalog to observation '{self.observation.code}'")
+            self.data_updated.emit(None, None, "add_multiple")
+            self.update()
+            QMessageBox.information(self, "Success", f"Successfully added {len(unique_sources)} source(s) to observation.")
+            if skipped_sources:
+                QMessageBox.information(self, "Note", f"Skipped {len(skipped_sources)} source(s) already in observation: {', '.join(skipped_sources)}")
         except Exception as e:
             logger.error(f"Exception while adding sources from catalog: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to add sources: {str(e)}")
