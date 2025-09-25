@@ -453,7 +453,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.ui.tabContainer.removeTab(i)
 
         try:
-            self.manipulator.configure(obj=self.project, clear=None)
+            self.manipulator.configure(self.project, clear=None)
             logger.info(f"All observations were removed from project '{self.project.get_name()}'")
             self.project_updated.emit()
         except Exception as e:
@@ -652,12 +652,6 @@ class PAstroCoreMainWindow(QMainWindow):
             imported_observation = Observation.from_dict(data)
             if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in ["VLBI", "SINGLE_DISH"]:
                 imported_observation.observation_type = "VLBI"
-
-            observation = self.manipulator.inspect(obj=self.project, get_observation_by_code=imported_observation.code)
-            if observation is not None:
-                logger.error(f"Observation code '{imported_observation.code}' already exists")
-                QMessageBox.critical(self, "Error", f"Observation code '{imported_observation.code}' already exists.")
-                return
 
             self.manipulator.configure(obj=self.project, add_item=imported_observation)
             logger.info(f"New observation '{imported_observation.code}' imported successfully")

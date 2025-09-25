@@ -57,17 +57,10 @@ class AddObservationDialog(QDialog):
             return
 
         try:
-            observation = self.manipulator.inspect(obj=self.project, get_observation_by_code=obs_code)
-            if observation is not None:
-                QMessageBox.critical(self, "Error", f"Observation code '{obs_code}' already exists.")
-                logger.error(f"Observation code '{obs_code}' already exists")
-                return
-            logger.debug(f"Observation code '{obs_code}' is unique")
-
             self.manipulator.configure(
-                obj=self.project,
+                self.project,
                 create_item={"item_code": obs_code, "isactive": True, "observation_type": obs_type}
-            )
+                )
             logger.info(f"Observation '{obs_code}' (type: {obs_type}) added to project '{self.project.get_name()}'")
             self.observation_added.emit(obs_code, obs_type)
             super().accept()
