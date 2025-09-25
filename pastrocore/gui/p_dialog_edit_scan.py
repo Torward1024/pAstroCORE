@@ -81,11 +81,12 @@ class ScanEditorDialog(QDialog):
         self.ui.btnSelectAllFrequencies.clicked.connect(self.select_all_frequencies)
         self.ui.btnClearAllFrequencies.clicked.connect(self.clear_all_frequencies)
         self.ui.chk_offsource.stateChanged.connect(self.offsource_changed)
+        self.ui.sourceCombo.currentIndexChanged.connect(self.update_active_state)
         self.ui.startTimeEdit.dateTimeChanged.connect(self.adjust_duration_from_start)
         self.ui.endTimeEdit.dateTimeChanged.connect(self.adjust_duration_from_end)
         self.ui.durationEdit.textChanged.connect(self.adjust_end_time)
-        self.telescopes_model.itemChanged.connect(self.debug_item_changed)
-        self.frequencies_model.itemChanged.connect(self.debug_item_changed)
+        self.telescopes_model.itemChanged.connect(self.telescope_changed)
+        self.frequencies_model.itemChanged.connect(self.frequency_changed)
 
     def load_data(self):
         """Load scan data into the dialog fields."""
@@ -109,21 +110,22 @@ class ScanEditorDialog(QDialog):
 
             start_time = latest_end_time if latest_end_time else Time.now()
             duration = latest_duration if latest_duration else 60.0
+            sources = self.manipulator.inspect(self.observation.get_sources(), get_all=None)
+            default_source = list(sources.values())[0] if isinstance(sources, dict) and sources else None
             self.scan = Scan(
                 name=f"scan_{uuid.uuid4().hex[:32]}",
                 start=start_time,
                 duration=duration,
-                source=None,
-                telescopes=[],
-                frequencies=[],
+                source=default_source,
+                telescopes=list(self.manipulator.inspect(self.observation.get_telescopes(), get_all=None).values()) if isinstance(self.manipulator.inspect(self.observation.get_telescopes(), get_all=None), dict) else [],
+                frequencies=list(self.manipulator.inspect(self.observation.get_frequencies(), get_all=None).values()) if isinstance(self.manipulator.inspect(self.observation.get_frequencies(), get_all=None), dict) else [],
                 is_off_source=False,
-                isactive=True,
-                observation=self.observation
+                isactive=True
             )
             self.setWindowTitle("Add Scan")
             logger.debug("Creating new scan with default parameters")
         else:
-            self.setWindowTitle(f"Edit Scan")
+            self.setWindowTitle(f"Edit Scan '{self.scan.name}'")
             logger.debug(f"Editing existing scan '{self.scan.name}'")
 
         self.load_sources()
@@ -135,23 +137,28 @@ class ScanEditorDialog(QDialog):
         self.ui.chk_offsource.setChecked(self.scan.is_off_source)
         self.ui.chk_active.setChecked(self.scan.isactive)
         self.adjust_end_time()
+        self.update_active_state()
 
         logger.info(f"Loaded scan '{self.scan.name}' into editor dialog")
 
     def load_sources(self):
         """Populate the source combo box with available sources."""
         self.ui.sourceCombo.clear()
-        self.ui.sourceCombo.addItem("Select Source", None)
         try:
             sources = self.manipulator.inspect(self.observation.get_sources(), get_all=None)
-            if isinstance(sources, dict):
+            if isinstance(sources, dict) and sources:
                 for name, source in sources.items():
                     is_active = self.manipulator.inspect(source, get="isactive")
                     icon = self.active_icon if is_active else self.inactive_icon
                     self.ui.sourceCombo.addItem(icon, name, source)
                     if self.scan and self.scan.source == source:
                         self.ui.sourceCombo.setCurrentText(name)
+                # For new scan, select the first source
+                if self.is_new:
+                    self.ui.sourceCombo.setCurrentIndex(0)
                 logger.debug(f"Populated {len(sources)} sources into source combo")
+            else:
+                logger.warning("No sources available for selection")
         except Exception as e:
             logger.error(f"Exception while populating sources: {str(e)}")
 
@@ -172,7 +179,8 @@ class ScanEditorDialog(QDialog):
                     icon = self.active_icon if is_active else self.inactive_icon
                     check_item = QStandardItem()
                     check_item.setCheckable(True)
-                    check_item.setCheckState(Qt.Checked if self.scan and telescope in self.scan.telescopes else Qt.Unchecked)
+                    check_state = Qt.Checked if (self.is_new or (self.scan and telescope in self.scan.telescopes)) else Qt.Unchecked
+                    check_item.setCheckState(check_state)
                     active_item = QStandardItem()
                     active_item.setIcon(icon)
                     active_item.setTextAlignment(Qt.AlignCenter)
@@ -203,7 +211,8 @@ class ScanEditorDialog(QDialog):
                     icon = self.active_icon if is_active else self.inactive_icon
                     check_item = QStandardItem()
                     check_item.setCheckable(True)
-                    check_item.setCheckState(Qt.Checked if self.scan and frequency in self.scan.frequencies else Qt.Unchecked)
+                    check_state = Qt.Checked if (self.is_new or (self.scan and frequency in self.scan.frequencies)) else Qt.Unchecked
+                    check_item.setCheckState(check_state)
                     active_item = QStandardItem()
                     active_item.setIcon(icon)
                     active_item.setTextAlignment(Qt.AlignCenter)
@@ -231,6 +240,7 @@ class ScanEditorDialog(QDialog):
         for row in range(self.telescopes_model.rowCount()):
             check_item = self.telescopes_model.item(row, 1)
             check_item.setCheckState(Qt.Checked)
+        self.update_active_state()
         logger.debug("Selected all telescopes")
 
     @Slot()
@@ -239,6 +249,7 @@ class ScanEditorDialog(QDialog):
         for row in range(self.telescopes_model.rowCount()):
             check_item = self.telescopes_model.item(row, 1)
             check_item.setCheckState(Qt.Unchecked)
+        self.update_active_state()
         logger.debug("Cleared all telescope selections")
 
     @Slot()
@@ -247,6 +258,7 @@ class ScanEditorDialog(QDialog):
         for row in range(self.frequencies_model.rowCount()):
             check_item = self.frequencies_model.item(row, 1)
             check_item.setCheckState(Qt.Checked)
+        self.update_active_state()
         logger.debug("Selected all frequencies")
 
     @Slot()
@@ -255,6 +267,7 @@ class ScanEditorDialog(QDialog):
         for row in range(self.frequencies_model.rowCount()):
             check_item = self.frequencies_model.item(row, 1)
             check_item.setCheckState(Qt.Unchecked)
+        self.update_active_state()
         logger.debug("Cleared all frequency selections")
 
     @Slot(int)
@@ -262,13 +275,29 @@ class ScanEditorDialog(QDialog):
         """Handle change in off-source checkbox state."""
         is_off_source = state == Qt.Checked
         self.ui.sourceCombo.setEnabled(not is_off_source)
+        self.update_active_state()
         logger.debug(f"Off-source state changed to: {is_off_source}")
 
     @Slot()
-    def debug_item_changed(self, item):
-        """Log changes to table items (for debugging)."""
+    def telescope_changed(self, item):
+        """Handle telescope selection change and update active state."""
         if item.column() == 1:
-            logger.debug(f"Item changed: row={item.row()}, checkState={item.checkState()}")
+            logger.debug(f"Telescope changed: row={item.row()}, checkState={item.checkState()}")
+            self.update_active_state()
+
+    @Slot()
+    def frequency_changed(self, item):
+        """Handle frequency selection change and update active state."""
+        if item.column() == 1:
+            logger.debug(f"Frequency changed: row={item.row()}, checkState={item.checkState()}")
+            self.update_active_state()
+
+    @Slot()
+    def update_active_state(self):
+        """Update the active state checkbox based on scan conditions."""
+        conditions_met = self._check_scan_conditions()
+        self.ui.chk_active.setChecked(conditions_met)
+        logger.debug(f"Updated active state: {conditions_met}")
 
     @Slot()
     def adjust_duration_from_start(self):
@@ -369,7 +398,6 @@ class ScanEditorDialog(QDialog):
 
         try:
             duration_text = self.ui.durationEdit.text().strip()
-            # Remove any non-numeric characters except decimal point
             duration_text = re.sub(r'[^\d.]', '', duration_text)
             if not duration_text:
                 raise ValueError("Duration is empty")
@@ -382,7 +410,7 @@ class ScanEditorDialog(QDialog):
 
         end_time = self.ui.endTimeEdit.dateTime()
         calculated_duration = self.ui.startTimeEdit.dateTime().secsTo(end_time)
-        if abs(calculated_duration - duration) > 1:  # Allow small discrepancies due to rounding
+        if abs(calculated_duration - duration) > 1:
             logger.warning(f"Duration ({duration}s) and endTime ({end_time.toString(Qt.ISODate)}) mismatch, using duration")
 
         is_off_source = self.ui.chk_offsource.isChecked()
@@ -416,15 +444,7 @@ class ScanEditorDialog(QDialog):
             logger.error("No source selected")
             raise ValueError("A source must be selected unless OFF SOURCE is checked")
 
-        isactive = self.ui.chk_active.isChecked()
-        conditions_met = self._check_scan_conditions()
-        if isactive and not conditions_met:
-            logger.warning("Scan marked as active but conditions not met")
-            QMessageBox.warning(self, "Warning",
-                                "Scan is marked as active, but conditions are not met:\n"
-                                f"- At least {1 if self.observation.get_observation_type() == 'SINGLE_DISH' else 2} active telescopes required\n"
-                                "- At least 1 active frequency required\n"
-                                "- Source must be active (unless OFF SOURCE)")
+        isactive = self._check_scan_conditions()
 
         scan_data = {
             "name": self.scan.name,

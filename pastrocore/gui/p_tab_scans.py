@@ -244,53 +244,22 @@ class ScansTab(QWidget):
     def activate_scan(self, scan_name: str):
         """Activate the specified scan."""
         try:
-            scan_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_scans(),
-                "attributes": {"get": scan_name}
-            })
-            if not scan_response["status"] or not scan_response["result"]:
-                logger.error(f"Failed to get scan '{scan_name}': {scan_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate scan: {scan_response.get('error', 'Unknown error')}")
+            scan_obj = self.manipulator.inspect(self.observation.get_scans(), get=scan_name)
+            if not scan_obj:
+                logger.error(f"Failed to get scan '{scan_name}': No result returned")
+                QMessageBox.critical(self, "Error", f"Failed to activate scan: No result returned")
                 return
 
-            scan_obj = scan_response["result"]
-            # Check if scan can be activated
-            check_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": scan_obj,
-                "attributes": {"check_activity_status": self.observation}
-            })
-            if not check_response["status"]:
-                logger.error(f"Failed to check activity status for scan '{scan_name}': {check_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to check scan status: {check_response.get('error', 'Unknown error')}")
-                return
-
-            can_activate = check_response["result"]
+            can_activate = self.manipulator.inspect(scan_obj, check_activity_status=self.observation)
             if not can_activate:
                 logger.warning(f"Scan '{scan_name}' cannot be activated due to invalid configuration")
                 QMessageBox.warning(self, "Cannot Activate", "The scan cannot be activated due to missing or inactive telescopes, frequencies, or source.")
                 return
 
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_scans(),
-                "attributes": {
-                    "set_scan": {
-                        "name": scan_name,
-                        "isactive": True,
-                        "observation": self.observation
-                    }
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Scan '{scan_name}' activated in observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to activate scan '{scan_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate scan: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_scans(), activate_item=scan_name)
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"Scan '{scan_name}' activated in observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while activating scan '{scan_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate scan: {str(e)}")
@@ -299,7 +268,7 @@ class ScansTab(QWidget):
     def deactivate_scan(self, scan_name: str):
         """Deactivate the specified scan."""
         try:
-            self.manipulator.configure(self.observation.get_scans(), activate_item=scan_name)
+            self.manipulator.configure(self.observation.get_scans(), deactivate_item=scan_name)
             self.update()
             self.data_updated.emit()
             logger.info(f"Scan '{scan_name}' deactivated in observation '{self.observation.code}'")
