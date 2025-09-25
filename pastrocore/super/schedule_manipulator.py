@@ -62,4 +62,4 @@ class ScheduleManipulator(Manipulator):
         self.register_operation(ScheduleCalculator(self))
         self.register_operation(ScheduleVisualizer(self))
         
-        logger.debug("Initialized ScheduleManipulator!")
+        logger.info("Initialized ScheduleManipulator!")
