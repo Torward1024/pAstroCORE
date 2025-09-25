@@ -643,7 +643,7 @@ class PAstroCoreMainWindow(QMainWindow):
             if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in ["VLBI", "SINGLE_DISH"]:
                 imported_observation.observation_type = "VLBI"
 
-            self.manipulator.configure(obj=self.project, add_item=imported_observation)
+            self.manipulator.configure(self.project, add_item=imported_observation)
             logger.info(f"New observation '{imported_observation.code}' imported successfully")
             self.project_updated.emit()
         except Exception as e:
@@ -670,7 +670,7 @@ class PAstroCoreMainWindow(QMainWindow):
             with open(file_path, "r") as f:
                 data = json.load(f)
 
-            existing_observation = self.manipulator.inspect(obj=self.project, get_item=obs_name)
+            existing_observation = self.manipulator.inspect(self.project, get_item=obs_name)
             if existing_observation is None:
                 logger.error(f"Observation '{obs_code}' not found")
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
@@ -683,7 +683,7 @@ class PAstroCoreMainWindow(QMainWindow):
             imported_observation.name = existing_name
             imported_observation.code = existing_code
 
-            self.manipulator.configure(obj=self.project, set_item={"name": existing_name, "item": imported_observation})
+            self.manipulator.configure(self.project, set_item={"name": existing_name, "item": imported_observation})
             logger.info(f"Observation '{obs_code}' overwritten successfully")
             self.project_updated.emit()
         except Exception as e:
@@ -709,7 +709,7 @@ class PAstroCoreMainWindow(QMainWindow):
             file_path += ".pastrod"
 
         try:
-            observation = self.manipulator.inspect(obj=self.project, get_item=obs_name)
+            observation = self.manipulator.inspect(self.project, get_item=obs_name)
             if observation is None:
                 logger.error(f"Observation '{obs_code}' not found")
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
@@ -844,7 +844,7 @@ class PAstroCoreMainWindow(QMainWindow):
         elif item_type == "observation":
             obs_code = text
             try:
-                observation = self.manipulator.inspect(obj=self.project, get_observation_by_code=obs_code)
+                observation = self.manipulator.inspect(self.project, get_observation_by_code=obs_code)
                 if observation is None:
                     logger.error(f"Observation with code '{obs_code}' not found")
                     QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': Observation not found")
@@ -901,7 +901,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 return
 
         try:
-            observation = self.manipulator.inspect(obj=self.project, get_item=obs_name)
+            observation = self.manipulator.inspect(self.project, get_item=obs_name)
             if observation is None:
                 logger.error(f"Observation '{obs_code}' not found")
                 QMessageBox.critical(self, "Error", f"Failed to open observation tab: Observation not found")
