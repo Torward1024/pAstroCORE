@@ -128,18 +128,9 @@ class FrequenciesTab(QWidget):
         dialog = IFEditorDialog(parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:
-                if_data = dialog.get_if_data()
+                if_obj = dialog.get_if_object()
                 freq_name = f"freq_{uuid.uuid4().hex[:32]}"
-                self.manipulator.configure(
-                    self.observation.get_frequencies(),
-                    create_if={
-                        "name": freq_name,
-                        "frequency": if_data["frequency"],
-                        "bandwidth": if_data["bandwidth"],
-                        "polarizations": if_data["polarizations"],
-                        "isactive": if_data["isactive"]
-                    }
-                )
+                self.manipulator.configure(self.observation.get_frequencies(), add=if_obj)
                 self.update()
                 self.data_updated.emit(freq_name, None, "add")
                 logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
@@ -258,23 +249,20 @@ class FrequenciesTab(QWidget):
             dialog = IFEditorDialog(if_obj=if_obj, parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
-                    if_data = dialog.get_if_data()
+                    updated_if = dialog.get_if_object()
                     self.manipulator.configure(
                         self.observation.get_frequencies(),
-                        set_if={
-                            "name": freq_name,
-                            "frequency": if_data["frequency"],
-                            "bandwidth": if_data["bandwidth"],
-                            "polarizations": if_data["polarizations"],
-                            "isactive": if_data["isactive"]
-                        }
+                        set_item={"name": freq_name, "item": updated_if}
                     )
-                    logger.info(f"Updated frequency '{freq_name}' in observation '{self.observation.code}'")
                     self.update()
-                    self.data_updated.emit(freq_name, if_data["isactive"], "edit")
+                    self.data_updated.emit(freq_name, updated_if.isactive, "edit")
+                    logger.info(f"Updated frequency '{freq_name}' in observation '{self.observation.code}'")
                 except ValueError as ve:
                     logger.error(f"Validation error while updating frequency: {str(ve)}")
                     QMessageBox.critical(self, "Error", f"Failed to update frequency: {str(ve)}")
+                except Exception as e:
+                    logger.error(f"Exception while updating frequency: {str(e)}")
+                    QMessageBox.critical(self, "Error", f"Failed to update frequency: {str(e)}")
         except Exception as e:
             logger.error(f"Exception while editing frequency: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to edit frequency: {str(e)}")
