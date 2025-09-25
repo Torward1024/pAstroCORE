@@ -71,6 +71,7 @@ class FrequenciesTab(QWidget):
             else:
                 logger.debug(f"No frequencies found in observation '{self.observation.code}'")
         except Exception as e:
+            has_frequencies = False
             logger.error(f"Exception while inspecting frequencies: {str(e)}")
 
         if has_frequencies:
@@ -139,9 +140,9 @@ class FrequenciesTab(QWidget):
                         "isactive": if_data["isactive"]
                     }
                 )
-                logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
                 self.update()
                 self.data_updated.emit(freq_name, None, "add")
+                logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
             except ValueError as ve:
                 logger.error(f"Validation error while adding frequency: {str(ve)}")
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(ve)}")
