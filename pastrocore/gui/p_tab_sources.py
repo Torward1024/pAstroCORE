@@ -184,19 +184,10 @@ class SourcesTab(QWidget):
     def remove_source(self, source_name: str):
         """Remove a source from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_sources(),
-                "attributes": {"remove": source_name}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Removed source '{source_name}' from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(source_name, None, "remove")
-            else:
-                logger.error(f"Failed to remove source: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to remove source: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_sources(), remove=source_name)
+            self.update()
+            self.data_updated.emit(source_name, None, "remove")
+            logger.info(f"Removed source '{source_name}' from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while removing source: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove source: {str(e)}")
