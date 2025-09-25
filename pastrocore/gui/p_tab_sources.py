@@ -126,28 +126,11 @@ class SourcesTab(QWidget):
         dialog = SourceEditorDialog(parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:
-                source_data = dialog.get_source_data()
-                source_name = source_data["name"] or f"source_{uuid.uuid4().hex[:32]}"
-                self.manipulator.configure(
-                    self.observation.get_sources(),
-                    create_source={
-                            "name": source_name,
-                            "ra_h": source_data["ra_h"],
-                            "ra_m": source_data["ra_m"],
-                            "ra_s": source_data["ra_s"],
-                            "de_d": source_data["de_d"],
-                            "de_m": source_data["de_m"],
-                            "de_s": source_data["de_s"],
-                            "name_J2000": source_data["name_J2000"],
-                            "alt_name": source_data["alt_name"],
-                            "flux_table": source_data["flux_table"],
-                            "spectral_index": source_data["spectral_index"],
-                            "isactive": source_data["isactive"]
-                        }
-                    )
+                source = dialog.get_source_object()
+                self.manipulator.configure(self.observation.get_sources(), add=source)
                 self.update()
-                self.data_updated.emit(source_name, None, "add")
-                logger.info(f"Added source '{source_name}' to observation '{self.observation.code}'")
+                self.data_updated.emit(source.name, None, "add")
+                logger.info(f"Added source '{source.name}' to observation '{self.observation.code}'")
             except ValueError as ve:
                 logger.error(f"Validation error while adding source: {str(ve)}")
                 QMessageBox.critical(self, "Error", f"Failed to add source: {str(ve)}")
@@ -187,27 +170,11 @@ class SourcesTab(QWidget):
             dialog = SourceEditorDialog(source_obj=source_obj, parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
-                    source_data = dialog.get_source_data()
-                    self.manipulator.configure(
-                        self.observation.get_sources(),
-                        set_source={
-                            "name": source_name,
-                            "ra_h": source_data["ra_h"],
-                            "ra_m": source_data["ra_m"],
-                            "ra_s": source_data["ra_s"],
-                            "de_d": source_data["de_d"],
-                            "de_m": source_data["de_m"],
-                            "de_s": source_data["de_s"],
-                            "name_J2000": source_data["name_J2000"],
-                            "alt_name": source_data["alt_name"],
-                            "flux_table": source_data["flux_table"],
-                            "spectral_index": source_data["spectral_index"],
-                            "isactive": source_data["isactive"]
-                        }
-                    )
-                    logger.info(f"Updated source '{source_name}' in observation '{self.observation.code}'")
+                    source = dialog.get_source_object()
+                    self.manipulator.configure(self.observation.get_sources(), set_item={"name": source_name, "item:": source})
                     self.update()
-                    self.data_updated.emit(source_name, source_data["isactive"], "edit")
+                    self.data_updated.emit(source_name, source.isactive, "edit")
+                    logger.info(f"Updated source '{source_name}' in observation '{self.observation.code}'")
                 except ValueError as ve:
                     logger.error(f"Validation error while updating source: {str(ve)}")
                     QMessageBox.critical(self, "Error", f"Failed to update source: {str(ve)}")

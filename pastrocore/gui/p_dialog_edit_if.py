@@ -13,35 +13,41 @@ class IFEditorDialog(QDialog):
         self.ui.setupUi(self)
         self.if_obj = if_obj
         self.valid_polarizations = {"RCP", "LCP", "H", "V"}
-        self.setup_dialog()
         self.setup_connections()
-
-    def setup_dialog(self):
-        """Initialize the dialog with IF data or defaults."""
-        if self.if_obj:
-            self.ui.frequencyEdit.setValue(self.if_obj.frequency)
-            self.ui.bandwidthEdit.setValue(self.if_obj.bandwidth)
-            self.ui.isActiveCheckBox.setChecked(self.if_obj.isactive)
-            for index in range(self.ui.polarizationsList.count()):
-                item = self.ui.polarizationsList.item(index)
-                if item.text() in self.if_obj.polarizations:
-                    item.setSelected(True)
-            self.setWindowTitle(f"Edit Intermediate Frequency")
-            logger.debug(f"Editing existing IF '{self.if_obj.name}'")
-        else:
-            self.if_obj = IF(name=f"if_{uuid.uuid4().hex[:32]}", frequency=1000.0, bandwidth=16.0, polarizations=[])
-            self.ui.frequencyEdit.setValue(1000.0)
-            self.ui.bandwidthEdit.setValue(16.0)
-            self.ui.isActiveCheckBox.setChecked(True)
-            self.setWindowTitle("Add Intermediate Frequency")
-            logger.debug("Creating new IF")
-
-        self.update_wavelength()
+        self.load_data()
 
     def setup_connections(self):
         """Connect UI signals to slots."""
         self.ui.frequencyEdit.valueChanged.connect(self.update_wavelength)
         self.ui.clearPolarizationsButton.clicked.connect(self.clear_polarizations)
+        self.ui.saveButton.clicked.connect(self.accept)
+        self.ui.cancelButton.clicked.connect(self.reject)
+
+    def load_data(self):
+        """Load IF data into the dialog fields."""
+        if not self.if_obj:
+            self.if_obj = IF(
+                name=f"if_{uuid.uuid4().hex[:32]}",
+                frequency=1000.0,
+                bandwidth=16.0,
+                polarizations=[],
+                isactive=True
+            )
+            self.setWindowTitle("Add Intermediate Frequency")
+            logger.debug("Creating new IF")
+        else:
+            self.setWindowTitle(f"Edit Intermediate Frequency")
+            logger.debug(f"Editing existing IF '{self.if_obj.name}'")
+
+        self.ui.frequencyEdit.setValue(self.if_obj.frequency)
+        self.ui.bandwidthEdit.setValue(self.if_obj.bandwidth)
+        self.ui.isActiveCheckBox.setChecked(self.if_obj.isactive)
+        for index in range(self.ui.polarizationsList.count()):
+            item = self.ui.polarizationsList.item(index)
+            item.setSelected(item.text() in self.if_obj.polarizations)
+
+        self.update_wavelength()
+        logger.info(f"Loaded IF '{self.if_obj.name}' into editor dialog")
 
     def update_wavelength(self):
         """Update the wavelength display based on frequency."""
@@ -76,7 +82,6 @@ class IFEditorDialog(QDialog):
             if item.isSelected():
                 polarizations.append(item.text())
 
-        # Validate polarizations
         if polarizations:
             circular = {"RCP", "LCP"}
             single_linear = {"H", "V"}
@@ -111,8 +116,12 @@ class IFEditorDialog(QDialog):
                 logger.error("Bandwidth must be positive")
                 QMessageBox.critical(self, "Error", "Bandwidth must be positive.")
                 return
-            self.get_if_object()  # Validate polarizations
+            self.get_if_object()
             super().accept()
+            logger.info(f"Validated and saved IF data for '{self.if_obj.name}'")
         except ValueError as ve:
             logger.error(f"Validation error: {str(ve)}")
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")
+        except Exception as e:
+            logger.error(f"Unexpected error while saving IF: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to save IF: {str(e)}")

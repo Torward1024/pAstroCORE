@@ -327,10 +327,10 @@ class TelescopesTab(QWidget):
             
             if dialog.exec() == QDialog.Accepted:
                 try:
-                    telescope_data = dialog.get_telescope_object()
+                    telescope = dialog.get_telescope_object()
                     self.manipulator.configure(self.observation.get_telescopes(), set_item={"name": telescope_name, "item": telescope})
                     self.update()
-                    self.data_updated.emit(telescope_name, telescope_data["isactive"], "edit")
+                    self.data_updated.emit(telescope_name, telescope.isactive, "edit")
                     logger.info(f"Updated telescope '{telescope_name}' in observation '{self.observation.code}'")
                 except Exception as e:
                     logger.error(f"Exception while updating telescope: {str(e)}")
