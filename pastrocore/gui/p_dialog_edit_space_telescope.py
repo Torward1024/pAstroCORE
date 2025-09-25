@@ -158,9 +158,9 @@ class SpaceTelescopeEditorDialog(QDialog):
 
     def setup_connections(self):
         """Connect UI signals to slots."""
-        self.ui.addSEFDButton.clicked.connect(lambda: self.sefd_model.add_row())
-        self.ui.removeSEFDButton.clicked.connect(self.remove_sefd_row)
-        self.ui.clearSEFDButton.clicked.connect(self.sefd_model.clear)
+        self.ui.addSefdButton.clicked.connect(lambda: self.sefd_model.add_row())
+        self.ui.removeSefdButton.clicked.connect(self.remove_sefd_row)
+        self.ui.clearSefdButton.clicked.connect(self.sefd_model.clear)
         self.ui.addSurfaceEfficiencyButton.clicked.connect(lambda: self.surface_efficiency_model.add_row())
         self.ui.removeSurfaceEfficiencyButton.clicked.connect(self.remove_surface_efficiency_row)
         self.ui.clearSurfaceEfficiencyButton.clicked.connect(self.surface_efficiency_model.clear)

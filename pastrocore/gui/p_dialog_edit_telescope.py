@@ -182,7 +182,7 @@ class TelescopeEditorDialog(QDialog):
                 diameter=25.0,
                 elevation_range=(0, 90),
                 azimuth_range=(0, 360),
-                mount_type=MountType.AZEL,
+                mount_type=MountType.AZIMUTHAL,
                 isactive=True
             )
             self.ui.codeEdit.setReadOnly(False)
