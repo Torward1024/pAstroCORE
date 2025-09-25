@@ -187,7 +187,7 @@ class SpaceTelescopeEditorDialog(QDialog):
             self.telescope = SpaceTelescope(
                 code=f"ST",
                 name=f"SPACETELESCOPE",
-                diameter=2.0,
+                diameter=10.0,
                 pitch_range=(-90, 90),
                 yaw_range=(-180, 180),
                 isactive=True

@@ -171,7 +171,7 @@ class SourcesTab(QWidget):
             if dialog.exec() == QDialog.Accepted:
                 try:
                     source = dialog.get_source_object()
-                    self.manipulator.configure(self.observation.get_sources(), set_item={"name": source_name, "item:": source})
+                    self.manipulator.configure(self.observation.get_sources(), set_item={"name": source_name, "item": source})
                     self.update()
                     self.data_updated.emit(source_name, source.isactive, "edit")
                     logger.info(f"Updated source '{source_name}' in observation '{self.observation.code}'")
