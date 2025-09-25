@@ -292,16 +292,11 @@ class TelescopesTab(QWidget):
             file_path += ".pastrod"
 
         try:
-            telescope_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"get": telescope_name}
-            })
-            if not telescope_response["status"] or not telescope_response["result"]:
-                logger.error(f"Failed to get telescope '{telescope_name}': {telescope_response.get('error', 'Unknown error')}")
+            telescope = self.manipulator.inspect(self.observation.get_telescopes(), get=telescope_name)
+            if not telescope:
+                logger.error(f"Failed to get telescope '{telescope_name}': No result returned")
                 QMessageBox.critical(self, "Error", f"Telescope '{telescope_name}' not found")
                 return
-            telescope = telescope_response["result"]
             with open(file_path, "w") as f:
                 json.dump(telescope.to_dict(), f, indent=4)
             logger.info(f"Telescope '{telescope_name}' exported to '{file_path}'")
