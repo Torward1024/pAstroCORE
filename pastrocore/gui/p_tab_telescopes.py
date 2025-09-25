@@ -71,21 +71,17 @@ class TelescopesTab(QWidget):
         add_telescope_from_catalog_action.triggered.connect(self.add_telescope_from_catalog)
         import_new_action.triggered.connect(self.import_new_telescope)
 
-        telescopes_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_telescopes": None}
-        })   
-
-        has_telescopes = False
-        if telescopes_response["status"] and telescopes_response["result"]:
-            items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": telescopes_response["result"],
-                "attributes": {"get_all": None}
-            })
-            has_telescopes = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
-        else:
+        try:
+            telescopes = self.manipulator.inspect(self.observation, get_telescopes=None)
+            has_telescopes = False
+            if telescopes:
+                items = self.manipulator.inspect(telescopes, get_all=None)
+                has_telescopes = isinstance(items, dict) and len(items) > 0
+            else:
+                logger.debug(f"No telescopes found in observation '{self.observation.code}'")
+        except Exception as e:
+            logger.error(f"Exception while inspecting telescopes: {str(e)}")
+            has_telescopes = False
             logger.debug(f"No telescopes found in observation '{self.observation.code}'")
 
         if has_telescopes:
@@ -104,22 +100,15 @@ class TelescopesTab(QWidget):
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
             telescope_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
-            telescope_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"get": telescope_name}
-            })
-            if not telescope_response["status"] or not telescope_response["result"]:
-                logger.error(f"Failed to get telescope '{telescope_name}': {telescope_response.get('error', 'Unknown error')}")
+            try:
+                telescope = self.manipulator.inspect(self.observation.get_telescopes(), get=telescope_name)
+                if not telescope:
+                    logger.error(f"Failed to get telescope '{telescope_name}': No result returned")
+                    return
+                is_active = bool(self.manipulator.inspect(telescope, get="isactive"))
+            except Exception as e:
+                logger.error(f"Exception while inspecting telescope '{telescope_name}': {str(e)}")
                 return
-            telescope = telescope_response["result"]
-            
-            is_active_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": telescope,
-                "attributes": {"get": "isactive"}
-            })
-            is_active = is_active_response["status"] and bool(is_active_response["result"])
 
             menu.addSeparator()
             if is_active:
@@ -196,23 +185,19 @@ class TelescopesTab(QWidget):
             telescopes (list): List of selected Telescope or SpaceTelescope objects.
         """
         try:
-            existing_telescopes_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"get_all": None}
-            })
+            existing_telescopes = self.manipulator.inspect(self.observation.get_telescopes(), get_all=None)
             existing_codes = set()
             existing_names = set()
-            if existing_telescopes_response["status"] and isinstance(existing_telescopes_response["result"], dict):
-                for name, telescope in existing_telescopes_response["result"].items():
-                    code_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": telescope,
-                        "attributes": {"get": "code"}
-                    })
-                    if code_response["status"]:
-                        existing_codes.add(code_response["result"])
-                    existing_names.add(name)
+            if isinstance(existing_telescopes, dict):
+                for name, telescope in existing_telescopes.items():
+                    try:
+                        code = self.manipulator.inspect(telescope, get="code")
+                        if code:
+                            existing_codes.add(code)
+                        existing_names.add(name)
+                    except Exception as e:
+                        logger.error(f"Failed to retrieve code for telescope '{name}': {str(e)}")
+                        continue
 
             unique_telescopes = []
             skipped_telescopes = []
@@ -228,23 +213,14 @@ class TelescopesTab(QWidget):
                 QMessageBox.warning(self, "Warning", f"No new telescopes to add. Skipped: {', '.join(skipped_telescopes) if skipped_telescopes else 'None'}")
                 return
 
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"add": unique_telescopes}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                for telescope in unique_telescopes:
-                    logger.info(f"Added telescope '{telescope.code}' from catalog to observation '{self.observation.code}'")
-                self.data_updated.emit(None, None, "add_multiple")
-                self.update()
-                QMessageBox.information(self, "Success", f"Successfully added {len(unique_telescopes)} telescope(s) to observation.")
-                if skipped_telescopes:
-                    QMessageBox.information(self, "Note", f"Skipped {len(skipped_telescopes)} telescope(s) already in observation: {', '.join(skipped_telescopes)}")
-            else:
-                logger.error(f"Failed to add telescopes: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to add telescopes: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), add=unique_telescopes)
+            for telescope in unique_telescopes:
+                logger.info(f"Added telescope '{telescope.code}' from catalog to observation '{self.observation.code}'")
+            self.data_updated.emit(None, None, "add_multiple")
+            self.update()
+            QMessageBox.information(self, "Success", f"Successfully added {len(unique_telescopes)} telescope(s) to observation.")
+            if skipped_telescopes:
+                QMessageBox.information(self, "Note", f"Skipped {len(skipped_telescopes)} telescope(s) already in observation: {', '.join(skipped_telescopes)}")
         except Exception as e:
             logger.error(f"Exception while adding telescopes from catalog: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to add telescopes: {str(e)}")
@@ -267,19 +243,10 @@ class TelescopesTab(QWidget):
                 telescope = Telescope.from_dict(data)
             telescope.code = telescope.code
             telescope.name = telescope.name
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"add": telescope}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"New telescope '{telescope.name}' imported successfully to observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(telescope.name, None, "add")
-            else:
-                logger.error(f"Failed to import telescope: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to import telescope: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
+            self.update()
+            self.data_updated.emit(telescope.name, None, "add")
+            logger.info(f"New telescope '{telescope.name}' imported successfully to observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while importing new telescope: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to import telescope: {str(e)}")
@@ -497,60 +464,58 @@ class TelescopesTab(QWidget):
     def update(self):
         """Update the telescopes table."""
         self.model.removeRows(0, self.model.rowCount())
-        telescopes_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_telescopes": None}
-        })
-        if telescopes_response["status"] and telescopes_response["result"]:
-            telescopes = telescopes_response["result"]
-            items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": telescopes,
-                "attributes": {"get_all": None}
-            })
-            if items_response["status"] and isinstance(items_response["result"], dict):
-                idx = 1
-                for name, telescope in items_response["result"].items():
-                    try:
-                        is_active = self.manipulator.inspect(telescope, get="isactive")
-                    except Exception as e:
-                        logger.error(f"Failed to retrieve isactive from telescope '{telescope}': {str(e)}")
+        try:
+            telescopes = self.manipulator.inspect(self.observation, get_telescopes=None)
+            if not telescopes:
+                return
+            items = self.manipulator.inspect(telescopes, get_all=None)
+            if not isinstance(items, dict):
+                return
 
-                    active_item = QStandardItem()
-                    active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
-                    active_item.setToolTip("Active" if is_active else "Inactive")
-                    active_item.setTextAlignment(Qt.AlignCenter)
+            idx = 1
+            for name, telescope in items.items():
+                try:
+                    is_active = bool(self.manipulator.inspect(telescope, get="isactive"))
+                except Exception as e:
+                    logger.error(f"Failed to retrieve isactive from telescope '{name}': {str(e)}")
+                    is_active = False
 
-                    try:
-                        code = self.manipulator.inspect(telescope, get="code")
-                    except Exception as e:
-                        code = "N/A"
-                        logger.error(f"Failed to retrieve code from telescope '{telescope}': {str(e)}")
+                active_item = QStandardItem()
+                active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
+                active_item.setToolTip("Active" if is_active else "Inactive")
+                active_item.setTextAlignment(Qt.AlignCenter)
 
-                    try:
-                        name = self.manipulator.inspect(telescope, get="name")
-                    except Exception as e:
-                        name = "N/A"
-                        logger.error(f"Failed to retrieve name from telescope '{telescope}': {str(e)}")
+                try:
+                    code = self.manipulator.inspect(telescope, get="code")
+                except Exception as e:
+                    code = "N/A"
+                    logger.error(f"Failed to retrieve code from telescope '{name}': {str(e)}")
 
-                    telescope_type = "Space Telescope" if isinstance(telescope, SpaceTelescope) else "Ground Telescope"
+                try:
+                    name = self.manipulator.inspect(telescope, get="name")
+                except Exception as e:
+                    name = "N/A"
+                    logger.error(f"Failed to retrieve name from telescope '{name}': {str(e)}")
 
-                    row = [
-                        QStandardItem(str(idx)),
-                        active_item,
-                        QStandardItem(code),
-                        QStandardItem(name),
-                        QStandardItem(telescope_type)
-                    ]
-                    for item in row:
-                        item.setEditable(False)
-                    row[0].setData(name, Qt.UserRole)
-                    row[0].setData(idx, Qt.UserRole + 1)
-                    self.model.appendRow(row)
-                    idx += 1
+                telescope_type = "Space Telescope" if isinstance(telescope, SpaceTelescope) else "Ground Telescope"
 
-        self.ui.table.resizeColumnsToContents()
+                row = [
+                    QStandardItem(str(idx)),
+                    active_item,
+                    QStandardItem(code),
+                    QStandardItem(name),
+                    QStandardItem(telescope_type)
+                ]
+                for item in row:
+                    item.setEditable(False)
+                row[0].setData(name, Qt.UserRole)
+                row[0].setData(idx, Qt.UserRole + 1)
+                self.model.appendRow(row)
+                idx += 1
+
+            self.ui.table.resizeColumnsToContents()
+        except Exception as e:
+            logger.error(f"Exception while updating telescopes table: {str(e)}")
 
     def _cleanup(self):
         """Clean up resources associated with this tab."""
