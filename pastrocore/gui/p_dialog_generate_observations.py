@@ -208,9 +208,7 @@ class GenerateObservationsDialog(QDialog):
         dialog = IFEditorDialog(parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:
-                if_data = dialog.get_if_data()
-                if_data['name'] = f"freq_{uuid.uuid4().hex[:32]}"
-                if_obj = IF(**if_data)
+                if_obj = dialog.get_if_object()
                 self.frequencies.add(if_obj)
                 self._frequency_order.append(if_obj.name)
                 self.update_frequency_list()
@@ -292,8 +290,7 @@ class GenerateObservationsDialog(QDialog):
         dialog = SourceEditorDialog(parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:
-                source_data = dialog.get_source_data()
-                source = Source(**source_data)
+                source = dialog.get_source_object()
                 self.sources.add(source)
                 self._source_order.append(source.name)
                 self.update_source_list()
@@ -365,8 +362,7 @@ class GenerateObservationsDialog(QDialog):
         dialog = TelescopeEditorDialog(parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:
-                telescope_data = dialog.get_telescope_data()
-                telescope = Telescope(**telescope_data)
+                telescope = dialog.get_telescope_object()
                 self.telescopes.add(telescope)
                 self._telescope_order.append(telescope.name)
                 self.update_telescope_list()
@@ -382,8 +378,7 @@ class GenerateObservationsDialog(QDialog):
         dialog = SpaceTelescopeEditorDialog(parent=self)
         if dialog.exec() == QDialog.Accepted:
             try:
-                telescope_data = dialog.get_telescope_data()
-                telescope = SpaceTelescope(**telescope_data)
+                telescope = dialog.get_telescope_object()
                 self.telescopes.add(telescope)
                 self._telescope_order.append(telescope.name)
                 self.update_telescope_list()
