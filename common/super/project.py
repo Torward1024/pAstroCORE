@@ -132,6 +132,30 @@ class Project(ABC):
             logger.info(f"Cleared all observations from project '{self.name}'")
         except Exception as e:
             logger.error(f"Error clearing project '{self.name}': {str(e)}")
+
+    def activate_item(self, name: str) -> None:
+        """Activate an item in the project's container by its name.
+
+        Args:
+            name (str): The name of the item to activate.
+
+        Raises:
+            ValueError: If the item with the specified name does not exist.
+        """
+        self._items.activate_item(name)
+        logger.info(f"Activated item '{name}' in project '{self.name}'")
+
+    def deactivate_item(self, name: str) -> None:
+        """Deactivate an item in the project's container by its name.
+
+        Args:
+            name (str): The name of the item to deactivate.
+
+        Raises:
+            ValueError: If the item with the specified name does not exist.
+        """
+        self._items.deactivate_item(name)
+        logger.info(f"Deactivated item '{name}' in project '{self.name}'")
     
     def activate_all(self) -> None:
         """Activate all items in the container.

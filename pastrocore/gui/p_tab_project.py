@@ -214,17 +214,13 @@ class ProjectInfoTab(QWidget):
         import_new_action = menu.addAction(QIcon(":/icons/import_icon.svg"), "Import New Observation")
         add_action.triggered.connect(self.add_observation)
         import_new_action.triggered.connect(self.import_new_observation)
-
-        observations_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_items": None}
-        })
-        has_observations = False
-        if observations_response["status"] and isinstance(observations_response["result"], dict):
-            has_observations = len(observations_response["result"]) > 0
-        else:
-            logger.error(f"Failed to inspect observations: {observations_response.get('error', 'Unknown error')}")
+        
+        try:
+            observations = self.manipulator.inspect(self.project, get_items=None)
+            has_observations = isinstance(observations, dict) and len(observations) > 0
+        except Exception as e:
+            logger.error(f"Exception while inspecting observations: {str(e)}")
+            has_observations = False
 
         if has_observations:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
@@ -294,31 +290,10 @@ class ProjectInfoTab(QWidget):
     def activate_observation(self, obs_name: str, obs_code: str):
         """Activate the specified observation."""
         try:
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_item": obs_name}
-            })
-            if not obs_response["status"] or not obs_response["result"]:
-                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate observation: {obs_response.get('error', 'Unknown error')}")
-                return
-
-            observation = obs_response["result"]
-
-            request = {
-                "operation": "configure",
-                "obj": observation,
-                "attributes": {"set": {"params": {"isactive": True}}}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation '{obs_code}' activated")
-                self.update_tab()
-                self.project_name_changed.emit(self.ui.lineEdit.text())
-            else:
-                logger.error(f"Failed to activate observation '{obs_code}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to activate observation: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.project, activate_item=obs_name)
+            self.update_tab()
+            self.project_name_changed.emit(self.ui.lineEdit.text())
+            logger.info(f"Observation '{obs_code}' activated")
         except Exception as e:
             logger.error(f"Exception while activating observation '{obs_code}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to activate observation: {str(e)}")
@@ -327,30 +302,10 @@ class ProjectInfoTab(QWidget):
     def deactivate_observation(self, obs_name: str, obs_code: str):
         """Deactivate the specified observation."""
         try:
-            obs_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.project,
-                "attributes": {"get_item": obs_name}
-            })
-            if not obs_response["status"] or not obs_response["result"]:
-                logger.error(f"Failed to get observation '{obs_code}': {obs_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {obs_response.get('error', 'Unknown error')}")
-                return
-
-            observation = obs_response["result"]
-            request = {
-                "operation": "configure",
-                "obj": observation,
-                "attributes": {"set": {"params": {"isactive": False}}}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Observation '{obs_name}' deactivated")
-                self.update_tab()
-                self.project_name_changed.emit(self.ui.lineEdit.text())
-            else:
-                logger.error(f"Failed to deactivate observation '{obs_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.project, deactivate_item=obs_name)
+            self.update_tab()
+            self.project_name_changed.emit(self.ui.lineEdit.text())
+            logger.info(f"Observation '{obs_name}' deactivated")
         except Exception as e:
             logger.error(f"Exception while deactivating observation '{obs_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {str(e)}")
