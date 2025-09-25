@@ -73,20 +73,17 @@ class ScansTab(QWidget):
         add_action = menu.addAction(QIcon(":/icons/add_icon.svg"), "Add Scan")
         add_action.triggered.connect(self.add_scan)
 
-        scans_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_scans": None}
-        })
-        has_scans = False
-        if scans_response["status"] and scans_response["result"]:
-            items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": scans_response["result"],
-                "attributes": {"get_all": None}
-            })
-            has_scans = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
-        else:
+        try:
+            scans = self.manipulator.inspect(self.observation, get_scans=None)
+            has_scans = False
+            if scans:
+                items = self.manipulator.inspect(scans, get_all=None)
+                has_scans = isinstance(items, dict) and len(items) > 0
+            else:
+                logger.debug(f"No scans found in observation '{self.observation.code}'")
+        except Exception as e:
+            logger.error(f"Exception while inspecting scans: {str(e)}")
+            has_scans = False
             logger.debug(f"No scans found in observation '{self.observation.code}'")
 
         if has_scans:
@@ -105,22 +102,15 @@ class ScansTab(QWidget):
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
             scan_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
-            scan_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_scans(),
-                "attributes": {"get": scan_name}
-            })
-            if not scan_response["status"] or not scan_response["result"]:
-                logger.error(f"Failed to get scan '{scan_name}': {scan_response.get('error', 'Unknown error')}")
+            try:
+                scan_obj = self.manipulator.inspect(self.observation.get_scans(), get=scan_name)
+                if not scan_obj:
+                    logger.error(f"Failed to get scan '{scan_name}': No result returned")
+                    return
+                is_active = bool(self.manipulator.inspect(scan_obj, get="isactive"))
+            except Exception as e:
+                logger.error(f"Exception while inspecting scan '{scan_name}': {str(e)}")
                 return
-            scan_obj = scan_response["result"]
-
-            is_active_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": scan_obj,
-                "attributes": {"get": "isactive"}
-            })
-            is_active = is_active_response["status"] and bool(is_active_response["result"])
 
             menu.addSeparator()
             if is_active:
@@ -360,74 +350,58 @@ class ScansTab(QWidget):
             logger.error(f"Unknown sender for data_updated signal: {sender}")
             return
 
-        scans_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation.get_scans(),
-            "attributes": {"get_all": None}
-        })
-        if scans_response["status"] and isinstance(scans_response["result"], dict):
-            for scan_name, scan_obj in scans_response["result"].items():
-                sync_response = self.manipulator.process_request({
-                    "operation": "configure",
-                    "obj": scan_obj,
-                    "attributes": {"sync_with_observation": {"observation": self.observation, "strict": False}}
-                })
-                if sync_response["status"]:
-                    logger.debug(f"Synchronized scan '{scan_name}' with observation '{self.observation.code}'")
-                else:
-                    logger.error(f"Failed to synchronize scan '{scan_name}': {sync_response.get('error', 'Unknown error')}")
-                    QMessageBox.warning(
-                        self,
-                        "Synchronization Warning",
-                        f"Failed to synchronize scan '{scan_name}': {sync_response.get('error', 'Unknown error')}"
-                    )
+        try:
+            scans = self.manipulator.inspect(self.observation.get_scans(), get_all=None)
+            if isinstance(scans, dict):
+                for scan_name, scan_obj in scans.items():
+                    try:
+                        self.manipulator.configure(scan_obj, sync_with_observation={"observation": self.observation, "strict": False})
+                        logger.debug(f"Synchronized scan '{scan_name}' with observation '{self.observation.code}'")
+                    except Exception as e:
+                        logger.error(f"Exception while synchronizing scan '{scan_name}': {str(e)}")
+                        QMessageBox.warning(
+                            self,
+                            "Synchronization Warning",
+                            f"Failed to synchronize scan '{scan_name}': {str(e)}"
+                        )
 
-        self.update()
-        self.data_updated.emit()
-        logger.info(f"Completed handling data_updated for {entity_type}, operation={operation}, synchronized {len(scans_response['result'])} scans")
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"Completed handling data_updated for {entity_type}, operation={operation}, synchronized {len(scans)} scans")
+        except Exception as e:
+            logger.error(f"Exception while inspecting scans: {str(e)}")
+            self.update()
+            self.data_updated.emit()
+            logger.info(f"Completed handling data_updated for {entity_type}, operation={operation}, no scans synchronized due to error")
 
     @Slot()
     def update(self):
         """Update the scans table."""
         self.model.removeRows(0, self.model.rowCount())
-        scans_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_scans": None}
-        })
-        if scans_response["status"] and scans_response["result"]:
-            scans = scans_response["result"]
-            items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": scans,
-                "attributes": {"get_all": None}
-            })
-            if items_response["status"] and isinstance(items_response["result"], dict):
-                idx = 1
-                for name, scan_obj in items_response["result"].items():
-                    is_active_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": scan_obj,
-                        "attributes": {"get": "isactive"}
-                    })
-                    is_active = is_active_response["status"] and bool(is_active_response["result"])
+        try:
+            scans = self.manipulator.inspect(self.observation, get_scans=None)
+            if not scans:
+                logger.debug(f"No scans found in observation '{self.observation.code}'")
+                return
+            items = self.manipulator.inspect(scans, get_all=None)
+            if not isinstance(items, dict):
+                logger.debug(f"No valid scans found in observation '{self.observation.code}'")
+                return
+
+            idx = 1
+            for name, scan_obj in items.items():
+                try:
+                    is_active = bool(self.manipulator.inspect(scan_obj, get="isactive"))
                     active_item = QStandardItem()
                     active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
                     active_item.setToolTip("Active" if is_active else "Inactive")
                     active_item.setTextAlignment(Qt.AlignCenter)
 
-                    attrs_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": scan_obj,
-                        "attributes": {
-                            "get": ["start", "duration", "source", "telescopes", "frequencies", "is_off_source"]
-                        }
-                    })
-                    if not attrs_response["status"]:
-                        logger.error(f"Failed to get attributes for scan '{name}': {attrs_response.get('error', 'Unknown error')}")
+                    attrs = self.manipulator.inspect(scan_obj, get=["start", "duration", "source", "telescopes", "frequencies", "is_off_source"])
+                    if not attrs:
+                        logger.error(f"Failed to get attributes for scan '{name}': No result returned")
                         continue
 
-                    attrs = attrs_response["result"]
                     start_time = attrs["start"].strftime("%d.%m.%Y %H:%M:%S") if attrs["start"] else "N/A"
                     duration = f"{attrs['duration']:.1f}" if attrs["duration"] else "N/A"
                     source_name = "OFF SOURCE" if attrs["is_off_source"] else (attrs["source"].name if attrs["source"] else "None")
@@ -450,9 +424,15 @@ class ScansTab(QWidget):
                     row[0].setData(idx, Qt.UserRole + 1)
                     self.model.appendRow(row)
                     idx += 1
+                except Exception as e:
+                    logger.error(f"Exception while processing scan '{name}': {str(e)}")
+                    continue
 
-        self.ui.table.resizeColumnsToContents()
-        logger.debug(f"Updated scans table with {self.model.rowCount()} scans for observation '{self.observation.code}'")
+            self.ui.table.resizeColumnsToContents()
+            logger.debug(f"Updated scans table with {self.model.rowCount()} scans for observation '{self.observation.code}'")
+        except Exception as e:
+            logger.error(f"Exception while updating scans table: {str(e)}")
+            logger.debug(f"Updated scans table with {self.model.rowCount()} scans for observation '{self.observation.code}'")
 
     def _cleanup(self):
         """Clean up resources associated with this tab."""
