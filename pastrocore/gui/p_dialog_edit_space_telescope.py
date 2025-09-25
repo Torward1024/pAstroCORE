@@ -1,8 +1,11 @@
+# pastrocore/gui/p_dialog_edit_space_telescope.py
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QDateTime
 from pastrocore.gui.ui_dialog_edit_space_telescope import Ui_SpaceTelescopeEditorDialog
+from pastrocore.base.spacetelescope import SpaceTelescope
 from astropy.time import Time
 from common.utils.logging_setup import logger
+import uuid
 import re
 
 class SEFDTableModel(QAbstractTableModel):
@@ -132,8 +135,8 @@ class SystemTemperatureTableModel(SEFDTableModel):
         return False
 
 class SpaceTelescopeEditorDialog(QDialog):
-    """Dialog for editing SpaceTelescope objects."""
-    def __init__(self, telescope=None, parent=None):
+    """Dialog for editing or adding SpaceTelescope objects."""
+    def __init__(self, telescope: SpaceTelescope = None, parent=None):
         super().__init__(parent)
         self.ui = Ui_SpaceTelescopeEditorDialog()
         self.ui.setupUi(self)
@@ -146,6 +149,18 @@ class SpaceTelescopeEditorDialog(QDialog):
             self.ui.nameEdit.setReadOnly(True)
             logger.debug(f"Editing existing space telescope '{telescope.get_code()}' with read-only name and code fields")
         else:
+            self.telescope = SpaceTelescope(
+                code=f"ST",
+                name=f"SPACETELESCOPE",
+                diameter=10.0,
+                pitch_range=(-90.0, 90.0),
+                yaw_range=(-180.0, 180.0),
+                use_kep=False,
+                orbit_file="",
+                interpolation_method="linear",
+                isactive=True
+            )
+            self.load_telescope_data()
             self.ui.codeEdit.setReadOnly(False)
             self.ui.nameEdit.setReadOnly(False)
             logger.debug("Creating new space telescope with editable name and code fields")
@@ -162,8 +177,7 @@ class SpaceTelescopeEditorDialog(QDialog):
         self.ui.systemTemperatureTable.setModel(self.system_temperature_model)
 
     def setup_connections(self):
-        """Connect button signals."""
-        self.ui.browseOrbitFileButton.clicked.connect(self.browse_orbit_file)
+        """Connect UI signals to slots."""
         self.ui.addSefdButton.clicked.connect(lambda: self.sefd_model.add_row())
         self.ui.removeSefdButton.clicked.connect(self.remove_sefd_row)
         self.ui.clearSefdButton.clicked.connect(self.sefd_model.clear)
@@ -176,12 +190,6 @@ class SpaceTelescopeEditorDialog(QDialog):
         self.ui.addSystemTemperatureButton.clicked.connect(lambda: self.system_temperature_model.add_row(frequency=1000.0, sefd=300.0))
         self.ui.removeSystemTemperatureButton.clicked.connect(self.remove_system_temperature_row)
         self.ui.clearSystemTemperatureButton.clicked.connect(self.system_temperature_model.clear)
-
-    def browse_orbit_file(self):
-        """Open file dialog to select orbit file."""
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Orbit File", "", "All Files (*.*)")
-        if file_path:
-            self.ui.orbitFileEdit.setText(file_path)
 
     def load_telescope_data(self):
         """Load existing telescope data into the dialog."""
@@ -197,7 +205,7 @@ class SpaceTelescopeEditorDialog(QDialog):
         self.ui.yawMaxEdit.setValue(self.telescope.yaw_range[1])
         self.ui.useKepCheckBox.setChecked(self.telescope.use_kep)
         self.ui.isActiveCheckBox.setChecked(self.telescope.isactive)
-        
+
         if self.telescope.use_kep and self.telescope.kepler_elements:
             self.ui.semiMajorAxisEdit.setValue(self.telescope.kepler_elements["a"])
             self.ui.eccentricityEdit.setValue(self.telescope.kepler_elements["e"])
@@ -205,7 +213,6 @@ class SpaceTelescopeEditorDialog(QDialog):
             self.ui.raanEdit.setValue(self.telescope.kepler_elements["raan"])
             self.ui.argpEdit.setValue(self.telescope.kepler_elements["argp"])
             self.ui.nuEdit.setValue(self.telescope.kepler_elements["nu"])
-
             epoch_time = self.telescope.kepler_elements["epoch"]
             epoch_datetime = epoch_time.datetime
             qdatetime = QDateTime(
@@ -217,10 +224,9 @@ class SpaceTelescopeEditorDialog(QDialog):
                 epoch_datetime.second,
                 epoch_datetime.microsecond // 1000
             )
-
             self.ui.epochEdit.setDateTime(qdatetime)
             self.ui.muEdit.setValue(self.telescope.kepler_elements["mu"])
-        
+
         if self.telescope.sefd_table:
             for freq, sefd in self.telescope.sefd_table.items():
                 self.sefd_model.add_row(freq, sefd)
@@ -254,8 +260,8 @@ class SpaceTelescopeEditorDialog(QDialog):
         if selected:
             self.system_temperature_model.remove_row(selected[0].row())
 
-    def get_telescope_data(self):
-        """Retrieve telescope data from the dialog."""
+    def get_telescope_object(self) -> SpaceTelescope:
+        """Retrieve the modified SpaceTelescope object from the dialog."""
         kepler = None
         if self.ui.useKepCheckBox.isChecked():
             kepler = {
@@ -268,12 +274,12 @@ class SpaceTelescopeEditorDialog(QDialog):
                 "epoch": Time(self.ui.epochEdit.dateTime().toPython(), scale='utc'),
                 "mu": self.ui.muEdit.value()
             }
-        
-        return {
+
+        params = {
             "code": self.ui.codeEdit.text().strip(),
             "name": self.ui.nameEdit.text().strip(),
             "diameter": self.ui.diameterEdit.value(),
-            "surface_accuracy": self.ui.surfaceAccuracyEdit.value(),
+            "surface_accuracy": self.ui.surfaceAccuracyEdit.value() or None,
             "orbit_file": self.ui.orbitFileEdit.text().strip(),
             "interpolation_method": self.ui.interpolationMethodCombo.currentText(),
             "pitch_range": (self.ui.pitchMinEdit.value(), self.ui.pitchMaxEdit.value()),
@@ -287,25 +293,43 @@ class SpaceTelescopeEditorDialog(QDialog):
             "system_temperature_table": self.system_temperature_model.get_data()
         }
 
+        self.telescope.set(params)
+        logger.debug(f"Updated SpaceTelescope object '{self.telescope.name}' with params: {params}")
+        return self.telescope
+
     def accept(self):
         """Validate and accept the dialog."""
-        data = self.get_telescope_data()
-        if not data["code"] or not data["name"]:
-            QMessageBox.critical(self, "Error", "Code and Name are required fields.")
-            return
-        if not re.match(r'^[a-zA-Z0-9_-]+$', data["code"]):
-            QMessageBox.critical(self, "Error", "Code must contain only alphanumeric characters, underscores, or hyphens.")
-            return
-        if data["pitch_range"][0] >= data["pitch_range"][1]:
-            QMessageBox.critical(self, "Error", "Minimum pitch must be less than maximum pitch.")
-            return
-        if data["yaw_range"][0] >= data["yaw_range"][1]:
-            QMessageBox.critical(self, "Error", "Minimum yaw must be less than maximum yaw.")
-            return
-        if data["use_kep"] and not data["kepler_elements"]:
-            QMessageBox.critical(self, "Error", "Keplerian elements are required when using Keplerian orbit.")
-            return
-        if not data["use_kep"] and not data["orbit_file"]:
-            QMessageBox.critical(self, "Error", "An orbit file is required when not using Keplerian elements.")
-            return
-        super().accept()
+        try:
+            data = self.get_telescope_object().__dict__
+            if not data["code"] or not data["name"]:
+                logger.error("Code and Name are required fields")
+                QMessageBox.critical(self, "Error", "Code and Name are required fields.")
+                return
+            if not re.match(r'^[a-zA-Z0-9_-]+$', data["code"]):
+                logger.error("Code must contain only alphanumeric characters, underscores, or hyphens")
+                QMessageBox.critical(self, "Error", "Code must contain only alphanumeric characters, underscores, or hyphens.")
+                return
+            if data["pitch_range"][0] >= data["pitch_range"][1]:
+                logger.error("Minimum pitch must be less than maximum pitch")
+                QMessageBox.critical(self, "Error", "Minimum pitch must be less than maximum pitch.")
+                return
+            if data["yaw_range"][0] >= data["yaw_range"][1]:
+                logger.error("Minimum yaw must be less than maximum yaw")
+                QMessageBox.critical(self, "Error", "Minimum yaw must be less than maximum yaw.")
+                return
+            if data["use_kep"] and not data["kepler_elements"]:
+                logger.error("Keplerian elements are required when using Keplerian orbit")
+                QMessageBox.critical(self, "Error", "Keplerian elements are required when using Keplerian orbit.")
+                return
+            if not data["use_kep"] and not data["orbit_file"]:
+                logger.error("An orbit file is required when not using Keplerian elements")
+                QMessageBox.critical(self, "Error", "An orbit file is required when not using Keplerian elements.")
+                return
+            if data["diameter"] <= 0:
+                logger.error("Diameter must be positive")
+                QMessageBox.critical(self, "Error", "Diameter must be positive.")
+                return
+            super().accept()
+        except ValueError as ve:
+            logger.error(f"Validation error: {str(ve)}")
+            QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")

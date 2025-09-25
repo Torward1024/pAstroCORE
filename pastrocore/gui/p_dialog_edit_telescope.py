@@ -1,9 +1,11 @@
+# pastrocore/gui/p_dialog_edit_telescope.py
 from PySide6.QtWidgets import QDialog, QMessageBox
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from pastrocore.gui.ui_dialog_edit_telescope import Ui_TelescopeEditorDialog
-from pastrocore.base.telescope import MountType
+from pastrocore.base.telescope import Telescope, MountType
 import re
 from common.utils.logging_setup import logger
+import uuid
 
 class SEFDTableModel(QAbstractTableModel):
     """Table model for SEFD (MHz, Jy) data."""
@@ -132,8 +134,8 @@ class SystemTemperatureTableModel(SEFDTableModel):
         return False
 
 class TelescopeEditorDialog(QDialog):
-    """Dialog for editing Telescope objects."""
-    def __init__(self, telescope=None, parent=None):
+    """Dialog for editing or adding Telescope objects."""
+    def __init__(self, telescope: Telescope = None, parent=None):
         super().__init__(parent)
         self.ui = Ui_TelescopeEditorDialog()
         self.ui.setupUi(self)
@@ -146,6 +148,18 @@ class TelescopeEditorDialog(QDialog):
             self.ui.nameEdit.setReadOnly(True)
             logger.debug(f"Editing existing telescope '{telescope.get_code()}' with read-only name and code fields")
         else:
+            self.telescope = Telescope(
+                code=f"NT",
+                name=f"NEWTELESCOPE",
+                x=0.0, y=0.0, z=0.0,
+                vx=0.0, vy=0.0, vz=0.0,
+                diameter=20.0,
+                elevation_range=(15.0, 90.0),
+                azimuth_range=(0.0, 360.0),
+                mount_type="AZIM",
+                isactive=True
+            )
+            self.load_telescope_data()
             self.ui.codeEdit.setReadOnly(False)
             self.ui.nameEdit.setReadOnly(False)
             logger.debug("Creating new telescope with editable name and code fields")
@@ -162,7 +176,7 @@ class TelescopeEditorDialog(QDialog):
         self.ui.systemTemperatureTable.setModel(self.system_temperature_model)
 
     def setup_connections(self):
-        """Connect button signals."""
+        """Connect UI signals to slots."""
         self.ui.addSefdButton.clicked.connect(lambda: self.sefd_model.add_row())
         self.ui.removeSefdButton.clicked.connect(self.remove_sefd_row)
         self.ui.clearSefdButton.clicked.connect(self.sefd_model.clear)
@@ -194,7 +208,7 @@ class TelescopeEditorDialog(QDialog):
         self.ui.azimuthMaxEdit.setValue(self.telescope.azimuth_range[1])
         self.ui.mountTypeCombo.setCurrentText(self.telescope.mount_type.value)
         self.ui.isActiveCheckBox.setChecked(self.telescope.isactive)
-        
+
         if self.telescope.sefd_table:
             for freq, sefd in self.telescope.sefd_table.items():
                 self.sefd_model.add_row(freq, sefd)
@@ -228,8 +242,8 @@ class TelescopeEditorDialog(QDialog):
         if selected:
             self.system_temperature_model.remove_row(selected[0].row())
 
-    def get_telescope_data(self):
-        """Retrieve telescope data from the dialog."""
+    def get_telescope_object(self) -> Telescope:
+        """Retrieve the modified Telescope object from the dialog."""
         mount_type_str = self.ui.mountTypeCombo.currentText()
         try:
             mount_type = MountType._value2member_map_[mount_type_str.upper()]
@@ -238,7 +252,7 @@ class TelescopeEditorDialog(QDialog):
             logger.error(f"Invalid mount_type value: {mount_type_str}")
             raise ValueError(f"Invalid mount_type value: {mount_type_str}") from e
 
-        return {
+        params = {
             "code": self.ui.codeEdit.text().strip(),
             "name": self.ui.nameEdit.text().strip(),
             "x": self.ui.xEdit.value(),
@@ -248,7 +262,7 @@ class TelescopeEditorDialog(QDialog):
             "vy": self.ui.vyEdit.value(),
             "vz": self.ui.vzEdit.value(),
             "diameter": self.ui.diameterEdit.value(),
-            "surface_accuracy": self.ui.surfaceAccuracyEdit.value(),
+            "surface_accuracy": self.ui.surfaceAccuracyEdit.value() or None,
             "elevation_range": (self.ui.elevationMinEdit.value(), self.ui.elevationMaxEdit.value()),
             "azimuth_range": (self.ui.azimuthMinEdit.value(), self.ui.azimuthMaxEdit.value()),
             "mount_type": mount_type,
@@ -259,19 +273,35 @@ class TelescopeEditorDialog(QDialog):
             "system_temperature_table": self.system_temperature_model.get_data()
         }
 
+        self.telescope.set(params)
+        logger.debug(f"Updated Telescope object '{self.telescope.name}' with params: {params}")
+        return self.telescope
+
     def accept(self):
         """Validate and accept the dialog."""
-        data = self.get_telescope_data()
-        if not data["code"] or not data["name"]:
-            QMessageBox.critical(self, "Error", "Code and Name are required fields.")
-            return
-        if not re.match(r'^[a-zA-Z0-9_-]+$', data["code"]):
-            QMessageBox.critical(self, "Error", "Code must contain only alphanumeric characters, underscores, or hyphens.")
-            return
-        if data["elevation_range"][0] >= data["elevation_range"][1]:
-            QMessageBox.critical(self, "Error", "Minimum elevation must be less than maximum elevation.")
-            return
-        if data["azimuth_range"][0] >= data["azimuth_range"][1]:
-            QMessageBox.critical(self, "Error", "Minimum azimuth must be less than maximum azimuth.")
-            return
-        super().accept()
+        try:
+            data = self.get_telescope_object().__dict__
+            if not data["code"] or not data["name"]:
+                logger.error("Code and Name are required fields")
+                QMessageBox.critical(self, "Error", "Code and Name are required fields.")
+                return
+            if not re.match(r'^[a-zA-Z0-9_-]+$', data["code"]):
+                logger.error("Code must contain only alphanumeric characters, underscores, or hyphens")
+                QMessageBox.critical(self, "Error", "Code must contain only alphanumeric characters, underscores, or hyphens.")
+                return
+            if data["elevation_range"][0] >= data["elevation_range"][1]:
+                logger.error("Minimum elevation must be less than maximum elevation")
+                QMessageBox.critical(self, "Error", "Minimum elevation must be less than maximum elevation.")
+                return
+            if data["azimuth_range"][0] >= data["azimuth_range"][1]:
+                logger.error("Minimum azimuth must be less than maximum azimuth")
+                QMessageBox.critical(self, "Error", "Minimum azimuth must be less than maximum azimuth.")
+                return
+            if data["diameter"] <= 0:
+                logger.error("Diameter must be positive")
+                QMessageBox.critical(self, "Error", "Diameter must be positive.")
+                return
+            super().accept()
+        except ValueError as ve:
+            logger.error(f"Validation error: {str(ve)}")
+            QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")

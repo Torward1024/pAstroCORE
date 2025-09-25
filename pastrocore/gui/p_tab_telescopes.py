@@ -135,16 +135,13 @@ class TelescopesTab(QWidget):
     def add_telescope(self):
         """Add a new ground-based telescope using TelescopeEditorDialog."""
         dialog = TelescopeEditorDialog(parent=self)
-        dialog.ui.codeEdit.setText(f"NT")
-        dialog.ui.nameEdit.setText(f"NEWTELESCOPE")
         if dialog.exec() == QDialog.Accepted:
             try:
-                telescope_data = dialog.get_telescope_data()
-                telescope = Telescope(**telescope_data)
+                telescope = dialog.get_telescope_object()
                 self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
                 self.update()
-                self.data_updated.emit(telescope_data['name'], None, "add")
-                logger.info(f"Added telescope '{telescope_data['code']}' to observation '{self.observation.code}'")
+                self.data_updated.emit(telescope.name, None, "add")
+                logger.info(f"Added telescope '{telescope.code}' to observation '{self.observation.code}'")
             except Exception as e:
                 logger.error(f"Exception while adding telescope: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
@@ -153,17 +150,14 @@ class TelescopesTab(QWidget):
     def add_space_telescope(self):
         """Add a new space telescope using SpaceTelescopeEditorDialog."""
         dialog = SpaceTelescopeEditorDialog(parent=self)
-        dialog.ui.codeEdit.setText(f"ST")
-        dialog.ui.nameEdit.setText(f"SPACETELESCOPE")
         dialog.ui.isActiveCheckBox.setChecked(True)
         if dialog.exec() == QDialog.Accepted:
             try:
-                telescope_data = dialog.get_telescope_data()
-                telescope = SpaceTelescope(**telescope_data)
+                telescope = dialog.get_telescope_object()
                 self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
                 self.update()
-                self.data_updated.emit(telescope_data['name'], None, "add")
-                logger.info(f"Added space telescope '{telescope_data['code']}' to observation '{self.observation.code}'")
+                self.data_updated.emit(telescope.name, None, "add")
+                logger.info(f"Added space telescope '{telescope.code}' to observation '{self.observation.code}'")
             except Exception as e:
                 logger.error(f"Exception while adding space telescope: {str(e)}")
                 QMessageBox.critical(self, "Error", f"Failed to add space telescope: {str(e)}")
@@ -333,26 +327,11 @@ class TelescopesTab(QWidget):
             
             if dialog.exec() == QDialog.Accepted:
                 try:
-                    telescope_data = dialog.get_telescope_data()
-                    for key, value in telescope_data.items():
-                        if hasattr(telescope, key):
-                            setattr(telescope, key, value)
-                        else:
-                            logger.warning(f"Attribute '{key}' not found in telescope object")
-                    
-                    request = {
-                        "operation": "configure",
-                        "obj": self.observation.get_telescopes(),
-                        "attributes": {"set_item": {"name": telescope_name, "item": telescope}}
-                    }
-                    response = self.manipulator.process_request(request)
-                    if response["status"]:
-                        logger.info(f"Updated telescope '{telescope_name}' in observation '{self.observation.code}'")
-                        self.update()
-                        self.data_updated.emit(telescope_name, telescope_data["isactive"], "edit")
-                    else:
-                        logger.error(f"Failed to update telescope: {response.get('error', 'Unknown error')}")
-                        QMessageBox.critical(self, "Error", f"Failed to update telescope: {response.get('error', 'Unknown error')}")
+                    telescope_data = dialog.get_telescope_object()
+                    self.manipulator.configure(self.observation.get_telescopes(), set_item={"name": telescope_name, "item": telescope})
+                    self.update()
+                    self.data_updated.emit(telescope_name, telescope_data["isactive"], "edit")
+                    logger.info(f"Updated telescope '{telescope_name}' in observation '{self.observation.code}'")
                 except Exception as e:
                     logger.error(f"Exception while updating telescope: {str(e)}")
                     QMessageBox.critical(self, "Error", f"Failed to update telescope: {str(e)}")
