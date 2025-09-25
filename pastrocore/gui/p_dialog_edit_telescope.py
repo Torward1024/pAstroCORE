@@ -5,7 +5,6 @@ from pastrocore.gui.ui_dialog_edit_telescope import Ui_TelescopeEditorDialog
 from pastrocore.base.telescope import Telescope, MountType
 import re
 from common.utils.logging_setup import logger
-import uuid
 
 class SEFDTableModel(QAbstractTableModel):
     """Table model for SEFD (MHz, Jy) data."""
@@ -142,30 +141,10 @@ class TelescopeEditorDialog(QDialog):
         self.telescope = telescope
         self.setup_models()
         self.setup_connections()
-        if telescope:
-            self.load_telescope_data()
-            self.ui.codeEdit.setReadOnly(True)
-            self.ui.nameEdit.setReadOnly(True)
-            logger.debug(f"Editing existing telescope '{telescope.get_code()}' with read-only name and code fields")
-        else:
-            self.telescope = Telescope(
-                code=f"NT",
-                name=f"NEWTELESCOPE",
-                x=0.0, y=0.0, z=0.0,
-                vx=0.0, vy=0.0, vz=0.0,
-                diameter=20.0,
-                elevation_range=(15.0, 90.0),
-                azimuth_range=(0.0, 360.0),
-                mount_type="AZIM",
-                isactive=True
-            )
-            self.load_telescope_data()
-            self.ui.codeEdit.setReadOnly(False)
-            self.ui.nameEdit.setReadOnly(False)
-            logger.debug("Creating new telescope with editable name and code fields")
+        self.load_data()
 
     def setup_models(self):
-        """Initialize table models."""
+        """Set up table models for SEFD, surface efficiency, effective area, and system temperature."""
         self.sefd_model = SEFDTableModel()
         self.ui.sefdTable.setModel(self.sefd_model)
         self.surface_efficiency_model = SurfaceEfficiencyTableModel()
@@ -180,20 +159,44 @@ class TelescopeEditorDialog(QDialog):
         self.ui.addSefdButton.clicked.connect(lambda: self.sefd_model.add_row())
         self.ui.removeSefdButton.clicked.connect(self.remove_sefd_row)
         self.ui.clearSefdButton.clicked.connect(self.sefd_model.clear)
-        self.ui.addSurfaceEfficiencyButton.clicked.connect(lambda: self.surface_efficiency_model.add_row(frequency=1000.0, sefd=0.8))
+        self.ui.addSurfaceEfficiencyButton.clicked.connect(lambda: self.surface_efficiency_model.add_row())
         self.ui.removeSurfaceEfficiencyButton.clicked.connect(self.remove_surface_efficiency_row)
         self.ui.clearSurfaceEfficiencyButton.clicked.connect(self.surface_efficiency_model.clear)
         self.ui.addEffectiveAreaButton.clicked.connect(lambda: self.effective_area_model.add_row())
         self.ui.removeEffectiveAreaButton.clicked.connect(self.remove_effective_area_row)
         self.ui.clearEffectiveAreaButton.clicked.connect(self.effective_area_model.clear)
-        self.ui.addSystemTemperatureButton.clicked.connect(lambda: self.system_temperature_model.add_row(frequency=1000.0, sefd=300.0))
+        self.ui.addSystemTemperatureButton.clicked.connect(lambda: self.system_temperature_model.add_row())
         self.ui.removeSystemTemperatureButton.clicked.connect(self.remove_system_temperature_row)
         self.ui.clearSystemTemperatureButton.clicked.connect(self.system_temperature_model.clear)
+        self.ui.saveButton.clicked.connect(self.accept)
+        self.ui.cancelButton.clicked.connect(self.reject)
 
-    def load_telescope_data(self):
-        """Load existing telescope data into the dialog."""
-        self.ui.codeEdit.setText(self.telescope.get_code())
-        self.ui.nameEdit.setText(self.telescope.name)
+    def load_data(self):
+        """Load telescope data into the dialog fields."""
+        if not self.telescope:
+            self.telescope = Telescope(
+                code=f"NT",
+                name=f"NEWTELESCOPE",
+                x=0.0, y=0.0, z=0.0,
+                vx=0.0, vy=0.0, vz=0.0,
+                diameter=25.0,
+                elevation_range=(0, 90),
+                azimuth_range=(0, 360),
+                mount_type=MountType.AZEL,
+                isactive=True
+            )
+            self.ui.codeEdit.setReadOnly(False)
+            self.ui.nameEdit.setReadOnly(False)
+            self.setWindowTitle("Add Telescope")
+            logger.debug("Creating new telescope with editable code and name fields")
+        else:
+            self.ui.codeEdit.setReadOnly(True)
+            self.ui.nameEdit.setReadOnly(True)
+            self.setWindowTitle(f"Edit Telescope '{self.telescope.get_code()}'")
+            logger.debug(f"Editing existing telescope '{self.telescope.get_code()}' with read-only code and name fields")
+
+        self.ui.codeEdit.setText(self.telescope.get_code() or "")
+        self.ui.nameEdit.setText(self.telescope.name or "")
         self.ui.xEdit.setValue(self.telescope.x)
         self.ui.yEdit.setValue(self.telescope.y)
         self.ui.zEdit.setValue(self.telescope.z)
@@ -209,38 +212,64 @@ class TelescopeEditorDialog(QDialog):
         self.ui.mountTypeCombo.setCurrentText(self.telescope.mount_type.value)
         self.ui.isActiveCheckBox.setChecked(self.telescope.isactive)
 
+        self.sefd_model.clear()
         if self.telescope.sefd_table:
             for freq, sefd in self.telescope.sefd_table.items():
                 self.sefd_model.add_row(freq, sefd)
+        self.surface_efficiency_model.clear()
         if self.telescope.surface_efficiency_table:
             for freq, eff in self.telescope.surface_efficiency_table.items():
                 self.surface_efficiency_model.add_row(freq, eff)
+        self.effective_area_model.clear()
         if self.telescope.effective_area_table:
             for freq, area in self.telescope.effective_area_table.items():
                 self.effective_area_model.add_row(freq, area)
+        self.system_temperature_model.clear()
         if self.telescope.system_temperature_table:
             for freq, temp in self.telescope.system_temperature_table.items():
                 self.system_temperature_model.add_row(freq, temp)
 
+        logger.info(f"Loaded telescope '{self.telescope.get_code()}' into editor dialog")
+
     def remove_sefd_row(self):
+        """Remove selected SEFD entry from the table."""
         selected = self.ui.sefdTable.selectionModel().selectedRows()
         if selected:
             self.sefd_model.remove_row(selected[0].row())
+            logger.info("Removed selected SEFD entry from table")
+        else:
+            logger.warning("No SEFD entry selected for removal")
+            QMessageBox.warning(self, "Warning", "Please select an SEFD entry to remove.")
 
     def remove_surface_efficiency_row(self):
+        """Remove selected surface efficiency entry from the table."""
         selected = self.ui.surfaceEfficiencyTable.selectionModel().selectedRows()
         if selected:
             self.surface_efficiency_model.remove_row(selected[0].row())
+            logger.info("Removed selected surface efficiency entry from table")
+        else:
+            logger.warning("No surface efficiency entry selected for removal")
+            QMessageBox.warning(self, "Warning", "Please select a surface efficiency entry to remove.")
 
     def remove_effective_area_row(self):
+        """Remove selected effective area entry from the table."""
         selected = self.ui.effectiveAreaTable.selectionModel().selectedRows()
         if selected:
             self.effective_area_model.remove_row(selected[0].row())
+            logger.info("Removed selected effective area entry from table")
+        else:
+            logger.warning("No effective area entry selected for removal")
+            QMessageBox.warning(self, "Warning", "Please select an effective area entry to remove.")
 
     def remove_system_temperature_row(self):
+        """Remove selected system temperature entry from the table."""
         selected = self.ui.systemTemperatureTable.selectionModel().selectedRows()
         if selected:
             self.system_temperature_model.remove_row(selected[0].row())
+            logger.info("Removed selected system temperature entry from table")
+        else:
+            logger.warning("No system temperature entry selected for removal")
+            QMessageBox.warning(self, "Warning", "Please select a system temperature entry to remove.")
 
     def get_telescope_object(self) -> Telescope:
         """Retrieve the modified Telescope object from the dialog."""
@@ -302,6 +331,10 @@ class TelescopeEditorDialog(QDialog):
                 QMessageBox.critical(self, "Error", "Diameter must be positive.")
                 return
             super().accept()
+            logger.info(f"Validated and saved telescope data for '{data['code']}'")
         except ValueError as ve:
             logger.error(f"Validation error: {str(ve)}")
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")
+        except Exception as e:
+            logger.error(f"Unexpected error while saving telescope: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to save telescope: {str(e)}")
