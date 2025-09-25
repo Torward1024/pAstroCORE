@@ -359,32 +359,6 @@ class Sources(BaseContainer[Source]):
         self._key_cache = list(self._items.keys())
         logger.debug(f"Updated source '{name}' in Sources with params: {params}")
     
-    def activate_item(self, name: str) -> None:
-        """Activate a specific source by its name.
-
-        Triggers synchronization with a parent Observation if present.
-
-        Args:
-            name (str): The name of the source to activate.
-
-        Raises:
-            KeyError: If the name is not found in the collection.
-        """
-        super().activate_item(name)
-
-    def deactivate_item(self, name: str) -> None:
-        """Deactivate a specific source by its name.
-
-        Triggers synchronization with a parent Observation if present.
-
-        Args:
-            name (str): The name of the source to deactivate.
-
-        Raises:
-            KeyError: If the name is not found in the collection.
-        """
-        super().deactivate_item(name)
-    
     def copy(self) -> 'Sources':
         """Create a deep copy of the Sources object."""
         return Sources(
