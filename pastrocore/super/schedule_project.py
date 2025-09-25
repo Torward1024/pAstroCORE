@@ -71,7 +71,6 @@ class ScheduleProject(Project):
         """
         check_type(item, Observation, "Observation")
         item_code = item.get_observation_code()
-        logger.info(self._items.get_all())
         for name, existing_item in self._items.get_all().items():
             existing_code = existing_item.get_observation_code()
             if (name != exclude_name and item_code == existing_code and

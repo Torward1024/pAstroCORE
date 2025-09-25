@@ -89,173 +89,122 @@ class ProjectInfoTab(QWidget):
     @Slot()
     def update_tab(self):
         """Update the project info tab with current project data using Manipulator."""
+        try:
+            project_name = self.manipulator.inspect(self.project, get_name=None)
+            project_name = project_name if isinstance(project_name, str) else "Untitled Project"
+            self.ui.lineEdit.setText(project_name)
 
-        project_name_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_name": None}
-        })
-        project_name = project_name_response["result"] if project_name_response["status"] and isinstance(project_name_response["result"], str) else "Untitled Project"
-        self.ui.lineEdit.setText(project_name)
+            observations = self.manipulator.inspect(self.project, get_items=None)
+            if not isinstance(observations, dict):
+                logger.error(f"Expected dict for observations, got {type(observations)}: {observations}")
+                return
 
-        observations_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.project,
-            "attributes": {"get_items": None}
-        })
-        if not observations_response["status"]:
-            logger.error(f"Failed to inspect observations: {observations_response.get('error', 'Unknown error')}")
-            return
+            current_codes = set()
+            for obs in observations.values():
+                try:
+                    code = self.manipulator.inspect(obs, get_observation_code=None)
+                    if code:
+                        current_codes.add(code)
+                except Exception as e:
+                    logger.error(f"Failed to get code for observation: {str(e)}")
+                    continue
 
-        result = observations_response["result"]
-        if not isinstance(result, dict):
-            logger.error(f"Expected dict for observations, got {type(result)}: {result}")
-            return
+            for i in range(self.model.rowCount() - 1, -1, -1):
+                obs_code = self.model.item(i, 3).text()
+                if obs_code not in current_codes:
+                    self.model.removeRow(i)
 
-        current_codes = set()
-        for obs in result.values():
-            code_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_observation_code": None}
-            })
-            if code_response["status"]:
-                current_codes.add(code_response["result"])
+            idx = 1
+            for obs_name, obs in observations.items():
+                if not isinstance(obs, Observation):
+                    logger.error(f"Invalid observation type for name '{obs_name}': {type(obs)}")
+                    continue
 
-        for i in range(self.model.rowCount() - 1, -1, -1):
-            obs_code = self.model.item(i, 3).text()
-            if obs_code not in current_codes:
-                self.model.removeRow(i)
+                try:
+                    obs_code = self.manipulator.inspect(obs, get_observation_code=None)
+                    if not obs_code:
+                        logger.error(f"Failed to get code for observation with name '{obs_name}': No result returned")
+                        continue
 
-        idx = 1
-        for obs_name, obs in result.items():
-            if not isinstance(obs, Observation):
-                logger.error(f"Invalid observation type for name '{obs_name}': {type(obs)}")
-                continue
+                    row_idx = None
+                    for i in range(self.model.rowCount()):
+                        if self.model.item(i, 3).text() == obs_code:
+                            row_idx = i
+                            break
 
-            code_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_observation_code": None}
-            })
-            if not code_response["status"]:
-                logger.error(f"Failed to get code for observation with name '{obs_name}': {code_response.get('error', 'Unknown error')}")
-                continue
-            obs_code = code_response["result"]
+                    is_active = bool(self.manipulator.inspect(obs, get="isactive"))
+                    active_item = QStandardItem()
+                    active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
+                    active_item.setToolTip("Active" if is_active else "Inactive")
+                    active_item.setTextAlignment(Qt.AlignCenter)
 
-            row_idx = None
-            for i in range(self.model.rowCount()):
-                if self.model.item(i, 3).text() == obs_code:
-                    row_idx = i
-                    break
+                    obs_type = self.manipulator.inspect(obs, get="observation_type")
+                    obs_type = obs_type if obs_type in ["VLBI", "SINGLE_DISH"] else "N/A"
 
-            is_active_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get": "isactive"}
-            })
-            is_active = is_active_response["status"] and is_active_response["result"]
-            active_item = QStandardItem()
-            active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
-            active_item.setToolTip("Active" if is_active else "Inactive")
-            active_item.setTextAlignment(Qt.AlignCenter)
-
-            type_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get": "observation_type"}
-            })
-            obs_type = type_response["result"] if type_response["status"] and type_response["result"] in ["VLBI", "SINGLE_DISH"] else "N/A"
-
-            frequencies_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_frequencies": None}
-            })
-            freqs = "N/A"
-            if frequencies_response["status"] and frequencies_response["result"]:
-                items_response = self.manipulator.process_request({
-                    "operation": "inspect",
-                    "obj": frequencies_response["result"],
-                    "attributes": {"get_active_items": None}
-                })
-                if items_response["status"] and isinstance(items_response["result"], list):
-                    frequencies = []
-                    for if_obj in items_response["result"]:
-                        freq_response = self.manipulator.process_request({
-                            "operation": "inspect",
-                            "obj": if_obj,
-                            "attributes": {"get": "frequency"}
-                        })
-                        if freq_response["status"] and isinstance(freq_response["result"], (int, float)):
-                            frequencies.append(f"{freq_response['result']:.0f} MHz")
+                    freqs = "N/A"
+                    frequencies = self.manipulator.inspect(obs, get_frequencies=None)
                     if frequencies:
-                        freqs = ", ".join(frequencies)
+                        active_freqs = self.manipulator.inspect(frequencies, get_active_items=None)
+                        if isinstance(active_freqs, list):
+                            frequencies_list = []
+                            for if_obj in active_freqs:
+                                try:
+                                    freq = self.manipulator.inspect(if_obj, get="frequency")
+                                    if isinstance(freq, (int, float)):
+                                        frequencies_list.append(f"{freq:.0f} MHz")
+                                except Exception as e:
+                                    logger.error(f"Failed to get frequency for observation '{obs_name}': {str(e)}")
+                                    continue
+                            if frequencies_list:
+                                freqs = ", ".join(frequencies_list)
+
+                    start_time = self.manipulator.inspect(obs, get_start_datetime=None)
+                    start_time = start_time.strftime("%d.%m.%Y %H:%M:%S") if start_time else "N/A"
+
+                    duration = self.manipulator.inspect(obs, get_duration=None)
+                    duration = str(duration) if duration else "N/A"
+
+                    sources = self.manipulator.inspect(obs, get_sources=None)
+                    sources_count = str(len(sources.get_items())) if sources and hasattr(sources, 'get_items') else "0"
+
+                    telescopes = self.manipulator.inspect(obs, get_telescopes=None)
+                    telescopes_count = str(len(telescopes.get_items())) if telescopes and hasattr(telescopes, 'get_items') else "0"
+
+                    scans = self.manipulator.inspect(obs, get_scans=None)
+                    scans_count = str(len(scans.get_items())) if scans and hasattr(scans, 'get_items') else "0"
+
+                    row = [
+                        QStandardItem(str(idx)),
+                        active_item,
+                        QStandardItem(obs_name),
+                        QStandardItem(obs_code),
+                        QStandardItem(obs_type),
+                        QStandardItem(freqs),
+                        QStandardItem(start_time),
+                        QStandardItem(duration),
+                        QStandardItem(sources_count),
+                        QStandardItem(telescopes_count),
+                        QStandardItem(scans_count)
+                    ]
+                    for item in row:
+                        item.setEditable(False)
+
+                    row[0].setData(obs_name, Qt.UserRole)
+                    row[0].setData(idx, Qt.UserRole + 1)
+
+                    if row_idx is None:
+                        self.model.appendRow(row)
                     else:
-                        freqs = "N/A"
+                        for col, item in enumerate(row):
+                            self.model.setItem(row_idx, col, item)
+                    idx += 1
+                except Exception as e:
+                    logger.error(f"Exception while processing observation '{obs_name}': {str(e)}")
+                    continue
 
-            start_time_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_start_datetime": None}
-            })
-            start_time = start_time_response["result"].strftime("%d.%m.%Y %H:%M:%S") if start_time_response["status"] and start_time_response["result"] else "N/A"
-
-            duration_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_duration": None}
-            })
-            duration = str(duration_response["result"]) if duration_response["status"] and duration_response["result"] else "N/A"
-
-            sources_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_sources": None}
-            })
-            sources = str(len(sources_response["result"].get_items())) if sources_response["status"] and hasattr(sources_response["result"], 'get_items') else "0"
-
-            telescopes_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_telescopes": None}
-            })
-            telescopes = str(len(telescopes_response["result"].get_items())) if telescopes_response["status"] and hasattr(telescopes_response["result"], 'get_items') else "0"
-
-            scans_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": obs,
-                "attributes": {"get_scans": None}
-            })
-            scans = str(len(scans_response["result"].get_items())) if scans_response["status"] and hasattr(scans_response["result"], 'get_items') else "0"
-
-            row = [
-                QStandardItem(str(idx)),
-                active_item,
-                QStandardItem(obs_name),
-                QStandardItem(obs_code),
-                QStandardItem(obs_type),
-                QStandardItem(freqs),
-                QStandardItem(start_time),
-                QStandardItem(duration),
-                QStandardItem(sources),
-                QStandardItem(telescopes),
-                QStandardItem(scans)
-            ]
-            for item in row:
-                item.setEditable(False)
-                
-            row[0].setData(obs_name, Qt.UserRole)
-            row[0].setData(idx, Qt.UserRole + 1)
-
-            if row_idx is None:
-                self.model.appendRow(row)
-            else:
-                for col, item in enumerate(row):
-                    self.model.setItem(row_idx, col, item)
-            idx += 1
-
-        self.ui.projectInfoTable.resizeColumnsToContents()
+            self.ui.projectInfoTable.resizeColumnsToContents()
+        except Exception as e:
+            logger.error(f"Exception while updating project info tab: {str(e)}")
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the observations table."""
