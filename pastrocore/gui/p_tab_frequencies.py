@@ -250,10 +250,7 @@ class FrequenciesTab(QWidget):
             if dialog.exec() == QDialog.Accepted:
                 try:
                     updated_if = dialog.get_if_object()
-                    self.manipulator.configure(
-                        self.observation.get_frequencies(),
-                        set_item={"name": freq_name, "item": updated_if}
-                    )
+                    self.manipulator.configure(self.observation.get_frequencies(), set_item={"name": freq_name, "item": updated_if})
                     self.update()
                     self.data_updated.emit(freq_name, updated_if.isactive, "edit")
                     logger.info(f"Updated frequency '{freq_name}' in observation '{self.observation.code}'")
