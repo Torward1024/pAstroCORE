@@ -376,11 +376,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """
         
         try:
-            self.manipulator.inspect(
-                obj=self.project,
-                method="get_observation_by_code",
-                get_observation_by_code=obs_code
-            )
+            self.manipulator.inspect(self.project, get_observation_by_code=obs_code)
             logger.debug(f"Observation '{obs_code}' found in project after addition")
         except Exception as e:
             logger.error(f"Observation '{obs_code}' not found in project after addition: {str(e)}")
@@ -416,14 +412,8 @@ class PAstroCoreMainWindow(QMainWindow):
                 break
 
         try:
-            self.manipulator.inspect(
-                obj=self.project,
-                get_item=obs_name
-            )
-            self.manipulator.configure(
-                obj=self.project,
-                remove_item=obs_name
-            )
+            self.manipulator.inspect(self.project, get_item=obs_name)
+            self.manipulator.configure(self.project, remove_item=obs_name)
             logger.info(f"Observation with code '{obs_code}' and name '{obs_name}' removed from project '{self.project.get_name()}'")
             self.project_updated.emit()
         except Exception as e:
@@ -482,7 +472,7 @@ class PAstroCoreMainWindow(QMainWindow):
         root = model.invisibleRootItem()
 
         try:
-            project_name = self.manipulator.inspect(obj=self.project, get_name=None)
+            project_name = self.manipulator.inspect(self.project, get_name=None)
         except Exception as e:
             logger.error(f"Failed to get project name: {str(e)}")
             project_name = "Untitled Project"
@@ -497,12 +487,12 @@ class PAstroCoreMainWindow(QMainWindow):
         project_item.appendRow(observations_item)
 
         try:
-            observations = self.manipulator.inspect(obj=self.project, get_items=None)
+            observations = self.manipulator.inspect(self.project, get_items=None)
             if isinstance(observations, dict):
                 if observations:
                     for obs_name, obs in observations.items():
                         try:
-                            obs_code = self.manipulator.inspect(obj=obs, get_observation_code=None)
+                            obs_code = self.manipulator.inspect(obs, get_observation_code=None)
                             obs_item = QStandardItem(obs_code)
                             obs_item.setData("observation", Qt.UserRole)
                             obs_item.setData(obs_name, Qt.UserRole + 1)
