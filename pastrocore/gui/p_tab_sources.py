@@ -291,7 +291,7 @@ class SourcesTab(QWidget):
     def clear_sources(self):
         """Clear all sources from the observation."""
         try:
-            response = self.manipulator.configure(self.observation.get_sources(), clear=None)
+            self.manipulator.configure(self.observation.get_sources(), clear=None)
             self.update()
             self.data_updated.emit(None, None, "clear")
             logger.info(f"All sources cleared from observation '{self.observation.code}'")

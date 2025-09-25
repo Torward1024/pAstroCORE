@@ -351,19 +351,10 @@ class TelescopesTab(QWidget):
     def remove_telescope(self, telescope_name: str):
         """Remove a telescope from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"remove": telescope_name}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Removed telescope '{telescope_name}' from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(telescope_name, None, "remove")
-            else:
-                logger.error(f"Failed to remove telescope: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to remove telescope: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_telescopes(), remove=telescope_name)
+            self.update()
+            self.data_updated.emit(telescope_name, None, "remove")
+            logger.info(f"Removed telescope '{telescope_name}' from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while removing telescope: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove telescope: {str(e)}")
