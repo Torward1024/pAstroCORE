@@ -366,6 +366,9 @@ class Scan(BaseEntity):
                 visible = True
             else:
                 x, y, z = telescope.get_coordinates()
+                if x == 0 and y == 0 and z == 0:
+                    logger.warning(f"Telescope {telescope.name} has invalid coordinates (0, 0, 0). Skipping calculation.")
+                    continue
                 lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
                 ha = np.radians(lst - source.ra_degrees)
                 alt = np.arcsin(np.sin(lat) * np.sin(dec_rad) + 
