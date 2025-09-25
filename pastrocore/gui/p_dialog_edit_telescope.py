@@ -232,7 +232,6 @@ class TelescopeEditorDialog(QDialog):
         """Retrieve telescope data from the dialog."""
         mount_type_str = self.ui.mountTypeCombo.currentText()
         try:
-            # Find MountType by value (e.g., "AZIM", "EQUA", "NONE")
             mount_type = MountType._value2member_map_[mount_type_str.upper()]
             logger.debug(f"Converted mount_type '{mount_type_str}' to {mount_type}")
         except KeyError as e:
