@@ -263,25 +263,20 @@ class TelescopesTab(QWidget):
             with open(file_path, "r") as f:
                 data = json.load(f)
             telescope_type = data.get("type", "Telescope")
-            data.pop("type", None)
             if telescope_type == "SpaceTelescope":
                 telescope = SpaceTelescope.from_dict(data)
             else:
                 telescope = Telescope.from_dict(data)
             telescope.name = telescope_name
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_telescopes(),
-                "attributes": {"set_item": {"name": telescope_name, "item": telescope}}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Telescope '{telescope_name}' overwritten successfully in observation '{self.observation.code}'")
+            
+            try:
+                self.manipulator.configure(self.observation.get_telescopes(), set_item={"name": telescope_name, "item": telescope})
                 self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to overwrite telescope '{telescope_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to import telescope: {response.get('error', 'Unknown error')}")
+                self.data_updated.emit(telescope.name, None, "import")
+                logger.info(f"Telescope '{telescope_name}' overwritten successfully in observation '{self.observation.code}'")
+            except Exception as e:
+                logger.error(f"Exception while overwriting telescope '{telescope_name}': {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
         except Exception as e:
             logger.error(f"Exception while importing telescope '{telescope_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to import telescope: {str(e)}")

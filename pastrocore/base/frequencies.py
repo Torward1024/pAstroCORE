@@ -261,6 +261,26 @@ class Frequencies(BaseContainer[IF]):
         else:
             logger.debug(f"No parameters to update for IF '{name}' in Frequencies")
 
+    def set_item(self, name: str, item: IF) -> None:
+        """Set or replace an IF object in the collection by its name.
+
+        Args:
+            name (str): The name of the IF to set.
+            item (IF): The IF object to add or replace.
+
+        Raises:
+            ValueError: If the item's name does not match the provided name or if its frequency range overlaps with other IFs (except itself).
+            TypeError: If the item is not of type IF.
+        """
+        if item.name != name:
+            raise ValueError(f"IF name '{item.name}' does not match key '{name}'")
+        if not isinstance(item, IF):
+            raise TypeError(f"Item must be of type IF, got {type(item).__name__}")
+        self._check_overlap(item, exclude_name=name)
+        self._items[name] = item
+        self._invalidate_cache()
+        logger.debug(f"Set IF with name '{name}' in Frequencies")
+
     def set_items(self, items: Dict[str, IF]) -> None:
         """Set or replace all IF objects in the collection.
 

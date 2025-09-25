@@ -54,15 +54,16 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         super().__init__(items=items, name=name, isactive=isactive, use_cache=use_cache)
         logger.debug(f"Initialized Telescopes with {len(self._items)} telescopes")
 
-    def _validate_item(self, item: Union[Telescope, SpaceTelescope]) -> None:
+    def _validate_item(self, item: Union[Telescope, SpaceTelescope], exclude_name: Optional[str] = None) -> None:
         """Validate that the item is a Telescope or SpaceTelescope and has a valid and unique name and code.
 
         Args:
             item (Telescope | SpaceTelescope): The telescope to validate.
+            exclude_name (str, optional): Name of the item to exclude from uniqueness checks, used during updates.
 
         Raises:
             TypeError: If item is not a Telescope or SpaceTelescope.
-            ValueError: If the telescope's name or code is empty, invalid, or not unique.
+            ValueError: If the telescope's name or code is empty, invalid, or not unique (except for excluded item).
         """
         check_type(item, (Telescope, SpaceTelescope), "Telescope")
         name = item.name
@@ -72,7 +73,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             raise ValueError("Telescope name must be a non-empty string")
         if not re.match(r'^[a-zA-Z0-9_-]+$', name):
             raise ValueError(f"Telescope name '{name}' contains invalid characters")
-        if name in self._items and self._items[name] is not item:
+        if name in self._items and self._items[name] is not item and name != exclude_name:
             raise ValueError(f"Telescope with name '{name}' already exists")
 
         if not code or not isinstance(code, str):
@@ -81,10 +82,29 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             raise ValueError(f"Telescope code '{code}' contains invalid characters")
 
         for existing_item in self._items.values():
-            if existing_item is not item and existing_item.get_code() == code:
+            if existing_item is not item and existing_item.get_code() == code and existing_item.name != exclude_name:
                 raise ValueError(f"Telescope with code '{code}' already exists")
                 
         logger.debug(f"Validated telescope with name='{name}', code='{code}'")
+
+    def set_item(self, name: str, item: Union[Telescope, SpaceTelescope]) -> None:
+        """Set or replace a telescope in the collection by its name.
+
+        Args:
+            name (str): The name of the telescope to set.
+            item (Telescope | SpaceTelescope): The telescope to add or replace.
+
+        Raises:
+            ValueError: If the item's name does not match the provided name or if it fails validation.
+            TypeError: If the item's type is not Telescope or SpaceTelescope.
+        """
+        if item.name != name:
+            raise ValueError(f"Telescope name '{item.name}' does not match key '{name}'")
+        check_type(item, (Telescope, SpaceTelescope), "Telescope")
+        self._validate_item(item, exclude_name=name)
+        self._items[name] = item
+        self._invalidate_cache()
+        logger.debug(f"Set telescope with name '{name}' in Telescopes")
 
     def create_telescope(self, code: str = "TEMP", name: str = "Temporary Telescope",
                         x: float = 0.0, y: float = 0.0, z: float = 0.0,
@@ -172,6 +192,163 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         )
         self.add(new_telescope)
         logger.debug(f"Created and added space telescope '{code}'")
+
+    def set_telescope(
+        self,
+        code: str,
+        name: Optional[str] = None,
+        x: Optional[float] = None,
+        y: Optional[float] = None,
+        z: Optional[float] = None,
+        vx: Optional[float] = None,
+        vy: Optional[float] = None,
+        vz: Optional[float] = None,
+        diameter: Optional[float] = None,
+        sefd_table: Optional[Dict[float, float]] = None,
+        elevation_range: Optional[Tuple[float, float]] = None,
+        azimuth_range: Optional[Tuple[float, float]] = None,
+        mount_type: Optional[str] = None,
+        orbit_file: Optional[str] = None,
+        pitch_range: Optional[Tuple[float, float]] = None,
+        yaw_range: Optional[Tuple[float, float]] = None,
+        use_kep: Optional[bool] = None,
+        kepler_elements: Optional[dict] = None,
+        interpolation_method: Optional[str] = None,
+        surface_accuracy: Optional[float] = None,
+        surface_efficiency_table: Optional[Dict[float, float]] = None,
+        effective_area_table: Optional[Dict[float, float]] = None,
+        system_temperature_table: Optional[Dict[float, float]] = None,
+        isactive: Optional[bool] = None
+    ) -> None:
+        """Update an existing Telescope or SpaceTelescope object in the collection.
+
+        Args:
+            code (str): The code of the telescope to update.
+            name (str, optional): New full name for the telescope.
+            x (float, optional): New X-coordinate in ITRF (meters).
+            y (float, optional): New Y-coordinate in ITRF (meters).
+            z (float, optional): New Z-coordinate in ITRF (meters).
+            vx (float, optional): New X-velocity in ITRF (meters/year).
+            vy (float, optional): New Y-velocity in ITRF (meters/year).
+            vz (float, optional): New Z-velocity in ITRF (meters/year).
+            diameter (float, optional): New antenna diameter in meters.
+            sefd_table (Dict[float, float], optional): New SEFD table (MHz: Jy).
+            elevation_range (Tuple[float, float], optional): New min and max elevation in degrees.
+            azimuth_range (Tuple[float, float], optional): New min and max azimuth in degrees.
+            mount_type (str, optional): New mount type ('EQUA', 'AZIM', or 'NONE').
+            orbit_file (str, optional): New path to the orbit file (for SpaceTelescope).
+            pitch_range (Tuple[float, float], optional): New min and max pitch in degrees (for SpaceTelescope).
+            yaw_range (Tuple[float, float], optional): New min and max yaw in degrees (for SpaceTelescope).
+            use_kep (bool, optional): Use Keplerian elements for orbit calculation (for SpaceTelescope).
+            kepler_elements (dict, optional): New Keplerian elements for orbit calculation (for SpaceTelescope).
+            interpolation_method (str, optional): New interpolation method for orbit data (for SpaceTelescope).
+            surface_accuracy (float, optional): New surface accuracy in meters (for SpaceTelescope).
+            surface_efficiency_table (Dict[float, float], optional): New surface efficiency table (for SpaceTelescope).
+            effective_area_table (Dict[float, float], optional): New effective area table (for SpaceTelescope).
+            system_temperature_table (Dict[float, float], optional): New system temperature table (for SpaceTelescope).
+            isactive (bool, optional): New active status.
+
+        Raises:
+            KeyError: If the telescope with the given code does not exist.
+            ValueError: If the new name or code is invalid, not unique (except for the updated item), or if other telescope parameters are invalid.
+            TypeError: If input types are incorrect.
+        """
+
+        telescope = next((t for t in self._items.values() if t.get_code() == code), None)
+        if telescope is None:
+            logger.error(f"Telescope with code '{code}' not found in Telescopes")
+            raise KeyError(f"Telescope with code '{code}' not found in Telescopes")
+
+        params = {}
+        if name is not None:
+            if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+                raise ValueError(f"Invalid telescope name '{name}' (use alphanumeric, underscore, or hyphen)")
+            params["name"] = name
+        if x is not None:
+            params["x"] = x
+        if y is not None:
+            params["y"] = y
+        if z is not None:
+            params["z"] = z
+        if vx is not None:
+            params["vx"] = vx
+        if vy is not None:
+            params["vy"] = vy
+        if vz is not None:
+            params["vz"] = vz
+        if diameter is not None:
+            if diameter <= 0:
+                raise ValueError("Diameter must be positive")
+            params["diameter"] = diameter
+        if sefd_table is not None:
+            params["sefd_table"] = sefd_table
+        if elevation_range is not None:
+            params["elevation_range"] = elevation_range
+        if azimuth_range is not None:
+            params["azimuth_range"] = azimuth_range
+        if mount_type is not None:
+            params["mount_type"] = mount_type
+        if orbit_file is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Orbit file can only be set for SpaceTelescope")
+            params["orbit_file"] = orbit_file
+        if pitch_range is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Pitch range can only be set for SpaceTelescope")
+            params["pitch_range"] = pitch_range
+        if yaw_range is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Yaw range can only be set for SpaceTelescope")
+            params["yaw_range"] = yaw_range
+        if use_kep is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Use_kep can only be set for SpaceTelescope")
+            params["use_kep"] = use_kep
+        if kepler_elements is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Kepler elements can only be set for SpaceTelescope")
+            params["kepler_elements"] = kepler_elements
+        if interpolation_method is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Interpolation method can only be set for SpaceTelescope")
+            params["interpolation_method"] = interpolation_method
+        if surface_accuracy is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Surface accuracy can only be set for SpaceTelescope")
+            params["surface_accuracy"] = surface_accuracy
+        if surface_efficiency_table is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Surface efficiency table can only be set for SpaceTelescope")
+            params["surface_efficiency_table"] = surface_efficiency_table
+        if effective_area_table is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("Effective area table can only be set for SpaceTelescope")
+            params["effective_area_table"] = effective_area_table
+        if system_temperature_table is not None:
+            if not isinstance(telescope, SpaceTelescope):
+                raise ValueError("System temperature table can only be set for SpaceTelescope")
+            params["system_temperature_table"] = system_temperature_table
+        if isactive is not None:
+            params["isactive"] = isactive
+
+        if params:
+            temp_telescope = telescope.copy()
+            temp_telescope.set(params)
+            self._validate_item(temp_telescope, exclude_name=telescope.name)
+
+            old_name = telescope.name
+            telescope.set(params)
+            logger.info(f"Updated telescope '{code}' with params: {params}")
+
+            if name is not None and name != old_name:
+                self._items.pop(old_name)
+                self._items[name] = telescope
+                logger.debug(f"Updated telescope dictionary key from '{old_name}' to '{name}'")
+
+            if self._parent is not None and hasattr(self._parent, '_sync_scans_with_activation'):
+                self._parent._sync_scans_with_activation()
+        else:
+            logger.debug(f"No parameters to update for telescope '{code}'")
     
     def copy(self) -> 'Telescopes':
         """Create a deep copy of the Telescopes object."""
