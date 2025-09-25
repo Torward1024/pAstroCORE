@@ -62,21 +62,16 @@ class FrequenciesTab(QWidget):
         add_action.triggered.connect(self.add_frequency)
         import_new_action.triggered.connect(self.import_new_if)
 
-        frequencies_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_frequencies": None}
-        })
-        has_frequencies = False
-        if frequencies_response["status"] and frequencies_response["result"]:
-            items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": frequencies_response["result"],
-                "attributes": {"get_all": None}
-            })
-            has_frequencies = items_response["status"] and isinstance(items_response["result"], dict) and len(items_response["result"]) > 0
-        else:
-            logger.debug(f"No frequencies found in observation '{self.observation.code}'")
+        try:
+            frequencies = self.manipulator.inspect(self.observation, get_frequencies=None)
+            has_frequencies = False
+            if frequencies:
+                items = self.manipulator.inspect(frequencies, get_all=None)
+                has_frequencies = isinstance(items, (list, dict)) and len(items) > 0
+            else:
+                logger.debug(f"No frequencies found in observation '{self.observation.code}'")
+        except Exception as e:
+            logger.error(f"Exception while inspecting frequencies: {str(e)}")
 
         if has_frequencies:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
@@ -94,22 +89,16 @@ class FrequenciesTab(QWidget):
         if index.isValid():
             source_index = self.proxy_model.mapToSource(index)
             freq_name = self.model.item(source_index.row(), 0).data(Qt.UserRole)
-            freq_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"get": freq_name}
-            })
-            if not freq_response["status"] or not freq_response["result"]:
-                logger.error(f"Failed to get frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
+            try:
+                if_obj = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
+                if not if_obj:
+                    logger.error(f"Failed to get frequency '{freq_name}': No result returned")
+                    return
+                is_active = self.manipulator.inspect(if_obj, get="isactive")
+                is_active = bool(is_active)
+            except Exception as e:
+                logger.error(f"Exception while inspecting frequency '{freq_name}': {str(e)}")
                 return
-            if_obj = freq_response["result"]
-            
-            is_active_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": if_obj,
-                "attributes": {"get": "isactive"}
-            })
-            is_active = is_active_response["status"] and bool(is_active_response["result"])
 
             menu.addSeparator()
             if is_active:
@@ -140,27 +129,19 @@ class FrequenciesTab(QWidget):
             try:
                 if_data = dialog.get_if_data()
                 freq_name = f"freq_{uuid.uuid4().hex[:32]}"
-                request = {
-                    "operation": "configure",
-                    "obj": self.observation.get_frequencies(),
-                    "attributes": {
-                        "create_if": {
-                            "name": freq_name,
-                            "frequency": if_data["frequency"],
-                            "bandwidth": if_data["bandwidth"],
-                            "polarizations": if_data["polarizations"],
-                            "isactive": if_data["isactive"]
-                        }
+                self.manipulator.configure(
+                    self.observation.get_frequencies(),
+                    create_if={
+                        "name": freq_name,
+                        "frequency": if_data["frequency"],
+                        "bandwidth": if_data["bandwidth"],
+                        "polarizations": if_data["polarizations"],
+                        "isactive": if_data["isactive"]
                     }
-                }
-                response = self.manipulator.process_request(request)
-                if response["status"]:
-                    logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
-                    self.update()
-                    self.data_updated.emit(freq_name, None, "add")
-                else:
-                    logger.error(f"Failed to add frequency: {response.get('error', 'Unknown error')}")
-                    QMessageBox.critical(self, "Error", f"Failed to add frequency: {response.get('error', 'Unknown error')}")
+                )
+                logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
+                self.update()
+                self.data_updated.emit(freq_name, None, "add")
             except ValueError as ve:
                 logger.error(f"Validation error while adding frequency: {str(ve)}")
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(ve)}")
@@ -182,21 +163,10 @@ class FrequenciesTab(QWidget):
             imported_if = IF.from_dict(data)
             freq_name = f"freq_{uuid.uuid4().hex[:32]}"
             imported_if.name = freq_name
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {
-                    "add": imported_if
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"New frequency '{freq_name}' imported successfully to observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(freq_name, None, "add")
-            else:
-                logger.error(f"Failed to import frequency: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to import frequency: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_frequencies(), add=imported_if)
+            logger.info(f"New frequency '{freq_name}' imported successfully to observation '{self.observation.code}'")
+            self.update()
+            self.data_updated.emit(freq_name, None, "add")
         except Exception as e:
             logger.error(f"Exception while importing new frequency: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
@@ -213,34 +183,28 @@ class FrequenciesTab(QWidget):
             with open(file_path, "r") as f:
                 data = json.load(f)
 
-            freq_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"get": freq_name}
-            })
-            if not freq_response["status"] or not freq_response["result"]:
-                logger.error(f"Failed to find frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
+            try:
+                freq = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
+                if not freq:
+                    logger.error(f"Failed to find frequency '{freq_name}': No result returned")
+                    QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
+                    return
+            except Exception as e:
+                logger.error(f"Exception while inspecting frequency '{freq_name}': {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to find frequency '{freq_name}': {str(e)}")
                 return
 
             imported_if = IF.from_dict(data)
             imported_if.name = freq_name
     
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {
-                    "set_item": {"name": freq_name, "item": imported_if}
-                }
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
+            try:
+                self.manipulator.configure(self.observation.get_frequencies(), set_item={"name": freq_name, "item": imported_if})
                 logger.info(f"Frequency '{freq_name}' overwritten successfully in observation '{self.observation.code}'")
                 self.update()
-                self.data_updated.emit()
-            else:
-                logger.error(f"Failed to overwrite frequency '{freq_name}': {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to import frequency: {response.get('error', 'Unknown error')}")
+                self.data_updated.emit(freq_name, None, "import")
+            except Exception as e:
+                logger.error(f"Exception while overwriting frequency '{freq_name}': {str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
         except Exception as e:
             logger.error(f"Exception while importing frequency '{freq_name}': {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
@@ -256,18 +220,11 @@ class FrequenciesTab(QWidget):
             file_path += ".pastrod"
 
         try:
-            # Get frequency object
-            freq_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"get": freq_name}
-            })
-            if not freq_response["status"] or not freq_response["result"]:
-                logger.error(f"Failed to get frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
+            if_obj = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
+            if not if_obj:
+                logger.error(f"Failed to get frequency '{freq_name}': No result returned")
                 QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
                 return
-
-            if_obj = freq_response["result"]
             with open(file_path, "w") as f:
                 json.dump(if_obj.to_dict(), f, indent=4)
             logger.info(f"Frequency '{freq_name}' exported to '{file_path}'")
@@ -279,19 +236,10 @@ class FrequenciesTab(QWidget):
     def remove_frequency(self, freq_name: str):
         """Remove a frequency from the observation."""
         try:
-            request = {
-                "operation": "configure",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"remove": freq_name}
-            }
-            response = self.manipulator.process_request(request)
-            if response["status"]:
-                logger.info(f"Removed frequency '{freq_name}' from observation '{self.observation.code}'")
-                self.update()
-                self.data_updated.emit(freq_name, None, "remove")
-            else:
-                logger.error(f"Failed to remove frequency: {response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to remove frequency: {response.get('error', 'Unknown error')}")
+            self.manipulator.configure(self.observation.get_frequencies(), remove=freq_name)
+            self.update()
+            self.data_updated.emit(freq_name, None, "remove")
+            logger.info(f"Removed frequency '{freq_name}' from observation '{self.observation.code}'")
         except Exception as e:
             logger.error(f"Exception while removing frequency: {str(e)}")
             QMessageBox.critical(self, "Error", f"Failed to remove frequency: {str(e)}")
@@ -300,42 +248,29 @@ class FrequenciesTab(QWidget):
     def edit_frequency(self, freq_name: str):
         """Edit an existing frequency using IFEditorDialog."""
         try:
-            freq_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": self.observation.get_frequencies(),
-                "attributes": {"get": freq_name}
-            })
-            if not freq_response["status"]:
-                logger.error(f"Failed to retrieve frequency '{freq_name}': {freq_response.get('error', 'Unknown error')}")
-                QMessageBox.critical(self, "Error", f"Failed to retrieve frequency: {freq_response.get('error', 'Unknown error')}")
+            if_obj = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
+            if not if_obj:
+                logger.error(f"Failed to retrieve frequency '{freq_name}': No result returned")
+                QMessageBox.critical(self, "Error", f"Failed to retrieve frequency: No result returned")
                 return
             
-            if_obj = freq_response["result"]
             dialog = IFEditorDialog(if_obj=if_obj, parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
                     if_data = dialog.get_if_data()
-                    request = {
-                        "operation": "configure",
-                        "obj": self.observation.get_frequencies(),
-                        "attributes": {
-                            "set_if": {
-                                "name": freq_name,
-                                "frequency": if_data["frequency"],
-                                "bandwidth": if_data["bandwidth"],
-                                "polarizations": if_data["polarizations"],
-                                "isactive": if_data["isactive"]
-                            }
+                    self.manipulator.configure(
+                        self.observation.get_frequencies(),
+                        set_if={
+                            "name": freq_name,
+                            "frequency": if_data["frequency"],
+                            "bandwidth": if_data["bandwidth"],
+                            "polarizations": if_data["polarizations"],
+                            "isactive": if_data["isactive"]
                         }
-                    }
-                    response = self.manipulator.process_request(request)
-                    if response["status"]:
-                        logger.info(f"Updated frequency '{freq_name}' in observation '{self.observation.code}'")
-                        self.update()
-                        self.data_updated.emit(freq_name, if_data["isactive"], "edit")
-                    else:
-                        logger.error(f"Failed to update frequency: {response.get('error', 'Unknown error')}")
-                        QMessageBox.critical(self, "Error", f"Failed to update frequency: {response.get('error', 'Unknown error')}")
+                    )
+                    logger.info(f"Updated frequency '{freq_name}' in observation '{self.observation.code}'")
+                    self.update()
+                    self.data_updated.emit(freq_name, if_data["isactive"], "edit")
                 except ValueError as ve:
                     logger.error(f"Validation error while updating frequency: {str(ve)}")
                     QMessageBox.critical(self, "Error", f"Failed to update frequency: {str(ve)}")
@@ -419,7 +354,7 @@ class FrequenciesTab(QWidget):
     def clear_frequencies(self):
         """Clear all frequencies from the observation."""
         try:
-            self.manipulator.process_request(self.observation.get_frequencies(), clear=None)
+            self.manipulator.configure(self.observation.get_frequencies(), clear=None)
             self.update()
             self.data_updated.emit(None, None, "clear")
             logger.info(f"All frequencies cleared from observation '{self.observation.code}'")
@@ -431,73 +366,39 @@ class FrequenciesTab(QWidget):
     def update(self):
         """Update the frequencies table."""
         self.model.removeRows(0, self.model.rowCount())
-        frequencies_response = self.manipulator.process_request({
-            "operation": "inspect",
-            "obj": self.observation,
-            "attributes": {"get_frequencies": None}
-        })
-        if frequencies_response["status"] and frequencies_response["result"]:
-            freqs = frequencies_response["result"]
-            items_response = self.manipulator.process_request({
-                "operation": "inspect",
-                "obj": freqs,
-                "attributes": {"get_all": None}
-            })
-            if items_response["status"] and isinstance(items_response["result"], dict):
-                idx = 1
-                for name, if_obj in items_response["result"].items():
-                    freq_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": if_obj,
-                        "attributes": {"get": "frequency"}
-                    })
-                    frequency = "N/A"
-                    if freq_response["status"]:
-                        freq_value = freq_response["result"]
-                        if isinstance(freq_value, (int, float)):
-                            frequency = freq_value
-                        else:
-                            logger.warning(f"Unexpected frequency value type: {type(freq_value)} for freq '{name}'")
-                            frequency = "N/A"
+        try:
+            freqs = self.manipulator.inspect(self.observation, get_frequencies=None)
+            if not freqs:
+                return
+            items = self.manipulator.inspect(freqs, get_all=None)
+            if not isinstance(items, dict):
+                return
 
-                    is_active_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": if_obj,
-                        "attributes": {"get": "isactive"}
-                    })
-                    is_active = is_active_response["status"] and bool(is_active_response["result"])
+            idx = 1
+            for name, if_obj in items.items():
+                try:
+                    frequency = self.manipulator.inspect(if_obj, get="frequency")
+                    if not isinstance(frequency, (int, float)):
+                        logger.warning(f"Unexpected frequency value type: {type(frequency)} for freq '{name}'")
+                        frequency = "N/A"
+
+                    is_active = bool(self.manipulator.inspect(if_obj, get="isactive"))
                     active_item = QStandardItem()
                     active_item.setIcon(self.active_icon if is_active else self.inactive_icon)
                     active_item.setToolTip("Active" if is_active else "Inactive")
                     active_item.setTextAlignment(Qt.AlignCenter)
 
-                    wavelength_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": if_obj,
-                        "attributes": {"get_frequency_wavelength": None}
-                    })
-                    wavelength = wavelength_response['result'] if wavelength_response["status"] else "N/A"
+                    wavelength = self.manipulator.inspect(if_obj, get_frequency_wavelength=None)
+                    if not isinstance(wavelength, (int, float)):
+                        wavelength = "N/A"
 
-                    bandwidth_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": if_obj,
-                        "attributes": {"get": "bandwidth"}
-                    })
-                    bandwidth = "N/A"
-                    if bandwidth_response["status"]:
-                        bw_value = bandwidth_response["result"]
-                        if isinstance(bw_value, (int, float)):
-                            bandwidth = bw_value
-                        else:
-                            logger.warning(f"Unexpected bandwidth value type: {type(bw_value)} for freq '{name}'")
-                            bandwidth = "N/A"
+                    bandwidth = self.manipulator.inspect(if_obj, get="bandwidth")
+                    if not isinstance(bandwidth, (int, float)):
+                        logger.warning(f"Unexpected bandwidth value type: {type(bandwidth)} for freq '{name}'")
+                        bandwidth = "N/A"
 
-                    polarizations_response = self.manipulator.process_request({
-                        "operation": "inspect",
-                        "obj": if_obj,
-                        "attributes": {"get": "polarizations"}
-                    })
-                    polarizations = ", ".join(polarizations_response["result"]) if polarizations_response["status"] and polarizations_response["result"] else "N/A"
+                    polarizations = self.manipulator.inspect(if_obj, get="polarizations")
+                    polarizations = ", ".join(polarizations) if polarizations else "N/A"
 
                     row = [
                         QStandardItem(str(idx)),
@@ -514,8 +415,13 @@ class FrequenciesTab(QWidget):
                     row[0].setData(idx, Qt.UserRole + 1)
                     self.model.appendRow(row)
                     idx += 1
+                except Exception as e:
+                    logger.error(f"Exception while processing frequency '{name}': {str(e)}")
+                    continue
 
-        self.ui.table.resizeColumnsToContents()
+            self.ui.table.resizeColumnsToContents()
+        except Exception as e:
+            logger.error(f"Exception while updating frequencies table: {str(e)}")
     
     def _cleanup(self):
         """Clean up resources associated with this tab."""

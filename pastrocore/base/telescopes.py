@@ -172,32 +172,6 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         )
         self.add(new_telescope)
         logger.debug(f"Created and added space telescope '{code}'")
-
-    def activate_item(self, name: str) -> None:
-        """Activate a specific telescope by its name.
-
-        Triggers synchronization with a parent Observation if present.
-
-        Args:
-            name (str): The name of the telescope to activate.
-
-        Raises:
-            KeyError: If the name is not found in the collection.
-        """
-        super().activate_item(name)
-
-    def deactivate_item(self, name: str) -> None:
-        """Deactivate a specific telescope by its name.
-
-        Triggers synchronization with a parent Observation if present.
-
-        Args:
-            name (str): The name of the telescope to deactivate.
-
-        Raises:
-            KeyError: If the name is not found in the collection.
-        """
-        super().deactivate_item(name)
     
     def copy(self) -> 'Telescopes':
         """Create a deep copy of the Telescopes object."""

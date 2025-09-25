@@ -260,32 +260,6 @@ class Frequencies(BaseContainer[IF]):
             logger.info(f"Updated IF '{name}' in Frequencies with params: {params}")
         else:
             logger.debug(f"No parameters to update for IF '{name}' in Frequencies")
-    
-    def activate_item(self, name: str) -> None:
-        """Activate a specific frequency by its name.
-
-        Triggers synchronization with a parent Observation if present.
-
-        Args:
-            name (str): The name of the frequency to activate.
-
-        Raises:
-            KeyError: If the name is not found in the collection.
-        """
-        super().activate_item(name)
-
-    def deactivate_item(self, name: str) -> None:
-        """Deactivate a specific frequency by its name.
-
-        Triggers synchronization with a parent Observation if present.
-
-        Args:
-            name (str): The name of the frequency to deactivate.
-
-        Raises:
-            KeyError: If the name is not found in the collection.
-        """
-        super().deactivate_item(name)
 
     def set_items(self, items: Dict[str, IF]) -> None:
         """Set or replace all IF objects in the collection.
