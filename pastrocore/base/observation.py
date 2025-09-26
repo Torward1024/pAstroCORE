@@ -134,12 +134,10 @@ class Observation(BaseEntity):
         """Convert the Observation object to a dictionary for serialization."""
         def convert_dataframe(df: pd.DataFrame, key: str) -> dict:
             """Convert a pandas DataFrame to a serializable dictionary with Parquet data."""
-            # Serialize DataFrame to Parquet and encode to base64
             buffer = io.BytesIO()
             df.to_parquet(buffer, engine="pyarrow", index=False)
             parquet_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
             
-            # Convert metadata
             metadata = df.attrs if hasattr(df, "attrs") else {}
             converted_metadata = {}
             for k, v in metadata.items():
@@ -175,12 +173,10 @@ class Observation(BaseEntity):
         """Create an Observation object from a dictionary."""
         def restore_dataframe(calc_data: dict, key: str) -> pd.DataFrame:
             """Restore a pandas DataFrame from a serialized dictionary."""
-            # Decode Parquet data from base64
             parquet_data = base64.b64decode(calc_data["parquet_data"])
             buffer = io.BytesIO(parquet_data)
             df = pd.read_parquet(buffer, engine="pyarrow")
 
-            # Restore metadata
             metadata = calc_data.get("metadata", {})
             restored_metadata = {}
             converters = CalculatedDataStructure.get_converters(key) or {}
@@ -199,7 +195,6 @@ class Observation(BaseEntity):
                 else:
                     restored_metadata[meta_key] = meta_value
 
-            # Apply converters to DataFrame columns
             for col, converter in converters.items():
                 if col in df.columns:
                     df[col] = df[col].apply(converter)
