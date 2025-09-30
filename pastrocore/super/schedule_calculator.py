@@ -1795,10 +1795,6 @@ class ScheduleCalculator(Super):
 
                 valid_tel_pos = tel_pos[is_visible]  
                 valid_sun_vec = sun_vec[is_visible]  
-                logger.debug(f"Space telescope '{tel_code}' in scan '{scan_name}': "
-                            f"valid_times={np.sum(is_visible)}, "
-                            f"valid_tel_pos.shape={valid_tel_pos.shape}, "
-                            f"valid_sun_vec.shape={valid_sun_vec.shape}")
 
                 tel_norm = np.linalg.norm(valid_tel_pos, axis=1)  
                 sun_norm = np.linalg.norm(valid_sun_vec, axis=1)  
