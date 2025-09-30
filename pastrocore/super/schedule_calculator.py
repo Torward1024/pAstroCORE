@@ -86,6 +86,44 @@ class ScheduleCalculator(Super):
         self._orbit_cache_lock = threading.Lock()
         logger.debug("Initialized Scheduling Calculator")
     
+    def _get_active_components(
+        self,
+        obj: Observation,
+        require_scans: bool = True,
+        require_telescopes: bool = False,
+        min_telescopes: int = 1
+    ) -> Tuple[List[Scan], List[Telescope | SpaceTelescope], List[Source]]:
+        """Retrieve active scans, telescopes, and sources from an Observation.
+
+        Args:
+            obj: The Observation to check.
+            require_scans: If True, requires at least one active scan.
+            require_telescopes: If True, requires at least min_telescopes active telescopes.
+            min_telescopes: Minimum number of active telescopes required.
+
+        Returns:
+            Tuple[List[Scan], List[Telescope | SpaceTelescope], List[Source]]: Active components.
+
+        Notes:
+            Logs warnings if required components are missing.
+        """
+        scans = obj.get_scans().get_active_items() if require_scans else []
+        telescopes = obj.get_telescopes().get_active_items()
+        sources = obj.get_sources().get_active_items()
+        
+        obj_code = obj.get_observation_code()
+        if require_scans and not scans:
+            logger.warning(f"No active scans in observation '{obj_code}'")
+            return [], [], []
+        if require_telescopes and len(telescopes) < min_telescopes:
+            logger.warning(f"Insufficient active telescopes ({len(telescopes)} < {min_telescopes}) in '{obj_code}'")
+            return [], [], []
+        if not sources:
+            logger.warning(f"No active sources in observation '{obj_code}'")
+            return [], [], []
+        
+        return scans, telescopes, sources
+    
     def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Retrieve cached data or perform calculation and cache the result.
 
@@ -171,44 +209,6 @@ class ScheduleCalculator(Super):
         if not result:
             logger.warning(f"No data computed for '{obj_name}' with store_key '{store_key}'")
         return result
-
-    def _get_active_components(
-        self,
-        obj: Observation,
-        require_scans: bool = True,
-        require_telescopes: bool = False,
-        min_telescopes: int = 1
-    ) -> Tuple[List[Scan], List[Telescope | SpaceTelescope], List[Source]]:
-        """Retrieve active scans, telescopes, and sources from an Observation.
-
-        Args:
-            obj: The Observation to check.
-            require_scans: If True, requires at least one active scan.
-            require_telescopes: If True, requires at least min_telescopes active telescopes.
-            min_telescopes: Minimum number of active telescopes required.
-
-        Returns:
-            Tuple[List[Scan], List[Telescope | SpaceTelescope], List[Source]]: Active components.
-
-        Notes:
-            Logs warnings if required components are missing.
-        """
-        scans = obj.get_scans().get_active_items() if require_scans else []
-        telescopes = obj.get_telescopes().get_active_items()
-        sources = obj.get_sources().get_active_items()
-        
-        obj_code = obj.get_observation_code()
-        if require_scans and not scans:
-            logger.warning(f"No active scans in observation '{obj_code}'")
-            return [], [], []
-        if require_telescopes and len(telescopes) < min_telescopes:
-            logger.warning(f"Insufficient active telescopes ({len(telescopes)} < {min_telescopes}) in '{obj_code}'")
-            return [], [], []
-        if not sources:
-            logger.warning(f"No active sources in observation '{obj_code}'")
-            return [], [], []
-        
-        return scans, telescopes, sources
     
     @time_execution
     def _calculate_time_arrays(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
