@@ -434,7 +434,7 @@ class ScheduleCalculator(Super):
                             continue
                         scan_times = time_data[time_data["scan_name"] == scan_name]
                         if scan_times.empty:
-                            logger.debug(f"No valid times for scan '{scan_name}' in source '{source_name}'")
+                            logger.debug(f"No valid times for scan '{scan_name}' in source '{source.name}'")
                             continue
 
                         scan_telescopes = scan.get_telescopes(obs).get_active_items()
@@ -1300,7 +1300,7 @@ class ScheduleCalculator(Super):
         return result_df
     
     @time_execution
-    def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_uv_coverage(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pd.DataFrame | Dict[str, pd.DataFrame]:
         """Calculate (u,v,w) coverage for all scans in the observation or project in geometric coordinates (meters).
 
         Args:
@@ -1308,7 +1308,14 @@ class ScheduleCalculator(Super):
             attributes: Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: UV coverage data per source and scan, formatted as {source_name: {scan_name: {baseline: [[u, v, w], ...]}}.
+            pd.DataFrame | Dict[str, pd.DataFrame]: For Observation, returns a DataFrame with columns
+                ["source_name", "scan_name", "baseline", "u", "v", "w"]. For ScheduleProject, returns
+                a dictionary mapping observation codes to DataFrames.
+
+        Notes:
+            - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
+            - Stores results under 'uv_coverage' key in each Observation's calculated_data.
+            - Returns empty DataFrame or dict if no valid scans or telescopes are found.
         """
         try:
             time_step = attributes.get("time_step")
@@ -1317,10 +1324,11 @@ class ScheduleCalculator(Super):
             if "freq_name" in attributes:
                 logger.info(f"Ignoring 'freq_name' attribute for UV coverage calculation in geometric coordinates")
 
-            def calculate_uv(obs: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+            def calculate_uv(obs: Observation, attrs: Dict[str, Any]) -> pd.DataFrame:
                 scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True, min_telescopes=2)
                 if not scans:
-                    return {}
+                    logger.debug(f"No active scans for observation '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
                 visibility_attrs = {"time_step": time_step, "store_key": "source_visibility", "recalculate": recalculate}
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": recalculate}
@@ -1329,45 +1337,72 @@ class ScheduleCalculator(Super):
                 visibility_data = self._calculate_source_visibility(obs, visibility_attrs)
                 position_data = self._calculate_telescope_positions(obs, position_attrs)
 
-                if not (time_data and visibility_data and position_data):
+                if time_data.empty or visibility_data.empty or position_data.empty:
                     logger.error(f"Missing required data for '{obs.get_observation_code()}'")
-                    return {}
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
-                results = {}
+                source_names = []
+                scan_names = []
+                baselines = []
+                u_values = []
+                v_values = []
+                w_values = []
+
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_uv_coverage, scan, obs, time_step, time_data, visibility_data, position_data): scan.name
+                        executor.submit(self._process_uv_coverage, scan, obs, time_step, time_data, visibility_data, position_data): scan
                         for scan in scans
                     }
                     for future in futures:
-                        scan_name = futures[future]
+                        scan = futures[future]
                         scan_result = future.result()
-                        source_name = scan_result.get("source")
-                        if source_name and scan_result.get("uv_points"):
-                            results.setdefault(source_name, {})[scan_name] = scan_result["uv_points"]
-                return results
+                        if not scan_result.empty:
+                            source_names.extend(scan_result["source_name"])
+                            scan_names.extend(scan_result["scan_name"])
+                            baselines.extend(scan_result["baseline"])
+                            u_values.extend(scan_result["u"])
+                            v_values.extend(scan_result["v"])
+                            w_values.extend(scan_result["w"])
 
-            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
+                result_df = pd.DataFrame({
+                    "source_name": source_names,
+                    "scan_name": scan_names,
+                    "baseline": baselines,
+                    "u": u_values,
+                    "v": v_values,
+                    "w": w_values
+                })
+
+                if result_df.empty:
+                    logger.warning(f"No UV coverage data computed for observation '{obs.get_observation_code()}'")
+                    result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
+
+                logger.debug(f"Computed UV coverage for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                return result_df
+
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_scans(obj)) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_scans(o)) for o in obj.get_observations())
+            }
             return self._process_object(obj, attributes, calculate_uv, store_key, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate UV coverage for '{obj.get_observation_code()}': {str(e)}")
-            return {}
+            logger.error(f"Failed to calculate UV coverage for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage")) if isinstance(obj, Observation) else {}
 
-    def _process_uv_coverage(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], visibility_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_uv_coverage(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: pd.DataFrame, visibility_data: pd.DataFrame, position_data: pd.DataFrame) -> pd.DataFrame:
         """Process UV coverage for a single scan using vectorized computations in geometric coordinates (meters).
 
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds).
-            time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
-            visibility_data (Dict[str, Any]): Precomputed visibility data.
-            position_data (Dict[str, Any]): Precomputed position data.
+            time_data (pd.DataFrame): Precomputed time arrays from _calculate_time_arrays.
+            visibility_data (pd.DataFrame): Precomputed visibility data.
+            position_data (pd.DataFrame): Precomputed position data.
 
         Returns:
-            Dict[str, Any]: UV points in meters, formatted as:
-                {"source": source_name, "uv_points": {baseline: np.array([[u,v,w], ...])}}.
+            pd.DataFrame: UV points in meters with columns ["source_name", "scan_name", "baseline", "u", "v", "w"].
 
         Notes:
             - Outputs NaN for UVW points where source is not visible or telescope positions are NaN.
@@ -1376,77 +1411,74 @@ class ScheduleCalculator(Super):
         source = scan.get_source(observation)
         if not source or not source.isactive:
             logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
-            return {"source": None, "uv_points": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
         scan_name = scan.name
         source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
-        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
+        active_telescopes = [t for t in scan_telescopes.get_active_items() if t.isactive]
 
         if len(active_telescopes) < 2:
             logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for UV coverage in scan '{scan_name}'")
-            return {"source": source_name, "uv_points": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
-        scan_times = time_data.get(source_name, {}).get(scan_name, None)
-        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+        scan_times = time_data[time_data["scan_name"] == scan_name]["time"]
+        if scan_times.empty:
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
-            return {"source": source_name, "uv_points": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
-        scan_visibility = visibility_data.get(source_name, {}).get(scan_name, {})
-        scan_positions = position_data.get(scan_name, {})
-        if not (scan_visibility and scan_positions):
+        scan_visibility = visibility_data[visibility_data["scan_name"] == scan_name]
+        scan_positions = position_data[position_data["scan_name"] == scan_name]
+        if scan_visibility.empty or scan_positions.empty:
             logger.warning(f"No visibility or position data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return {"source": source_name, "uv_points": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
         n_times = len(scan_times)
-        
+
         visibility = np.full((len(tel_codes), n_times), False, dtype=bool)
         for i, code in enumerate(tel_codes):
-            vis_data = scan_visibility.get(code, None)
-            if vis_data is None or len(vis_data) != n_times:
-                logger.warning(f"Visibility data for telescope '{code}' in scan '{scan_name}' is missing or has incorrect length ({len(vis_data) if vis_data is not None else 'None'} vs expected {n_times})")
+            vis_data = scan_visibility[scan_visibility["telescope_code"] == code]["visibility"].values
+            if vis_data.size != n_times:
+                logger.warning(f"Visibility data for telescope '{code}' in scan '{scan_name}' has incorrect length ({vis_data.size} vs expected {n_times})")
                 visibility[i, :] = False
             else:
                 try:
-                    visibility[i, :] = np.array(vis_data, dtype=bool)
+                    visibility[i, :] = vis_data.astype(bool)
                 except Exception as e:
                     logger.error(f"Failed to process visibility data for telescope '{code}' in scan '{scan_name}': {str(e)}")
                     visibility[i, :] = False
 
         positions = np.array([
-            scan_positions.get(code, np.full((n_times, 3), np.nan)) 
+            scan_positions[scan_positions["telescope_code"] == code][["x", "y", "z"]].values
+            if code in scan_positions["telescope_code"].values else np.full((n_times, 3), np.nan)
             for code in tel_codes
         ])
 
         if positions.shape[1] != n_times:
             logger.error(f"Mismatched position data length for scan '{scan_name}': {positions.shape[1]} positions vs {n_times} times")
-            return {"source": source_name, "uv_points": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
         try:
-            uv_points = self._compute_uv_at_time(active_telescopes, scan_times, source, visibility, positions)
+            uv_points_df = self._compute_uv_at_time(active_telescopes, scan_times, source, visibility, positions)
         except Exception as e:
             logger.error(f"Failed to calculate UV coverage for scan '{scan_name}': {str(e)}")
-            return {"source": source_name, "uv_points": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
-        pairs = [f"{active_telescopes[i].get_code()}-{active_telescopes[j].get_code()}" for i, j in zip(*np.triu_indices(len(active_telescopes), k=1))]
-        full_uv_points = {}
-        for pair in pairs:
-            if pair in uv_points and uv_points[pair].shape[0] == n_times:
-                full_uv_points[pair] = uv_points[pair]
-            else:
-                full_uv_points[pair] = np.full((n_times, 3), np.nan, dtype=float)
-                if pair in uv_points and uv_points[pair].size > 0:
-                    valid_indices = np.arange(n_times)[~np.any(np.isnan(uv_points[pair]), axis=1)]
-                    if valid_indices.size > 0:
-                        full_uv_points[pair][valid_indices] = uv_points[pair][:valid_indices.size]
-                logger.debug(f"Filled UV points with NaN for baseline '{pair}' in scan '{scan_name}'")
+        if uv_points_df.empty:
+            logger.warning(f"No valid UV points computed for scan '{scan_name}'")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
 
-        valid_point_count = sum(np.sum(~np.any(np.isnan(points), axis=1)) for points in full_uv_points.values())
-        logger.debug(f"Computed {valid_point_count} valid UV points for scan '{scan_name}' across {len(full_uv_points)} baselines")
-        return {"source": source_name, "uv_points": full_uv_points}
+        result_df = uv_points_df.assign(
+            source_name=source_name,
+            scan_name=scan_name
+        )[["source_name", "scan_name", "baseline", "u", "v", "w"]]
 
-    def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], times: Time, source: Optional[Source] = None, visibility: Optional[np.ndarray] = None, gcrs_positions: Optional[np.ndarray] = None) -> Dict[str, np.ndarray]:
+        valid_point_count = len(result_df[~result_df[["u", "v", "w"]].isna().any(axis=1)])
+        logger.debug(f"Computed {valid_point_count} valid UV points for scan '{scan_name}' across {len(result_df['baseline'].unique())} baselines")
+        return result_df
+
+    def _compute_uv_at_time(self, telescopes: List[Telescope | SpaceTelescope], times: Time, source: Optional[Source] = None, visibility: Optional[np.ndarray] = None, gcrs_positions: Optional[np.ndarray] = None) -> pd.DataFrame:
         """Compute UVW coordinates for multiple times in geometric coordinates (meters) using vectorized operations.
 
         Args:
@@ -1457,29 +1489,33 @@ class ScheduleCalculator(Super):
             gcrs_positions (Optional[np.ndarray]): GCRS positions of shape (n_telescopes, n_times, 3).
 
         Returns:
-            Dict[str, np.ndarray]: UVW coordinates in meters per baseline, formatted as {baseline: np.array([[u,v,w], ...])},
-            where the array has shape (n_times, 3) and contains NaN for non-visible times or invalid positions.
+            pd.DataFrame: UVW coordinates in meters with columns ["baseline", "u", "v", "w"],
+            where rows contain NaN for non-visible times or invalid positions.
+
+        Notes:
+            - Uses CalculatedDataStructure to validate DataFrame structure.
         """
         if not telescopes or len(telescopes) < 2:
             logger.warning(f"Insufficient telescopes ({len(telescopes)}) to compute (u,v,w) at {times[0].isot}")
-            return {}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage")[2:])  # Only baseline, u, v, w
 
         if source is None:
             logger.warning("No source provided; cannot calculate (u,v,w)")
-            return {}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage")[2:])
 
         if visibility is None or gcrs_positions is None:
             logger.warning("Missing visibility or position data; cannot calculate (u,v,w)")
-            return {}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage")[2:])
 
         n_tels = len(telescopes)
         n_times = len(times)
         if visibility.shape != (n_tels, n_times):
             logger.error(f"Visibility shape {visibility.shape} does not match expected ({n_tels}, {n_times})")
-            return {}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage")[2:])
+
         if gcrs_positions.shape != (n_tels, n_times, 3):
             logger.error(f"Position shape {gcrs_positions.shape} does not match expected ({n_tels}, {n_times}, 3)")
-            return {}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage")[2:])
 
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
         ra = source_coord.ra.rad
@@ -1490,12 +1526,10 @@ class ScheduleCalculator(Super):
         n_pairs = len(pairs)
 
         baselines = gcrs_positions[i] - gcrs_positions[j]
-
         vis_mask = visibility[i] & visibility[j]
-
-        pos_nan = np.any(np.isnan(gcrs_positions), axis=2)  
-        baseline_nan = pos_nan[i] | pos_nan[j]  
-        vis_mask = vis_mask & ~baseline_nan  
+        pos_nan = np.any(np.isnan(gcrs_positions), axis=2)
+        baseline_nan = pos_nan[i] | pos_nan[j]
+        vis_mask = vis_mask & ~baseline_nan
 
         cos_ra, sin_ra = np.cos(ra), np.sin(ra)
         cos_dec, sin_dec = np.cos(dec), np.sin(dec)
@@ -1503,25 +1537,39 @@ class ScheduleCalculator(Super):
             [-sin_ra, cos_ra, 0],
             [-cos_ra * sin_dec, -sin_ra * sin_dec, cos_dec],
             [cos_ra * cos_dec, sin_ra * cos_dec, sin_dec]
-        ])  # shape: (3, 3)
+        ])
 
-
-        baselines_flat = baselines.reshape(-1, 3)  
+        baselines_flat = baselines.reshape(-1, 3)
         uvw_flat = baselines_flat @ rotation_matrix.T
         uvw = uvw_flat.reshape(n_pairs, n_times, 3)
-
         uvw[~vis_mask] = np.nan
 
-        uv_points = {}
+        baselines_list = []
+        u_values = []
+        v_values = []
+        w_values = []
+
         for pair_idx, pair in enumerate(pairs):
             uvw_pair = uvw[pair_idx]
-            uv_points[pair] = uvw_pair
             valid_count = np.sum(~np.any(np.isnan(uvw_pair), axis=1))
             logger.debug(f"Computed {valid_count} valid UVW points for baseline '{pair}' (total {n_times} points)")
+            baselines_list.extend([pair] * n_times)
+            u_values.extend(uvw_pair[:, 0])
+            v_values.extend(uvw_pair[:, 1])
+            w_values.extend(uvw_pair[:, 2])
 
-        if not uv_points:
+        result_df = pd.DataFrame({
+            "baseline": baselines_list,
+            "u": u_values,
+            "v": v_values,
+            "w": w_values
+        })
+
+        if result_df.empty:
             logger.warning(f"No valid UVW points computed for any baseline")
-        return uv_points
+            result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage")[2:])
+
+        return result_df
 
     @time_execution
     def _calculate_sun_angles(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:

@@ -24,7 +24,8 @@ class Observation(BaseEntity):
     stored in df.attrs. Provides methods for validation, synchronization, and serialization using Parquet.
 
     Attributes:
-        code (str): Unique identifier for the observation.
+        name (str): Unique identifier for the observation.
+        code (str): Unique code for the observation.
         observation_type (str): Type of observation, either 'VLBI' or 'SINGLE_DISH'.
         sources (Sources): Collection of source objects observed.
         telescopes (Telescopes): Collection of telescope objects used.
@@ -32,6 +33,7 @@ class Observation(BaseEntity):
         scans (Scans): Collection of scan objects defining observation timing and targets.
         calculated_data (Dict[str, pd.DataFrame]): Dictionary storing calculated results as DataFrames.
         isactive (bool): Indicates whether the observation is active.
+        _use_cache (bool): Flag to control caching behavior.
     """
     name: str
     code: str
@@ -41,14 +43,17 @@ class Observation(BaseEntity):
     frequencies: Frequencies
     scans: Scans
     calculated_data: Dict[str, pd.DataFrame]
+    _use_cache: bool
 
     def __init__(self, name: str = None, code: str = "OBS_DEFAULT", sources: Sources = None,
                  telescopes: Telescopes = None, frequencies: Frequencies = None,
                  scans: Scans = None, observation_type: str = "VLBI", 
-                 calculated_data: Dict[str, pd.DataFrame] = None, isactive: bool = True):
+                 calculated_data: Dict[str, pd.DataFrame] = None, isactive: bool = True,
+                 use_cache: bool = False):
         """Initialize an Observation with code, entities, type, calculated data, and active status."""
         if name is None:
             name = f"obs_{uuid.uuid4().hex[:32]}"
+        check_non_empty_string(name, "Name")
         if observation_type not in ("VLBI", "SINGLE_DISH"):
             logger.error(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
             raise ValueError(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
@@ -62,9 +67,10 @@ class Observation(BaseEntity):
             check_type(scans, Scans, "Scans")
         if calculated_data is not None:
             check_type(calculated_data, dict, "Calculated data")
+            # Defer validation of calculated_data to after initialization
             for key, df in calculated_data.items():
                 check_type(df, pd.DataFrame, f"Calculated data for key {key}")
-                self._validate_calculated_data_key(key, df)
+        
         super().__init__(
             name=name,
             code=code,
@@ -75,7 +81,18 @@ class Observation(BaseEntity):
             scans=scans if scans is not None else Scans(),
             calculated_data=calculated_data if calculated_data is not None else {},
             isactive=isactive,
+            use_cache=use_cache
         )
+        
+        # Validate calculated_data after initialization to ensure self.name is set
+        if calculated_data is not None:
+            for key, df in calculated_data.items():
+                try:
+                    self._validate_calculated_data_key(key, df)
+                except ValueError as e:
+                    logger.error(f"Validation failed for calculated_data key '{key}' in observation '{self.name}': {str(e)}")
+                    raise
+        
         logger.info(f"Initialized Observation '{name}' with type '{observation_type}'")
 
     def _validate_calculated_data_key(self, key: str, df: pd.DataFrame) -> None:
@@ -87,16 +104,15 @@ class Observation(BaseEntity):
             logger.warning(f"Unknown calculated_data key '{key}' in observation '{self.name}'")
             return
 
-        # Validate columns
         if not all(col in df.columns for col in expected_columns):
             missing_cols = [col for col in expected_columns if col not in df.columns]
             logger.error(f"Invalid DataFrame structure for key '{key}' in observation '{self.name}': missing columns {missing_cols}")
             raise ValueError(f"Invalid DataFrame structure for key '{key}': missing columns {missing_cols}")
 
-        # Validate metadata
         if not hasattr(df, "attrs"):
             logger.error(f"DataFrame for key '{key}' in observation '{self.name}' has no attrs for metadata")
             raise ValueError(f"DataFrame for key '{key}' has no attrs")
+        
         for meta_key, meta_type in expected_metadata.items():
             if meta_key not in df.attrs:
                 logger.error(f"Missing metadata '{meta_key}' for key '{key}' in observation '{self.name}'")
@@ -134,24 +150,49 @@ class Observation(BaseEntity):
         """Convert the Observation object to a dictionary for serialization."""
         def convert_dataframe(df: pd.DataFrame, key: str) -> dict:
             """Convert a pandas DataFrame to a serializable dictionary with Parquet data."""
-            buffer = io.BytesIO()
-            df.to_parquet(buffer, engine="pyarrow", index=False)
-            parquet_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            converters = CalculatedDataStructure.get_converters(key) or {}
+            df_copy = df.copy()
+            
+            for col, converter in converters.items():
+                if col in df_copy.columns:
+                    try:
+                        df_copy[col] = df_copy[col].apply(converter)
+                    except Exception as e:
+                        logger.error(f"Failed to apply converter for column '{col}' in key '{key}' "
+                                     f"of observation '{self.name}': {str(e)}")
+                        raise
             
             metadata = df.attrs if hasattr(df, "attrs") else {}
             converted_metadata = {}
             for k, v in metadata.items():
-                if isinstance(v, Time):
-                    converted_metadata[k] = v.isot if v.isscalar else v.isot.tolist()
-                elif isinstance(v, np.ndarray):
-                    converted_metadata[k] = v.tolist()
-                elif isinstance(v, dict):
-                    converted_metadata[k] = {
-                        sk: sv.tolist() if isinstance(sv, np.ndarray) else sv
-                        for sk, sv in v.items()
-                    }
-                else:
-                    converted_metadata[k] = v
+                try:
+                    if isinstance(v, Time):
+                        converted_metadata[k] = v.isot if v.isscalar else v.isot.tolist()
+                    elif isinstance(v, np.ndarray):
+                        converted_metadata[k] = v.tolist()
+                    elif isinstance(v, dict):
+                        converted_metadata[k] = {
+                            sk: sv.tolist() if isinstance(sv, np.ndarray) else sv
+                            for sk, sv in v.items()
+                        }
+                    else:
+                        converted_metadata[k] = v
+                except Exception as e:
+                    logger.error(f"Failed to convert metadata '{k}' for key '{key}' in "
+                                 f"observation '{self.name}': {str(e)}")
+                    raise
+            
+            df_copy.attrs = converted_metadata
+            buffer = io.BytesIO()
+            try:
+                df_copy.to_parquet(buffer, engine="pyarrow", index=False)
+            except Exception as e:
+                logger.error(f"Failed to convert DataFrame for key '{key}' to Parquet in "
+                             f"observation '{self.name}': {str(e)}")
+                raise
+                
+            parquet_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            
             return {
                 "parquet_data": parquet_data,
                 "metadata": converted_metadata
@@ -162,6 +203,7 @@ class Observation(BaseEntity):
             data["calculated_data"] = {
                 key: convert_dataframe(df, key) for key, df in self.calculated_data.items()
             }
+            data["use_cache"] = self._use_cache
             logger.info(f"Converted observation '{self.name}' to dictionary")
             return data
         except Exception as e:
@@ -173,52 +215,90 @@ class Observation(BaseEntity):
         """Create an Observation object from a dictionary."""
         def restore_dataframe(calc_data: dict, key: str) -> pd.DataFrame:
             """Restore a pandas DataFrame from a serialized dictionary."""
-            parquet_data = base64.b64decode(calc_data["parquet_data"])
-            buffer = io.BytesIO(parquet_data)
-            df = pd.read_parquet(buffer, engine="pyarrow")
+            try:
+                if "parquet_data" not in calc_data:
+                    logger.error(f"Missing 'parquet_data' for calculated_data key '{key}'")
+                    raise ValueError(f"Missing 'parquet_data' for calculated_data key '{key}'")
+                
+                try:
+                    parquet_data = base64.b64decode(calc_data["parquet_data"])
+                except Exception as e:
+                    logger.error(f"Failed to decode parquet_data for key '{key}': {str(e)}")
+                    raise ValueError(f"Invalid parquet_data for key '{key}': {str(e)}")
+                
+                buffer = io.BytesIO(parquet_data)
+                try:
+                    df = pd.read_parquet(buffer, engine="pyarrow")
+                except Exception as e:
+                    logger.error(f"Failed to read Parquet data for key '{key}': {str(e)}")
+                    raise ValueError(f"Invalid Parquet data for key '{key}': {str(e)}")
 
-            metadata = calc_data.get("metadata", {})
-            restored_metadata = {}
-            converters = CalculatedDataStructure.get_converters(key) or {}
-            metadata_types = CalculatedDataStructure.get_metadata_types(key) or {}
-            
-            for meta_key, meta_value in metadata.items():
-                meta_type = metadata_types.get(meta_key)
-                if meta_type is Time:
-                    restored_metadata[meta_key] = Time(meta_value)
-                elif meta_type is float:
-                    restored_metadata[meta_key] = float(meta_value)
-                elif meta_type is int:
-                    restored_metadata[meta_key] = int(meta_value)
-                elif meta_type is dict and meta_key == "sources":
-                    restored_metadata[meta_key] = {k: np.array(v) for k, v in meta_value.items()}
-                else:
-                    restored_metadata[meta_key] = meta_value
+                metadata = calc_data.get("metadata", {})
+                restored_metadata = {}
+                converters = CalculatedDataStructure.get_converters(key) or {}
+                metadata_types = CalculatedDataStructure.get_metadata_types(key) or {}
+                
+                for meta_key, meta_value in metadata.items():
+                    meta_type = metadata_types.get(meta_key)
+                    try:
+                        if meta_type is Time:
+                            restored_metadata[meta_key] = Time(meta_value)
+                        elif meta_type is float:
+                            restored_metadata[meta_key] = float(meta_value)
+                        elif meta_type is int:
+                            restored_metadata[meta_key] = int(meta_value)
+                        elif meta_type is dict and meta_key == "sources":
+                            restored_metadata[meta_key] = {k: np.array(v) for k, v in meta_value.items()}
+                        else:
+                            restored_metadata[meta_key] = meta_value
+                    except Exception as e:
+                        logger.error(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
+                        raise ValueError(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
 
-            for col, converter in converters.items():
-                if col in df.columns:
-                    df[col] = df[col].apply(converter)
+                for col, converter in converters.items():
+                    if col in df.columns:
+                        try:
+                            df[col] = df[col].apply(converter)
+                        except Exception as e:
+                            logger.error(f"Failed to apply converter for column '{col}' in key '{key}': {str(e)}")
+                            raise ValueError(f"Failed to apply converter for column '{col}' in key '{key}': {str(e)}")
 
-            df.attrs = restored_metadata
-            return df
+                df.attrs = restored_metadata
+                return df
+            except Exception as e:
+                logger.error(f"Failed to restore DataFrame for key '{key}': {str(e)}")
+                raise
 
         try:
-            calculated_data = {
-                key: restore_dataframe(calc_data, key)
-                for key, calc_data in data.get("calculated_data", {}).items()
-            }
+            if "name" not in data:
+                logger.error("Missing 'name' field in dictionary for Observation")
+                raise ValueError("Missing 'name' field in dictionary for Observation")
+            
+            check_non_empty_string(data["name"], "Observation name")
+            
+            # Process calculated_data with error handling
+            calculated_data = {}
+            for key, calc_data in data.get("calculated_data", {}).items():
+                try:
+                    calculated_data[key] = restore_dataframe(calc_data, key)
+                except ValueError as e:
+                    logger.error(f"Skipping invalid calculated_data key '{key}' due to error: {str(e)}")
+                    continue  # Skip invalid calculated_data entries
+
             kwargs = {
                 "name": data["name"],
-                "code": data["code"],
-                "observation_type": data["observation_type"],
-                "sources": Sources.from_dict(data["sources"]),
-                "telescopes": Telescopes.from_dict(data["telescopes"]),
-                "frequencies": Frequencies.from_dict(data["frequencies"]),
+                "code": data.get("code", "OBS_DEFAULT"),
+                "observation_type": data.get("observation_type", "VLBI"),
+                "sources": Sources.from_dict(data.get("sources", {})),
+                "telescopes": Telescopes.from_dict(data.get("telescopes", {})),
+                "frequencies": Frequencies.from_dict(data.get("frequencies", {})),
                 "calculated_data": calculated_data,
                 "isactive": data.get("isactive", True),
+                "use_cache": data.get("use_cache", False),
             }
+            
             obs = cls(**kwargs)
-            kwargs["scans"] = Scans.from_dict(data["scans"], observation=obs)
+            kwargs["scans"] = Scans.from_dict(data.get("scans", {}), observation=obs)
             obs.set({"scans": kwargs["scans"]})
             obs.scans.activate_all(obs)
             logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans")
@@ -278,6 +358,7 @@ class Observation(BaseEntity):
     def copy(self) -> 'Observation':
         """Create a deep copy of the Observation object."""
         return Observation(
+            name=self.name,
             code=self.code,
             sources=self.sources.copy(),
             telescopes=self.telescopes.copy(),
@@ -285,13 +366,14 @@ class Observation(BaseEntity):
             scans=self.scans.copy(),
             observation_type=self.observation_type,
             calculated_data={key: df.copy() for key, df in self.calculated_data.items()},
-            isactive=self.isactive
+            isactive=self.isactive,
+            use_cache=self._use_cache
         )
 
     def validate(self) -> bool:
         """Validate the observation's data for consistency and completeness."""
         if not self.name:
-            logger.error("Observation code must be a non-empty string")
+            logger.error("Observation name must be a non-empty string")
             return False
         if self.observation_type not in ["VLBI", "SINGLE_DISH"]:
             logger.warning(f"Invalid observation type: {self.observation_type}")
@@ -329,7 +411,11 @@ class Observation(BaseEntity):
                         return False
                 telescope_scans[tel_code].append((scan_start, scan_end))
         for key, df in self.calculated_data.items():
-            self._validate_calculated_data_key(key, df)
+            try:
+                self._validate_calculated_data_key(key, df)
+            except ValueError as e:
+                logger.error(f"Validation failed for calculated_data key '{key}' in observation '{self.name}': {str(e)}")
+                return False
         logger.info(f"Observation '{self.name}' validated successfully")
         return True
 
