@@ -2457,8 +2457,8 @@ class ScheduleCalculator(Super):
 
         Returns:
             pd.DataFrame | Dict[str, pd.DataFrame]: For Observation, returns a DataFrame with columns
-                ["telescope_code", "theta", "pattern"]. For ScheduleProject, returns a dictionary mapping
-                observation codes to DataFrames.
+                ["telescope_code", "theta", "pattern"], where theta and pattern are scalar float values per row.
+                For ScheduleProject, returns a dictionary mapping observation codes to DataFrames.
 
         Notes:
             - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
@@ -2502,24 +2502,31 @@ class ScheduleCalculator(Super):
                 pattern = np.where(np.isnan(pattern), 1.0, pattern)
                 pattern = pattern / np.max(pattern, axis=1, keepdims=True)
 
-                telescope_codes = []
-                theta_arrays = []
-                pattern_arrays = []
+                dfs = []
                 for tel, pat in zip(valid_telescopes, pattern):
-                    telescope_codes.append(tel.get_code())
-                    theta_arrays.append(theta.tolist())
-                    pattern_arrays.append(pat.tolist())
+                    tel_code = tel.get_code()
+                    valid_points = np.sum(~np.isnan(pat))
+                    if valid_points == 0:
+                        logger.warning(f"No valid beam pattern for telescope '{tel_code}' in '{obs.get_observation_code()}'")
+                        continue
+                    # Create DataFrame for this telescope with numeric values
+                    df = pd.DataFrame({
+                        "telescope_code": [tel_code] * len(theta),
+                        "theta": theta,
+                        "pattern": pat
+                    })
+                    # Filter out rows with NaN pattern
+                    df = df[~np.isnan(df["pattern"])]
+                    if not df.empty:
+                        dfs.append(df)
+                        logger.debug(f"Computed {valid_points} valid beam pattern points for telescope '{tel_code}' in '{obs.get_observation_code()}'")
 
-                result_df = pd.DataFrame({
-                    "telescope_code": telescope_codes,
-                    "theta": theta_arrays,
-                    "pattern": pattern_arrays
-                })
-
-                if result_df.empty:
+                if not dfs:
                     logger.warning(f"No beam patterns computed for observation '{obs.get_observation_code()}'")
-                else:
-                    logger.info(f"Computed beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("beam_pattern"))
+
+                result_df = pd.concat(dfs, ignore_index=True)
+                logger.info(f"Computed beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}'")
                 return result_df
 
             metadata = {
@@ -2760,8 +2767,8 @@ class ScheduleCalculator(Super):
 
         Returns:
             pd.DataFrame | Dict[str, pd.DataFrame]: For Observation, returns a DataFrame with columns
-                ["scan_name", "telescope_code", "lon", "lat"]. For ScheduleProject, returns a dictionary
-                mapping observation codes to DataFrames.
+                ["scan_name", "telescope_code", "lon", "lat"], where lon and lat are scalar float values per row.
+                For ScheduleProject, returns a dictionary mapping observation codes to DataFrames.
 
         Notes:
             - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
@@ -2771,7 +2778,7 @@ class ScheduleCalculator(Super):
         """
         try:
             time_step = attributes.get("time_step")
-            if time_step is None and not isinstance(time_step, (int, float)):
+            if not isinstance(time_step, (int, float)) or time_step is None:
                 logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
                 return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks")) if isinstance(obj, Observation) else {}
             time_step = float(time_step)
@@ -2797,16 +2804,11 @@ class ScheduleCalculator(Super):
                     logger.error(f"No position data for '{obs.get_observation_code()}'")
                     return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
-                # Validate time_data["time"] contains Time objects
                 if not all(isinstance(t, Time) for t in time_data["time"]):
                     logger.error(f"Invalid time data for '{obs.get_observation_code()}': 'time' column must contain astropy.time.Time objects")
                     return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
-                scan_names = []
-                telescope_codes = []
-                lon_arrays = []
-                lat_arrays = []
-
+                dfs = []
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
@@ -2814,25 +2816,16 @@ class ScheduleCalculator(Super):
                         for scan in scans
                     }
                     for future in futures:
-                        scan = futures[future]
                         scan_result = future.result()
                         if not scan_result.empty:
-                            scan_names.extend(scan_result["scan_name"])
-                            telescope_codes.extend(scan_result["telescope_code"])
-                            lon_arrays.extend(scan_result["lon"])
-                            lat_arrays.extend(scan_result["lat"])
+                            dfs.append(scan_result)
 
-                result_df = pd.DataFrame({
-                    "scan_name": scan_names,
-                    "telescope_code": telescope_codes,
-                    "lon": lon_arrays,
-                    "lat": lat_arrays
-                })
-
-                if result_df.empty:
+                if not dfs:
                     logger.warning(f"No Mollweide tracks computed for observation '{obs.get_observation_code()}'")
-                else:
-                    logger.info(f"Computed Mollweide tracks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
+
+                result_df = pd.concat(dfs, ignore_index=True)
+                logger.info(f"Computed Mollweide tracks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
                 return result_df
 
             sources_metadata = {}
@@ -2841,7 +2834,7 @@ class ScheduleCalculator(Super):
                 dec = source.dec_degrees
                 lon = ra - 360.0 if ra > 180.0 else ra
                 lat = np.clip(dec, -90.0, 90.0)
-                sources_metadata[source.name] = np.array([lon, lat])
+                sources_metadata[source.name] = tuple([lon, lat])
 
             converters = CalculatedDataStructure.get_converters("mollweide_tracks")
             if "sources" in converters:
@@ -2874,12 +2867,13 @@ class ScheduleCalculator(Super):
             position_data (pd.DataFrame): Precomputed telescope positions.
 
         Returns:
-            pd.DataFrame: Mollweide tracks with columns ["scan_name", "telescope_code", "lon", "lat"].
+            pd.DataFrame: Mollweide tracks with columns ["scan_name", "telescope_code", "lon", "lat"],
+                where lon and lat are scalar float values per row.
 
         Notes:
             - Computes lon/lat coordinates in degrees from telescope positions.
             - Outputs NaN for coordinates where telescope positions are NaN.
-            - Ensures output array size matches input times for index correspondence.
+            - Each row represents a single time point for a telescope in the scan.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
@@ -2919,11 +2913,7 @@ class ScheduleCalculator(Super):
             for code in tel_codes
         ], dtype=float)  # shape: (n_tels, n_times, 3)
 
-        scan_names = []
-        telescope_codes = []
-        lon_arrays = []
-        lat_arrays = []
-
+        dfs = []
         try:
             r = np.sqrt(np.sum(positions**2, axis=2))  # shape: (n_tels, n_times)
             valid_mask = r > 0  # Avoid division by zero
@@ -2937,27 +2927,24 @@ class ScheduleCalculator(Super):
             lat = np.clip(dec, -90.0, 90.0)
 
             for i, tel_code in enumerate(tel_codes):
-                scan_names.append(scan_name)
-                telescope_codes.append(tel_code)
-                lon_arrays.append(lon[i].tolist())
-                lat_arrays.append(lat[i].tolist())
-                valid_points = np.sum(~np.isnan(lon[i]) & ~np.isnan(lat[i]))
-                if valid_points == 0:
-                    logger.warning(f"No valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
-                else:
-                    logger.debug(f"Computed {valid_points} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
+                df = pd.DataFrame({
+                    "scan_name": [scan_name] * n_times,
+                    "telescope_code": [tel_code] * n_times,
+                    "lon": lon[i],
+                    "lat": lat[i]
+                })
+
+                if not df.empty:
+                    dfs.append(df)
+                    logger.debug(f"Computed {df.shape} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
 
         except Exception as e:
             logger.error(f"Failed to compute Mollweide tracks for scan '{scan_name}': {str(e)}")
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
-        result_df = pd.DataFrame({
-            "scan_name": scan_names,
-            "telescope_code": telescope_codes,
-            "lon": lon_arrays,
-            "lat": lat_arrays
-        })
-
-        if result_df.empty:
+        if not dfs:
             logger.warning(f"No valid Mollweide tracks computed for scan '{scan_name}'")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
+
+        result_df = pd.concat(dfs, ignore_index=True)
         return result_df
