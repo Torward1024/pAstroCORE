@@ -2463,7 +2463,6 @@ class ScheduleCalculator(Super):
                 pattern = np.where(np.isnan(pattern), 1.0, pattern)
                 pattern = pattern / np.max(pattern, axis=1, keepdims=True)
 
-                # Prepare DataFrame
                 telescope_codes = []
                 theta_arrays = []
                 pattern_arrays = []
@@ -2496,7 +2495,7 @@ class ScheduleCalculator(Super):
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("beam_pattern")) if isinstance(obj, Observation) else {}
 
     @time_execution
-    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pd.DataFrame | Dict[str, pd.DataFrame]:
         """Calculate baseline projections for VLBI observations in geometric coordinates (meters).
 
         Args:
@@ -2504,70 +2503,109 @@ class ScheduleCalculator(Super):
             attributes: Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Baseline projection data per source and scan, formatted as:
-                {source_name: {scan_name: {baseline: np.array([proj1, ..., projn])}} for Observation,
-                {obs_code: {source_name: {scan_name: {baseline: np.array([proj1, ..., projn])}}} for ScheduleProject.
+            pd.DataFrame | Dict[str, pd.DataFrame]: For Observation, returns a DataFrame with columns
+                ["source_name", "scan_name", "baseline", "projection"]. For ScheduleProject, returns a dictionary
+                mapping observation codes to DataFrames.
+
+        Notes:
+            - Uses CalculatedDataStructure to validate DataFrame structure.
+            - Stores results under 'baseline_projections' key in each Observation's calculated_data.
+            - Computes BL = sqrt(u² + v²) from UV data in meters.
+            - Returns empty DataFrame or dict if no valid scans or telescopes are found.
         """
         try:
             time_step = attributes.get("time_step")
+            if time_step is not None and not isinstance(time_step, (int, float)):
+                logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
+                return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections")) if isinstance(obj, Observation) else {}
+            time_step = float(time_step) if time_step is not None else None
+
             store_key = attributes.get("store_key", "baseline_projections")
             recalculate = attributes.get("recalculate", False)
             if "freq_name" in attributes:
                 logger.info(f"Ignoring 'freq_name' attribute for baseline projections in geometric coordinates")
 
-            def calculate_baseline_projections(obs: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+            def calculate_baseline_projections(obs: Observation, attrs: Dict[str, Any]) -> pd.DataFrame:
                 if obs.get_observation_type() != "VLBI":
-                    logger.warning(f"Baseline projections are only for VLBI, got {obs.get_observation_type()}")
-                    return {}
+                    logger.warning(f"Baseline projections are only for VLBI, got {obs.get_observation_type()} in '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
                 scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True, min_telescopes=2)
                 if not scans:
-                    return {}
+                    logger.debug(f"No active scans for observation '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
                 uv_attrs = {"time_step": time_step, "store_key": "uv_coverage", "recalculate": recalculate}
                 uv_data = self._calculate_uv_coverage(obs, uv_attrs)
-                if not uv_data:
+                if uv_data.empty:
                     logger.error(f"No UV coverage data for '{obs.get_observation_code()}'")
-                    return {}
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
-                results = {}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                time_data = self._calculate_time_arrays(obs, time_attrs)
+                if time_data.empty:
+                    logger.error(f"No time data for '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
+
+                # Validate time_data["time"] contains Time objects
+                if not all(isinstance(t, Time) for t in time_data["time"]):
+                    logger.error(f"Invalid time data for '{obs.get_observation_code()}': 'time' column must contain astropy.time.Time objects")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
+
+                source_names = []
+                scan_names = []
+                baselines = []
+                projections = []
+
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_baseline_projections, scan, obs, time_step, uv_data): scan.name
+                        executor.submit(self._process_baseline_projections, scan, obs, time_step, uv_data, time_data): scan
                         for scan in scans
                     }
                     for future in futures:
-                        scan_name = futures[future]
+                        scan = futures[future]
                         scan_result = future.result()
-                        source_name = scan_result.get("source")
-                        if source_name and scan_result.get("projections"):
-                            results.setdefault(source_name, {})[scan_name] = scan_result["projections"]
-                return results
+                        if not scan_result.empty:
+                            source_names.extend(scan_result["source_name"])
+                            scan_names.extend(scan_result["scan_name"])
+                            baselines.extend(scan_result["baseline"])
+                            projections.extend(scan_result["projection"])
 
-            metadata = {"time_step": time_step, "scan_count": len(obj.get_scans().get_active_items())}
+                result_df = pd.DataFrame({
+                    "source_name": source_names,
+                    "scan_name": scan_names,
+                    "baseline": baselines,
+                    "projection": projections
+                })
+
+                if result_df.empty:
+                    logger.warning(f"No baseline projections computed for observation '{obs.get_observation_code()}'")
+                else:
+                    logger.info(f"Computed baseline projections for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                return result_df
+
+            # Metadata is empty for baseline_projections in CalculatedDataStructure
+            metadata = {}
+            logger.debug(f"Metadata for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {metadata}")
             return self._process_object(obj, attributes, calculate_baseline_projections, store_key, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate baseline projections for '{obj.get_observation_code()}': {str(e)}")
-            return {}
-    
-    def _process_baseline_projections(self, scan: Scan, observation: Observation, time_step: Optional[float], uv_data: Dict[str, Any]) -> Dict[str, Any]:
+            logger.error(f"Failed to calculate baseline projections for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections")) if isinstance(obj, Observation) else {}
+
+    def _process_baseline_projections(self, scan: Scan, observation: Observation, time_step: Optional[float], 
+                                    uv_data: pd.DataFrame, time_data: pd.DataFrame) -> pd.DataFrame:
         """Process baseline projections for a single scan in geometric coordinates (meters).
 
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds).
-            uv_data (Dict[str, Any]): Precomputed UV data from _calculate_uv_coverage.
+            uv_data (pd.DataFrame): Precomputed UV data from _calculate_uv_coverage.
+            time_data (pd.DataFrame): Precomputed time arrays from _calculate_time_arrays.
 
         Returns:
-            Dict[str, Any]: Baseline projections in meters, formatted as:
-                {
-                    "source": source_name,
-                    "projections": {
-                        baseline: np.array([proj1, ..., projn])  # projections in meters
-                    }
-                }
+            pd.DataFrame: Baseline projections with columns ["source_name", "scan_name", "baseline", "projection"].
 
         Notes:
             - Computes BL = sqrt(u² + v²) from UV data in meters.
@@ -2577,54 +2615,87 @@ class ScheduleCalculator(Super):
         source = scan.get_source(observation)
         if not source or not source.isactive:
             logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
-            return {"source": None, "projections": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
         scan_name = scan.name
         source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
-        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
+        active_telescopes = [t for t in scan_telescopes.get_active_items() if t.isactive]
 
         if len(active_telescopes) < 2:
             logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for baseline projections in scan '{scan_name}'")
-            return {"source": source_name, "projections": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
-        scan_uv_data = uv_data.get(source_name, {}).get(scan_name, {})
-        if not scan_uv_data:
-            logger.warning(f"No UV data for scan '{scan_name}' in source '{source_name}'")
-            return {"source": source_name, "projections": {}}
-
-        time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
-        time_data = self._calculate_time_arrays(observation, time_attrs)
-        scan_times = time_data.get(source_name, {}).get(scan_name, None)
-        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+        scan_times = time_data[time_data["scan_name"] == scan_name]["time"]
+        if scan_times.empty:
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
-            return {"source": source_name, "projections": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
-        projections = self._compute_projections_from_uv(scan_uv_data, active_telescopes, time_step, len(scan_times))
-        if not projections:
+        # Ensure scan_times contains Time objects
+        if not all(isinstance(t, Time) for t in scan_times):
+            logger.error(f"Invalid time data for scan '{scan_name}' in source '{source_name}': 'time' column must contain astropy.time.Time objects")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
+
+        scan_times = Time(list(scan_times))  # Convert Series to Time array for astropy compatibility
+        n_times = len(scan_times)
+
+        scan_uv_data = uv_data[uv_data["scan_name"] == scan_name]
+        if scan_uv_data.empty:
+            logger.warning(f"No UV data for scan '{scan_name}' in source '{source_name}'")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
+
+        projections_dict = self._compute_projections_from_uv(scan_uv_data, active_telescopes, time_step, n_times)
+        if not projections_dict:
             logger.warning(f"No valid baseline projections computed for scan '{scan_name}'")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
+
+        source_names = []
+        scan_names = []
+        baselines = []
+        projections = []
+
+        for baseline, proj_array in projections_dict.items():
+            source_names.extend([source_name] * len(proj_array))
+            scan_names.extend([scan_name] * len(proj_array))
+            baselines.extend([baseline] * len(proj_array))
+            projections.extend(proj_array.tolist())
+
+        result_df = pd.DataFrame({
+            "source_name": source_names,
+            "scan_name": scan_names,
+            "baseline": baselines,
+            "projection": projections
+        })
+
+        if result_df.empty:
+            logger.warning(f"No baseline projections computed for scan '{scan_name}'")
         else:
-            logger.debug(f"Computed {sum(len(proj) for proj in projections.values())} baseline projections for scan '{scan_name}' across {len(projections)} baselines")
-        
-        return {"source": source_name, "projections": projections}
-        
-    def _compute_projections_from_uv(self, uv_data: Dict[str, np.ndarray], telescopes: List[Telescope | SpaceTelescope], time_step: Optional[float], n_times: int) -> Dict[str, np.ndarray]:
+            logger.debug(f"Computed {len(projections)} baseline projections for scan '{scan_name}' across {len(projections_dict)} baselines")
+        return result_df
+
+    def _compute_projections_from_uv(self, uv_data: pd.DataFrame, telescopes: List[Telescope | SpaceTelescope], 
+                                    time_step: Optional[float], n_times: int) -> Dict[str, np.ndarray]:
         """Compute baseline projections BL = sqrt(u² + v²) from UV data in meters.
 
         Args:
-            uv_data (Dict[str, np.ndarray]): UV data as {baseline: np.array([[u,v,w], ...])}.
+            uv_data (pd.DataFrame): UV data with columns ["source_name", "scan_name", "baseline", "u", "v", "w"].
             telescopes (List[Telescope | SpaceTelescope]): List of active telescopes.
             time_step (Optional[float]): Sampling interval (seconds).
             n_times (int): Expected number of time points to match.
 
         Returns:
             Dict[str, np.ndarray]: Baseline projections in meters, formatted as {baseline: np.array([proj1, ..., projn])}.
+
+        Notes:
+            - Computes BL = sqrt(u² + v²) for each baseline.
+            - Adjusts UV data length with NaN if mismatched with expected time points.
         """
         projections = {}
         pairs = [f"{telescopes[i].get_code()}-{telescopes[j].get_code()}" for i, j in zip(*np.triu_indices(len(telescopes), k=1))]
-        
+
         for baseline in pairs:
-            uvw = uv_data.get(baseline, np.full((n_times, 3), np.nan, dtype=float))
+            baseline_data = uv_data[uv_data["baseline"] == baseline][["u", "v", "w"]]
+            uvw = baseline_data.values if not baseline_data.empty else np.full((n_times, 3), np.nan, dtype=float)
             if uvw.shape[0] != n_times:
                 logger.warning(f"UV data for baseline '{baseline}' has length {uvw.shape[0]}, expected {n_times}; adjusting with NaN")
                 temp = np.full((n_times, 3), np.nan, dtype=float)
