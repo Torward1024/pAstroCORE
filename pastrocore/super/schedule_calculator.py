@@ -1895,7 +1895,7 @@ class ScheduleCalculator(Super):
         return result_df
 
     @time_execution
-    def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_az_el(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pd.DataFrame | Dict[str, pd.DataFrame]:
         """Calculate azimuth/elevation or hour angle/declination angles for active ground telescopes in all active scans.
 
         Args:
@@ -1903,9 +1903,16 @@ class ScheduleCalculator(Super):
             attributes: Parameters including "time_step", "store_key", "position_store_key", "visibility_store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Angles data, formatted as:
-                {source_name: {scan_name: {telescope_code: np.array([[az/ha, el/dec], ...])}}} for Observation,
-                {obs_code: {source_name: {scan_name: {telescope_code: np.array([[az/ha, el/dec], ...])}}}} for ScheduleProject.
+            pd.DataFrame | Dict[str, pd.DataFrame]: For Observation, returns a DataFrame with columns
+                ["source_name", "scan_name", "telescope_code", "az", "el"]. For ScheduleProject, returns
+                a dictionary mapping observation codes to DataFrames. For AZIM mounts, az/el are computed;
+                for EQUA mounts, ha/dec are returned as az/el.
+
+        Notes:
+            - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
+            - Stores results under 'az_el' key in each Observation's calculated_data.
+            - Returns empty DataFrame or dict if no valid scans or ground telescopes are found.
+            - Excludes space telescopes as they use pitch/yaw.
         """
         try:
             time_step = attributes.get("time_step")
@@ -1914,15 +1921,16 @@ class ScheduleCalculator(Super):
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
             recalculate = attributes.get("recalculate", False)
 
-            def calculate_az_el(obs: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
-                scans, telescopes, sources = self._get_active_components(obs, require_telescopes=True)
+            def calculate_az_el(obs: Observation, attrs: Dict[str, Any]) -> pd.DataFrame:
+                scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True)
                 if not scans:
-                    return {}
+                    logger.debug(f"No active scans for observation '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
                 ground_telescopes = [tel for tel in telescopes if not isinstance(tel, SpaceTelescope)]
                 if not ground_telescopes:
                     logger.debug(f"No ground telescopes in '{obs.get_observation_code()}'")
-                    return {}
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
                 position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
@@ -1931,209 +1939,235 @@ class ScheduleCalculator(Super):
                 position_data = self._calculate_telescope_positions(obs, position_attrs)
                 visibility_data = self._calculate_source_visibility(obs, visibility_attrs)
 
-                if not (time_data and position_data and visibility_data):
+                if time_data.empty or position_data.empty or visibility_data.empty:
                     logger.error(f"Missing required data (times, positions, or visibility) for '{obs.get_observation_code()}'")
-                    return {}
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
-                results = {}
+                # Validate time_data["time"] contains Time objects
+                if not all(isinstance(t, Time) for t in time_data["time"]):
+                    logger.error(f"Invalid time data for '{obs.get_observation_code()}': 'time' column must contain astropy.time.Time objects")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+
+                source_names = []
+                scan_names = []
+                telescope_codes = []
+                az_values = []
+                el_values = []
+
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
                         executor.submit(
                             self._process_az_el, scan, obs, time_step, time_data, position_data, visibility_data
-                        ): scan.name
+                        ): scan
                         for scan in scans
                     }
                     for future in futures:
-                        scan_name = futures[future]
+                        scan = futures[future]
                         scan_result = future.result()
-                        source_name = scan_result.get("source")
-                        if source_name and scan_result.get("angles"):
-                            results.setdefault(source_name, {})[scan_name] = scan_result["angles"]
+                        if not scan_result.empty:
+                            source_names.extend(scan_result["source_name"])
+                            scan_names.extend(scan_result["scan_name"])
+                            telescope_codes.extend(scan_result["telescope_code"])
+                            az_values.extend(scan_result["az"])
+                            el_values.extend(scan_result["el"])
 
-                logger.info(f"Calculated az/el or ha/dec for {len(results)} sources in '{obs.get_observation_code()}'")
-                return results
+                result_df = pd.DataFrame({
+                    "source_name": source_names,
+                    "scan_name": scan_names,
+                    "telescope_code": telescope_codes,
+                    "az": az_values,
+                    "el": el_values
+                })
+
+                if result_df.empty:
+                    logger.warning(f"No az/el or ha/dec angles computed for observation '{obs.get_observation_code()}'")
+                    result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+
+                logger.info(f"Computed az/el or ha/dec for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                return result_df
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()),
+                "scan_count": len(obj.get_scans().get_active_scans(obj)) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_scans(o)) for o in obj.get_observations()),
                 "position_store_key": position_store_key,
                 "visibility_store_key": visibility_store_key
             }
             return self._process_object(obj, attributes, calculate_az_el, store_key, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate az/el or ha/dec for '{obj.get_observation_code()}': {str(e)}")
-            return {}
+            logger.error(f"Failed to calculate az/el or ha/dec for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el")) if isinstance(obj, Observation) else {}
 
-    def _process_az_el(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any], visibility_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_az_el(self, scan: Scan, observation: Observation, time_step: Optional[float], 
+                    time_data: pd.DataFrame, position_data: pd.DataFrame, 
+                    visibility_data: pd.DataFrame) -> pd.DataFrame:
         """Process az/el or ha/dec angles for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds). If None, uses mean time.
-            time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
-            position_data (Dict[str, Any]): Precomputed telescope positions from _calculate_telescope_positions.
-            visibility_data (Dict[str, Any]): Precomputed visibility data from _calculate_source_visibility.
+            time_data (pd.DataFrame): Precomputed time arrays from _calculate_time_arrays.
+            position_data (pd.DataFrame): Precomputed telescope positions from _calculate_telescope_positions.
+            visibility_data (pd.DataFrame): Precomputed visibility data from _calculate_source_visibility.
 
         Returns:
-            Dict[str, Any]: Angles data for the scan, formatted as:
-                {
-                    "source": source_name,
-                    "angles": {telescope_code: np.array([[az/ha, el/dec], ...])}
-                }
+            pd.DataFrame: Angles data for the scan with columns ["source_name", "scan_name", "telescope_code", "az", "el"].
+                For AZIM mounts, az/el are computed; for EQUA mounts, ha/dec are returned as az/el.
 
         Notes:
-            - Computes az/el for AZIM mounts and ha/dec for EQUA mounts.
             - Applies visibility mask to set angles to NaN for non-visible times.
             - Excludes space telescopes as they use pitch/yaw.
+            - Uses CalculatedDataStructure to validate DataFrame structure.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
             logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
-            return {"source": None, "angles": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
         scan_name = scan.name
         source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
-        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive and not isinstance(t, SpaceTelescope)]
+        active_telescopes = [t for t in scan_telescopes.get_active_items() if t.isactive and not isinstance(t, SpaceTelescope)]
         if not active_telescopes:
             logger.warning(f"No active ground telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return {"source": source_name, "angles": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
-        scan_times = time_data.get(source_name, {}).get(scan_name, None)
-        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+        scan_times = time_data[time_data["scan_name"] == scan_name]["time"]
+        if scan_times.empty:
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
-            return {"source": source_name, "angles": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
-        scan_visibility = visibility_data.get(source_name, {}).get(scan_name, {})
-        scan_positions = position_data.get(scan_name, {})
-        if not (scan_visibility and scan_positions):
+        if not all(isinstance(t, Time) for t in scan_times):
+            logger.error(f"Invalid time data for scan '{scan_name}' in source '{source_name}': 'time' column must contain astropy.time.Time objects")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+
+        scan_times = Time(list(scan_times))
+
+        scan_visibility = visibility_data[visibility_data["scan_name"] == scan_name]
+        scan_positions = position_data[position_data["scan_name"] == scan_name]
+        if scan_visibility.empty or scan_positions.empty:
             logger.warning(f"No visibility or position data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return {"source": source_name, "angles": {}}
-
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-        angles = {}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
         mount_types = [tel.get("mount_type").value for tel in active_telescopes]
-        visibility = np.array([scan_visibility.get(code, [False] * len(scan_times)) for code in tel_codes], dtype=bool)  # shape: (n_tels, n_times)
-        positions = np.array([scan_positions.get(code, np.full((len(scan_times), 3), np.nan)) for code in tel_codes])  # shape: (n_tels, n_times, 3)
+        n_times = len(scan_times)
 
-        if positions.shape[1] != len(scan_times):
-            logger.warning(f"Mismatched position data length for scan '{scan_name}': {positions.shape[1]} positions vs {len(scan_times)} times")
-            return {"source": source_name, "angles": {}}
+        positions = np.array([
+            scan_positions[scan_positions["telescope_code"] == code][["x", "y", "z"]].values
+            if code in scan_positions["telescope_code"].values else np.full((n_times, 3), np.nan)
+            for code in tel_codes
+        ])
+        visibility = np.array([
+            scan_visibility[scan_visibility["telescope_code"] == code]["visibility"].values
+            if code in scan_visibility["telescope_code"].values else np.full(n_times, False)
+            for code in tel_codes
+        ], dtype=bool)
 
-        azim_indices = [i for i, mt in enumerate(mount_types) if mt == "AZIM"]
-        if azim_indices:
-            azim_codes = [tel_codes[i] for i in azim_indices]
-            azim_positions = positions[azim_indices]  
-            azim_visibility = visibility[azim_indices]  
+        if positions.shape[1] != n_times:
+            logger.error(f"Mismatched position data length for scan '{scan_name}': {positions.shape[1]} positions vs {n_times} times")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+        if visibility.shape[1] != n_times:
+            logger.error(f"Mismatch in visibility data length for scan '{scan_name}': {visibility.shape[1]} visibility points vs {n_times} times")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
-            gcrs_coords = CartesianRepresentation(
-                x=azim_positions[:, :, 0] * u.m,
-                y=azim_positions[:, :, 1] * u.m,
-                z=azim_positions[:, :, 2] * u.m
-            )
-            gcrs = GCRS(gcrs_coords, obstime=scan_times)
-            itrs = gcrs.transform_to(ITRS(obstime=scan_times))
-            locations = itrs.earth_location
-            altaz = source_coord.transform_to(AltAz(obstime=scan_times, location=locations))
-            az = altaz.az.deg  
-            el = altaz.alt.deg  
+        source_names = []
+        scan_names = []
+        telescope_codes = []
+        az_values = []
+        el_values = []
 
-            az[~azim_visibility] = np.nan
-            el[~azim_visibility] = np.nan
+        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
 
-            for i, code in enumerate(azim_codes):
-                angles[code] = np.stack([az[i], el[i]], axis=-1)  # shape: (n_times, 2)
+        try:
+            azim_indices = [i for i, mt in enumerate(mount_types) if mt == "AZIM"]
+            if azim_indices:
+                azim_codes = [tel_codes[i] for i in azim_indices]
+                azim_positions = positions[azim_indices]
+                azim_visibility = visibility[azim_indices]
 
-        equa_indices = [i for i, mt in enumerate(mount_types) if mt == "EQUA"]
-        if equa_indices:
-            equa_codes = [tel_codes[i] for i in equa_indices]
-            equa_positions = positions[equa_indices]  
-            equa_visibility = visibility[equa_indices]  
+                gcrs_coords = CartesianRepresentation(
+                    x=azim_positions[:, :, 0] * u.m,
+                    y=azim_positions[:, :, 1] * u.m,
+                    z=azim_positions[:, :, 2] * u.m
+                )
+                itrs = GCRS(gcrs_coords, obstime=scan_times).transform_to(ITRS(obstime=scan_times))
+                locations = itrs.earth_location
+                altaz = source_coord.transform_to(AltAz(obstime=scan_times, location=locations))
+                az = altaz.az.deg
+                el = altaz.alt.deg
 
-            gcrs_coords = CartesianRepresentation(
-                x=equa_positions[:, :, 0] * u.m,
-                y=equa_positions[:, :, 1] * u.m,
-                z=equa_positions[:, :, 2] * u.m
-            )
-            gcrs = GCRS(gcrs_coords, obstime=scan_times)
-            itrs = gcrs.transform_to(ITRS(obstime=scan_times))
-            locations = itrs.earth_location
-            hadec = source_coord.transform_to(HADec(obstime=scan_times, location=locations))
-            ha = hadec.ha.deg   
-            dec = hadec.dec.deg
+                for i, code in enumerate(azim_codes):
+                    is_visible = azim_visibility[i]
+                    angles = np.full((n_times, 2), np.nan, dtype=float)
+                    angles[is_visible, 0] = az[i][is_visible]
+                    angles[is_visible, 1] = el[i][is_visible]
+                    source_names.extend([source_name] * n_times)
+                    scan_names.extend([scan_name] * n_times)
+                    telescope_codes.extend([code] * n_times)
+                    az_values.extend(angles[:, 0])
+                    el_values.extend(angles[:, 1])
 
-            ha[~equa_visibility] = np.nan
-            dec[~equa_visibility] = np.nan
+            equa_indices = [i for i, mt in enumerate(mount_types) if mt == "EQUA"]
+            if equa_indices:
+                equa_codes = [tel_codes[i] for i in equa_indices]
+                equa_positions = positions[equa_indices]
+                equa_visibility = visibility[equa_indices]
 
-            for i, code in enumerate(equa_codes):
-                angles[code] = np.stack([ha[i], dec[i]], axis=-1)
+                gcrs_coords = CartesianRepresentation(
+                    x=equa_positions[:, :, 0] * u.m,
+                    y=equa_positions[:, :, 1] * u.m,
+                    z=equa_positions[:, :, 2] * u.m
+                )
+                itrs = GCRS(gcrs_coords, obstime=scan_times).transform_to(ITRS(obstime=scan_times))
+                locations = itrs.earth_location
+                hadec = source_coord.transform_to(HADec(obstime=scan_times, location=locations))
+                ha = hadec.ha.deg
+                dec = hadec.dec.deg
 
-        for i, tel in enumerate(active_telescopes):
-            if mount_types[i] not in ["AZIM", "EQUA"]:
-                logger.warning(f"Unsupported mount type '{mount_types[i]}' for telescope '{tel.get_code()}' in scan '{scan_name}'")
-                angles[tel.get_code()] = np.full((len(scan_times), 2), np.nan)
+                for i, code in enumerate(equa_codes):
+                    is_visible = equa_visibility[i]
+                    angles = np.full((n_times, 2), np.nan, dtype=float)
+                    angles[is_visible, 0] = ha[i][is_visible]
+                    angles[is_visible, 1] = dec[i][is_visible]
+                    source_names.extend([source_name] * n_times)
+                    scan_names.extend([scan_name] * n_times)
+                    telescope_codes.extend([code] * n_times)
+                    az_values.extend(angles[:, 0])
+                    el_values.extend(angles[:, 1])
 
-        valid_angle_count = sum(np.any(~np.isnan(angles[code]), axis=0)[0] for code in angles)
+            for i, tel in enumerate(active_telescopes):
+                if mount_types[i] not in ["AZIM", "EQUA"]:
+                    logger.warning(f"Unsupported mount type '{mount_types[i]}' for telescope '{tel.get_code()}' in scan '{scan_name}'")
+                    source_names.extend([source_name] * n_times)
+                    scan_names.extend([scan_name] * n_times)
+                    telescope_codes.extend([tel.get_code()] * n_times)
+                    az_values.extend([np.nan] * n_times)
+                    el_values.extend([np.nan] * n_times)
+
+        except Exception as e:
+            logger.error(f"Failed to compute az/el or ha/dec for scan '{scan_name}': {str(e)}")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+
+        result_df = pd.DataFrame({
+            "source_name": source_names,
+            "scan_name": scan_names,
+            "telescope_code": telescope_codes,
+            "az": az_values,
+            "el": el_values
+        })
+
+        valid_angle_count = len(result_df[~result_df[["az", "el"]].isna().any(axis=1)])
         if valid_angle_count == 0:
             logger.warning(f"No valid az/el or ha/dec angles computed for scan '{scan_name}'")
-            return {"source": source_name, "angles": {}}
+            result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
-        logger.debug(f"Computed az/el or ha/dec for {valid_angle_count} telescopes in scan '{scan_name}'")
-        return {"source": source_name, "angles": angles}
-
-    def _compute_az_el_at_time(self, source_coord: SkyCoord, telescopes: List[Telescope], time: Time) -> Dict[str, Tuple[float, float]]:
-        """Compute Az/El or HA/Dec for ground telescopes at a given time, depending on mount type.
-
-        Args:
-            source_coord (SkyCoord): Source coordinates.
-            telescopes (List[Telescope]): List of ground telescopes.
-            time (Time): Time of calculation.
-
-        Returns:
-            Dict[str, Tuple[float, float]]: Coordinates per telescope code (Az/El or HA/Dec).
-        """
-        az_el = {}
-        for tel in telescopes:
-            x, y, z = tel.get_coordinates()
-            res = tel.get(["vx", "vy", "vz"])
-            vx = res["vx"]
-            vy = res["vy"]
-            vz = res["vz"]
-            dt = (time - Time("2000-01-01T12:00:00")).sec
-            itrs_coords = CartesianRepresentation(x + vx * dt, y + vy * dt, z + vz * dt, unit=u.m)
-            itrs = ITRS(itrs_coords, obstime=time)
-            location = itrs.earth_location
-            mount_type = tel.get("mount_type")
-           
-            if mount_type.value == "AZIM":
-                altaz = source_coord.transform_to(AltAz(obstime=time, location=location))
-                az, el = altaz.az.deg, altaz.alt.deg
-                el_range = tel.get_elevation_range()
-                az_range = tel.get_azimuth_range()
-                if not (el_range[0] <= el <= el_range[1] and az_range[0] <= az <= az_range[1]):
-                    az_el[tel.get_code()] = (None, None)
-                else:
-                    az_el[tel.get_code()] = (az, el)
-            elif mount_type.value == "EQUA":
-                hadec = source_coord.transform_to(HADec(obstime=time, location=location))
-                ha, dec = hadec.ha.deg, hadec.dec.deg
-                ha_range = tel.get_azimuth_range()
-                dec_range = tel.get_elevation_range()
-                if not (ha_range[0] <= ha <= ha_range[1] and dec_range[0] <= dec <= dec_range[1]):
-                    az_el[tel.get_code()] = (None, None)
-                else:
-                    az_el[tel.get_code()] = (ha, dec)
-            else:
-                logger.warning(f"Unsupported mount type {mount_type} for telescope '{tel.get_code()}'")
-                az_el[tel.get_code()] = (0.0, 0.0)
-        return az_el
+        logger.debug(f"Computed az/el or ha/dec for {len(tel_codes)} telescopes in scan '{scan_name}'")
+        return result_df
 
     @time_execution
-    def _calculate_time_on_source(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_time_on_source(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pd.DataFrame | Dict[str, pd.DataFrame]:
         """Calculate time-on-source blocks for all active scans in the observation or project.
 
         Args:
@@ -2141,135 +2175,238 @@ class ScheduleCalculator(Super):
             attributes: Parameters including "time_step", "store_key", "visibility_store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Time-on-source blocks per source, scan, and telescope, formatted as:
-                {source_name: {scan_name: {telescope_code: np.array([[start_mjd, end_mjd, duration], ...])}}.
+            pd.DataFrame | Dict[str, pd.DataFrame]: For Observation, returns a DataFrame with columns
+                ["source_name", "scan_name", "telescope_code", "start", "end", "duration"]. For ScheduleProject,
+                returns a dictionary mapping observation codes to DataFrames.
+
+        Notes:
+            - Uses CalculatedDataStructure to validate DataFrame structure.
+            - Stores results under 'time_on_source' key in each Observation's calculated_data.
+            - Applies converters from CalculatedDataStructure for 'start' and 'end' columns.
+            - Returns empty DataFrame or dict if no valid scans or telescopes are found.
         """
         try:
             time_step = attributes.get("time_step")
+            if time_step is not None and not isinstance(time_step, (int, float)):
+                logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
+                return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source")) if isinstance(obj, Observation) else {}
+            time_step = float(time_step) if time_step is not None else None
+
             store_key = attributes.get("store_key", "time_on_source")
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
             recalculate = attributes.get("recalculate", False)
 
-            def calculate_time_on_source(obs: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+            def calculate_time_on_source(obs: Observation, attrs: Dict[str, Any]) -> pd.DataFrame:
                 scans, _, _ = self._get_active_components(obs)
                 if not scans:
-                    return {}
+                    logger.debug(f"No active scans for observation '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
                 visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
                 time_data = self._calculate_time_arrays(obs, time_attrs)
                 visibility_data = self._calculate_source_visibility(obs, visibility_attrs)
 
-                if not (time_data and visibility_data):
-                    logger.error(f"Missing time or visibility data for '{obs.get_observation_code()}'")
-                    return {}
+                if time_data.empty:
+                    logger.error(f"No time data for '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
+                if visibility_data.empty:
+                    logger.error(f"No visibility data for '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
-                results = {}
+                if not all(isinstance(t, Time) for t in time_data["time"]):
+                    logger.error(f"Invalid time data for '{obs.get_observation_code()}': 'time' column must contain astropy.time.Time objects")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
+
+                source_names = []
+                scan_names = []
+                telescope_codes = []
+                start_times = []
+                end_times = []
+                durations = []
+
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_time_on_source, scan, obs, time_step, time_data, visibility_data): scan.name
+                        executor.submit(self._process_time_on_source, scan, obs, time_step, time_data, visibility_data): scan
                         for scan in scans
                     }
                     for future in futures:
-                        scan_name = futures[future]
+                        scan = futures[future]
                         scan_result = future.result()
-                        source_name = scan_result.get("source")
-                        if source_name and scan_result.get("time_blocks"):
-                            results.setdefault(source_name, {})[scan_name] = scan_result["time_blocks"]
-                return results
+                        if not scan_result.empty:
+                            source_names.extend(scan_result["source_name"])
+                            scan_names.extend(scan_result["scan_name"])
+                            telescope_codes.extend(scan_result["telescope_code"])
+                            start_times.extend(scan_result["start"])
+                            end_times.extend(scan_result["end"])
+                            durations.extend(scan_result["duration"])
 
-            metadata = {
-                "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()),
-                "visibility_store_key": visibility_store_key
-            }
+                result_df = pd.DataFrame({
+                    "source_name": source_names,
+                    "scan_name": scan_names,
+                    "telescope_code": telescope_codes,
+                    "start": start_times,
+                    "end": end_times,
+                    "duration": durations
+                })
+
+                converters = CalculatedDataStructure.get_converters("time_on_source")
+                if not result_df.empty:
+                    for column, converter in converters.items():
+                        if column in result_df.columns:
+                            try:
+                                result_df[column] = result_df[column].apply(converter)
+                            except Exception as e:
+                                logger.error(f"Failed to apply converter to column '{column}' in observation '{obs.get_observation_code()}': {str(e)}")
+                                return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
+
+                if result_df.empty:
+                    logger.warning(f"No time-on-source blocks computed for observation '{obs.get_observation_code()}'")
+                else:
+                    logger.info(f"Computed time-on-source blocks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                return result_df
+
+            metadata = {}
+            logger.debug(f"Metadata for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {metadata}")
             return self._process_object(obj, attributes, calculate_time_on_source, store_key, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate time on source for '{obj.get_observation_code()}': {str(e)}")
-            return {}
-        
-    def _process_time_on_source(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], visibility_data: Dict[str, Any]) -> Dict[str, Any]:
+            logger.error(f"Failed to calculate time on source for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source")) if isinstance(obj, Observation) else {}
+
+    def _process_time_on_source(self, scan: Scan, observation: Observation, time_step: Optional[float], 
+                                time_data: pd.DataFrame, visibility_data: pd.DataFrame) -> pd.DataFrame:
         """Process time-on-source blocks for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds).
-            time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
-            visibility_data (Dict[str, Any]): Precomputed visibility data.
+            time_data (pd.DataFrame): Precomputed time arrays from _calculate_time_arrays.
+            visibility_data (pd.DataFrame): Precomputed visibility data.
 
         Returns:
-            Dict[str, Any]: Time-on-source blocks, formatted as:
-                {
-                    "source": source_name,
-                    "time_blocks": {telescope_code: np.array([[start_mjd, end_mjd, duration], ...])}
-                }
+            pd.DataFrame: Time-on-source blocks with columns ["source_name", "scan_name", "telescope_code", "start", "end", "duration"].
+
+        Notes:
+            - Applies converters from CalculatedDataStructure for 'start' and 'end' columns.
+            - Returns empty DataFrame with correct columns if no valid data is available.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
             logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
-            return {"source": None, "time_blocks": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
         scan_name = scan.name
         source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
-        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
+        active_telescopes = [t for t in scan_telescopes.get_active_items() if t.isactive]
         if not active_telescopes:
             logger.warning(f"No active telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return {"source": source_name, "time_blocks": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
-        scan_times = time_data.get(source_name, {}).get(scan_name, None)
-        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+        scan_times = time_data[time_data["scan_name"] == scan_name]["time"]
+        if scan_times.empty:
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
-            return {"source": source_name, "time_blocks": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
-        scan_visibility = visibility_data.get(source_name, {}).get(scan_name, {})
-        if not scan_visibility:
-            logger.warning(f"No visibility data for scan '{scan_name}' in source '{source_name}'")
-            return {"source": source_name, "time_blocks": {}}
+        if not all(isinstance(t, Time) for t in scan_times):
+            logger.error(f"Invalid time data for scan '{scan_name}' in source '{source_name}': 'time' column must contain astropy.time.Time objects")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
+
+        scan_times = Time(list(scan_times))
+
+        scan_visibility = visibility_data[visibility_data["scan_name"] == scan_name]
+        if scan_visibility.empty:
+            logger.warning(f"No visibility data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
-        visibility = np.array([scan_visibility.get(code, [False] * len(scan_times)) for code in tel_codes], dtype=bool)  # shape: (n_tels, n_times)
+        n_times = len(scan_times)
+        visibility = np.array([
+            scan_visibility[scan_visibility["telescope_code"] == code]["visibility"].values
+            if code in scan_visibility["telescope_code"].values else np.full(n_times, False)
+            for code in tel_codes
+        ], dtype=bool)
 
-        time_blocks = {}
-        time_mjd = scan_times.mjd
-        if time_step is None:
-            for i, tel_code in enumerate(tel_codes):
-                if visibility[i, 0]:
-                    duration = scan.get_duration()
-                    time_blocks[tel_code] = np.array([[time_mjd[0], time_mjd[0], duration]])
-                else:
-                    time_blocks[tel_code] = np.array([], dtype=float).reshape(0, 3)
-        else:
-            time_step_sec = time_step if time_step is not None else scan.get_duration()
-            for i, tel_code in enumerate(tel_codes):
-                vis = visibility[i]
-                diff = np.diff(vis.astype(int))
-                start_indices = np.where(diff == 1)[0] + 1
-                end_indices = np.where(diff == -1)[0]
-                if vis[0]:
-                    start_indices = np.concatenate(([0], start_indices))
-                if vis[-1]:
-                    end_indices = np.concatenate((end_indices, [len(vis) - 1]))
-                if len(start_indices) > len(end_indices):
-                    end_indices = np.concatenate((end_indices, [len(vis) - 1]))
-                elif len(end_indices) > len(start_indices):
-                    start_indices = np.concatenate(([0], start_indices))
+        if visibility.shape[1] != n_times:
+            logger.error(f"Mismatch in visibility data length for scan '{scan_name}': {visibility.shape[1]} visibility points vs {n_times} times")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
-                if len(start_indices) == 0 or len(end_indices) == 0:
-                    time_blocks[tel_code] = np.array([], dtype=float).reshape(0, 3)
-                    continue
+        source_names = []
+        scan_names = []
+        telescope_codes = []
+        start_times = []
+        end_times = []
+        durations = []
 
-                blocks = np.zeros((len(start_indices), 3), dtype=float)
-                blocks[:, 0] = time_mjd[start_indices]
-                blocks[:, 1] = time_mjd[end_indices]
-                blocks[:, 2] = (blocks[:, 1] - blocks[:, 0]) * 86400.0
-                time_blocks[tel_code] = blocks
+        try:
+            if time_step is None:
+                for i, tel_code in enumerate(tel_codes):
+                    if visibility[i, 0]:
+                        duration = scan.get_duration()
+                        source_names.append(source_name)
+                        scan_names.append(scan_name)
+                        telescope_codes.append(tel_code)
+                        start_times.append(scan_times[0])
+                        end_times.append(scan_times[0])
+                        durations.append(duration)
+                        logger.debug(f"Computed 1 time-on-source block for telescope '{tel_code}' in scan '{scan_name}'")
+            else:
+                time_step_sec = time_step
+                for i, tel_code in enumerate(tel_codes):
+                    vis = visibility[i]
+                    diff = np.diff(vis.astype(int))
+                    start_indices = np.where(diff == 1)[0] + 1
+                    end_indices = np.where(diff == -1)[0]
+                    if vis[0]:
+                        start_indices = np.concatenate(([0], start_indices))
+                    if vis[-1]:
+                        end_indices = np.concatenate((end_indices, [len(vis) - 1]))
+                    if len(start_indices) > len(end_indices):
+                        end_indices = np.concatenate((end_indices, [len(vis) - 1]))
+                    elif len(end_indices) > len(start_indices):
+                        start_indices = np.concatenate(([0], start_indices))
 
-                logger.debug(f"Computed {len(blocks)} time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
+                    if len(start_indices) == 0 or len(end_indices) == 0:
+                        logger.debug(f"No time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
+                        continue
 
-        return {"source": source_name, "time_blocks": time_blocks}
+                    for start_idx, end_idx in zip(start_indices, end_indices):
+                        source_names.append(source_name)
+                        scan_names.append(scan_name)
+                        telescope_codes.append(tel_code)
+                        start_times.append(scan_times[start_idx])  # Store Time object
+                        end_times.append(scan_times[end_idx])      # Store Time object
+                        durations.append((scan_times[end_idx].mjd - scan_times[start_idx].mjd) * 86400.0)
+                    logger.debug(f"Computed {len(start_indices)} time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
+
+        except Exception as e:
+            logger.error(f"Failed to compute time-on-source blocks for scan '{scan_name}': {str(e)}")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
+
+        result_df = pd.DataFrame({
+            "source_name": source_names,
+            "scan_name": scan_names,
+            "telescope_code": telescope_codes,
+            "start": start_times,
+            "end": end_times,
+            "duration": durations
+        })
+
+        converters = CalculatedDataStructure.get_converters("time_on_source")
+        if not result_df.empty:
+            for column, converter in converters.items():
+                if column in result_df.columns:
+                    try:
+                        result_df[column] = result_df[column].apply(converter)
+                    except Exception as e:
+                        logger.error(f"Failed to apply converter to column '{column}' in scan '{scan_name}': {str(e)}")
+                        return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
+
+        if result_df.empty:
+            logger.warning(f"No time-on-source blocks computed for scan '{scan_name}'")
+        return result_df
 
     @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
