@@ -2409,7 +2409,7 @@ class ScheduleCalculator(Super):
         return result_df
 
     @time_execution
-    def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pd.DataFrame | Dict[str, pd.DataFrame]:
         """Calculate beam pattern for active telescopes in the observation or project, independent of frequency.
 
         Args:
@@ -2417,28 +2417,33 @@ class ScheduleCalculator(Super):
             attributes: Parameters including "store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Beam pattern data formatted as:
-                For Observation: {telescope_code: {"theta": List[float], "pattern": List[float]}}
-                For ScheduleProject: {obs_code: {telescope_code: {"theta": List[float], "pattern": List[float]}}}
+            pd.DataFrame | Dict[str, pd.DataFrame]: For Observation, returns a DataFrame with columns
+                ["telescope_code", "theta", "pattern"]. For ScheduleProject, returns a dictionary mapping
+                observation codes to DataFrames.
+
+        Notes:
+            - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
+            - Stores results under 'beam_pattern' key in each Observation's calculated_data.
+            - Beam pattern is computed as (2 * j1(x) / x)^2, where x = diameter * sin(theta), normalized by maximum.
+            - Returns empty DataFrame or dict if no valid telescopes are found.
         """
         try:
             store_key = attributes.get("store_key", "beam_pattern")
             recalculate = attributes.get("recalculate", False)
 
-            def calculate_beam_pattern(obs: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+            def calculate_beam_pattern(obs: Observation, attrs: Dict[str, Any]) -> pd.DataFrame:
                 _, telescopes, _ = self._get_active_components(obs, require_scans=False, require_telescopes=True)
                 if not telescopes:
-                    return {}
+                    logger.debug(f"No active telescopes for observation '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("beam_pattern"))
 
                 obs_type = obs.get_observation_type()
                 if obs_type not in ["SINGLE_DISH", "VLBI"]:
-                    logger.warning(f"Beam pattern calculation is only for SINGLE_DISH or VLBI, got {obs_type}")
-                    return {}
+                    logger.warning(f"Beam pattern calculation is only for SINGLE_DISH or VLBI, got {obs_type} in '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("beam_pattern"))
 
-                theta = np.linspace(-np.pi / 2, np.pi / 2, 5000)  # radians
-                results = {}
-                diameters = []
                 valid_telescopes = []
+                diameters = []
                 for tel in telescopes:
                     diameter = tel.get("diameter")
                     if diameter is None or diameter <= 0:
@@ -2449,31 +2454,46 @@ class ScheduleCalculator(Super):
 
                 if not valid_telescopes:
                     logger.warning(f"No telescopes with valid diameters in '{obs.get_observation_code()}'")
-                    return {}
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("beam_pattern"))
 
+                theta = np.linspace(-np.pi / 2, np.pi / 2, 5000)  # radians
                 diameters = np.array(diameters)
                 x = diameters[:, None] * np.sin(theta)
                 pattern = (2 * j1(x) / x) ** 2
                 pattern = np.where(np.isnan(pattern), 1.0, pattern)
                 pattern = pattern / np.max(pattern, axis=1, keepdims=True)
 
+                # Prepare DataFrame
+                telescope_codes = []
+                theta_arrays = []
+                pattern_arrays = []
                 for tel, pat in zip(valid_telescopes, pattern):
-                    results[tel.get_code()] = {
-                        "theta": theta.tolist(),
-                        "pattern": pat.tolist()
-                    }
+                    telescope_codes.append(tel.get_code())
+                    theta_arrays.append(theta.tolist())
+                    pattern_arrays.append(pat.tolist())
 
-                logger.info(f"Calculated beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}'")
-                return results
+                result_df = pd.DataFrame({
+                    "telescope_code": telescope_codes,
+                    "theta": theta_arrays,
+                    "pattern": pattern_arrays
+                })
+
+                if result_df.empty:
+                    logger.warning(f"No beam patterns computed for observation '{obs.get_observation_code()}'")
+                else:
+                    logger.info(f"Computed beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}'")
+                return result_df
 
             metadata = {
-                "telescope_count": len(obj.get_telescopes().get_active_items()),
+                "telescope_count": len(obj.get_telescopes().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_telescopes().get_active_items()) for o in obj.get_observations()),
+                "frequency_agnostic": True,
                 "scale_instruction": "Multiply pattern by wavelength during visualization"
             }
+            logger.debug(f"Metadata for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {metadata}")
             return self._process_object(obj, attributes, calculate_beam_pattern, store_key, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate beam pattern for '{obj.get_observation_code()}': {str(e)}")
-            return {}
+            logger.error(f"Failed to calculate beam pattern for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("beam_pattern")) if isinstance(obj, Observation) else {}
 
     @time_execution
     def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
