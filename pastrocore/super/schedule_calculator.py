@@ -165,16 +165,24 @@ class ScheduleCalculator(Super):
                 if result_df.empty:
                     logger.warning(f"Calculation for '{store_key}' in observation '{observation.get_observation_code()}' returned empty result")
                     result_df = pd.DataFrame(columns=expected_columns)
+                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
                 else:
                     if not all(col in result_df.columns for col in expected_columns):
                         logger.error(f"Invalid DataFrame structure for '{store_key}' in observation '{observation.get_observation_code()}': missing columns")
                         result_df = pd.DataFrame(columns=expected_columns)
+                        result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
                     else:
                         result_df.attrs.update(metadata)
                         for meta_key, meta_type in expected_metadata_types.items():
-                            if meta_key in result_df.attrs and not isinstance(result_df.attrs[meta_key], meta_type):
+                            if meta_key not in result_df.attrs:
+                                logger.error(f"Missing metadata '{meta_key}' for key '{store_key}' in observation '{observation.get_observation_code()}'")
+                                result_df = pd.DataFrame(columns=expected_columns)
+                                result_df.attrs.update(metadata)
+                                break
+                            if not isinstance(result_df.attrs[meta_key], meta_type):
                                 logger.error(f"Invalid metadata type for '{meta_key}' in '{store_key}' for observation '{observation.get_observation_code()}'")
                                 result_df = pd.DataFrame(columns=expected_columns)
+                                result_df.attrs.update(metadata)
                                 break
                 with self._lock:
                     observation.set_calculated_data_by_key(store_key, result_df)
@@ -192,22 +200,29 @@ class ScheduleCalculator(Super):
         if result_df.empty:
             logger.warning(f"Calculation for '{store_key}' in '{obj_name}' returned empty result")
             result_df = pd.DataFrame(columns=expected_columns)
+            result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
         else:
             if not all(col in result_df.columns for col in expected_columns):
                 logger.error(f"Invalid DataFrame structure for '{store_key}' in '{obj_name}': missing columns")
                 result_df = pd.DataFrame(columns=expected_columns)
+                result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
             else:
                 result_df.attrs.update(metadata)
                 for meta_key, meta_type in expected_metadata_types.items():
-                    if meta_key in result_df.attrs and not isinstance(result_df.attrs[meta_key], meta_type):
+                    if meta_key not in result_df.attrs:
+                        logger.error(f"Missing metadata '{meta_key}' for key '{store_key}' in '{obj_name}'")
+                        result_df = pd.DataFrame(columns=expected_columns)
+                        result_df.attrs.update(metadata)
+                        break
+                    if not isinstance(result_df.attrs[meta_key], meta_type):
                         logger.error(f"Invalid metadata type for '{meta_key}' in '{store_key}' for '{obj_name}'")
                         result_df = pd.DataFrame(columns=expected_columns)
+                        result_df.attrs.update(metadata)
                         break
 
         with self._lock:
             obj.set_calculated_data_by_key(store_key, result_df)
-
-        logger.warning(result_df.head())
+        logger.debug(f"Stored result for '{store_key}' in '{obj_name}': {result_df.shape}, metadata: {result_df.attrs}")
         return result_df
     
     def _process_object(
@@ -250,6 +265,8 @@ class ScheduleCalculator(Super):
                     result_df = future.result()
                     if result_df.empty:
                         logger.warning(f"No data computed for observation '{obs_code}' with store_key '{store_key}'")
+                    else:
+                        logger.debug(f"Computed data for observation '{obs_code}' with store_key '{store_key}': {result_df.shape}")
                     results[obs_code] = result_df
             logger.info(f"Processed {len(observations)} observations for '{obj_name}'")
             return results
@@ -258,7 +275,9 @@ class ScheduleCalculator(Super):
         if result_df is None or result_df.empty:
             logger.warning(f"No data computed for '{obj_name}' with store_key '{store_key}'")
             expected_columns = CalculatedDataStructure.get_columns(store_key) or []
-            return pd.DataFrame(columns=expected_columns)
+            result_df = pd.DataFrame(columns=expected_columns)
+            result_df.attrs.update(metadata)  # Ensure metadata is set for empty DataFrame
+        logger.debug(f"Result for '{obj_name}' with store_key '{store_key}': {result_df.shape}, metadata: {result_df.attrs}")
         return result_df
     
 
@@ -1916,21 +1935,40 @@ class ScheduleCalculator(Super):
         """
         try:
             time_step = attributes.get("time_step")
+            if time_step is not None and not isinstance(time_step, (int, float)):
+                logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
+                return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el")) if isinstance(obj, Observation) else {}
+            time_step = float(time_step) if time_step is not None else 0.0
+            logger.debug(f"Using time_step={time_step} for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}'")
+
             store_key = attributes.get("store_key", "az_el")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
             recalculate = attributes.get("recalculate", False)
 
+            # Form metadata early to ensure availability
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_observations()),
+                "position_store_key": position_store_key,
+                "visibility_store_key": visibility_store_key
+            }
+            logger.debug(f"Metadata for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {metadata}")
+
             def calculate_az_el(obs: Observation, attrs: Dict[str, Any]) -> pd.DataFrame:
                 scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True)
                 if not scans:
                     logger.debug(f"No active scans for observation '{obs.get_observation_code()}'")
-                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+                    result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
+                    return result_df
 
                 ground_telescopes = [tel for tel in telescopes if not isinstance(tel, SpaceTelescope)]
                 if not ground_telescopes:
-                    logger.debug(f"No ground telescopes in '{obs.get_observation_code()}'")
-                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+                    logger.info(f"No ground telescopes found, skipping calculation for '{obs.get_observation_code()}'")
+                    result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
+                    return result_df
 
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
                 position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
@@ -1941,12 +1979,15 @@ class ScheduleCalculator(Super):
 
                 if time_data.empty or position_data.empty or visibility_data.empty:
                     logger.error(f"Missing required data (times, positions, or visibility) for '{obs.get_observation_code()}'")
-                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+                    result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
+                    return result_df
 
-                # Validate time_data["time"] contains Time objects
                 if not all(isinstance(t, Time) for t in time_data["time"]):
                     logger.error(f"Invalid time data for '{obs.get_observation_code()}': 'time' column must contain astropy.time.Time objects")
-                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+                    result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
+                    return result_df
 
                 source_names = []
                 scan_names = []
@@ -1983,24 +2024,22 @@ class ScheduleCalculator(Super):
                 if result_df.empty:
                     logger.warning(f"No az/el or ha/dec angles computed for observation '{obs.get_observation_code()}'")
                     result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
-
+                result_df.attrs.update(metadata)  # Set metadata for all cases
                 logger.info(f"Computed az/el or ha/dec for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
                 return result_df
 
-            metadata = {
-                "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_scans(obj)) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_scans(o)) for o in obj.get_observations()),
-                "position_store_key": position_store_key,
-                "visibility_store_key": visibility_store_key
-            }
-            return self._process_object(obj, attributes, calculate_az_el, store_key, metadata)
+            result = self._process_object(obj, attributes, calculate_az_el, store_key, metadata)
+            logger.debug(f"Result for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {type(result)}")
+            return result
         except Exception as e:
             logger.error(f"Failed to calculate az/el or ha/dec for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
-            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el")) if isinstance(obj, Observation) else {}
+            result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
+            result_df.attrs.update(metadata)
+            return result_df if isinstance(obj, Observation) else {}
 
     def _process_az_el(self, scan: Scan, observation: Observation, time_step: Optional[float], 
-                    time_data: pd.DataFrame, position_data: pd.DataFrame, 
-                    visibility_data: pd.DataFrame) -> pd.DataFrame:
+                   time_data: pd.DataFrame, position_data: pd.DataFrame, 
+                   visibility_data: pd.DataFrame) -> pd.DataFrame:
         """Process az/el or ha/dec angles for a single scan using vectorized computations.
 
         Args:
@@ -2030,7 +2069,7 @@ class ScheduleCalculator(Super):
         scan_telescopes = scan.get_telescopes(observation)
         active_telescopes = [t for t in scan_telescopes.get_active_items() if t.isactive and not isinstance(t, SpaceTelescope)]
         if not active_telescopes:
-            logger.warning(f"No active ground telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
+            logger.info(f"No ground telescopes found, skipping calculation for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
 
         scan_times = time_data[time_data["scan_name"] == scan_name]["time"]
@@ -2058,7 +2097,7 @@ class ScheduleCalculator(Super):
             scan_positions[scan_positions["telescope_code"] == code][["x", "y", "z"]].values
             if code in scan_positions["telescope_code"].values else np.full((n_times, 3), np.nan)
             for code in tel_codes
-        ])
+        ], dtype=float)
         visibility = np.array([
             scan_visibility[scan_visibility["telescope_code"] == code]["visibility"].values
             if code in scan_visibility["telescope_code"].values else np.full(n_times, False)
@@ -2106,8 +2145,8 @@ class ScheduleCalculator(Super):
                     source_names.extend([source_name] * n_times)
                     scan_names.extend([scan_name] * n_times)
                     telescope_codes.extend([code] * n_times)
-                    az_values.extend(angles[:, 0])
-                    el_values.extend(angles[:, 1])
+                    az_values.extend(angles[:, 0].tolist())
+                    el_values.extend(angles[:, 1].tolist())
 
             equa_indices = [i for i, mt in enumerate(mount_types) if mt == "EQUA"]
             if equa_indices:
@@ -2134,8 +2173,8 @@ class ScheduleCalculator(Super):
                     source_names.extend([source_name] * n_times)
                     scan_names.extend([scan_name] * n_times)
                     telescope_codes.extend([code] * n_times)
-                    az_values.extend(angles[:, 0])
-                    el_values.extend(angles[:, 1])
+                    az_values.extend(angles[:, 0].tolist())
+                    el_values.extend(angles[:, 1].tolist())
 
             for i, tel in enumerate(active_telescopes):
                 if mount_types[i] not in ["AZIM", "EQUA"]:
@@ -2162,8 +2201,8 @@ class ScheduleCalculator(Super):
         if valid_angle_count == 0:
             logger.warning(f"No valid az/el or ha/dec angles computed for scan '{scan_name}'")
             result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
-
-        logger.debug(f"Computed az/el or ha/dec for {len(tel_codes)} telescopes in scan '{scan_name}'")
+        else:
+            logger.debug(f"Computed {valid_angle_count} valid az/el or ha/dec angles for {len(tel_codes)} telescopes in scan '{scan_name}'")
         return result_df
 
     @time_execution
@@ -2187,10 +2226,10 @@ class ScheduleCalculator(Super):
         """
         try:
             time_step = attributes.get("time_step")
-            if time_step is not None and not isinstance(time_step, (int, float)):
+            if time_step is None and not isinstance(time_step, (int, float)):
                 logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
                 return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source")) if isinstance(obj, Observation) else {}
-            time_step = float(time_step) if time_step is not None else None
+            time_step = float(time_step)
 
             store_key = attributes.get("store_key", "time_on_source")
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
@@ -2515,10 +2554,10 @@ class ScheduleCalculator(Super):
         """
         try:
             time_step = attributes.get("time_step")
-            if time_step is not None and not isinstance(time_step, (int, float)):
+            if time_step is None and not isinstance(time_step, (int, float)):
                 logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
                 return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections")) if isinstance(obj, Observation) else {}
-            time_step = float(time_step) if time_step is not None else None
+            time_step = float(time_step)
 
             store_key = attributes.get("store_key", "baseline_projections")
             recalculate = attributes.get("recalculate", False)
@@ -2712,158 +2751,213 @@ class ScheduleCalculator(Super):
         return projections
 
     @time_execution
-    def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pd.DataFrame | Dict[str, pd.DataFrame]:
         """Calculate Mollweide projection tracks for telescopes in active scans.
 
         Args:
-            obj (Observation | ScheduleProject): The object to calculate tracks for.
-            attributes (Dict[str, Any]): Parameters including "time_step", "store_key", "recalculate".
+            obj: The object to calculate tracks for.
+            attributes: Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            Dict[str, Any]: Mollweide tracks, formatted as:
-                For Observation: {scan_name: {telescope_code: np.array([[lon1, lat1], ...])}} in meters
-                For ScheduleProject: {obs_code: {scan_name: {telescope_code: np.array([[lon1, lat1], ...])}}}
+            pd.DataFrame | Dict[str, pd.DataFrame]: For Observation, returns a DataFrame with columns
+                ["scan_name", "telescope_code", "lon", "lat"]. For ScheduleProject, returns a dictionary
+                mapping observation codes to DataFrames.
 
         Notes:
-            - Uses precomputed times and telescope positions.
-            - Stores metadata (time_step, scan_count, sources) in calculated_data.
-            - Handles both Observation and ScheduleProject with parallel processing for projects.
+            - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
+            - Stores results under 'mollweide_tracks' key in each Observation's calculated_data.
+            - Computes lon/lat coordinates in degrees from telescope positions.
+            - Returns empty DataFrame or dict if no valid scans or telescopes are found.
         """
         try:
             time_step = attributes.get("time_step")
+            if time_step is None and not isinstance(time_step, (int, float)):
+                logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
+                return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks")) if isinstance(obj, Observation) else {}
+            time_step = float(time_step)
+
             store_key = attributes.get("store_key", "mollweide_tracks")
             recalculate = attributes.get("recalculate", False)
 
-            def calculate_mollweide(obs: Observation, attrs: Dict[str, Any]) -> Dict[str, Any]:
+            def calculate_mollweide(obs: Observation, attrs: Dict[str, Any]) -> pd.DataFrame:
                 scans, _, _ = self._get_active_components(obs, require_scans=True)
                 if not scans:
-                    logger.warning(f"No active scans in observation '{obs.get_observation_code()}'")
-                    return {}
+                    logger.debug(f"No active scans in observation '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": recalculate}
                 time_data = self._calculate_time_arrays(obs, time_attrs)
                 position_data = self._calculate_telescope_positions(obs, position_attrs)
 
-                if not (time_data and position_data):
-                    logger.error(f"Missing required data (times or positions) for '{obs.get_observation_code()}'")
-                    return {}
+                if time_data.empty:
+                    logger.error(f"No time data for '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
+                if position_data.empty:
+                    logger.error(f"No position data for '{obs.get_observation_code()}'")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
-                results = {}
+                # Validate time_data["time"] contains Time objects
+                if not all(isinstance(t, Time) for t in time_data["time"]):
+                    logger.error(f"Invalid time data for '{obs.get_observation_code()}': 'time' column must contain astropy.time.Time objects")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
+
+                scan_names = []
+                telescope_codes = []
+                lon_arrays = []
+                lat_arrays = []
+
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {
-                        executor.submit(self._process_mollweide_tracks, scan, obs, time_step, time_data, position_data): scan.name
+                        executor.submit(self._process_mollweide_tracks, scan, obs, time_step, time_data, position_data): scan
                         for scan in scans
                     }
                     for future in futures:
-                        scan_name = futures[future]
+                        scan = futures[future]
                         scan_result = future.result()
-                        if scan_result.get("tracks"):
-                            results[scan_name] = scan_result["tracks"]
-                            logger.debug(f"Computed tracks for scan '{scan_name}' in '{obs.get_observation_code()}'")
-                        else:
-                            logger.warning(f"No tracks for scan '{scan_name}' in '{obs.get_observation_code()}'")
+                        if not scan_result.empty:
+                            scan_names.extend(scan_result["scan_name"])
+                            telescope_codes.extend(scan_result["telescope_code"])
+                            lon_arrays.extend(scan_result["lon"])
+                            lat_arrays.extend(scan_result["lat"])
 
-                if not results:
+                result_df = pd.DataFrame({
+                    "scan_name": scan_names,
+                    "telescope_code": telescope_codes,
+                    "lon": lon_arrays,
+                    "lat": lat_arrays
+                })
+
+                if result_df.empty:
                     logger.warning(f"No Mollweide tracks computed for observation '{obs.get_observation_code()}'")
-                return results
+                else:
+                    logger.info(f"Computed Mollweide tracks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                return result_df
 
             sources_metadata = {}
             for source in obj.get_sources().get_active_items():
-                ra = source.ra_degrees  
-                dec = source.dec_degrees  
+                ra = source.ra_degrees
+                dec = source.dec_degrees
                 lon = ra - 360.0 if ra > 180.0 else ra
                 lat = np.clip(dec, -90.0, 90.0)
                 sources_metadata[source.name] = np.array([lon, lat])
 
+            converters = CalculatedDataStructure.get_converters("mollweide_tracks")
+            if "sources" in converters:
+                try:
+                    sources_metadata = converters["sources"](sources_metadata)
+                except Exception as e:
+                    logger.error(f"Failed to apply converter to 'sources' metadata in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+                    return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks")) if isinstance(obj, Observation) else {}
+
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_items()),
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_observations()),
                 "sources": sources_metadata
             }
-
-            result = self._process_object(obj, attributes, calculate_mollweide, store_key, metadata)
-            if not result:
-                logger.warning(f"No Mollweide tracks computed for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}'")
-            return result
-
+            logger.debug(f"Metadata for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {metadata}")
+            return self._process_object(obj, attributes, calculate_mollweide, store_key, metadata)
         except Exception as e:
             logger.error(f"Failed to calculate Mollweide tracks for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
-            return {}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks")) if isinstance(obj, Observation) else {}
 
-    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], time_data: Dict[str, Any], position_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], 
+                                time_data: pd.DataFrame, position_data: pd.DataFrame) -> pd.DataFrame:
         """Process Mollweide tracks for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
             time_step (Optional[float]): Sampling interval (seconds).
-            time_data (Dict[str, Any]): Precomputed time arrays from _calculate_time_arrays.
-            position_data (Dict[str, Any]): Precomputed telescope positions.
+            time_data (pd.DataFrame): Precomputed time arrays from _calculate_time_arrays.
+            position_data (pd.DataFrame): Precomputed telescope positions.
 
         Returns:
-            Dict[str, Any]: Mollweide tracks for the scan, formatted as:
-                {
-                    "tracks": {
-                        telescope_code: np.array([[lon1, lat1], [lon2, lat2], ...])  # in degrees
-                    }
-                }
+            pd.DataFrame: Mollweide tracks with columns ["scan_name", "telescope_code", "lon", "lat"].
 
         Notes:
+            - Computes lon/lat coordinates in degrees from telescope positions.
             - Outputs NaN for coordinates where telescope positions are NaN.
             - Ensures output array size matches input times for index correspondence.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
             logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
-            return {"tracks": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
         scan_name = scan.name
         source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
-        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
+        active_telescopes = [t for t in scan_telescopes.get_active_items() if t.isactive]
 
         if not active_telescopes:
             logger.warning(f"No active telescopes for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return {"tracks": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
-        scan_times = time_data.get(source_name, {}).get(scan_name, None)
-        if scan_times is None or not isinstance(scan_times, Time) or scan_times.size == 0:
+        scan_times = time_data[time_data["scan_name"] == scan_name]["time"]
+        if scan_times.empty:
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
-            return {"tracks": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
-        scan_positions = position_data.get(scan_name, {})
-        if not scan_positions:
+        if not all(isinstance(t, Time) for t in scan_times):
+            logger.error(f"Invalid time data for scan '{scan_name}' in source '{source_name}': 'time' column must contain astropy.time.Time objects")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
+
+        scan_times = Time(list(scan_times))
+        n_times = len(scan_times)
+
+        scan_positions = position_data[position_data["scan_name"] == scan_name]
+        if scan_positions.empty:
             logger.warning(f"No position data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return {"tracks": {}}
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
         positions = np.array([
-            scan_positions.get(code, np.full((len(scan_times), 3), np.nan))
+            scan_positions[scan_positions["telescope_code"] == code][["x", "y", "z"]].values
+            if code in scan_positions["telescope_code"].values else np.full((n_times, 3), np.nan)
             for code in tel_codes
-        ])  # shape: (n_tels, n_times, 3)
+        ], dtype=float)  # shape: (n_tels, n_times, 3)
 
-        tracks = {}
-        r = np.sqrt(np.sum(positions**2, axis=2))
-        valid_mask = r > 0  # Avoid division by zero
-        ra_rad = np.full_like(r, np.nan)
-        dec_rad = np.full_like(r, np.nan)
-        ra_rad[valid_mask] = np.arctan2(positions[valid_mask, 1], positions[valid_mask, 0])
-        dec_rad[valid_mask] = np.arcsin(positions[valid_mask, 2] / r[valid_mask])
-        ra = np.degrees(ra_rad)  
-        dec = np.degrees(dec_rad)  
-        lon = np.where(ra > 180.0, ra - 360.0, ra)  
-        lat = np.clip(dec, -90.0, 90.0)
+        scan_names = []
+        telescope_codes = []
+        lon_arrays = []
+        lat_arrays = []
 
-        for i, tel_code in enumerate(tel_codes):
-            tracks[tel_code] = np.column_stack((lon[i], lat[i]))
-            valid_points = np.sum(~np.isnan(lon[i]) & ~np.isnan(lat[i]))
-            if valid_points == 0:
-                logger.warning(f"No valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
-            else:
-                logger.debug(f"Computed {valid_points} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
+        try:
+            r = np.sqrt(np.sum(positions**2, axis=2))  # shape: (n_tels, n_times)
+            valid_mask = r > 0  # Avoid division by zero
+            ra_rad = np.full_like(r, np.nan)
+            dec_rad = np.full_like(r, np.nan)
+            ra_rad[valid_mask] = np.arctan2(positions[valid_mask, 1], positions[valid_mask, 0])
+            dec_rad[valid_mask] = np.arcsin(positions[valid_mask, 2] / r[valid_mask])
+            ra = np.degrees(ra_rad)
+            dec = np.degrees(dec_rad)
+            lon = np.where(ra > 180.0, ra - 360.0, ra)
+            lat = np.clip(dec, -90.0, 90.0)
 
-        if not tracks:
+            for i, tel_code in enumerate(tel_codes):
+                scan_names.append(scan_name)
+                telescope_codes.append(tel_code)
+                lon_arrays.append(lon[i].tolist())
+                lat_arrays.append(lat[i].tolist())
+                valid_points = np.sum(~np.isnan(lon[i]) & ~np.isnan(lat[i]))
+                if valid_points == 0:
+                    logger.warning(f"No valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
+                else:
+                    logger.debug(f"Computed {valid_points} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
+
+        except Exception as e:
+            logger.error(f"Failed to compute Mollweide tracks for scan '{scan_name}': {str(e)}")
+            return pd.DataFrame(columns=CalculatedDataStructure.get_columns("mollweide_tracks"))
+
+        result_df = pd.DataFrame({
+            "scan_name": scan_names,
+            "telescope_code": telescope_codes,
+            "lon": lon_arrays,
+            "lat": lat_arrays
+        })
+
+        if result_df.empty:
             logger.warning(f"No valid Mollweide tracks computed for scan '{scan_name}'")
-        return {"tracks": tracks}
+        return result_df
