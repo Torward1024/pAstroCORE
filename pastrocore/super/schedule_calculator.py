@@ -2453,8 +2453,8 @@ class ScheduleCalculator(Super):
                         source_names.append(source_name)
                         scan_names.append(scan_name)
                         telescope_codes.append(tel_code)
-                        start_times.append(scan_times[start_idx])  # Store Time object
-                        end_times.append(scan_times[end_idx])      # Store Time object
+                        start_times.append(scan_times[start_idx])
+                        end_times.append(scan_times[end_idx])
                         durations.append((scan_times[end_idx].mjd - scan_times[start_idx].mjd) * 86400.0)
                     logger.debug(f"Computed {len(start_indices)} time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
 

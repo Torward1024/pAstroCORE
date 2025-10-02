@@ -168,7 +168,6 @@ class ExportThread(QThread):
             df_out = data.copy()
             converters = CalculatedDataStructure.get_converters(key) or {}
             
-            # Apply converters for non-time-related columns (e.g., sources for mollweide_tracks)
             for col, converter in converters.items():
                 if col in df_out.columns and col not in ["time", "start", "end"]:
                     try:
@@ -193,14 +192,11 @@ class ExportThread(QThread):
                 df_out["start"] = df_out["start"].apply(to_isot)
                 df_out["end"] = df_out["end"].apply(to_isot)
 
-            # Drop scan_name column if present
             df_out = df_out.drop(columns=["scan_name"], errors="ignore")
 
-            # Reorder columns to match expected_columns (excluding scan_name if it was in the schema)
             expected_columns = [col for col in expected_columns if col != "scan_name"]
             df_out = df_out[expected_columns]
 
-            # For mollweide_tracks, append source coordinates from df.attrs['sources']
             if key == "mollweide_tracks":
                 sources = df_out.attrs.get("sources", {})
                 logger.debug(f"Processing sources for {calc_type} in observation '{obs_code}': {sources}")
