@@ -1678,7 +1678,6 @@ class ScheduleCalculator(Super):
                         for scan in scans
                     }
                     for future in futures:
-                        scan = futures[future]
                         scan_result = future.result()
                         if not scan_result.empty:
                             times.extend(scan_result["time"])

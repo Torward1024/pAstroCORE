@@ -176,21 +176,11 @@ class ExportThread(QThread):
                         logger.error(f"Failed to apply converter for column '{col}' in key '{key}' of observation '{obs_code}': {str(e)}")
                         raise
 
-            # Convert Time objects to ISOT format
-            def to_isot(x):
-                if isinstance(x, Time) and pd.notna(x):
-                    try:
-                        return x.isot
-                    except Exception as e:
-                        logger.warning(f"Failed to convert Time object '{x}' to ISOT for key '{key}' in observation '{obs_code}': {str(e)}")
-                        return x
-                return x
-
             if "time" in df_out.columns:
-                df_out["time"] = df_out["time"].apply(to_isot)
+                df_out["time"] = [x.isot if pd.notna(x) else x for x in df_out["time"]]
             if key == "time_on_source":
-                df_out["start"] = df_out["start"].apply(to_isot)
-                df_out["end"] = df_out["end"].apply(to_isot)
+                df_out["start"] = [x.isot if pd.notna(x) else x for x in df_out["start"]]
+                df_out["end"] = [x.isot if pd.notna(x) else x for x in df_out["end"]]
 
             df_out = df_out.drop(columns=["scan_name"], errors="ignore")
 
