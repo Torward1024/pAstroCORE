@@ -6,11 +6,10 @@ from pastrocore.base.telescopes import Telescope, SpaceTelescope, Telescopes
 from pastrocore.base.sources import Source, Sources
 from pastrocore.base.scans import Scan, Scans
 from pastrocore.base.frequencies import IF, Frequencies
+
 from common.utils.logging_setup import logger
-from typing import Dict, Any, Callable, Union, List, Tuple, Iterator, Optional
+from typing import Dict, Any, Callable, Union, List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor
-import matplotlib
-import matplotlib.ticker
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import numpy as np
@@ -20,6 +19,7 @@ import os
 import warnings
 from erfa import ErfaWarning
 import gc
+import pandas as pd
 
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
@@ -120,15 +120,32 @@ class ScheduleVisualizer(Super):
         }
 
         self._plot_types: Dict[str, Callable] = {
-            "uv_coverage": self._plot_uv_coverage,
-            "sun_angles": self._plot_sun_angles,
-            "az_el": self._plot_az_el,
-            "time_on_source": self._plot_time_on_source,
-            "beam_pattern": self._plot_beam_pattern,
-            "baseline_projections": self._plot_baseline_projections,
-            "mollweide_tracks": self._plot_mollweide_tracks,
-        }
-        
+                "uv_coverage": lambda obj, attrs, fig=None: self._plot_uv_coverage(
+                    obj, attrs, fig or Figure(figsize=self._style_config['figure']['figsize'])
+                ),
+                "sun_angles": lambda obj, attrs, fig=None: self._plot_time_series(
+                    obj, attrs, fig or Figure(figsize=self._style_config['figure']['figsize']),
+                    "sun_angles", "sun_angles", "times", "Angle, (deg.)",
+                    [lambda row: row["angle"]], ["Angle"]
+                ),
+                "az_el": lambda obj, attrs, fig=None: self._plot_time_series(
+                    obj, attrs, fig or Figure(figsize=self._style_config['figure']['figsize']),
+                    "az_el", "az_el", "times", "Angle, (deg.)",
+                    [lambda row: row["az"], lambda row: row["el"]], ["Az", "El"]
+                ),
+                "time_on_source": lambda obj, attrs, fig=None: self._plot_time_on_source(
+                    obj, attrs, fig or Figure(figsize=self._style_config['figure']['figsize'])
+                ),
+                "beam_pattern": lambda obj, attrs, fig=None: self._plot_beam_pattern(
+                    obj, attrs, fig or Figure(figsize=self._style_config['figure']['figsize'])
+                ),
+                "baseline_projections": lambda obj, attrs, fig=None: self._plot_baseline_projections(
+                    obj, attrs, fig or Figure(figsize=self._style_config['figure']['figsize'])
+                ),
+                "mollweide_tracks": lambda obj, attrs, fig=None: self._plot_mollweide_tracks(
+                    obj, attrs, fig or Figure(figsize=self._style_config['figure']['figsize'])
+                ),
+            }
         logger.debug("Initialized ScheduleVisualizer")
 
     def _apply_style_config(self) -> None:
@@ -298,13 +315,78 @@ class ScheduleVisualizer(Super):
         logger.debug(f"Created empty plot for {plot_type} with obj_name={obj_name}")
         return {}
     
+    def _filter_dataframe(self, data: pd.DataFrame, times_data: pd.DataFrame, 
+                     source_name: Optional[str] = None, scans: Optional[List[str]] = None, 
+                     telescopes: Optional[List[str]] = None, 
+                     time_range: Optional[Tuple[Time, Time]] = None) -> Tuple[pd.DataFrame, List[str]]:
+        """
+        Filter pandas DataFrame based on provided criteria.
+
+        Args:
+            data: DataFrame with calculated data.
+            times_data: DataFrame with time data.
+            source_name: Source name to filter by.
+            scans: List of scan names to filter by.
+            telescopes: List of telescope codes to filter by.
+            time_range: Tuple of (start_time, end_time) as astropy.Time objects.
+
+        Returns:
+            Tuple[pd.DataFrame, List[str]]: Filtered DataFrame and list of valid scan names.
+        """
+        logger.debug(f"Filtering data with source_name={source_name}, scans={scans}, "
+                    f"telescopes={telescopes}, time_range={time_range}")
+        
+        filtered_data = data.copy()
+        valid_scans = scans if scans else data.get("scan_name", pd.Series([])).unique().tolist()
+
+        if source_name and "source_name" in filtered_data.columns:
+            filtered_data = filtered_data[filtered_data["source_name"] == source_name]
+            if filtered_data.empty:
+                logger.debug(f"No data for source {source_name}")
+                return pd.DataFrame(), []
+
+        if scans and "scan_name" in filtered_data.columns:
+            filtered_data = filtered_data[filtered_data["scan_name"].isin(scans)]
+            valid_scans = [s for s in scans if s in filtered_data["scan_name"].values]
+            if filtered_data.empty:
+                logger.debug(f"No data for scans {scans}")
+                return pd.DataFrame(), []
+
+        if telescopes and "telescope_code" in filtered_data.columns:
+            filtered_data = filtered_data[filtered_data["telescope_code"].isin(telescopes)]
+            if filtered_data.empty:
+                logger.debug(f"No data for telescopes {telescopes}")
+                return pd.DataFrame(), []
+
+        if time_range and "time" in filtered_data.columns:
+            start_time, end_time = time_range
+            filtered_data = filtered_data[
+                (filtered_data["time"] >= start_time) & (filtered_data["time"] <= end_time)
+            ]
+            if filtered_data.empty:
+                logger.debug(f"No data within time range {time_range}")
+                return pd.DataFrame(), []
+
+        filtered_times = times_data.copy()
+        if scans and "scan_name" in filtered_times.columns:
+            filtered_times = filtered_times[filtered_times["scan_name"].isin(valid_scans)]
+        if source_name and "source_name" in filtered_times.columns:
+            filtered_times = filtered_times[filtered_times["source_name"] == source_name]
+        if time_range and "time" in filtered_times.columns:
+            filtered_times = filtered_times[
+                (filtered_times["time"] >= start_time) & (filtered_times["time"] <= end_time)
+            ]
+
+        logger.debug(f"Filtered data: {len(filtered_data)} rows, valid scans: {valid_scans}")
+        return filtered_data, valid_scans
+    
     def _check_filters(self, attributes: Dict[str, Any], required_filters: List[str]) -> bool:
         """Check if any of the required filters are provided."""
         return any(attributes.get(key) for key in required_filters)
     
     def _plot_time_series(self, obj: Observation, attributes: Dict[str, Any], fig: Figure, 
-                        plot_type: str, data_key: str, times_key: str, y_label: str,
-                        value_extractors: List[Callable], labels: List[str]) -> Dict[str, Any]:
+                      plot_type: str, data_key: str, times_key: str, y_label: str,
+                      value_extractors: List[Callable], labels: List[str]) -> Dict[str, Any]:
         """
         Generic method to plot time series data with flexible filtering and multi-value plotting.
         
@@ -324,100 +406,92 @@ class ScheduleVisualizer(Super):
         """
         with self._lock:
             logger.debug(f"Plotting {plot_type} for {obj.get_observation_code()}")
-            source_name = attributes.get("source_name", None)
-            telescopes = attributes.get("telescopes", None)
-            scans = attributes.get("scans", None)
-            time_range = attributes.get("time_range", None)
+            source_name = attributes.get("source_name")
+            telescopes = attributes.get("telescopes")
+            scans = attributes.get("scans")
+            time_range = attributes.get("time_range")
 
             if not self._check_filters(attributes, ["source_name", "telescopes", "scans"]):
                 logger.debug(f"No filters specified for {plot_type}, returning empty plot")
                 return self._create_empty_plot(
                     fig, plot_type, obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": y_label, 
+                    labels={"xlabel": "Time (ISOT)", "ylabel": y_label, 
                             "title": f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            data, times_data, scan_list = self._filter_data(
-                obj.get_calculated_data_by_key(data_key),
-                obj.get_calculated_data_by_key(times_key),
-                source_name, scans, time_range
-            )
-
-            if not data or not times_data:
-                logger.debug(f"No data available for {plot_type}, returning empty plot")
+            data = obj.get_calculated_data_by_key(data_key)
+            times_data = obj.get_calculated_data_by_key(times_key)
+            
+            if not isinstance(data, pd.DataFrame) or not isinstance(times_data, pd.DataFrame):
+                logger.debug(f"Invalid data format for {plot_type}, returning empty plot")
                 return self._create_empty_plot(
                     fig, plot_type, obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": y_label, 
+                    labels={"xlabel": "Time (ISOT)", "ylabel": y_label, 
                             "title": f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            n_tels = len(telescopes if telescopes else set(tel for src in data for scan in data[src] for tel in data[src][scan]))
+            filtered_data, valid_scans = self._filter_dataframe(data, times_data, source_name, scans, telescopes, time_range)
+            
+            if filtered_data.empty:
+                logger.debug(f"No data after filtering for {plot_type}, returning empty plot")
+                return self._create_empty_plot(
+                    fig, plot_type, obj.get_observation_code(),
+                    labels={"xlabel": "Time (ISOT)", "ylabel": y_label, 
+                            "title": f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}"}
+                )
 
-            n_rows = 1 if plot_type != "az_el" else n_tels
+            n_tels = len(telescopes) if telescopes else filtered_data["telescope_code"].nunique()
+            n_rows = n_tels if plot_type == "az_el" else 1
             n_cols = 1
             axes = self._setup_axes(fig, plot_type, obj.get_observation_code(), n_rows=n_rows, n_cols=n_cols, sharex=True, sharey=True)
             axes = np.atleast_1d(axes).tolist()
 
-            result = {"scans": len(scan_list), "telescopes": 0, "points": 0}
+            result = {"scans": len(valid_scans), "telescopes": 0, "points": 0}
             plotted_telescopes = set()
             legend_handles = []
             legend_labels = []
 
-            for source in data:
-                source_data = data[source]
-                source_times = times_data[source]
-                all_times = []
-                all_values = {tel: [[] for _ in value_extractors] for tel in (telescopes or [])}
+            grouped_data = filtered_data.groupby("telescope_code")
+            tel_list = telescopes if telescopes else filtered_data["telescope_code"].unique()
 
-                for scan in scan_list:
-                    if scan not in source_data or scan not in source_times:
-                        continue
-                    times = [t for t in source_times[scan] if hasattr(t, 'mjd')]
-                    if not times:
-                        continue
-                    all_times.extend(times)
-                    for tel in source_data[scan]:
-                        if tel not in all_values:
-                            all_values[tel] = [[] for _ in value_extractors]
-                        for i, extractor in enumerate(value_extractors):
-                            all_values[tel][i].extend([extractor(v) for v in source_data[scan][tel] if v is not None])
-
-                if not all_times:
+            for tel_idx, tel in enumerate(tel_list):
+                if tel not in grouped_data.groups:
                     continue
-                time_indices = np.argsort(all_times)
-                all_times = [all_times[i].mjd for i in time_indices]
-
-                tel_list = telescopes if telescopes else list(all_values.keys())
-                for tel_idx, tel in enumerate(tel_list):
-                    if tel not in all_values:
+                tel_data = grouped_data.get_group(tel)
+                times = tel_data["time"].apply(lambda x: x.isot if isinstance(x, Time) else x)
+                ax = axes[tel_idx] if plot_type == "az_el" and n_tels > 1 else axes[0]
+                
+                for i, (extractor, label) in enumerate(zip(value_extractors, labels)):
+                    values = tel_data.apply(extractor, axis=1)
+                    valid_mask = ~values.isna()
+                    valid_times = times[valid_mask]
+                    valid_values = values[valid_mask]
+                    
+                    if valid_times.empty:
                         continue
-                    ax = axes[0] if plot_type != "az_el" or n_tels == 1 else axes[tel_idx]
-                    for i, values in enumerate(all_values[tel]):
-                        valid_pairs = [(t, float(v)) for t, v in zip(all_times, values) if v is not None]
-                        if not valid_pairs:
-                            continue
-                        times_mjd, values_sorted = zip(*sorted(valid_pairs))
-                        color_idx = tel_idx % len(self._style_config['colors'])
-                        linestyle = self._style_config['linestyles']['secondary'] if i > 0 and plot_type == "az_el" else self._style_config['linestyles']['default']
-                        line, = ax.plot(
-                            times_mjd, values_sorted,
-                            label=f"{tel} ({labels[i]})" if plot_type == "az_el" else f"{tel}",
-                            color=self._style_config['colors'][color_idx],
-                            linestyle=linestyle
-                        )
-                        if tel not in plotted_telescopes:
-                            legend_handles.append(line)
-                            legend_labels.append(f"{tel}")
-                        result["points"] += len(valid_pairs)
-                    if plot_type == "az_el" and n_tels > 1:
-                        ax.set_title(f"{tel}", fontsize=self._style_config['font']['title_size'])
-                    ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
-                    plotted_telescopes.add(tel)
+                    
+                    color_idx = tel_idx % len(self._style_config['colors'])
+                    linestyle = self._style_config['linestyles']['secondary'] if i > 0 and plot_type == "az_el" else self._style_config['linestyles']['default']
+                    line, = ax.plot(
+                        valid_times, valid_values,
+                        label=f"{tel} ({label})" if plot_type == "az_el" else f"{tel}",
+                        color=self._style_config['colors'][color_idx],
+                        linestyle=linestyle
+                    )
+                    if tel not in plotted_telescopes:
+                        legend_handles.append(line)
+                        legend_labels.append(f"{tel}")
+                    result["points"] += len(valid_values)
+                
+                if plot_type == "az_el" and n_tels > 1:
+                    ax.set_title(f"{tel}", fontsize=self._style_config['font']['title_size'])
+                ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
+                plotted_telescopes.add(tel)
 
             result["telescopes"] = len(plotted_telescopes)
             if plotted_telescopes:
                 if plot_type == "az_el" and n_tels > 1:
-                    fig.text(0.5, 0.04, "Time, (MJD)", ha='center', fontsize=self._style_config['font']['label_size'])
+                    fig.text(0.5, 0.04, "Time (ISOT)", ha='center', fontsize=self._style_config['font']['label_size'])
                     fig.text(0.04, 0.5, y_label, va='center', rotation='vertical', fontsize=self._style_config['font']['label_size'])
                     fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", fontsize=self._style_config['font']['title_size'])
                     if legend_handles:
@@ -430,7 +504,6 @@ class ScheduleVisualizer(Super):
 
                         legend_lines = []
                         legend_texts = []
-                        
                         for tel in sorted(grouped_legend.keys()):
                             legend_lines.append(grouped_legend[tel][0])
                             legend_texts.append(f"    {tel}")
@@ -446,12 +519,11 @@ class ScheduleVisualizer(Super):
                             bbox_transform=fig.transFigure
                         )
                 else:
-                    axes[0].set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
+                    axes[0].set_xlabel("Time (ISOT)", fontsize=self._style_config['font']['label_size'])
                     axes[0].set_ylabel(y_label, fontsize=self._style_config['font']['label_size'])
                     axes[0].set_title(f"{plot_type.replace('_', ' ').title()}\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", 
                                     fontsize=self._style_config['font']['title_size'])
                     axes[0].tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
-
                     if legend_handles:
                         fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
                         fig.legend(
@@ -588,12 +660,10 @@ class ScheduleVisualizer(Super):
         
         result = plot_func(obj, attributes, fig=fig)
         
-        # Validate result
         if not isinstance(result, dict):
             logger.error(f"Plot function {plot_type} returned invalid result: {type(result)}")
             return {"status": False, "message": f"Invalid result from {plot_type}"}
         
-        # Save figure to output_file if specified
         if output_file and result.get("status", False):
             try:
                 with self._lock:
@@ -610,120 +680,63 @@ class ScheduleVisualizer(Super):
         
         return result
 
-    def _filter_data(self, data: Dict[str, Any], times_data: Dict[str, Any], source_name: Optional[str],
-                 scans: Optional[List[str]], time_range: Optional[Tuple[float, float]]) -> Tuple[Dict, Dict, List[str]]:
+    def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
-        Filter data and times based on source, scans, and time range using generators for memory efficiency.
+        Plot UV coverage for an Observation with flexible filtering and grouped legend.
 
         Args:
-            data: Dictionary containing calculated data.
-            times_data: Dictionary containing time data.
-            source_name: Name of the source to filter (optional).
-            scans: List of scan IDs to filter (optional).
-            time_range: Tuple of (start, end) MJD times to filter (optional).
+            obj: Observation object to visualize.
+            attributes: Dictionary with visualization parameters (store_key, times_key, baselines, source_name, scans, time_range, frequencies, units).
+            fig: Matplotlib Figure object for plotting.
 
         Returns:
-            Tuple[Dict, Dict, List[str]]: Filtered data, filtered times, and list of valid scans.
+            Dict[str, Any]: Dictionary with visualization results (scans, baselines, points, frequencies).
         """
-        logger.debug(f"Filtering data for source={source_name}, scans={scans}, time_range={time_range}")
-        if not isinstance(data, dict) or not isinstance(times_data, dict):
-            logger.warning(f"Invalid data types: data={type(data)}, times_data={type(times_data)}")
-            return {}, {}, []
-
-        data = data.get("data", {})
-        times_data = times_data.get("data", {})
-        if not data or not times_data:
-            logger.warning(f"Empty data: data={bool(data)}, times_data={bool(times_data)}")
-            return {}, {}, []
-
-        sources = [source_name] if source_name else list(data.keys())[:1]
-        if not sources:
-            logger.debug("No sources available")
-            return {}, {}, []
-
-        filtered_data = {}
-        filtered_times = {}
-        all_scans = set()
-
-        def filter_scans(source: str) -> Iterator[Tuple[str, Dict, List]]:
-            """Generator for filtered scans and their data."""
-            source_data = data.get(source, {})
-            source_times = times_data.get(source, {})
-            if not isinstance(source_data, dict) or not isinstance(source_times, dict):
-                logger.warning(f"Invalid source data types for {source}: source_data={type(source_data)}, "
-                            f"source_times={type(source_times)}")
-                return
-
-            scan_list = scans if scans else list(source_data.keys())
-            for scan in scan_list:
-                if scan not in source_data or scan not in source_times:
-                    continue
-                filtered_times_list = []
-                for t in source_times.get(scan, []):
-                    try:
-                        if not hasattr(t, 'mjd'):
-                            continue
-                        if time_range and not (time_range[0] <= t.mjd <= time_range[1]):
-                            continue
-                        filtered_times_list.append(t)
-                    except (AttributeError, TypeError) as e:
-                        logger.debug(f"Invalid time entry in scan {scan}, source {source}: {e}")
-                        continue
-                if filtered_times_list:
-                    yield scan, source_data.get(scan, {}), filtered_times_list
-
-        for source in sources:
-            if source not in data or source not in times_data:
-                logger.warning(f"Source {source} not found in data")
-                continue
-            filtered_data[source] = {}
-            filtered_times[source] = {}
-            for scan, scan_data, scan_times in filter_scans(source):
-                filtered_data[source][scan] = scan_data
-                filtered_times[source][scan] = scan_times
-                all_scans.add(scan)
-            if not filtered_data[source]:
-                del filtered_data[source]
-                del filtered_times[source]
-
-        return filtered_data, filtered_times, list(all_scans)
-
-    def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Plot UV coverage for an Observation with flexible filtering and frequency scaling."""
         with self._lock:
-            logger.debug(f"Plotting UV coverage for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug(f"Plotting UV coverage for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "uv_coverage")
             times_key = attributes.get("times_key", "times")
             baselines = attributes.get("baselines", [])
-            source_name = attributes.get("source_name", None)
-            scans = attributes.get("scans", [])
+            source_name = attributes.get("source_name")
+            scans = attributes.get("scans")
+            time_range = attributes.get("time_range")
             frequencies = attributes.get("frequencies", [])
             units = attributes.get("units", "wavelengths")
 
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
-                logger.debug(f"Missing required filters: source_name={source_name}, baselines={baselines}, "
-                            f"scans={scans}, frequencies={frequencies}, returning empty plot")
+                logger.debug(f"Missing required filters for UV coverage, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
-                            "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
+                    labels={"xlabel": f"U, ({units})", "ylabel": f"V, ({units})",
+                            "title": f"UV Coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            uv_data, times_data, scan_list = self._filter_data(
-                obj.get_calculated_data_by_key(store_key),
-                obj.get_calculated_data_by_key(times_key),
-                source_name, scans, None
-            )
-
-            if not uv_data or not times_data:
-                logger.debug("No UV data or times available, returning empty plot")
+            data = obj.get_calculated_data_by_key(store_key)
+            times_data = obj.get_calculated_data_by_key(times_key)
+            
+            if not isinstance(data, pd.DataFrame) or not isinstance(times_data, pd.DataFrame):
+                logger.debug(f"Invalid data format for UV coverage, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
-                            "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
+                    labels={"xlabel": f"U, ({units})", "ylabel": f"V, ({units})",
+                            "title": f"UV Coverage\nObs. code: {obj.get_observation_code()}"}
+                )
+
+            filtered_data, valid_scans = self._filter_dataframe(data, times_data, source_name, scans, None, time_range)
+            
+            if filtered_data.empty:
+                logger.debug(f"No data after filtering for UV coverage, returning empty plot")
+                return self._create_empty_plot(
+                    fig, "uv_coverage", obj.get_observation_code(),
+                    labels={"xlabel": f"U, ({units})", "ylabel": f"V, ({units})",
+                            "title": f"UV Coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
             ax = self._setup_axes(fig, "uv_coverage", obj.get_observation_code())
+            ax.set_xlabel(f"U, ({units})", fontsize=self._style_config['font']['label_size'])
+            ax.set_ylabel(f"V, ({units})", fontsize=self._style_config['font']['label_size'])
+            ax.set_title(f"UV Coverage\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", 
+                        fontsize=self._style_config['font']['title_size'])
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
@@ -731,157 +744,86 @@ class ScheduleVisualizer(Super):
                 logger.debug("No valid frequencies provided, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
-                            "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
+                    labels={"xlabel": f"U, ({units})", "ylabel": f"V, ({units})",
+                            "title": f"UV Coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
             ref_freq = min(freq_list)
             ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
-            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
+            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, wavelength: {ref_wavelength:.2e} m")
 
-            result = {"baselines": 0, "points": 0, "frequencies": len(freq_list)}
+            result = {"scans": len(valid_scans), "baselines": 0, "points": 0, "frequencies": len(freq_list)}
             plotted_pairs = set()
             legend_handles = []
             legend_labels = []
-            all_scaled_points = []
-            max_uv = 0.0
 
-            for source in uv_data:
-                if source != source_name:
+            grouped_data = filtered_data.groupby("baseline")
+            baseline_list = [b for b in baselines if b in grouped_data.groups]
+
+            for pair_idx, pair in enumerate(baseline_list):
+                pair_data = grouped_data.get_group(pair)
+                u = pair_data["u"].astype(float)
+                v = pair_data["v"].astype(float)
+                valid_mask = (~u.isna()) & (~v.isna())
+                u_valid = u[valid_mask]
+                v_valid = v[valid_mask]
+                
+                if u_valid.empty:
+                    logger.debug(f"No valid data for baseline {pair}, skipping")
                     continue
-                source_uv = uv_data[source]
-                source_times = times_data[source]
-                all_times = []
-                all_uv_points = {}
-
-                for scan in scan_list:
-                    if scan not in source_uv or scan not in source_times:
-                        continue
-                    times = [t for t in source_times[scan] if hasattr(t, 'mjd')]
-                    if not times:
-                        continue
-                    uv_points = source_uv[scan]
-                    for tel_code in uv_points:
-                        if tel_code not in baselines:
-                            continue
-                        if tel_code not in all_uv_points:
-                            all_uv_points[tel_code] = []
-
-                        uv_array = np.array(uv_points[tel_code], dtype=float)
-                        if uv_array.shape[0] != len(times):
-                            logger.warning(f"Mismatch in UV points ({uv_array.shape[0]}) and times ({len(times)}) for baseline {tel_code} in scan {scan}")
-                            min_len = min(uv_array.shape[0], len(times))
-                            uv_array = uv_array[:min_len]
-                            scan_times = times[:min_len]
-                        else:
-                            scan_times = times
-                        # Filter out NaN values
-                        valid_mask = ~np.any(np.isnan(uv_array[:, :2]), axis=1)  # Check u, v for NaN
-                        valid_times = [scan_times[i] for i in range(len(scan_times)) if valid_mask[i]]
-                        valid_uv = uv_array[valid_mask][:, :2]  # Take only u, v
-                        all_times.extend(valid_times)
-                        all_uv_points[tel_code].extend(valid_uv.tolist())
-
-                if not all_times or not all_uv_points:
-                    logger.debug(f"No valid data for source {source}, skipping")
-                    continue
-
-                time_indices = np.argsort([t.mjd for t in all_times])
-                all_times = [all_times[i] for i in time_indices]
-                for tel_code in all_uv_points:
-                    all_uv_points[tel_code] = [all_uv_points[tel_code][i] for i in time_indices if i < len(all_uv_points[tel_code])]
 
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
-                    for tel_idx, tel_code in enumerate(baselines):
-                        if tel_code not in all_uv_points:
-                            continue
-                        if not all_uv_points[tel_code]:
-                            continue
-                        u, v = zip(*all_uv_points[tel_code])
-                        u, v = np.array(u, dtype=float), np.array(v, dtype=float)
-
-                        if np.all(np.isnan(u)) or np.all(np.isnan(v)):
-                            logger.debug(f"All UV points for baseline {tel_code} at {freq_mhz:.2f} MHz are NaN, skipping")
-                            continue
-                        if units == "wavelengths":
-                            u_scaled = u / wavelength
-                            v_scaled = v / wavelength
+                    u_scaled = u_valid / wavelength if units == "wavelengths" else u_valid / self.EARTH_DIAMETER
+                    v_scaled = v_valid / wavelength if units == "wavelengths" else v_valid / self.EARTH_DIAMETER
+                    
+                    max_uv = max(np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
+                    if units == "wavelengths":
+                        if max_uv >= 1e12:
+                            prefix, scale = "Tλ", 1e12
+                        elif max_uv >= 1e9:
+                            prefix, scale = "Gλ", 1e9
+                        elif max_uv >= 1e6:
+                            prefix, scale = "Mλ", 1e6
+                        elif max_uv >= 1e3:
+                            prefix, scale = "kλ", 1e3
                         else:
-                            u_scaled = (u / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
-                            v_scaled = (v / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
-                        max_uv = max(max_uv, np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
-                        all_scaled_points.append((u_scaled, v_scaled, tel_code, freq_mhz, tel_idx))
+                            prefix, scale = "λ", 1.0
+                    else:
+                        prefix, scale = "xED", 1.0
 
-            if not all_scaled_points:
-                logger.debug("No valid data plotted, returning empty result")
+                    ax.set_xlabel(f"U, ({prefix})", fontsize=self._style_config['font']['label_size'])
+                    ax.set_ylabel(f"V, ({prefix})", fontsize=self._style_config['font']['label_size'])
+                    
+                    color = self._style_config['colors'][pair_idx % len(self._style_config['colors'])]
+                    handle = ax.scatter(
+                        u_scaled / scale, v_scaled / scale,
+                        s=self._style_config['markers']['scatter_size'],
+                        c=[color],
+                        label=f"{pair} ({freq_mhz:.2f} MHz)",
+                        alpha=0.7,
+                        marker=self._style_config['markers']['track_style']
+                    )
+                    legend_handles.append(handle)
+                    legend_labels.append((freq_mhz, pair))
+                    plotted_pairs.add(f"{pair}_{freq_mhz}")
+                    result["points"] += len(u_scaled)
+
+            if not plotted_pairs:
+                logger.debug("No valid data plotted, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
-                            "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
+                    labels={"xlabel": f"U, ({units})", "ylabel": f"V, ({units})",
+                            "title": f"UV Coverage\nObs. code: {obj.get_observation_code()}"}
                 )
-
-            if units == "wavelengths":
-                if max_uv >= 1e12:
-                    prefix, scale = "Tλ", 1e12
-                elif max_uv >= 1e9:
-                    prefix, scale = "Gλ", 1e9
-                elif max_uv >= 1e6:
-                    prefix, scale = "Mλ", 1e6
-                elif max_uv >= 1e3:
-                    prefix, scale = "kλ", 1e3
-                else:
-                    prefix, scale = "λ", 1.0
-                ax.set_xlabel(f"u, ({prefix})")
-                ax.set_ylabel(f"v, ({prefix})")
-            else:
-                prefix, scale = "xED", 1.0
-                ax.set_xlabel("u, (xED)")
-                ax.set_ylabel("v, (xED)")
-
-            uv_max_scaled = 0.0
-            for u_scaled, v_scaled, tel_code, freq_mhz, tel_idx in all_scaled_points:
-                color = self._style_config['colors'][tel_idx % len(self._style_config['colors'])]
-                label = f"{tel_code} ({freq_mhz:.2f} MHz)"
-                u_plot = u_scaled / scale
-                v_plot = v_scaled / scale
-                handle = ax.scatter(
-                    u_plot, v_plot, 
-                    s=self._style_config['markers']['scatter_size'], 
-                    c=[color], 
-                    label=label,
-                    marker=self._style_config['markers']['track_style']
-                )
-                ax.scatter(
-                    -u_plot, -v_plot, 
-                    s=self._style_config['markers']['scatter_size'], 
-                    c=[color], 
-                    marker=self._style_config['markers']['track_style']
-                )
-                legend_handles.append(handle)
-                legend_labels.append((freq_mhz, tel_code))
-                plotted_pairs.add(f"{tel_code}_{freq_mhz}")
-                result["points"] += len(u_scaled)
-                uv_max_scaled = max(uv_max_scaled, np.max(np.abs(u_plot)), np.max(np.abs(v_plot)))
-
-            if uv_max_scaled > 0:
-                ax.set_xlim(-uv_max_scaled * 1.1, uv_max_scaled * 1.1)
-                ax.set_ylim(-uv_max_scaled * 1.1, uv_max_scaled * 1.1)
-
-            if units == "wavelengths":
-                ax.set_xlabel(f"u, ({prefix})", fontsize=self._style_config['font']['label_size'])
-                ax.set_ylabel(f"v, ({prefix})", fontsize=self._style_config['font']['label_size'])
-            else:
-                ax.set_xlabel("u, (xED)", fontsize=self._style_config['font']['label_size'])
-                ax.set_ylabel("v, (xED)", fontsize=self._style_config['font']['label_size'])
 
             if legend_handles:
                 grouped_legend = {}
-                for handle, (freq_mhz, tel_code) in zip(legend_handles, legend_labels):
+                for handle, (freq_mhz, baseline) in zip(legend_handles, legend_labels):
                     freq_key = f"{freq_mhz:.2f} MHz"
                     if freq_key not in grouped_legend:
                         grouped_legend[freq_key] = []
-                    grouped_legend[freq_key].append((handle, tel_code))
+                    grouped_legend[freq_key].append((handle, baseline))
 
                 legend_lines = []
                 legend_texts = []
@@ -902,9 +844,6 @@ class ScheduleVisualizer(Super):
                     title_fontsize=self._style_config['legend']['title_fontsize']
                 )
 
-            ax.invert_xaxis()
-            ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", fontsize=self._style_config['font']['title_size'])
-            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
             result["baselines"] = len(plotted_pairs)
             return result
 
@@ -970,213 +909,178 @@ class ScheduleVisualizer(Super):
             )
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Plot time on source for an Observation with flexible filtering."""
+        """
+        Plot time on source for an Observation with flexible filtering.
+
+        Args:
+            obj: Observation object to visualize.
+            attributes: Dictionary with visualization parameters (source_name, telescopes, scans, time_range).
+            fig: Matplotlib Figure object for plotting.
+
+        Returns:
+            Dict[str, Any]: Dictionary with visualization results (scans, telescopes, points).
+        """
         with self._lock:
             logger.debug(f"Plotting time on source for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "time_on_source")
-            source_name = attributes.get("source_name", None)
-            telescopes = attributes.get("telescopes", None)
-            scans = attributes.get("scans", None)
-            time_range = attributes.get("time_range", None)
+            times_key = attributes.get("times_key", "times")
+            source_name = attributes.get("source_name")
+            telescopes = attributes.get("telescopes")
+            scans = attributes.get("scans")
+            time_range = attributes.get("time_range")
 
-            # Strict filter check for source_name and telescopes
-            if not source_name or not telescopes:
-                logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, returning empty plot")
+            if not self._check_filters(attributes, ["source_name", "telescopes", "scans"]):
+                logger.debug(f"No filters specified for time_on_source, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
-                            "title": f"Time on {source_name or 'Source'}\nObs. code: {obj.get_observation_code()}"}
+                    labels={"xlabel": "Time (ISOT)", "ylabel": "Duration, (s)",
+                            "title": f"Time on Source\nObs. code: {obj.get_observation_code()}"}
                 )
 
             data = obj.get_calculated_data_by_key(store_key)
-            data = data.get("data", {}) if isinstance(data, dict) else {}
-            if not data:
-                logger.debug("No time on source data, returning empty plot")
+            times_data = obj.get_calculated_data_by_key(times_key)
+            
+            if not isinstance(data, pd.DataFrame) or not isinstance(times_data, pd.DataFrame):
+                logger.debug(f"Invalid data format for time_on_source, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
-                            "title": f"Time on {source_name}\nObs. code: {obj.get_observation_code()}"}
+                    labels={"xlabel": "Time (ISOT)", "ylabel": "Duration, (s)",
+                            "title": f"Time on Source\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            sources = [source_name]
-            if source_name not in data:
-                logger.debug(f"Source {source_name} not found in data, returning empty plot")
+            filtered_data, valid_scans = self._filter_dataframe(data, times_data, source_name, scans, telescopes, time_range)
+            
+            if filtered_data.empty:
+                logger.debug(f"No data after filtering for time_on_source, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
-                            "title": f"Time on {source_name}\nObs. code: {obj.get_observation_code()}"}
+                    labels={"xlabel": "Time (ISOT)", "ylabel": "Duration, (s)",
+                            "title": f"Time on Source\nObs. code: {obj.get_observation_code()}"}
                 )
 
             ax = self._setup_axes(fig, "time_on_source", obj.get_observation_code())
-            ax.set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
-            ax.set_ylabel("Telescope", fontsize=self._style_config['font']['label_size'])
-            ax.set_title(f"Time on {source_name or 'Source'}\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", 
+            ax.set_xlabel("Time (ISOT)", fontsize=self._style_config['font']['label_size'])
+            ax.set_ylabel("Duration, (s)", fontsize=self._style_config['font']['label_size'])
+            ax.set_title(f"Time on Source\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", 
                         fontsize=self._style_config['font']['title_size'])
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
-            result = {"scans": 0, "telescopes": 0, "points": 0, "intersections": 0}
-            all_blocks = {}
+            result = {"scans": len(valid_scans), "telescopes": 0, "points": 0}
+            plotted_telescopes = set()
             legend_handles = []
             legend_labels = []
 
-            for source in sources:
-                source_data = data[source]
-                scan_list = scans if scans else list(source_data.keys())
-                result["scans"] += len(scan_list)
+            grouped_data = filtered_data.groupby("telescope_code")
+            tel_list = telescopes if telescopes else filtered_data["telescope_code"].unique()
 
-                for scan in scan_list:
-                    if scan not in source_data:
-                        continue
-                    scan_data = source_data[scan]
-                    tel_list = [tel for tel in telescopes if tel in scan_data]
-                    for tel_code in tel_list:
-                        blocks = scan_data[tel_code]
-                        if isinstance(blocks, np.ndarray):
-                            blocks = blocks.tolist()
-                        if not blocks:
-                            continue
-                        if tel_code not in all_blocks:
-                            all_blocks[tel_code] = []
-                        for block in blocks:
-                            try:
-                                start_mjd = float(block[0]) if isinstance(block[0], (int, float)) else Time(block[0]).mjd
-                                end_mjd = float(block[1]) if isinstance(block[1], (int, float)) else Time(block[1]).mjd
-                                duration = float(block[2])
-                                if time_range and (start_mjd >= time_range[1] or end_mjd <= time_range[0]):
-                                    continue
-                                all_blocks[tel_code].append((start_mjd, end_mjd, duration))
-                            except (ValueError, TypeError) as e:
-                                logger.error(f"Invalid block format for {tel_code} in scan {scan}: {str(e)}")
-                                continue
+            for tel_idx, tel in enumerate(tel_list):
+                if tel not in grouped_data.groups:
+                    continue
+                tel_data = grouped_data.get_group(tel)
+                times = tel_data["start"].apply(lambda x: x.isot if isinstance(x, Time) else x)
+                durations = tel_data["duration"].astype(float)
+                valid_mask = (~times.isna()) & (~durations.isna())
+                valid_times = times[valid_mask]
+                valid_durations = durations[valid_mask]
+                
+                if valid_times.empty:
+                    continue
 
-            tel_list = sorted(all_blocks.keys())
-            result["telescopes"] = len(tel_list)
-            if not tel_list:
-                return self._create_empty_plot(
-                    fig, "time_on_source", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
-                            "title": f"Time on {source_name}\nObs. code: {obj.get_observation_code()}"}
+                color = self._style_config['colors'][tel_idx % len(self._style_config['colors'])]
+                handle = ax.bar(
+                    valid_times, valid_durations,
+                    label=tel,
+                    color=color,
+                    alpha=0.7
                 )
+                legend_handles.append(handle)
+                legend_labels.append(tel)
+                plotted_telescopes.add(tel)
+                result["points"] += len(valid_durations)
 
-            for i, tel in enumerate(tel_list):
-                color_idx = i % len(self._style_config['colors'])
-                for start_mjd, end_mjd, _ in all_blocks[tel]:
-                    handle = ax.fill_between(
-                        [start_mjd, end_mjd],
-                        [i, i],
-                        [i + 1, i + 1],
-                        color=self._style_config['colors'][color_idx],
-                        alpha=0.5,
-                        label=tel if tel not in set(legend_labels) else None
-                    )
-                    if tel not in set(legend_labels):
-                        legend_handles.append(handle)
-                        legend_labels.append(tel)
-                    result["points"] += 1
-
-            if tel_list and all_blocks:
-                all_times = [[(start, end) for start, end, _ in all_blocks[tel]] for tel in tel_list]
-                if all_times and all(all_times):
-                    time_points = sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end)))
-                    intersection_times = []
-                    for i in range(len(time_points) - 1):
-                        start, end = time_points[i], time_points[i + 1]
-                        all_active = all(any(start_t <= start and end <= end_t for start_t, end_t in tel_times) 
-                                        for tel_times in all_times)
-                        if all_active:
-                            intersection_times.append((start, end))
-
-                    for i, (start, end) in enumerate(intersection_times):
-                        duration = (end - start) * 86400
-                        handle = ax.fill_between(
-                            [start, end],
-                            [-1, -1],
-                            [0, 0],
-                            color=self._style_config['intersection_color'],
-                            alpha=0.9,
-                            label="Total" if i == 0 else None
-                        )
-                        ax.text(
-                            (start + end) / 2, -0.5, f"{duration:.1f}s",
-                            ha='center', va='center', fontsize=self._style_config['font']['tick_size'],
-                            color='black',
-                            bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')
-                        )
-                        if i == 0:
-                            legend_handles.append(handle)
-                            legend_labels.append("Total")
-                        result["intersections"] = len(intersection_times)
-
-            ax.set_yticks(np.arange(-1, len(tel_list)))
-            ax.set_yticklabels(["Total"] + tel_list, fontsize=self._style_config['font']['tick_size'])
-            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
-            if legend_handles:
+            result["telescopes"] = len(plotted_telescopes)
+            if plotted_telescopes:
+                fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
                 fig.legend(
                     legend_handles, legend_labels,
-                    loc=self._style_config['legend']['loc'], 
+                    loc=self._style_config['legend']['loc'],
                     bbox_to_anchor=self._style_config['legend']['bbox_to_anchor'],
                     fontsize=self._style_config['legend']['fontsize'],
                     title="Telescopes:",
                     title_fontsize=self._style_config['legend']['title_fontsize']
                 )
 
+            if not plotted_telescopes:
+                logger.debug("No valid data plotted, returning empty plot")
+                return self._create_empty_plot(
+                    fig, "time_on_source", obj.get_observation_code(),
+                    labels={"xlabel": "Time (ISOT)", "ylabel": "Duration, (s)",
+                            "title": f"Time on Source\nObs. code: {obj.get_observation_code()}"}
+                )
+
             return result
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Plot beam patterns for an Observation with one subplot per telescope and a shared frequency legend."""
-        with self._lock:
-            logger.debug(f"Plotting beam pattern for {obj.get_observation_code()} with attributes: {attributes}")
-            store_key = attributes.get("store_key", "beam_pattern")
-            freq_names = attributes.get("freq_names", [])
-            telescopes = attributes.get("telescopes", [])
+        """
+        Plot beam pattern for an Observation with flexible filtering and grouped legend.
 
-            if not telescopes or not freq_names:
-                logger.debug(f"Empty filter: telescopes={telescopes}, freq_names={freq_names}, returning empty result")
+        Args:
+            obj: Observation object to visualize.
+            attributes: Dictionary with visualization parameters (telescopes, freq_names).
+            fig: Matplotlib Figure object for plotting.
+
+        Returns:
+            Dict[str, Any]: Dictionary with visualization results (telescopes, frequencies).
+        """
+        with self._lock:
+            logger.debug(f"Plotting beam pattern for {obj.get_observation_code()}")
+            store_key = attributes.get("store_key", "beam_pattern")
+            telescopes = attributes.get("telescopes", [])
+            freq_names = attributes.get("freq_names", [])
+
+            if not self._check_filters(attributes, ["telescopes", "freq_names"]):
+                logger.debug(f"No filters specified for beam_pattern, returning empty plot")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
                     labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
-                            "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
+                            "title": f"Beam Pattern\nObs. code: {obj.get_observation_code()}"}
                 )
 
             beam_data = obj.get_calculated_data_by_key(store_key)
-            beam_data = beam_data.get("data", {}) if isinstance(beam_data, dict) else {}
-            if not beam_data:
-                logger.debug("No beam data available, returning empty result")
+            if not isinstance(beam_data, pd.DataFrame):
+                logger.debug("Invalid beam data format, returning empty plot")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
                     labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
-                            "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
+                            "title": f"Beam Pattern\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            tel_list = sorted([tel for tel in telescopes if tel in beam_data])
-            if not tel_list:
-                logger.debug("No valid telescopes in beam_data, returning empty result")
+            filtered_data = beam_data[beam_data["telescope_code"].isin(telescopes)] if telescopes else beam_data
+            if filtered_data.empty:
+                logger.debug("No data after filtering telescopes, returning empty plot")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
                     labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
-                            "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
+                            "title": f"Beam Pattern\nObs. code: {obj.get_observation_code()}"}
                 )
 
             freq_list = [float(f) for f in freq_names if isinstance(f, (int, float)) and f > 0]
             if not freq_list:
-                logger.debug("No valid frequencies provided, returning empty result")
+                logger.debug("No valid frequencies provided, returning empty plot")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
                     labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
-                            "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
+                            "title": f"Beam Pattern\nObs. code: {obj.get_observation_code()}"}
                 )
 
             ref_freq = min(freq_list)
             ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
-            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
+            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, wavelength: {ref_wavelength:.2e} m")
 
-            n_tels = len(tel_list)
+            n_tels = len(telescopes) if telescopes else filtered_data["telescope_code"].nunique()
             n_cols = int(np.ceil(np.sqrt(n_tels)))
             n_rows = int(np.ceil(n_tels / n_cols))
-            axes = self._setup_axes(
-                fig, "beam_pattern", obj.get_observation_code(),
-                n_rows=n_rows, n_cols=n_cols, sharex=True, sharey=True
-            )
+            axes = self._setup_axes(fig, "beam_pattern", obj.get_observation_code(), n_rows=n_rows, n_cols=n_cols, sharex=True, sharey=True)
             axes = np.atleast_1d(axes)
 
             norm = plt.Normalize(min(freq_list), max(freq_list)) if freq_list else None
@@ -1184,50 +1088,51 @@ class ScheduleVisualizer(Super):
 
             result = {"telescopes": 0, "frequencies": len(freq_list)}
             plotted_telescopes = set()
-            plotted_frequencies = set()
             legend_handles = []
             legend_labels = []
 
+            grouped_data = filtered_data.groupby("telescope_code")
+            tel_list = telescopes if telescopes else filtered_data["telescope_code"].unique()
+
             for tel_idx, tel_code in enumerate(tel_list):
+                if tel_code not in grouped_data.groups:
+                    continue
                 ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
                 ax.set_title(tel_code, fontsize=self._style_config['font']['title_size'])
                 ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
-                beam = beam_data.get(tel_code, {})
-                theta = np.array(beam.get("theta", []), dtype=float)
-                pattern = np.array(beam.get("pattern", []), dtype=float)
-                if len(theta) == 0 or len(pattern) == 0 or len(theta) != len(pattern):
-                    logger.warning(f"Invalid beam data for {tel_code}: theta={len(theta)}, pattern={len(pattern)}")
+                tel_data = grouped_data.get_group(tel_code)
+                theta = tel_data["theta"].astype(float)
+                pattern = tel_data["pattern"].astype(float)
+                valid_mask = (~theta.isna()) & (~pattern.isna())
+                theta = theta[valid_mask]
+                pattern = pattern[valid_mask]
+                
+                if theta.empty:
+                    logger.warning(f"No valid beam data for {tel_code}")
                     continue
 
                 for freq_idx, freq_mhz in enumerate(freq_list):
-                    try:
-                        wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
-                        if wavelength <= 0:
-                            logger.warning(f"Invalid frequency {freq_mhz} MHz for {tel_code}")
-                            continue
-                        theta_scaling_factor = ref_wavelength / wavelength
-                        scaled_theta = theta * theta_scaling_factor
-                        scaled_pattern = pattern / np.max(np.abs(pattern)) if np.max(np.abs(pattern)) > 0 else pattern
-                        color = cmap(norm(freq_mhz)) if cmap else self._style_config['colors'][freq_idx % len(self._style_config['colors'])]
-                        line, = ax.plot(
-                            scaled_theta, scaled_pattern,
-                            color=color,
-                            linestyle=self._style_config['linestyles']['default']
-                        )
-                        label = f"{freq_mhz:.2f} MHz"
-                        if label not in legend_labels:
-                            legend_handles.append(line)
-                            legend_labels.append(label)
-                        theta_range = np.max(np.abs(scaled_theta)) * 1.1 if len(scaled_theta) > 0 else 1.0
-                        ax.set_xlim(-theta_range, theta_range)
-                        plotted_frequencies.add(freq_mhz)
-                        logger.debug(f"Plotted beam for {tel_code} at {freq_mhz:.2f} MHz: "
-                                    f"theta_scaling_factor={theta_scaling_factor:.2f}, "
-                                    f"max_pattern={np.max(scaled_pattern):.2f}")
-                    except (ValueError, TypeError) as e:
-                        logger.error(f"Error plotting beam for {tel_code} at {freq_mhz} MHz: {str(e)}")
+                    wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
+                    if wavelength <= 0:
+                        logger.warning(f"Invalid frequency {freq_mhz} MHz for {tel_code}")
                         continue
+                    theta_scaling_factor = ref_wavelength / wavelength
+                    scaled_theta = theta * theta_scaling_factor
+                    scaled_pattern = pattern / np.max(np.abs(pattern)) if np.max(np.abs(pattern)) > 0 else pattern
+                    color = cmap(norm(freq_mhz)) if cmap else self._style_config['colors'][freq_idx % len(self._style_config['colors'])]
+                    line, = ax.plot(
+                        scaled_theta, scaled_pattern,
+                        color=color,
+                        linestyle=self._style_config['linestyles']['default'],
+                        label=f"{freq_mhz:.2f} MHz"
+                    )
+                    if f"{freq_mhz:.2f} MHz" not in legend_labels:
+                        legend_handles.append(line)
+                        legend_labels.append(f"{freq_mhz:.2f} MHz")
+                    theta_range = np.max(np.abs(scaled_theta)) * 1.1 if len(scaled_theta) > 0 else 1.0
+                    ax.set_xlim(-theta_range, theta_range)
+                    result["frequencies"] = len(set(legend_labels))
 
                 plotted_telescopes.add(tel_code)
 
@@ -1239,7 +1144,6 @@ class ScheduleVisualizer(Super):
                 fig.text(0.04, 0.5, "Normalized Peak Flux", va='center', rotation='vertical', fontsize=self._style_config['font']['label_size'])
 
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.86, top=0.85)
-
             if legend_handles:
                 fig.legend(
                     legend_handles, legend_labels,
@@ -1255,14 +1159,15 @@ class ScheduleVisualizer(Super):
                 axes[idx].set_visible(False)
 
             if not plotted_telescopes:
-                logger.debug("No valid data plotted, returning empty result")
+                logger.debug("No valid data plotted, returning empty plot")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
                     labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
-                            "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
+                            "title": f"Beam Pattern\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            fig.suptitle(f"Beam Pattern\nObs.code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
+            result["telescopes"] = len(plotted_telescopes)
+            fig.suptitle(f"Beam Pattern\nObs. code: {obj.get_observation_code()}", fontsize=self._style_config['font']['title_size'])
             return result
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
@@ -1278,45 +1183,50 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Dictionary with visualization results (scans, baselines, projections, frequencies).
         """
         with self._lock:
-            logger.debug(f"Plotting baseline projections for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug(f"Plotting baseline projections for {obj.get_observation_code()}")
             store_key = attributes.get("store_key", "baseline_projections")
             times_key = attributes.get("times_key", "times")
             baselines = attributes.get("baselines", [])
-            source_name = attributes.get("source_name", None)
-            scans = attributes.get("scans", None)
-            time_range = attributes.get("time_range", None)
+            source_name = attributes.get("source_name")
+            scans = attributes.get("scans")
+            time_range = attributes.get("time_range")
             frequencies = attributes.get("frequencies", [])
             units = attributes.get("units", "wavelengths")
 
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
-                logger.debug(f"Missing required filters: source_name={source_name}, baselines={baselines}, "
-                            f"scans={scans}, frequencies={frequencies}, returning empty plot")
+                logger.debug(f"No filters specified for baseline_projections, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time (ISOT)", "ylabel": f"Baseline Length, ({units})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Filter data
-            bl_data, times_data, scan_list = self._filter_data(
-                obj.get_calculated_data_by_key(store_key),
-                obj.get_calculated_data_by_key(times_key),
-                source_name, scans, time_range
-            )
-
-            if not bl_data or not times_data:
-                logger.debug("No baseline projection data or times available, returning empty plot")
+            data = obj.get_calculated_data_by_key(store_key)
+            times_data = obj.get_calculated_data_by_key(times_key)
+            
+            if not isinstance(data, pd.DataFrame) or not isinstance(times_data, pd.DataFrame):
+                logger.debug(f"Invalid data format for baseline_projections, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time (ISOT)", "ylabel": f"Baseline Length, ({units})",
+                            "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
+                )
+
+            filtered_data, valid_scans = self._filter_dataframe(data, times_data, source_name, scans, None, time_range)
+            
+            if filtered_data.empty:
+                logger.debug(f"No data after filtering for baseline_projections, returning empty plot")
+                return self._create_empty_plot(
+                    fig, "baseline_projections", obj.get_observation_code(),
+                    labels={"xlabel": "Time (ISOT)", "ylabel": f"Baseline Length, ({units})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
             ax = self._setup_axes(fig, "baseline_projections", obj.get_observation_code())
-            ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f'{int(x)}'))
-            ax.set_xlabel("Time, (MJD)", fontsize=self._style_config['font']['label_size'])
+            ax.set_xlabel("Time (ISOT)", fontsize=self._style_config['font']['label_size'])
             ax.set_ylabel(f"Baseline Length, ({units})", fontsize=self._style_config['font']['label_size'])
-            ax.set_title(f"Baseline Projections\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", fontsize=self._style_config['font']['title_size'])
+            ax.set_title(f"Baseline Projections\nObs. code: {obj.get_observation_code()}\nSource: {source_name}", 
+                        fontsize=self._style_config['font']['title_size'])
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
@@ -1324,98 +1234,39 @@ class ScheduleVisualizer(Super):
                 logger.debug("No valid frequencies provided, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time (ISOT)", "ylabel": f"Baseline Length, ({units})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
             ref_freq = min(freq_list)
             ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
-            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
+            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, wavelength: {ref_wavelength:.2e} m")
 
-            result = {"scans": len(scan_list), "baselines": 0, "projections": 0, "frequencies": len(freq_list)}
+            result = {"scans": len(valid_scans), "baselines": 0, "projections": 0, "frequencies": len(freq_list)}
             plotted_pairs = set()
             legend_handles = []
             legend_labels = []
-            max_bl = 0.0
 
-            all_data = {pair: [] for pair in baselines}
-            for source in bl_data:
-                if source != source_name:
+            grouped_data = filtered_data.groupby("baseline")
+            baseline_list = [b for b in baselines if b in grouped_data.groups]
+
+            for pair_idx, pair in enumerate(baseline_list):
+                pair_data = grouped_data.get_group(pair)
+                times = pair_data["time"].apply(lambda x: x.isot if isinstance(x, Time) else x)
+                projections = pair_data["projection"].astype(float)
+                valid_mask = (~times.isna()) & (~projections.isna())
+                valid_times = times[valid_mask]
+                valid_projections = projections[valid_mask]
+                
+                if valid_times.empty:
+                    logger.debug(f"No valid data for baseline {pair}, skipping")
                     continue
-                source_bl = bl_data[source]
-                source_times = times_data[source]
-
-                for scan in scan_list:
-                    if scan not in source_bl or scan not in source_times:
-                        logger.debug(f"Scan {scan} not found in source {source}, skipping")
-                        continue
-                    times = [t for t in source_times[scan] if hasattr(t, 'mjd')]
-                    if not times:
-                        logger.debug(f"No valid times for scan {scan} in source {source}, skipping")
-                        continue
-                    bl_points = source_bl[scan]
-                    for pair in bl_points:
-                        if pair not in baselines:
-                            continue
-
-                        bl_array = np.array(bl_points[pair], dtype=float)
-                        if bl_array.shape[0] != len(times):
-                            logger.warning(f"Mismatch in projections ({bl_array.shape[0]}) and times ({len(times)}) for baseline {pair} in scan {scan}")
-                            min_len = min(uv_array.shape[0], len(times))
-                            uv_array = uv_array[:min_len]
-                            scan_times = times[:min_len]
-                        else:
-                            scan_times = times
-
-                        for t, bl in zip(scan_times, bl_array):
-                            all_data[pair].append((t.mjd, bl))
-
-            for pair_idx, pair in enumerate(baselines):
-                if not all_data[pair]:
-                    logger.debug(f"No data for baseline {pair}, skipping")
-                    continue
-
-                times_mjd, projections = zip(*all_data[pair]) if all_data[pair] else ([], [])
-                times_mjd = np.array(times_mjd, dtype=float)
-                projections = np.array(projections, dtype=float)
-                if len(times_mjd) == 0 or len(projections) == 0:
-                    logger.debug(f"No valid data for baseline {pair} after combining, skipping")
-                    continue
-
-                time_indices = np.argsort(times_mjd)
-                times_mjd = times_mjd[time_indices]
-                projections = projections[time_indices]
-                valid_mask = ~np.isnan(projections)
-                if not np.any(valid_mask):
-                    logger.debug(f"All projections for baseline {pair} are NaN, skipping")
-                    continue
-                valid_times_mjd = times_mjd[valid_mask]
-                valid_bl_scaled = projections[valid_mask]
-                if len(valid_times_mjd) != len(valid_bl_scaled):
-                    logger.error(f"After filtering, times ({len(valid_times_mjd)}) and projections ({len(valid_bl_scaled)}) lengths mismatch for baseline {pair}")
-                    continue
-
-                # Assign color based on baseline index
-                color = self._style_config['colors'][pair_idx % len(self._style_config['colors'])]
 
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
-                    bl_scaled = np.array(projections, dtype=float)
-                    if units == "wavelengths":
-                        bl_scaled = bl_scaled / wavelength
-                    else:
-                        bl_scaled = (bl_scaled / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
-
-                    valid_mask = ~np.isnan(bl_scaled)
-                    if not np.any(valid_mask):
-                        logger.debug(f"All scaled projections for baseline {pair} at {freq_mhz:.2f} MHz are NaN, skipping")
-                        continue
-                    valid_times_mjd = times_mjd[valid_mask]
-                    valid_bl_scaled = bl_scaled[valid_mask]
-                    if len(valid_times_mjd) != len(valid_bl_scaled):
-                        logger.error(f"After scaling, times ({len(valid_times_mjd)}) and projections ({len(valid_bl_scaled)}) lengths mismatch for baseline {pair} at {freq_mhz:.2f} MHz")
-                        continue
-                    max_bl = max(max_bl, np.max(np.abs(valid_bl_scaled)))
+                    bl_scaled = valid_projections / wavelength if units == "wavelengths" else valid_projections / self.EARTH_DIAMETER
+                    max_bl = np.max(np.abs(bl_scaled)) if not bl_scaled.empty else 0.0
+                    
                     if units == "wavelengths":
                         if max_bl >= 1e12:
                             prefix, scale = "Tλ", 1e12
@@ -1429,28 +1280,27 @@ class ScheduleVisualizer(Super):
                             prefix, scale = "λ", 1.0
                     else:
                         prefix, scale = "xED", 1.0
+
                     ax.set_ylabel(f"Baseline Length, ({prefix})", fontsize=self._style_config['font']['label_size'])
-                    label = f"{pair} ({freq_mhz:.2f} MHz)"
-                    bl_plot = valid_bl_scaled / scale
+                    color = self._style_config['colors'][pair_idx % len(self._style_config['colors'])]
                     handle = ax.scatter(
-                        valid_times_mjd, bl_plot, 
-                        s=self._style_config['markers']['scatter_size'], 
-                        c=[color], 
-                        label=label, 
+                        valid_times, bl_scaled / scale,
+                        s=self._style_config['markers']['scatter_size'],
+                        c=[color],
+                        label=f"{pair} ({freq_mhz:.2f} MHz)",
                         alpha=0.7,
                         marker=self._style_config['markers']['track_style']
                     )
-                    logger.debug(f"Plotted {len(bl_plot)} points for baseline {pair} at {freq_mhz:.2f} MHz")
                     legend_handles.append(handle)
                     legend_labels.append((freq_mhz, pair))
                     plotted_pairs.add(f"{pair}_{freq_mhz}")
-                    result["projections"] += len(bl_plot)
+                    result["projections"] += len(bl_scaled)
 
             if not plotted_pairs:
-                logger.debug("No valid data plotted, returning empty result")
+                logger.debug("No valid data plotted, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time (ISOT)", "ylabel": f"Baseline Length, ({units})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1482,15 +1332,15 @@ class ScheduleVisualizer(Super):
                 )
 
             result["baselines"] = len(plotted_pairs)
-            logger.debug(f"Visualization result: {result}")
             return result
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
-        """Plot Mollweide tracks for an Observation with flexible filtering and grouped legend.
+        """
+        Plot Mollweide tracks for an Observation with flexible filtering and grouped legend.
 
         Args:
             obj: Observation object to visualize.
-            attributes: Dictionary with visualization parameters (telescopes, scans, sources, max_points, etc.).
+            attributes: Dictionary with visualization parameters (telescopes, scans, sources, max_points).
             fig: Matplotlib Figure object for plotting.
 
         Returns:
@@ -1509,7 +1359,7 @@ class ScheduleVisualizer(Super):
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
             data = obj.get_calculated_data_by_key(store_key)
-            if not data or not isinstance(data, dict):
+            if not isinstance(data, pd.DataFrame):
                 logger.warning(f"No valid Mollweide track data found for '{store_key}'")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
@@ -1517,17 +1367,31 @@ class ScheduleVisualizer(Super):
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            metadata = data.get("metadata", {})
-            scan_data = data.get("data", {})
-            result = {"scans": 0, "telescopes": 0, "sources": 0, "points": 0}
+            filtered_data = data
+            if telescopes:
+                filtered_data = filtered_data[filtered_data["telescope_code"].isin(telescopes)]
+            if scans:
+                filtered_data = filtered_data[filtered_data["scan_name"].isin(scans)]
+            
+            if filtered_data.empty:
+                logger.debug("No data after filtering, returning empty plot")
+                return self._create_empty_plot(
+                    fig, "mollweide_tracks", obj.get_observation_code(),
+                    projection="mollweide",
+                    labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
+                )
+
+            metadata = obj.get_calculated_data_by_key(store_key).get("metadata", {})
+            result = {"scans": len(scans) if scans else filtered_data["scan_name"].nunique(), 
+                    "telescopes": 0, "sources": 0, "points": 0}
             plotted_telescopes = set()
             plotted_sources = set()
             legend_handles = []
             legend_labels = []
 
             source_colors = {}
-            if sources:
-                for idx, source_name in enumerate(metadata.get("sources", {}).keys()):
+            if sources and "sources" in metadata:
+                for idx, source_name in enumerate(metadata["sources"].keys()):
                     if source_name not in sources:
                         continue
                     coords = metadata["sources"].get(source_name, [])
@@ -1558,31 +1422,9 @@ class ScheduleVisualizer(Super):
                         logger.warning(f"Failed to plot source {source_name}: {str(e)}")
                         continue
 
-            result["scans"] = len(scans)
-            all_tracks = {}
-            total_points = 0
-            norm = None
-            cmap = self._style_config['colormaps']['redpurple'] if telescopes else None
-            if telescopes:
-                norm = plt.Normalize(0, len(telescopes)) if telescopes else None
-
-            for scan_name in scans:
-                if scan_name not in scan_data:
-                    logger.debug(f"Scan {scan_name} not found in mollweide_tracks data, skipping")
-                    continue
-                scan = scan_data[scan_name]
-                for tel_idx, tel_code in enumerate(telescopes):
-                    if tel_code not in scan:
-                        logger.debug(f"Telescope {tel_code} not found in scan {scan_name}, skipping")
-                        continue
-                    tracks = scan[tel_code]
-                    if not isinstance(tracks, np.ndarray) or len(tracks) == 0 or tracks.ndim != 2 or tracks.shape[1] != 2:
-                        logger.warning(f"Invalid track data for {tel_code} in scan {scan_name}")
-                        continue
-                    if tel_code not in all_tracks:
-                        all_tracks[tel_code] = []
-                    all_tracks[tel_code].append(tracks)
-                    total_points += len(tracks)
+            grouped_data = filtered_data.groupby("telescope_code")
+            tel_list = telescopes if telescopes else filtered_data["telescope_code"].unique()
+            total_points = len(filtered_data)
 
             if total_points > max_points:
                 logger.warning(f"Total points ({total_points}) exceeds max_points ({max_points}), subsampling tracks")
@@ -1590,24 +1432,30 @@ class ScheduleVisualizer(Super):
             else:
                 subsample_factor = 1
 
-            for tel_idx, tel_code in enumerate(all_tracks):
-                tracks = np.vstack(all_tracks[tel_code]) if all_tracks[tel_code] else np.array([])
-                if len(tracks) == 0:
-                    logger.debug(f"No valid tracks for {tel_code} after combining scans")
+            norm = plt.Normalize(0, len(tel_list)) if tel_list else None
+            cmap = self._style_config['colormaps']['redpurple'] if tel_list else None
+
+            for tel_idx, tel_code in enumerate(tel_list):
+                if tel_code not in grouped_data.groups:
                     continue
-                lon, lat = tracks[:, 0], tracks[:, 1]
-                valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
+                tel_data = grouped_data.get_group(tel_code)
+                lon = tel_data["lon"].astype(float)
+                lat = tel_data["lat"].astype(float)
+                valid_mask = (~lon.isna()) & (~lat.isna())
                 lon = lon[valid_mask]
                 lat = lat[valid_mask]
-                if len(lon) == 0:
-                    logger.debug(f"No valid points for {tel_code} after filtering")
+                
+                if lon.empty:
+                    logger.debug(f"No valid points for {tel_code}")
                     continue
+
                 if subsample_factor > 1:
                     lon = lon[::subsample_factor]
                     lat = lat[::subsample_factor]
+
                 lon_rad = np.radians(lon)
                 lat_rad = np.radians(lat)
-                color = cmap(tel_idx / len(telescopes)) if cmap else self._style_config["colors"][len(plotted_telescopes) % len(self._style_config["colors"])]
+                color = cmap(tel_idx / len(tel_list)) if cmap else self._style_config["colors"][len(plotted_telescopes) % len(self._style_config["colors"])]
                 handle = ax.scatter(
                     lon_rad, lat_rad, 
                     s=self._style_config['markers']['track_size'], 
@@ -1655,7 +1503,7 @@ class ScheduleVisualizer(Super):
                 )
 
             if not plotted_telescopes and not plotted_sources:
-                logger.debug("No telescopes or sources plotted, returning empty Mollweide plot")
+                logger.debug("No valid data plotted, returning empty plot")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
                     projection="mollweide",
