@@ -222,6 +222,8 @@ class ScheduleCalculator(Super):
 
         with self._lock:
             obj.set_calculated_data_by_key(store_key, result_df)
+        logger.info(result_df.head())
+        logger.info(result_df.info())
         logger.debug(f"Stored result for '{store_key}' in '{obj_name}': {result_df.shape}, metadata: {result_df.attrs}")
         return result_df
     

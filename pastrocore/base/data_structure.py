@@ -2,6 +2,7 @@
 from typing import Dict, List, Type, Optional
 from astropy.time import Time
 import numpy as np
+import pandas as pd
 
 class CalculatedDataStructure:
     """Schema definition for calculated data DataFrames."""
@@ -16,7 +17,7 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: Time(x).isot
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "interpolated_orbits": {
@@ -26,7 +27,7 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: Time(x).isot
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "telescope_positions": {
@@ -36,7 +37,7 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: Time(x).isot
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "source_visibility": {
@@ -47,7 +48,7 @@ class CalculatedDataStructure:
                 "position_store_key": str
             },
             "converters": {
-                "time": lambda x: Time(x).isot
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "uv_coverage": {
@@ -57,7 +58,7 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: Time(x).isot
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "beam_pattern": {
@@ -73,8 +74,8 @@ class CalculatedDataStructure:
             "columns": ["source_name", "scan_name", "telescope_code", "start", "end", "duration"],
             "metadata": {},
             "converters": {
-                "start": lambda x: Time(x).isot,
-                "end": lambda x: Time(x).isot
+                "start": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x),
+                "end": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "az_el": {
@@ -86,7 +87,7 @@ class CalculatedDataStructure:
                 "visibility_store_key": str
             },
             "converters": {
-                "time": lambda x: Time(x).isot
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "sun_angles": {
@@ -98,14 +99,14 @@ class CalculatedDataStructure:
                 "visibility_store_key": str
             },
             "converters": {
-                "time": lambda x: Time(x).isot
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "baseline_projections": {
             "columns": ["time", "source_name", "scan_name", "baseline", "projection"],
             "metadata": {},
             "converters": {
-                "time": lambda x: Time(x).isot
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
             }
         },
         "mollweide_tracks": {
@@ -116,7 +117,7 @@ class CalculatedDataStructure:
                 "sources": dict
             },
             "converters": {
-                "time": lambda x: Time(x).isot,
+                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x),
                 "sources": lambda x: {k: np.array(v) for k, v in x.items()}
             }
         }

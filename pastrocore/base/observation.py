@@ -153,13 +153,14 @@ class Observation(BaseEntity):
             converters = CalculatedDataStructure.get_converters(key) or {}
             df_copy = df.copy()
             
+            # Apply converters from CalculatedDataStructure
             for col, converter in converters.items():
                 if col in df_copy.columns:
                     try:
                         df_copy[col] = df_copy[col].apply(converter)
                     except Exception as e:
                         logger.error(f"Failed to apply converter for column '{col}' in key '{key}' "
-                                     f"of observation '{self.name}': {str(e)}")
+                                    f"of observation '{self.name}': {str(e)}")
                         raise
             
             metadata = df.attrs if hasattr(df, "attrs") else {}
@@ -179,7 +180,7 @@ class Observation(BaseEntity):
                         converted_metadata[k] = v
                 except Exception as e:
                     logger.error(f"Failed to convert metadata '{k}' for key '{key}' in "
-                                 f"observation '{self.name}': {str(e)}")
+                                f"observation '{self.name}': {str(e)}")
                     raise
             
             df_copy.attrs = converted_metadata
@@ -188,7 +189,7 @@ class Observation(BaseEntity):
                 df_copy.to_parquet(buffer, engine="pyarrow", index=False)
             except Exception as e:
                 logger.error(f"Failed to convert DataFrame for key '{key}' to Parquet in "
-                             f"observation '{self.name}': {str(e)}")
+                            f"observation '{self.name}': {str(e)}")
                 raise
                 
             parquet_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
@@ -255,13 +256,28 @@ class Observation(BaseEntity):
                         logger.error(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
                         raise ValueError(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
 
-                for col, converter in converters.items():
-                    if col in df.columns:
-                        try:
-                            df[col] = df[col].apply(converter)
-                        except Exception as e:
-                            logger.error(f"Failed to apply converter for column '{col}' in key '{key}': {str(e)}")
-                            raise ValueError(f"Failed to apply converter for column '{col}' in key '{key}': {str(e)}")
+                # Restore time-related columns to astropy.time.Time objects where possible
+                if "time" in df.columns:
+                    def time_converter(x):
+                        if isinstance(x, str):
+                            try:
+                                return Time(x)
+                            except Exception as e:
+                                logger.debug(f"Failed to convert '{x}' to Time for key '{key}': {str(e)}")
+                                return x
+                        return x
+                    df["time"] = df["time"].apply(time_converter)
+                if key == "time_on_source":
+                    def time_on_source_converter(x):
+                        if isinstance(x, str):
+                            try:
+                                return Time(x)
+                            except Exception as e:
+                                logger.debug(f"Failed to convert '{x}' to Time for key '{key}': {str(e)}")
+                                return x
+                        return x
+                    df["start"] = df["start"].apply(time_on_source_converter)
+                    df["end"] = df["end"].apply(time_on_source_converter)
 
                 df.attrs = restored_metadata
                 return df
