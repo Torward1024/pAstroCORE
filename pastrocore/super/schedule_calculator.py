@@ -477,7 +477,7 @@ class ScheduleCalculator(Super):
                             try:
                                 orbit_data = self._interpolate_orbit(tel, Time(scan_times["time"]), scan.get_start(), scan.get_start() + scan.get_duration() * u.s)
                                 if not orbit_data.empty:
-                                    times.extend(Time(scan_times["time"]).value)
+                                    times.extend(scan_times["time"])
                                     scan_names.extend([scan_name] * len(orbit_data))
                                     telescope_codes.extend([tel_code] * len(orbit_data))
                                     x_values.extend(orbit_data["x"])
@@ -928,7 +928,7 @@ class ScheduleCalculator(Super):
             for i, tel in enumerate(ground_tels):
                 tel_code = tel.get_code()
                 if not np.all(np.isnan(ground_positions[i])):
-                    times.extend(Time(scan_times).value)
+                    times.extend(scan_times)
                     telescope_codes.extend([tel_code] * len(scan_times))
                     x_values.extend(ground_positions[i, :, 0])
                     y_values.extend(ground_positions[i, :, 1])
@@ -942,7 +942,7 @@ class ScheduleCalculator(Super):
                 try:
                     pos_df = self._compute_telescope_position(tel, scan_times)
                     if not pos_df[["x", "y", "z"]].isna().all().all():
-                        times.extend(Time(scan_times).value)
+                        times.extend(scan_times)
                         telescope_codes.extend([tel_code] * len(pos_df))
                         x_values.extend(pos_df["x"])
                         y_values.extend(pos_df["y"])
@@ -1004,12 +1004,9 @@ class ScheduleCalculator(Super):
                 x, y, z = telescope.get_coordinates()
                 res = telescope.get(["vx", "vy", "vz"])
                 vx, vy, vz = res["vx"], res["vy"], res["vz"]
-                # Log input types for debugging
                 logger.debug(f"Input types for telescope '{telescope.get_code()}': x={type(x)}, vx={type(vx)}")
-                # Ensure coordinates and velocities are NumPy arrays
                 x, y, z = np.array(x), np.array(y), np.array(z)
                 vx, vy, vz = np.array(vx), np.array(vy), np.array(vz)
-                # Ensure dt is a NumPy array for vectorized operations
                 dt = np.array((times - Time("2000-01-01T12:00:00")).sec)
                 itrs_coords = CartesianRepresentation(
                     x + vx * dt,
@@ -1314,7 +1311,7 @@ class ScheduleCalculator(Super):
                 logger.debug(f"Computed visibility for space telescope '{tel_code}' in scan '{scan_name}': {np.sum(is_visible)} visible points")
 
         for i, tel_code in enumerate(tel_codes):
-            times.extend(Time(scan_times).value)
+            times.extend(scan_times)
             source_names.extend([source_name] * n_times)
             scan_names.extend([scan_name] * n_times)
             telescope_codes.extend([tel_code] * n_times)
@@ -1392,7 +1389,6 @@ class ScheduleCalculator(Super):
                         for scan in scans
                     }
                     for future in futures:
-                        scan = futures[future]
                         scan_result = future.result()
                         if not scan_result.empty:
                             times.extend(scan_result["time"])
@@ -1500,6 +1496,7 @@ class ScheduleCalculator(Super):
 
         try:
             uv_points_df = self._compute_uv_at_time(active_telescopes, scan_times, source, visibility, positions)
+            logger.info(uv_points_df.head())
         except Exception as e:
             logger.error(f"Failed to calculate UV coverage for scan '{scan_name}': {str(e)}")
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
@@ -1507,9 +1504,8 @@ class ScheduleCalculator(Super):
         if uv_points_df.empty:
             logger.warning(f"No valid UV points computed for scan '{scan_name}'")
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("uv_coverage"))
-
+        
         result_df = uv_points_df.assign(
-            time=Time(scan_times).value.repeat(len(uv_points_df) // len(scan_times)),
             source_name=source_name,
             scan_name=scan_name
         )[["time", "source_name", "scan_name", "baseline", "u", "v", "w"]]
@@ -1594,7 +1590,7 @@ class ScheduleCalculator(Super):
             uvw_pair = uvw[pair_idx]
             valid_count = np.sum(~np.any(np.isnan(uvw_pair), axis=1))
             logger.debug(f"Computed {valid_count} valid UVW points for baseline '{pair}' (total {n_times} points)")
-            times_list.extend(Time(times).value)
+            times_list.extend(times)
             baselines_list.extend([pair] * n_times)
             u_values.extend(uvw_pair[:, 0])
             v_values.extend(uvw_pair[:, 1])
@@ -1757,12 +1753,11 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("sun_angles"))
 
-        # Ensure scan_times contains Time objects
         if not all(isinstance(t, Time) for t in scan_times):
             logger.error(f"Invalid time data for scan '{scan_name}' in source '{source_name}': 'time' column must contain astropy.time.Time objects")
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("sun_angles"))
 
-        scan_times = Time(list(scan_times))  # Convert Series to Time array for astropy compatibility
+        scan_times = Time(list(scan_times))
 
         scan_visibility = visibility_data[visibility_data["scan_name"] == scan_name]
         scan_positions = position_data[position_data["scan_name"] == scan_name]
@@ -1865,7 +1860,7 @@ class ScheduleCalculator(Super):
                     angles[is_visible] = sep[is_visible]
                     logger.debug(f"Computed {np.sum(is_visible)} sun angles for ground telescope '{tel_code}' in scan '{scan_name}'")
 
-                times.extend(Time(scan_times).value)
+                times.extend(scan_times)
                 source_names.extend([source_name] * n_times)
                 scan_names.extend([scan_name] * n_times)
                 telescope_codes.extend([tel_code] * n_times)
@@ -1923,7 +1918,7 @@ class ScheduleCalculator(Super):
 
                         angles[is_visible] = np.where(valid, sep, np.nan)
 
-                times.extend(Time(scan_times).value)
+                times.extend(scan_times)
                 source_names.extend([source_name] * n_times)
                 scan_names.extend([scan_name] * n_times)
                 telescope_codes.extend([tel_code] * n_times)
@@ -1990,14 +1985,14 @@ class ScheduleCalculator(Super):
                 if not scans:
                     logger.debug(f"No active scans for observation '{obs.get_observation_code()}'")
                     result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
-                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
+                    result_df.attrs.update(metadata)
                     return result_df
 
                 ground_telescopes = [tel for tel in telescopes if not isinstance(tel, SpaceTelescope)]
                 if not ground_telescopes:
                     logger.info(f"No ground telescopes found, skipping calculation for '{obs.get_observation_code()}'")
                     result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
-                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
+                    result_df.attrs.update(metadata)
                     return result_df
 
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
@@ -2010,13 +2005,13 @@ class ScheduleCalculator(Super):
                 if time_data.empty or position_data.empty or visibility_data.empty:
                     logger.error(f"Missing required data (times, positions, or visibility) for '{obs.get_observation_code()}'")
                     result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
-                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
+                    result_df.attrs.update(metadata)
                     return result_df
 
                 if not all(isinstance(t, Time) for t in time_data["time"]):
                     logger.error(f"Invalid time data for '{obs.get_observation_code()}': 'time' column must contain astropy.time.Time objects")
                     result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
-                    result_df.attrs.update(metadata)  # Set metadata for empty DataFrame
+                    result_df.attrs.update(metadata)
                     return result_df
 
                 times = []
@@ -2057,7 +2052,7 @@ class ScheduleCalculator(Super):
                 if result_df.empty:
                     logger.warning(f"No az/el or ha/dec angles computed for observation '{obs.get_observation_code()}'")
                     result_df = pd.DataFrame(columns=CalculatedDataStructure.get_columns("az_el"))
-                result_df.attrs.update(metadata)  # Set metadata for all cases
+                result_df.attrs.update(metadata)
                 logger.info(f"Computed az/el or ha/dec for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
                 return result_df
 
@@ -2176,7 +2171,7 @@ class ScheduleCalculator(Super):
                     angles = np.full((n_times, 2), np.nan, dtype=float)
                     angles[is_visible, 0] = az[i][is_visible]
                     angles[is_visible, 1] = el[i][is_visible]
-                    times.extend(Time(scan_times).value)
+                    times.extend(scan_times)
                     source_names.extend([source_name] * n_times)
                     scan_names.extend([scan_name] * n_times)
                     telescope_codes.extend([code] * n_times)
@@ -2205,7 +2200,7 @@ class ScheduleCalculator(Super):
                     angles = np.full((n_times, 2), np.nan, dtype=float)
                     angles[is_visible, 0] = ha[i][is_visible]
                     angles[is_visible, 1] = dec[i][is_visible]
-                    times.extend(Time(scan_times).value)
+                    times.extend(scan_times)
                     source_names.extend([source_name] * n_times)
                     scan_names.extend([scan_name] * n_times)
                     telescope_codes.extend([code] * n_times)
@@ -2215,7 +2210,7 @@ class ScheduleCalculator(Super):
             for i, tel in enumerate(active_telescopes):
                 if mount_types[i] not in ["AZIM", "EQUA"]:
                     logger.warning(f"Unsupported mount type '{mount_types[i]}' for telescope '{tel.get_code()}' in scan '{scan_name}'")
-                    times.extend(Time(scan_times).value)
+                    times.extend(scan_times)
                     source_names.extend([source_name] * n_times)
                     scan_names.extend([scan_name] * n_times)
                     telescope_codes.extend([tel.get_code()] * n_times)
@@ -2309,7 +2304,6 @@ class ScheduleCalculator(Super):
                         for scan in scans
                     }
                     for future in futures:
-                        scan = futures[future]
                         scan_result = future.result()
                         if not scan_result.empty:
                             source_names.extend(scan_result["source_name"])
@@ -2327,16 +2321,6 @@ class ScheduleCalculator(Super):
                     "end": end_times,
                     "duration": durations
                 })
-
-                converters = CalculatedDataStructure.get_converters("time_on_source")
-                if not result_df.empty:
-                    for column, converter in converters.items():
-                        if column in result_df.columns:
-                            try:
-                                result_df[column] = result_df[column].apply(converter)
-                            except Exception as e:
-                                logger.error(f"Failed to apply converter to column '{column}' in observation '{obs.get_observation_code()}': {str(e)}")
-                                return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
                 if result_df.empty:
                     logger.warning(f"No time-on-source blocks computed for observation '{obs.get_observation_code()}'")
@@ -2430,7 +2414,6 @@ class ScheduleCalculator(Super):
                         durations.append(duration)
                         logger.debug(f"Computed 1 time-on-source block for telescope '{tel_code}' in scan '{scan_name}'")
             else:
-                time_step_sec = time_step
                 for i, tel_code in enumerate(tel_codes):
                     vis = visibility[i]
                     diff = np.diff(vis.astype(int))
@@ -2470,16 +2453,6 @@ class ScheduleCalculator(Super):
             "end": end_times,
             "duration": durations
         })
-
-        converters = CalculatedDataStructure.get_converters("time_on_source")
-        if not result_df.empty:
-            for column, converter in converters.items():
-                if column in result_df.columns:
-                    try:
-                        result_df[column] = result_df[column].apply(converter)
-                    except Exception as e:
-                        logger.error(f"Failed to apply converter to column '{column}' in scan '{scan_name}': {str(e)}")
-                        return pd.DataFrame(columns=CalculatedDataStructure.get_columns("time_on_source"))
 
         if result_df.empty:
             logger.warning(f"No time-on-source blocks computed for scan '{scan_name}'")
@@ -2547,13 +2520,11 @@ class ScheduleCalculator(Super):
                     if valid_points == 0:
                         logger.warning(f"No valid beam pattern for telescope '{tel_code}' in '{obs.get_observation_code()}'")
                         continue
-                    # Create DataFrame for this telescope with numeric values
                     df = pd.DataFrame({
                         "telescope_code": [tel_code] * len(theta),
                         "theta": theta,
                         "pattern": pat
                     })
-                    # Filter out rows with NaN pattern
                     df = df[~np.isnan(df["pattern"])]
                     if not df.empty:
                         dfs.append(df)
@@ -2631,7 +2602,6 @@ class ScheduleCalculator(Super):
                     logger.error(f"No time data for '{obs.get_observation_code()}'")
                     return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
-                # Validate time_data["time"] contains Time objects
                 if not all(isinstance(t, Time) for t in time_data["time"]):
                     logger.error(f"Invalid time data for '{obs.get_observation_code()}': 'time' column must contain astropy.time.Time objects")
                     return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
@@ -2649,7 +2619,6 @@ class ScheduleCalculator(Super):
                         for scan in scans
                     }
                     for future in futures:
-                        scan = futures[future]
                         scan_result = future.result()
                         if not scan_result.empty:
                             times.extend(scan_result["time"])
@@ -2717,12 +2686,11 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
-        # Ensure scan_times contains Time objects
         if not all(isinstance(t, Time) for t in scan_times):
             logger.error(f"Invalid time data for scan '{scan_name}' in source '{source_name}': 'time' column must contain astropy.time.Time objects")
             return pd.DataFrame(columns=CalculatedDataStructure.get_columns("baseline_projections"))
 
-        scan_times = Time(list(scan_times))  # Convert Series to Time array for astropy compatibility
+        scan_times = Time(list(scan_times))
         n_times = len(scan_times)
 
         scan_uv_data = uv_data[uv_data["scan_name"] == scan_name]
@@ -2742,7 +2710,7 @@ class ScheduleCalculator(Super):
         projections = []
 
         for baseline, proj_array in projections_dict.items():
-            times.extend(Time(scan_times).value)
+            times.extend(scan_times)
             source_names.extend([source_name] * len(proj_array))
             scan_names.extend([scan_name] * len(proj_array))
             baselines.extend([baseline] * len(proj_array))
@@ -2977,7 +2945,7 @@ class ScheduleCalculator(Super):
 
             for i, tel_code in enumerate(tel_codes):
                 df = pd.DataFrame({
-                    "time": Time(scan_times).value,
+                    "time": scan_times,
                     "scan_name": [scan_name] * n_times,
                     "telescope_code": [tel_code] * n_times,
                     "lon": lon[i],
