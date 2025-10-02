@@ -67,7 +67,6 @@ class Observation(BaseEntity):
             check_type(scans, Scans, "Scans")
         if calculated_data is not None:
             check_type(calculated_data, dict, "Calculated data")
-            # Defer validation of calculated_data to after initialization
             for key, df in calculated_data.items():
                 check_type(df, pd.DataFrame, f"Calculated data for key {key}")
         
@@ -84,7 +83,6 @@ class Observation(BaseEntity):
             use_cache=use_cache
         )
         
-        # Validate calculated_data after initialization to ensure self.name is set
         if calculated_data is not None:
             for key, df in calculated_data.items():
                 try:
@@ -153,7 +151,6 @@ class Observation(BaseEntity):
             converters = CalculatedDataStructure.get_converters(key) or {}
             df_copy = df.copy()
             
-            # Apply converters from CalculatedDataStructure
             for col, converter in converters.items():
                 if col in df_copy.columns:
                     try:
@@ -186,7 +183,7 @@ class Observation(BaseEntity):
             df_copy.attrs = converted_metadata
             buffer = io.BytesIO()
             try:
-                df_copy.to_parquet(buffer, engine="pyarrow", index=False)
+                df_copy.to_parquet(buffer, compression='snappy', engine="pyarrow", index=False)
             except Exception as e:
                 logger.error(f"Failed to convert DataFrame for key '{key}' to Parquet in "
                             f"observation '{self.name}': {str(e)}")
@@ -234,7 +231,6 @@ class Observation(BaseEntity):
                     logger.error(f"Failed to read Parquet data for key '{key}': {str(e)}")
                     raise ValueError(f"Invalid Parquet data for key '{key}': {str(e)}")
 
-                # Apply deserialization converters for columns (e.g., MJD to Time)
                 deserialization_converters = CalculatedDataStructure.get_deserialization_converters(key) or {}
                 for col, converter in deserialization_converters.items():
                     if col in df.columns:
