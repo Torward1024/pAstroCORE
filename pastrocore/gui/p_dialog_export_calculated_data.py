@@ -111,7 +111,7 @@ class ExportThread(QThread):
                             file_prefix = "Mollweide"
                         else:
                             file_prefix = calc_type.replace(" ", "_").replace("/", "_")
-                        file_name = f"{file_prefix}_{obs_code}"
+                        file_name = f"{obs_code}_{file_prefix}"
                         png_path = os.path.join(self.export_path, f"{file_name}.png")
                         attributes = {
                             "plot_type": key,
@@ -139,12 +139,13 @@ class ExportThread(QThread):
     def _export_data_to_csv(self, data: pd.DataFrame, calc_type: str, path: str, obs_code: str, source_name: Optional[str], target: Observation):
         """Export calculated data to a TXT file with tab separator.
 
-        Uses pandas DataFrame to_csv for export with tab delimiter. Relies on CalculatedDataStructure converters
-        for time-related columns to ensure proper formatting. For mollweide_tracks, adds source coordinates
-        from df.attrs['sources'] as separate rows at the end of the file. Preserves NaN values as is.
+        Uses pandas DataFrame to_csv for export with tab delimiter. Converts Time objects in
+        time-related columns (time, start, end) to ISOT format for readability. For mollweide_tracks, adds
+        source coordinates from df.attrs['sources'] as separate rows at the end of the file. Preserves NaN
+        values as is.
 
         Args:
-            data: pandas DataFrame containing calculated data.
+            data: pandas DataFrame containing calculated data with Time objects in time-related columns.
             calc_type: Type of calculation (e.g., "UV Coverage").
             path: Output file path for TXT.
             obs_code: Observation code.
@@ -167,14 +168,30 @@ class ExportThread(QThread):
             df_out = data.copy()
             converters = CalculatedDataStructure.get_converters(key) or {}
             
-            # Apply converters for all relevant columns
+            # Apply converters for non-time-related columns (e.g., sources for mollweide_tracks)
             for col, converter in converters.items():
-                if col in df_out.columns:
+                if col in df_out.columns and col not in ["time", "start", "end"]:
                     try:
                         df_out[col] = df_out[col].apply(converter)
                     except Exception as e:
                         logger.error(f"Failed to apply converter for column '{col}' in key '{key}' of observation '{obs_code}': {str(e)}")
                         raise
+
+            # Convert Time objects to ISOT format
+            def to_isot(x):
+                if isinstance(x, Time) and pd.notna(x):
+                    try:
+                        return x.isot
+                    except Exception as e:
+                        logger.warning(f"Failed to convert Time object '{x}' to ISOT for key '{key}' in observation '{obs_code}': {str(e)}")
+                        return x
+                return x
+
+            if "time" in df_out.columns:
+                df_out["time"] = df_out["time"].apply(to_isot)
+            if key == "time_on_source":
+                df_out["start"] = df_out["start"].apply(to_isot)
+                df_out["end"] = df_out["end"].apply(to_isot)
 
             # Drop scan_name column if present
             df_out = df_out.drop(columns=["scan_name"], errors="ignore")

@@ -222,8 +222,6 @@ class ScheduleCalculator(Super):
 
         with self._lock:
             obj.set_calculated_data_by_key(store_key, result_df)
-        logger.info(result_df.head())
-        logger.info(result_df.info())
         logger.debug(f"Stored result for '{store_key}' in '{obj_name}': {result_df.shape}, metadata: {result_df.attrs}")
         return result_df
     
@@ -479,7 +477,7 @@ class ScheduleCalculator(Super):
                             try:
                                 orbit_data = self._interpolate_orbit(tel, Time(scan_times["time"]), scan.get_start(), scan.get_start() + scan.get_duration() * u.s)
                                 if not orbit_data.empty:
-                                    times.extend(Time(scan_times["time"]).value)  # Add time values
+                                    times.extend(Time(scan_times["time"]).value)
                                     scan_names.extend([scan_name] * len(orbit_data))
                                     telescope_codes.extend([tel_code] * len(orbit_data))
                                     x_values.extend(orbit_data["x"])
