@@ -2848,8 +2848,8 @@ class ScheduleCalculator(Super):
             for source in obj.get_sources().get_active_items():
                 ra = source.ra_degrees
                 dec = source.dec_degrees
-                lon = ra - 360.0 if ra > 180.0 else ra
-                lat = np.clip(dec, -90.0, 90.0)
+                lon = float(ra - 360.0 if ra > 180.0 else ra)
+                lat = float(np.clip(dec, -90.0, 90.0))
                 sources_metadata[source.name] = tuple([lon, lat])
 
             converters = CalculatedDataStructure.get_converters("mollweide_tracks")
@@ -2927,12 +2927,12 @@ class ScheduleCalculator(Super):
             scan_positions[scan_positions["telescope_code"] == code][["x", "y", "z"]].values
             if code in scan_positions["telescope_code"].values else np.full((n_times, 3), np.nan)
             for code in tel_codes
-        ], dtype=float)  # shape: (n_tels, n_times, 3)
+        ], dtype=float)
 
         dfs = []
         try:
-            r = np.sqrt(np.sum(positions**2, axis=2))  # shape: (n_tels, n_times)
-            valid_mask = r > 0  # Avoid division by zero
+            r = np.sqrt(np.sum(positions**2, axis=2))
+            valid_mask = r > 0  
             ra_rad = np.full_like(r, np.nan)
             dec_rad = np.full_like(r, np.nan)
             ra_rad[valid_mask] = np.arctan2(positions[valid_mask, 1], positions[valid_mask, 0])
