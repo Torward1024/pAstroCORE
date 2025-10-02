@@ -19,38 +19,46 @@ class CalculatedDataStructure:
                 "time": lambda x: Time(x).isot
             }
         },
-        "telescope_positions": {
-            "columns": ["scan_name", "telescope_code", "x", "y", "z"],
-            "metadata": {
-                "time_step": float,
-                "scan_count": int
-            },
-            "converters": {}
-        },
         "interpolated_orbits": {
-            "columns": ["scan_name", "telescope_code", "x", "y", "z"],
+            "columns": ["time", "scan_name", "telescope_code", "x", "y", "z"],
             "metadata": {
                 "time_step": float,
                 "scan_count": int
             },
-            "converters": {}
+            "converters": {
+                "time": lambda x: Time(x).isot
+            }
+        },
+        "telescope_positions": {
+            "columns": ["time", "scan_name", "telescope_code", "x", "y", "z"],
+            "metadata": {
+                "time_step": float,
+                "scan_count": int
+            },
+            "converters": {
+                "time": lambda x: Time(x).isot
+            }
         },
         "source_visibility": {
-            "columns": ["source_name", "scan_name", "telescope_code", "visibility"],
+            "columns": ["time", "source_name", "scan_name", "telescope_code", "visibility"],
             "metadata": {
                 "time_step": float,
                 "scan_count": int,
                 "position_store_key": str
             },
-            "converters": {}
+            "converters": {
+                "time": lambda x: Time(x).isot
+            }
         },
         "uv_coverage": {
-            "columns": ["source_name", "scan_name", "baseline", "u", "v", "w"],
+            "columns": ["time", "source_name", "scan_name", "baseline", "u", "v", "w"],
             "metadata": {
                 "time_step": float,
                 "scan_count": int
             },
-            "converters": {}
+            "converters": {
+                "time": lambda x: Time(x).isot
+            }
         },
         "beam_pattern": {
             "columns": ["telescope_code", "theta", "pattern"],
@@ -70,47 +78,45 @@ class CalculatedDataStructure:
             }
         },
         "az_el": {
-            "columns": ["source_name", "scan_name", "telescope_code", "az", "el"],
+            "columns": ["time", "source_name", "scan_name", "telescope_code", "az", "el"],
             "metadata": {
                 "time_step": float,
                 "scan_count": int,
                 "position_store_key": str,
                 "visibility_store_key": str
             },
-            "converters": {}
+            "converters": {
+                "time": lambda x: Time(x).isot
+            }
         },
         "sun_angles": {
-            "columns": ["source_name", "scan_name", "telescope_code", "angle"],
+            "columns": ["time", "source_name", "scan_name", "telescope_code", "angle"],
             "metadata": {
                 "time_step": float,
                 "scan_count": int,
                 "position_store_key": str,
                 "visibility_store_key": str
             },
-            "converters": {}
-        },
-        "synthesized_beam": {
-            "columns": ["source_name", "scan_name", "freq_name", "theta_u", "theta_v", "beam_x", "beam_y"],
-            "metadata": {
-                "time_step": float,
-                "scan_count": int,
-                "freq_names": list
-            },
-            "converters": {}
+            "converters": {
+                "time": lambda x: Time(x).isot
+            }
         },
         "baseline_projections": {
-            "columns": ["source_name", "scan_name", "baseline", "projection"],
+            "columns": ["time", "source_name", "scan_name", "baseline", "projection"],
             "metadata": {},
-            "converters": {}
+            "converters": {
+                "time": lambda x: Time(x).isot
+            }
         },
         "mollweide_tracks": {
-            "columns": ["scan_name", "telescope_code", "lon", "lat"],
+            "columns": ["time", "scan_name", "telescope_code", "lon", "lat"],
             "metadata": {
                 "time_step": float,
                 "scan_count": int,
                 "sources": dict
             },
             "converters": {
+                "time": lambda x: Time(x).isot,
                 "sources": lambda x: {k: np.array(v) for k, v in x.items()}
             }
         }
