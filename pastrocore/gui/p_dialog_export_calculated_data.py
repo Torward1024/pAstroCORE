@@ -91,7 +91,7 @@ class ExportThread(QThread):
                             file_prefix = "Mollweide"
                         else:
                             file_prefix = calc_type.replace(" ", "_").replace("/", "_")
-                        file_name = f"{file_prefix}_{obs_code}"
+                        file_name = f"{obs_code}_{file_prefix}"
                         txt_path = os.path.join(self.export_path, f"{file_name}.txt")
                         self._export_data_to_csv(data, calc_type, txt_path, obs_code, source_name=None, target=target)
                         current_step += 1
@@ -111,23 +111,25 @@ class ExportThread(QThread):
                             file_prefix = "Mollweide"
                         else:
                             file_prefix = calc_type.replace(" ", "_").replace("/", "_")
-                        file_name = f"{obs_code}_{file_prefix}"
-                        png_path = os.path.join(self.export_path, f"{file_name}.png")
-                        attributes = {
-                            "plot_type": key,
-                            "output_file": png_path,
-                            "dpi": 76,
-                            "telescopes": telescopes,
-                            "scans": scans,
-                            "sources": sources if key == "mollweide_tracks" else [],
-                            "freq_names": frequencies if key == "beam_pattern" else [],
-                            "baselines": baselines if key in ["uv_coverage", "baseline_projections"] else [],
-                            "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
-                        }
-                        try:
-                            self.manipulator.visualize(obj=target, **attributes)
-                        except Exception as e:
-                            raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
+                        for source_name in sources:
+                                file_prefix = calc_type.replace(" ", "_").replace("/", "_")
+                                file_name = f"{obs_code}_{file_prefix}_{source_name}"
+                                png_path = os.path.join(self.export_path, f"{file_name}.png")
+                                attributes = {
+                                    "plot_type": key,
+                                    "output_file": png_path,
+                                    "dpi": 76,
+                                    "source_name": source_name,
+                                    "baselines": baselines if key in ["uv_coverage", "baseline_projections"] else [],
+                                    "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source", "beam_pattern"] else [],
+                                    "scans": scans,
+                                    "freq_names": frequencies if key in ["uv_coverage", "baseline_projections", "beam_pattern"] else [],
+                                    "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
+                                }
+                                try:
+                                    self.manipulator.visualize(obj=target, **attributes)
+                                except Exception as e:
+                                    raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
                         current_step += 1
                         self.progress.emit(int(current_step / total_steps * 100), f"Exported vis for {calc_type} in {obs_code}")
 
@@ -252,7 +254,7 @@ class ExportCalculatedDataDialog(QDialog):
         """Populate the calculation list."""
         calc_types = [
             "UV Coverage", "Mollweide Tracks", "Baseline Projections",
-            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern",
+            "Time on Source", "Sun Angles", "Az/El", "Beam Pattern",
             "Source Visibility", "Telescope Positions"
         ]
         self.ui.calcList.clear()
@@ -319,7 +321,6 @@ class ExportCalculatedDataDialog(QDialog):
         if not selected_calcs or not selected_targets or not export_path or not os.path.isdir(export_path):
             QMessageBox.warning(self, "Warning", "Please select calculations, targets, and a valid export path.")
             return
-        # Get selected UV units (lowercase, replace spaces)
         units = self.ui.cmbUnits.currentText().lower().replace(" ", "_")
 
         self.progress_dialog = ProgressDialog(self)
