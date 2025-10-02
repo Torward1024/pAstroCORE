@@ -17,7 +17,10 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "interpolated_orbits": {
@@ -27,7 +30,10 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "telescope_positions": {
@@ -37,7 +43,10 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "source_visibility": {
@@ -48,7 +57,10 @@ class CalculatedDataStructure:
                 "position_store_key": str
             },
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "uv_coverage": {
@@ -58,7 +70,10 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "beam_pattern": {
@@ -68,14 +83,19 @@ class CalculatedDataStructure:
                 "frequency_agnostic": bool,
                 "scale_instruction": str
             },
-            "converters": {}
+            "converters": {},
+            "deserialization_converters": {}
         },
         "time_on_source": {
             "columns": ["source_name", "scan_name", "telescope_code", "start", "end", "duration"],
             "metadata": {},
             "converters": {
-                "start": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x),
-                "end": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "start": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x,
+                "end": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "start": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x,
+                "end": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "az_el": {
@@ -87,7 +107,10 @@ class CalculatedDataStructure:
                 "visibility_store_key": str
             },
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "sun_angles": {
@@ -99,14 +122,20 @@ class CalculatedDataStructure:
                 "visibility_store_key": str
             },
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "baseline_projections": {
             "columns": ["time", "source_name", "scan_name", "baseline", "projection"],
             "metadata": {},
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x)
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
             }
         },
         "mollweide_tracks": {
@@ -117,7 +146,11 @@ class CalculatedDataStructure:
                 "sources": dict
             },
             "converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and pd.notna(x) else (x.isot if isinstance(x, Time) and pd.notna(x) else x),
+                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x,
+                "sources": lambda x: {k: np.array(v) for k, v in x.items()}
+            },
+            "deserialization_converters": {
+                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x,
                 "sources": lambda x: {k: np.array(v) for k, v in x.items()}
             }
         }
@@ -137,6 +170,12 @@ class CalculatedDataStructure:
 
     @classmethod
     def get_converters(cls, key: str) -> Optional[Dict[str, callable]]:
-        """Return converters for specific columns or metadata for a given calculated data key."""
+        """Return converters for specific columns or metadata for serialization."""
         schema = cls.SCHEMAS.get(key)
         return schema["converters"] if schema else None
+
+    @classmethod
+    def get_deserialization_converters(cls, key: str) -> Optional[Dict[str, callable]]:
+        """Return converters for specific columns or metadata for deserialization."""
+        schema = cls.SCHEMAS.get(key)
+        return schema["deserialization_converters"] if schema else None

@@ -234,9 +234,18 @@ class Observation(BaseEntity):
                     logger.error(f"Failed to read Parquet data for key '{key}': {str(e)}")
                     raise ValueError(f"Invalid Parquet data for key '{key}': {str(e)}")
 
+                # Apply deserialization converters for columns (e.g., MJD to Time)
+                deserialization_converters = CalculatedDataStructure.get_deserialization_converters(key) or {}
+                for col, converter in deserialization_converters.items():
+                    if col in df.columns:
+                        try:
+                            df[col] = df[col].apply(converter)
+                        except Exception as e:
+                            logger.error(f"Failed to apply deserialization converter for column '{col}' in key '{key}': {str(e)}")
+                            raise ValueError(f"Failed to apply deserialization converter for column '{col}' in key '{key}': {str(e)}")
+
                 metadata = calc_data.get("metadata", {})
                 restored_metadata = {}
-                converters = CalculatedDataStructure.get_converters(key) or {}
                 metadata_types = CalculatedDataStructure.get_metadata_types(key) or {}
                 
                 for meta_key, meta_value in metadata.items():
@@ -255,29 +264,6 @@ class Observation(BaseEntity):
                     except Exception as e:
                         logger.error(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
                         raise ValueError(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
-
-                # Restore time-related columns to astropy.time.Time objects where possible
-                if "time" in df.columns:
-                    def time_converter(x):
-                        if isinstance(x, str):
-                            try:
-                                return Time(x)
-                            except Exception as e:
-                                logger.debug(f"Failed to convert '{x}' to Time for key '{key}': {str(e)}")
-                                return x
-                        return x
-                    df["time"] = df["time"].apply(time_converter)
-                if key == "time_on_source":
-                    def time_on_source_converter(x):
-                        if isinstance(x, str):
-                            try:
-                                return Time(x)
-                            except Exception as e:
-                                logger.debug(f"Failed to convert '{x}' to Time for key '{key}': {str(e)}")
-                                return x
-                        return x
-                    df["start"] = df["start"].apply(time_on_source_converter)
-                    df["end"] = df["end"].apply(time_on_source_converter)
 
                 df.attrs = restored_metadata
                 return df
