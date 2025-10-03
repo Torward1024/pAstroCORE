@@ -651,7 +651,7 @@ class ScheduleVisualizer(Super):
 
             if not self._check_filters(attributes, ["source_name", "telescopes"]):
                 logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, "
-                             f"returning empty plot")
+                            f"returning empty plot")
                 return self._create_empty_plot(
                     fig, "sun_angles", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": "Angle, (deg.)",
@@ -694,7 +694,7 @@ class ScheduleVisualizer(Super):
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
             ax.set_ylabel("Angle, (deg.)", fontsize=self._style_config["font"]["label_size"])
             ax.set_title(f"Sun Angles\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                         fontsize=self._style_config["font"]["title_size"])
+                        fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
             result = {"scans": len(filtered_df["scan_name"].unique()), "telescopes": 0, "points": 0}
@@ -711,31 +711,41 @@ class ScheduleVisualizer(Super):
                     logger.debug(f"No data for telescope {tel}, skipping")
                     continue
 
-                # Sort by time and extract valid angles
-                tel_data = tel_data.sort_values(by="time")
-                times_mjd = tel_data["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x).to_numpy()
-                angles = tel_data["angle"].to_numpy()
-                valid_mask = ~np.isnan(angles)
-                if not np.any(valid_mask):
-                    logger.debug(f"All angles for telescope {tel} are NaN, skipping")
-                    continue
-                valid_times_mjd = times_mjd[valid_mask]
-                valid_angles = angles[valid_mask]
-
+                # Group by scan to handle discontinuities
+                scan_groups = tel_data.groupby("scan_name")
                 color = self._style_config["colors"][tel_idx % len(self._style_config["colors"])]
-                handle = ax.scatter(
-                    valid_times_mjd, valid_angles,
-                    s=self._style_config["markers"]["scatter_size"],
-                    c=[color],
-                    label=f"{tel}",
-                    alpha=0.7,
-                    marker=self._style_config["markers"]["track_style"]
-                )
-                logger.debug(f"Plotted {len(valid_angles)} points for telescope {tel}")
-                legend_handles.append(handle)
-                legend_labels.append(tel)
-                plotted_telescopes.add(tel)
-                result["points"] += len(valid_angles)
+                points_plotted = 0
+                first_scan = next(iter(scan_groups.groups.keys()), None)  # Get first scan name safely
+
+                for scan_name, scan_data in scan_groups:
+                    # Sort by time and extract valid angles
+                    scan_data = scan_data.sort_values(by="time")
+                    times_mjd = scan_data["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x).to_numpy()
+                    angles = scan_data["angle"].to_numpy()
+                    valid_mask = ~np.isnan(angles)
+                    if not np.any(valid_mask):
+                        logger.debug(f"All angles for telescope {tel}, scan {scan_name} are NaN, skipping")
+                        continue
+                    valid_times_mjd = times_mjd[valid_mask]
+                    valid_angles = angles[valid_mask]
+
+                    # Plot as line for this scan
+                    handle = ax.plot(
+                        valid_times_mjd, valid_angles,
+                        color=color,
+                        linestyle=self._style_config.get("lines", {}).get("style", "-"),
+                        linewidth=self._style_config.get("lines", {}).get("width", 1.5),
+                        label=tel if scan_name == first_scan else None,  # Label only for first scan
+                        alpha=0.7
+                    )[0]
+                    points_plotted += len(valid_angles)
+                    logger.debug(f"Plotted {len(valid_angles)} points for telescope {tel}, scan {scan_name}")
+
+                if points_plotted > 0:
+                    legend_handles.append(handle)
+                    legend_labels.append(tel)
+                    plotted_telescopes.add(tel)
+                    result["points"] += points_plotted
 
             if not plotted_telescopes:
                 logger.debug("No valid data plotted, returning empty result")
@@ -746,24 +756,10 @@ class ScheduleVisualizer(Super):
                 )
 
             if legend_handles:
-                grouped_legend = {}
-                for handle, tel in zip(legend_handles, legend_labels):
-                    if tel not in grouped_legend:
-                        grouped_legend[tel] = []
-                    grouped_legend[tel].append((handle, tel))
-
-                legend_lines = []
-                legend_texts = []
-                for tel in sorted(grouped_legend.keys()):
-                    legend_lines.append(Line2D([0], [0], linestyle="none", marker="none"))
-                    legend_texts.append(f"{tel}")
-                    for handle, label in grouped_legend[tel]:
-                        legend_lines.append(handle)
-                        legend_texts.append(f"    {label}")
-
                 fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
                 fig.legend(
-                    legend_lines, legend_texts,
+                    handles=legend_handles,
+                    labels=legend_labels,
                     loc=self._style_config["legend"]["loc"],
                     bbox_to_anchor=self._style_config["legend"]["bbox_to_anchor"],
                     fontsize=self._style_config["legend"]["fontsize"],
