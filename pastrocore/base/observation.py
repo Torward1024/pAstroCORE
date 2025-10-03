@@ -274,14 +274,13 @@ class Observation(BaseEntity):
             
             check_non_empty_string(data["name"], "Observation name")
             
-            # Process calculated_data with error handling
             calculated_data = {}
             for key, calc_data in data.get("calculated_data", {}).items():
                 try:
                     calculated_data[key] = restore_dataframe(calc_data, key)
                 except ValueError as e:
                     logger.error(f"Skipping invalid calculated_data key '{key}' due to error: {str(e)}")
-                    continue  # Skip invalid calculated_data entries
+                    continue
 
             kwargs = {
                 "name": data["name"],
