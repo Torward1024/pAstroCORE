@@ -123,7 +123,7 @@ class ExportThread(QThread):
                                     "baselines": baselines if key in ["uv_coverage", "baseline_projections"] else [],
                                     "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source", "beam_pattern"] else [],
                                     "scans": scans,
-                                    "freq_names": frequencies if key in ["uv_coverage", "baseline_projections", "beam_pattern"] else [],
+                                    "frequencies": frequencies if key in ["uv_coverage", "baseline_projections", "beam_pattern"] else [],
                                     "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
                                 }
                                 try:
