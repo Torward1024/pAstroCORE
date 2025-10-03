@@ -110,6 +110,9 @@ class ScheduleVisualizer(Super):
             'linestyles': {
                 'default': '-',
                 'secondary': '--'
+            },
+            'lines': {
+                'width': 2
             }
         }
 
@@ -799,7 +802,7 @@ class ScheduleVisualizer(Super):
 
             if not self._check_filters(attributes, ["source_name", "telescopes"]):
                 logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, "
-                             f"returning empty plot")
+                            f"returning empty plot")
                 return self._create_empty_plot(
                     fig, "az_el", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": f"{coord_type[:2]}/{coord_type[2:]}, (deg)",
@@ -841,13 +844,17 @@ class ScheduleVisualizer(Super):
             n_tels = len(telescopes if telescopes else unique_telescopes)
             n_rows = min(n_tels, self._style_config.get("max_subplots", 10)) if n_tels > 1 else 1
             n_cols = 1
-            axes = self._setup_axes(fig, "az_el", obj.get_observation_code(), n_rows=n_rows, n_cols=n_cols, sharex=True, sharey=True)
+            axes = self._setup_axes(
+                fig, "az_el", obj.get_observation_code(), n_rows=n_rows, n_cols=n_cols, sharex=True, sharey=True
+            )
             axes = np.atleast_1d(axes).tolist()
 
             result = {"scans": len(filtered_df["scan_name"].unique()), "telescopes": 0, "points": 0}
             plotted_telescopes = set()
-            legend_handles = []
-            legend_labels = []
+
+            # Define fixed colors for Az and El
+            az_color = self._style_config["colors"][0]  # First color for Az
+            el_color = self._style_config["colors"][1]  # Second color for El
 
             # Process data for each telescope
             for tel_idx, tel in enumerate(unique_telescopes):
@@ -873,36 +880,30 @@ class ScheduleVisualizer(Super):
                 valid_az = az_values[valid_mask]
                 valid_el = el_values[valid_mask]
 
-                color = self._style_config["colors"][tel_idx % len(self._style_config["colors"])]
                 ax = axes[0] if n_tels == 1 else axes[tel_idx]
 
-                # Plot az
-                handle_az = ax.scatter(
+                # Plot lines for Az and El
+                ax.plot(
                     valid_times_mjd, valid_az,
-                    s=self._style_config["markers"]["scatter_size"],
-                    c=[color],
-                    label=f"{tel} ({coord_type[:2]})",
-                    alpha=0.7,
-                    marker=self._style_config["markers"]["track_style"]
+                    color=az_color,
+                    label=f"{coord_type[:2]}" if tel_idx == 0 else "",
+                    linewidth=self._style_config["lines"]["width"],
+                    alpha=0.7
                 )
-            
-                handle_el = ax.scatter(
+                ax.plot(
                     valid_times_mjd, valid_el,
-                    s=self._style_config["markers"]["scatter_size"],
-                    c=[color],
-                    label=f"{tel} ({coord_type[2:]})",
-                    alpha=0.7,
-                    marker=self._style_config["markers"]["track_style"]
+                    color=el_color,
+                    label=f"{coord_type[2:]}" if tel_idx == 0 else "",
+                    linewidth=self._style_config["lines"]["width"],
+                    alpha=0.7
                 )
                 logger.debug(f"Plotted {len(valid_az)} points for telescope {tel}")
-                legend_handles.extend([handle_az, handle_el])
-                legend_labels.extend([f"{tel} ({coord_type[:2]})", f"{tel} ({coord_type[2:]})"])
                 plotted_telescopes.add(tel)
                 result["points"] += len(valid_az) + len(valid_el)
 
                 ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
                 if n_tels > 1:
-                    ax.set_title(f"{tel}", fontsize=self._style_config["font"]["title_size"])
+                    ax.set_title(f"{tel}", fontsize=self._style_config["font"]["title_size"] - 2, pad=5)
                 ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
             if not plotted_telescopes:
@@ -913,44 +914,35 @@ class ScheduleVisualizer(Super):
                             "title": f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}"}
                 )
 
+            # Adjust layout and labels
+            fig.tight_layout()
             if n_tels > 1:
-                fig.text(0.5, 0.04, "Time, (MJD)", ha="center", fontsize=self._style_config["font"]["label_size"])
-                fig.text(0.04, 0.5, f"{coord_type[:2]}/{coord_type[2:]}, (deg)", va="center", rotation="vertical",
-                         fontsize=self._style_config["font"]["label_size"])
+                fig.subplots_adjust(left=0.15, bottom=0.15, right=0.85, top=0.85, hspace=0.3)
+                fig.text(0.5, 0.05, "Time, (MJD)", ha="center", fontsize=self._style_config["font"]["label_size"])
+                fig.text(0.05, 0.5, f"{coord_type[:2]}/{coord_type[2:]}, (deg)", va="center", rotation="vertical",
+                        fontsize=self._style_config["font"]["label_size"])
                 fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                             fontsize=self._style_config["font"]["title_size"])
+                            fontsize=self._style_config["font"]["title_size"], y=0.95)
             else:
                 axes[0].set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
                 axes[0].set_ylabel(f"{coord_type[:2]}/{coord_type[2:]}, (deg)", fontsize=self._style_config["font"]["label_size"])
                 axes[0].set_title(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                                  fontsize=self._style_config["font"]["title_size"])
+                                fontsize=self._style_config["font"]["title_size"], pad=10)
                 axes[0].xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
                 axes[0].tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
-            if legend_handles:
-                grouped_legend = {}
-                for handle, label in zip(legend_handles, legend_labels):
-                    tel_key = label.split(" (")[0]
-                    if tel_key not in grouped_legend:
-                        grouped_legend[tel_key] = []
-                    grouped_legend[tel_key].append((handle, label))
-
-                legend_lines = []
-                legend_texts = []
-                for tel in sorted(grouped_legend.keys()):
-                    legend_lines.append(Line2D([0], [0], linestyle="none", marker="none"))
-                    legend_texts.append(f"{tel}")
-                    for handle, label in sorted(grouped_legend[tel], key=lambda x: x[1]):
-                        legend_lines.append(handle)
-                        legend_texts.append(f"    {label}")
-
-                fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
+            # Create legend for Az and El only
+            if n_tels >= 1:
+                legend_handles = [
+                    Line2D([0], [0], color=az_color, label=f"{coord_type[:2]}", linewidth=self._style_config["lines"]["width"]),
+                    Line2D([0], [0], color=el_color, label=f"{coord_type[2:]}", linewidth=self._style_config["lines"]["width"])
+                ]
                 fig.legend(
-                    legend_lines, legend_texts,
+                    handles=legend_handles,
                     loc=self._style_config["legend"]["loc"],
                     bbox_to_anchor=self._style_config["legend"]["bbox_to_anchor"],
                     fontsize=self._style_config["legend"]["fontsize"],
-                    title="Telescopes:",
+                    title="Coordinates:",
                     title_fontsize=self._style_config["legend"]["title_fontsize"]
                 )
 
