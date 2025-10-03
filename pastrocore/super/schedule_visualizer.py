@@ -839,9 +839,23 @@ class ScheduleVisualizer(Super):
                             "title": f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Setup axes
-            unique_telescopes = filtered_df["telescope_code"].unique()
-            n_tels = len(telescopes if telescopes else unique_telescopes)
+            valid_telescopes = []
+            for tel in filtered_df["telescope_code"].unique():
+                tel_data = filtered_df[filtered_df["telescope_code"] == tel]
+                az_values = tel_data["az"].to_numpy()
+                el_values = tel_data["el"].to_numpy()
+                valid_mask = ~(np.isnan(az_values) | np.isnan(el_values))
+                if np.any(valid_mask) and len(tel_data[valid_mask]) > 0:
+                    valid_telescopes.append(tel)
+            if not valid_telescopes:
+                logger.debug("No telescopes with valid data, returning empty plot")
+                return self._create_empty_plot(
+                    fig, "az_el", obj.get_observation_code(),
+                    labels={"xlabel": "Time, (MJD)", "ylabel": f"{coord_type[:2]}/{coord_type[2:]}, (deg)",
+                            "title": f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}"}
+                )
+
+            n_tels = len(valid_telescopes)
             n_rows = min(n_tels, self._style_config.get("max_subplots", 10)) if n_tels > 1 else 1
             n_cols = 1
             axes = self._setup_axes(
@@ -852,14 +866,11 @@ class ScheduleVisualizer(Super):
             result = {"scans": len(filtered_df["scan_name"].unique()), "telescopes": 0, "points": 0}
             plotted_telescopes = set()
 
-            # Define fixed colors for Az and El
-            az_color = self._style_config["colors"][0]  # First color for Az
-            el_color = self._style_config["colors"][1]  # Second color for El
+            az_color = self._style_config["colors"][2]
+            el_color = self._style_config["colors"][4]
+            linewidth = self._style_config.get("lines", {}).get("width", 1.5)
 
-            # Process data for each telescope
-            for tel_idx, tel in enumerate(unique_telescopes):
-                if telescopes and tel not in telescopes:
-                    continue
+            for tel_idx, tel in enumerate(valid_telescopes):
                 if n_tels > 1 and tel_idx >= self._style_config.get("max_subplots", 10):
                     break
                 tel_data = filtered_df[filtered_df["telescope_code"] == tel]
@@ -867,7 +878,6 @@ class ScheduleVisualizer(Super):
                     logger.debug(f"No data for telescope {tel}, skipping")
                     continue
 
-                # Sort by time and extract valid coordinates
                 tel_data = tel_data.sort_values(by="time")
                 times_mjd = tel_data["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x).to_numpy()
                 az_values = tel_data["az"].to_numpy()
@@ -887,14 +897,14 @@ class ScheduleVisualizer(Super):
                     valid_times_mjd, valid_az,
                     color=az_color,
                     label=f"{coord_type[:2]}" if tel_idx == 0 else "",
-                    linewidth=self._style_config["lines"]["width"],
+                    linewidth=linewidth,
                     alpha=0.7
                 )
                 ax.plot(
                     valid_times_mjd, valid_el,
                     color=el_color,
                     label=f"{coord_type[2:]}" if tel_idx == 0 else "",
-                    linewidth=self._style_config["lines"]["width"],
+                    linewidth=linewidth,
                     alpha=0.7
                 )
                 logger.debug(f"Plotted {len(valid_az)} points for telescope {tel}")
@@ -917,12 +927,12 @@ class ScheduleVisualizer(Super):
             # Adjust layout and labels
             fig.tight_layout()
             if n_tels > 1:
-                fig.subplots_adjust(left=0.15, bottom=0.15, right=0.85, top=0.85, hspace=0.3)
+                fig.subplots_adjust(left=0.15, bottom=0.15, right=0.85, top=0.80, hspace=0.3)
                 fig.text(0.5, 0.05, "Time, (MJD)", ha="center", fontsize=self._style_config["font"]["label_size"])
                 fig.text(0.05, 0.5, f"{coord_type[:2]}/{coord_type[2:]}, (deg)", va="center", rotation="vertical",
                         fontsize=self._style_config["font"]["label_size"])
                 fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                            fontsize=self._style_config["font"]["title_size"], y=0.95)
+                            fontsize=self._style_config["font"]["title_size"], y=0.98)
             else:
                 axes[0].set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
                 axes[0].set_ylabel(f"{coord_type[:2]}/{coord_type[2:]}, (deg)", fontsize=self._style_config["font"]["label_size"])
@@ -934,8 +944,8 @@ class ScheduleVisualizer(Super):
             # Create legend for Az and El only
             if n_tels >= 1:
                 legend_handles = [
-                    Line2D([0], [0], color=az_color, label=f"{coord_type[:2]}", linewidth=self._style_config["lines"]["width"]),
-                    Line2D([0], [0], color=el_color, label=f"{coord_type[2:]}", linewidth=self._style_config["lines"]["width"])
+                    Line2D([0], [0], color=az_color, label=f"{coord_type[:2]}", linewidth=linewidth),
+                    Line2D([0], [0], color=el_color, label=f"{coord_type[2:]}", linewidth=linewidth)
                 ]
                 fig.legend(
                     handles=legend_handles,
