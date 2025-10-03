@@ -4,6 +4,7 @@ from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_default import Ui_VisDefaultTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
+from pastrocore.base.scans import Scans
 from pastrocore.base.data_structure import CalculatedDataStructure
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -226,7 +227,7 @@ class TimeOnSourceVisualizationTab(QWidget):
             return
 
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source")
+            df = self.manipulator.inspect(self.observation, get_calculated_data_by_key="time_on_source")
             if not isinstance(df, pd.DataFrame):
                 logger.error("No valid Time on Source data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Time on Source data available"))
@@ -249,13 +250,22 @@ class TimeOnSourceVisualizationTab(QWidget):
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scan_times = df_filtered.groupby("scan_name")["time"].first().reset_index()
-            scans = scan_times["scan_name"].tolist()
+            scans_container = self.manipulator.inspect(obj=self.observation, get_scans=True)
+            if not isinstance(scans_container, Scans):
+                logger.error("Failed to retrieve Scans container")
+                self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
+                return
 
-            for _, row in scan_times.iterrows():
-                scan_name = row["scan_name"]
-                start_time = Time(row["time"]).isot
-                display_text = f"{start_time}"
+            scans = [
+                scan for scan in scans_container.get_active_scans(self.observation)
+                if scan.source and scan.source.name == source_name
+            ]
+            logger.info(f"Found {len(scans)} scans for source '{source_name}': {[s.name for s in scans]}")
+
+            for scan in scans:
+                scan_name = scan.name
+                start_time = scan.get_start().isot
+                display_text = f"{start_time} ({scan_name})"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
