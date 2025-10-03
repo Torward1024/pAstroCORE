@@ -138,7 +138,7 @@ class Scan(BaseEntity):
         """Retrieve the duration of the scan."""
         return self.get("duration")
 
-    def get_source_name(self) -> Optional[str]:
+    def get_source_name(self) -> str:
         """Retrieve the source name."""
         return self.source.name
 
@@ -150,8 +150,10 @@ class Scan(BaseEntity):
         """Retrieve the list of frequency names."""
         return self.get("frequency_names")
 
-    def get_source(self, observation: 'Observation') -> Optional[Source]:
+    def get_source(self, observation: 'Observation') -> Source:
         """Retrieve the source associated with this scan."""
+        from pastrocore.base.observation import Observation
+        check_type(observation, Observation, "Observation")
         return self.source
 
     def get_telescopes(self, observation: 'Observation') -> Telescopes:
@@ -365,8 +367,8 @@ class Scan(BaseEntity):
         start_time = Time(data.pop("start"))
         start_time = Time(start_time.iso.split('.')[0], format='iso')
         source_name = data.pop("source", None)
-        telescope_names = data.pop("telescopes", [])  # List of telescope names
-        frequency_names = data.pop("frequencies", [])  # List of frequency names
+        telescope_names = data.pop("telescopes", [])
+        frequency_names = data.pop("frequencies", [])
         is_off_source = data.pop("is_off_source", False)
         data.pop("type", None)
 
@@ -607,22 +609,20 @@ class Scans(BaseContainer[Scan]):
         active = []
         for scan in self.get_items():
             if not scan.isactive:
+                logger.debug(f"Scan '{scan.name}' is not active, skipping")
                 continue
             if observation is None:
                 active.append(scan)
+                logger.debug(f"Scan '{scan.name}' included as active (no observation context)")
                 continue
             check_type(observation, Observation, "Observation")
-            if scan.source is not None:
-                source = observation.get_sources().get(scan.source.name)
-                if source and not source.isactive:
-                    continue
-            if any(not telescope.isactive for telescope in scan.telescopes):
-                continue
-            if any(not frequency.isactive for frequency in scan.frequencies):
-                continue
-            active.append(scan)
+            if scan._check_activity_status(observation):
+                active.append(scan)
+                logger.debug(f"Scan '{scan.name}' included as active based on activity status")
+            else:
+                logger.debug(f"Scan '{scan.name}' excluded due to failing activity status check")
         logger.debug(f"Retrieved {len(active)} active scans" + 
-                     (f" for observation '{observation.get_observation_code()}'" if observation else ""))
+                    (f" for observation '{observation.get_observation_code()}'" if observation else ""))
         return active
 
     def get_inactive_scans(self) -> List[Scan]:
