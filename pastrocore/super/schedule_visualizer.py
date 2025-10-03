@@ -530,20 +530,13 @@ class ScheduleVisualizer(Super):
 
                     u = baseline_data["u"].to_numpy()
                     v = baseline_data["v"].to_numpy()
-                    valid_mask = ~(np.isnan(u) | np.isnan(v))
-                    u_valid = u[valid_mask]
-                    v_valid = v[valid_mask]
-
-                    if len(u_valid) == 0:
-                        logger.debug(f"No valid UV points for baseline {baseline} at {freq_mhz:.2f} MHz, skipping")
-                        continue
 
                     if units == "wavelengths":
-                        u_scaled = u_valid / wavelength
-                        v_scaled = v_valid / wavelength
+                        u_scaled = u / wavelength
+                        v_scaled = v / wavelength
                     else:
-                        u_scaled = (u_valid / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
-                        v_scaled = (v_valid / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
+                        u_scaled = (u / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
+                        v_scaled = (v / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
 
                     max_uv = max(max_uv, np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
 
