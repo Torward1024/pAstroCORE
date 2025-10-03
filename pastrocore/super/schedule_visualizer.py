@@ -702,7 +702,6 @@ class ScheduleVisualizer(Super):
             legend_handles = []
             legend_labels = []
 
-            # Process data for each telescope
             for tel_idx, tel in enumerate(filtered_df["telescope_code"].unique()):
                 if telescopes and tel not in telescopes:
                     continue
@@ -711,14 +710,12 @@ class ScheduleVisualizer(Super):
                     logger.debug(f"No data for telescope {tel}, skipping")
                     continue
 
-                # Group by scan to handle discontinuities
                 scan_groups = tel_data.groupby("scan_name")
                 color = self._style_config["colors"][tel_idx % len(self._style_config["colors"])]
                 points_plotted = 0
                 first_scan = next(iter(scan_groups.groups.keys()), None)  # Get first scan name safely
 
                 for scan_name, scan_data in scan_groups:
-                    # Sort by time and extract valid angles
                     scan_data = scan_data.sort_values(by="time")
                     times_mjd = scan_data["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x).to_numpy()
                     angles = scan_data["angle"].to_numpy()
@@ -729,13 +726,12 @@ class ScheduleVisualizer(Super):
                     valid_times_mjd = times_mjd[valid_mask]
                     valid_angles = angles[valid_mask]
 
-                    # Plot as line for this scan
                     handle = ax.plot(
                         valid_times_mjd, valid_angles,
                         color=color,
                         linestyle=self._style_config.get("lines", {}).get("style", "-"),
                         linewidth=self._style_config.get("lines", {}).get("width", 1.5),
-                        label=tel if scan_name == first_scan else None,  # Label only for first scan
+                        label=tel if scan_name == first_scan else None,
                         alpha=0.7
                     )[0]
                     points_plotted += len(valid_angles)

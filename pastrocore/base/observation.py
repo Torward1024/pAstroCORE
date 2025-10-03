@@ -183,7 +183,7 @@ class Observation(BaseEntity):
             df_copy.attrs = converted_metadata
             buffer = io.BytesIO()
             try:
-                df_copy.to_parquet(buffer, compression='snappy', engine="pyarrow", index=False)
+                df_copy.to_parquet(buffer, compression=None, engine="pyarrow", index=False)
             except Exception as e:
                 logger.error(f"Failed to convert DataFrame for key '{key}' to Parquet in "
                             f"observation '{self.name}': {str(e)}")
