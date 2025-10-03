@@ -7,7 +7,7 @@ from pastrocore.base.sources import Source, Sources
 from pastrocore.base.scans import Scan, Scans
 from pastrocore.base.frequencies import IF, Frequencies
 from common.utils.logging_setup import logger
-from typing import Dict, Any, Callable, Union, List, Tuple, Iterator, Optional
+from typing import Dict, Any, Callable, Union, List
 from concurrent.futures import ThreadPoolExecutor
 import matplotlib
 import matplotlib.ticker
@@ -460,7 +460,7 @@ class ScheduleVisualizer(Super):
             baselines = attributes.get("baselines", [])
             source_name = attributes.get("source_name", None)
             scans = attributes.get("scans", [])
-            frequencies = attributes.get("freq_names", [])
+            frequencies = attributes.get("frequencies", [])
             units = attributes.get("units", "wavelengths")
 
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
@@ -1142,7 +1142,7 @@ class ScheduleVisualizer(Super):
 
         Args:
             obj: Observation object to visualize.
-            attributes: Dictionary with visualization parameters (telescopes, freq_names, etc.).
+            attributes: Dictionary with visualization parameters (telescopes, frequencies, etc.).
             fig: Matplotlib Figure object for plotting.
 
         Returns:
@@ -1151,11 +1151,11 @@ class ScheduleVisualizer(Super):
         with self._lock:
             logger.debug(f"Plotting beam pattern for {obj.get_observation_code()} with attributes: {attributes}")
             store_key = attributes.get("store_key", "beam_pattern")
-            freq_names = attributes.get("freq_names", [])
+            frequencies = attributes.get("frequencies", [])
             telescopes = attributes.get("telescopes", [])
 
-            if not telescopes or not freq_names:
-                logger.debug(f"Empty filter: telescopes={telescopes}, freq_names={freq_names}, returning empty result")
+            if not telescopes or not frequencies:
+                logger.debug(f"Empty filter: telescopes={telescopes}, frequencies={frequencies}, returning empty result")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
                     labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
@@ -1181,7 +1181,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            freq_list = [float(f) for f in freq_names if isinstance(f, (int, float)) and f > 0]
+            freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
             if not freq_list:
                 logger.debug("No valid frequencies provided, returning empty result")
                 return self._create_empty_plot(
@@ -1282,11 +1282,9 @@ class ScheduleVisualizer(Super):
                     bbox_transform=fig.transFigure
                 )
 
-            # Hide unused axes
             for idx in range(len(tel_list), len(axes)):
                 axes[idx].set_visible(False)
 
-            # Handle empty plot case
             if not plotted_telescopes:
                 logger.debug("No valid data plotted, returning empty result")
                 return self._create_empty_plot(
@@ -1295,7 +1293,6 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            # Set figure title
             fig.suptitle(f"Beam Pattern\nObs. code: {obj.get_observation_code()}",
                         fontsize=self._style_config["font"]["title_size"])
             result["telescopes"] = len(plotted_telescopes)
@@ -1321,7 +1318,7 @@ class ScheduleVisualizer(Super):
             source_name = attributes.get("source_name", None)
             scans = attributes.get("scans", None)
             time_range = attributes.get("time_range", None)
-            frequencies = attributes.get("freq_names", [])
+            frequencies = attributes.get("frequencies", [])
             units = attributes.get("units", "wavelengths")
 
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
@@ -1338,11 +1335,10 @@ class ScheduleVisualizer(Super):
                 logger.debug("No baseline projection data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Projection, ({units})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Apply filters using pandas
             filtered_df = bl_data[bl_data["source_name"] == source_name]
             if baselines:
                 filtered_df = filtered_df[filtered_df["baseline"].isin(baselines)]
@@ -1363,7 +1359,6 @@ class ScheduleVisualizer(Super):
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Validate frequencies
             freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
             if not freq_list:
                 logger.debug("No valid frequencies provided, returning empty plot")
@@ -1373,12 +1368,10 @@ class ScheduleVisualizer(Super):
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Calculate reference frequency and wavelength
             ref_freq = min(freq_list)
             ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
             logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
 
-            # Setup axes
             ax = self._setup_axes(fig, "baseline_projections", obj.get_observation_code())
             ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
@@ -1548,7 +1541,8 @@ class ScheduleVisualizer(Super):
             if scans:
                 filtered_df = filtered_df[filtered_df["scan_name"].isin(scans)]
             if sources:
-                filtered_df = filtered_df[filtered_df["source_name"].isin(sources)]
+                if not all(source in filtered_df.attrs.get("sources", {}) for source in sources):
+                    logger.error(f"Some sources {sources} not found in df.attrs['sources']")
 
             if filtered_df.empty:
                 logger.debug("No data after filtering, returning empty Mollweide plot")
@@ -1592,7 +1586,6 @@ class ScheduleVisualizer(Super):
                     logger.warning(f"Failed to plot source {source_name}: {str(e)}")
                     continue
 
-            # Process track data
             total_points = len(filtered_df)
             if total_points > max_points:
                 logger.warning(f"Total points ({total_points}) exceeds max_points ({max_points}), subsampling tracks")

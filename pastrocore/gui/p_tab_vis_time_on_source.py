@@ -4,6 +4,7 @@ from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_default import Ui_VisDefaultTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
+from pastrocore.base.data_structure import CalculatedDataStructure
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -11,21 +12,18 @@ from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
 import matplotlib.pyplot as plt
+import pandas as pd
 import gc
 
 class TimeOnSourceVisualizationTab(QWidget):
     """Widget for Time on Source visualization with source, scan, and telescope selection."""
 
-    def __init__(self, manipulator: ScheduleManipulator, observation: Observation,
-                 sources: List[str], scans: List[str], telescopes: List[str], parent=None):
+    def __init__(self, manipulator: ScheduleManipulator, observation: Observation, parent=None):
         """Initialize the Time on Source visualization tab.
 
         Args:
             manipulator: ScheduleManipulator instance for processing visualization requests.
             observation: Observation object containing time on source data.
-            sources: List of available source names.
-            scans: List of available scan names.
-            telescopes: List of available telescope codes.
             parent: Parent widget, typically a QDialog.
         """
         super().__init__(parent)
@@ -36,36 +34,55 @@ class TimeOnSourceVisualizationTab(QWidget):
         self.canvas = None
         self.toolbar = None
         self.figure = None
-        self.cached_data = None
         self.is_processing = False
         logger.debug(f"TimeOnSourceVisualizationTab initialized for observation id={id(observation)}")
 
-        self.ui.cmbSource.addItems(sources)
-        for telescope in telescopes:
-            item = QListWidgetItem(telescope)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            item.setCheckState(Qt.Checked)
-            self.ui.listTelescopes.addItem(item)
-
-        for scan in scans:
-            item = QListWidgetItem(scan)
-            item.setData(Qt.UserRole, scan)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-            item.setCheckState(Qt.Checked)
-            self.ui.listScans.addItem(item)
-
         self.layout = QVBoxLayout(self.ui.widget)
+        self._populate_filters()
         logger.debug("TimeOnSourceVisualizationTab UI populated and ready for visualization")
 
         self.ui.cmbSource.currentIndexChanged.connect(self.filter_changed)
         self.ui.listScans.itemChanged.connect(self.filter_changed)
         self.ui.listTelescopes.itemChanged.connect(self.filter_changed)
 
-        self._cache_calculated_data()
-        if sources:
-            self.update_scans_for_source(sources[0])
+        if self.ui.cmbSource.count() > 0:
+            self.update_scans_for_source(self.ui.cmbSource.currentText())
             self.update_visualization()
-    
+
+    def _populate_filters(self):
+        """Populate source and telescope filters from Time on Source DataFrame."""
+        try:
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source")
+            if not isinstance(df, pd.DataFrame):
+                logger.error("No valid Time on Source data available for populating filters")
+                self.ui.cmbSource.addItem("No Time on Source data available")
+                return
+
+            expected_columns = CalculatedDataStructure.get_columns("time_on_source")
+            if not expected_columns:
+                logger.error("No schema defined for Time on Source data")
+                self.ui.cmbSource.addItem("No schema defined")
+                return
+            missing_columns = [col for col in expected_columns if col not in df.columns]
+            if missing_columns:
+                logger.error(f"DataFrame for Time on Source missing required columns: {missing_columns}")
+                self.ui.cmbSource.addItem("Invalid Time on Source data structure")
+                return
+
+            sources = df["source_name"].unique().tolist()
+            telescopes = df["telescope_code"].unique().tolist()
+
+            self.ui.cmbSource.addItems(sorted(sources))
+            for telescope in sorted(telescopes):
+                item = QListWidgetItem(telescope)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                item.setCheckState(Qt.Checked)
+                self.ui.listTelescopes.addItem(item)
+            logger.debug(f"Populated {len(sources)} sources and {len(telescopes)} telescopes")
+        except Exception as e:
+            logger.error(f"Failed to populate filters: {str(e)}")
+            self.ui.cmbSource.addItem("Failed to retrieve data")
+
     def _lock_ui(self):
         """Lock UI elements to prevent further changes during visualization."""
         QApplication.setOverrideCursor(Qt.WaitCursor)
@@ -82,57 +99,9 @@ class TimeOnSourceVisualizationTab(QWidget):
         self.ui.listTelescopes.setEnabled(True)
         logger.debug("UI unlocked in TimeOnSourceVisualizationTab")
 
-    def _cache_calculated_data(self):
-        """Cache calculated data for the observation to optimize performance."""
-        try:
-            self.cached_data = self.manipulator.inspect(obj=self.observation, get_calculated_data={"keys": ["time_on_source"]})
-            logger.debug(f"Cached calculated data: {list(self.cached_data.keys())}")
-        except Exception as e:
-            logger.error(f"Failed to cache calculated data: {str(e)}")
-            self.cached_data = {}
-
-    def get_selected_source(self) -> Optional[str]:
-        """Get the currently selected source name.
-
-        Returns:
-            Selected source name or None if no source is selected.
-        """
-        source = self.ui.cmbSource.currentText() if self.ui.cmbSource.currentText() else None
-        logger.debug(f"Selected source: {source}")
-        return source
-
-    def get_selected_scans(self) -> List[str]:
-        """Get the list of selected scan names.
-
-        Returns:
-            List of selected scan names.
-        """
-        selected_scans = []
-        for i in range(self.ui.listScans.count()):
-            item = self.ui.listScans.item(i)
-            if item.checkState() == Qt.Checked:
-                selected_scans.append(item.data(Qt.UserRole))
-        logger.debug(f"Selected scans: {selected_scans}")
-        return selected_scans
-
-    def get_selected_telescopes(self) -> List[str]:
-        """Get the list of selected telescope names.
-
-        Returns:
-            List of selected telescope codes.
-        """
-        selected_telescopes = []
-        for i in range(self.ui.listTelescopes.count()):
-            item = self.ui.listTelescopes.item(i)
-            if item.checkState() == Qt.Checked:
-                selected_telescopes.append(item.text())
-        logger.debug(f"Selected telescopes: {selected_telescopes}")
-        return selected_telescopes
-
     def _clear_canvas(self):
-        """Aggressively clear the canvas, toolbar, and figure to release all resources."""
+        """Safely clear the canvas, toolbar, and figure to release resources."""
         logger.debug("Clearing canvas, toolbar, and figure")
-
         if self.canvas:
             try:
                 self.layout.removeWidget(self.canvas)
@@ -171,7 +140,6 @@ class TimeOnSourceVisualizationTab(QWidget):
         gc.collect(2)
         logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
 
-    @Slot()
     def embed_figure(self, figure: Figure):
         """Embed a Matplotlib figure into the widget.
 
@@ -186,6 +154,44 @@ class TimeOnSourceVisualizationTab(QWidget):
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
         logger.debug(f"Embedded Matplotlib figure {id(figure)} in TimeOnSourceVisualizationTab")
+
+    def get_selected_source(self) -> Optional[str]:
+        """Get the currently selected source name.
+
+        Returns:
+            Selected source name or None if no source is selected.
+        """
+        source = self.ui.cmbSource.currentText() if self.ui.cmbSource.currentText() else None
+        logger.debug(f"Selected source: {source}")
+        return source
+
+    def get_selected_scans(self) -> List[str]:
+        """Get the list of selected scan names.
+
+        Returns:
+            List of selected scan names.
+        """
+        selected_scans = []
+        for i in range(self.ui.listScans.count()):
+            item = self.ui.listScans.item(i)
+            if item.checkState() == Qt.Checked:
+                selected_scans.append(item.data(Qt.UserRole))
+        logger.debug(f"Selected scans: {selected_scans}")
+        return selected_scans
+
+    def get_selected_telescopes(self) -> List[str]:
+        """Get the list of selected telescope codes.
+
+        Returns:
+            List of selected telescope codes.
+        """
+        selected_telescopes = []
+        for i in range(self.ui.listTelescopes.count()):
+            item = self.ui.listTelescopes.item(i)
+            if item.checkState() == Qt.Checked:
+                selected_telescopes.append(item.text())
+        logger.debug(f"Selected telescopes: {selected_telescopes}")
+        return selected_telescopes
 
     @Slot()
     def filter_changed(self):
@@ -204,11 +210,11 @@ class TimeOnSourceVisualizationTab(QWidget):
             self.is_processing = False
             self._unlock_ui()
 
-    def update_scans_for_source(self, source_name: str):
+    def update_scans_for_source(self, source_name: Optional[str] = None):
         """Update the scans list based on the selected source, preserving check states.
 
         Args:
-            source_name: Name of the selected source.
+            source_name: Name of the selected source, or None to clear the scans list.
         """
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
                           for i in range(self.ui.listScans.count())}
@@ -219,32 +225,46 @@ class TimeOnSourceVisualizationTab(QWidget):
             logger.debug("No source selected, clearing scans list")
             return
 
-        if not self.cached_data or "time_on_source" not in self.cached_data:
-            logger.error("No cached time on source data available for updating scans")
-            return
-
-        scans = []
-        if source_name in self.cached_data["time_on_source"]["data"]:
-            scan_data = self.cached_data["time_on_source"]["data"][source_name]
-            try:
-                scan_objects = self.manipulator.inspect(obj=self.observation, get_scans=None).get_items()
-            except Exception as e:
-                logger.error(f"Failed to retrieve scans: {str(e)}")
+        try:
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source")
+            if not isinstance(df, pd.DataFrame):
+                logger.error("No valid Time on Source data available for updating scans")
+                self.ui.listScans.addItem(QListWidgetItem("No Time on Source data available"))
                 return
-            for scan in scan_objects:
-                scan_name = scan.get("name")
-                if scan_name in scan_data:
-                    start_time = Time(scan.get_start()).isot
-                    display_text = f"{start_time}"
-                    item = QListWidgetItem(display_text)
-                    item.setData(Qt.UserRole, scan_name)
-                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                    item.setCheckState(current_checks.get(scan_name, Qt.Checked))
-                    self.ui.listScans.addItem(item)
-                    scans.append(scan_name)
+
+            expected_columns = CalculatedDataStructure.get_columns("time_on_source")
+            if not expected_columns:
+                logger.error("No schema defined for Time on Source data")
+                self.ui.listScans.addItem(QListWidgetItem("No schema defined for Time on Source data"))
+                return
+            missing_columns = [col for col in expected_columns if col not in df.columns]
+            if missing_columns:
+                logger.error(f"DataFrame for Time on Source missing required columns: {missing_columns}")
+                self.ui.listScans.addItem(QListWidgetItem("Invalid Time on Source data structure"))
+                return
+
+            df_filtered = df[df["source_name"] == source_name]
+            if df_filtered.empty:
+                logger.debug(f"No data for source '{source_name}' in Time on Source DataFrame")
+                self.ui.listScans.addItem(QListWidgetItem("No scans available"))
+                return
+
+            scan_times = df_filtered.groupby("scan_name")["time"].first().reset_index()
+            scans = scan_times["scan_name"].tolist()
+
+            for _, row in scan_times.iterrows():
+                scan_name = row["scan_name"]
+                start_time = Time(row["time"]).isot
+                display_text = f"{start_time}"
+                item = QListWidgetItem(display_text)
+                item.setData(Qt.UserRole, scan_name)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                item.setCheckState(current_checks.get(scan_name, Qt.Checked))
+                self.ui.listScans.addItem(item)
             logger.debug(f"Populated {len(scans)} scans for source '{source_name}'")
-        else:
-            logger.debug(f"No time on source data for source '{source_name}'")
+        except Exception as e:
+            logger.error(f"Failed to update scans for source '{source_name}': {str(e)}")
+            self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
 
     def update_visualization(self):
         """Update the Time on Source visualization based on current filter selections."""
@@ -262,7 +282,6 @@ class TimeOnSourceVisualizationTab(QWidget):
             "plot_type": "time_on_source",
             "show": False,
             "return_figure": True,
-            "store_key": "time_on_source",
             "source_name": source_name,
             "scans": scans,
             "telescopes": telescopes
@@ -285,7 +304,7 @@ class TimeOnSourceVisualizationTab(QWidget):
         except Exception as e:
             logger.error(f"Exception during Time on Source visualization update: {str(e)}")
             self._clear_canvas()
-            
+
     def closeEvent(self, event):
         """Ensure resources are cleaned up when the widget is closed."""
         self._clear_canvas()
