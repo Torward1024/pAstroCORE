@@ -393,9 +393,6 @@ class Observation(BaseEntity):
         for scan in active_scans:
             scan_start = scan.get_start()
             scan_end = scan_start + scan.get_duration() * u.s
-            if not scan.check_telescope_availability(self):
-                logger.error(f"Telescope availability check failed for scan starting at {scan_start.isot}")
-                return False
             for telescope in scan.telescopes:
                 if not telescope.isactive:
                     continue

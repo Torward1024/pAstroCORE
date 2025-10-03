@@ -344,49 +344,6 @@ class Scan(BaseEntity):
         logger.info(f"Successfully synchronized scan '{self.name}' with observation '{observation.get_observation_code()}'")
         return True
 
-    def check_telescope_availability(self, observation: 'Observation', time: Time = None) -> dict[str, bool]:
-        """Check telescope availability for this scan at a given time."""
-        from pastrocore.base.observation import Observation
-        check_type(observation, Observation, "Observation")
-        if time is not None:
-            check_type(time, Time, "Time")
-        time = time if time is not None else self.start
-        availability = {}
-        source = self.get_source(observation) if not self.is_off_source else None
-        
-        for telescope in self.get_telescopes(observation).get_active_items():
-            code = telescope.get_code()
-            if self.is_off_source:
-                availability[code] = True
-                continue
-            ra_rad = np.radians(source.ra_degrees)
-            dec_rad = np.radians(source.dec_degrees)
-            lst = (time.sidereal_time('apparent', 'greenwich').degree + 280.46061837) % 360
-            if isinstance(telescope, SpaceTelescope):
-                visible = True
-            else:
-                x, y, z = telescope.get_coordinates()
-                if x == 0 and y == 0 and z == 0:
-                    logger.warning(f"Telescope {telescope.name} has invalid coordinates (0, 0, 0). Skipping calculation.")
-                    continue
-                lat = np.arcsin(z / np.sqrt(x**2 + y**2 + z**2))
-                ha = np.radians(lst - source.ra_degrees)
-                alt = np.arcsin(np.sin(lat) * np.sin(dec_rad) + 
-                                np.cos(lat) * np.cos(dec_rad) * np.cos(ha))
-                az = np.arctan2(
-                    -np.sin(ha) * np.cos(dec_rad),
-                    np.cos(lat) * np.sin(dec_rad) - np.sin(lat) * np.cos(dec_rad) * np.cos(ha)
-                )
-                alt_deg = np.degrees(alt)
-                az_deg = np.degrees(az) % 360
-                el_range = telescope.get_elevation_range()
-                az_range = telescope.get_azimuth_range()
-                visible = (el_range[0] <= alt_deg <= el_range[1] and 
-                           az_range[0] <= az_deg <= az_range[1])
-            availability[code] = visible
-        logger.debug(f"Checked telescope availability for scan '{self.name}' at time={time.isot}: {availability}")
-        return availability
-
     def to_dict(self) -> dict:
         """Convert the Scan object to a dictionary, serializing Time as ISO string."""
         data = super().to_dict()
