@@ -1319,7 +1319,7 @@ class ScheduleVisualizer(Super):
                             f"scans={scans}, frequencies={frequencies}, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
-                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Length, ({units})",
+                    labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Projection, ({units})",
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 

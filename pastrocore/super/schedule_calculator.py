@@ -327,7 +327,7 @@ class ScheduleCalculator(Super):
 
                 for scan in scans:
                     source = scan.get_source(obs)
-                    if source is None or not source.isactive:
+                    if source is None or not source.isactive or scan.is_off_source:
                         logger.debug(f"Skipping scan '{scan.name}' in '{obs.get_observation_code()}': no active source")
                         continue
                     source_name = source.name
