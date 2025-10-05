@@ -1,26 +1,30 @@
 # base/data_structure.py
 from typing import Dict, List, Type, Optional
-from astropy.time import Time
 import numpy as np
-import pandas as pd
+import polars as pl
 
 class CalculatedDataStructure:
-    """Schema definition for calculated data DataFrames."""
+    """Schema definition for calculated data Polars DataFrames."""
     SCHEMAS = {
         "times": {
             "columns": ["source_name", "scan_name", "time"],
             "metadata": {
                 "time_step": float,
                 "time_threshold": float,
-                "start_time": Time,
-                "end_time": Time,
+                "start_time": float,
+                "end_time": float,
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None,
+                "start_time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None,
+                "end_time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "source_name": pl.String,
+                "scan_name": pl.String,
+                "time": pl.Float64
             }
         },
         "interpolated_orbits": {
@@ -30,10 +34,16 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "x": pl.Float64,
+                "y": pl.Float64,
+                "z": pl.Float64
             }
         },
         "telescope_positions": {
@@ -43,10 +53,16 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "x": pl.Float64,
+                "y": pl.Float64,
+                "z": pl.Float64
             }
         },
         "source_visibility": {
@@ -57,10 +73,15 @@ class CalculatedDataStructure:
                 "position_store_key": str
             },
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "source_name": pl.String,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "visibility": pl.Boolean
             }
         },
         "uv_coverage": {
@@ -70,10 +91,17 @@ class CalculatedDataStructure:
                 "scan_count": int
             },
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "source_name": pl.String,
+                "scan_name": pl.String,
+                "baseline": pl.String,
+                "u": pl.Float64,
+                "v": pl.Float64,
+                "w": pl.Float64
             }
         },
         "beam_pattern": {
@@ -84,18 +112,28 @@ class CalculatedDataStructure:
                 "scale_instruction": str
             },
             "converters": {},
-            "deserialization_converters": {}
+            "deserialization_converters": {},
+            "dtypes": {
+                "telescope_code": pl.String,
+                "theta": pl.Float64,
+                "pattern": pl.Float64
+            }
         },
         "time_on_source": {
             "columns": ["source_name", "scan_name", "telescope_code", "start", "end", "duration"],
             "metadata": {},
             "converters": {
-                "start": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x,
-                "end": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "start": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None,
+                "end": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "start": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x,
-                "end": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "source_name": pl.String,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "start": pl.Float64,
+                "end": pl.Float64,
+                "duration": pl.Float64
             }
         },
         "az_el": {
@@ -107,10 +145,16 @@ class CalculatedDataStructure:
                 "visibility_store_key": str
             },
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "source_name": pl.String,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "az": pl.Float64,
+                "el": pl.Float64
             }
         },
         "sun_angles": {
@@ -122,20 +166,30 @@ class CalculatedDataStructure:
                 "visibility_store_key": str
             },
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "source_name": pl.String,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "angle": pl.Float64
             }
         },
         "baseline_projections": {
             "columns": ["time", "source_name", "scan_name", "baseline", "projection"],
             "metadata": {},
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
             },
-            "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "source_name": pl.String,
+                "scan_name": pl.String,
+                "baseline": pl.String,
+                "projection": pl.Float64
             }
         },
         "mollweide_tracks": {
@@ -146,12 +200,18 @@ class CalculatedDataStructure:
                 "sources": dict
             },
             "converters": {
-                "time": lambda x: x.mjd if isinstance(x, Time) and pd.notna(x) else x,
-                "sources": lambda x: {k: np.array(v) for k, v in x.items()}
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None,
+                "sources": lambda x: {k: np.array(v).tolist() for k, v in x.items()} if isinstance(x, dict) else {}
             },
             "deserialization_converters": {
-                "time": lambda x: Time(x, format='mjd', scale='utc') if isinstance(x, (int, float)) and pd.notna(x) else x,
-                "sources": lambda x: {k: np.array(v) for k, v in x.items()}
+                "sources": lambda x: {k: np.array(v) for k, v in x.items()} if isinstance(x, dict) else {}
+            },
+            "dtypes": {
+                "time": pl.Float64,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "lon": pl.Float64,
+                "lat": pl.Float64
             }
         }
     }
@@ -179,3 +239,9 @@ class CalculatedDataStructure:
         """Return converters for specific columns or metadata for deserialization."""
         schema = cls.SCHEMAS.get(key)
         return schema["deserialization_converters"] if schema else None
+
+    @classmethod
+    def get_dtypes(cls, key: str) -> Optional[Dict[str, pl.DataType]]:
+        """Return expected data types for columns in a given calculated data key."""
+        schema = cls.SCHEMAS.get(key)
+        return schema["dtypes"] if schema else None

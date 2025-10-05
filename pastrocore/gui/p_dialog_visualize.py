@@ -14,7 +14,7 @@ from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
 from common.utils.logging_setup import logger
 from typing import Dict
-import pandas as pd
+import polars as pl
 
 SPEED_OF_LIGHT = 299792458.0  # m/s
 
@@ -94,11 +94,7 @@ class VisualizationDialog(QDialog):
                     index = i
                     break
             if index >= 0:
-                tab_widget = self.ui.tabWidget.widget(index)
-                if hasattr(tab_widget, '_clear_canvas'):
-                    tab_widget._clear_canvas()
-                self.ui.tabWidget.removeTab(index)
-                tab_widget.deleteLater()
+                self.close_tab(index)
         self.visualization_tabs.clear()
         logger.debug("All visualization tabs cleared")
 
@@ -132,7 +128,7 @@ class VisualizationDialog(QDialog):
             available_types = []
             for key in CalculatedDataStructure.SCHEMAS.keys():
                 df = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=key)
-                if isinstance(df, pd.DataFrame) and not df.empty:
+                if isinstance(df, pl.DataFrame) and not df.is_empty():
                     if key in vis_types:
                         available_types.append(vis_types[key])
             self.ui.comboBoxVisualizationType.addItems(sorted(available_types))
@@ -145,17 +141,54 @@ class VisualizationDialog(QDialog):
 
     @Slot(int)
     def close_tab(self, index: int):
-        """Close a visualization tab and clean up resources."""
-        tab_widget = self.ui.tabWidget.widget(index)
-        vis_type = tab_widget.property("vis_type")
-        if vis_type in self.visualization_tabs:
+        """Close the visualization tab at the specified index.
+
+        Args:
+            index: Index of the tab to close.
+        """
+        if self.is_processing:
+            logger.debug(f"Tab close request at index {index} ignored, processing in progress")
+            return
+
+        self.is_processing = True
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            tab_widget = self.ui.tabWidget.widget(index)
+            if not tab_widget:
+                logger.warning(f"No widget found at tab index {index}")
+                return
+
+            vis_type = tab_widget.property("vis_type")
+            if not vis_type:
+                logger.warning(f"No visualization type defined for tab at index {index}")
+            else:
+                logger.debug(f"Closing tab '{vis_type}' at index {index}")
+
+            # Clean up visualization tab resources
             if hasattr(tab_widget, '_clear_canvas'):
-                tab_widget._clear_canvas()
+                try:
+                    tab_widget._clear_canvas()
+                    logger.debug(f"Canvas cleared for tab '{vis_type}'")
+                except Exception as e:
+                    logger.error(f"Failed to clear canvas for tab '{vis_type}': {str(e)}")
+
+            # Remove tab from tabWidget
             self.ui.tabWidget.removeTab(index)
             tab_widget.deleteLater()
-            del self.visualization_tabs[vis_type]
-            logger.debug(f"Closed tab for visualization type '{vis_type}'")
-        QApplication.processEvents()
+            logger.debug(f"Tab widget at index {index} removed and scheduled for deletion")
+
+            # Remove from visualization_tabs dictionary
+            if vis_type in self.visualization_tabs:
+                del self.visualization_tabs[vis_type]
+                logger.debug(f"Removed '{vis_type}' from visualization_tabs")
+        except Exception as e:
+            logger.error(f"Failed to close tab at index {index}: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to close tab: {str(e)}")
+        finally:
+            self.is_processing = False
+            QApplication.restoreOverrideCursor()
+            QApplication.processEvents()
+            logger.debug("Tab close process completed, UI unlocked")
 
     @Slot()
     def perform_visualization(self):
@@ -166,6 +199,7 @@ class VisualizationDialog(QDialog):
         self.is_processing = True
         self.ui.pushButtonVisualize.setEnabled(False)
         QApplication.setOverrideCursor(Qt.WaitCursor)
+
         try:
             current_obs_name = self.ui.comboBoxObservation.currentData()
             vis_type = self.ui.comboBoxVisualizationType.currentText()
@@ -176,11 +210,14 @@ class VisualizationDialog(QDialog):
                 return
 
             if vis_type in self.visualization_tabs:
-                logger.debug(f"Visualization tab for '{vis_type}' already exists, setting focus")
+                logger.debug(f"Visualization tab for '{vis_type}' already exists, setting as current")
                 for i in range(self.ui.tabWidget.count()):
                     if self.ui.tabWidget.widget(i).property("vis_type") == vis_type:
                         self.ui.tabWidget.setCurrentIndex(i)
                         break
+                self.is_processing = False
+                self.ui.pushButtonVisualize.setEnabled(True)
+                QApplication.restoreOverrideCursor()
                 return
 
             tab_classes = {
@@ -249,7 +286,7 @@ class VisualizationDialog(QDialog):
                 return
 
             df = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=vis_key)
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error(f"No valid data for visualization type '{vis_type}'")
                 QMessageBox.critical(self, "Error", f"No data available for {vis_type}")
                 return
@@ -265,15 +302,10 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"DataFrame for {vis_type} missing columns: {missing_columns}")
                 return
 
-            if df.empty:
+            if df.is_empty():
                 logger.warning(f"No data to export for {vis_type}")
                 QMessageBox.warning(self, "Warning", f"No data available for {vis_type}")
                 return
-
-            table_data = []
-            for _, row in df.iterrows():
-                row_data = [str(row[col]) for col in headers if col in row]
-                table_data.append(row_data)
 
             file_name, _ = QFileDialog.getSaveFileName(
                 self, "Export Calculated Data", "", "Text Files (*.txt);;All Files (*)"
@@ -285,8 +317,9 @@ class VisualizationDialog(QDialog):
             try:
                 with open(file_name, 'w', encoding='utf-8') as f:
                     f.write('\t'.join(headers) + '\n')
-                    for row in table_data:
-                        f.write('\t'.join(str(val) for val in row) + '\n')
+                    for row in df.iter_rows(named=True):
+                        row_data = [str(row[col]) for col in headers]
+                        f.write('\t'.join(row_data) + '\n')
                 logger.info(f"Exported calculated data to {file_name}")
                 QMessageBox.information(self, "Success", f"Data exported successfully to {file_name}")
             except Exception as e:

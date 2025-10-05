@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
 import matplotlib.pyplot as plt
-import pandas as pd
+import polars as pl
 import gc
 
 class AzElVisualizationTab(QWidget):
@@ -54,7 +54,7 @@ class AzElVisualizationTab(QWidget):
         """Populate source and telescope filters from Az/El DataFrame."""
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="az_el")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Az/El data available for populating filters")
                 self.ui.cmbSource.addItem("No Az/El data available")
                 return
@@ -70,8 +70,8 @@ class AzElVisualizationTab(QWidget):
                 self.ui.cmbSource.addItem("Invalid Az/El data structure")
                 return
 
-            sources = df["source_name"].unique().tolist()
-            telescopes = df["telescope_code"].unique().tolist()
+            sources = df["source_name"].unique().to_list()
+            telescopes = df["telescope_code"].unique().to_list()
 
             self.ui.cmbSource.addItems(sorted(sources))
             for telescope in sorted(telescopes):
@@ -82,79 +82,59 @@ class AzElVisualizationTab(QWidget):
             logger.debug(f"Populated {len(sources)} sources and {len(telescopes)} telescopes")
         except Exception as e:
             logger.error(f"Failed to populate filters: {str(e)}")
-            self.ui.cmbSource.addItem("Failed to retrieve data")
+            self.ui.cmbSource.addItem("Failed to retrieve filters")
 
     def _lock_ui(self):
-        """Lock UI elements to prevent further changes during visualization."""
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        """Lock UI elements during visualization processing."""
         self.ui.cmbSource.setEnabled(False)
         self.ui.listScans.setEnabled(False)
         self.ui.listTelescopes.setEnabled(False)
-        logger.debug("UI locked in AzElVisualizationTab")
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        logger.debug("UI locked for visualization processing")
 
     def _unlock_ui(self):
-        """Unlock UI elements after visualization is complete."""
-        QApplication.restoreOverrideCursor()
+        """Unlock UI elements after visualization processing."""
         self.ui.cmbSource.setEnabled(True)
         self.ui.listScans.setEnabled(True)
         self.ui.listTelescopes.setEnabled(True)
-        logger.debug("UI unlocked in AzElVisualizationTab")
+        QApplication.restoreOverrideCursor()
+        QApplication.processEvents()
+        logger.debug("UI unlocked after visualization processing")
 
     def _clear_canvas(self):
-        """Safely clear the canvas, toolbar, and figure to release resources."""
-        logger.debug("Clearing canvas, toolbar, and figure")
+        """Clear the current figure, canvas, and toolbar."""
         if self.canvas:
-            try:
-                self.layout.removeWidget(self.canvas)
-                self.canvas.setParent(None)
-                self.canvas.deleteLater()
-                logger.debug("Canvas removed and scheduled for deletion")
-            except Exception as e:
-                logger.warning(f"Failed to remove canvas: {str(e)}")
-            finally:
-                self.canvas = None
-
+            self.layout.removeWidget(self.canvas)
+            self.canvas.deleteLater()
+            self.canvas = None
         if self.toolbar:
-            try:
-                self.layout.removeWidget(self.toolbar)
-                self.toolbar.setParent(None)
-                self.toolbar.deleteLater()
-                logger.debug("Toolbar removed and scheduled for deletion")
-            except Exception as e:
-                logger.warning(f"Failed to remove toolbar: {str(e)}")
-            finally:
-                self.toolbar = None
-
+            self.layout.removeWidget(self.toolbar)
+            self.toolbar.deleteLater()
+            self.toolbar = None
         if self.figure:
-            try:
-                for ax in self.figure.axes:
-                    ax.clear()
-                    ax.remove()
-                self.figure.clf()
-                plt.close(self.figure)
-                logger.debug(f"Figure {id(self.figure)} closed and cleared")
-            except Exception as e:
-                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
-            finally:
-                self.figure = None
-
-        gc.collect(2)
-        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
+            plt.close(self.figure)
+            self.figure = None
+        gc.collect()
+        logger.debug("Canvas, toolbar, and figure cleared")
 
     def embed_figure(self, figure: Figure):
-        """Embed a Matplotlib figure into the widget.
+        """Embed a Matplotlib figure into the widget layout.
 
         Args:
-            figure: Matplotlib Figure object to embed.
+            figure: Matplotlib figure to embed.
         """
         self._clear_canvas()
-        self.figure = figure
-        self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.layout.addWidget(self.toolbar)
-        self.layout.addWidget(self.canvas)
-        self.canvas.draw()
-        logger.debug(f"Embedded Matplotlib figure {id(figure)} in AzElVisualizationTab")
+        try:
+            self.figure = figure
+            self.canvas = FigureCanvas(self.figure)
+            self.toolbar = NavigationToolbar(self.canvas, self)
+            self.layout.addWidget(self.toolbar)
+            self.layout.addWidget(self.canvas)
+            self.canvas.draw()
+            logger.debug("Figure embedded successfully")
+        except Exception as e:
+            logger.error(f"Failed to embed figure: {str(e)}")
+            self._clear_canvas()
 
     def get_selected_source(self) -> Optional[str]:
         """Get the currently selected source name.
@@ -162,9 +142,12 @@ class AzElVisualizationTab(QWidget):
         Returns:
             Selected source name or None if no source is selected.
         """
-        source = self.ui.cmbSource.currentText() if self.ui.cmbSource.currentText() else None
-        logger.debug(f"Selected source: {source}")
-        return source
+        source_name = self.ui.cmbSource.currentText()
+        if not source_name or source_name in ["No Az/El data available", "No schema defined", "Invalid Az/El data structure", "Failed to retrieve filters"]:
+            logger.debug("No valid source selected")
+            return None
+        logger.debug(f"Selected source: {source_name}")
+        return source_name
 
     def get_selected_scans(self) -> List[str]:
         """Get the list of selected scan names.
@@ -176,7 +159,9 @@ class AzElVisualizationTab(QWidget):
         for i in range(self.ui.listScans.count()):
             item = self.ui.listScans.item(i)
             if item.checkState() == Qt.Checked:
-                selected_scans.append(item.data(Qt.UserRole))
+                scan_name = item.data(Qt.UserRole)
+                if scan_name:
+                    selected_scans.append(scan_name)
         logger.debug(f"Selected scans: {selected_scans}")
         return selected_scans
 
@@ -196,39 +181,31 @@ class AzElVisualizationTab(QWidget):
 
     @Slot()
     def filter_changed(self):
-        """Handle changes in filter selections by updating scans and visualization."""
+        """Handle changes in filter selections by updating visualization."""
         if self.is_processing:
             logger.debug("Filter change ignored, visualization is processing")
             return
         self.is_processing = True
         self._lock_ui()
         try:
-            source_name = self.get_selected_source()
-            logger.debug(f"Filter changed, updating scans for source '{source_name}'")
-            self.update_scans_for_source(source_name)
+            self.update_scans_for_source(self.ui.cmbSource.currentText())
             self.update_visualization()
         finally:
             self.is_processing = False
             self._unlock_ui()
 
-    def update_scans_for_source(self, source_name: Optional[str] = None):
-        """Update the scans list based on the selected source, preserving check states.
+    def update_scans_for_source(self, source_name: str):
+        """Update the scans list based on the selected source.
 
         Args:
-            source_name: Name of the selected source, or None to clear the scans list.
+            source_name: Name of the selected source.
         """
-        current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
-                          for i in range(self.ui.listScans.count())}
-        logger.debug(f"Stored check states: {current_checks}")
-
         self.ui.listScans.clear()
-        if not source_name:
-            logger.debug("No source selected, clearing scans list")
-            return
+        current_checks = {item.data(Qt.UserRole): item.checkState() for item in [self.ui.listScans.item(i) for i in range(self.ui.listScans.count())]}
 
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="az_el")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Az/El data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Az/El data available"))
                 return
@@ -236,7 +213,7 @@ class AzElVisualizationTab(QWidget):
             expected_columns = CalculatedDataStructure.get_columns("az_el")
             if not expected_columns:
                 logger.error("No schema defined for Az/El data")
-                self.ui.listScans.addItem(QListWidgetItem("No schema defined for Az/El data"))
+                self.ui.listScans.addItem(QListWidgetItem("No schema defined"))
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
@@ -244,18 +221,18 @@ class AzElVisualizationTab(QWidget):
                 self.ui.listScans.addItem(QListWidgetItem("Invalid Az/El data structure"))
                 return
 
-            df_filtered = df[df["source_name"] == source_name]
-            if df_filtered.empty:
+            df_filtered = df.filter(pl.col("source_name") == source_name)
+            if df_filtered.is_empty():
                 logger.debug(f"No data for source '{source_name}' in Az/El DataFrame")
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scan_times = df_filtered.groupby("scan_name")["time"].first().reset_index()
-            scans = scan_times["scan_name"].tolist()
+            scan_times = df_filtered.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
+            scans = scan_times["scan_name"].to_list()
 
-            for _, row in scan_times.iterrows():
+            for row in scan_times.iter_rows(named=True):
                 scan_name = row["scan_name"]
-                start_time = Time(row["time"]).isot
+                start_time = Time(row["time"], format="mjd").isot
                 display_text = f"{start_time}"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
@@ -312,4 +289,4 @@ class AzElVisualizationTab(QWidget):
         """Ensure resources are cleaned up when the widget is closed."""
         self._clear_canvas()
         super().closeEvent(event)
-        logger.debug(f"AzElVisualizationTab closed, resources cleaned up")
+        logger.debug("AzElVisualizationTab closed, resources cleaned up")
