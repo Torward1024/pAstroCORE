@@ -55,7 +55,7 @@ class UVVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source, baseline, and frequency filters from UV coverage DataFrame and observation."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="uv_coverage")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="uv_coverage").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid UV coverage data available for populating filters")
                 self.ui.comboBox.addItem("No UV coverage data available")
@@ -277,7 +277,7 @@ class UVVisualizationTab(QWidget):
             return
 
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="uv_coverage")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="uv_coverage").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid UV coverage data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No UV coverage data available"))

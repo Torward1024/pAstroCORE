@@ -52,7 +52,7 @@ class SunAnglesVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source and telescope filters from Sun angles DataFrame."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="sun_angles")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="sun_angles").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Sun angles data available for populating filters")
                 self.ui.cmbSource.addItem("No Sun angles data available")
@@ -226,7 +226,7 @@ class SunAnglesVisualizationTab(QWidget):
             return
 
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="sun_angles")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="sun_angles").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Sun angles data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Sun angles data available"))
