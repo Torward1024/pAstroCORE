@@ -5,13 +5,14 @@ from .ui_tab_vis_beam_pattern import Ui_VisBeamPatternTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
+from pastrocore.base.frequencies import IF  # Импортируем IF для обработки объектов
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from typing import List, Optional
 import matplotlib.pyplot as plt
-import pandas as pd
+import polars as pl
 import gc
 
 class BeamPatternVisualizationTab(QWidget):
@@ -45,11 +46,27 @@ class BeamPatternVisualizationTab(QWidget):
 
         self.update_visualization()
 
+    def _get_frequencies(self) -> List[float]:
+        """Retrieve available frequencies from observation in MHz.
+
+        Returns:
+            List of frequency values in MHz.
+        """
+        try:
+            frequencies = self.manipulator.inspect(obj=self.observation, get_frequencies=None)
+            if frequencies:
+                freqs = frequencies.get_frequencies()
+                logger.debug(f"Retrieved frequencies: {frequencies}")
+            return freqs or []
+        except Exception as e:
+            logger.error(f"Failed to retrieve frequencies: {str(e)}")
+            return []
+
     def _populate_filters(self):
         """Populate telescope and frequency filters from beam pattern DataFrame and observation."""
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="beam_pattern")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid beam pattern data available for populating filters")
                 self.ui.listTelescopes.addItem(QListWidgetItem("No beam pattern data available"))
                 return
@@ -65,7 +82,7 @@ class BeamPatternVisualizationTab(QWidget):
                 self.ui.listTelescopes.addItem(QListWidgetItem("Invalid beam pattern data structure"))
                 return
 
-            telescopes = df["telescope_code"].unique().tolist()
+            telescopes = df["telescope_code"].unique().to_list()
             frequencies = self._get_frequencies()
 
             for telescope in sorted(telescopes):
@@ -73,98 +90,70 @@ class BeamPatternVisualizationTab(QWidget):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(Qt.Checked)
                 self.ui.listTelescopes.addItem(item)
-
             for freq in sorted(frequencies):
-                item = QListWidgetItem(f"{freq:.2f} MHz")
-                item.setData(Qt.UserRole, freq)
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                item.setCheckState(Qt.Checked)
-                self.ui.listFrequencies.addItem(item)
+                try:
+                    item = QListWidgetItem(f"{float(freq):.2f} MHz")
+                    item.setData(Qt.UserRole, float(freq))
+                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                    item.setCheckState(Qt.Checked)
+                    self.ui.listFrequencies.addItem(item)
+                except (TypeError, ValueError) as e:
+                    logger.error(f"Failed to format frequency {freq}: {str(e)}")
+                    continue
             logger.debug(f"Populated {len(telescopes)} telescopes and {len(frequencies)} frequencies")
         except Exception as e:
             logger.error(f"Failed to populate filters: {str(e)}")
-            self.ui.listTelescopes.addItem(QListWidgetItem("Failed to retrieve data"))
-
-    def _get_frequencies(self) -> List[float]:
-        """Retrieve the list of frequencies (in MHz) from the observation."""
-        try:
-            frequencies = self.manipulator.inspect(obj=self.observation, get_frequencies=None)
-            freq_list = [float(f.get("frequency")) for f in frequencies.get_items()]
-            logger.debug(f"Retrieved frequencies: {freq_list}")
-            return freq_list
-        except Exception as e:
-            logger.error(f"Failed to retrieve frequencies: {str(e)}")
-            return []
+            self.ui.listTelescopes.addItem(QListWidgetItem("Failed to retrieve filters"))
 
     def _lock_ui(self):
-        """Lock UI elements to prevent further changes during visualization."""
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        self.ui.listFrequencies.setEnabled(False)
+        """Lock UI elements during visualization processing."""
         self.ui.listTelescopes.setEnabled(False)
-        logger.debug("UI locked in BeamPatternVisualizationTab")
+        self.ui.listFrequencies.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        logger.debug("UI locked for visualization processing")
 
     def _unlock_ui(self):
-        """Unlock UI elements after visualization is complete."""
-        QApplication.restoreOverrideCursor()
-        self.ui.listFrequencies.setEnabled(True)
+        """Unlock UI elements after visualization processing."""
         self.ui.listTelescopes.setEnabled(True)
-        logger.debug("UI unlocked in BeamPatternVisualizationTab")
+        self.ui.listFrequencies.setEnabled(True)
+        QApplication.restoreOverrideCursor()
+        QApplication.processEvents()
+        logger.debug("UI unlocked after visualization processing")
 
     def _clear_canvas(self):
-        """Safely clear the canvas, toolbar, and figure to release resources."""
-        logger.debug("Clearing canvas, toolbar, and figure")
+        """Clear the current figure, canvas, and toolbar."""
         if self.canvas:
-            try:
-                self.layout.removeWidget(self.canvas)
-                self.canvas.setParent(None)
-                self.canvas.deleteLater()
-                logger.debug("Canvas removed and scheduled for deletion")
-            except Exception as e:
-                logger.warning(f"Failed to remove canvas: {str(e)}")
-            finally:
-                self.canvas = None
-
+            self.layout.removeWidget(self.canvas)
+            self.canvas.deleteLater()
+            self.canvas = None
         if self.toolbar:
-            try:
-                self.layout.removeWidget(self.toolbar)
-                self.toolbar.setParent(None)
-                self.toolbar.deleteLater()
-                logger.debug("Toolbar removed and scheduled for deletion")
-            except Exception as e:
-                logger.warning(f"Failed to remove toolbar: {str(e)}")
-            finally:
-                self.toolbar = None
-
+            self.layout.removeWidget(self.toolbar)
+            self.toolbar.deleteLater()
+            self.toolbar = None
         if self.figure:
-            try:
-                for ax in self.figure.axes:
-                    ax.clear()
-                    ax.remove()
-                self.figure.clf()
-                plt.close(self.figure)
-                logger.debug(f"Figure {id(self.figure)} closed and cleared")
-            except Exception as e:
-                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
-            finally:
-                self.figure = None
-
-        gc.collect(2)
-        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
+            plt.close(self.figure)
+            self.figure = None
+        gc.collect()
+        logger.debug("Canvas, toolbar, and figure cleared")
 
     def embed_figure(self, figure: Figure):
-        """Embed a Matplotlib figure into the widget.
+        """Embed a Matplotlib figure into the widget layout.
 
         Args:
-            figure: Matplotlib Figure object to embed.
+            figure: Matplotlib figure to embed.
         """
         self._clear_canvas()
-        self.figure = figure
-        self.canvas = FigureCanvas(self.figure)
-        self.toolbar = NavigationToolbar(self.canvas, self)
-        self.layout.addWidget(self.toolbar)
-        self.layout.addWidget(self.canvas)
-        self.canvas.draw()
-        logger.debug(f"Embedded Matplotlib figure {id(figure)} in BeamPatternVisualizationTab")
+        try:
+            self.figure = figure
+            self.canvas = FigureCanvas(self.figure)
+            self.toolbar = NavigationToolbar(self.canvas, self)
+            self.layout.addWidget(self.toolbar)
+            self.layout.addWidget(self.canvas)
+            self.canvas.draw()
+            logger.debug("Figure embedded successfully")
+        except Exception as e:
+            logger.error(f"Failed to embed figure: {str(e)}")
+            self._clear_canvas()
 
     def get_selected_frequencies(self) -> List[float]:
         """Get the list of selected frequency values.
@@ -176,7 +165,9 @@ class BeamPatternVisualizationTab(QWidget):
         for i in range(self.ui.listFrequencies.count()):
             item = self.ui.listFrequencies.item(i)
             if item.checkState() == Qt.Checked:
-                selected_frequencies.append(float(item.data(Qt.UserRole)))
+                freq = item.data(Qt.UserRole)
+                if isinstance(freq, (int, float)):
+                    selected_frequencies.append(float(freq))
         logger.debug(f"Selected frequencies: {selected_frequencies}")
         return selected_frequencies
 
@@ -250,4 +241,4 @@ class BeamPatternVisualizationTab(QWidget):
         """Ensure resources are cleaned up when the widget is closed."""
         self._clear_canvas()
         super().closeEvent(event)
-        logger.debug(f"BeamPatternVisualizationTab closed, resources cleaned up")
+        logger.debug("BeamPatternVisualizationTab closed, resources cleaned up")
