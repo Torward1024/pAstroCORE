@@ -9,10 +9,11 @@ from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from typing import List, Optional
+from typing import List
 import matplotlib.pyplot as plt
 import polars as pl
 import gc
+from astropy.time import Time
 
 class MollweideVisualizationTab(QWidget):
     """Widget for Mollweide tracks visualization with source, scan, and telescope selection."""
@@ -226,7 +227,7 @@ class MollweideVisualizationTab(QWidget):
     def update_scans(self):
         """Update the scans list based on the Mollweide tracks DataFrame, preserving check states."""
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
-                          for i in range(self.ui.listScans.count())}
+                        for i in range(self.ui.listScans.count())}
         logger.debug(f"Stored check states: {current_checks}")
 
         self.ui.listScans.clear()
@@ -257,8 +258,13 @@ class MollweideVisualizationTab(QWidget):
             scans = scan_times["scan_name"].to_list()
             for row in scan_times.iter_rows(named=True):
                 scan_name = row["scan_name"]
-                start_time = row["time"]  # MJD as float64
-                display_text = f"{start_time:.6f} (MJD)"
+                start_time_mjd = row["time"]  # MJD as float64
+                try:
+                    start_time = Time(start_time_mjd, format="mjd").isot  # Convert MJD to ISOT
+                    display_text = f"{start_time} (ISOT)"
+                except Exception as e:
+                    logger.error(f"Failed to convert MJD {start_time_mjd} to ISOT: {str(e)}")
+                    display_text = f"{start_time_mjd:.6f} (MJD)"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
