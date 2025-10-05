@@ -21,7 +21,7 @@ class Observation(BaseEntity):
 
     Encapsulates the structure and metadata of an observation, such as its unique code, type (VLBI or
     SINGLE_DISH), and associated entities. Manages calculated data using Polars DataFrames with metadata
-    stored in a separate dictionary. Provides methods for validation, synchronization, and serialization using Parquet.
+    stored in a dictionary under the same key. Provides methods for validation, synchronization, and serialization using Parquet.
 
     Attributes:
         name (str): Unique identifier for the observation.
@@ -31,8 +31,7 @@ class Observation(BaseEntity):
         telescopes (Telescopes): Collection of telescope objects used.
         frequencies (Frequencies): Collection of intermediate frequency (IF) objects.
         scans (Scans): Collection of scan objects defining observation timing and targets.
-        calculated_data (Dict[str, pl.DataFrame]): Dictionary storing calculated results as DataFrames.
-         (Dict[str, Dict]): Dictionary storing metadata for calculated DataFrames.
+        calculated_data (Dict[str, Dict]): Dictionary with keys mapping to {'data': pl.DataFrame, 'metadata': Dict}.
         isactive (bool): Indicates whether the observation is active.
         _use_cache (bool): Flag to control caching behavior.
     """
@@ -43,15 +42,13 @@ class Observation(BaseEntity):
     telescopes: Telescopes
     frequencies: Frequencies
     scans: Scans
-    calculated_data: Dict[str, pl.DataFrame]
-    _calculated_data_metadata: Dict[str, Dict]
+    calculated_data: Dict[str, Dict]
     _use_cache: bool
 
     def __init__(self, name: str = None, code: str = "OBS_DEFAULT", sources: Sources = None,
                  telescopes: Telescopes = None, frequencies: Frequencies = None,
                  scans: Scans = None, observation_type: str = "VLBI", 
-                 calculated_data: Dict[str, pl.DataFrame] = None, 
-                 calculated_data_metadata: Dict[str, Dict] = None,
+                 calculated_data: Dict[str, Dict] = None, 
                  isactive: bool = True, use_cache: bool = False):
         """Initialize an Observation with code, entities, type, calculated data, and active status."""
         if name is None:
@@ -70,13 +67,11 @@ class Observation(BaseEntity):
             check_type(scans, Scans, "Scans")
         if calculated_data is not None:
             check_type(calculated_data, dict, "Calculated data")
-            for key, df in calculated_data.items():
-                check_type(df, pl.DataFrame, f"Calculated data for key {key}")
-        if calculated_data_metadata is not None:
-            check_type(calculated_data_metadata, dict, "Calculated data metadata")
-            for key, meta in calculated_data_metadata.items():
-                check_type(meta, dict, f"Metadata for key {key}")
-        
+            for key, calc_dict in calculated_data.items():
+                check_type(calc_dict, dict, f"Calculated data dictionary for key {key}")
+                check_type(calc_dict.get("data"), pl.DataFrame, f"Data for key {key}")
+                check_type(calc_dict.get("metadata", {}), dict, f"Metadata for key {key}")
+
         super().__init__(
             name=name,
             code=code,
@@ -86,15 +81,14 @@ class Observation(BaseEntity):
             frequencies=frequencies if frequencies is not None else Frequencies(),
             scans=scans if scans is not None else Scans(),
             calculated_data=calculated_data if calculated_data is not None else {},
-            _calculated_data_metadata=calculated_data_metadata if calculated_data_metadata is not None else {},
             isactive=isactive,
             use_cache=use_cache
         )
         
         if calculated_data is not None:
-            for key, df in calculated_data.items():
+            for key, calc_dict in calculated_data.items():
                 try:
-                    self._validate_calculated_data_key(key, df, self._calculated_data_metadata.get(key, {}))
+                    self._validate_calculated_data_key(key, calc_dict.get("data"), calc_dict.get("metadata", {}))
                 except ValueError as e:
                     logger.error(f"Validation failed for calculated_data key '{key}' in observation '{self.name}': {str(e)}")
                     raise
@@ -102,13 +96,17 @@ class Observation(BaseEntity):
         logger.info(f"Initialized Observation '{name}' with type '{observation_type}'")
 
     def _validate_calculated_data_key(self, key: str, df: pl.DataFrame, metadata: Dict) -> None:
-        """Validate the structure of a DataFrame for a specific calculated data key."""
+        """Validate the structure of a DataFrame and metadata for a specific calculated data key."""
         expected_columns = CalculatedDataStructure.get_columns(key)
         expected_metadata = CalculatedDataStructure.get_metadata_types(key)
 
         if expected_columns is None:
             logger.warning(f"Unknown calculated_data key '{key}' in observation '{self.name}'")
             return
+
+        if df is None or not isinstance(df, pl.DataFrame):
+            logger.error(f"Invalid DataFrame for key '{key}' in observation '{self.name}': DataFrame is None or not a Polars DataFrame")
+            raise ValueError(f"Invalid DataFrame for key '{key}': DataFrame is None or not a Polars DataFrame")
 
         if not all(col in df.columns for col in expected_columns):
             missing_cols = [col for col in expected_columns if col not in df.columns]
@@ -123,18 +121,19 @@ class Observation(BaseEntity):
 
         logger.debug(f"Validated DataFrame structure for key '{key}' in observation '{self.name}'")
 
-    def get_calculated_data_by_key(self, key: str) -> Optional[pl.DataFrame]:
-        """Retrieve calculated data for a specific key as a Polars DataFrame."""
+    def get_calculated_data_by_key(self, key: str) -> Optional[Dict[str, any]]:
+        """Retrieve calculated data and metadata for a specific key as a dictionary."""
         check_non_empty_string(key, "Key")
-        df = self.calculated_data.get(key)
-        if df is not None:
+        calc_dict = self.calculated_data.get(key)
+        if calc_dict is not None:
             logger.debug(f"Retrieved calculated data '{key}' for observation '{self.name}'")
+            return {"data": calc_dict.get("data"), "metadata": calc_dict.get("metadata", {})}
         else:
             logger.debug(f"No calculated data found for key '{key}' in observation '{self.name}'")
-        return df
+            return None
 
     def set_calculated_data_by_key(self, key: str, df: pl.DataFrame, metadata: Dict = None) -> None:
-        """Set calculated data and metadata for a specific key as a Polars DataFrame."""
+        """Set calculated data and metadata for a specific key as a Polars DataFrame and dictionary."""
         check_non_empty_string(key, "Key")
         check_type(df, pl.DataFrame, "DataFrame")
         if metadata is None:
@@ -142,22 +141,19 @@ class Observation(BaseEntity):
         check_type(metadata, dict, "Metadata")
         self._validate_calculated_data_key(key, df, metadata)
         new_data = self.calculated_data.copy()
-        new_metadata = self._calculated_data_metadata.copy()
-        new_data[key] = df
-        new_metadata[key] = metadata
-        self.set({"calculated_data": new_data, "_calculated_data_metadata": new_metadata})
+        new_data[key] = {"data": df, "metadata": metadata}
+        self.set({"calculated_data": new_data})
         logger.info(f"Stored calculated data '{key}' for observation '{self.name}'")
 
     def clear_calculated_data(self):
         """Clear all cached calculation data and metadata for this observation."""
         self.calculated_data.clear()
-        self._calculated_data_metadata.clear()
         logger.debug(f"Cleared calculated data for observation '{self.get_observation_code()}'")
 
     def to_dict(self) -> dict:
         """Convert the Observation object to a dictionary for serialization."""
         def convert_dataframe(df: pl.DataFrame, key: str, metadata: Dict) -> dict:
-            """Convert a Polars DataFrame to a serializable dictionary with Parquet data."""
+            """Convert a Polars DataFrame and metadata to a serializable dictionary with Parquet data."""
             converters = CalculatedDataStructure.get_converters(key) or {}
             df_copy = df.clone()
 
@@ -203,8 +199,8 @@ class Observation(BaseEntity):
                 "frequencies": self.frequencies.to_dict(),
                 "scans": self.scans.to_dict(),
                 "calculated_data": {
-                    key: convert_dataframe(df, key, self._calculated_data_metadata.get(key, {}))
-                    for key, df in self.calculated_data.items()
+                    key: convert_dataframe(calc_dict["data"], key, calc_dict.get("metadata", {}))
+                    for key, calc_dict in self.calculated_data.items()
                 },
                 "isactive": self.isactive,
                 "use_cache": self._use_cache
@@ -218,7 +214,7 @@ class Observation(BaseEntity):
     @classmethod
     def from_dict(cls, data: dict) -> 'Observation':
         """Create an Observation object from a dictionary."""
-        def restore_dataframe(calc_data: dict, key: str) -> tuple[pl.DataFrame, Dict]:
+        def restore_dataframe(calc_data: dict, key: str) -> dict:
             """Restore a Polars DataFrame and its metadata from serialized data."""
             try:
                 buffer = io.BytesIO(base64.b64decode(calc_data["data"]))
@@ -252,7 +248,7 @@ class Observation(BaseEntity):
                         logger.error(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
                         raise ValueError(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
 
-                return df, restored_metadata
+                return {"data": df, "metadata": restored_metadata}
             except Exception as e:
                 logger.error(f"Failed to restore DataFrame for key '{key}': {str(e)}")
                 raise
@@ -265,12 +261,10 @@ class Observation(BaseEntity):
             check_non_empty_string(data["name"], "Observation name")
 
             calculated_data = {}
-            calculated_data_metadata = {}
             for key, calc_data in data.get("calculated_data", {}).items():
                 try:
-                    df, metadata = restore_dataframe(calc_data, key)
-                    calculated_data[key] = df
-                    calculated_data_metadata[key] = metadata
+                    calc_dict = restore_dataframe(calc_data, key)
+                    calculated_data[key] = calc_dict
                 except ValueError as e:
                     logger.error(f"Skipping invalid calculated_data key '{key}' due to error: {str(e)}")
                     continue
@@ -283,7 +277,6 @@ class Observation(BaseEntity):
                 "telescopes": Telescopes.from_dict(data.get("telescopes", {})),
                 "frequencies": Frequencies.from_dict(data.get("frequencies", {})),
                 "calculated_data": calculated_data,
-                "calculated_data_metadata": calculated_data_metadata,
                 "isactive": data.get("isactive", True),
                 "use_cache": data.get("use_cache", False),
             }
@@ -322,7 +315,7 @@ class Observation(BaseEntity):
         """Retrieve the Scans object."""
         return self.get("scans")
 
-    def get_calculated_data(self) -> Dict[str, pl.DataFrame]:
+    def get_calculated_data(self) -> Dict[str, Dict]:
         """Retrieve all calculated data."""
         return self.get("calculated_data")
 
@@ -356,8 +349,8 @@ class Observation(BaseEntity):
             frequencies=self.frequencies.copy(),
             scans=self.scans.copy(),
             observation_type=self.observation_type,
-            calculated_data={key: df.clone() for key, df in self.calculated_data.items()},
-            calculated_data_metadata={key: meta.copy() for key, meta in self._calculated_data_metadata.items()},
+            calculated_data={key: {"data": calc_dict["data"].clone(), "metadata": calc_dict["metadata"].copy()}
+                            for key, calc_dict in self.calculated_data.items()},
             isactive=self.isactive,
             use_cache=self._use_cache
         )
@@ -399,9 +392,9 @@ class Observation(BaseEntity):
                                      f"[{prev_start.isot}, {prev_end.isot}] vs [{scan_start.isot}, {scan_end.isot}]")
                         return False
                 telescope_scans[tel_code].append((scan_start, scan_end))
-        for key, df in self.calculated_data.items():
+        for key, calc_dict in self.calculated_data.items():
             try:
-                self._validate_calculated_data_key(key, df, self._calculated_data_metadata.get(key, {}))
+                self._validate_calculated_data_key(key, calc_dict.get("data"), calc_dict.get("metadata", {}))
             except ValueError as e:
                 logger.error(f"Validation failed for calculated_data key '{key}' in observation '{self.name}': {str(e)}")
                 return False
@@ -414,4 +407,4 @@ class Observation(BaseEntity):
                 f"telescopes={self.telescopes}, frequencies={self.frequencies}, "
                 f"scans={self.scans}, isactive={self.isactive}, "
                 f"observation_type={self.observation_type}, "
-                f"calculated_data={len(self.calculated_data)} DataFrames)")
+                f"calculated_data={len(self.calculated_data)} entries)")
