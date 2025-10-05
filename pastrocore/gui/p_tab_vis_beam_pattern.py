@@ -65,7 +65,7 @@ class BeamPatternVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate telescope and frequency filters from beam pattern DataFrame and observation."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="beam_pattern")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="beam_pattern").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid beam pattern data available for populating filters")
                 self.ui.listTelescopes.addItem(QListWidgetItem("No beam pattern data available"))

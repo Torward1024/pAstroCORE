@@ -72,7 +72,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source, baseline, and frequency filters from baseline projections DataFrame and observation."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="baseline_projections")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="baseline_projections").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid baseline projections data available for populating filters")
                 self.ui.comboBox.addItem("No baseline projections data available")
@@ -264,7 +264,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
         current_checks = {item.data(Qt.UserRole): item.checkState() for item in [self.ui.listScans.item(i) for i in range(self.ui.listScans.count())]}
 
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="baseline_projections")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="baseline_projections").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid baseline projections data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No baseline projections data available"))

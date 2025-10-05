@@ -53,7 +53,8 @@ class MollweideVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source and telescope filters from Mollweide tracks DataFrame and its metadata."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="mollweide_tracks")
+            calc_data = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="mollweide_tracks")
+            df = calc_data.get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Mollweide tracks data available for populating filters")
                 self.ui.listWidget.addItem(QListWidgetItem("No Mollweide tracks data available"))
@@ -70,7 +71,7 @@ class MollweideVisualizationTab(QWidget):
                 self.ui.listWidget.addItem(QListWidgetItem("Invalid Mollweide tracks data structure"))
                 return
 
-            sources_metadata = self.observation._calculated_data_metadata.get("mollweide_tracks", {}).get("sources", {})
+            sources_metadata = calc_data.get("metadata", {}). get("sources", {})
             if not sources_metadata:
                 logger.error("No valid 'sources' metadata in Mollweide tracks")
                 self.ui.listWidget.addItem(QListWidgetItem("No sources metadata available"))
@@ -232,7 +233,7 @@ class MollweideVisualizationTab(QWidget):
 
         self.ui.listScans.clear()
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="mollweide_tracks")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="mollweide_tracks").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Mollweide tracks data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Mollweide tracks data available"))
