@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
 import matplotlib.pyplot as plt
-import pandas as pd
+import polars as pl
 import gc
 
 class SunAnglesVisualizationTab(QWidget):
@@ -53,7 +53,7 @@ class SunAnglesVisualizationTab(QWidget):
         """Populate source and telescope filters from Sun angles DataFrame."""
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="sun_angles")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Sun angles data available for populating filters")
                 self.ui.cmbSource.addItem("No Sun angles data available")
                 return
@@ -69,8 +69,8 @@ class SunAnglesVisualizationTab(QWidget):
                 self.ui.cmbSource.addItem("Invalid Sun angles data structure")
                 return
 
-            sources = df["source_name"].unique().tolist()
-            telescopes = df["telescope_code"].unique().tolist()
+            sources = df["source_name"].unique().to_list()
+            telescopes = df["telescope_code"].unique().to_list()
 
             self.ui.cmbSource.addItems(sorted(sources))
             for telescope in sorted(telescopes):
@@ -227,7 +227,7 @@ class SunAnglesVisualizationTab(QWidget):
 
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="sun_angles")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Sun angles data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Sun angles data available"))
                 return
@@ -243,18 +243,18 @@ class SunAnglesVisualizationTab(QWidget):
                 self.ui.listScans.addItem(QListWidgetItem("Invalid Sun angles data structure"))
                 return
 
-            df_filtered = df[df["source_name"] == source_name]
-            if df_filtered.empty:
+            df_filtered = df.filter(pl.col("source_name") == source_name)
+            if df_filtered.is_empty():
                 logger.debug(f"No data for source '{source_name}' in Sun angles DataFrame")
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scan_times = df_filtered.groupby("scan_name")["time"].first().reset_index()
-            scans = scan_times["scan_name"].tolist()
+            scan_times = df_filtered.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
+            scans = scan_times["scan_name"].to_list()
 
-            for _, row in scan_times.iterrows():
+            for row in scan_times.iter_rows(named=True):
                 scan_name = row["scan_name"]
-                start_time = Time(row["time"]).isot
+                start_time = Time(row["time"], format="mjd").isot
                 display_text = f"{start_time}"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
