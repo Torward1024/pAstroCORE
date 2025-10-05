@@ -78,7 +78,7 @@ class ExportThread(QThread):
                         return
 
                     key = calc_type.lower().replace(" ", "_").replace("/", "_")
-                    data = target.get_calculated_data_by_key(key)
+                    data = target.get_calculated_data_by_key(key).get("data", {})
                     if not isinstance(data, pl.DataFrame):
                         logger.debug(f"No data for {calc_type} in {obs_code}, skipping")
                         continue
@@ -141,7 +141,7 @@ class ExportThread(QThread):
 
         Uses polars DataFrame to write CSV with tab delimiter. Converts time-related columns
         (time, start, end) from float64 (MJD) to ISOT format for readability. For mollweide_tracks,
-        adds source coordinates from target._calculated_data_metadata[key]['sources'] as separate rows
+        adds source coordinates from metadata as separate rows
         at the end of the file with 'time' set to '-----'. Preserves NaN values as is.
 
         Args:
@@ -150,7 +150,7 @@ class ExportThread(QThread):
             path: Output file path for TXT.
             obs_code: Observation code.
             source_name: Source name (ignored, kept for compatibility).
-            target: Observation object containing calculated_data_metadata.
+            target: Observation object containing calculated_data.
         """
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -168,7 +168,6 @@ class ExportThread(QThread):
             df_out = data.clone()
             converters = CalculatedDataStructure.get_converters(key) or {}
             
-            # Convert time-related columns from float64 (MJD) to ISOT
             for col in ["time", "start", "end"]:
                 if col in df_out.columns:
                     try:
@@ -182,7 +181,6 @@ class ExportThread(QThread):
                         logger.error(f"Failed to convert column '{col}' to ISOT in key '{key}' of observation '{obs_code}': {str(e)}")
                         raise
 
-            # Apply other converters (e.g., for sources in mollweide_tracks)
             for col, converter in converters.items():
                 if col in df_out.columns and col not in ["time", "start", "end"]:
                     try:
@@ -197,7 +195,7 @@ class ExportThread(QThread):
             df_out = df_out.select(expected_columns)
 
             if key == "mollweide_tracks":
-                sources = target._calculated_data_metadata.get(key, {}).get("sources", {})
+                sources = target.calculated_data.get(key, {}).get("metadata", {}).get("sources", {})
                 logger.debug(f"Processing sources for {calc_type} in observation '{obs_code}': {sources}")
 
                 if not isinstance(sources, dict):

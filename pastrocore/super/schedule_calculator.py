@@ -8,7 +8,7 @@ from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.super.schedule_project import ScheduleProject
 
-from typing import Dict, Any, Optional, Tuple, List, Callable
+from typing import Dict, Any, Optional, Tuple, List, Callable, Union
 from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
 from functools import wraps
@@ -117,7 +117,7 @@ class ScheduleCalculator(Super):
         
         return scans, telescopes, sources
     
-    def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func: Callable,
+    def _get_cached_or_calculate(self, obj: Union[Observation, ScheduleProject], store_key: str, calc_func: Callable,
                              attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Optional[pl.DataFrame]:
         """Retrieve cached data or perform calculation and cache the result as a Polars DataFrame.
 
@@ -188,8 +188,9 @@ class ScheduleCalculator(Super):
 
         if isinstance(obj, ScheduleProject):
             for observation in obj.get_observations():
-                existing_df = observation.get_calculated_data_by_key(store_key)
-                existing_metadata = observation._calculated_data_metadata.get(store_key, {})
+                calc_dict = observation.get_calculated_data_by_key(store_key)
+                existing_df = calc_dict.get("data") if calc_dict else None
+                existing_metadata = calc_dict.get("metadata", {}) if calc_dict else {}
                 if (existing_df is not None and not recalculate and
                     existing_metadata.get("time_step") == time_step):
                     if not existing_df.is_empty():
@@ -241,8 +242,9 @@ class ScheduleCalculator(Super):
                                 observation.set_calculated_data_by_key(store_key, result_df, converted_metadata)
             return None
 
-        existing_df = obj.get_calculated_data_by_key(store_key)
-        existing_metadata = obj._calculated_data_metadata.get(store_key, {})
+        calc_dict = obj.get_calculated_data_by_key(store_key)
+        existing_df = calc_dict.get("data") if calc_dict else None
+        existing_metadata = calc_dict.get("metadata", {}) if calc_dict else {}
         if (existing_df is not None and not recalculate and
             existing_metadata.get("time_step") == time_step):
             if not existing_df.is_empty():
@@ -298,12 +300,12 @@ class ScheduleCalculator(Super):
 
     def _process_object(
         self,
-        obj: Observation | ScheduleProject,
+        obj: Union[Observation, ScheduleProject],
         attributes: Dict[str, Any],
         calc_func: Callable[[Observation, Dict[str, Any]], pl.DataFrame],
         store_key: str,
         metadata: Dict[str, Any]
-    ) -> pl.DataFrame | Dict[str, pl.DataFrame]:
+    ) -> Union[pl.DataFrame, Dict[str, pl.DataFrame]]:
         """Process an object (Observation or ScheduleProject) with parallel execution for projects.
 
         Args:

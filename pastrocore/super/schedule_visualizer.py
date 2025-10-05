@@ -480,7 +480,7 @@ class ScheduleVisualizer(Super):
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            uv_data = obj.get_calculated_data_by_key(store_key)
+            uv_data = obj.get_calculated_data_by_key(store_key).get("data", {})
             if uv_data is None or uv_data.is_empty():
                 logger.debug("No UV data available, returning empty plot")
                 return self._create_empty_plot(
@@ -661,7 +661,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Sun Angles\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            data_df = obj.get_calculated_data_by_key(store_key)
+            data_df = obj.get_calculated_data_by_key(store_key).get("data", {})
             if data_df is None or data_df.is_empty():
                 logger.debug("No sun angles data available, returning empty plot")
                 return self._create_empty_plot(
@@ -799,7 +799,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            data_df = obj.get_calculated_data_by_key(store_key)
+            data_df = obj.get_calculated_data_by_key(store_key).get("data", {})
             if data_df is None or data_df.is_empty():
                 logger.debug("No az_el data available, returning empty plot")
                 return self._create_empty_plot(
@@ -976,7 +976,6 @@ class ScheduleVisualizer(Super):
             scans = attributes.get("scans", None)
             time_range = attributes.get("time_range", None)
 
-            # Validate required filters
             if not source_name or not telescopes:
                 logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, returning empty plot")
                 return self._create_empty_plot(
@@ -985,8 +984,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Time on {source_name or 'Source'}\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Get DataFrame from calculated data
-            data_df = obj.get_calculated_data_by_key(store_key)
+            data_df = obj.get_calculated_data_by_key(store_key).get("data", {})
             if data_df is None or data_df.is_empty():
                 logger.debug("No time on source data, returning empty plot")
                 return self._create_empty_plot(
@@ -1163,7 +1161,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            beam_data = obj.get_calculated_data_by_key(store_key)
+            beam_data = obj.get_calculated_data_by_key(store_key).get("data", {})
             if beam_data is None or beam_data.is_empty():
                 logger.debug("No beam data available, returning empty result")
                 return self._create_empty_plot(
@@ -1172,7 +1170,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            metadata = obj._calculated_data_metadata.get(store_key) or {}
+            metadata = obj.calculated_data.get(store_key).get("metatada", {})
             frequency_agnostic = metadata.get("frequency_agnostic", False)
             if frequency_agnostic and len(frequencies) > 1:
                 logger.warning("Beam pattern is frequency-agnostic, using first frequency only")
@@ -1336,7 +1334,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            bl_data = obj.get_calculated_data_by_key(store_key)
+            bl_data = obj.get_calculated_data_by_key(store_key).get("data", {})
             if bl_data is None or bl_data.is_empty():
                 logger.debug("No baseline projection data available, returning empty plot")
                 return self._create_empty_plot(
@@ -1523,7 +1521,7 @@ class ScheduleVisualizer(Super):
                          fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
-            data = obj.get_calculated_data_by_key(store_key)
+            data = obj.get_calculated_data_by_key(store_key).get("data", {})
             if data is None or data.is_empty():
                 logger.warning(f"No valid Mollweide track data found for '{store_key}'")
                 return self._create_empty_plot(
@@ -1532,9 +1530,9 @@ class ScheduleVisualizer(Super):
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            sources_metadata = obj._calculated_data_metadata.get(store_key, {}).get("sources", {})
+            sources_metadata = obj.calculated_data.get(store_key, {}).get("metadata", {}).get("sources", {})
             if not sources_metadata:
-                logger.warning("No source metadata found in _calculated_data_metadata['sources']")
+                logger.warning("No source metadata found in calculated_data['metadata']['sources']")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
                     projection="mollweide",
@@ -1549,7 +1547,7 @@ class ScheduleVisualizer(Super):
                 filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
             if sources:
                 if not all(source in sources_metadata for source in sources):
-                    logger.error(f"Some sources {sources} not found in _calculated_data_metadata['sources']")
+                    logger.error(f"Some sources {sources} not found in calculated_data['metadata']['sources']")
                     filtered_df = filtered_df.filter(pl.col("source_name").is_in(sources))
 
             if filtered_df.is_empty():
