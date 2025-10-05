@@ -4,7 +4,6 @@ from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_default import Ui_VisDefaultTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from pastrocore.base.scans import Scans
 from pastrocore.base.data_structure import CalculatedDataStructure
 from common.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -13,7 +12,7 @@ from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
 import matplotlib.pyplot as plt
-import pandas as pd
+import polars as pl  # Изменено с pandas на polars
 import gc
 
 class TimeOnSourceVisualizationTab(QWidget):
@@ -54,7 +53,7 @@ class TimeOnSourceVisualizationTab(QWidget):
         """Populate source and telescope filters from Time on Source DataFrame."""
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Time on Source data available for populating filters")
                 self.ui.cmbSource.addItem("No Time on Source data available")
                 return
@@ -70,8 +69,8 @@ class TimeOnSourceVisualizationTab(QWidget):
                 self.ui.cmbSource.addItem("Invalid Time on Source data structure")
                 return
 
-            sources = df["source_name"].unique().tolist()
-            telescopes = df["telescope_code"].unique().tolist()
+            sources = df["source_name"].unique().to_list()
+            telescopes = df["telescope_code"].unique().to_list()
 
             self.ui.cmbSource.addItems(sorted(sources))
             for telescope in sorted(telescopes):
@@ -227,8 +226,8 @@ class TimeOnSourceVisualizationTab(QWidget):
             return
 
         try:
-            df = self.manipulator.inspect(self.observation, get_calculated_data_by_key="time_on_source")
-            if not isinstance(df, pd.DataFrame):
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source")
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Time on Source data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Time on Source data available"))
                 return
@@ -244,27 +243,18 @@ class TimeOnSourceVisualizationTab(QWidget):
                 self.ui.listScans.addItem(QListWidgetItem("Invalid Time on Source data structure"))
                 return
 
-            df_filtered = df[df["source_name"] == source_name]
-            if df_filtered.empty:
+            df_filtered = df.filter(pl.col("source_name") == source_name)
+            if df_filtered.is_empty():
                 logger.debug(f"No data for source '{source_name}' in Time on Source DataFrame")
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scans_container = self.manipulator.inspect(obj=self.observation, get_scans=True)
-            if not isinstance(scans_container, Scans):
-                logger.error("Failed to retrieve Scans container")
-                self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
-                return
+            scan_times = df_filtered.group_by("scan_name").agg(start=pl.col("start").first()).sort("start")
+            scans = scan_times["scan_name"].to_list()
 
-            scans = [
-                scan for scan in scans_container.get_active_scans(self.observation)
-                if scan.source and scan.source.name == source_name
-            ]
-            logger.info(f"Found {len(scans)} scans for source '{source_name}': {[s.name for s in scans]}")
-
-            for scan in scans:
-                scan_name = scan.name
-                start_time = scan.get_start().isot
+            for row in scan_times.iter_rows(named=True):
+                scan_name = row["scan_name"]
+                start_time = Time(row["start"], format="mjd").isot
                 display_text = f"{start_time} ({scan_name})"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
