@@ -1022,7 +1022,7 @@ class ScheduleVisualizer(Super):
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
             ax.set_ylabel("Telescope", fontsize=self._style_config["font"]["label_size"])
             ax.set_title(f"Time on {source_name}\nObs. code: {obj.get_observation_code()}",
-                         fontsize=self._style_config["font"]["title_size"])
+                        fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
             result = {"scans": len(filtered_df["scan_name"].unique()), "telescopes": 0, "points": 0, "intersections": 0}
@@ -1070,44 +1070,59 @@ class ScheduleVisualizer(Super):
                         legend_labels.append(tel)
                     result["points"] += 1
 
-            # Calculate intersection times
+            # Calculate intersection times using sweep-line algorithm
             if tel_list and all_blocks:
-                all_times = [[(start, end) for start, end, _ in all_blocks[tel]] for tel in tel_list]
-                if all_times and all(all_times):
-                    time_points = sorted(set(t for tel_times in all_times for start, end in tel_times for t in (start, end)))
-                    intersection_times = []
-                    for i in range(len(time_points) - 1):
-                        start, end = time_points[i], time_points[i + 1]
-                        all_active = all(any(start_t <= start and end <= end_t for start_t, end_t in tel_times)
-                                         for tel_times in all_times)
-                        if all_active:
-                            intersection_times.append((start, end))
+                # Collect all time points with type (start or end)
+                time_points = []
+                for tel in tel_list:
+                    for start, end, _ in all_blocks[tel]:
+                        time_points.append((start, "start", tel))
+                        time_points.append((end, "end", tel))
+                time_points.sort()  # Sort by time, then by type (start before end)
 
-                    for i, (start, end) in enumerate(intersection_times):
-                        duration = (end - start) * 86400  # Convert MJD to seconds
-                        handle = ax.fill_between(
-                            [start, end],
-                            [-1, -1],
-                            [0, 0],
-                            color=self._style_config["intersection_color"],
-                            alpha=0.9,
-                            label="Total" if i == 0 else None
-                        )
-                        ax.text(
-                            (start + end) / 2, -0.5, f"{duration:.1f}s",
-                            ha="center", va="center", fontsize=self._style_config["font"]["tick_size"],
-                            color="black",
-                            bbox=dict(facecolor="white", alpha=0.8, edgecolor="none")
-                        )
-                        if i == 0:
-                            legend_handles.append(handle)
-                            legend_labels.append("Total")
-                        result["intersections"] = len(intersection_times)
+                # Find intervals where all telescopes are active
+                intersection_times = []
+                active_telescopes = set()
+                start_time = None
+                for time, point_type, tel in time_points:
+                    if point_type == "start":
+                        active_telescopes.add(tel)
+                        if len(active_telescopes) == len(tel_list) and start_time is None:
+                            start_time = time
+                    else:  # point_type == "end"
+                        if len(active_telescopes) == len(tel_list) and start_time is not None:
+                            intersection_times.append((start_time, time))
+                            start_time = None
+                        active_telescopes.remove(tel)
+                    logger.debug(f"Time: {time}, Type: {point_type}, Telescope: {tel}, Active: {active_telescopes}")
+
+                # Plot intersection times
+                for i, (start, end) in enumerate(intersection_times):
+                    duration = (end - start) * 86400  # Convert MJD to seconds
+                    handle = ax.fill_between(
+                        [start, end],
+                        [-1, -1],
+                        [0, 0],
+                        color=self._style_config["intersection_color"],
+                        alpha=0.9,
+                        label="Total" if i == 0 else None
+                    )
+                    ax.text(
+                        (start + end) / 2, -0.5, f"{duration:.1f}s",
+                        ha="center", va="center", fontsize=self._style_config["font"]["tick_size"],
+                        color="black",
+                        bbox=dict(facecolor="white", alpha=0.8, edgecolor="none")
+                    )
+                    if i == 0:
+                        legend_handles.append(handle)
+                        legend_labels.append("Total")
+                    result["intersections"] = len(intersection_times)
+                logger.debug(f"Intersection times: {intersection_times}")
 
             # Set y-ticks and labels
             ax.set_yticks(np.arange(-1, len(tel_list)))
             ax.set_yticklabels(["Total"] + tel_list, fontsize=self._style_config["font"]["tick_size"])
-            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.88, top=0.90)
+            fig.subplots_adjust(left=0.15, bottom=0.15, right=0.85, top=0.85)
 
             # Add legend
             if legend_handles:
