@@ -31,8 +31,6 @@ class VisualizationDialog(QDialog):
         self.visualization_tabs: Dict[str, QWidget] = {}
         self.cached_observations: Dict[str, Observation] = {}
         self.is_processing = False
-        logger.debug(f"VisualizationDialog initialized with project id={id(self.project)}, "
-                     f"manipulator id={id(self.manipulator)}")
 
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinimizeButtonHint | Qt.WindowMaximizeButtonHint)
 
@@ -40,7 +38,6 @@ class VisualizationDialog(QDialog):
         self.populate_observations()
 
         if self.ui.comboBoxObservation.count() > 0:
-            logger.debug("Triggering initial update_visualization_types for first observation")
             self.update_visualization_types()
 
     def setup_connections(self):
@@ -127,7 +124,8 @@ class VisualizationDialog(QDialog):
             }
             available_types = []
             for key in CalculatedDataStructure.SCHEMAS.keys():
-                df = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=key)
+                calc_data = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=key)
+                df = calc_data.get("data", {})
                 if isinstance(df, pl.DataFrame) and not df.is_empty():
                     if key in vis_types:
                         available_types.append(vis_types[key])
@@ -164,7 +162,6 @@ class VisualizationDialog(QDialog):
             else:
                 logger.debug(f"Closing tab '{vis_type}' at index {index}")
 
-            # Clean up visualization tab resources
             if hasattr(tab_widget, '_clear_canvas'):
                 try:
                     tab_widget._clear_canvas()
@@ -172,12 +169,10 @@ class VisualizationDialog(QDialog):
                 except Exception as e:
                     logger.error(f"Failed to clear canvas for tab '{vis_type}': {str(e)}")
 
-            # Remove tab from tabWidget
             self.ui.tabWidget.removeTab(index)
             tab_widget.deleteLater()
             logger.debug(f"Tab widget at index {index} removed and scheduled for deletion")
 
-            # Remove from visualization_tabs dictionary
             if vis_type in self.visualization_tabs:
                 del self.visualization_tabs[vis_type]
                 logger.debug(f"Removed '{vis_type}' from visualization_tabs")
@@ -285,7 +280,9 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")
                 return
 
-            df = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=vis_key)
+            calc_data = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=vis_key)
+            logger.info(calc_data)
+            df = calc_data.get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error(f"No valid data for visualization type '{vis_type}'")
                 QMessageBox.critical(self, "Error", f"No data available for {vis_type}")

@@ -130,7 +130,7 @@ class Observation(BaseEntity):
             return {"data": calc_dict.get("data"), "metadata": calc_dict.get("metadata", {})}
         else:
             logger.debug(f"No calculated data found for key '{key}' in observation '{self.name}'")
-            return None
+            return {}
 
     def set_calculated_data_by_key(self, key: str, df: pl.DataFrame, metadata: Dict = None) -> None:
         """Set calculated data and metadata for a specific key as a Polars DataFrame and dictionary."""

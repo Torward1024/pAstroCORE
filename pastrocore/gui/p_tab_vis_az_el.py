@@ -53,7 +53,7 @@ class AzElVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source and telescope filters from Az/El DataFrame."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="az_el")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="az_el").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Az/El data available for populating filters")
                 self.ui.cmbSource.addItem("No Az/El data available")
@@ -204,7 +204,7 @@ class AzElVisualizationTab(QWidget):
         current_checks = {item.data(Qt.UserRole): item.checkState() for item in [self.ui.listScans.item(i) for i in range(self.ui.listScans.count())]}
 
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="az_el")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="az_el").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Az/El data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Az/El data available"))
