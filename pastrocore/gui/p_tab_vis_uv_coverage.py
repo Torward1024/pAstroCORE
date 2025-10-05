@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from typing import List, Optional
 from astropy.time import Time
 import matplotlib.pyplot as plt
-import pandas as pd
+import polars as pl  # Изменено с pandas на polars
 import gc
 
 class UVVisualizationTab(QWidget):
@@ -56,7 +56,7 @@ class UVVisualizationTab(QWidget):
         """Populate source, baseline, and frequency filters from UV coverage DataFrame and observation."""
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="uv_coverage")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid UV coverage data available for populating filters")
                 self.ui.comboBox.addItem("No UV coverage data available")
                 return
@@ -72,8 +72,8 @@ class UVVisualizationTab(QWidget):
                 self.ui.comboBox.addItem("Invalid UV coverage data structure")
                 return
 
-            sources = df["source_name"].unique().tolist()
-            baselines = df["baseline"].unique().tolist()
+            sources = df["source_name"].unique().to_list()
+            baselines = df["baseline"].unique().to_list()
 
             self.ui.comboBox.addItems(sorted(sources))
             for baseline in sorted(baselines):
@@ -278,7 +278,7 @@ class UVVisualizationTab(QWidget):
 
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="uv_coverage")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid UV coverage data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No UV coverage data available"))
                 return
@@ -294,18 +294,18 @@ class UVVisualizationTab(QWidget):
                 self.ui.listScans.addItem(QListWidgetItem("Invalid UV coverage data structure"))
                 return
 
-            df_filtered = df[df["source_name"] == source_name]
-            if df_filtered.empty:
+            df_filtered = df.filter(pl.col("source_name") == source_name)
+            if df_filtered.is_empty():
                 logger.debug(f"No data for source '{source_name}' in UV coverage DataFrame")
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scan_times = df_filtered.groupby("scan_name")["time"].first().reset_index()
-            scans = scan_times["scan_name"].tolist()
+            scan_times = df_filtered.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
+            scans = scan_times["scan_name"].to_list()
 
-            for _, row in scan_times.iterrows():
+            for row in scan_times.iter_rows(named=True):
                 scan_name = row["scan_name"]
-                start_time = Time(row["time"]).isot
+                start_time = Time(row["time"], format="mjd").isot
                 display_text = f"{start_time}"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
