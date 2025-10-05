@@ -52,7 +52,7 @@ class TimeOnSourceVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source and telescope filters from Time on Source DataFrame."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Time on Source data available for populating filters")
                 self.ui.cmbSource.addItem("No Time on Source data available")
@@ -226,7 +226,7 @@ class TimeOnSourceVisualizationTab(QWidget):
             return
 
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source")
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="time_on_source").get("data", {})
             if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Time on Source data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Time on Source data available"))
