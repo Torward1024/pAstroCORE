@@ -9,21 +9,26 @@ from pastrocore.base.frequencies import IF, Frequencies
 from common.utils.logging_setup import logger
 from typing import Dict, Any, Callable, Union, List
 from concurrent.futures import ThreadPoolExecutor
+
+import threading
+import os
+import warnings
+
+import gc
+
+import numpy as np
+import polars as pl
+from astropy.time import Time
+
+
 import matplotlib
 import matplotlib.ticker
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-import numpy as np
-from astropy.time import Time
-import threading
-import os
-import warnings
-from erfa import ErfaWarning
-import gc
-
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 
+from erfa import ErfaWarning
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 class ScheduleVisualizer(Super):
@@ -447,7 +452,7 @@ class ScheduleVisualizer(Super):
 
     def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
-        Plot UV coverage for an Observation with flexible filtering and frequency scaling using pandas DataFrame.
+        Plot UV coverage for an Observation with flexible filtering and frequency scaling using Polars DataFrame.
 
         Args:
             obj: Observation object to visualize.
@@ -468,7 +473,7 @@ class ScheduleVisualizer(Super):
 
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
                 logger.debug(f"Missing required filters: source_name={source_name}, baselines={baselines}, "
-                            f"scans={scans}, frequencies={frequencies}, returning empty plot")
+                             f"scans={scans}, frequencies={frequencies}, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
                     labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
@@ -476,7 +481,7 @@ class ScheduleVisualizer(Super):
                 )
 
             uv_data = obj.get_calculated_data_by_key(store_key)
-            if uv_data is None or uv_data.empty:
+            if uv_data is None or uv_data.is_empty():
                 logger.debug("No UV data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
@@ -484,15 +489,15 @@ class ScheduleVisualizer(Super):
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            filtered_df = uv_data.copy()
+            filtered_df = uv_data
             if source_name:
-                filtered_df = filtered_df[filtered_df["source_name"] == source_name]
+                filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
             if baselines:
-                filtered_df = filtered_df[filtered_df["baseline"].isin(baselines)]
+                filtered_df = filtered_df.filter(pl.col("baseline").is_in(baselines))
             if scans:
-                filtered_df = filtered_df[filtered_df["scan_name"].isin(scans)]
+                filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
 
-            if filtered_df.empty:
+            if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
@@ -525,10 +530,8 @@ class ScheduleVisualizer(Super):
             for freq_idx, freq_mhz in enumerate(freq_list):
                 wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
                 for baseline in filtered_df["baseline"].unique():
-                    if baselines and baseline not in baselines:
-                        continue
-                    baseline_data = filtered_df[filtered_df["baseline"] == baseline]
-                    if baseline_data.empty:
+                    baseline_data = filtered_df.filter(pl.col("baseline") == baseline)
+                    if baseline_data.is_empty():
                         continue
 
                     u = baseline_data["u"].to_numpy()
@@ -543,7 +546,7 @@ class ScheduleVisualizer(Super):
 
                     max_uv = max(max_uv, np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
 
-                    color_idx = (filtered_df["baseline"].unique().tolist().index(baseline)) % len(self._style_config["colors"])
+                    color_idx = (filtered_df["baseline"].unique().to_list().index(baseline)) % len(self._style_config["colors"])
                     color = self._style_config["colors"][color_idx]
                     label = f"{baseline} ({freq_mhz:.2f} MHz)"
                     handle = ax.scatter(
@@ -624,14 +627,14 @@ class ScheduleVisualizer(Super):
 
             ax.invert_xaxis()
             ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                        fontsize=self._style_config["font"]["title_size"])
+                         fontsize=self._style_config["font"]["title_size"])
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
             result["baselines"] = len(plotted_pairs)
             return result
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
-        Plot angles to the Sun for an Observation with flexible filtering using pandas DataFrame.
+        Plot angles to the Sun for an Observation with flexible filtering using Polars DataFrame.
 
         Args:
             obj: Observation object to visualize.
@@ -651,7 +654,7 @@ class ScheduleVisualizer(Super):
 
             if not self._check_filters(attributes, ["source_name", "telescopes"]):
                 logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, "
-                            f"returning empty plot")
+                             f"returning empty plot")
                 return self._create_empty_plot(
                     fig, "sun_angles", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": "Angle, (deg.)",
@@ -659,7 +662,7 @@ class ScheduleVisualizer(Super):
                 )
 
             data_df = obj.get_calculated_data_by_key(store_key)
-            if data_df is None or data_df.empty:
+            if data_df is None or data_df.is_empty():
                 logger.debug("No sun angles data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "sun_angles", obj.get_observation_code(),
@@ -667,20 +670,20 @@ class ScheduleVisualizer(Super):
                             "title": f"Sun Angles\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Apply filters using pandas
-            filtered_df = data_df[data_df["source_name"] == source_name]
+            filtered_df = data_df
+            if source_name:
+                filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
             if telescopes:
-                filtered_df = filtered_df[filtered_df["telescope_code"].isin(telescopes)]
+                filtered_df = filtered_df.filter(pl.col("telescope_code").is_in(telescopes))
             if scans:
-                filtered_df = filtered_df[filtered_df["scan_name"].isin(scans)]
+                filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
             if time_range:
                 start_time, end_time = time_range
-                filtered_df = filtered_df[
-                    (filtered_df["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x) >= start_time.mjd) &
-                    (filtered_df["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x) <= end_time.mjd)
-                ]
+                filtered_df = filtered_df.filter(
+                    (pl.col("time") >= float(start_time)) & (pl.col("time") <= float(end_time))
+                )
 
-            if filtered_df.empty:
+            if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
                     fig, "sun_angles", obj.get_observation_code(),
@@ -688,13 +691,12 @@ class ScheduleVisualizer(Super):
                             "title": f"Sun Angles\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Setup axes
             ax = self._setup_axes(fig, "sun_angles", obj.get_observation_code())
             ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
             ax.set_ylabel("Angle, (deg.)", fontsize=self._style_config["font"]["label_size"])
             ax.set_title(f"Sun Angles\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                        fontsize=self._style_config["font"]["title_size"])
+                         fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
             result = {"scans": len(filtered_df["scan_name"].unique()), "telescopes": 0, "points": 0}
@@ -705,37 +707,33 @@ class ScheduleVisualizer(Super):
             for tel_idx, tel in enumerate(filtered_df["telescope_code"].unique()):
                 if telescopes and tel not in telescopes:
                     continue
-                tel_data = filtered_df[filtered_df["telescope_code"] == tel]
-                if tel_data.empty:
+                tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
+                if tel_data.is_empty():
                     logger.debug(f"No data for telescope {tel}, skipping")
                     continue
 
-                scan_groups = tel_data.groupby("scan_name")
+                # Sort by time for consistent plotting
+                tel_data = tel_data.sort("time")
+                times_mjd = tel_data["time"].to_numpy()
+                angles = tel_data["angle"].to_numpy()
+                valid_mask = ~np.isnan(angles)
+                if not np.any(valid_mask):
+                    logger.debug(f"All angles for telescope {tel} are NaN, skipping")
+                    continue
+                valid_times_mjd = times_mjd[valid_mask]
+                valid_angles = angles[valid_mask]
+
                 color = self._style_config["colors"][tel_idx % len(self._style_config["colors"])]
-                points_plotted = 0
-                first_scan = next(iter(scan_groups.groups.keys()), None)  # Get first scan name safely
-
-                for scan_name, scan_data in scan_groups:
-                    scan_data = scan_data.sort_values(by="time")
-                    times_mjd = scan_data["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x).to_numpy()
-                    angles = scan_data["angle"].to_numpy()
-                    valid_mask = ~np.isnan(angles)
-                    if not np.any(valid_mask):
-                        logger.debug(f"All angles for telescope {tel}, scan {scan_name} are NaN, skipping")
-                        continue
-                    valid_times_mjd = times_mjd[valid_mask]
-                    valid_angles = angles[valid_mask]
-
-                    handle = ax.plot(
-                        valid_times_mjd, valid_angles,
-                        color=color,
-                        linestyle=self._style_config.get("lines", {}).get("style", "-"),
-                        linewidth=self._style_config.get("lines", {}).get("width", 1.5),
-                        label=tel if scan_name == first_scan else None,
-                        alpha=0.7
-                    )[0]
-                    points_plotted += len(valid_angles)
-                    logger.debug(f"Plotted {len(valid_angles)} points for telescope {tel}, scan {scan_name}")
+                handle = ax.plot(
+                    valid_times_mjd, valid_angles,
+                    color=color,
+                    linestyle=self._style_config.get("lines", {}).get("style", "-"),
+                    linewidth=self._style_config.get("lines", {}).get("width", 1.5),
+                    label=tel,
+                    alpha=0.7
+                )[0]
+                points_plotted = len(valid_angles)
+                logger.debug(f"Plotted {points_plotted} points for telescope {tel}")
 
                 if points_plotted > 0:
                     legend_handles.append(handle)
@@ -766,10 +764,10 @@ class ScheduleVisualizer(Super):
             result["telescopes"] = len(plotted_telescopes)
             logger.debug(f"Visualization result: {result}")
             return result
-
+        
     def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
-        Plot Azimuth/Elevation or Hour Angle/Declination for an Observation with flexible filtering using pandas DataFrame.
+        Plot Azimuth/Elevation or Hour Angle/Declination for an Observation with flexible filtering using Polars DataFrame.
 
         Args:
             obj: Observation object to visualize.
@@ -794,7 +792,7 @@ class ScheduleVisualizer(Super):
 
             if not self._check_filters(attributes, ["source_name", "telescopes"]):
                 logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, "
-                            f"returning empty plot")
+                             f"returning empty plot")
                 return self._create_empty_plot(
                     fig, "az_el", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": f"{coord_type[:2]}/{coord_type[2:]}, (deg)",
@@ -802,7 +800,7 @@ class ScheduleVisualizer(Super):
                 )
 
             data_df = obj.get_calculated_data_by_key(store_key)
-            if data_df is None or data_df.empty:
+            if data_df is None or data_df.is_empty():
                 logger.debug("No az_el data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "az_el", obj.get_observation_code(),
@@ -810,20 +808,21 @@ class ScheduleVisualizer(Super):
                             "title": f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Apply filters using pandas
-            filtered_df = data_df[data_df["source_name"] == source_name]
+            # Apply filters using Polars
+            filtered_df = data_df
+            if source_name:
+                filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
             if telescopes:
-                filtered_df = filtered_df[filtered_df["telescope_code"].isin(telescopes)]
+                filtered_df = filtered_df.filter(pl.col("telescope_code").is_in(telescopes))
             if scans:
-                filtered_df = filtered_df[filtered_df["scan_name"].isin(scans)]
+                filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
             if time_range:
                 start_time, end_time = time_range
-                filtered_df = filtered_df[
-                    (filtered_df["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x) >= start_time.mjd) &
-                    (filtered_df["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x) <= end_time.mjd)
-                ]
+                filtered_df = filtered_df.filter(
+                    (pl.col("time") >= float(start_time)) & (pl.col("time") <= float(end_time))
+                )
 
-            if filtered_df.empty:
+            if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
                     fig, "az_el", obj.get_observation_code(),
@@ -831,13 +830,14 @@ class ScheduleVisualizer(Super):
                             "title": f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}"}
                 )
 
+            # Check valid telescopes
             valid_telescopes = []
             for tel in filtered_df["telescope_code"].unique():
-                tel_data = filtered_df[filtered_df["telescope_code"] == tel]
+                tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
                 az_values = tel_data["az"].to_numpy()
                 el_values = tel_data["el"].to_numpy()
                 valid_mask = ~(np.isnan(az_values) | np.isnan(el_values))
-                if np.any(valid_mask) and len(tel_data[valid_mask]) > 0:
+                if np.any(valid_mask) and len(tel_data.filter(valid_mask)) > 0:
                     valid_telescopes.append(tel)
             if not valid_telescopes:
                 logger.debug("No telescopes with valid data, returning empty plot")
@@ -865,13 +865,13 @@ class ScheduleVisualizer(Super):
             for tel_idx, tel in enumerate(valid_telescopes):
                 if n_tels > 1 and tel_idx >= self._style_config.get("max_subplots", 10):
                     break
-                tel_data = filtered_df[filtered_df["telescope_code"] == tel]
-                if tel_data.empty:
+                tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
+                if tel_data.is_empty():
                     logger.debug(f"No data for telescope {tel}, skipping")
                     continue
 
-                tel_data = tel_data.sort_values(by="time")
-                times_mjd = tel_data["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x).to_numpy()
+                tel_data = tel_data.sort("time")
+                times_mjd = tel_data["time"].to_numpy()
                 az_values = tel_data["az"].to_numpy()
                 el_values = tel_data["el"].to_numpy()
                 valid_mask = ~(np.isnan(az_values) | np.isnan(el_values))
@@ -922,14 +922,14 @@ class ScheduleVisualizer(Super):
                 fig.subplots_adjust(left=0.15, bottom=0.15, right=0.85, top=0.80, hspace=0.3)
                 fig.text(0.5, 0.05, "Time, (MJD)", ha="center", fontsize=self._style_config["font"]["label_size"])
                 fig.text(0.05, 0.5, f"{coord_type[:2]}/{coord_type[2:]}, (deg)", va="center", rotation="vertical",
-                        fontsize=self._style_config["font"]["label_size"])
+                         fontsize=self._style_config["font"]["label_size"])
                 fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                            fontsize=self._style_config["font"]["title_size"], y=0.98)
+                             fontsize=self._style_config["font"]["title_size"], y=0.98)
             else:
                 axes[0].set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
                 axes[0].set_ylabel(f"{coord_type[:2]}/{coord_type[2:]}, (deg)", fontsize=self._style_config["font"]["label_size"])
                 axes[0].set_title(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                                fontsize=self._style_config["font"]["title_size"], pad=10)
+                                  fontsize=self._style_config["font"]["title_size"], pad=10)
                 axes[0].xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
                 axes[0].tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
@@ -958,7 +958,7 @@ class ScheduleVisualizer(Super):
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
-        Plot time on source for an Observation with flexible filtering using pandas DataFrame.
+        Plot time on source for an Observation with flexible filtering using Polars DataFrame.
 
         Args:
             obj: Observation object to visualize.
@@ -987,7 +987,7 @@ class ScheduleVisualizer(Super):
 
             # Get DataFrame from calculated data
             data_df = obj.get_calculated_data_by_key(store_key)
-            if data_df is None or data_df.empty:
+            if data_df is None or data_df.is_empty():
                 logger.debug("No time on source data, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
@@ -995,20 +995,21 @@ class ScheduleVisualizer(Super):
                             "title": f"Time on {source_name}\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Apply filters using pandas
-            filtered_df = data_df[data_df["source_name"] == source_name]
+            # Apply filters using Polars
+            filtered_df = data_df
+            if source_name:
+                filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
             if telescopes:
-                filtered_df = filtered_df[filtered_df["telescope_code"].isin(telescopes)]
+                filtered_df = filtered_df.filter(pl.col("telescope_code").is_in(telescopes))
             if scans:
-                filtered_df = filtered_df[filtered_df["scan_name"].isin(scans)]
+                filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
             if time_range:
                 start_time, end_time = time_range
-                filtered_df = filtered_df[
-                    (filtered_df["start"] >= start_time.mjd) &
-                    (filtered_df["end"] <= end_time.mjd)
-                ]
+                filtered_df = filtered_df.filter(
+                    (pl.col("start") >= float(start_time)) & (pl.col("end") <= float(end_time))
+                )
 
-            if filtered_df.empty:
+            if filtered_df.is_empty():
                 logger.debug(f"No data after filtering for source {source_name}, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
@@ -1021,7 +1022,7 @@ class ScheduleVisualizer(Super):
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
             ax.set_ylabel("Telescope", fontsize=self._style_config["font"]["label_size"])
             ax.set_title(f"Time on {source_name}\nObs. code: {obj.get_observation_code()}",
-                        fontsize=self._style_config["font"]["title_size"])
+                         fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
             result = {"scans": len(filtered_df["scan_name"].unique()), "telescopes": 0, "points": 0, "intersections": 0}
@@ -1031,14 +1032,12 @@ class ScheduleVisualizer(Super):
 
             tel_list = sorted(filtered_df["telescope_code"].unique())
             for tel in tel_list:
-                if telescopes and tel not in telescopes:
-                    continue
-                tel_data = filtered_df[filtered_df["telescope_code"] == tel]
+                tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
                 all_blocks[tel] = []
-                for _, row in tel_data.iterrows():
+                for row in tel_data.iter_rows(named=True):
                     try:
-                        start_mjd = row["start"].mjd if isinstance(row["start"], Time) else float(row["start"])
-                        end_mjd = row["end"].mjd if isinstance(row["end"], Time) else float(row["end"])
+                        start_mjd = float(row["start"])
+                        end_mjd = float(row["end"])
                         duration = float(row["duration"])
                         all_blocks[tel].append((start_mjd, end_mjd, duration))
                     except (ValueError, TypeError) as e:
@@ -1080,7 +1079,7 @@ class ScheduleVisualizer(Super):
                     for i in range(len(time_points) - 1):
                         start, end = time_points[i], time_points[i + 1]
                         all_active = all(any(start_t <= start and end <= end_t for start_t, end_t in tel_times)
-                                        for tel_times in all_times)
+                                         for tel_times in all_times)
                         if all_active:
                             intersection_times.append((start, end))
 
@@ -1125,7 +1124,7 @@ class ScheduleVisualizer(Super):
 
     def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
-        Plot beam patterns for an Observation with one subplot per telescope and a shared frequency legend using pandas DataFrame.
+        Plot beam patterns for an Observation with one subplot per telescope and a shared frequency legend using Polars DataFrame.
 
         Args:
             obj: Observation object to visualize.
@@ -1150,7 +1149,7 @@ class ScheduleVisualizer(Super):
                 )
 
             beam_data = obj.get_calculated_data_by_key(store_key)
-            if beam_data is None or beam_data.empty:
+            if beam_data is None or beam_data.is_empty():
                 logger.debug("No beam data available, returning empty result")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
@@ -1158,9 +1157,14 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            # Filter by telescopes
-            filtered_df = beam_data[beam_data["telescope_code"].isin(telescopes)]
-            if filtered_df.empty:
+            metadata = obj._calculated_data_metadata.get(store_key) or {}
+            frequency_agnostic = metadata.get("frequency_agnostic", False)
+            if frequency_agnostic and len(frequencies) > 1:
+                logger.warning("Beam pattern is frequency-agnostic, using first frequency only")
+                frequencies = [frequencies[0]]
+
+            filtered_df = beam_data.filter(pl.col("telescope_code").is_in(telescopes))
+            if filtered_df.is_empty():
                 logger.debug("No valid telescopes in beam_data, returning empty result")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
@@ -1205,13 +1209,13 @@ class ScheduleVisualizer(Super):
                 ax.set_title(tel_code, fontsize=self._style_config["font"]["title_size"])
                 ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
-                tel_data = filtered_df[filtered_df["telescope_code"] == tel_code]
-                if tel_data.empty:
+                tel_data = filtered_df.filter(pl.col("telescope_code") == tel_code)
+                if tel_data.is_empty():
                     logger.warning(f"No beam data for {tel_code}")
                     continue
 
-                theta = np.array(tel_data["theta"], dtype=float)
-                pattern = np.array(tel_data["pattern"], dtype=float)
+                theta = tel_data["theta"].to_numpy()
+                pattern = tel_data["pattern"].to_numpy()
                 if len(theta) == 0 or len(pattern) == 0 or len(theta) != len(pattern):
                     logger.warning(f"Invalid beam data for {tel_code}: theta={len(theta)}, pattern={len(pattern)}")
                     continue
@@ -1222,10 +1226,10 @@ class ScheduleVisualizer(Super):
                         if wavelength <= 0:
                             logger.warning(f"Invalid frequency {freq_mhz} MHz for {tel_code}")
                             continue
-                        theta_scaling_factor = ref_wavelength / wavelength
+                        theta_scaling_factor = ref_wavelength / wavelength if not frequency_agnostic else 1.0
                         scaled_theta = theta * theta_scaling_factor
                         scaled_pattern = pattern / np.max(np.abs(pattern)) if np.max(np.abs(pattern)) > 0 else pattern
-                        color = cmap(norm(freq_mhz)) if cmap else self._style_config["colors"][freq_idx % len(self._style_config["colors"])]
+                        color = cmap(norm(freq_mhz)) if cmap and not frequency_agnostic else self._style_config["colors"][freq_idx % len(self._style_config["colors"])]
                         line, = ax.plot(
                             scaled_theta, scaled_pattern,
                             color=color,
@@ -1239,8 +1243,8 @@ class ScheduleVisualizer(Super):
                         ax.set_xlim(-theta_range, theta_range)
                         plotted_frequencies.add(freq_mhz)
                         logger.debug(f"Plotted beam for {tel_code} at {freq_mhz:.2f} MHz: "
-                                    f"theta_scaling_factor={theta_scaling_factor:.2f}, "
-                                    f"max_pattern={np.max(scaled_pattern):.2f}")
+                                     f"theta_scaling_factor={theta_scaling_factor:.2f}, "
+                                     f"max_pattern={np.max(scaled_pattern):.2f}")
                     except (ValueError, TypeError) as e:
                         logger.error(f"Error plotting beam for {tel_code} at {freq_mhz} MHz: {str(e)}")
                         continue
@@ -1254,7 +1258,7 @@ class ScheduleVisualizer(Super):
             if plotted_telescopes:
                 fig.text(0.5, 0.04, "Theta, (rad.)", ha="center", fontsize=self._style_config["font"]["label_size"])
                 fig.text(0.04, 0.5, "Normalized Peak Flux", va="center", rotation="vertical",
-                        fontsize=self._style_config["font"]["label_size"])
+                         fontsize=self._style_config["font"]["label_size"])
 
             # Adjust layout and add legend
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.86, top=0.85)
@@ -1281,14 +1285,14 @@ class ScheduleVisualizer(Super):
                 )
 
             fig.suptitle(f"Beam Pattern\nObs. code: {obj.get_observation_code()}",
-                        fontsize=self._style_config["font"]["title_size"])
+                         fontsize=self._style_config["font"]["title_size"])
             result["telescopes"] = len(plotted_telescopes)
             result["frequencies"] = len(plotted_frequencies)
             return result
 
     def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
-        Plot baseline projections for an Observation with flexible filtering, frequency scaling, and grouped legend using pandas DataFrame.
+        Plot baseline projections for an Observation with flexible filtering, frequency scaling, and grouped legend using Polars DataFrame.
 
         Args:
             obj: Observation object to visualize.
@@ -1310,7 +1314,7 @@ class ScheduleVisualizer(Super):
 
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
                 logger.debug(f"Missing required filters: source_name={source_name}, baselines={baselines}, "
-                            f"scans={scans}, frequencies={frequencies}, returning empty plot")
+                             f"scans={scans}, frequencies={frequencies}, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Projection, ({units})",
@@ -1318,7 +1322,7 @@ class ScheduleVisualizer(Super):
                 )
 
             bl_data = obj.get_calculated_data_by_key(store_key)
-            if bl_data is None or bl_data.empty:
+            if bl_data is None or bl_data.is_empty():
                 logger.debug("No baseline projection data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
@@ -1326,19 +1330,21 @@ class ScheduleVisualizer(Super):
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            filtered_df = bl_data[bl_data["source_name"] == source_name]
+            # Apply filters using Polars
+            filtered_df = bl_data
+            if source_name:
+                filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
             if baselines:
-                filtered_df = filtered_df[filtered_df["baseline"].isin(baselines)]
+                filtered_df = filtered_df.filter(pl.col("baseline").is_in(baselines))
             if scans:
-                filtered_df = filtered_df[filtered_df["scan_name"].isin(scans)]
+                filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
             if time_range:
                 start_time, end_time = time_range
-                filtered_df = filtered_df[
-                    (filtered_df["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x) >= start_time.mjd) &
-                    (filtered_df["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x) <= end_time.mjd)
-                ]
+                filtered_df = filtered_df.filter(
+                    (pl.col("time") >= float(start_time)) & (pl.col("time") <= float(end_time))
+                )
 
-            if filtered_df.empty:
+            if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
@@ -1363,7 +1369,7 @@ class ScheduleVisualizer(Super):
             ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
             ax.set_title(f"Baseline Projections\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                        fontsize=self._style_config["font"]["title_size"])
+                         fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
             result = {"scans": len(filtered_df["scan_name"].unique()), "baselines": 0, "projections": 0, "frequencies": len(freq_list)}
@@ -1374,16 +1380,14 @@ class ScheduleVisualizer(Super):
 
             # Process data for each baseline and frequency
             for pair_idx, pair in enumerate(filtered_df["baseline"].unique()):
-                if baselines and pair not in baselines:
-                    continue
-                pair_data = filtered_df[filtered_df["baseline"] == pair]
-                if pair_data.empty:
+                pair_data = filtered_df.filter(pl.col("baseline") == pair)
+                if pair_data.is_empty():
                     logger.debug(f"No data for baseline {pair}, skipping")
                     continue
 
                 # Sort by time and extract valid projections
-                pair_data = pair_data.sort_values(by="time")
-                times_mjd = pair_data["time"].apply(lambda x: x.mjd if isinstance(x, Time) else x).to_numpy()
+                pair_data = pair_data.sort("time")
+                times_mjd = pair_data["time"].to_numpy()
                 projections = pair_data["projection"].to_numpy()
                 valid_mask = ~np.isnan(projections)
                 if not np.any(valid_mask):
@@ -1481,7 +1485,7 @@ class ScheduleVisualizer(Super):
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
-        Plot Mollweide tracks for an Observation with flexible filtering and grouped legend using pandas DataFrame.
+        Plot Mollweide tracks for an Observation with flexible filtering and grouped legend using Polars DataFrame.
 
         Args:
             obj: Observation object to visualize.
@@ -1501,11 +1505,11 @@ class ScheduleVisualizer(Super):
 
             ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
             ax.set_title(f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}",
-                        fontsize=self._style_config["font"]["title_size"])
+                         fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
             data = obj.get_calculated_data_by_key(store_key)
-            if data is None or data.empty:
+            if data is None or data.is_empty():
                 logger.warning(f"No valid Mollweide track data found for '{store_key}'")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
@@ -1513,25 +1517,27 @@ class ScheduleVisualizer(Super):
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            sources_metadata = data.attrs.get("sources", {})
+            sources_metadata = obj._calculated_data_metadata.get(store_key, {}).get("sources", {})
             if not sources_metadata:
-                logger.warning("No source metadata found in df.attrs['sources']")
+                logger.warning("No source metadata found in _calculated_data_metadata['sources']")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
                     projection="mollweide",
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
+            # Apply filters using Polars
             filtered_df = data
             if telescopes:
-                filtered_df = filtered_df[filtered_df["telescope_code"].isin(telescopes)]
+                filtered_df = filtered_df.filter(pl.col("telescope_code").is_in(telescopes))
             if scans:
-                filtered_df = filtered_df[filtered_df["scan_name"].isin(scans)]
+                filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
             if sources:
-                if not all(source in filtered_df.attrs.get("sources", {}) for source in sources):
-                    logger.error(f"Some sources {sources} not found in df.attrs['sources']")
+                if not all(source in sources_metadata for source in sources):
+                    logger.error(f"Some sources {sources} not found in _calculated_data_metadata['sources']")
+                    filtered_df = filtered_df.filter(pl.col("source_name").is_in(sources))
 
-            if filtered_df.empty:
+            if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty Mollweide plot")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
@@ -1545,6 +1551,7 @@ class ScheduleVisualizer(Super):
             legend_handles = []
             legend_labels = []
 
+            # Plot sources from metadata
             source_colors = {}
             for source_name in sources_metadata:
                 if sources and source_name not in sources:
@@ -1573,6 +1580,7 @@ class ScheduleVisualizer(Super):
                     logger.warning(f"Failed to plot source {source_name}: {str(e)}")
                     continue
 
+            # Subsample data if necessary
             total_points = len(filtered_df)
             if total_points > max_points:
                 logger.warning(f"Total points ({total_points}) exceeds max_points ({max_points}), subsampling tracks")
@@ -1582,11 +1590,10 @@ class ScheduleVisualizer(Super):
 
             cmap = self._style_config["colormaps"]["redpurple"] if telescopes else None
 
+            # Plot telescope tracks
             for tel_idx, tel_code in enumerate(filtered_df["telescope_code"].unique()):
-                if telescopes and tel_code not in telescopes:
-                    continue
-                tel_data = filtered_df[filtered_df["telescope_code"] == tel_code]
-                if tel_data.empty:
+                tel_data = filtered_df.filter(pl.col("telescope_code") == tel_code)
+                if tel_data.is_empty():
                     logger.debug(f"No data for telescope {tel_code}, skipping")
                     continue
 
@@ -1631,7 +1638,7 @@ class ScheduleVisualizer(Super):
                 legend_lines = []
                 legend_texts = []
                 for group, items in [("Sources:", sorted(grouped_legend["Sources"], key=lambda x: x[1])),
-                                    ("Telescopes:", sorted(grouped_legend["Telescopes"], key=lambda x: x[1]))]:
+                                     ("Telescopes:", sorted(grouped_legend["Telescopes"], key=lambda x: x[1]))]:
                     if items:
                         legend_lines.append(Line2D([0], [0], linestyle="none", marker="none"))
                         legend_texts.append(group)

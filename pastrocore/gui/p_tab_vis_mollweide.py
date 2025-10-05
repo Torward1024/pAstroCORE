@@ -10,9 +10,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from typing import List, Optional
-from astropy.time import Time
 import matplotlib.pyplot as plt
-import pandas as pd
+import polars as pl
 import gc
 
 class MollweideVisualizationTab(QWidget):
@@ -51,10 +50,10 @@ class MollweideVisualizationTab(QWidget):
             self.update_visualization()
 
     def _populate_filters(self):
-        """Populate source and telescope filters from Mollweide tracks DataFrame and its attributes."""
+        """Populate source and telescope filters from Mollweide tracks DataFrame and its metadata."""
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="mollweide_tracks")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Mollweide tracks data available for populating filters")
                 self.ui.listWidget.addItem(QListWidgetItem("No Mollweide tracks data available"))
                 return
@@ -70,16 +69,14 @@ class MollweideVisualizationTab(QWidget):
                 self.ui.listWidget.addItem(QListWidgetItem("Invalid Mollweide tracks data structure"))
                 return
 
-            if "sources" not in df.attrs or not isinstance(df.attrs["sources"], dict):
-                logger.error("No valid 'sources' attribute in Mollweide tracks DataFrame")
+            sources_metadata = self.observation._calculated_data_metadata.get("mollweide_tracks", {}).get("sources", {})
+            if not sources_metadata:
+                logger.error("No valid 'sources' metadata in Mollweide tracks")
                 self.ui.listWidget.addItem(QListWidgetItem("No sources metadata available"))
                 return
 
-            sources = []
-            for source_name, coords in df.attrs["sources"].items():
-                sources.append(source_name)
-
-            telescopes = df["telescope_code"].unique().tolist()
+            sources = list(sources_metadata.keys())
+            telescopes = df["telescope_code"].unique().to_list()
 
             for source in sorted(sources):
                 item = QListWidgetItem(source)
@@ -213,7 +210,7 @@ class MollweideVisualizationTab(QWidget):
 
     @Slot()
     def filter_changed(self):
-        """Handle changes in filter selections by updating scans and visualization."""
+        """Handle changes in filter selections by updating visualization."""
         if self.is_processing:
             logger.debug("Filter change ignored, visualization is processing")
             return
@@ -227,7 +224,7 @@ class MollweideVisualizationTab(QWidget):
             self._unlock_ui()
 
     def update_scans(self):
-        """Update the scans list based on unique scan names in Mollweide tracks, preserving check states."""
+        """Update the scans list based on the Mollweide tracks DataFrame, preserving check states."""
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
                           for i in range(self.ui.listScans.count())}
         logger.debug(f"Stored check states: {current_checks}")
@@ -235,7 +232,7 @@ class MollweideVisualizationTab(QWidget):
         self.ui.listScans.clear()
         try:
             df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="mollweide_tracks")
-            if not isinstance(df, pd.DataFrame):
+            if not isinstance(df, pl.DataFrame):
                 logger.error("No valid Mollweide tracks data available for updating scans")
                 self.ui.listScans.addItem(QListWidgetItem("No Mollweide tracks data available"))
                 return
@@ -251,17 +248,17 @@ class MollweideVisualizationTab(QWidget):
                 self.ui.listScans.addItem(QListWidgetItem("Invalid Mollweide tracks data structure"))
                 return
 
-            scan_times = df.groupby("scan_name")["time"].first().reset_index()
-            if scan_times.empty:
+            scan_times = df.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
+            if scan_times.is_empty():
                 logger.debug("No scans found in Mollweide tracks DataFrame")
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scans = scan_times["scan_name"].tolist()
-            for _, row in scan_times.iterrows():
+            scans = scan_times["scan_name"].to_list()
+            for row in scan_times.iter_rows(named=True):
                 scan_name = row["scan_name"]
-                start_time = Time(row["time"]).isot
-                display_text = f"{start_time}"
+                start_time = row["time"]  # MJD as float64
+                display_text = f"{start_time:.6f} (MJD)"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)

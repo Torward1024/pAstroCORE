@@ -7,10 +7,9 @@ from pastrocore.gui.ui_dialog_export_calculated_data import Ui_ExportCalculatedD
 from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
 from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
-
 from typing import Optional
 import os
-import pandas as pd
+import polars as pl
 from astropy.time import Time
 
 class ProgressDialog(QDialog):
@@ -80,7 +79,7 @@ class ExportThread(QThread):
 
                     key = calc_type.lower().replace(" ", "_").replace("/", "_")
                     data = target.get_calculated_data_by_key(key)
-                    if not isinstance(data, pd.DataFrame):
+                    if not isinstance(data, pl.DataFrame):
                         logger.debug(f"No data for {calc_type} in {obs_code}, skipping")
                         continue
 
@@ -112,24 +111,23 @@ class ExportThread(QThread):
                         else:
                             file_prefix = calc_type.replace(" ", "_").replace("/", "_")
                         for source_name in sources:
-                                file_prefix = calc_type.replace(" ", "_").replace("/", "_")
-                                file_name = f"{obs_code}_{file_prefix}_{source_name}"
-                                png_path = os.path.join(self.export_path, f"{file_name}.png")
-                                attributes = {
-                                    "plot_type": key,
-                                    "output_file": png_path,
-                                    "dpi": 76,
-                                    "source_name": source_name,
-                                    "baselines": baselines if key in ["uv_coverage", "baseline_projections"] else [],
-                                    "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source", "beam_pattern"] else [],
-                                    "scans": scans,
-                                    "frequencies": frequencies if key in ["uv_coverage", "baseline_projections", "beam_pattern"] else [],
-                                    "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
-                                }
-                                try:
-                                    self.manipulator.visualize(obj=target, **attributes)
-                                except Exception as e:
-                                    raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
+                            file_name = f"{obs_code}_{file_prefix}_{source_name}"
+                            png_path = os.path.join(self.export_path, f"{file_name}.png")
+                            attributes = {
+                                "plot_type": key,
+                                "output_file": png_path,
+                                "dpi": 76,
+                                "source_name": source_name,
+                                "baselines": baselines if key in ["uv_coverage", "baseline_projections"] else [],
+                                "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source", "beam_pattern"] else [],
+                                "scans": scans,
+                                "frequencies": frequencies if key in ["uv_coverage", "baseline_projections", "beam_pattern"] else [],
+                                "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
+                            }
+                            try:
+                                self.manipulator.visualize(obj=target, **attributes)
+                            except Exception as e:
+                                raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
                         current_step += 1
                         self.progress.emit(int(current_step / total_steps * 100), f"Exported vis for {calc_type} in {obs_code}")
 
@@ -138,21 +136,21 @@ class ExportThread(QThread):
             logger.error(f"Export error in thread: {str(e)}")
             self.error.emit(str(e))
 
-    def _export_data_to_csv(self, data: pd.DataFrame, calc_type: str, path: str, obs_code: str, source_name: Optional[str], target: Observation):
+    def _export_data_to_csv(self, data: pl.DataFrame, calc_type: str, path: str, obs_code: str, source_name: Optional[str], target: Observation):
         """Export calculated data to a TXT file with tab separator.
 
-        Uses pandas DataFrame to_csv for export with tab delimiter. Converts Time objects in
-        time-related columns (time, start, end) to ISOT format for readability. For mollweide_tracks, adds
-        source coordinates from df.attrs['sources'] as separate rows at the end of the file. Preserves NaN
-        values as is.
+        Uses polars DataFrame to write CSV with tab delimiter. Converts time-related columns
+        (time, start, end) from float64 (MJD) to ISOT format for readability. For mollweide_tracks,
+        adds source coordinates from target._calculated_data_metadata[key]['sources'] as separate rows
+        at the end of the file with 'time' set to '-----'. Preserves NaN values as is.
 
         Args:
-            data: pandas DataFrame containing calculated data with Time objects in time-related columns.
+            data: polars DataFrame containing calculated data.
             calc_type: Type of calculation (e.g., "UV Coverage").
             path: Output file path for TXT.
             obs_code: Observation code.
             source_name: Source name (ignored, kept for compatibility).
-            target: Observation object.
+            target: Observation object containing calculated_data_metadata.
         """
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -167,52 +165,63 @@ class ExportThread(QThread):
                 logger.error(f"Invalid DataFrame structure for key '{key}' in observation '{obs_code}': missing columns {missing_cols}")
                 raise ValueError(f"Invalid DataFrame structure for key '{key}': missing columns {missing_cols}")
 
-            df_out = data.copy()
+            df_out = data.clone()
             converters = CalculatedDataStructure.get_converters(key) or {}
             
+            # Convert time-related columns from float64 (MJD) to ISOT
+            for col in ["time", "start", "end"]:
+                if col in df_out.columns:
+                    try:
+                        df_out = df_out.with_columns(
+                            pl.col(col).map_elements(
+                                lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and x is not None else x,
+                                return_dtype=pl.String
+                            )
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to convert column '{col}' to ISOT in key '{key}' of observation '{obs_code}': {str(e)}")
+                        raise
+
+            # Apply other converters (e.g., for sources in mollweide_tracks)
             for col, converter in converters.items():
                 if col in df_out.columns and col not in ["time", "start", "end"]:
                     try:
-                        df_out[col] = df_out[col].apply(converter)
+                        df_out = df_out.with_columns(pl.col(col).map_elements(converter, return_dtype=pl.Float64))
                     except Exception as e:
                         logger.error(f"Failed to apply converter for column '{col}' in key '{key}' of observation '{obs_code}': {str(e)}")
                         raise
 
-            if "time" in df_out.columns:
-                df_out["time"] = [x.isot if pd.notna(x) else x for x in df_out["time"]]
-            if key == "time_on_source":
-                df_out["start"] = [x.isot if pd.notna(x) else x for x in df_out["start"]]
-                df_out["end"] = [x.isot if pd.notna(x) else x for x in df_out["end"]]
-
-            df_out = df_out.drop(columns=["scan_name"], errors="ignore")
-
+            if "scan_name" in df_out.columns:
+                df_out = df_out.drop("scan_name")
             expected_columns = [col for col in expected_columns if col != "scan_name"]
-            df_out = df_out[expected_columns]
+            df_out = df_out.select(expected_columns)
 
             if key == "mollweide_tracks":
-                sources = df_out.attrs.get("sources", {})
+                sources = target._calculated_data_metadata.get(key, {}).get("sources", {})
                 logger.debug(f"Processing sources for {calc_type} in observation '{obs_code}': {sources}")
 
                 if not isinstance(sources, dict):
-                    logger.error(f"Invalid sources format in df.attrs for {calc_type} in observation '{obs_code}': expected dict, got {type(sources)}")
+                    logger.error(f"Invalid sources format in metadata for {calc_type} in observation '{obs_code}': expected dict, got {type(sources)}")
                     sources = {}
                 
                 source_rows = []
                 for src_name, coords in sources.items():
                     try:
                         lon, lat = float(coords[0]), float(coords[1])
-                        source_rows.append(["-----", src_name, lat, lon])
+                        # Ensure column order matches df_out
+                        source_rows.append({"time": "-----", "telescope_code": src_name, "lon": lon, "lat": lat})
                     except (ValueError, TypeError) as e:
                         logger.warning(f"Failed to parse coordinates for source '{src_name}' in {calc_type}, observation '{obs_code}': {str(e)}")
                         continue
                 
                 if source_rows:
-                    source_df = pd.DataFrame(source_rows, columns=["time", "telescope_code", "lat", "lon"])
-                    df_out = pd.concat([df_out, source_df], ignore_index=True)
+                    # Define schema with correct column order to match df_out
+                    source_df = pl.DataFrame(source_rows, schema={"time": pl.String, "telescope_code": pl.String, "lon": pl.Float64, "lat": pl.Float64})
+                    df_out = pl.concat([df_out, source_df], how="vertical")
                 else:
                     logger.warning(f"No valid sources to append for {calc_type} in observation '{obs_code}'")
 
-            df_out.to_csv(path, index=False, sep='\t', encoding='utf-8', na_rep='NaN')
+            df_out.write_csv(path, separator="\t", include_bom=True, null_value="NaN")
             logger.info(f"Exported data to {path}")
         except Exception as e:
             logger.error(f"Failed to export data to {path}: {str(e)}")
