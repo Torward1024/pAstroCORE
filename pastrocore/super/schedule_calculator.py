@@ -905,30 +905,46 @@ class ScheduleCalculator(Super):
             logger.warning(f"Unexpected error loading orbit file '{orbit_file}': {str(e)}")
             return {}
 
-    def _solve_kepler(self, initial: float, e: float, tol: float = 1e-8, max_iter: int = 200) -> float:
+    def _solve_kepler(self, M: np.ndarray | float, e: float, tol: float = 1e-8, max_iter: int = 200) -> np.ndarray | float:
         """Solve Kepler's equation iteratively to find the eccentric anomaly.
 
         Args:
-            initial (float): Mean anomaly (radians).
-            e (float): Eccentricity (must be < 1).
+            M (np.ndarray | float): Mean anomaly (radians), scalar or array.
+            e (float): Eccentricity (0 <= e < 1).
             tol (float): Convergence tolerance.
             max_iter (int): Maximum iterations.
 
         Returns:
-            float: Eccentric anomaly (radians).
+            np.ndarray | float: Eccentric anomaly (radians), matching input type and shape.
+
+        Notes:
+            - Supports both scalar and array inputs for mean anomaly.
+            - Returns NaN for elements where convergence fails.
         """
-        if e >= 1:
-            raise ValueError("Eccentricity must be < 1 for elliptical orbit")
-        x = initial if e < 0.9 else np.pi
+        if not (0 <= e < 1):
+            raise ValueError(f"Eccentricity must be in [0, 1) for elliptical orbit, got e={e}")
+
+        M = np.asarray(M, dtype=float)
+        scalar_input = M.ndim == 0
+        if scalar_input:
+            M = M.reshape(1)
+
+        E = M.copy() if e < 0.9 else np.full_like(M, np.pi)
+        converged = np.zeros_like(M, dtype=bool)
+
         for _ in range(max_iter):
-            f = x - e * np.sin(x) - initial
-            df = 1 - e * np.cos(x)
-            dx = -f / df
-            x += dx
-            if abs(dx) < tol:
-                return x
-        logger.warning(f"Kepler's equation did not converge for e={e}, initial={initial}")
-        return x
+            f = E - e * np.sin(E) - M
+            df = 1 - e * np.cos(E)
+            dE = -f / df
+            E += dE
+            converged = np.abs(dE) < tol
+            if np.all(converged):
+                break
+        else:
+            logger.warning(f"Kepler's equation did not converge for {np.sum(~converged)} points with e={e}")
+            E[~converged] = np.nan
+
+        return E.item() if scalar_input else E
 
     @time_execution
     def _calculate_telescope_positions(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
@@ -1159,18 +1175,25 @@ class ScheduleCalculator(Super):
             - For ground telescopes, applies velocity corrections and transforms ITRS to GCRS.
             - For SpaceTelescopes with use_kep=True, computes positions using Keplerian elements.
             - For SpaceTelescopes with use_kep=False, returns empty DataFrame (positions should be precomputed).
-            - Uses CalculatedDataStructure for column validation.
+            - Uses explicit schema from CalculatedDataStructure for consistency.
         """
-        try:
-            empty_result = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_positions")[2:])
+        tel_code = telescope.get_code()
+        position_schema = {
+            "x": pl.Float64,
+            "y": pl.Float64,
+            "z": pl.Float64
+        }
 
+        try:
             if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope):
                 x, y, z = telescope.get_coordinates()
-                res = telescope.get(["vx", "vy", "vz"])
-                vx, vy, vz = res["vx"], res["vy"], res["vz"]
-                logger.debug(f"Input types for telescope '{telescope.get_code()}': x={type(x)}, vx={type(vx)}")
-                x, y, z = np.array(x), np.array(y), np.array(z)
-                vx, vy, vz = np.array(vx), np.array(vy), np.array(vz)
+                velocities = telescope.get(["vx", "vy", "vz"])
+                vx, vy, vz = velocities["vx"], velocities["vy"], velocities["vz"]
+                logger.debug(f"Ground telescope '{tel_code}': x={x}, vx={vx}")
+
+                x, y, z = np.array(x, dtype=float), np.array(y, dtype=float), np.array(z, dtype=float)
+                vx, vy, vz = np.array(vx, dtype=float), np.array(vy, dtype=float), np.array(vz, dtype=float)
+
                 dt = (times_mjd - 51544.5) * 86400.0
                 itrs_coords = CartesianRepresentation(
                     x + vx * dt,
@@ -1181,45 +1204,61 @@ class ScheduleCalculator(Super):
                 itrs = ITRS(itrs_coords, obstime=Time(times_mjd, format='mjd', scale='utc'))
                 gcrs = itrs.transform_to(GCRS(obstime=Time(times_mjd, format='mjd', scale='utc')))
                 pos = np.stack([gcrs.cartesian.x.value, gcrs.cartesian.y.value, gcrs.cartesian.z.value], axis=-1)
+
                 if np.any(np.isnan(pos)):
-                    logger.warning(f"Computed NaN position for ground telescope '{telescope.get_code()}' at MJD {times_mjd[0]}")
-                result_df = pl.DataFrame({
+                    logger.warning(f"Computed NaN position for ground telescope '{tel_code}' at MJD {times_mjd[0]}")
+
+                return pl.DataFrame({
                     "x": pos[:, 0],
                     "y": pos[:, 1],
                     "z": pos[:, 2]
-                }, schema=CalculatedDataStructure.get_dtypes("telescope_positions")[2:])
-                return result_df
+                }, schema=position_schema)
 
             elif isinstance(telescope, SpaceTelescope):
                 if telescope.get("use_kep"):
+                    logger.info(f"Computing Keplerian position for '{tel_code}' at MJD {times_mjd[0]}")
                     kepler = telescope.get("kepler_elements")
                     if kepler is None:
-                        logger.warning(f"No Keplerian elements defined for telescope '{telescope.get_code()}'")
-                        return empty_result
+                        logger.error(f"No Keplerian elements defined for telescope '{tel_code}'")
+                        return pl.DataFrame({"x": [], "y": [], "z": []}, schema=position_schema)
 
-                    a = kepler["a"]  # semi-major axis (m)
-                    e = kepler["e"]  # eccentricity
-                    i = np.radians(kepler["i"])  # inclination (deg to rad)
-                    raan = np.radians(kepler["raan"])  # RA of ascending node (deg to rad)
-                    argp = np.radians(kepler["argp"])  # argument of periapsis (deg to rad)
-                    nu0 = np.radians(kepler["nu"])  # true anomaly at epoch (deg to rad)
-                    epoch_mjd = kepler["epoch"].mjd
-                    mu = kepler["mu"]  # gravitational parameter (m^3/s^2)
+                    a = float(kepler.get("a", np.nan))  # semi-major axis (m)
+                    e = float(kepler.get("e", np.nan))  # eccentricity
+                    i = np.radians(float(kepler.get("i", np.nan)))  # inclination (deg to rad)
+                    raan = np.radians(float(kepler.get("raan", np.nan)))  # RA of ascending node (deg to rad)
+                    argp = np.radians(float(kepler.get("argp", np.nan)))  # argument of periapsis (deg to rad)
+                    nu0 = np.radians(float(kepler.get("nu", np.nan)))  # true anomaly at epoch (deg to rad)
+                    epoch_mjd = float(kepler.get("epoch", Time("2000-01-01T12:00:00", scale='utc')).mjd)
+                    mu = float(kepler.get("mu", 3.986004418e14))  # gravitational parameter (m^3/s^2, default Earth)
 
-                    n = np.sqrt(mu / a**3)
+                    if any(np.isnan([a, e, i, raan, argp, nu0, mu])):
+                        logger.error(f"Invalid Keplerian elements for '{tel_code}': a={a}, e={e}, i={i}, raan={raan}, argp={argp}, nu0={nu0}, mu={mu}")
+                        return pl.DataFrame({"x": [], "y": [], "z": []}, schema=position_schema)
+
+                    if not (0 <= e < 1):
+                        logger.error(f"Eccentricity out of bounds for '{tel_code}': e={e}")
+                        return pl.DataFrame({"x": [], "y": [], "z": []}, schema=position_schema)
+
+                    # Compute mean motion
+                    n = np.sqrt(mu / a**3)  # rad/s
                     dt = (times_mjd - epoch_mjd) * 86400.0  # Seconds since epoch
-                    M = nu0 + n * dt
+                    M = nu0 + n * dt  # Mean anomaly
 
-                    solve_kepler_vec = np.vectorize(self._solve_kepler)
-                    E = solve_kepler_vec(M, e)
+                    # Solve Kepler's equation
+                    E = self._solve_kepler(M, e)
 
+                    # Compute true anomaly
                     cos_nu = (np.cos(E) - e) / (1 - e * np.cos(E))
                     sin_nu = (np.sqrt(1 - e**2) * np.sin(E)) / (1 - e * np.cos(E))
                     nu = np.arctan2(sin_nu, cos_nu)
 
+                    # Compute radius
                     r = a * (1 - e**2) / (1 + e * np.cos(nu))
-                    p = np.array([r * np.cos(nu), r * np.sin(nu), np.zeros_like(r)]).T
 
+                    # Compute positions in orbital plane
+                    p = np.vstack([r * np.cos(nu), r * np.sin(nu), np.zeros_like(r)]).T
+
+                    # Rotation matrices
                     R1 = np.array([
                         [np.cos(raan), -np.sin(raan), 0],
                         [np.sin(raan), np.cos(raan), 0],
@@ -1236,23 +1275,29 @@ class ScheduleCalculator(Super):
                         [0, 0, 1]
                     ])
                     R = R1 @ R2 @ R3
+
+                    # Transform to GCRS
                     pos = np.array([R @ p_i for p_i in p])
+
                     if np.any(np.isnan(pos)):
-                        logger.warning(f"Keplerian position for '{telescope.get_code()}' at MJD {times_mjd[0]} contains NaN")
+                        logger.warning(f"Computed NaN Keplerian position for '{tel_code}' at MJD {times_mjd[0]}")
+
                     result_df = pl.DataFrame({
                         "x": pos[:, 0],
                         "y": pos[:, 1],
                         "z": pos[:, 2]
-                    }, schema=CalculatedDataStructure.get_dtypes("telescope_positions")[2:])
+                    }, schema=position_schema)
+
+                    logger.info(f"Computed {len(result_df)} Keplerian positions for '{tel_code}'")
                     return result_df
                 else:
-                    logger.warning(f"Orbit file position for '{telescope.get_code()}' at MJD {times_mjd[0]} should be precomputed in interpolated_orbits")
-                    return empty_result
+                    logger.warning(f"Orbit file position for '{tel_code}' at MJD {times_mjd[0]} should be precomputed in interpolated_orbits")
+                    return pl.DataFrame({"x": [], "y": [], "z": []}, schema=position_schema)
 
             raise ValueError(f"Unsupported telescope type: {type(telescope)}")
         except Exception as e:
-            logger.warning(f"Unexpected error in computing position for '{telescope.get_code()}' at MJD {times_mjd[0]}: {str(e)}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_positions")[2:])
+            logger.error(f"Unexpected error in computing position for '{tel_code}' at MJD {times_mjd[0]}: {str(e)}")
+            return pl.DataFrame({"x": [], "y": [], "z": []}, schema=position_schema)
 
     @time_execution
     def _calculate_source_visibility(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
