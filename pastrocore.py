@@ -84,64 +84,70 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("Skipping UI signal disconnection during initial setup")
             return
 
+        # Disconnect action signals
         for action, slot in self._action_connections.items():
             try:
                 action.triggered.disconnect(slot)
                 logger.debug(f"Disconnected signal for action {action.objectName()}")
-            except Exception as e:
+            except TypeError as e:
                 logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
         self._action_connections.clear()
 
+        # Disconnect project_updated signal
         try:
-            if self.receivers(self.project_updated) > 0:
+            if self.receivers(QtCore.SIGNAL("project_updated()")) > 0:
                 self.project_updated.disconnect()
                 logger.debug("Disconnected project_updated signal")
             else:
                 logger.debug("No active connections for project_updated signal")
         except TypeError as e:
-            logger.debug(f"No connections to disconnect for project_updated: {str(e)}")
+            logger.debug(f"Error checking project_updated signal: {str(e)}")
 
+        # Disconnect project explorer clicked signal
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             try:
-                if project_explorer.receivers(project_explorer.clicked) > 0:
+                if project_explorer.receivers(QtCore.SIGNAL("clicked(QModelIndex)")) > 0:
                     project_explorer.clicked.disconnect(self.handle_project_explorer_click)
                     logger.debug("Disconnected project explorer clicked signal")
                 else:
                     logger.debug("No active connections for project explorer clicked signal")
-            except Exception as e:
-                logger.debug(f"No clicked signal to disconnect for project explorer: {str(e)}")
+            except TypeError as e:
+                logger.debug(f"Error checking project explorer clicked signal: {str(e)}")
         else:
             logger.debug("Project explorer widget not found during clear_connections")
 
+        # Disconnect tabCloseRequested signal
         tab_container = self.ui.tabContainer
         if tab_container:
             try:
-                if tab_container.receivers(tab_container.tabCloseRequested) > 0:
+                if tab_container.receivers(QtCore.SIGNAL("tabCloseRequested(int)")) > 0:
                     tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
                     logger.debug("Disconnected tabCloseRequested signal")
                 else:
                     logger.debug("No active connections for tabCloseRequested signal")
-            except Exception as e:
-                logger.debug(f"No tabCloseRequested signal to disconnect: {str(e)}")
+            except TypeError as e:
+                logger.debug(f"Error checking tabCloseRequested signal: {str(e)}")
 
+        # Disconnect actionProject_Explorer toggled signal
         try:
-            if self.ui.actionProject_Explorer.receivers(self.ui.actionProject_Explorer.toggled) > 0:
+            if self.ui.actionProject_Explorer.receivers(QtCore.SIGNAL("toggled(bool)")) > 0:
                 self.ui.actionProject_Explorer.toggled.disconnect()
                 logger.debug("Disconnected actionProject_Explorer.toggled signal")
             else:
                 logger.debug("No active connections for actionProject_Explorer toggled signal")
-        except Exception as e:
-            logger.debug(f"No toggled signal to disconnect for actionProject_Explorer: {str(e)}")
+        except TypeError as e:
+            logger.debug(f"Error checking actionProject_Explorer toggled signal: {str(e)}")
 
+        # Disconnect dockWidget visibilityChanged signal
         try:
-            if self.ui.dockWidget.receivers(self.ui.dockWidget.visibilityChanged) > 0:
+            if self.ui.dockWidget.receivers(QtCore.SIGNAL("visibilityChanged(bool)")) > 0:
                 self.ui.dockWidget.visibilityChanged.disconnect()
                 logger.debug("Disconnected dockWidget.visibilityChanged signal")
             else:
                 logger.debug("No active connections for dockWidget visibilityChanged signal")
-        except Exception as e:
-            logger.debug(f"No visibilityChanged signal to disconnect for dockWidget: {str(e)}")     
+        except TypeError as e:
+            logger.debug(f"Error checking dockWidget visibilityChanged signal: {str(e)}")     
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
