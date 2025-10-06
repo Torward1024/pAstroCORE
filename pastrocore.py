@@ -436,7 +436,6 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.info(f"Deletion of observations cancelled")
             return
         
-        tab_container = self.ui.tabContainer
         for i in range(self.ui.tabContainer.count() - 1, -1, -1):
             widget = self.ui.tabContainer.widget(i)
             if widget.objectName() != "projectInfoTab":
