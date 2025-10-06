@@ -471,25 +471,32 @@ class ScheduleVisualizer(Super):
             frequencies = attributes.get("frequencies", [])
             units = attributes.get("units", "wavelengths")
 
+            # Validate inputs
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
                 logger.debug(f"Missing required filters: source_name={source_name}, baselines={baselines}, "
-                             f"scans={scans}, frequencies={frequencies}, returning empty plot")
+                            f"scans={scans}, frequencies={frequencies}, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
+                    labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
+                            "ylabel": f"v, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
+            # Retrieve UV data
             uv_data = obj.get_calculated_data_by_key(store_key).get("data", {})
             if uv_data is None or uv_data.is_empty():
                 logger.debug("No UV data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
+                    labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
+                            "ylabel": f"v, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            filtered_df = uv_data
+            # Filter valid UV data
+            filtered_df = uv_data.filter(pl.col("u").is_not_nan() & pl.col("v").is_not_nan() & 
+                                    (pl.col("u") != 0) & (pl.col("v") != 0))
+            logger.debug(f"Filtered UV data shape: {filtered_df.shape}, columns: {filtered_df.columns}")
             if source_name:
                 filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
             if baselines:
@@ -501,22 +508,27 @@ class ScheduleVisualizer(Super):
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
+                    labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
+                            "ylabel": f"v, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
+            # Validate frequencies
             freq_list = [float(f) for f in frequencies if isinstance(f, (int, float)) and f > 0]
             if not freq_list:
                 logger.debug("No valid frequencies provided, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
+                    labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
+                            "ylabel": f"v, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
+            # Setup axes
             ax = self._setup_axes(fig, "uv_coverage", obj.get_observation_code())
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
 
+            # Calculate reference wavelength
             ref_freq = min(freq_list)
             ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
             logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
@@ -527,8 +539,43 @@ class ScheduleVisualizer(Super):
             legend_labels = []
             max_uv = 0.0
 
+            # Determine scale for wavelengths
+            if units == "wavelengths":
+                max_uv_temp = 0.0
+                for freq_mhz in freq_list:
+                    wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
+                    if wavelength <= 0:
+                        logger.warning(f"Invalid wavelength {wavelength} for frequency {freq_mhz} MHz, skipping")
+                        continue
+                    for baseline in filtered_df["baseline"].unique():
+                        baseline_data = filtered_df.filter(pl.col("baseline") == baseline)
+                        if baseline_data.is_empty():
+                            continue
+                        u = baseline_data["u"].to_numpy()
+                        v = baseline_data["v"].to_numpy()
+                        u_scaled_temp = u / wavelength
+                        v_scaled_temp = v / wavelength
+                        max_uv_temp = max(max_uv_temp, np.max(np.abs(u_scaled_temp)), np.max(np.abs(v_scaled_temp)))
+
+                if max_uv_temp >= 1e12:
+                    prefix, scale = "Tλ", 1e12
+                elif max_uv_temp >= 1e9:
+                    prefix, scale = "Gλ", 1e9
+                elif max_uv_temp >= 1e6:
+                    prefix, scale = "Mλ", 1e6
+                elif max_uv_temp >= 1e3:
+                    prefix, scale = "kλ", 1e3
+                else:
+                    prefix, scale = "λ", 1.0
+            else:
+                prefix, scale = "xED", 1.0
+
             for freq_idx, freq_mhz in enumerate(freq_list):
                 wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
+                if wavelength <= 0:
+                    logger.warning(f"Invalid wavelength {wavelength} for frequency {freq_mhz} MHz, skipping")
+                    continue
+
                 for baseline in filtered_df["baseline"].unique():
                     baseline_data = filtered_df.filter(pl.col("baseline") == baseline)
                     if baseline_data.is_empty():
@@ -536,13 +583,28 @@ class ScheduleVisualizer(Super):
 
                     u = baseline_data["u"].to_numpy()
                     v = baseline_data["v"].to_numpy()
+                    logger.debug(f"Baseline {baseline} at {freq_mhz:.2f} MHz: u min/max: {np.min(u):.2e}/{np.max(u):.2e}, "
+                                f"v min/max: {np.min(v):.2e}/{np.max(v):.2e}")
 
+                    # Scale UV coordinates
                     if units == "wavelengths":
-                        u_scaled = u / wavelength
-                        v_scaled = v / wavelength
+                        u_scaled = u / wavelength / scale  # Apply scale for plotting
+                        v_scaled = v / wavelength / scale
                     else:
-                        u_scaled = (u / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
-                        v_scaled = (v / wavelength) / (self.EARTH_DIAMETER / ref_wavelength)
+                        scale_factor = self.EARTH_DIAMETER / ref_wavelength
+                        u_scaled = (u / wavelength) / scale_factor
+                        v_scaled = (v / wavelength) / scale_factor
+
+                    # Log scaled values
+                    logger.debug(f"Scaled values for {baseline} at {freq_mhz:.2f} MHz (scale={scale}): "
+                                f"u_scaled min/max: {np.min(u_scaled):.2e}/{np.max(u_scaled):.2e}, "
+                                f"v_scaled min/max: {np.min(v_scaled):.2e}/{np.max(v_scaled):.2e}")
+
+                    # Check for numerical issues
+                    if np.any(np.isinf(u_scaled)) or np.any(np.isinf(v_scaled)) or \
+                    np.all(np.isnan(u_scaled)) or np.all(np.isnan(v_scaled)):
+                        logger.warning(f"Invalid scaled UV values for baseline {baseline} at {freq_mhz:.2f} MHz, skipping")
+                        continue
 
                     max_uv = max(max_uv, np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
 
@@ -571,33 +633,23 @@ class ScheduleVisualizer(Super):
                 logger.debug("No valid data plotted, returning empty result")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
-                    labels={"xlabel": "u, (wavelengths)", "ylabel": "v, (wavelengths)",
+                    labels={"xlabel": f"u, ({prefix})",
+                            "ylabel": f"v, ({prefix})",
                             "title": f"(u,v) coverage\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            if units == "wavelengths":
-                if max_uv >= 1e12:
-                    prefix, scale = "Tλ", 1e12
-                elif max_uv >= 1e9:
-                    prefix, scale = "Gλ", 1e9
-                elif max_uv >= 1e6:
-                    prefix, scale = "Mλ", 1e6
-                elif max_uv >= 1e3:
-                    prefix, scale = "kλ", 1e3
-                else:
-                    prefix, scale = "λ", 1.0
-                ax.set_xlabel(f"u, ({prefix})", fontsize=self._style_config["font"]["label_size"])
-                ax.set_ylabel(f"v, ({prefix})", fontsize=self._style_config["font"]["label_size"])
-            else:
-                prefix, scale = "xED", 1.0
-                ax.set_xlabel("u, (xED)", fontsize=self._style_config["font"]["label_size"])
-                ax.set_ylabel("v, (xED)", fontsize=self._style_config["font"]["label_size"])
+            # Set axis labels and limits
+            ax.set_xlabel(f"u, ({prefix})", fontsize=self._style_config["font"]["label_size"])
+            ax.set_ylabel(f"v, ({prefix})", fontsize=self._style_config["font"]["label_size"])
 
-            max_uv_scaled = max_uv / scale
-            if max_uv_scaled > 0:
-                ax.set_xlim(-max_uv_scaled * 1.1, max_uv_scaled * 1.1)
-                ax.set_ylim(-max_uv_scaled * 1.1, max_uv_scaled * 1.1)
+            # Ensure reasonable axis limits
+            max_uv_scaled = max_uv if max_uv > 0 else 1.0
+            ax.set_xlim(-max_uv_scaled * 1.1, max_uv_scaled * 1.1)
+            ax.set_ylim(-max_uv_scaled * 1.1, max_uv_scaled * 1.1)
+            logger.debug(f"Axis limits: x=[{-max_uv_scaled * 1.1:.2e}, {max_uv_scaled * 1.1:.2e}], "
+                        f"y=[{-max_uv_scaled * 1.1:.2e}, {max_uv_scaled * 1.1:.2e}]")
 
+            # Create grouped legend
             if legend_handles:
                 grouped_legend = {}
                 for handle, (freq_mhz, baseline) in zip(legend_handles, legend_labels):
@@ -627,9 +679,10 @@ class ScheduleVisualizer(Super):
 
             ax.invert_xaxis()
             ax.set_title(f"(u,v) coverage\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
-                         fontsize=self._style_config["font"]["title_size"])
+                        fontsize=self._style_config["font"]["title_size"])
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
             result["baselines"] = len(plotted_pairs)
+            logger.debug(f"Plotting completed: {result['points']} points, {result['baselines']} baselines")
             return result
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
@@ -712,7 +765,6 @@ class ScheduleVisualizer(Super):
                     logger.debug(f"No data for telescope {tel}, skipping")
                     continue
 
-                # Sort by time for consistent plotting
                 tel_data = tel_data.sort("time")
                 times_mjd = tel_data["time"].to_numpy()
                 angles = tel_data["angle"].to_numpy()
