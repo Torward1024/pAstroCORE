@@ -125,8 +125,6 @@ class SourcesCatalogDialog(QDialog):
                 items[0].setData(source, Qt.UserRole)
                 self.model.appendRow(items)
 
-        logger.info(f"Filtered sources catalog with search text '{text}', {self.model.rowCount()} sources displayed")
-
     @Slot()
     def select_sources(self):
         """Handle selection of multiple sources for adding to observation."""
