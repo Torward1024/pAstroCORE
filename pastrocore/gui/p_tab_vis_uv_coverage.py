@@ -234,7 +234,7 @@ class UVVisualizationTab(QWidget):
         logger.debug(f"Selected frequencies: {selected_frequencies}")
         return selected_frequencies
 
-    def get_selected_units(self) -> Optional[str]:
+    def get_selected_units(self) -> str:
         """Get the selected units for visualization.
 
         Returns:
