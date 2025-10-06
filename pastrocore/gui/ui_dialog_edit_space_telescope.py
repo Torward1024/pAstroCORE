@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_space_telescopeehVqjp.ui'
+## Form generated from reading UI file 'dialog_editor_space_telescopeeLOodA.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -1097,7 +1097,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.nuEdit.setDecimals(2)
-        self.nuEdit.setMinimum(0.000000000000000)
+        self.nuEdit.setMinimum(-360.000000000000000)
         self.nuEdit.setMaximum(360.000000000000000)
 
         self.gridLayout_4.addWidget(self.nuEdit, 5, 1, 1, 1)
@@ -1442,7 +1442,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.argpEdit.setDecimals(2)
-        self.argpEdit.setMinimum(0.000000000000000)
+        self.argpEdit.setMinimum(-360.000000000000000)
         self.argpEdit.setMaximum(360.000000000000000)
 
         self.gridLayout_4.addWidget(self.argpEdit, 4, 1, 1, 1)
@@ -1527,8 +1527,8 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.inclinationEdit.setDecimals(2)
-        self.inclinationEdit.setMinimum(0.000000000000000)
-        self.inclinationEdit.setMaximum(180.000000000000000)
+        self.inclinationEdit.setMinimum(-360.000000000000000)
+        self.inclinationEdit.setMaximum(360.000000000000000)
 
         self.gridLayout_4.addWidget(self.inclinationEdit, 2, 1, 1, 1)
 
@@ -1612,8 +1612,8 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.semiMajorAxisEdit.setDecimals(2)
-        self.semiMajorAxisEdit.setMinimum(0.010000000000000)
-        self.semiMajorAxisEdit.setMaximum(1000000000.000000000000000)
+        self.semiMajorAxisEdit.setMinimum(1.000000000000000)
+        self.semiMajorAxisEdit.setMaximum(1000000000000.000000000000000)
 
         self.gridLayout_4.addWidget(self.semiMajorAxisEdit, 0, 1, 1, 1)
 
@@ -1697,8 +1697,8 @@ class Ui_SpaceTelescopeEditorDialog(object):
 "    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */\n"
 "}")
         self.raanEdit.setDecimals(2)
-        self.raanEdit.setMinimum(0.000000000000000)
-        self.raanEdit.setMaximum(360.000000000000000)
+        self.raanEdit.setMinimum(-10000000.000000000000000)
+        self.raanEdit.setMaximum(10000000.000000000000000)
 
         self.gridLayout_4.addWidget(self.raanEdit, 3, 1, 1, 1)
 
