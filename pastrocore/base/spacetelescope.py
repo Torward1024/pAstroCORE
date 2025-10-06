@@ -205,7 +205,6 @@ class SpaceTelescope(Telescope):
                 "interpolation_method": self.interpolation_method
             }
             data.update(serialized_data)
-            logger.debug(f"Serialized SpaceTelescope '{self.code}' to JSON-compatible dict")
             return data
         except Exception as e:
             logger.error(f"Failed to serialize SpaceTelescope '{self.code}': {str(e)}")

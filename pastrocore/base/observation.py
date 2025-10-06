@@ -190,6 +190,21 @@ class Observation(BaseEntity):
                 raise
 
         try:
+            calculated_data = {}
+            failed_keys = []
+            for key, calc_dict in self.calculated_data.items():
+                try:
+                    calc_data = convert_dataframe(calc_dict["data"], key, calc_dict.get("metadata", {}))
+                    calculated_data[key] = calc_data
+                    logger.debug(f"Successfully serialized calculated_data key '{key}' for observation '{self.name}'")
+                except Exception as e:
+                    logger.warning(f"Skipping calculated_data key '{key}' due to serialization error: {str(e)}")
+                    failed_keys.append(key)
+                    continue
+
+            if failed_keys:
+                logger.warning(f"Failed to serialize {len(failed_keys)} calculated_data keys: {failed_keys}")
+
             data = {
                 "name": self.name,
                 "code": self.code,
@@ -198,14 +213,11 @@ class Observation(BaseEntity):
                 "telescopes": self.telescopes.to_dict(),
                 "frequencies": self.frequencies.to_dict(),
                 "scans": self.scans.to_dict(),
-                "calculated_data": {
-                    key: convert_dataframe(calc_dict["data"], key, calc_dict.get("metadata", {}))
-                    for key, calc_dict in self.calculated_data.items()
-                },
+                "calculated_data": calculated_data,
                 "isactive": self.isactive,
                 "use_cache": self._use_cache
             }
-            logger.debug(f"Serialized observation '{self.name}' to dictionary")
+            logger.debug(f"Serialized observation '{self.name}' to dictionary with {len(calculated_data)} calculated_data entries")
             return data
         except Exception as e:
             logger.error(f"Failed to serialize observation '{self.name}' to dictionary: {str(e)}")
