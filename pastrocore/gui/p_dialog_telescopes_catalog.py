@@ -126,8 +126,6 @@ class TelescopesCatalogDialog(QDialog):
                 items[0].setData(telescope, Qt.UserRole)
                 self.model.appendRow(items)
 
-        logger.info(f"Filtered telescopes catalog with search text '{text}', {self.model.rowCount()} telescopes displayed")
-
     @Slot()
     def select_telescopes(self):
         """Handle selection of multiple telescopes for adding to observation."""
