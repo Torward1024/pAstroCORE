@@ -261,13 +261,19 @@ class Observation(BaseEntity):
             check_non_empty_string(data["name"], "Observation name")
 
             calculated_data = {}
+            failed_keys = []
             for key, calc_data in data.get("calculated_data", {}).items():
                 try:
                     calc_dict = restore_dataframe(calc_data, key)
                     calculated_data[key] = calc_dict
-                except ValueError as e:
-                    logger.error(f"Skipping invalid calculated_data key '{key}' due to error: {str(e)}")
+                    logger.debug(f"Successfully deserialized calculated_data key '{key}' for observation '{data['name']}'")
+                except Exception as e:
+                    logger.warning(f"Skipping calculated_data key '{key}' due to deserialization error: {str(e)}")
+                    failed_keys.append(key)
                     continue
+
+            if failed_keys:
+                logger.warning(f"Failed to deserialize {len(failed_keys)} calculated_data keys: {failed_keys}")
 
             kwargs = {
                 "name": data["name"],
