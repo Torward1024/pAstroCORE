@@ -84,7 +84,6 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("Skipping UI signal disconnection during initial setup")
             return
 
-        # Disconnect action signals
         for action, slot in self._action_connections.items():
             try:
                 action.triggered.disconnect(slot)
@@ -93,7 +92,6 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
         self._action_connections.clear()
 
-        # Disconnect project_updated signal
         try:
             if self.receivers(QtCore.SIGNAL("project_updated()")) > 0:
                 self.project_updated.disconnect()
@@ -103,7 +101,6 @@ class PAstroCoreMainWindow(QMainWindow):
         except TypeError as e:
             logger.debug(f"Error checking project_updated signal: {str(e)}")
 
-        # Disconnect project explorer clicked signal
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
             try:
@@ -117,7 +114,6 @@ class PAstroCoreMainWindow(QMainWindow):
         else:
             logger.debug("Project explorer widget not found during clear_connections")
 
-        # Disconnect tabCloseRequested signal
         tab_container = self.ui.tabContainer
         if tab_container:
             try:
@@ -129,7 +125,6 @@ class PAstroCoreMainWindow(QMainWindow):
             except TypeError as e:
                 logger.debug(f"Error checking tabCloseRequested signal: {str(e)}")
 
-        # Disconnect actionProject_Explorer toggled signal
         try:
             if self.ui.actionProject_Explorer.receivers(QtCore.SIGNAL("toggled(bool)")) > 0:
                 self.ui.actionProject_Explorer.toggled.disconnect()
@@ -139,7 +134,6 @@ class PAstroCoreMainWindow(QMainWindow):
         except TypeError as e:
             logger.debug(f"Error checking actionProject_Explorer toggled signal: {str(e)}")
 
-        # Disconnect dockWidget visibilityChanged signal
         try:
             if self.ui.dockWidget.receivers(QtCore.SIGNAL("visibilityChanged(bool)")) > 0:
                 self.ui.dockWidget.visibilityChanged.disconnect()
