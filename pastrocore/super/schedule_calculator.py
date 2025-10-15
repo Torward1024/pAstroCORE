@@ -2728,11 +2728,7 @@ class ScheduleCalculator(Super):
                     logger.error(f"No time data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
-                times = []
-                source_names = []
-                scan_names = []
-                baselines = []
-                projections = []
+                baseline_dfs = []  # Collect small DataFrames for concatenation
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -2743,24 +2739,15 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         scan_result = future.result()
                         if not scan_result.is_empty():
-                            times.extend(scan_result["time"])
-                            source_names.extend(scan_result["source_name"])
-                            scan_names.extend(scan_result["scan_name"])
-                            baselines.extend(scan_result["baseline"])
-                            projections.extend(scan_result["projection"])
+                            baseline_dfs.append(scan_result)
 
-                result_df = pl.DataFrame({
-                    "time": times,
-                    "source_name": source_names,
-                    "scan_name": scan_names,
-                    "baseline": baselines,
-                    "projection": projections
-                }, schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
-
-                if result_df.is_empty():
-                    logger.warning(f"No baseline projections computed for observation '{obs.get_observation_code()}'")
+                if baseline_dfs:
+                    result_df = pl.concat(baseline_dfs, how="vertical")
                 else:
-                    logger.info(f"Computed baseline projections for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                    logger.warning(f"No baseline projections computed for observation '{obs.get_observation_code()}'")
+                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
+
+                logger.info(f"Computed baseline projections for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
                 return result_df
 
             metadata = {
@@ -2824,31 +2811,25 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid baseline projections computed for scan '{scan_name}'")
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
-        times = []
-        source_names = []
-        scan_names = []
-        baselines = []
-        projections = []
-
+        baseline_dfs = []  # Collect small DataFrames for concatenation
         for baseline, proj_array in projections_dict.items():
-            times.extend(scan_times)
-            source_names.extend([source_name] * len(proj_array))
-            scan_names.extend([scan_name] * len(proj_array))
-            baselines.extend([baseline] * len(proj_array))
-            projections.extend(proj_array.tolist())
+            valid_count = np.sum(~np.isnan(proj_array))
+            if valid_count > 0:
+                baseline_dfs.append(pl.DataFrame({
+                    "time": scan_times,
+                    "source_name": [source_name] * n_times,
+                    "scan_name": [scan_name] * n_times,
+                    "baseline": [baseline] * n_times,
+                    "projection": proj_array
+                }, schema=CalculatedDataStructure.get_dtypes("baseline_projections")))
+                logger.debug(f"Computed {valid_count} valid projections for baseline '{baseline}' in scan '{scan_name}'")
 
-        result_df = pl.DataFrame({
-            "time": times,
-            "source_name": source_names,
-            "scan_name": scan_names,
-            "baseline": baselines,
-            "projection": projections
-        }, schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
-
-        if result_df.is_empty():
-            logger.warning(f"No baseline projections computed for scan '{scan_name}'")
+        if baseline_dfs:
+            result_df = pl.concat(baseline_dfs, how="vertical")
         else:
-            logger.debug(f"Computed {len(projections)} baseline projections for scan '{scan_name}' across {len(projections_dict)} baselines")
+            logger.warning(f"No baseline projections computed for scan '{scan_name}'")
+            result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
+
         return result_df
 
     def _compute_projections_from_uv(self, uv_data: pl.DataFrame, telescopes: List[Telescope | SpaceTelescope], 
@@ -2871,8 +2852,11 @@ class ScheduleCalculator(Super):
         projections = {}
         pairs = [f"{telescopes[i].get_code()}-{telescopes[j].get_code()}" for i, j in zip(*np.triu_indices(len(telescopes), k=1))]
 
+        # Batch filter UV data for all baselines
+        filtered_uv_data = uv_data.filter(pl.col("baseline").is_in(pairs))
+
         for baseline in pairs:
-            baseline_data = uv_data.filter(pl.col("baseline") == baseline)[["time", "u", "v", "w"]]
+            baseline_data = filtered_uv_data.filter(pl.col("baseline") == baseline)[["time", "u", "v", "w"]]
             if baseline_data.is_empty():
                 logger.debug(f"No UV data for baseline '{baseline}'")
                 projections[baseline] = np.full(n_times, np.nan, dtype=float)
