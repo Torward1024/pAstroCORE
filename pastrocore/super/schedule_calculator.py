@@ -841,12 +841,7 @@ class ScheduleCalculator(Super):
                     orbit_data = self._calculate_interpolated_orbits(obs, orbit_attrs)
                     logger.debug(f"Orbit data for '{obs.get_observation_code()}': {'available' if not orbit_data.is_empty() else 'not available'}")
 
-                times = []
-                scan_names = []
-                telescope_codes = []
-                x_values = []
-                y_values = []
-                z_values = []
+                position_dfs = []  # Collect small DataFrames for concatenation
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -859,23 +854,15 @@ class ScheduleCalculator(Super):
                         scan_name = scan.name
                         scan_positions = future.result()
                         if not scan_positions.is_empty():
-                            times.extend(scan_positions["time"])
-                            scan_names.extend([scan_name] * len(scan_positions))
-                            telescope_codes.extend(scan_positions["telescope_code"])
-                            x_values.extend(scan_positions["x"])
-                            y_values.extend(scan_positions["y"])
-                            z_values.extend(scan_positions["z"])
+                            scan_positions = scan_positions.with_columns(pl.lit(scan_name).alias("scan_name"))
+                            position_dfs.append(scan_positions)
                         else:
                             excluded_telescopes.extend([tel.get_code() for tel in scan.get_telescopes(obs).get_active_items()])
 
-                result_df = pl.DataFrame({
-                    "time": times,
-                    "scan_name": scan_names,
-                    "telescope_code": telescope_codes,
-                    "x": x_values,
-                    "y": y_values,
-                    "z": z_values
-                }, schema=CalculatedDataStructure.get_dtypes("telescope_positions"))
+                if position_dfs:
+                    result_df = pl.concat(position_dfs, how="vertical")
+                else:
+                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_positions"))
 
                 if excluded_telescopes:
                     logger.info(f"Excluded {len(set(excluded_telescopes))} telescopes: {', '.join(set(excluded_telescopes))}")
@@ -925,11 +912,7 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
             return pl.DataFrame(schema={k: v for k, v in CalculatedDataStructure.get_dtypes("telescope_positions").items() if k != "scan_name"})
 
-        times = []
-        telescope_codes = []
-        x_values = []
-        y_values = []
-        z_values = []
+        position_dfs = []  # Collect small DataFrames for concatenation
 
         ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
         kep_space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope) and tel.get("use_kep")]
@@ -956,11 +939,14 @@ class ScheduleCalculator(Super):
             for i, tel in enumerate(ground_tels):
                 tel_code = tel.get_code()
                 if not np.all(np.isnan(ground_positions[i])):
-                    times.extend(scan_times)
-                    telescope_codes.extend([tel_code] * len(scan_times))
-                    x_values.extend(ground_positions[i, :, 0])
-                    y_values.extend(ground_positions[i, :, 1])
-                    z_values.extend(ground_positions[i, :, 2])
+                    ground_df = pl.DataFrame({
+                        "time": scan_times,
+                        "telescope_code": [tel_code] * len(scan_times),
+                        "x": ground_positions[i, :, 0],
+                        "y": ground_positions[i, :, 1],
+                        "z": ground_positions[i, :, 2]
+                    }, schema={k: v for k, v in CalculatedDataStructure.get_dtypes("telescope_positions").items() if k != "scan_name"})
+                    position_dfs.append(ground_df)
                 else:
                     logger.warning(f"All positions are NaN for ground telescope '{tel_code}' in scan '{scan_name}'")
 
@@ -970,11 +956,8 @@ class ScheduleCalculator(Super):
                 try:
                     pos_df = self._compute_telescope_position(tel, scan_times)
                     if not all(pos_df[col].is_nan().all() for col in ["x", "y", "z"]):
-                        times.extend(scan_times)
-                        telescope_codes.extend([tel_code] * len(pos_df))
-                        x_values.extend(pos_df["x"])
-                        y_values.extend(pos_df["y"])
-                        z_values.extend(pos_df["z"])
+                        pos_df = pos_df.with_columns(pl.col("time").fill_null(scan_times[0]), pl.lit(tel_code).alias("telescope_code"))
+                        position_dfs.append(pos_df.select(["time", "telescope_code", "x", "y", "z"]))
                     else:
                         logger.warning(f"All positions are NaN for Keplerian telescope '{tel_code}' in scan '{scan_name}'")
                 except ValueError as e:
@@ -982,25 +965,23 @@ class ScheduleCalculator(Super):
 
         if orbit_space_tels:
             scan_orbit_data = orbit_data.filter(pl.col("scan_name") == scan_name)
-            for tel in orbit_space_tels:
-                tel_code = tel.get_code()
-                tel_positions = scan_orbit_data.filter(pl.col("telescope_code") == tel_code)
-                if not tel_positions.is_empty() and len(tel_positions) == len(scan_times):
-                    times.extend(tel_positions["time"])
-                    telescope_codes.extend([tel_code] * len(tel_positions))
-                    x_values.extend(tel_positions["x"])
-                    y_values.extend(tel_positions["y"])
-                    z_values.extend(tel_positions["z"])
-                else:
-                    logger.warning(f"No or mismatched orbit data for telescope '{tel_code}' in scan '{scan_name}'")
+            if not scan_orbit_data.is_empty():
+                tel_codes = [tel.get_code() for tel in orbit_space_tels]
+                filtered_orbits = scan_orbit_data.filter(pl.col("telescope_code").is_in(tel_codes))
+                if not filtered_orbits.is_empty():
+                    position_dfs.append(filtered_orbits.select(["time", "telescope_code", "x", "y", "z"]))
+                for tel in orbit_space_tels:
+                    tel_code = tel.get_code()
+                    if tel_code not in filtered_orbits["telescope_code"].unique():
+                        logger.warning(f"No or mismatched orbit data for telescope '{tel_code}' in scan '{scan_name}'")
+            else:
+                for tel in orbit_space_tels:
+                    logger.warning(f"No or mismatched orbit data for telescope '{tel.get_code()}' in scan '{scan_name}'")
 
-        result_df = pl.DataFrame({
-            "time": times,
-            "telescope_code": telescope_codes,
-            "x": x_values,
-            "y": y_values,
-            "z": z_values
-        }, schema={k: v for k, v in CalculatedDataStructure.get_dtypes("telescope_positions").items() if k != "scan_name"})
+        if position_dfs:
+            result_df = pl.concat(position_dfs, how="vertical")
+        else:
+            result_df = pl.DataFrame(schema={k: v for k, v in CalculatedDataStructure.get_dtypes("telescope_positions").items() if k != "scan_name"})
 
         if result_df.is_empty():
             logger.warning(f"No valid positions computed for scan '{scan_name}'")
