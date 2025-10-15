@@ -1483,13 +1483,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"Invalid time values (null or NaN) in time_data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
 
-                times = []
-                source_names = []
-                scan_names = []
-                baselines = []
-                u_values = []
-                v_values = []
-                w_values = []
+                uv_dfs = []  # Collect small DataFrames for concatenation
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -1500,25 +1494,11 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         scan_result = future.result()
                         if not scan_result.is_empty():
-                            times.extend(scan_result["time"])
-                            source_names.extend(scan_result["source_name"])
-                            scan_names.extend(scan_result["scan_name"])
-                            baselines.extend(scan_result["baseline"])
-                            u_values.extend(scan_result["u"])
-                            v_values.extend(scan_result["v"])
-                            w_values.extend(scan_result["w"])
+                            uv_dfs.append(scan_result)
 
-                result_df = pl.DataFrame({
-                    "time": times,
-                    "source_name": source_names,
-                    "scan_name": scan_names,
-                    "baseline": baselines,
-                    "u": u_values,
-                    "v": v_values,
-                    "w": w_values
-                }, schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
-
-                if result_df.is_empty():
+                if uv_dfs:
+                    result_df = pl.concat(uv_dfs, how="vertical")
+                else:
                     logger.warning(f"No UV coverage data computed for observation '{obs.get_observation_code()}'")
                     result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
 
@@ -1586,9 +1566,13 @@ class ScheduleCalculator(Super):
         tel_codes = [tel.get_code() for tel in active_telescopes]
         n_times = len(scan_times)
 
+        # Batch filter visibility and positions for all telescope codes
+        filtered_visibility = scan_visibility.filter(pl.col("telescope_code").is_in(tel_codes))
+        filtered_positions = scan_positions.filter(pl.col("telescope_code").is_in(tel_codes))
+
         visibility = np.full((len(tel_codes), n_times), False, dtype=bool)
         for i, code in enumerate(tel_codes):
-            vis_data = scan_visibility.filter(pl.col("telescope_code") == code)[["time", "visibility"]]
+            vis_data = filtered_visibility.filter(pl.col("telescope_code") == code)[["time", "visibility"]]
             if vis_data.is_empty() or len(vis_data) != n_times:
                 logger.warning(f"Visibility data for telescope '{code}' in scan '{scan_name}' has incorrect length ({len(vis_data)} vs expected {n_times})")
                 visibility[i, :] = False
@@ -1600,8 +1584,8 @@ class ScheduleCalculator(Super):
                     visibility[i, :] = False
 
         positions = np.array([
-            scan_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
-            if code in scan_positions["telescope_code"] else np.full((n_times, 3), np.nan)
+            filtered_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
+            if code in filtered_positions["telescope_code"] else np.full((n_times, 3), np.nan)
             for code in tel_codes
         ])
 
@@ -1647,7 +1631,7 @@ class ScheduleCalculator(Super):
             - Uses MJD (float64) for time calculations to avoid astropy.Time conversions.
         """
         uv_schema = {k: v for k, v in CalculatedDataStructure.get_dtypes("uv_coverage").items() if k not in ["source_name", "scan_name"]}
-        
+
         if not telescopes or len(telescopes) < 2:
             start_time_mjd = times_mjd[0] if len(times_mjd) > 0 else None
             logger.warning(f"Insufficient telescopes ({len(telescopes)}) to compute (u,v,w) at MJD {start_time_mjd}")
@@ -1706,31 +1690,23 @@ class ScheduleCalculator(Super):
         uvw = uvw_flat.reshape(n_pairs, n_times, 3)
         uvw[~vis_mask] = np.nan
 
-        times_list = []
-        baselines_list = []
-        u_values = []
-        v_values = []
-        w_values = []
-
+        uv_dfs = []
         for pair_idx, pair in enumerate(pairs):
             uvw_pair = uvw[pair_idx]
             valid_count = np.sum(~np.any(np.isnan(uvw_pair), axis=1))
             logger.debug(f"Computed {valid_count} valid UVW points for baseline '{pair}' (total {n_times} points)")
-            times_list.extend(times_mjd)
-            baselines_list.extend([pair] * n_times)
-            u_values.extend(uvw_pair[:, 0])
-            v_values.extend(uvw_pair[:, 1])
-            w_values.extend(uvw_pair[:, 2])
+            if valid_count > 0:
+                uv_dfs.append(pl.DataFrame({
+                    "time": times_mjd,
+                    "baseline": [pair] * n_times,
+                    "u": uvw_pair[:, 0],
+                    "v": uvw_pair[:, 1],
+                    "w": uvw_pair[:, 2]
+                }, schema=uv_schema))
 
-        result_df = pl.DataFrame({
-            "time": times_list,
-            "baseline": baselines_list,
-            "u": u_values,
-            "v": v_values,
-            "w": w_values
-        }, schema=uv_schema)
-
-        if result_df.is_empty():
+        if uv_dfs:
+            result_df = pl.concat(uv_dfs, how="vertical")
+        else:
             logger.warning(f"No valid UVW points computed for any baseline")
             result_df = pl.DataFrame(schema=uv_schema)
 
