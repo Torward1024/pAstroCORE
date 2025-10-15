@@ -296,7 +296,7 @@ class ScheduleCalculator(Super):
                 logger.warning(f"No observations in project '{obj_name}'")
                 return {}
             results = {}
-            max_workers = min(len(observations), 4) if len(observations) > 1 else 1
+            max_workers = min(len(observations), os.cpu_count() // 2 or 1)  # Optimized: limit workers to avoid memory overload
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {
                     executor.submit(self._get_cached_or_calculate, obs, store_key, calc_func, attributes, metadata): obs.get_observation_code()
@@ -368,9 +368,9 @@ class ScheduleCalculator(Super):
                 if not scans:
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
 
-                source_names_series = []
-                scan_names_series = []
-                time_values_series = []
+                source_names = []
+                scan_names = []
+                time_values = []
                 processed_scans = 0
 
                 for scan in scans:
@@ -393,38 +393,37 @@ class ScheduleCalculator(Super):
 
                     if time_step is None:
                         mid_time = start_mjd_rounded + duration_rounded / (2 * 86400.0)
-                        source_names_series.append(pl.Series([source_name]))
-                        scan_names_series.append(pl.Series([scan.name]))
-                        time_values_series.append(pl.Series([mid_time]))
+                        source_names.append(np.array([source_name], dtype=object))
+                        scan_names.append(np.array([scan.name], dtype=object))
+                        time_values.append(np.array([mid_time], dtype=np.float64))
                     else:
                         num_points = max(1, int(round(duration_rounded / time_step)) + 1)
                         if num_points <= 1:
                             mid_time = start_mjd_rounded + (duration_rounded / 2) / 86400.0
-                            source_names_series.append(pl.Series([source_name]))
-                            scan_names_series.append(pl.Series([scan.name]))
-                            time_values_series.append(pl.Series([mid_time]))
+                            source_names.append(np.array([source_name], dtype=object))
+                            scan_names.append(np.array([scan.name], dtype=object))
+                            time_values.append(np.array([mid_time], dtype=np.float64))
                         else:
                             end_excl = start_mjd_rounded + duration_rounded / 86400.0
-                            times = pl.Series([start_mjd_rounded + i * day_step for i in range(num_points)], dtype=pl.Float64)
-                            if times.len() > 0:
-                                source_names_series.append(pl.repeat(source_name, times.len(), eager=True))
-                                scan_names_series.append(pl.repeat(scan.name, times.len(), eager=True))
-                                time_values_series.append(times)
+                            times = np.linspace(start_mjd_rounded, end_excl, num_points, endpoint=False, dtype=np.float64)
+                            source_names.append(np.full(len(times), source_name, dtype=object))
+                            scan_names.append(np.full(len(times), scan.name, dtype=object))
+                            time_values.append(times)
 
                     processed_scans += 1
 
                 if processed_scans == 0:
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
 
-                concat_source = pl.concat(source_names_series)
-                concat_scan = pl.concat(scan_names_series)
-                concat_time = pl.concat(time_values_series)
+                concat_source = np.concatenate(source_names)
+                concat_scan = np.concatenate(scan_names)
+                concat_time = np.concatenate(time_values)
 
                 result_df = pl.DataFrame({
                     "source_name": concat_source,
                     "scan_name": concat_scan,
-                    "time": concat_time.cast(pl.Float64)
-                })
+                    "time": concat_time
+                }).cast({"time": pl.Float64})
 
                 logger.info(f"Calculated time arrays for {processed_scans} scans in '{obs.get_observation_code()}'")
                 return result_df
