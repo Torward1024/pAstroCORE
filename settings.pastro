@@ -1,6 +1,6 @@
 {
     "clear_log_on_start": true,
-    "log_level": "DEBUG",
+    "log_level": "INFO",
     "sources_catalog_path": "I:/pAstroCORE/catalogs/grav_lenses.dat",
     "telescopes_catalog_path": "catalogs\\telescopes.dat",
     "time_step": 600.0
