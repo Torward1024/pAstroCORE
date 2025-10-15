@@ -1618,7 +1618,9 @@ class ScheduleVisualizer(Super):
 
             # Plot sources from metadata
             source_colors = {}
-            for source_name in sources_metadata:
+            unique_sources = [src for src in sources_metadata.keys() if not sources or src in sources]
+            cmap_sources = plt.get_cmap(self._style_config["colormaps"].get("viridis", "viridis"))
+            for idx, source_name in enumerate(sorted(unique_sources)):
                 if sources and source_name not in sources:
                     continue
                 coords = sources_metadata.get(source_name, [])
@@ -1626,7 +1628,7 @@ class ScheduleVisualizer(Super):
                     lon, lat = float(coords[0]), float(coords[1])
                     lon_rad = np.radians(lon)
                     lat_rad = np.radians(lat)
-                    color = 'black'
+                    color = cmap_sources(idx / max(len(unique_sources) - 1, 1)) if len(unique_sources) > 1 else cmap_sources(0.5)
                     source_colors[source_name] = color
                     handle = ax.scatter(
                         lon_rad, lat_rad,
@@ -1634,7 +1636,7 @@ class ScheduleVisualizer(Super):
                         marker=self._style_config["markers"]["source_style"],
                         s=self._style_config["markers"]["default_size"],
                         label=source_name if source_name not in plotted_sources else None,
-                        zorder=3, edgecolors="none"
+                        zorder=3, edgecolors='black', linewidth=0.5
                     )
                     if source_name not in plotted_sources:
                         legend_handles.append(handle)
@@ -1663,7 +1665,7 @@ class ScheduleVisualizer(Super):
                     continue
 
                 lon = tel_data["lon"].to_numpy()
-                lat = tel_data["lat"].to_numpy()
+                lat = lat = tel_data["lat"].to_numpy()
                 valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
                 lon = lon[valid_mask]
                 lat = lat[valid_mask]
