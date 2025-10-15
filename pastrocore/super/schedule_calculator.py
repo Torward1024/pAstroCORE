@@ -2929,11 +2929,7 @@ class ScheduleCalculator(Super):
                     logger.error(f"No position data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
-                times = []
-                scan_names = []
-                telescope_codes = []
-                lons = []
-                lats = []
+                mollweide_dfs = []  # Collect small DataFrames for concatenation
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -2944,24 +2940,15 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         scan_result = future.result()
                         if not scan_result.is_empty():
-                            times.extend(scan_result["time"])
-                            scan_names.extend(scan_result["scan_name"])
-                            telescope_codes.extend(scan_result["telescope_code"])
-                            lons.extend(scan_result["lon"])
-                            lats.extend(scan_result["lat"])
+                            mollweide_dfs.append(scan_result)
 
-                result_df = pl.DataFrame({
-                    "time": times,
-                    "scan_name": scan_names,
-                    "telescope_code": telescope_codes,
-                    "lon": lons,
-                    "lat": lats
-                }, schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
-
-                if result_df.is_empty():
-                    logger.warning(f"No Mollweide tracks computed for observation '{obs.get_observation_code()}'")
+                if mollweide_dfs:
+                    result_df = pl.concat(mollweide_dfs, how="vertical")
                 else:
-                    logger.info(f"Computed Mollweide tracks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                    logger.warning(f"No Mollweide tracks computed for observation '{obs.get_observation_code()}'")
+                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+
+                logger.info(f"Computed Mollweide tracks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
                 return result_df
 
             sources_metadata = {}
@@ -3041,17 +3028,17 @@ class ScheduleCalculator(Super):
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
+
+        # Batch filter positions for all telescope codes
+        filtered_positions = scan_positions.filter(pl.col("telescope_code").is_in(tel_codes))
+
         positions = np.array([
-            scan_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
-            if code in scan_positions["telescope_code"] else np.full((n_times, 3), np.nan)
+            filtered_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
+            if code in filtered_positions["telescope_code"] else np.full((n_times, 3), np.nan)
             for code in tel_codes
         ], dtype=float)
 
-        times = []
-        scan_names = []
-        telescope_codes = []
-        lons = []
-        lats = []
+        mollweide_dfs = []  # Collect small DataFrames for concatenation
 
         try:
             r = np.sqrt(np.sum(positions**2, axis=2))
@@ -3067,25 +3054,22 @@ class ScheduleCalculator(Super):
 
             for i, tel_code in enumerate(tel_codes):
                 valid_points = np.sum(~np.isnan(lon[i]) & ~np.isnan(lat[i]))
-                if valid_points == 0:
-                    logger.debug(f"No valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
-                times.extend(scan_times)
-                scan_names.extend([scan_name] * n_times)
-                telescope_codes.extend([tel_code] * n_times)
-                lons.extend(lon[i])
-                lats.extend(lat[i])
-                logger.debug(f"Computed {valid_points} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
+                if valid_points > 0:
+                    mollweide_dfs.append(pl.DataFrame({
+                        "time": scan_times,
+                        "scan_name": [scan_name] * n_times,
+                        "telescope_code": [tel_code] * n_times,
+                        "lon": lon[i],
+                        "lat": lat[i]
+                    }, schema=CalculatedDataStructure.get_dtypes("mollweide_tracks")))
+                    logger.debug(f"Computed {valid_points} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
 
-            result_df = pl.DataFrame({
-                "time": times,
-                "scan_name": scan_names,
-                "telescope_code": telescope_codes,
-                "lon": lons,
-                "lat": lats
-            }, schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
-
-            if result_df.is_empty():
+            if mollweide_dfs:
+                result_df = pl.concat(mollweide_dfs, how="vertical")
+            else:
                 logger.warning(f"No Mollweide tracks computed for scan '{scan_name}'")
+                result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+
             return result_df
 
         except Exception as e:
