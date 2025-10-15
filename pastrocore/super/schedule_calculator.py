@@ -2109,12 +2109,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"Invalid time values (null or NaN) in time_data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("az_el"))
 
-                times = []
-                source_names = []
-                scan_names = []
-                telescope_codes = []
-                az_values = []
-                el_values = []
+                az_el_dfs = []  # Collect small DataFrames for concatenation
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -2127,23 +2122,11 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         scan_result = future.result()
                         if not scan_result.is_empty():
-                            times.extend(scan_result["time"])
-                            source_names.extend(scan_result["source_name"])
-                            scan_names.extend(scan_result["scan_name"])
-                            telescope_codes.extend(scan_result["telescope_code"])
-                            az_values.extend(scan_result["az"])
-                            el_values.extend(scan_result["el"])
+                            az_el_dfs.append(scan_result)
 
-                result_df = pl.DataFrame({
-                    "time": times,
-                    "source_name": source_names,
-                    "scan_name": scan_names,
-                    "telescope_code": telescope_codes,
-                    "az": az_values,
-                    "el": el_values
-                }, schema=CalculatedDataStructure.get_dtypes("az_el"))
-
-                if result_df.is_empty():
+                if az_el_dfs:
+                    result_df = pl.concat(az_el_dfs, how="vertical")
+                else:
                     logger.warning(f"No az/el or ha/dec angles computed for observation '{obs.get_observation_code()}'")
                     result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("az_el"))
                 logger.info(f"Computed az/el or ha/dec for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
@@ -2216,14 +2199,18 @@ class ScheduleCalculator(Super):
         mount_types = [tel.get("mount_type").value for tel in active_telescopes]
         n_times = len(scan_times)
 
+        # Batch filter visibility and positions for all telescope codes
+        filtered_visibility = scan_visibility.filter(pl.col("telescope_code").is_in(tel_codes))
+        filtered_positions = scan_positions.filter(pl.col("telescope_code").is_in(tel_codes))
+
         positions = np.array([
-            scan_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
-            if code in scan_positions["telescope_code"] else np.full((n_times, 3), np.nan)
+            filtered_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
+            if code in filtered_positions["telescope_code"] else np.full((n_times, 3), np.nan)
             for code in tel_codes
         ], dtype=float)
         visibility = np.array([
-            scan_visibility.filter(pl.col("telescope_code") == code)["visibility"].to_numpy()
-            if code in scan_visibility["telescope_code"] else np.full(n_times, False)
+            filtered_visibility.filter(pl.col("telescope_code") == code)["visibility"].to_numpy()
+            if code in filtered_visibility["telescope_code"] else np.full(n_times, False)
             for code in tel_codes
         ], dtype=bool)
 
@@ -2236,15 +2223,8 @@ class ScheduleCalculator(Super):
 
         nan_positions = np.any(np.isnan(positions), axis=2)
         
-        times = []
-        source_names = []
-        scan_names = []
-        telescope_codes = []
-        az_values = []
-        el_values = []
-
+        az_el_dfs = []  # Collect small DataFrames for concatenation
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-        # Convert to astropy.Time only for AltAz and HADec
         scan_times_astropy = Time(scan_times, format='mjd', scale='utc')
 
         try:
@@ -2273,12 +2253,14 @@ class ScheduleCalculator(Super):
                         angles[is_visible, 0] = az[i][is_visible]
                         angles[is_visible, 1] = el[i][is_visible]
                         logger.debug(f"Computed {np.sum(is_visible)} az/el angles for telescope '{code}' in scan '{scan_name}'")
-                    times.extend(scan_times)
-                    source_names.extend([source_name] * n_times)
-                    scan_names.extend([scan_name] * n_times)
-                    telescope_codes.extend([code] * n_times)
-                    az_values.extend(angles[:, 0].tolist())
-                    el_values.extend(angles[:, 1].tolist())
+                        az_el_dfs.append(pl.DataFrame({
+                            "time": scan_times,
+                            "source_name": [source_name] * n_times,
+                            "scan_name": [scan_name] * n_times,
+                            "telescope_code": [code] * n_times,
+                            "az": angles[:, 0],
+                            "el": angles[:, 1]
+                        }, schema=CalculatedDataStructure.get_dtypes("az_el")))
 
             equa_indices = [i for i, mt in enumerate(mount_types) if mt == "EQUA"]
             if equa_indices:
@@ -2305,35 +2287,36 @@ class ScheduleCalculator(Super):
                         angles[is_visible, 0] = ha[i][is_visible]
                         angles[is_visible, 1] = dec[i][is_visible]
                         logger.debug(f"Computed {np.sum(is_visible)} ha/dec angles for telescope '{code}' in scan '{scan_name}'")
-                    times.extend(scan_times)
-                    source_names.extend([source_name] * n_times)
-                    scan_names.extend([scan_name] * n_times)
-                    telescope_codes.extend([code] * n_times)
-                    az_values.extend(angles[:, 0].tolist())
-                    el_values.extend(angles[:, 1].tolist())
+                        az_el_dfs.append(pl.DataFrame({
+                            "time": scan_times,
+                            "source_name": [source_name] * n_times,
+                            "scan_name": [scan_name] * n_times,
+                            "telescope_code": [code] * n_times,
+                            "az": angles[:, 0],
+                            "el": angles[:, 1]
+                        }, schema=CalculatedDataStructure.get_dtypes("az_el")))
 
             for i, tel in enumerate(active_telescopes):
                 if mount_types[i] not in ["AZIM", "EQUA"]:
                     logger.warning(f"Unsupported mount type '{mount_types[i]}' for telescope '{tel.get_code()}' in scan '{scan_name}'")
-                    times.extend(scan_times)
-                    source_names.extend([source_name] * n_times)
-                    scan_names.extend([scan_name] * n_times)
-                    telescope_codes.extend([tel.get_code()] * n_times)
-                    az_values.extend([np.nan] * n_times)
-                    el_values.extend([np.nan] * n_times)
+                    az_el_dfs.append(pl.DataFrame({
+                        "time": scan_times,
+                        "source_name": [source_name] * n_times,
+                        "scan_name": [scan_name] * n_times,
+                        "telescope_code": [tel.get_code()] * n_times,
+                        "az": [np.nan] * n_times,
+                        "el": [np.nan] * n_times
+                    }, schema=CalculatedDataStructure.get_dtypes("az_el")))
 
         except Exception as e:
             logger.error(f"Failed to compute az/el or ha/dec for scan '{scan_name}' at MJD {scan_times[0] if len(scan_times) > 0 else None}: {str(e)}")
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("az_el"))
 
-        result_df = pl.DataFrame({
-            "time": times,
-            "source_name": source_names,
-            "scan_name": scan_names,
-            "telescope_code": telescope_codes,
-            "az": az_values,
-            "el": el_values
-        }, schema=CalculatedDataStructure.get_dtypes("az_el"))
+        if az_el_dfs:
+            result_df = pl.concat(az_el_dfs, how="vertical")
+        else:
+            logger.warning(f"No valid az/el or ha/dec angles computed for scan '{scan_name}'")
+            result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("az_el"))
 
         valid_angle_count = len(result_df.filter(pl.col("az").is_not_null() & pl.col("el").is_not_null()))
         if valid_angle_count == 0:
