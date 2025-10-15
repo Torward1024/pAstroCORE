@@ -2636,27 +2636,25 @@ class ScheduleCalculator(Super):
                     valid_max = (max_pattern != 0) & (~np.isnan(max_pattern))
                     pattern[valid_diameters] = np.where(valid_max, pattern[valid_diameters] / max_pattern, np.nan)
 
-                telescope_codes = []
-                theta_values = []
-                pattern_values = []
+                beam_dfs = []  # Collect small DataFrames for concatenation
                 for tel, pat in zip(valid_telescopes, pattern):
                     tel_code = tel.get_code()
                     valid_points = np.sum(~np.isnan(pat))
-                    telescope_codes.extend([tel_code] * len(theta))
-                    theta_values.extend(theta)
-                    pattern_values.extend(pat)
-                    logger.debug(f"Computed {valid_points} valid beam pattern points for telescope '{tel_code}' in '{obs.get_observation_code()}'")
+                    if valid_points > 0:
+                        beam_dfs.append(pl.DataFrame({
+                            "telescope_code": [tel_code] * len(theta),
+                            "theta": theta,
+                            "pattern": pat
+                        }, schema=CalculatedDataStructure.get_dtypes("beam_pattern")))
+                        logger.debug(f"Computed {valid_points} valid beam pattern points for telescope '{tel_code}' in '{obs.get_observation_code()}'")
 
-                result_df = pl.DataFrame({
-                    "telescope_code": telescope_codes,
-                    "theta": theta_values,
-                    "pattern": pattern_values
-                }, schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
-
-                if result_df.is_empty():
-                    logger.warning(f"No beam patterns computed for observation '{obs.get_observation_code()}'")
+                if beam_dfs:
+                    result_df = pl.concat(beam_dfs, how="vertical")
                 else:
-                    logger.info(f"Computed beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}'")
+                    logger.warning(f"No beam patterns computed for observation '{obs.get_observation_code()}'")
+                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
+
+                logger.info(f"Computed beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}'")
                 return result_df
 
             metadata = {
