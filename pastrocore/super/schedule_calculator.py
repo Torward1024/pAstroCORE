@@ -357,73 +357,76 @@ class ScheduleCalculator(Super):
             recalculate = attributes.get("recalculate", False)
 
             if time_step is not None and time_step <= 0:
-                logger.error(f"Invalid time_step: {time_step}. Must be positive.")
+                logger.error(f"Invalid time_step: {time_step}")
                 return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times")) if isinstance(obj, Observation) else {}
             if time_threshold <= 0:
-                logger.error(f"Invalid time_threshold: {time_threshold}. Must be positive.")
+                logger.error(f"Invalid time_threshold: {time_threshold}")
                 return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times")) if isinstance(obj, Observation) else {}
 
             def calculate_times(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, _, sources = self._get_active_components(obs)
                 if not scans:
-                    logger.debug(f"No active scans for observation '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
 
-                source_names = []
-                scan_names = []
-                time_values = []
-                start_times = []
-                end_times = []
+                source_names_series = []
+                scan_names_series = []
+                time_values_series = []
                 processed_scans = 0
 
                 for scan in scans:
                     source = scan.get_source(obs)
                     if source is None or not source.isactive:
-                        logger.debug(f"Skipping scan '{scan.name}' in '{obs.get_observation_code()}': no active source")
                         continue
                     source_name = source.name
                     start_time = scan.get_start()
                     duration = scan.get_duration()
-
                     if start_time is None or duration is None:
-                        logger.warning(f"Invalid start time or duration for scan '{scan.name}' in '{obs.get_observation_code()}'")
                         continue
 
                     start_mjd = start_time.mjd
                     start_mjd_rounded = round(start_mjd * 86400.0 / time_threshold) * time_threshold / 86400.0
                     duration_rounded = round(duration / time_threshold) * time_threshold
-
                     if duration_rounded <= 0:
-                        logger.warning(f"Scan '{scan.name}' in '{obs.get_observation_code()}' has zero or negative duration after rounding")
                         continue
 
-                    if time_step is None:
-                        time_values.append(start_mjd_rounded + duration_rounded / (2 * 86400.0))
-                        source_names.append(source_name)
-                        scan_names.append(scan.name)
-                    else:
-                        time_values_array = np.arange(0, duration_rounded, time_step) / 86400.0
-                        if len(time_values_array) == 0:
-                            logger.warning(f"No time points generated for scan '{scan.name}' in '{obs.get_observation_code()}' with time_step={time_step}")
-                            continue
-                        time_values.extend(start_mjd_rounded + time_values_array)
-                        source_names.extend([source_name] * len(time_values_array))
-                        scan_names.extend([scan.name] * len(time_values_array))
+                    day_step = time_step / 86400.0 if time_step is not None else None
 
-                    start_times.append(start_mjd_rounded)
-                    end_times.append(start_mjd_rounded + duration_rounded / 86400.0)  # Convert seconds to days
+                    if time_step is None:
+                        mid_time = start_mjd_rounded + duration_rounded / (2 * 86400.0)
+                        source_names_series.append(pl.Series([source_name]))
+                        scan_names_series.append(pl.Series([scan.name]))
+                        time_values_series.append(pl.Series([mid_time]))
+                    else:
+                        num_points = max(1, int(round(duration_rounded / time_step)) + 1)
+                        if num_points <= 1:
+                            mid_time = start_mjd_rounded + (duration_rounded / 2) / 86400.0
+                            source_names_series.append(pl.Series([source_name]))
+                            scan_names_series.append(pl.Series([scan.name]))
+                            time_values_series.append(pl.Series([mid_time]))
+                        else:
+                            end_excl = start_mjd_rounded + duration_rounded / 86400.0
+                            times = pl.Series([start_mjd_rounded + i * day_step for i in range(num_points)], dtype=pl.Float64)
+                            if times.len() > 0:
+                                source_names_series.append(pl.repeat(source_name, times.len(), eager=True))
+                                scan_names_series.append(pl.repeat(scan.name, times.len(), eager=True))
+                                time_values_series.append(times)
+
                     processed_scans += 1
 
+                if processed_scans == 0:
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
+
+                concat_source = pl.concat(source_names_series)
+                concat_scan = pl.concat(scan_names_series)
+                concat_time = pl.concat(time_values_series)
+
                 result_df = pl.DataFrame({
-                    "source_name": source_names,
-                    "scan_name": scan_names,
-                    "time": time_values
-                }, schema=CalculatedDataStructure.get_dtypes("times"))
+                    "source_name": concat_source,
+                    "scan_name": concat_scan,
+                    "time": concat_time.cast(pl.Float64)
+                })
 
-                if result_df.is_empty():
-                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
-
-                logger.info(f"Calculated time arrays for {processed_scans} scans across {len(set(source_names))} sources in '{obs.get_observation_code()}'")
+                logger.info(f"Calculated time arrays for {processed_scans} scans in '{obs.get_observation_code()}'")
                 return result_df
 
             start_times = []
@@ -434,8 +437,9 @@ class ScheduleCalculator(Super):
                     start_time = scan.get_start()
                     duration = scan.get_duration()
                     if start_time is not None and duration is not None:
-                        start_times.append(start_time.mjd)
-                        end_times.append(start_time.mjd + duration / 86400.0)
+                        start_mjd = start_time.mjd
+                        start_times.append(start_mjd)
+                        end_times.append(start_mjd + duration / 86400.0)
 
             metadata = {
                 "time_step": time_step,
@@ -447,7 +451,7 @@ class ScheduleCalculator(Super):
 
             return self._process_object(obj, attributes, calculate_times, store_key, metadata)
         except Exception as e:
-            logger.error(f"Failed to calculate time arrays for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+            logger.error(f"Failed to calculate time arrays: {str(e)}")
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times")) if isinstance(obj, Observation) else {}
 
     @time_execution
