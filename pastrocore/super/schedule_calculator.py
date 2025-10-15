@@ -1212,11 +1212,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"Invalid time values (null or NaN) in time_data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("source_visibility"))
 
-                times = []
-                source_names = []
-                scan_names = []
-                telescope_codes = []
-                visibility_values = []
+                visibility_dfs = []  # Collect small DataFrames for concatenation
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -1227,21 +1223,11 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         scan_result = future.result()
                         if not scan_result.is_empty():
-                            times.extend(scan_result["time"])
-                            source_names.extend(scan_result["source_name"])
-                            scan_names.extend(scan_result["scan_name"])
-                            telescope_codes.extend(scan_result["telescope_code"])
-                            visibility_values.extend(scan_result["visibility"])
+                            visibility_dfs.append(scan_result)
 
-                result_df = pl.DataFrame({
-                    "time": times,
-                    "source_name": source_names,
-                    "scan_name": scan_names,
-                    "telescope_code": telescope_codes,
-                    "visibility": visibility_values
-                }, schema=CalculatedDataStructure.get_dtypes("source_visibility"))
-
-                if result_df.is_empty():
+                if visibility_dfs:
+                    result_df = pl.concat(visibility_dfs, how="vertical")
+                else:
                     logger.warning(f"No visibility data computed for observation '{obs.get_observation_code()}'")
                     result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("source_visibility"))
 
@@ -1295,7 +1281,7 @@ class ScheduleCalculator(Super):
         if len(scan_times) == 0:
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("source_visibility"))
-        
+
         if np.any(np.isnan(scan_times)) or np.any(np.isinf(scan_times)):
             logger.warning(f"Invalid time values (NaN or Inf) for scan '{scan_name}' in source '{source_name}'")
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("source_visibility"))
@@ -1313,15 +1299,13 @@ class ScheduleCalculator(Super):
         tel_codes = [tel.get_code() for tel in active_telescopes]
         n_times = len(scan_times)
 
-        times = []
-        source_names = []
-        scan_names = []
-        telescope_codes = []
-        visibility_values = []
+        visibility_dfs = []  # Collect small DataFrames for concatenation
 
+        # Batch filter positions for all telescope codes
+        filtered_positions = scan_positions.filter(pl.col("telescope_code").is_in(tel_codes))
         positions = np.array([
-            scan_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
-            if code in scan_positions["telescope_code"] else np.full((n_times, 3), np.nan)
+            filtered_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
+            if code in filtered_positions["telescope_code"] else np.full((n_times, 3), np.nan)
             for code in tel_codes
         ])
 
@@ -1341,7 +1325,7 @@ class ScheduleCalculator(Super):
             gcrs_coords = CartesianRepresentation(
                 x=ground_positions[:, :, 0] * u.m,
                 y=ground_positions[:, :, 1] * u.m,
-                z=ground_positions[:, :, 2] * u.m
+                z=ground_positions[:, :, 1] * u.m
             )
             itrs = GCRS(gcrs_coords, obstime=scan_times_astropy).transform_to(ITRS(obstime=scan_times_astropy))
             locations = itrs.earth_location
@@ -1402,6 +1386,15 @@ class ScheduleCalculator(Super):
                 visibility_array[ground_indices[i]] = is_visible
                 logger.debug(f"Computed visibility for ground telescope '{tel_code}' in scan '{scan_name}': {np.sum(is_visible)} visible points")
 
+                if np.any(is_visible):
+                    visibility_dfs.append(pl.DataFrame({
+                        "time": scan_times,
+                        "source_name": [source_name] * n_times,
+                        "scan_name": [scan_name] * n_times,
+                        "telescope_code": [tel_code] * n_times,
+                        "visibility": is_visible
+                    }, schema=CalculatedDataStructure.get_dtypes("source_visibility")))
+
         if space_tels:
             space_codes = [tel.get_code() for tel in space_tels]
             space_indices = [tel_codes.index(code) for code in space_codes]
@@ -1415,22 +1408,18 @@ class ScheduleCalculator(Super):
                 visibility_array[space_indices[i]] = is_visible
                 logger.debug(f"Computed visibility for space telescope '{tel_code}' in scan '{scan_name}': {np.sum(is_visible)} visible points")
 
-        for i, tel_code in enumerate(tel_codes):
-            times.extend(scan_times)
-            source_names.extend([source_name] * n_times)
-            scan_names.extend([scan_name] * n_times)
-            telescope_codes.extend([tel_code] * n_times)
-            visibility_values.extend(visibility_array[i].tolist())
+                if np.any(is_visible):
+                    visibility_dfs.append(pl.DataFrame({
+                        "time": scan_times,
+                        "source_name": [source_name] * n_times,
+                        "scan_name": [scan_name] * n_times,
+                        "telescope_code": [tel_code] * n_times,
+                        "visibility": is_visible
+                    }, schema=CalculatedDataStructure.get_dtypes("source_visibility")))
 
-        result_df = pl.DataFrame({
-            "time": times,
-            "source_name": source_names,
-            "scan_name": scan_names,
-            "telescope_code": telescope_codes,
-            "visibility": visibility_values
-        }, schema=CalculatedDataStructure.get_dtypes("source_visibility"))
-
-        if result_df.is_empty():
+        if visibility_dfs:
+            result_df = pl.concat(visibility_dfs, how="vertical")
+        else:
             logger.warning(f"No visibility data computed for scan '{scan_name}'")
             result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("source_visibility"))
 
