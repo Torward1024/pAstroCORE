@@ -1767,11 +1767,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"Invalid time values (null or NaN) in time_data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("sun_angles"))
 
-                times = []
-                source_names = []
-                scan_names = []
-                telescope_codes = []
-                angles = []
+                angle_dfs = []  # Collect small DataFrames for concatenation
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -1790,21 +1786,11 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         scan_result = future.result()
                         if not scan_result.is_empty():
-                            times.extend(scan_result["time"])
-                            source_names.extend(scan_result["source_name"])
-                            scan_names.extend(scan_result["scan_name"])
-                            telescope_codes.extend(scan_result["telescope_code"])
-                            angles.extend(scan_result["angle"])
+                            angle_dfs.append(scan_result)
 
-                result_df = pl.DataFrame({
-                    "time": times,
-                    "source_name": source_names,
-                    "scan_name": scan_names,
-                    "telescope_code": telescope_codes,
-                    "angle": angles
-                }, schema=CalculatedDataStructure.get_dtypes("sun_angles"))
-
-                if result_df.is_empty():
+                if angle_dfs:
+                    result_df = pl.concat(angle_dfs, how="vertical")
+                else:
                     logger.warning(f"No sun angles computed for observation '{obs.get_observation_code()}'")
                     result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("sun_angles"))
 
@@ -1881,16 +1867,21 @@ class ScheduleCalculator(Super):
         tel_codes = [tel.get_code() for tel in active_telescopes]
         n_times = len(scan_times)
 
-        positions = np.array([
-            scan_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
-            if code in scan_positions["telescope_code"] else np.full((n_times, 3), np.nan)
-            for code in tel_codes
-        ])
+        # Batch filter visibility and positions for all telescope codes
+        filtered_visibility = scan_visibility.filter(pl.col("telescope_code").is_in(tel_codes))
+        filtered_positions = scan_positions.filter(pl.col("telescope_code").is_in(tel_codes))
+
         visibility = np.array([
-            scan_visibility.filter(pl.col("telescope_code") == code)["visibility"].to_numpy()
-            if code in scan_visibility["telescope_code"] else np.full(n_times, False)
+            filtered_visibility.filter(pl.col("telescope_code") == code)["visibility"].to_numpy()
+            if code in filtered_visibility["telescope_code"] else np.full(n_times, False)
             for code in tel_codes
         ], dtype=bool)
+
+        positions = np.array([
+            filtered_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
+            if code in filtered_positions["telescope_code"] else np.full((n_times, 3), np.nan)
+            for code in tel_codes
+        ])
 
         logger.debug(f"Scan '{scan_name}': scan_times.shape={n_times}, positions.shape={positions.shape}, visibility.shape={visibility.shape}")
         if positions.shape[1] != n_times:
@@ -1913,11 +1904,7 @@ class ScheduleCalculator(Super):
             logger.error(f"Failed to compute sun coordinates for scan '{scan_name}' at MJD {scan_times[0]}: {str(e)}")
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("sun_angles"))
 
-        times = []
-        source_names = []
-        scan_names = []
-        telescope_codes = []
-        angle_values = []
+        angle_dfs = []  # Collect small DataFrames for concatenation
 
         ground_tels = [tel for tel in active_telescopes if not isinstance(tel, SpaceTelescope)]
         space_tels = [tel for tel in active_telescopes if isinstance(tel, SpaceTelescope)]
@@ -1968,11 +1955,13 @@ class ScheduleCalculator(Super):
                     angles[is_visible] = sep[is_visible]
                     logger.debug(f"Computed {np.sum(is_visible)} sun angles for ground telescope '{tel_code}' in scan '{scan_name}'")
 
-                times.extend(scan_times)
-                source_names.extend([source_name] * n_times)
-                scan_names.extend([scan_name] * n_times)
-                telescope_codes.extend([tel_code] * n_times)
-                angle_values.extend(angles)
+                    angle_dfs.append(pl.DataFrame({
+                        "time": scan_times,
+                        "source_name": [source_name] * n_times,
+                        "scan_name": [scan_name] * n_times,
+                        "telescope_code": [tel_code] * n_times,
+                        "angle": angles
+                    }, schema=CalculatedDataStructure.get_dtypes("sun_angles")))
 
         if space_tels:
             space_codes = [tel.get_code() for tel in space_tels]
@@ -2031,21 +2020,17 @@ class ScheduleCalculator(Super):
 
                         angles[is_visible] = np.where(valid, sep, np.nan)
 
-                times.extend(scan_times)
-                source_names.extend([source_name] * n_times)
-                scan_names.extend([scan_name] * n_times)
-                telescope_codes.extend([tel_code] * n_times)
-                angle_values.extend(angles)
+                    angle_dfs.append(pl.DataFrame({
+                        "time": scan_times,
+                        "source_name": [source_name] * n_times,
+                        "scan_name": [scan_name] * n_times,
+                        "telescope_code": [tel_code] * n_times,
+                        "angle": angles
+                    }, schema=CalculatedDataStructure.get_dtypes("sun_angles")))
 
-        result_df = pl.DataFrame({
-            "time": times,
-            "source_name": source_names,
-            "scan_name": scan_names,
-            "telescope_code": telescope_codes,
-            "angle": angle_values
-        }, schema=CalculatedDataStructure.get_dtypes("sun_angles"))
-
-        if result_df.is_empty():
+        if angle_dfs:
+            result_df = pl.concat(angle_dfs, how="vertical")
+        else:
             logger.warning(f"No sun angles computed for scan '{scan_name}'")
             result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("sun_angles"))
 
