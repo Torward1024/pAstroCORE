@@ -116,9 +116,9 @@ class ScheduleCalculator(Super):
             return [], [], []
         
         return scans, telescopes, sources
-    
+
     def _get_cached_or_calculate(self, obj: Union[Observation, ScheduleProject], store_key: str, calc_func: Callable,
-                             attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Optional[pl.DataFrame]:
+                                attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Optional[pl.DataFrame]:
         """Retrieve cached data or perform calculation and cache the result as a Polars DataFrame.
 
         Args:
@@ -134,11 +134,12 @@ class ScheduleCalculator(Super):
                 are stored in each Observation's calculated_data.
 
         Notes:
-            - For Observation, returns cached DataFrame if "recalculate" is False and valid cache exists.
+            - For Observation, returns cached DataFrame if "recalculate" is False and valid cache exists (full metadata match).
             - For ScheduleProject, performs calculations for each Observation and stores results in their calculated_data.
             - Uses thread-safe caching with a lock.
             - Applies converters from CalculatedDataStructure to ensure time-related columns and metadata are MJD (float64).
             - Logs warnings for empty or invalid results.
+            - Improved: Full metadata check for cache hit to avoid unnecessary recalcs.
         """
         if not store_key:
             logger.error("Empty store_key provided for caching")
@@ -155,20 +156,19 @@ class ScheduleCalculator(Super):
         time_step = attributes.get("time_step")
         obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
 
-        def apply_converters(df: pl.DataFrame, metadata: Dict, key: str) -> tuple[pl.DataFrame, Dict]:
+        def apply_converters(df: pl.DataFrame, metadata_in: Dict, key: str) -> tuple[pl.DataFrame, Dict]:
             """Apply converters to DataFrame columns and metadata to ensure MJD float64 for time-related fields."""
             converters = CalculatedDataStructure.get_converters(key) or {}
-            df_out = df.clone()
-            converted_metadata = metadata.copy()
+            df_out = df  # No clone unless needed
+            converted_metadata = metadata_in.copy()
 
             for col, converter in converters.items():
                 if col in df_out.columns:
                     try:
-                        result = df_out.with_columns(pl.col(col).map_elements(converter, return_dtype=pl.Float64))
-                        if result[col].dtype != pl.Float64 and col in ["time", "start", "end"]:
-                            logger.warning(f"Column '{col}' in key '{key}' for '{obj_name}' is not float64 after conversion; casting explicitly")
-                            result = result.with_columns(pl.col(col).cast(pl.Float64, strict=False))
-                        df_out = result
+                        df_out = df_out.with_columns(pl.col(col).map_elements(converter, return_dtype=pl.Float64))
+                        if col in ["time", "start", "end"] and df_out[col].dtype != pl.Float64:
+                            logger.warning(f"Column '{col}' in key '{key}' for '{obj_name}' is not float64 after conversion; casting")
+                            df_out = df_out.with_columns(pl.col(col).cast(pl.Float64, strict=False))
                     except Exception as e:
                         logger.error(f"Failed to apply converter for column '{col}' in key '{key}' of '{obj_name}': {str(e)}")
                         raise
@@ -176,9 +176,9 @@ class ScheduleCalculator(Super):
             for meta_key, converter in converters.items():
                 if meta_key in converted_metadata:
                     try:
-                        converted_metadata[meta_key] = converter(converted_metadata[meta_key])
+                        converted_metadata[meta_key] = converter(converted_metadata[meta_key]) if converted_metadata[meta_key] is not None else None
                         if meta_key in ["start_time", "end_time", "time_step"] and not isinstance(converted_metadata[meta_key], float):
-                            logger.warning(f"Metadata '{meta_key}' in key '{key}' for '{obj_name}' is not float; casting explicitly")
+                            logger.warning(f"Metadata '{meta_key}' in key '{key}' for '{obj_name}' is not float; casting")
                             converted_metadata[meta_key] = float(converted_metadata[meta_key]) if converted_metadata[meta_key] is not None else None
                     except Exception as e:
                         logger.error(f"Failed to apply converter for metadata '{meta_key}' in key '{key}' of '{obj_name}': {str(e)}")
@@ -186,117 +186,79 @@ class ScheduleCalculator(Super):
 
             return df_out, converted_metadata
 
+        def validate_and_store(result_df: pl.DataFrame, converted_metadata: Dict, target_obj: Observation) -> pl.DataFrame:
+            """Validate DF and metadata, store if valid."""
+            if result_df.is_empty():
+                logger.warning(f"Calculation for '{store_key}' in '{target_obj.get_observation_code()}' returned empty result")
+                result_df = pl.DataFrame(schema=expected_dtypes)
+            else:
+                missing_cols = [col for col in expected_columns if col not in result_df.columns]
+                if missing_cols:
+                    logger.error(f"Invalid DataFrame structure for '{store_key}' in '{target_obj.get_observation_code()}': missing {missing_cols}")
+                    result_df = pl.DataFrame(schema=expected_dtypes)
+                else:
+                    for col, dtype in expected_dtypes.items():
+                        if col in result_df.columns and result_df[col].dtype != dtype:
+                            logger.warning(f"Invalid dtype for column '{col}' in '{store_key}': expected {dtype}, got {result_df[col].dtype}")
+                            try:
+                                result_df = result_df.with_columns(pl.col(col).cast(dtype, strict=False))
+                            except Exception as e:
+                                logger.error(f"Cast failed for '{col}': {str(e)}")
+                                result_df = pl.DataFrame(schema=expected_dtypes)
+                                break
+
+                    for meta_key, meta_type in expected_metadata_types.items():
+                        if meta_key not in converted_metadata:
+                            logger.error(f"Missing metadata '{meta_key}' for '{store_key}'")
+                            result_df = pl.DataFrame(schema=expected_dtypes)
+                            break
+                        if not isinstance(converted_metadata[meta_key], meta_type):
+                            logger.error(f"Invalid metadata type for '{meta_key}': expected {meta_type}, got {type(converted_metadata[meta_key])}")
+                            result_df = pl.DataFrame(schema=expected_dtypes)
+                            break
+
+            with self._lock:
+                target_obj.set_calculated_data_by_key(store_key, result_df, converted_metadata)
+            return result_df
+
         if isinstance(obj, ScheduleProject):
             for observation in obj.get_observations():
                 calc_dict = observation.get_calculated_data_by_key(store_key)
                 existing_df = calc_dict.get("data") if calc_dict else None
                 existing_metadata = calc_dict.get("metadata", {}) if calc_dict else {}
+                # Improved: Full metadata match
                 if (existing_df is not None and not recalculate and
-                    existing_metadata.get("time_step") == time_step):
+                    existing_metadata.get("time_step") == time_step and
+                    all(existing_metadata.get(k) == metadata.get(k) for k in expected_metadata_types)):
                     if not existing_df.is_empty():
-                        logger.debug(f"Retrieved cached data for '{store_key}' in observation '{observation.get_observation_code()}'")
+                        logger.debug(f"Cache hit for '{store_key}' in observation '{observation.get_observation_code()}'")
                         continue
-                    logger.warning(f"Cached data for '{store_key}' in observation '{observation.get_observation_code()}' is empty; recalculating")
+                    logger.warning(f"Cached data empty for '{store_key}' in '{observation.get_observation_code()}'; recalculating")
 
-                logger.info(f"Calculating '{store_key}' for observation '{observation.get_observation_code()}' (recalculate={recalculate})")
-                result_df = calc_func(observation, attributes)
-                result_df, converted_metadata = apply_converters(result_df, metadata, store_key)
-
-                if result_df.is_empty():
-                    logger.warning(f"Calculation for '{store_key}' in observation '{observation.get_observation_code()}' returned empty result")
-                    result_df = pl.DataFrame(schema=expected_dtypes)
-                    with self._lock:
-                        observation.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-                else:
-                    if not all(col in result_df.columns for col in expected_columns):
-                        logger.error(f"Invalid DataFrame structure for '{store_key}' in observation '{observation.get_observation_code()}': missing columns")
-                        result_df = pl.DataFrame(schema=expected_dtypes)
-                        with self._lock:
-                            observation.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-                    else:
-                        for col, dtype in expected_dtypes.items():
-                            if col in result_df.columns and result_df[col].dtype != dtype:
-                                logger.warning(f"Invalid dtype for column '{col}' in '{store_key}' for observation '{observation.get_observation_code()}': expected {dtype}, got {result_df[col].dtype}")
-                                try:
-                                    result_df = result_df.with_columns(pl.col(col).cast(dtype, strict=False))
-                                except Exception as e:
-                                    logger.error(f"Failed to cast column '{col}' to {dtype} in '{store_key}' for observation '{observation.get_observation_code()}': {str(e)}")
-                                    result_df = pl.DataFrame(schema=expected_dtypes)
-                                    break
-
-                        for meta_key, meta_type in expected_metadata_types.items():
-                            if meta_key not in converted_metadata:
-                                logger.error(f"Missing metadata '{meta_key}' for key '{store_key}' in observation '{observation.get_observation_code()}'")
-                                result_df = pl.DataFrame(schema=expected_dtypes)
-                                with self._lock:
-                                    observation.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-                                break
-                            if not isinstance(converted_metadata[meta_key], meta_type):
-                                logger.error(f"Invalid metadata type for '{meta_key}' in '{store_key}' for observation '{observation.get_observation_code()}': expected {meta_type}, got {type(converted_metadata[meta_key])}")
-                                result_df = pl.DataFrame(schema=expected_dtypes)
-                                with self._lock:
-                                    observation.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-                                break
-                        else:
-                            with self._lock:
-                                observation.set_calculated_data_by_key(store_key, result_df, converted_metadata)
+                logger.info(f"Calculating '{store_key}' for observation '{observation.get_observation_code()}'")
+                result_df_raw = calc_func(observation, attributes)
+                result_df, converted_metadata = apply_converters(result_df_raw, metadata, store_key)
+                validate_and_store(result_df, converted_metadata, observation)
             return None
 
+        # For single Observation
         calc_dict = obj.get_calculated_data_by_key(store_key)
         existing_df = calc_dict.get("data") if calc_dict else None
         existing_metadata = calc_dict.get("metadata", {}) if calc_dict else {}
         if (existing_df is not None and not recalculate and
-            existing_metadata.get("time_step") == time_step):
+            existing_metadata.get("time_step") == time_step and
+            all(existing_metadata.get(k) == metadata.get(k) for k in expected_metadata_types)):
             if not existing_df.is_empty():
-                logger.debug(f"Retrieved cached data for '{store_key}' in '{obj_name}'")
+                logger.debug(f"Cache hit for '{store_key}' in '{obj_name}'")
                 return existing_df
-            logger.warning(f"Cached data for '{store_key}' in '{obj_name}' is empty; recalculating")
+            logger.warning(f"Cached data empty for '{store_key}' in '{obj_name}'; recalculating")
 
-        logger.info(f"Calculating '{store_key}' for '{obj_name}' (recalculate={recalculate})")
-        result_df = calc_func(obj, attributes)
-        result_df, converted_metadata = apply_converters(result_df, metadata, store_key)
-
-        if result_df.is_empty():
-            logger.warning(f"Calculation for '{store_key}' in '{obj_name}' returned empty result")
-            result_df = pl.DataFrame(schema=expected_dtypes)
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-        else:
-            if not all(col in result_df.columns for col in expected_columns):
-                logger.error(f"Invalid DataFrame structure for '{store_key}' in '{obj_name}': missing columns")
-                result_df = pl.DataFrame(schema=expected_dtypes)
-                with self._lock:
-                    obj.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-            else:
-                for col, dtype in expected_dtypes.items():
-                    if col in result_df.columns and result_df[col].dtype != dtype:
-                        logger.warning(f"Invalid dtype for column '{col}' in '{store_key}' for '{obj_name}': expected {dtype}, got {result_df[col].dtype}")
-                        try:
-                            result_df = result_df.with_columns(pl.col(col).cast(dtype, strict=False))
-                        except Exception as e:
-                            logger.error(f"Failed to cast column '{col}' to {dtype} in '{store_key}' for '{obj_name}': {str(e)}")
-                            result_df = pl.DataFrame(schema=expected_dtypes)
-                            break
-
-                for meta_key, meta_type in expected_metadata_types.items():
-                    if meta_key not in converted_metadata:
-                        logger.error(f"Missing metadata '{meta_key}' for key '{store_key}' in '{obj_name}'")
-                        result_df = pl.DataFrame(schema=expected_dtypes)
-                        with self._lock:
-                            obj.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-                        break
-                    if not isinstance(converted_metadata[meta_key], meta_type):
-                        logger.error(f"Invalid metadata type for '{meta_key}' in '{store_key}' for '{obj_name}': expected {meta_type}, got {type(converted_metadata[meta_key])}")
-                        result_df = pl.DataFrame(schema=expected_dtypes)
-                        with self._lock:
-                            obj.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-                        break
-                else:
-                    with self._lock:
-                        obj.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-
-        logger.debug(f"Stored result for '{store_key}' in '{obj_name}': {result_df.shape}, metadata: {converted_metadata}")
-        return result_df
+        logger.info(f"Calculating '{store_key}' for '{obj_name}'")
+        result_df_raw = calc_func(obj, attributes)
+        result_df, converted_metadata = apply_converters(result_df_raw, metadata, store_key)
+        final_df = validate_and_store(result_df, converted_metadata, obj)
+        logger.debug(f"Stored result for '{store_key}' in '{obj_name}': {final_df.shape}")
+        return final_df
 
     def _process_object(
         self,
