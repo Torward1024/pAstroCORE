@@ -2382,12 +2382,7 @@ class ScheduleCalculator(Super):
                     logger.warning(f"Invalid time values (null or NaN) in time_data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("time_on_source"))
 
-                source_names = []
-                scan_names = []
-                telescope_codes = []
-                start_times = []
-                end_times = []
-                durations = []
+                time_on_source_dfs = []  # Collect small DataFrames for concatenation
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -2398,26 +2393,15 @@ class ScheduleCalculator(Super):
                     for future in futures:
                         scan_result = future.result()
                         if not scan_result.is_empty():
-                            source_names.extend(scan_result["source_name"])
-                            scan_names.extend(scan_result["scan_name"])
-                            telescope_codes.extend(scan_result["telescope_code"])
-                            start_times.extend(scan_result["start"])
-                            end_times.extend(scan_result["end"])
-                            durations.extend(scan_result["duration"])
+                            time_on_source_dfs.append(scan_result)
 
-                result_df = pl.DataFrame({
-                    "source_name": source_names,
-                    "scan_name": scan_names,
-                    "telescope_code": telescope_codes,
-                    "start": start_times,
-                    "end": end_times,
-                    "duration": durations
-                }, schema=CalculatedDataStructure.get_dtypes("time_on_source"))
-
-                if result_df.is_empty():
-                    logger.warning(f"No time-on-source blocks computed for observation '{obs.get_observation_code()}'")
+                if time_on_source_dfs:
+                    result_df = pl.concat(time_on_source_dfs, how="vertical")
                 else:
-                    logger.info(f"Computed time-on-source blocks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
+                    logger.warning(f"No time-on-source blocks computed for observation '{obs.get_observation_code()}'")
+                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("time_on_source"))
+
+                logger.info(f"Computed time-on-source blocks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
                 return result_df
 
             metadata = {
@@ -2480,9 +2464,13 @@ class ScheduleCalculator(Super):
 
         tel_codes = [tel.get_code() for tel in active_telescopes]
         n_times = len(scan_times)
+
+        # Batch filter visibility for all telescope codes
+        filtered_visibility = scan_visibility.filter(pl.col("telescope_code").is_in(tel_codes))
+        
         visibility = np.array([
-            scan_visibility.filter(pl.col("telescope_code") == code)["visibility"].to_numpy()
-            if code in scan_visibility["telescope_code"] else np.full(n_times, False)
+            filtered_visibility.filter(pl.col("telescope_code") == code)["visibility"].to_numpy()
+            if code in filtered_visibility["telescope_code"] else np.full(n_times, False)
             for code in tel_codes
         ], dtype=bool)
 
@@ -2495,12 +2483,7 @@ class ScheduleCalculator(Super):
             logger.warning(f"Invalid visibility values (None) for scan '{scan_name}'")
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("time_on_source"))
 
-        source_names = []
-        scan_names = []
-        telescope_codes = []
-        start_times = []
-        end_times = []
-        durations = []
+        time_on_source_dfs = []  # Collect small DataFrames for concatenation
 
         try:
             if time_step is None:
@@ -2510,12 +2493,14 @@ class ScheduleCalculator(Super):
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("time_on_source"))
                 for i, tel_code in enumerate(tel_codes):
                     if visibility[i, 0]:
-                        source_names.append(source_name)
-                        scan_names.append(scan_name)
-                        telescope_codes.append(tel_code)
-                        start_times.append(scan_times[0])
-                        end_times.append(scan_times[0] + duration / 86400.0)  # Convert seconds to MJD
-                        durations.append(duration)
+                        time_on_source_dfs.append(pl.DataFrame({
+                            "source_name": [source_name],
+                            "scan_name": [scan_name],
+                            "telescope_code": [tel_code],
+                            "start": [scan_times[0]],
+                            "end": [scan_times[0] + duration / 86400.0],  # Convert seconds to MJD
+                            "duration": [duration]
+                        }, schema=CalculatedDataStructure.get_dtypes("time_on_source")))
                         logger.debug(f"Computed 1 time-on-source block for telescope '{tel_code}' in scan '{scan_name}'")
             else:
                 for i, tel_code in enumerate(tel_codes):
@@ -2536,38 +2521,41 @@ class ScheduleCalculator(Super):
                         logger.debug(f"No time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
                         continue
 
-                    for start_idx, end_idx in zip(start_indices, end_indices):
-                        start_mjd = scan_times[start_idx]
-                        end_mjd = scan_times[end_idx]
-                        duration = (end_mjd - start_mjd) * 86400.0  # Convert MJD to seconds
-                        if duration <= 0:
-                            logger.warning(f"Invalid duration {duration} for telescope '{tel_code}' in scan '{scan_name}'")
-                            continue
-                        source_names.append(source_name)
-                        scan_names.append(scan_name)
-                        telescope_codes.append(tel_code)
-                        start_times.append(start_mjd)
-                        end_times.append(end_mjd)
-                        durations.append(duration)
-                    logger.debug(f"Computed {len(start_indices)} time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
+                    starts = scan_times[start_indices]
+                    ends = scan_times[end_indices]
+                    durations = (ends - starts) * 86400.0  # Convert MJD to seconds
+                    valid_mask = durations > 0
+                    if not np.any(valid_mask):
+                        logger.debug(f"No valid time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
+                        continue
+
+                    starts = starts[valid_mask]
+                    ends = ends[valid_mask]
+                    durations = durations[valid_mask]
+                    n_blocks = len(starts)
+
+                    time_on_source_dfs.append(pl.DataFrame({
+                        "source_name": [source_name] * n_blocks,
+                        "scan_name": [scan_name] * n_blocks,
+                        "telescope_code": [tel_code] * n_blocks,
+                        "start": starts,
+                        "end": ends,
+                        "duration": durations
+                    }, schema=CalculatedDataStructure.get_dtypes("time_on_source")))
+                    logger.debug(f"Computed {n_blocks} time-on-source blocks for telescope '{tel_code}' in scan '{scan_name}'")
 
         except Exception as e:
             logger.error(f"Failed to compute time-on-source blocks for scan '{scan_name}' at MJD {scan_times[0] if len(scan_times) > 0 else None}: {str(e)}")
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("time_on_source"))
 
-        result_df = pl.DataFrame({
-            "source_name": source_names,
-            "scan_name": scan_names,
-            "telescope_code": telescope_codes,
-            "start": start_times,
-            "end": end_times,
-            "duration": durations
-        }, schema=CalculatedDataStructure.get_dtypes("time_on_source"))
-
-        if result_df.is_empty():
+        if time_on_source_dfs:
+            result_df = pl.concat(time_on_source_dfs, how="vertical")
+        else:
             logger.warning(f"No time-on-source blocks computed for scan '{scan_name}'")
-        return result_df
+            result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("time_on_source"))
 
+        return result_df
+    
     @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
         """Calculate beam pattern for active telescopes in the observation or project, independent of frequency.
