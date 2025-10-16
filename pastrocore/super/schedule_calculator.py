@@ -321,7 +321,7 @@ class ScheduleCalculator(Super):
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
 
     @time_execution
-    def _calculate_interpolated_orbits(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
+    def _calculate_interpolated_orbits(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
         """Calculate interpolated orbit data for active SpaceTelescopes in active scans.
 
         Args:
@@ -329,17 +329,7 @@ class ScheduleCalculator(Super):
             attributes: Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            pl.DataFrame | Dict[str, pl.DataFrame]: For Observation, returns a Polars DataFrame with columns
-                ["time", "scan_name", "telescope_code", "x", "y", "z"], where "time" is MJD (float64).
-                For ScheduleProject, returns a dictionary mapping observation codes to Polars DataFrames.
-
-        Notes:
-            - Interpolates orbits only for SpaceTelescopes with use_kep=False in active scans.
-            - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
-            - Stores results under 'interpolated_orbits' key in each Observation's calculated_data.
-            - Preserves data with NaN values, logging a warning instead of excluding.
-            - Time calculations are performed in MJD (float64) to minimize conversions to astropy.Time.
-            - Returns empty DataFrame or dict if no active SpaceTelescopes are found.
+            pl.DataFrame: DataFrame with columns ["time", "scan_name", "telescope_code", "x", "y", "z"] (time as float MJD, positions in meters).
         """
         try:
             time_step = attributes.get("time_step")
@@ -348,239 +338,249 @@ class ScheduleCalculator(Super):
 
             if time_step is not None and time_step <= 0:
                 logger.error(f"Invalid time_step: {time_step}. Must be positive.")
-                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits")) if isinstance(obj, Observation) else {}
+                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
 
             def calculate_orbits(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, telescopes, _ = self._get_active_components(obs, require_scans=True, require_telescopes=True)
                 if not scans:
+                    logger.warning(f"No active scans in observation '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
 
+                # Получаем times DataFrame
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                time_data = self._calculate_time_arrays(obs, time_attrs)
-                if not isinstance(time_data, pl.DataFrame) or time_data.is_empty() or \
-                not all(col in time_data.columns for col in CalculatedDataStructure.get_columns("times")) or \
-                time_data["time"].is_null().any() or time_data["time"].is_nan().any():
-                    logger.warning(f"Invalid time_data for '{obs.get_observation_code()}'")
+                times_df = self._calculate_time_arrays(obs, time_attrs)
+                if times_df.is_empty():
+                    logger.warning(f"No time arrays available for observation '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
 
-                time_series_list = []
-                scan_names_list = []
-                telescope_codes_list = []
-                x_values_list = []
-                y_values_list = []
-                z_values_list = []
-                excluded_telescopes = set()
+                # Фильтруем SpaceTelescopes с use_kep=False
+                active_space_telescopes = [
+                    tel for tel in telescopes
+                    if isinstance(tel, SpaceTelescope) and not tel.get("use_kep")
+                ]
+                if not active_space_telescopes:
+                    logger.debug(f"No active SpaceTelescopes with use_kep=False in '{obs.get_observation_code()}'")
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
+
+                times_list = []
+                scan_names = []
+                telescope_codes = []
+                x_list = []
+                y_list = []
+                z_list = []
+                excluded_telescopes = []
 
                 with self._orbit_cache_lock:
                     for scan in scans:
                         scan_name = scan.name
                         source = scan.get_source(obs)
                         if not source or not source.isactive:
-                            continue
-                        scan_times = time_data.filter(pl.col("scan_name") == scan_name)
-                        if scan_times.is_empty():
+                            logger.debug(f"Skipping scan '{scan_name}' due to inactive or missing source")
                             continue
 
-                        scan_start_mjd = scan.get_start().mjd if scan.get_start() else None
-                        duration = scan.get_duration()
-                        scan_end_mjd = scan_start_mjd + duration / 86400.0 if scan_start_mjd and duration else None
-                        if scan_start_mjd is None or scan_end_mjd is None:
+                        # Фильтруем времена для текущего скана
+                        scan_times_df = times_df.filter(pl.col("scan_name") == scan_name)
+                        if scan_times_df.is_empty():
+                            logger.debug(f"No valid times for scan '{scan_name}' in source '{source.name}'")
                             continue
 
-                        for tel in scan.get_telescopes(obs).get_active_items():
-                            if not isinstance(tel, SpaceTelescope) or tel.get("use_kep"):
-                                continue
+                        scan_times_mjd = scan_times_df["time"].to_numpy()
+                        scan_telescopes = scan.get_telescopes(obs).get_active_items()
+                        scan_space_telescopes = [
+                            tel for tel in scan_telescopes
+                            if isinstance(tel, SpaceTelescope) and not tel.get("use_kep")
+                        ]
+                        if not scan_space_telescopes:
+                            logger.debug(f"No active SpaceTelescopes in scan '{scan_name}'")
+                            continue
+
+                        # Получаем границы времени скана
+                        start_time = scan.get_start().mjd
+                        end_time = start_time + scan.get_duration() / 86400.0
+
+                        for tel in scan_space_telescopes:
                             tel_code = tel.get_code()
                             orbit_file = tel.get_orbit()
                             if not orbit_file:
-                                logger.warning(f"No orbit file for telescope '{tel_code}' in scan '{scan_name}'")
-                                excluded_telescopes.add(tel_code)
+                                logger.warning(f"No orbit file for telescope '{tel_code}' in scan '{scan_name}'; excluding")
+                                excluded_telescopes.append(tel_code)
                                 continue
 
                             try:
-                                orbit_data = self._interpolate_orbit(tel, scan_times["time"].to_numpy(), scan_start_mjd, scan_end_mjd)
-                                if not orbit_data.is_empty() and len(orbit_data) == len(scan_times):
-                                    time_series_list.append(scan_times["time"])
-                                    scan_names_list.append(pl.Series([scan_name] * len(orbit_data)))
-                                    telescope_codes_list.append(pl.Series([tel_code] * len(orbit_data)))
-                                    x_values_list.append(orbit_data["x"])
-                                    y_values_list.append(orbit_data["y"])
-                                    z_values_list.append(orbit_data["z"])
-                                    if any(orbit_data[col].is_nan().any() for col in ["x", "y", "z"]):
-                                        logger.warning(f"Orbit data for '{tel_code}' in scan '{scan_name}' contains NaN values")
-                                else:
-                                    logger.warning(f"No or mismatched orbit data for '{tel_code}' in scan '{scan_name}'")
-                                    excluded_telescopes.add(tel_code)
+                                positions = self._interpolate_orbit(tel, scan_times_mjd, start_time, end_time)
+                                if positions.shape[0] != len(scan_times_mjd):
+                                    logger.warning(f"Position data length mismatch for '{tel_code}' in scan '{scan_name}': got {positions.shape[0]}, expected {len(scan_times_mjd)}")
+                                    positions = np.full((len(scan_times_mjd), 3), np.nan)
+                                    positions[:min(positions.shape[0], len(scan_times_mjd))] = positions[:len(scan_times_mjd)]
+
+                                if np.any(np.isnan(positions)):
+                                    logger.warning(f"Orbit data for '{tel_code}' in scan '{scan_name}' contains NaN values")
+
+                                # Собираем данные для DataFrame
+                                n_times = len(scan_times_mjd)
+                                times_list.append(scan_times_mjd)
+                                scan_names.append(np.full(n_times, scan_name, dtype=object))
+                                telescope_codes.append(np.full(n_times, tel_code, dtype=object))
+                                x_list.append(positions[:, 0])
+                                y_list.append(positions[:, 1])
+                                z_list.append(positions[:, 2])
                             except ValueError as e:
-                                logger.warning(f"Excluding telescope '{tel_code}' in scan '{scan_name}': {str(e)}")
-                                excluded_telescopes.add(tel_code)
-
-                if not time_series_list:
-                    logger.warning(f"No valid positions computed for scan '{scan_name}'")
-                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
-
-                result_df = pl.DataFrame({
-                    "time": pl.concat(time_series_list),
-                    "scan_name": pl.concat(scan_names_list),
-                    "telescope_code": pl.concat(telescope_codes_list),
-                    "x": pl.concat(x_values_list),
-                    "y": pl.concat(y_values_list),
-                    "z": pl.concat(z_values_list)
-                }, schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
+                                logger.warning(f"Excluding telescope '{tel_code}' in scan '{scan_name}' due to interpolation error: {str(e)}")
+                                excluded_telescopes.append(tel_code)
 
                 if excluded_telescopes:
-                    logger.info(f"Excluded {len(excluded_telescopes)} telescopes: {', '.join(sorted(excluded_telescopes))}")
-                return result_df
+                    logger.info(f"Excluded {len(set(excluded_telescopes))} telescopes: {', '.join(set(excluded_telescopes))}")
+
+                if not times_list:
+                    logger.warning(f"No valid orbit data computed for '{obs.get_observation_code()}'")
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
+
+                # Создаём DataFrame
+                df = pl.DataFrame({
+                    "time": np.concatenate(times_list),
+                    "scan_name": np.concatenate(scan_names),
+                    "telescope_code": np.concatenate(telescope_codes),
+                    "x": np.concatenate(x_list),
+                    "y": np.concatenate(y_list),
+                    "z": np.concatenate(z_list)
+                }).with_columns([
+                    pl.col("time").cast(pl.Float64),
+                    pl.col("scan_name").cast(pl.String),
+                    pl.col("telescope_code").cast(pl.String),
+                    pl.col("x").cast(pl.Float64),
+                    pl.col("y").cast(pl.Float64),
+                    pl.col("z").cast(pl.Float64)
+                ])
+
+                logger.info(f"Calculated interpolated orbits for {df['scan_name'].unique().len()} scans across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
+                return df
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_scans(obj)) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_scans(o)) for o in obj.get_observations())
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_items())
             }
-            return self._process_object(obj, attributes, calculate_orbits, store_key, metadata)
+            df = self._process_object(obj, attributes, calculate_orbits, store_key, metadata)
+
+            if not df.is_empty():
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
+                    obj.set_calculated_data_by_key(store_key, df, metadata)
+
+            return df
         except Exception as e:
             logger.error(f"Failed to calculate interpolated orbits for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits")) if isinstance(obj, Observation) else {}
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
 
-    def _interpolate_orbit(self, telescope: SpaceTelescope, times_mjd: np.ndarray, start_time_mjd: float, end_time_mjd: float) -> pl.DataFrame:
+    def _interpolate_orbit(self, telescope: SpaceTelescope, times_mjd: np.ndarray, start_time_mjd: float, end_time_mjd: float) -> np.ndarray:
         """Interpolate orbit data for a space telescope over a given array of times.
 
         Args:
             telescope (SpaceTelescope): The space telescope.
-            times_mjd (np.ndarray): Array of times for interpolation in MJD (float64).
-            start_time_mjd (float): Start time of the required range in MJD (float64).
-            end_time_mjd (float): End time of the required range in MJD (float64).
+            times_mjd (np.ndarray): Array of times for interpolation (MJD as float).
+            start_time_mjd (float): Start time of the required range (MJD).
+            end_time_mjd (float): End time of the required range (MJD).
 
         Returns:
-            pl.DataFrame: Interpolated orbit data with columns ["x", "y", "z"], matching the length of times_mjd.
-
-        Notes:
-            - Uses MJD (float64) for all time calculations to minimize conversions to astropy.Time.
-            - Interpolates only for the available portion of the orbit data, preserving NaN where interpolation is not possible.
-            - Ensures the output DataFrame has the same number of rows as the input times_mjd.
-            - Logs a warning if interpolated data contains NaN values.
+            np.ndarray: Interpolated positions as np.array([[x, y, z], ...]) in meters.
         """
         if telescope.get("use_kep"):
             logger.info(f"Skipping interpolation for '{telescope.get_code()}' as use_kep=True")
-            return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
+            return np.array([])
 
         orbit_file = telescope.get_orbit()
         if not orbit_file:
             logger.warning(f"No orbit file defined for telescope '{telescope.get_code()}'")
-            return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
-
-        if np.any(np.isnan(times_mjd)) or np.any(np.isinf(times_mjd)):
-            logger.error(f"Invalid MJD values in times for '{telescope.get_code()}': {times_mjd[:3]}")
-            return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
-
-        years = Time(times_mjd, format='mjd', scale='utc').ymdhms['year']
-        if np.any(years < 1900) or np.any(years > 9999):
-            logger.error(f"Times out of valid range (1900–9999) for '{telescope.get_code()}': years={years[:3]}")
-            return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
+            return np.array([])
 
         try:
-            orbit_data = self._load_orbit_data(orbit_file, Time(start_time_mjd, format='mjd', scale='utc'), Time(end_time_mjd, format='mjd', scale='utc'))
+            # Проверяем валидность времён
+            if np.any(np.isnan(times_mjd)) or np.any(np.isinf(times_mjd)):
+                logger.error(f"Invalid MJD values in times for '{telescope.get_code()}': {times_mjd}")
+                return np.array([])
+
+            # Загружаем орбитальные данные
+            orbit_data = self._load_orbit_data(orbit_file, start_time_mjd, end_time_mjd)
             if not orbit_data:
                 logger.warning(f"No valid orbit data for '{telescope.get_code()}' in time range {start_time_mjd} to {end_time_mjd}")
-                return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                    schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
+                return np.full((len(times_mjd), 3), np.nan)
 
-            data_times = orbit_data["times"]
+            data_times_mjd = orbit_data["times"]
             positions = orbit_data["positions"]
 
+            # Конвертируем времена в секунды с J2000 для интерполяции
             j2000_mjd = Time("2000-01-01T12:00:00", scale='utc').mjd
             interp_times = (times_mjd - j2000_mjd) * 86400.0
+            data_times = (data_times_mjd - j2000_mjd) * 86400.0
+
+            # Фильтруем времена в пределах данных
             t_start = max((start_time_mjd - j2000_mjd) * 86400.0, data_times[0])
-            t_end = min((end_time_mjd - j2000_mjd) * 86400.0 + 1e-6, data_times[-1])
+            t_end = min((end_time_mjd - j2000_mjd) * 86400.0, data_times[-1])
             valid_mask = (interp_times >= t_start) & (interp_times <= t_end)
             valid_interp_times = interp_times[valid_mask]
 
             if not valid_interp_times.size:
                 logger.warning(f"No valid interpolation times for '{telescope.get_code()}' in range {start_time_mjd} to {end_time_mjd}")
-                return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                    schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
+                return np.full((len(times_mjd), 3), np.nan)
 
+            # Фильтруем и обеспечиваем уникальность орбитальных данных
             unique_indices = np.unique(data_times, return_index=True)[1]
             filtered_times = data_times[unique_indices]
             filtered_positions = positions[unique_indices]
 
             if len(filtered_times) < 2:
                 logger.warning(f"Too few points ({len(filtered_times)}) for interpolation for '{telescope.get_code()}'")
-                return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                    schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
+                return np.full((len(times_mjd), 3), np.nan)
 
-            full_positions = np.full((len(times_mjd), 3), np.nan, dtype=np.float64)
+            # Интерполяция
             method = telescope.get("interpolation_method") or "linear"
-            try:
-                if method == "chebyshev":
-                    degree = min(30, len(filtered_times) - 1)
-                    norm_times = 2 * (filtered_times - t_start) / (t_end - t_start) - 1
-                    norm_interp_times = 2 * (valid_interp_times - t_start) / (t_end - t_start) - 1
-                    for i, pos in enumerate(filtered_positions.T):
-                        valid_mask_pos = ~np.isnan(pos)
-                        if np.sum(valid_mask_pos) < 2:
-                            logger.warning(f"Too few valid points for {method} interpolation in coordinate {i} for '{telescope.get_code()}'")
-                            continue
-                        full_positions[valid_mask, i] = chebyshev.Chebyshev.fit(norm_times[valid_mask_pos], pos[valid_mask_pos], degree)(norm_interp_times)
-                elif method == "cubic_spline":
-                    for i, pos in enumerate(filtered_positions.T):
-                        valid_mask_pos = ~np.isnan(pos)
-                        if np.sum(valid_mask_pos) < 2:
-                            logger.warning(f"Too few valid points for {method} interpolation in coordinate {i} for '{telescope.get_code()}'")
-                            continue
-                        full_positions[valid_mask, i] = CubicSpline(filtered_times[valid_mask_pos], pos[valid_mask_pos])(valid_interp_times)
-                else:
-                    for i, pos in enumerate(filtered_positions.T):
-                        valid_mask_pos = ~np.isnan(pos)
-                        if np.sum(valid_mask_pos) < 2:
-                            logger.warning(f"Too few valid points for linear interpolation in coordinate {i} for '{telescope.get_code()}'")
-                            continue
-                        full_positions[valid_mask, i] = np.interp(valid_interp_times, filtered_times[valid_mask_pos], pos[valid_mask_pos], left=np.nan, right=np.nan)
+            full_positions = np.full((len(times_mjd), 3), np.nan, dtype=float)
 
-                if np.any(np.isnan(full_positions)):
-                    logger.warning(f"Interpolated positions for '{telescope.get_code()}' contain NaN values")
+            if method == "chebyshev":
+                degree = min(30, len(filtered_times) - 1)
+                norm_times = 2 * (filtered_times - t_start) / (t_end - t_start) - 1
+                norm_interp_times = 2 * (valid_interp_times - t_start) / (t_end - t_start) - 1
+                pos_polynomials = [chebyshev.Chebyshev.fit(norm_times, pos, degree) for pos in filtered_positions.T]
+                full_positions[valid_mask] = np.array([poly(norm_interp_times) for poly in pos_polynomials]).T
+            elif method == "cubic_spline":
+                full_positions[valid_mask] = np.array([CubicSpline(filtered_times, pos)(valid_interp_times) for pos in filtered_positions.T]).T
+            else:
+                full_positions[valid_mask] = np.array([
+                    np.interp(valid_interp_times, filtered_times, pos, left=np.nan, right=np.nan)
+                    for pos in filtered_positions.T
+                ]).T
 
-            except Exception as e:
-                logger.warning(f"Interpolation failed for '{telescope.get_code()}' with method '{method}': {str(e)}")
-                return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                    schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
+            if np.any(np.isnan(full_positions)):
+                logger.warning(f"Interpolated positions for '{telescope.get_code()}' contain NaN values")
 
-            return pl.from_numpy(full_positions, schema=["x", "y", "z"])
+            logger.info(f"Interpolated orbit for '{telescope.get_code()}' using {method} with {len(valid_interp_times)} points")
+            return full_positions
 
         except Exception as e:
             logger.error(f"Failed to interpolate orbit for '{telescope.get_code()}': {str(e)}")
-            return pl.DataFrame({"x": np.full(len(times_mjd), np.nan), "y": np.full(len(times_mjd), np.nan), "z": np.full(len(times_mjd), np.nan)},
-                                schema={"x": pl.Float64, "y": pl.Float64, "z": pl.Float64})
+            return np.full((len(times_mjd), 3), np.nan)
 
-    def _load_orbit_data(self, orbit_file: str, start_time: Optional[Time] = None, end_time: Optional[Time] = None) -> Dict[str, np.ndarray]:
+    def _load_orbit_data(self, orbit_file: str, start_time_mjd: Optional[float] = None, end_time_mjd: Optional[float] = None) -> Dict[str, np.ndarray]:
         """Load orbit data from a CCSDS OEM 2.0 styled file, optionally filtering by time range.
 
         Args:
             orbit_file (str): Path to the orbit file.
-            start_time (Optional[Time]): Start time for filtering data.
-            end_time (Optional[Time]): End time for filtering data.
+            start_time_mjd (Optional[float]): Start time for filtering data (MJD).
+            end_time_mjd (Optional[float]): End time for filtering data (MJD).
 
         Returns:
-            Dict[str, np.ndarray]: Dictionary containing times, positions, and velocities. Returns empty dict if no valid data.
-
-        Raises:
-            FileNotFoundError: If orbit file does not exist.
-            ValueError: If file format is invalid or insufficient data points.
+            Dict[str, np.ndarray]: Dictionary containing times (MJD), positions (meters), and velocities (m/s).
         """
         if not os.path.isfile(orbit_file):
             raise FileNotFoundError(f"Orbit file '{orbit_file}' not found")
-        
+
         try:
             with open(orbit_file, 'r') as f:
                 lines = f.readlines()
-            
+
             data_lines = [line.strip() for line in lines if line.strip() and not line.startswith('#')]
             data_section = False
             valid_lines = []
-            
+
             for line in data_lines:
                 if "META_STOP" in line:
                     data_section = True
@@ -592,63 +592,47 @@ class ScheduleCalculator(Super):
                 parts = re.split(r'\s+', line.strip())
                 if len(parts) == 7:
                     valid_lines.append(line)
-            
+
             if len(valid_lines) < 2:
                 raise ValueError(f"Orbit file must contain at least 2 data points, got {len(valid_lines)}")
-            
+
             time_strs = [re.split(r'\s+', line)[0] for line in valid_lines]
-            try:
-                logger.debug(f"Sample time strings from orbit file '{orbit_file}': {time_strs[:3]}")
-                times = Time(time_strs, format='isot', scale='utc')
-            except ValueError as e:
-                logger.error(f"Failed to parse time strings in orbit file '{orbit_file}': {str(e)}")
-                raise ValueError(f"Invalid time format in orbit file: {str(e)}")
-            
-            j2000_epoch = Time("2000-01-01T12:00:00", scale='utc')
-            try:
-                times_sec = (times - j2000_epoch).sec
-            except Exception as e:
-                logger.error(f"Error converting times to seconds since J2000 for '{orbit_file}': {str(e)}")
-                raise ValueError(f"Time conversion error: {str(e)}")
-            
+            times = Time(time_strs, format='isot', scale='utc')
+            times_mjd = times.mjd
+
             positions = np.zeros((len(valid_lines), 3))
             velocities = np.zeros((len(valid_lines), 3))
             for i, line in enumerate(valid_lines):
                 parts = re.split(r'\s+', line)
-                try:
-                    x, y, z = map(float, parts[1:4])  # km -> m
-                    vx, vy, vz = map(float, parts[4:7])  # km/s -> m/s
-                    positions[i] = [x * 1000, y * 1000, z * 1000]
-                    velocities[i] = [vx * 1000, vy * 1000, vz * 1000]
-                except ValueError as e:
-                    logger.warning(f"Invalid data in orbit file '{orbit_file}' at line {i+1}: {str(e)}")
-                    return {}
-            
+                x, y, z = map(float, parts[1:4])  # km -> m
+                vx, vy, vz = map(float, parts[4:7])  # km/s -> m/s
+                positions[i] = [x * 1000, y * 1000, z * 1000]
+                velocities[i] = [vx * 1000, vy * 1000, vz * 1000]
+
             if np.any(np.isnan(positions)) or np.any(np.isnan(velocities)):
                 logger.warning(f"Orbit file '{orbit_file}' contains NaN values")
-            
+                return {}
+
             orbit_data = {
-                "times": times_sec,
+                "times": times_mjd,
                 "positions": positions,
                 "velocities": velocities
             }
-            
-            if start_time is not None and end_time is not None:
-                t_start = (start_time - j2000_epoch).sec
-                t_end = (end_time - j2000_epoch).sec
-                mask = (orbit_data["times"] >= t_start) & (orbit_data["times"] <= t_end)
+
+            if start_time_mjd is not None and end_time_mjd is not None:
+                mask = (times_mjd >= start_time_mjd) & (times_mjd <= end_time_mjd)
                 if not np.any(mask):
-                    logger.warning(f"No orbit data within time range {start_time.isot} to {end_time.isot} for file '{orbit_file}'")
+                    logger.warning(f"No orbit data within time range {start_time_mjd} to {end_time_mjd} for file '{orbit_file}'")
                     return {}
                 orbit_data = {
                     "times": orbit_data["times"][mask],
                     "positions": orbit_data["positions"][mask],
                     "velocities": orbit_data["velocities"][mask]
                 }
-            
+
             logger.info(f"Loaded orbit data from '{orbit_file}' with {len(orbit_data['times'])} points")
             return orbit_data
-        
+
         except FileNotFoundError:
             logger.error(f"Orbit file '{orbit_file}' not found")
             raise
