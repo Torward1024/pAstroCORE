@@ -289,11 +289,7 @@ class ScheduleCalculator(Super):
                     "source_name": source_names,
                     "scan_name": scan_names,
                     "time": times_array
-                }).with_columns([
-                    pl.col("source_name").cast(pl.String),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("time").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("times"))
                 
                 logger.info(f"Calculated time arrays for {processed_scans} scans across {df['source_name'].unique().len()} sources in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -437,14 +433,7 @@ class ScheduleCalculator(Super):
                     "x": np.concatenate(x_list),
                     "y": np.concatenate(y_list),
                     "z": np.concatenate(z_list)
-                }).with_columns([
-                    pl.col("time").cast(pl.Float64),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("telescope_code").cast(pl.String),
-                    pl.col("x").cast(pl.Float64),
-                    pl.col("y").cast(pl.Float64),
-                    pl.col("z").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
 
                 logger.info(f"Calculated interpolated orbits for {df['scan_name'].unique().len()} scans across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -718,14 +707,7 @@ class ScheduleCalculator(Super):
                     "x": np.concatenate(x_list),
                     "y": np.concatenate(y_list),
                     "z": np.concatenate(z_list)
-                }).with_columns([
-                    pl.col("time").cast(pl.Float64),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("telescope_code").cast(pl.String),
-                    pl.col("x").cast(pl.Float64),
-                    pl.col("y").cast(pl.Float64),
-                    pl.col("z").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("telescope_positions"))
 
                 logger.info(f"Calculated positions for {df['scan_name'].unique().len()} scans in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -845,7 +827,7 @@ class ScheduleCalculator(Super):
                 x, y, z = telescope.get_coordinates()
                 res = telescope.get(["vx", "vy", "vz"])
                 vx, vy, vz = res["vx"], res["vy"], res["vz"]
-                dt = (times_mjd - Time("2000-01-01T12:00:00").mjd) * 86400.0  # секунды с J2000
+                dt = (times_mjd - Time("2000-01-01T12:00:00").mjd) * 86400.0
                 itrs_coords = CartesianRepresentation(
                     x + vx * dt,
                     y + vy * dt,
@@ -872,7 +854,7 @@ class ScheduleCalculator(Super):
                 epoch = kepler["epoch"].mjd
                 mu = kepler["mu"]  # gravitational parameter (m^3/s^2)
                 n = np.sqrt(mu / a**3)
-                dt = (times_mjd - epoch) * 86400.0  # секунды с эпохи
+                dt = (times_mjd - epoch) * 86400.0
                 M = nu0 + n * dt
                 solve_kepler_vec = np.vectorize(self._solve_kepler)
                 E = solve_kepler_vec(M, e)
@@ -1006,13 +988,7 @@ class ScheduleCalculator(Super):
                     "telescope_code": np.concatenate(telescope_codes),
                     "source_name": np.concatenate(source_names),
                     "visibility": np.concatenate(is_visible_list)
-                }).with_columns([
-                    pl.col("time").cast(pl.Float64),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("telescope_code").cast(pl.String),
-                    pl.col("source_name").cast(pl.String),
-                    pl.col("visibility").cast(pl.Boolean)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("source_visibility"))
 
                 logger.info(f"Calculated visibility for {df['scan_name'].unique().len()} scans across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -1237,15 +1213,7 @@ class ScheduleCalculator(Super):
                     "u": np.concatenate(u_list),
                     "v": np.concatenate(v_list),
                     "w": np.concatenate(w_list)
-                }).with_columns([
-                    pl.col("time").cast(pl.Float64),
-                    pl.col("source_name").cast(pl.String),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("baseline").cast(pl.String),
-                    pl.col("u").cast(pl.Float64),
-                    pl.col("v").cast(pl.Float64),
-                    pl.col("w").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
 
                 logger.info(f"Calculated UV coverage for {df['scan_name'].unique().len()} scans across {df['baseline'].unique().len()} baselines in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -1509,13 +1477,7 @@ class ScheduleCalculator(Super):
                     "telescope_code": np.concatenate(telescope_codes),
                     "source_name": np.concatenate(source_names),
                     "angle": np.concatenate(sun_angles_list)
-                }).with_columns([
-                    pl.col("time").cast(pl.Float64),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("telescope_code").cast(pl.String),
-                    pl.col("source_name").cast(pl.String),
-                    pl.col("angle").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("sun_angles"))
 
                 logger.info(f"Calculated sun angles for {df['scan_name'].unique().len()} scans across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -1759,14 +1721,7 @@ class ScheduleCalculator(Super):
                     "source_name": np.concatenate(source_names),
                     "az": np.concatenate(az_ha_list),
                     "el": np.concatenate(el_dec_list)
-                }).with_columns([
-                    pl.col("time").cast(pl.Float64),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("telescope_code").cast(pl.String),
-                    pl.col("source_name").cast(pl.String),
-                    pl.col("az").cast(pl.Float64),
-                    pl.col("el").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("az_el"))
 
                 logger.info(f"Calculated az/el or ha/dec for {df['scan_name'].unique().len()} scans across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -1975,14 +1930,7 @@ class ScheduleCalculator(Super):
                     "start": np.concatenate(start_mjd_list),
                     "end": np.concatenate(end_mjd_list),
                     "duration": np.concatenate(durations_list)
-                }).with_columns([
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("telescope_code").cast(pl.String),
-                    pl.col("source_name").cast(pl.String),
-                    pl.col("start").cast(pl.Float64),
-                    pl.col("end").cast(pl.Float64),
-                    pl.col("duration").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("time_on_source"))
 
                 logger.info(f"Calculated time-on-source for {df['scan_name'].unique().len()} scans across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -2149,16 +2097,11 @@ class ScheduleCalculator(Super):
                     logger.warning(f"No telescopes with valid diameters in '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
-                # Создаём DataFrame
                 df = pl.DataFrame({
                     "telescope_code": np.concatenate(telescope_codes),
                     "theta": np.concatenate(theta_list),
                     "pattern": np.concatenate(pattern_list)
-                }).with_columns([
-                    pl.col("telescope_code").cast(pl.String),
-                    pl.col("theta").cast(pl.Float64),
-                    pl.col("pattern").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
                 logger.info(f"Calculated beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -2260,13 +2203,7 @@ class ScheduleCalculator(Super):
                     "source_name": np.concatenate(source_names),
                     "baseline": np.concatenate(baselines),
                     "projection": np.concatenate(projections_list)
-                }).with_columns([
-                    pl.col("time").cast(pl.Float64),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("source_name").cast(pl.String),
-                    pl.col("baseline").cast(pl.String),
-                    pl.col("projection").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
                 logger.info(f"Calculated baseline projections for {df['scan_name'].unique().len()} scans across {df['baseline'].unique().len()} baselines in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
@@ -2452,13 +2389,7 @@ class ScheduleCalculator(Super):
                     "telescope_code": np.concatenate(telescope_codes),
                     "lon": np.concatenate(lons_list),
                     "lat": np.concatenate(lats_list)
-                }).with_columns([
-                    pl.col("time").cast(pl.Float64),
-                    pl.col("scan_name").cast(pl.String),
-                    pl.col("telescope_code").cast(pl.String),
-                    pl.col("lon").cast(pl.Float64),
-                    pl.col("lat").cast(pl.Float64)
-                ])
+                }, schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
                 logger.info(f"Calculated Mollweide tracks for {df['scan_name'].unique().len()} scans across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
                 return df
