@@ -117,341 +117,208 @@ class ScheduleCalculator(Super):
         
         return scans, telescopes, sources
 
-    def _get_cached_or_calculate(self, obj: Union[Observation, ScheduleProject], store_key: str, calc_func: Callable,
-                                attributes: Dict[str, Any], metadata: Dict[str, Any]) -> Optional[pl.DataFrame]:
-        """Retrieve cached data or perform calculation and cache the result as a Polars DataFrame.
+    def _get_cached_or_calculate(self, obj: Observation | ScheduleProject, store_key: str, calc_func, attributes: Dict[str, Any], metadata: Dict[str, Any]) -> pl.DataFrame:
+        """Retrieve cached data or perform calculation and cache the result.
 
         Args:
             obj (Observation | ScheduleProject): The object to calculate for.
             store_key (str): Unique key for storing/retrieving calculated data.
             calc_func: The calculation function to execute if no valid cache exists.
             attributes (Dict[str, Any]): Calculation parameters (e.g., "recalculate", "time_step").
-            metadata (Dict[str, Any]): Metadata to store with the result (e.g., time step, scan count, start_time, end_time as MJD float).
+            metadata (Dict[str, Any]): Metadata to store with the result (e.g., time step, scan count).
 
         Returns:
-            Optional[pl.DataFrame]: For Observation, returns the calculated or cached DataFrame with time-related
-                columns (time, start, end) as MJD (float64). For ScheduleProject, returns None as calculations
-                are stored in each Observation's calculated_data.
+            pl.DataFrame: Calculated or cached data as Polars DataFrame.
 
         Notes:
-            - For Observation, returns cached DataFrame if "recalculate" is False and valid cache exists (full metadata match).
-            - For ScheduleProject, performs calculations for each Observation and stores results in their calculated_data.
+            - Returns cached result if "recalculate" is False and valid cache exists.
             - Uses thread-safe caching with a lock.
-            - Applies converters from CalculatedDataStructure to ensure time-related columns and metadata are MJD (float64).
             - Logs warnings for empty or invalid results.
-            - Improved: Full metadata check for cache hit to avoid unnecessary recalcs.
         """
         if not store_key:
             logger.error("Empty store_key provided for caching")
-            return None
-
-        expected_columns = CalculatedDataStructure.get_columns(store_key)
-        expected_dtypes = CalculatedDataStructure.get_dtypes(store_key)
-        expected_metadata_types = CalculatedDataStructure.get_metadata_types(store_key)
-        if expected_columns is None or expected_dtypes is None or expected_metadata_types is None:
-            logger.error(f"Invalid store_key '{store_key}' not found in CalculatedDataStructure")
-            return None
+            return pl.DataFrame()
 
         recalculate = attributes.get("recalculate", False)
         time_step = attributes.get("time_step")
         obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
 
-        def apply_converters(df: pl.DataFrame, metadata_in: Dict, key: str) -> tuple[pl.DataFrame, Dict]:
-            """Apply converters to DataFrame columns and metadata to ensure MJD float64 for time-related fields."""
-            converters = CalculatedDataStructure.get_converters(key) or {}
-            df_out = df  # No clone unless needed
-            converted_metadata = metadata_in.copy()
+        existing_data = obj.get_calculated_data_by_key(store_key)
+        if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
+            df = existing_data.get("data")
+            if df is not None and not df.is_empty():
+                logger.debug(f"Retrieved cached data for '{store_key}' in '{obj_name}'")
+                return df
+            logger.warning(f"Cached data for '{store_key}' in '{obj_name}' is empty; recalculating")
 
-            for col, converter in converters.items():
-                if col in df_out.columns:
-                    try:
-                        df_out = df_out.with_columns(pl.col(col).map_elements(converter, return_dtype=pl.Float64))
-                        if col in ["time", "start", "end"] and df_out[col].dtype != pl.Float64:
-                            logger.warning(f"Column '{col}' in key '{key}' for '{obj_name}' is not float64 after conversion; casting")
-                            df_out = df_out.with_columns(pl.col(col).cast(pl.Float64, strict=False))
-                    except Exception as e:
-                        logger.error(f"Failed to apply converter for column '{col}' in key '{key}' of '{obj_name}': {str(e)}")
-                        raise
-
-            for meta_key, converter in converters.items():
-                if meta_key in converted_metadata:
-                    try:
-                        converted_metadata[meta_key] = converter(converted_metadata[meta_key]) if converted_metadata[meta_key] is not None else None
-                        if meta_key in ["start_time", "end_time", "time_step"] and not isinstance(converted_metadata[meta_key], float):
-                            logger.warning(f"Metadata '{meta_key}' in key '{key}' for '{obj_name}' is not float; casting")
-                            converted_metadata[meta_key] = float(converted_metadata[meta_key]) if converted_metadata[meta_key] is not None else None
-                    except Exception as e:
-                        logger.error(f"Failed to apply converter for metadata '{meta_key}' in key '{key}' of '{obj_name}': {str(e)}")
-                        raise
-
-            return df_out, converted_metadata
-
-        def validate_and_store(result_df: pl.DataFrame, converted_metadata: Dict, target_obj: Observation) -> pl.DataFrame:
-            """Validate DF and metadata, store if valid."""
-            if result_df.is_empty():
-                logger.warning(f"Calculation for '{store_key}' in '{target_obj.get_observation_code()}' returned empty result")
-                result_df = pl.DataFrame(schema=expected_dtypes)
-            else:
-                missing_cols = [col for col in expected_columns if col not in result_df.columns]
-                if missing_cols:
-                    logger.error(f"Invalid DataFrame structure for '{store_key}' in '{target_obj.get_observation_code()}': missing {missing_cols}")
-                    result_df = pl.DataFrame(schema=expected_dtypes)
-                else:
-                    for col, dtype in expected_dtypes.items():
-                        if col in result_df.columns and result_df[col].dtype != dtype:
-                            logger.warning(f"Invalid dtype for column '{col}' in '{store_key}': expected {dtype}, got {result_df[col].dtype}")
-                            try:
-                                result_df = result_df.with_columns(pl.col(col).cast(dtype, strict=False))
-                            except Exception as e:
-                                logger.error(f"Cast failed for '{col}': {str(e)}")
-                                result_df = pl.DataFrame(schema=expected_dtypes)
-                                break
-
-                    for meta_key, meta_type in expected_metadata_types.items():
-                        if meta_key not in converted_metadata:
-                            logger.error(f"Missing metadata '{meta_key}' for '{store_key}'")
-                            result_df = pl.DataFrame(schema=expected_dtypes)
-                            break
-                        if not isinstance(converted_metadata[meta_key], meta_type):
-                            logger.error(f"Invalid metadata type for '{meta_key}': expected {meta_type}, got {type(converted_metadata[meta_key])}")
-                            result_df = pl.DataFrame(schema=expected_dtypes)
-                            break
-
-            with self._lock:
-                target_obj.set_calculated_data_by_key(store_key, result_df, converted_metadata)
-            return result_df
-
-        if isinstance(obj, ScheduleProject):
-            for observation in obj.get_observations():
-                calc_dict = observation.get_calculated_data_by_key(store_key)
-                existing_df = calc_dict.get("data") if calc_dict else None
-                existing_metadata = calc_dict.get("metadata", {}) if calc_dict else {}
-                # Improved: Full metadata match
-                if (existing_df is not None and not recalculate and
-                    existing_metadata.get("time_step") == time_step and
-                    all(existing_metadata.get(k) == metadata.get(k) for k in expected_metadata_types)):
-                    if not existing_df.is_empty():
-                        logger.debug(f"Cache hit for '{store_key}' in observation '{observation.get_observation_code()}'")
-                        continue
-                    logger.warning(f"Cached data empty for '{store_key}' in '{observation.get_observation_code()}'; recalculating")
-
-                logger.info(f"Calculating '{store_key}' for observation '{observation.get_observation_code()}'")
-                result_df_raw = calc_func(observation, attributes)
-                result_df, converted_metadata = apply_converters(result_df_raw, metadata, store_key)
-                validate_and_store(result_df, converted_metadata, observation)
-            return None
-
-        # For single Observation
-        calc_dict = obj.get_calculated_data_by_key(store_key)
-        existing_df = calc_dict.get("data") if calc_dict else None
-        existing_metadata = calc_dict.get("metadata", {}) if calc_dict else {}
-        if (existing_df is not None and not recalculate and
-            existing_metadata.get("time_step") == time_step and
-            all(existing_metadata.get(k) == metadata.get(k) for k in expected_metadata_types)):
-            if not existing_df.is_empty():
-                logger.debug(f"Cache hit for '{store_key}' in '{obj_name}'")
-                return existing_df
-            logger.warning(f"Cached data empty for '{store_key}' in '{obj_name}'; recalculating")
-
-        logger.info(f"Calculating '{store_key}' for '{obj_name}'")
-        result_df_raw = calc_func(obj, attributes)
-        result_df, converted_metadata = apply_converters(result_df_raw, metadata, store_key)
-        final_df = validate_and_store(result_df, converted_metadata, obj)
-        logger.debug(f"Stored result for '{store_key}' in '{obj_name}': {final_df.shape}")
-        return final_df
+        logger.info(f"Calculating '{store_key}' for '{obj_name}' (recalculate={recalculate})")
+        result_df = calc_func(obj, attributes)
+        if result_df.is_empty():
+            logger.warning(f"Calculation for '{store_key}' in '{obj_name}' returned empty result")
+        with self._lock:
+            obj.set_calculated_data_by_key(store_key, result_df, metadata)
+        return result_df
 
     def _process_object(
         self,
-        obj: Union[Observation, ScheduleProject],
+        obj: Observation | ScheduleProject,
         attributes: Dict[str, Any],
         calc_func: Callable[[Observation, Dict[str, Any]], pl.DataFrame],
         store_key: str,
         metadata: Dict[str, Any]
-    ) -> Union[pl.DataFrame, Dict[str, pl.DataFrame]]:
+    ) -> pl.DataFrame:
         """Process an object (Observation or ScheduleProject) with parallel execution for projects.
 
         Args:
             obj: The object to process (Observation or ScheduleProject).
             attributes: Calculation parameters.
-            calc_func: Function to perform calculation for a single Observation, returning a Polars DataFrame
-                with time-related columns (time, start, end) as MJD (float64).
+            calc_func: Function to perform calculation for a single Observation.
             store_key: Key for caching results.
             metadata: Metadata for cache validation.
 
         Returns:
-            pl.DataFrame | Dict[str, pl.DataFrame]: For Observation, returns a single DataFrame with
-                time-related columns as MJD (float64). For ScheduleProject, returns a dictionary mapping
-                observation codes to DataFrames.
-
-        Notes:
-            - Uses ThreadPoolExecutor for parallel processing of ScheduleProject observations.
-            - Ensures thread-safe caching with a lock.
-            - Logs computation progress and results.
+            pl.DataFrame: Calculated results as Polars DataFrame.
         """
         obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
         
         if isinstance(obj, ScheduleProject):
-            observations = obj.get_observations()
+            observations = obj.get_items()
             if not observations:
-                logger.warning(f"No observations in project '{obj_name}'")
-                return {}
-            results = {}
-            max_workers = min(len(observations), os.cpu_count() // 2 or 1)  # Optimized: limit workers to avoid memory overload
+                logger.warning(f"No observations in project '{obj.name}'")
+                return pl.DataFrame()
+            dfs = []
+            max_workers = min(len(observations), 4) if len(observations) > 1 else 1
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {
-                    executor.submit(self._get_cached_or_calculate, obs, store_key, calc_func, attributes, metadata): obs.get_observation_code()
+                    executor.submit(self._process_object, obs, attributes, calc_func, store_key, metadata): obs.get_observation_code()
                     for obs in observations
                 }
                 for future in futures:
                     obs_code = futures[future]
-                    try:
-                        result_df = future.result()
-                        if result_df is None or result_df.is_empty():
-                            logger.warning(f"No data computed for observation '{obs_code}' with store_key '{store_key}'")
-                            expected_dtypes = CalculatedDataStructure.get_dtypes(store_key) or {}
-                            result_df = pl.DataFrame(schema=expected_dtypes)
-                        else:
-                            logger.debug(f"Computed data for observation '{obs_code}' with store_key '{store_key}': {result_df.shape}")
-                        results[obs_code] = result_df
-                    except Exception as e:
-                        logger.error(f"Failed to compute data for observation '{obs_code}' with store_key '{store_key}': {str(e)}")
-                        expected_dtypes = CalculatedDataStructure.get_dtypes(store_key) or {}
-                        results[obs_code] = pl.DataFrame(schema=expected_dtypes)
-            logger.info(f"Processed {len(observations)} observations for '{obj_name}' with store_key '{store_key}'")
-            return results
+                    df = future.result()
+                    if not df.is_empty():
+                        dfs.append(df)
+            if dfs:
+                combined_df = pl.concat(dfs)
+                logger.info(f"Processed {len(observations)} observations for '{obj_name}', combined into DF with {combined_df.height} rows")
+                return combined_df
+            else:
+                logger.warning(f"No data from observations in project '{obj_name}'")
+                return pl.DataFrame()
         
         result_df = self._get_cached_or_calculate(obj, store_key, calc_func, attributes, metadata)
-        if result_df is None or result_df.is_empty():
+        if result_df.is_empty():
             logger.warning(f"No data computed for '{obj_name}' with store_key '{store_key}'")
-            expected_dtypes = CalculatedDataStructure.get_dtypes(store_key) or {}
-            result_df = pl.DataFrame(schema=expected_dtypes)
-            with self._lock:
-                obj.set_calculated_data_by_key(store_key, result_df, metadata)
-        logger.debug(f"Result for '{obj_name}' with store_key '{store_key}': {result_df.shape}, metadata: {metadata}")
         return result_df
     
     @time_execution
-    def _calculate_time_arrays(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
+    def _calculate_time_arrays(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
         """Calculate time arrays for active scans grouped by active sources with a configurable time threshold.
 
         Args:
-            obj: The object to calculate time arrays for.
-            attributes: Parameters including "time_step", "time_threshold", "store_key", "recalculate".
+            obj: The object to calculate time arrays for (Observation or ScheduleProject).
+            attributes: Parameters including "time_step", "time_threshold", "store_key".
 
         Returns:
-            pl.DataFrame | Dict[str, pl.DataFrame]: For Observation, returns a Polars DataFrame with columns
-                ["source_name", "scan_name", "time"], where "time" contains MJD values (float64).
-                For ScheduleProject, returns a dictionary mapping observation codes to Polars DataFrames.
-
-        Notes:
-            - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
-            - Stores results in Observation's calculated_data under the specified store_key.
-            - Metadata fields start_time and end_time are stored as MJD (float).
-            - Time calculations are performed in MJD (float64) to minimize conversions to astropy.Time.
-            - Returns empty DataFrame or dict if no valid scans or sources are found.
+            pl.DataFrame: DataFrame with columns ["source_name", "scan_name", "time"] (time as float MJD).
         """
         try:
             time_step = attributes.get("time_step")
             time_threshold = attributes.get("time_threshold", 1.0)
             store_key = attributes.get("store_key", "times")
-            recalculate = attributes.get("recalculate", False)
-
+            
             if time_step is not None and time_step <= 0:
-                logger.error(f"Invalid time_step: {time_step}")
-                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times")) if isinstance(obj, Observation) else {}
+                logger.error(f"Invalid time_step: {time_step}. Must be positive.")
+                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
             if time_threshold <= 0:
-                logger.error(f"Invalid time_threshold: {time_threshold}")
-                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times")) if isinstance(obj, Observation) else {}
+                logger.error(f"Invalid time_threshold: {time_threshold}. Must be positive.")
+                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
 
             def calculate_times(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, _, sources = self._get_active_components(obs)
                 if not scans:
+                    logger.warning(f"No active scans in observation '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
-
+                
                 source_names = []
                 scan_names = []
-                time_values = []
+                times_array = []
+                start_times = []
+                end_times = []
                 processed_scans = 0
-
+                
                 for scan in scans:
                     source = scan.get_source(obs)
                     if source is None or not source.isactive:
+                        logger.debug(f"Skipping scan '{scan.name}' in '{obs.get_observation_code()}': no active source")
                         continue
                     source_name = source.name
                     start_time = scan.get_start()
                     duration = scan.get_duration()
-                    if start_time is None or duration is None:
-                        continue
-
-                    start_mjd = start_time.mjd
-                    start_mjd_rounded = round(start_mjd * 86400.0 / time_threshold) * time_threshold / 86400.0
+                    
+                    start_mjd_rounded = round(start_time.mjd * 86400.0 / time_threshold) * time_threshold / 86400.0
                     duration_rounded = round(duration / time_threshold) * time_threshold
-                    if duration_rounded <= 0:
-                        continue
-
-                    day_step = time_step / 86400.0 if time_step is not None else None
-
+                    
                     if time_step is None:
-                        mid_time = start_mjd_rounded + duration_rounded / (2 * 86400.0)
-                        source_names.append(np.array([source_name], dtype=object))
-                        scan_names.append(np.array([scan.name], dtype=object))
-                        time_values.append(np.array([mid_time], dtype=np.float64))
+                        mjd_values = np.array([start_mjd_rounded + (duration_rounded / 2) / 86400.0])
                     else:
-                        num_points = max(1, int(round(duration_rounded / time_step)) + 1)
-                        if num_points <= 1:
-                            mid_time = start_mjd_rounded + (duration_rounded / 2) / 86400.0
-                            source_names.append(np.array([source_name], dtype=object))
-                            scan_names.append(np.array([scan.name], dtype=object))
-                            time_values.append(np.array([mid_time], dtype=np.float64))
-                        else:
-                            end_excl = start_mjd_rounded + duration_rounded / 86400.0
-                            times = np.linspace(start_mjd_rounded, end_excl, num_points, endpoint=False, dtype=np.float64)
-                            source_names.append(np.full(len(times), source_name, dtype=object))
-                            scan_names.append(np.full(len(times), scan.name, dtype=object))
-                            time_values.append(times)
-
+                        n_points = int(np.ceil(duration_rounded / time_step))
+                        time_offsets = np.linspace(0, duration_rounded, n_points, endpoint=False) / 86400.0
+                        mjd_values = start_mjd_rounded + time_offsets
+                    
+                    if len(mjd_values) == 0:
+                        logger.warning(f"Empty time array for scan '{scan.name}' in '{obs.get_observation_code()}'")
+                        continue
+                    
+                    source_names.append(np.full_like(mjd_values, source_name, dtype=object))
+                    scan_names.append(np.full_like(mjd_values, scan.name, dtype=object))
+                    times_array.append(mjd_values)
+                    start_times.append(start_mjd_rounded)
+                    end_times.append(start_mjd_rounded + duration_rounded / 86400.0)
                     processed_scans += 1
-
+                
                 if processed_scans == 0:
+                    logger.warning(f"No valid scans processed in '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
-
-                concat_source = np.concatenate(source_names)
-                concat_scan = np.concatenate(scan_names)
-                concat_time = np.concatenate(time_values)
-
-                result_df = pl.DataFrame({
-                    "source_name": concat_source,
-                    "scan_name": concat_scan,
-                    "time": concat_time
-                }).cast({"time": pl.Float64})
-
-                logger.info(f"Calculated time arrays for {processed_scans} scans in '{obs.get_observation_code()}'")
-                return result_df
-
-            start_times = []
-            end_times = []
-            if isinstance(obj, Observation):
-                scans = obj.get_scans().get_active_items()
-                for scan in scans:
-                    start_time = scan.get_start()
-                    duration = scan.get_duration()
-                    if start_time is not None and duration is not None:
-                        start_mjd = start_time.mjd
-                        start_times.append(start_mjd)
-                        end_times.append(start_mjd + duration / 86400.0)
+                
+                source_names = np.concatenate(source_names) if source_names else np.array([])
+                scan_names = np.concatenate(scan_names) if scan_names else np.array([])
+                times_array = np.concatenate(times_array) if times_array else np.array([])
+                
+                df = pl.DataFrame({
+                    "source_name": source_names,
+                    "scan_name": scan_names,
+                    "time": times_array
+                }).with_columns([
+                    pl.col("source_name").cast(pl.String),
+                    pl.col("scan_name").cast(pl.String),
+                    pl.col("time").cast(pl.Float64)
+                ])
+                
+                logger.info(f"Calculated time arrays for {processed_scans} scans across {df['source_name'].unique().len()} sources in '{obs.get_observation_code()}', DF rows: {df.height}")
+                return df
 
             metadata = {
                 "time_step": time_step,
                 "time_threshold": time_threshold,
-                "start_time": float(min(start_times)) if start_times else None,
-                "end_time": float(max(end_times)) if end_times else None,
-                "scan_count": len(start_times)
+                "start_time": np.nan,
+                "end_time": np.nan,
+                "scan_count": 0
             }
-
-            return self._process_object(obj, attributes, calculate_times, store_key, metadata)
+            
+            df = self._process_object(obj, attributes, calculate_times, store_key, metadata)
+            
+            if not df.is_empty():
+                metadata["start_time"] = df["time"].min()
+                metadata["end_time"] = df["time"].max()
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
+                    obj.set_calculated_data_by_key(store_key, df, metadata)
+            
+            return df
         except Exception as e:
-            logger.error(f"Failed to calculate time arrays: {str(e)}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times")) if isinstance(obj, Observation) else {}
+            logger.error(f"Failed to calculate time arrays for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
 
     @time_execution
     def _calculate_interpolated_orbits(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
