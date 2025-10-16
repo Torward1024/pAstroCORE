@@ -2098,494 +2098,450 @@ class ScheduleCalculator(Super):
         )
     
     @time_execution
-    def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
+    def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
         """Calculate beam pattern for active telescopes in the observation or project, independent of frequency.
 
         Args:
-            obj: The object to calculate beam pattern for.
-            attributes: Parameters including "store_key", "recalculate", "theta_min", "theta_max", "theta_points".
+            obj: The object to calculate beam pattern for (Observation or ScheduleProject).
+            attributes: Parameters including "store_key", "recalculate".
 
         Returns:
-            pl.DataFrame | Dict[str, pl.DataFrame]: For Observation, returns a Polars DataFrame with columns
-                ["telescope_code", "theta", "pattern"], where theta and pattern are scalar float values (float64).
-                For ScheduleProject, returns a dictionary mapping observation codes to Polars DataFrames.
-
-        Notes:
-            - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
-            - Stores results under 'beam_pattern' key in each Observation's calculated_data.
-            - Beam pattern is computed as (2 * j1(x) / x)^2, where x = diameter * sin(theta), normalized by maximum.
-            - Preserves NaN in pattern where input data is invalid.
+            pl.DataFrame: DataFrame with columns ["telescope_code", "theta", "pattern"] (theta in radians, pattern normalized).
         """
         try:
             store_key = attributes.get("store_key", "beam_pattern")
             recalculate = attributes.get("recalculate", False)
-            theta_min = attributes.get("theta_min", -np.pi / 2)
-            theta_max = attributes.get("theta_max", np.pi / 2)
-            theta_points = attributes.get("theta_points", 5000)
-
-            if not isinstance(theta_min, (int, float)) or not isinstance(theta_max, (int, float)):
-                logger.error(f"Invalid theta_min or theta_max type for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
-                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern")) if isinstance(obj, Observation) else {}
-            if theta_min >= theta_max:
-                logger.error(f"Invalid theta range: theta_min ({theta_min}) must be less than theta_max ({theta_max})")
-                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern")) if isinstance(obj, Observation) else {}
-            if not isinstance(theta_points, int) or theta_points <= 0:
-                logger.error(f"Invalid theta_points {theta_points} for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be positive integer")
-                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern")) if isinstance(obj, Observation) else {}
 
             def calculate_beam_pattern(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 _, telescopes, _ = self._get_active_components(obs, require_scans=False, require_telescopes=True)
                 if not telescopes:
-                    logger.debug(f"No active telescopes for observation '{obs.get_observation_code()}'")
+                    logger.warning(f"No active telescopes in observation '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
                 obs_type = obs.get_observation_type()
                 if obs_type not in ["SINGLE_DISH", "VLBI"]:
-                    logger.warning(f"Beam pattern calculation is only for SINGLE_DISH or VLBI, got {obs_type} in '{obs.get_observation_code()}'")
+                    logger.warning(f"Beam pattern calculation is only for SINGLE_DISH or VLBI, got {obs_type}")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
+                theta = np.linspace(-np.pi / 2, np.pi / 2, 5000)  # radians
+                telescope_codes = []
+                theta_list = []
+                pattern_list = []
                 valid_telescopes = []
                 diameters = []
+
                 for tel in telescopes:
                     diameter = tel.get("diameter")
-                    if diameter is None or not isinstance(diameter, (int, float)) or np.isnan(diameter):
-                        logger.debug(f"Invalid diameter {diameter} for telescope '{tel.get_code()}' in '{obs.get_observation_code()}'; will produce NaN in pattern")
-                        valid_telescopes.append(tel)
-                        diameters.append(np.nan)
-                    elif diameter <= 0:
-                        logger.warning(f"Non-positive diameter {diameter} for telescope '{tel.get_code()}' in '{obs.get_observation_code()}'; will produce NaN in pattern")
-                        valid_telescopes.append(tel)
-                        diameters.append(np.nan)
-                    else:
-                        valid_telescopes.append(tel)
-                        diameters.append(float(diameter))
+                    if diameter is None or diameter <= 0:
+                        logger.warning(f"Invalid diameter for telescope '{tel.get_code()}' in '{obs.get_observation_code()}'; skipping")
+                        continue
+                    valid_telescopes.append(tel)
+                    diameters.append(diameter)
+                    telescope_codes.append(np.full(len(theta), tel.get_code(), dtype=object))
+                    theta_list.append(theta)
+                    x = diameter * np.sin(theta)
+                    pattern = (2 * j1(x) / x) ** 2
+                    pattern = np.where(np.isnan(pattern), 1.0, pattern)
+                    pattern = pattern / np.max(pattern)
+                    pattern_list.append(pattern)
 
                 if not valid_telescopes:
-                    logger.warning(f"No telescopes in '{obs.get_observation_code()}'")
+                    logger.warning(f"No telescopes with valid diameters in '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
-                theta = np.linspace(theta_min, theta_max, theta_points)
-                diameters = np.array(diameters)
-                x = diameters[:, None] * np.sin(theta)
-                pattern = np.full_like(x, np.nan)
-                valid_diameters = ~np.isnan(diameters)
-                x_valid = x[valid_diameters]
-                if x_valid.size > 0:
-                    pattern[valid_diameters] = (2 * j1(x_valid) / x_valid) ** 2
-                    pattern[valid_diameters] = np.where(np.isnan(pattern[valid_diameters]), 1.0, pattern[valid_diameters])
-                    max_pattern = np.max(pattern[valid_diameters], axis=1, keepdims=True)
-                    valid_max = (max_pattern != 0) & (~np.isnan(max_pattern))
-                    pattern[valid_diameters] = np.where(valid_max, pattern[valid_diameters] / max_pattern, np.nan)
+                # Создаём DataFrame
+                df = pl.DataFrame({
+                    "telescope_code": np.concatenate(telescope_codes),
+                    "theta": np.concatenate(theta_list),
+                    "pattern": np.concatenate(pattern_list)
+                }).with_columns([
+                    pl.col("telescope_code").cast(pl.String),
+                    pl.col("theta").cast(pl.Float64),
+                    pl.col("pattern").cast(pl.Float64)
+                ])
 
-                beam_dfs = []  # Collect small DataFrames for concatenation
-                for tel, pat in zip(valid_telescopes, pattern):
-                    tel_code = tel.get_code()
-                    valid_points = np.sum(~np.isnan(pat))
-                    if valid_points > 0:
-                        beam_dfs.append(pl.DataFrame({
-                            "telescope_code": [tel_code] * len(theta),
-                            "theta": theta,
-                            "pattern": pat
-                        }, schema=CalculatedDataStructure.get_dtypes("beam_pattern")))
-                        logger.debug(f"Computed {valid_points} valid beam pattern points for telescope '{tel_code}' in '{obs.get_observation_code()}'")
-
-                if beam_dfs:
-                    result_df = pl.concat(beam_dfs, how="vertical")
-                else:
-                    logger.warning(f"No beam patterns computed for observation '{obs.get_observation_code()}'")
-                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
-
-                logger.info(f"Computed beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}'")
-                return result_df
+                logger.info(f"Calculated beam pattern for {len(valid_telescopes)} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
+                return df
 
             metadata = {
-                "telescope_count": len(obj.get_telescopes().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_telescopes().get_active_items()) for o in obj.get_observations()),
+                "telescope_count": len(obj.get_telescopes().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_telescopes().get_active_items()) for o in obj.get_items()),
                 "frequency_agnostic": True,
-                "scale_instruction": "Multiply pattern by wavelength during visualization",
-                "theta_min": float(theta_min),
-                "theta_max": float(theta_max),
-                "theta_points": theta_points
+                "scale_instruction": "Multiply pattern by wavelength during visualization"
             }
-            logger.debug(f"Metadata for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {metadata}")
-            return self._process_object(obj, attributes, calculate_beam_pattern, store_key, metadata)
+            df = self._process_object(obj, attributes, calculate_beam_pattern, store_key, metadata)
+
+            if not df.is_empty():
+                metadata["telescope_count"] = df["telescope_code"].unique().len()
+                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
+                    obj.set_calculated_data_by_key(store_key, df, metadata)
+
+            return df
         except Exception as e:
             logger.error(f"Failed to calculate beam pattern for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern")) if isinstance(obj, Observation) else {}
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
     @time_execution
-    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
+    def _calculate_baseline_projections(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
         """Calculate baseline projections for VLBI observations in geometric coordinates (meters).
 
         Args:
-            obj: The object to calculate projections for.
-            attributes: Parameters including "time_step", "store_key", "recalculate", "freq_name" (ignored).
+            obj: The object to calculate projections for (Observation or ScheduleProject).
+            attributes: Parameters including "time_step", "store_key", "recalculate", "visibility_store_key".
 
         Returns:
-            pl.DataFrame | Dict[str, pl.DataFrame]: For Observation, returns a Polars DataFrame with columns
-                ["time", "source_name", "scan_name", "baseline", "projection"], where "time" is MJD (float64).
-                For ScheduleProject, returns a dictionary mapping observation codes to Polars DataFrames.
-
-        Notes:
-            - Uses CalculatedDataStructure to validate DataFrame structure.
-            - Stores results under 'baseline_projections' key in each Observation's calculated_data.
-            - Computes BL = sqrt(u² + v²) from UV data in meters.
-            - Preserves NaN in projection where input UV data contains NaN.
+            pl.DataFrame: DataFrame with columns ["time", "scan_name", "source_name", "baseline", "projection"] (projection in meters).
         """
         try:
             time_step = attributes.get("time_step")
-            if time_step is not None:
-                if not isinstance(time_step, (int, float)):
-                    logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
-                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections")) if isinstance(obj, Observation) else {}
-                if time_step <= 0:
-                    logger.error(f"Invalid time_step {time_step} for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be positive")
-                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections")) if isinstance(obj, Observation) else {}
-            time_step = float(time_step) if time_step is not None else 0.0
-
             store_key = attributes.get("store_key", "baseline_projections")
+            visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
             recalculate = attributes.get("recalculate", False)
-            if "freq_name" in attributes:
-                logger.info(f"Ignoring 'freq_name' attribute for baseline projections in geometric coordinates")
 
             def calculate_baseline_projections(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 if obs.get_observation_type() != "VLBI":
-                    logger.warning(f"Baseline projections are only for VLBI, got {obs.get_observation_type()} in '{obs.get_observation_code()}'")
+                    logger.warning(f"Baseline projections are only for VLBI, got {obs.get_observation_type()}")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
                 scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True, min_telescopes=2)
                 if not scans:
-                    logger.debug(f"No active scans for observation '{obs.get_observation_code()}'")
-                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
-
-                uv_attrs = {"time_step": time_step, "store_key": "uv_coverage", "recalculate": recalculate}
-                uv_data = self._calculate_uv_coverage(obs, uv_attrs)
-                if uv_data.is_empty():
-                    logger.error(f"No UV coverage data for '{obs.get_observation_code()}'")
+                    logger.warning(f"No active scans in observation '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                time_data = self._calculate_time_arrays(obs, time_attrs)
-                if time_data.is_empty():
-                    logger.error(f"No time data for '{obs.get_observation_code()}'")
+                uv_attrs = {"time_step": time_step, "store_key": "uv_coverage", "recalculate": recalculate}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+                times_df = self._calculate_time_arrays(obs, time_attrs)
+                uv_coverage_df = self._calculate_uv_coverage(obs, uv_attrs)
+                visibility_df = self._calculate_source_visibility(obs, visibility_attrs)
+
+                if times_df.is_empty() or uv_coverage_df.is_empty():
+                    logger.error(f"Missing time or UV coverage data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
-                baseline_dfs = []  # Collect small DataFrames for concatenation
+                times_list = []
+                scan_names = []
+                source_names = []
+                baselines = []
+                projections_list = []
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._process_baseline_projections, scan, obs, time_step, uv_data, time_data): scan
-                        for scan in scans
-                    }
+                    futures = {}
+                    for scan in scans:
+                        scan_name = scan.name
+                        scan_times = times_df.filter(pl.col("scan_name") == scan_name)["time"].to_numpy()
+                        if len(scan_times) == 0:
+                            logger.warning(f"No valid times for scan '{scan_name}' in observation '{obs.get_observation_code()}'")
+                            continue
+                        scan_uv = uv_coverage_df.filter(pl.col("scan_name") == scan_name)
+                        scan_visibility = visibility_df.filter(pl.col("scan_name") == scan_name)
+                        futures[executor.submit(
+                            self._process_baseline_projections, scan, obs, scan_times, scan_uv, scan_visibility, telescopes
+                        )] = scan_name
+
                     for future in futures:
+                        scan_name = futures[future]
                         scan_result = future.result()
-                        if not scan_result.is_empty():
-                            baseline_dfs.append(scan_result)
+                        if scan_result is not None:
+                            times, scan_name_arr, source_name_arr, baseline_arr, projections = scan_result
+                            times_list.append(times)
+                            scan_names.append(scan_name_arr)
+                            source_names.append(source_name_arr)
+                            baselines.append(baseline_arr)
+                            projections_list.append(projections)
 
-                if baseline_dfs:
-                    result_df = pl.concat(baseline_dfs, how="vertical")
-                else:
-                    logger.warning(f"No baseline projections computed for observation '{obs.get_observation_code()}'")
-                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
+                if not times_list:
+                    logger.warning(f"No valid baseline projections computed for '{obs.get_observation_code()}'")
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
-                logger.info(f"Computed baseline projections for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
-                return result_df
+                df = pl.DataFrame({
+                    "time": np.concatenate(times_list),
+                    "scan_name": np.concatenate(scan_names),
+                    "source_name": np.concatenate(source_names),
+                    "baseline": np.concatenate(baselines),
+                    "projection": np.concatenate(projections_list)
+                }).with_columns([
+                    pl.col("time").cast(pl.Float64),
+                    pl.col("scan_name").cast(pl.String),
+                    pl.col("source_name").cast(pl.String),
+                    pl.col("baseline").cast(pl.String),
+                    pl.col("projection").cast(pl.Float64)
+                ])
+
+                logger.info(f"Calculated baseline projections for {df['scan_name'].unique().len()} scans across {df['baseline'].unique().len()} baselines in '{obs.get_observation_code()}', DF rows: {df.height}")
+                return df
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_observations()),
-                "frequency_agnostic": True
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_items()),
+                "visibility_store_key": visibility_store_key
             }
-            logger.debug(f"Metadata for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {metadata}")
-            return self._process_object(obj, attributes, calculate_baseline_projections, store_key, metadata)
+            df = self._process_object(obj, attributes, calculate_baseline_projections, store_key, metadata)
+
+            if not df.is_empty():
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
+                    obj.set_calculated_data_by_key(store_key, df, metadata)
+
+            return df
         except Exception as e:
             logger.error(f"Failed to calculate baseline projections for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections")) if isinstance(obj, Observation) else {}
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
-    def _process_baseline_projections(self, scan: Scan, observation: Observation, time_step: Optional[float], 
-                                    uv_data: pl.DataFrame, time_data: pl.DataFrame) -> pl.DataFrame:
+    def _process_baseline_projections(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, uv_coverage_df: pl.DataFrame, visibility_df: pl.DataFrame, telescopes: List[Telescope | SpaceTelescope]) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
         """Process baseline projections for a single scan in geometric coordinates (meters).
 
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
-            time_step (Optional[float]): Sampling interval (seconds).
-            uv_data (pl.DataFrame): Precomputed UV data with columns ["time", "source_name", "scan_name", "baseline", "u", "v", "w"].
-            time_data (pl.DataFrame): Precomputed time arrays with columns ["time", "scan_name"], where "time" is MJD (float64).
+            times_mjd (np.ndarray): Precomputed times (MJD as float).
+            uv_coverage_df (pl.DataFrame): Precomputed UV coverage data filtered by scan_name.
+            visibility_df (pl.DataFrame): Precomputed visibility data filtered by scan_name.
+            telescopes (List[Telescope | SpaceTelescope]): List of active telescopes.
 
         Returns:
-            pl.DataFrame: Baseline projections with columns ["time", "source_name", "scan_name", "baseline", "projection"],
-                where "time" is MJD (float64) and "projection" is in meters (float64).
-
-        Notes:
-            - Computes BL = sqrt(u² + v²) from UV data in meters.
-            - Preserves NaN in projection where UV data is NaN or source is not visible.
+            Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]: 
+                Tuple of (times, scan_names, source_names, baselines, projections) as Numpy arrays, or None if no valid data.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
             logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
+            return None
 
         scan_name = scan.name
         source_name = source.name
-        scan_telescopes = scan.get_telescopes(observation)
-        active_telescopes = [t for t in scan_telescopes.get_active_items() if t.isactive]
-
+        active_telescopes = [t for t in telescopes if t.isactive]
         if len(active_telescopes) < 2:
-            start_time_mjd = scan.get_start().mjd if scan.get_start() else None
-            logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for baseline projections in scan '{scan_name}' at MJD {start_time_mjd}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
+            logger.warning(f"Insufficient telescopes ({len(active_telescopes)}) for baseline projections in scan '{scan_name}'")
+            return None
 
-        scan_times = time_data.filter(pl.col("scan_name") == scan_name)["time"].to_numpy()
-        if len(scan_times) == 0:
+        n_times = len(times_mjd)
+        if n_times == 0:
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
+            return None
 
-        n_times = len(scan_times)
-        scan_uv_data = uv_data.filter(pl.col("scan_name") == scan_name)
-        if scan_uv_data.is_empty():
-            logger.warning(f"No UV data for scan '{scan_name}' in source '{source_name}'")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
+        times_list = []
+        scan_names = []
+        source_names = []
+        baselines = []
+        projections_list = []
 
-        projections_dict = self._compute_projections_from_uv(scan_uv_data, active_telescopes, time_step, n_times)
-        if not projections_dict:
-            logger.warning(f"No valid baseline projections computed for scan '{scan_name}'")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
-
-        baseline_dfs = []  # Collect small DataFrames for concatenation
-        for baseline, proj_array in projections_dict.items():
-            valid_count = np.sum(~np.isnan(proj_array))
-            if valid_count > 0:
-                baseline_dfs.append(pl.DataFrame({
-                    "time": scan_times,
-                    "source_name": [source_name] * n_times,
-                    "scan_name": [scan_name] * n_times,
-                    "baseline": [baseline] * n_times,
-                    "projection": proj_array
-                }, schema=CalculatedDataStructure.get_dtypes("baseline_projections")))
-                logger.debug(f"Computed {valid_count} valid projections for baseline '{baseline}' in scan '{scan_name}'")
-
-        if baseline_dfs:
-            result_df = pl.concat(baseline_dfs, how="vertical")
-        else:
-            logger.warning(f"No baseline projections computed for scan '{scan_name}'")
-            result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
-
-        return result_df
-
-    def _compute_projections_from_uv(self, uv_data: pl.DataFrame, telescopes: List[Telescope | SpaceTelescope], 
-                                    time_step: Optional[float], n_times: int) -> Dict[str, np.ndarray]:
-        """Compute baseline projections BL = sqrt(u² + v²) from UV data in meters.
-
-        Args:
-            uv_data (pl.DataFrame): UV data with columns ["time", "source_name", "scan_name", "baseline", "u", "v", "w"].
-            telescopes (List[Telescope | SpaceTelescope]): List of active telescopes.
-            time_step (Optional[float]): Sampling interval (seconds).
-            n_times (int): Expected number of time points to match.
-
-        Returns:
-            Dict[str, np.ndarray]: Baseline projections in meters, formatted as {baseline: np.array([proj1, ..., projn])}.
-
-        Notes:
-            - Computes BL = sqrt(u² + v²) for each baseline.
-            - Preserves NaN in projections where u or v is NaN.
-        """
-        projections = {}
-        pairs = [f"{telescopes[i].get_code()}-{telescopes[j].get_code()}" for i, j in zip(*np.triu_indices(len(telescopes), k=1))]
-
-        # Batch filter UV data for all baselines
-        filtered_uv_data = uv_data.filter(pl.col("baseline").is_in(pairs))
+        pairs = [f"{active_telescopes[i].get_code()}-{active_telescopes[j].get_code()}" for i, j in zip(*np.triu_indices(len(active_telescopes), k=1))]
 
         for baseline in pairs:
-            baseline_data = filtered_uv_data.filter(pl.col("baseline") == baseline)[["time", "u", "v", "w"]]
-            if baseline_data.is_empty():
-                logger.debug(f"No UV data for baseline '{baseline}'")
-                projections[baseline] = np.full(n_times, np.nan, dtype=float)
-                continue
+            tel1_code, tel2_code = baseline.split('-')
+            uv_data = uv_coverage_df.filter(pl.col("baseline") == baseline)
+            visibility_tel1 = visibility_df.filter(pl.col("telescope_code") == tel1_code)
+            visibility_tel2 = visibility_df.filter(pl.col("telescope_code") == tel2_code)
 
-            uvw = baseline_data[["u", "v", "w"]].to_numpy()
-            if uvw.shape[0] != n_times:
-                logger.warning(f"UV data for baseline '{baseline}' has length {uvw.shape[0]}, expected {n_times}; adjusting with NaN")
-                temp = np.full((n_times, 3), np.nan, dtype=float)
-                temp[:min(uvw.shape[0], n_times)] = uvw[:n_times]
-                uvw = temp
+            projections = np.full(n_times, np.nan, dtype=float)
 
-            u, v = uvw[:, 0], uvw[:, 1]
-            bl = np.sqrt(u**2 + v**2)
-            projections[baseline] = bl
-            valid_count = np.sum(~np.isnan(bl))
-            logger.debug(f"Computed {valid_count} valid projections for baseline '{baseline}'")
+            if uv_data.is_empty():
+                logger.debug(f"No UV data for baseline '{baseline}' in scan '{scan_name}'; filling with NaN")
+            else:
+                uvw = uv_data.select(["u", "v", "w"]).to_numpy()
+                if len(uvw) != n_times:
+                    logger.debug(f"UV data length mismatch for baseline '{baseline}' in scan '{scan_name}': got {len(uvw)}, expected {n_times}; adjusting with NaN")
+                    temp = np.full((n_times, 3), np.nan, dtype=float)
+                    temp[:min(len(uvw), n_times)] = uvw[:n_times]
+                    uvw = temp
+                u, v = uvw[:, 0], uvw[:, 1]
+                projections = np.sqrt(u**2 + v**2)
 
-        if not projections:
-            logger.warning(f"No valid baseline projections computed for provided UV data")
-        return projections
+            if not visibility_tel1.is_empty() and not visibility_tel2.is_empty():
+                vis1 = visibility_tel1["visibility"].to_numpy()
+                vis2 = visibility_tel2["visibility"].to_numpy()
+                if len(vis1) != n_times or len(vis2) != n_times:
+                    logger.debug(f"Visibility data length mismatch for baseline '{baseline}' in scan '{scan_name}': tel1={len(vis1)}, tel2={len(vis2)}, expected {n_times}")
+                    vis1 = np.full(n_times, False)[:min(len(vis1), n_times)] if len(vis1) > 0 else np.full(n_times, False)
+                    vis2 = np.full(n_times, False)[:min(len(vis2), n_times)] if len(vis2) > 0 else np.full(n_times, False)
+                visibility = vis1 & vis2
+                projections[~visibility] = np.nan
+
+            valid_count = np.sum(~np.isnan(projections))
+            logger.debug(f"Computed {valid_count} valid projections for baseline '{baseline}' in scan '{scan_name}'")
+
+            times_list.append(times_mjd)
+            scan_names.append(np.full(n_times, scan_name, dtype=object))
+            source_names.append(np.full(n_times, source_name, dtype=object))
+            baselines.append(np.full(n_times, baseline, dtype=object))
+            projections_list.append(projections)
+
+        if not times_list:
+            logger.warning(f"No valid baseline projections computed for scan '{scan_name}'")
+            return None
+
+        logger.debug(f"Computed baseline projections for {len(baselines)} baselines in scan '{scan_name}'")
+        return (
+            np.concatenate(times_list),
+            np.concatenate(scan_names),
+            np.concatenate(source_names),
+            np.concatenate(baselines),
+            np.concatenate(projections_list)
+        )
 
     @time_execution
-    def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame | Dict[str, pl.DataFrame]:
+    def _calculate_mollweide_tracks(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
         """Calculate Mollweide projection tracks for telescopes in active scans.
 
         Args:
-            obj: The object to calculate tracks for.
+            obj: The object to calculate tracks for (Observation or ScheduleProject).
             attributes: Parameters including "time_step", "store_key", "recalculate".
 
         Returns:
-            pl.DataFrame | Dict[str, pl.DataFrame]: For Observation, returns a Polars DataFrame with columns
-                ["time", "scan_name", "telescope_code", "lon", "lat"], where "time" is MJD (float64) and lon/lat are in degrees (float64).
-                For ScheduleProject, returns a dictionary mapping observation codes to Polars DataFrames.
-
-        Notes:
-            - Uses CalculatedDataStructure to validate DataFrame structure and metadata.
-            - Stores results under 'mollweide_tracks' key in each Observation's calculated_data.
-            - Computes lon/lat coordinates in degrees from telescope positions.
-            - Preserves NaN in lon/lat where position data is NaN.
+            pl.DataFrame: DataFrame with columns ["time", "scan_name", "telescope_code", "lon", "lat"] (lon, lat in degrees).
         """
         try:
             time_step = attributes.get("time_step")
-            if time_step is None or not isinstance(time_step, (int, float)):
-                logger.error(f"Invalid time_step type '{type(time_step)}' for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be float")
-                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks")) if isinstance(obj, Observation) else {}
-            if time_step <= 0:
-                logger.error(f"Invalid time_step {time_step} for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}', must be positive")
-                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks")) if isinstance(obj, Observation) else {}
-            time_step = float(time_step)
-
             store_key = attributes.get("store_key", "mollweide_tracks")
             recalculate = attributes.get("recalculate", False)
 
             def calculate_mollweide(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, _, _ = self._get_active_components(obs, require_scans=True)
                 if not scans:
-                    logger.debug(f"No active scans in observation '{obs.get_observation_code()}'")
+                    logger.warning(f"No active scans in observation '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
                 time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
                 position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": recalculate}
-                time_data = self._calculate_time_arrays(obs, time_attrs)
-                position_data = self._calculate_telescope_positions(obs, position_attrs)
+                times_df = self._calculate_time_arrays(obs, time_attrs)
+                position_df = self._calculate_telescope_positions(obs, position_attrs)
 
-                if time_data.is_empty():
-                    logger.error(f"No time data for '{obs.get_observation_code()}'")
-                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
-                if position_data.is_empty():
-                    logger.error(f"No position data for '{obs.get_observation_code()}'")
+                if times_df.is_empty() or position_df.is_empty():
+                    logger.error(f"Missing time or position data for '{obs.get_observation_code()}'")
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
-                mollweide_dfs = []  # Collect small DataFrames for concatenation
+                times_list = []
+                scan_names = []
+                telescope_codes = []
+                lons_list = []
+                lats_list = []
 
                 max_workers = min(len(scans), 4) if len(scans) > 1 else 1
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    futures = {
-                        executor.submit(self._process_mollweide_tracks, scan, obs, time_step, time_data, position_data): scan
-                        for scan in scans
-                    }
+                    futures = {}
+                    for scan in scans:
+                        scan_name = scan.name
+                        scan_times = times_df.filter(pl.col("scan_name") == scan_name)["time"].to_numpy()
+                        if len(scan_times) == 0:
+                            logger.warning(f"No valid times for scan '{scan_name}' in observation '{obs.get_observation_code()}'")
+                            continue
+                        scan_positions = position_df.filter(pl.col("scan_name") == scan_name)
+                        futures[executor.submit(
+                            self._process_mollweide_tracks, scan, obs, scan_times, scan_positions
+                        )] = scan_name
+
                     for future in futures:
+                        scan_name = futures[future]
                         scan_result = future.result()
-                        if not scan_result.is_empty():
-                            mollweide_dfs.append(scan_result)
+                        if scan_result is not None:
+                            times, scan_name_arr, tel_codes, lons, lats = scan_result
+                            times_list.append(times)
+                            scan_names.append(scan_name_arr)
+                            telescope_codes.append(tel_codes)
+                            lons_list.append(lons)
+                            lats_list.append(lats)
 
-                if mollweide_dfs:
-                    result_df = pl.concat(mollweide_dfs, how="vertical")
-                else:
-                    logger.warning(f"No Mollweide tracks computed for observation '{obs.get_observation_code()}'")
-                    result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+                if not times_list:
+                    logger.warning(f"No valid Mollweide tracks computed for '{obs.get_observation_code()}'")
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
-                logger.info(f"Computed Mollweide tracks for {len(result_df['scan_name'].unique())} scans in '{obs.get_observation_code()}'")
-                return result_df
+                df = pl.DataFrame({
+                    "time": np.concatenate(times_list),
+                    "scan_name": np.concatenate(scan_names),
+                    "telescope_code": np.concatenate(telescope_codes),
+                    "lon": np.concatenate(lons_list),
+                    "lat": np.concatenate(lats_list)
+                }).with_columns([
+                    pl.col("time").cast(pl.Float64),
+                    pl.col("scan_name").cast(pl.String),
+                    pl.col("telescope_code").cast(pl.String),
+                    pl.col("lon").cast(pl.Float64),
+                    pl.col("lat").cast(pl.Float64)
+                ])
+
+                logger.info(f"Calculated Mollweide tracks for {df['scan_name'].unique().len()} scans across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', DF rows: {df.height}")
+                return df
 
             sources_metadata = {}
             for source in obj.get_sources().get_active_items():
                 ra = source.ra_degrees
                 dec = source.dec_degrees
-                if ra is None or dec is None or np.isnan(ra) or np.isnan(dec):
-                    logger.debug(f"Invalid coordinates (ra={ra}, dec={dec}) for source '{source.name}'; storing NaN in metadata")
-                    sources_metadata[source.name] = tuple([np.nan, np.nan])
-                else:
-                    lon = float(ra - 360.0 if ra > 180.0 else ra)
-                    lat = float(np.clip(dec, -90.0, 90.0))
-                    sources_metadata[source.name] = tuple([lon, lat])
-
-            converters = CalculatedDataStructure.get_converters("mollweide_tracks")
-            if "sources" in converters:
-                try:
-                    sources_metadata = converters["sources"](sources_metadata)
-                except Exception as e:
-                    logger.error(f"Failed to apply converter to 'sources' metadata in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
-                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks")) if isinstance(obj, Observation) else {}
+                lon = ra - 360.0 if ra > 180.0 else ra
+                lat = np.clip(dec, -90.0, 90.0)
+                sources_metadata[source.name] = np.array([lon, lat])
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_observations()),
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_items()),
                 "sources": sources_metadata
             }
-            logger.debug(f"Metadata for '{store_key}' in '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {metadata}")
-            return self._process_object(obj, attributes, calculate_mollweide, store_key, metadata)
+            df = self._process_object(obj, attributes, calculate_mollweide, store_key, metadata)
+
+            if not df.is_empty():
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
+                    obj.set_calculated_data_by_key(store_key, df, metadata)
+
+            return df
         except Exception as e:
             logger.error(f"Failed to calculate Mollweide tracks for '{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks")) if isinstance(obj, Observation) else {}
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
-    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, time_step: Optional[float], 
-                                time_data: pl.DataFrame, position_data: pl.DataFrame) -> pl.DataFrame:
+    def _process_mollweide_tracks(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, position_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
         """Process Mollweide tracks for a single scan using vectorized computations.
 
         Args:
             scan (Scan): The scan to process.
             observation (Observation): Parent observation.
-            time_step (Optional[float]): Sampling interval (seconds).
-            time_data (pl.DataFrame): Precomputed time arrays with columns ["time", "scan_name"], where "time" is MJD (float64).
-            position_data (pl.DataFrame): Precomputed telescope positions with columns ["time", "scan_name", "telescope_code", "x", "y", "z"].
+            times_mjd (np.ndarray): Precomputed times (MJD as float).
+            position_df (pl.DataFrame): Precomputed telescope positions filtered by scan_name.
 
         Returns:
-            pl.DataFrame: Mollweide tracks with columns ["time", "scan_name", "telescope_code", "lon", "lat"],
-                where "time" is MJD (float64) and lon/lat are in degrees (float64).
-
-        Notes:
-            - Computes lon/lat coordinates in degrees from telescope positions.
-            - Preserves NaN in lon/lat where position data is NaN.
+            Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]: 
+                Tuple of (times, scan_names, telescope_codes, lons, lats) as Numpy arrays, or None if no valid data.
         """
         source = scan.get_source(observation)
         if not source or not source.isactive:
             logger.warning(f"No active source for scan '{scan.name}' in observation '{observation.get_observation_code()}'")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+            return None
 
         scan_name = scan.name
-        source_name = source.name
         scan_telescopes = scan.get_telescopes(observation)
-        active_telescopes = [t for t in scan_telescopes.get_active_items() if t.isactive]
-
+        active_telescopes = [t for t in scan_telescopes.get_items() if t.isactive]
         if not active_telescopes:
-            start_time_mjd = scan.get_start().mjd if scan.get_start() else None
-            logger.warning(f"No active telescopes for scan '{scan_name}' at MJD {start_time_mjd}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+            logger.warning(f"No active telescopes for scan '{scan_name}' starting at {scan.get_start().isot}")
+            return None
 
-        scan_times = time_data.filter(pl.col("scan_name") == scan_name)["time"].to_numpy()
-        if len(scan_times) == 0:
-            logger.warning(f"No valid times for scan '{scan_name}' in source '{source_name}'")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+        n_times = len(times_mjd)
+        if n_times == 0:
+            logger.warning(f"No valid times for scan '{scan_name}' in source '{source.name}'")
+            return None
 
-        n_times = len(scan_times)
-        scan_positions = position_data.filter(pl.col("scan_name") == scan_name)
-        if scan_positions.is_empty():
-            logger.warning(f"No position data for scan '{scan_name}' in observation '{observation.get_observation_code()}'")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+        times_list = []
+        scan_names = []
+        telescope_codes = []
+        lons_list = []
+        lats_list = []
 
-        tel_codes = [tel.get_code() for tel in active_telescopes]
+        for tel in active_telescopes:
+            tel_code = tel.get_code()
+            tel_positions = position_df.filter(pl.col("telescope_code") == tel_code)
+            if tel_positions.is_empty():
+                logger.debug(f"No position data for telescope '{tel_code}' in scan '{scan_name}'; filling with NaN")
+                positions = np.full((n_times, 3), np.nan, dtype=float)
+            else:
+                positions = tel_positions.select(["x", "y", "z"]).to_numpy()
+                if len(positions) != n_times:
+                    logger.debug(f"Position data length mismatch for '{tel_code}' in scan '{scan_name}': got {len(positions)}, expected {n_times}; adjusting with NaN")
+                    temp = np.full((n_times, 3), np.nan, dtype=float)
+                    temp[:min(len(positions), n_times)] = positions[:n_times]
+                    positions = temp
 
-        # Batch filter positions for all telescope codes
-        filtered_positions = scan_positions.filter(pl.col("telescope_code").is_in(tel_codes))
-
-        positions = np.array([
-            filtered_positions.filter(pl.col("telescope_code") == code)[["x", "y", "z"]].to_numpy()
-            if code in filtered_positions["telescope_code"] else np.full((n_times, 3), np.nan)
-            for code in tel_codes
-        ], dtype=float)
-
-        mollweide_dfs = []  # Collect small DataFrames for concatenation
-
-        try:
-            r = np.sqrt(np.sum(positions**2, axis=2))
-            valid_mask = r > 0
-            ra_rad = np.full_like(r, np.nan)
-            dec_rad = np.full_like(r, np.nan)
+            r = np.sqrt(np.sum(positions**2, axis=1))
+            valid_mask = r > 0  # avoid division by zero
+            ra_rad = np.full(n_times, np.nan, dtype=float)
+            dec_rad = np.full(n_times, np.nan, dtype=float)
             ra_rad[valid_mask] = np.arctan2(positions[valid_mask, 1], positions[valid_mask, 0])
             dec_rad[valid_mask] = np.arcsin(positions[valid_mask, 2] / r[valid_mask])
             ra = np.degrees(ra_rad)
@@ -2593,26 +2549,27 @@ class ScheduleCalculator(Super):
             lon = np.where(ra > 180.0, ra - 360.0, ra)
             lat = np.clip(dec, -90.0, 90.0)
 
-            for i, tel_code in enumerate(tel_codes):
-                valid_points = np.sum(~np.isnan(lon[i]) & ~np.isnan(lat[i]))
-                if valid_points > 0:
-                    mollweide_dfs.append(pl.DataFrame({
-                        "time": scan_times,
-                        "scan_name": [scan_name] * n_times,
-                        "telescope_code": [tel_code] * n_times,
-                        "lon": lon[i],
-                        "lat": lat[i]
-                    }, schema=CalculatedDataStructure.get_dtypes("mollweide_tracks")))
-                    logger.debug(f"Computed {valid_points} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
-
-            if mollweide_dfs:
-                result_df = pl.concat(mollweide_dfs, how="vertical")
+            valid_points = np.sum(~np.isnan(lon) & ~np.isnan(lat))
+            if valid_points == 0:
+                logger.debug(f"No valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
             else:
-                logger.warning(f"No Mollweide tracks computed for scan '{scan_name}'")
-                result_df = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+                logger.debug(f"Computed {valid_points} valid Mollweide coordinates for telescope '{tel_code}' in scan '{scan_name}'")
 
-            return result_df
+            times_list.append(times_mjd)
+            scan_names.append(np.full(n_times, scan_name, dtype=object))
+            telescope_codes.append(np.full(n_times, tel_code, dtype=object))
+            lons_list.append(lon)
+            lats_list.append(lat)
 
-        except Exception as e:
-            logger.error(f"Failed to compute Mollweide tracks for scan '{scan_name}' at MJD {scan_times[0] if len(scan_times) > 0 else None}: {str(e)}")
-            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
+        if not times_list:
+            logger.warning(f"No valid Mollweide tracks computed for scan '{scan_name}'")
+            return None
+
+        logger.debug(f"Computed Mollweide tracks for {len(telescope_codes)} telescopes in scan '{scan_name}'")
+        return (
+            np.concatenate(times_list),
+            np.concatenate(scan_names),
+            np.concatenate(telescope_codes),
+            np.concatenate(lons_list),
+            np.concatenate(lats_list)
+        )
