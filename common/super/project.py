@@ -123,13 +123,8 @@ class Project(ABC):
     def clear(self):
         """Clear all observations and their resources."""
         try:
-            for obs in self._items.get_all().values():
-                try:
-                    obs.clear_calculated_data()
-                except Exception as e:
-                    logger.debug(f"Error clearing observation {obs.get_observation_code()}: {str(e)}")
             self._items.clear()
-            logger.info(f"Cleared all observations from project '{self.name}'")
+            logger.info(f"Cleared project '{self.name}'")
         except Exception as e:
             logger.error(f"Error clearing project '{self.name}': {str(e)}")
 
