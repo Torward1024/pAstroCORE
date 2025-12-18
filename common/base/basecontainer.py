@@ -189,12 +189,12 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             ValueError: If the item's name does not match the provided name or if it fails validation.
             TypeError: If the item's type does not match the expected type T.
         """
-        if item.name != name:
-            raise ValueError(f"Item name '{item.name}' does not match key '{name}' in {self.__class__.__name__}")
         generic_base = self.__orig_bases__[0]
         item_type = self._resolve_type(generic_base.__args__[0])
         if not isinstance(item, item_type):
             raise TypeError(f"Item must be of type {item_type.__name__}, got {type(item).__name__}")
+        if item.name != name:
+            raise ValueError(f"Item name '{item.name}' does not match key '{name}' in {self.__class__.__name__}")
         self._validate_item(item)
         self._items[name] = item
         self._invalidate_cache()
@@ -351,7 +351,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         """
         self._items.clear()
         self._invalidate_cache()
-        logger.debug(f"Cleared all items from {self.__class__.__name__}")
+        logger.info(f"Cleared all items from {self.__class__.__name__}")
 
     def clone(self, deep: bool = True) -> 'BaseContainer[T]':
         """Create a deep copy of the container.

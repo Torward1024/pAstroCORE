@@ -31,12 +31,12 @@ class BaseEntity(ABC, metaclass=EntityMeta):
     including support for nested entities.
 
     Attributes:
-        name (str, optional): An optional identifier for the entity.
+        name (str): An identifier for the entity.
         isactive (bool): Indicates whether the entity is active or inactive.
         _fields (Dict[str, type]): Class-level mapping of attribute names to their expected types (from annotations).
 
     Notes:
-        - Logging is integrated via `common.utils.logging_setup.logger` to track initialization and state changes.
+        - Logging is integrated via `utils.logging_setup.logger` to track initialization and state changes.
         - This is an abstract base class and cannot be instantiated directly; it must be subclassed.
         - Attributes are validated against type annotations defined in `__annotations__`.
         - Serialization methods `to_dict` and `from_dict` automatically handle all annotated attributes, including nested entities.
@@ -74,13 +74,16 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             ValueError: If an unknown attribute is provided.
         """
         
+        self._validate_type('use_cache', isactive, bool)
         super().__setattr__('_use_cache', use_cache)
         super().__setattr__('_cached_to_dict', None)
+        self._validate_type('name', name, str)
         super().__setattr__('name', name)
+        self._validate_type('isactive', isactive, bool)
         super().__setattr__('isactive', isactive)
         
         for field in self._fields:
-            if field in ('_use_cache', '_cached_to_dict', 'name', 'isactive') and field not in kwargs:
+            if field in ('name', '_use_cache', '_cached_to_dict', '_type_cache', 'isactive') and field not in kwargs:
                 continue
             value = kwargs.get(field, None)
             expected_type = self._resolve_type(self._fields[field])
@@ -109,6 +112,11 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         Raises:
             TypeError: If the value does not match the expected type and is not None.
         """
+        if key in ('name', 'value') and value is None:
+            raise TypeError(f"Attribute '{key}' cannot be None")
+        if value is None:
+            return
+        
         if value is None:
             return
 
@@ -371,6 +379,16 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             if key not in cls._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {cls.__name__}")
             expected_type = cls._resolve_type(cls._fields[key])
+            if isinstance(value, dict) and "type" in value:
+                type_name = value["type"]
+                type_cls = None
+                if type_name == cls.__name__:
+                    type_cls = cls
+                else:
+                    type_cls = globals().get(type_name)
+                if type_cls and issubclass(type_cls, BaseEntity):
+                    kwargs[key] = type_cls.from_dict(value)
+                    continue
             if isinstance(expected_type, str):
                 from inspect import getmodule
                 module = getmodule(cls)
@@ -558,7 +576,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         attrs = [f"name={self.name!r}" if self.name else ""]
         attrs.append(f"isactive={self.isactive}")
         for k in self._fields:
-            if hasattr(self, k):
+            if k not in ('name', 'isactive') and hasattr(self, k):
                 value = getattr(self, k)
                 if isinstance(value, BaseEntity):
                     attrs.append(f"{k}=<{value.__class__.__name__} at {id(value)}>")

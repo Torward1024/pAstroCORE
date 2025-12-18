@@ -48,10 +48,14 @@ class Manipulator(ABC):
         self._base_classes = base_classes if base_classes is not None else []
         if managing_object is not None and type(managing_object) not in self._base_classes:
             self._base_classes.append(type(managing_object))
-        self._operations = operations or {}
-        if self._operations:
-            for op_name, super_inst in list(self._operations.items()):
+        self._operations = {}
+        self._registry = {}
+        if operations:
+            for op_name, super_inst in operations.items():
                 self.register_operation(super_inst, operation=op_name)
+#        if self._operations:
+#            for op_name, super_inst in list(self._operations.items()):
+#                self.register_operation(super_inst, operation=op_name)
         self._registry = self._get_method_registry()
         logger.debug(f"Initialized Manipulator with {len(self._operations)} initial operations")
         self._create_facades()
