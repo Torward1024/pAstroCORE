@@ -121,7 +121,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             return
 
         from typing import Union, Dict, List
-        import numpy as np
 
         resolved_type = self._resolve_type(expected_type)
         if resolved_type is Any:
@@ -167,9 +166,6 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                                 break
                         if not valid:
                             raise TypeError(f"Value in '{key}' must match one of {value_type_args}, got {type(v)}")
-                    elif resolved_value_type == np.ndarray:
-                        if not isinstance(v, np.ndarray):
-                            raise TypeError(f"Value in '{key}' must be {resolved_value_type}, got {type(v)}")
                     elif value_type_origin is List:
                         if not isinstance(v, list):
                             raise TypeError(f"Value in '{key}' must be a list, got {type(v)}")
@@ -194,6 +190,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
                             raise TypeError(f"Item in list '{key}' must be {item_type}, got {type(item)}")
         elif not isinstance(value, base_type):
             raise TypeError(f"Attribute '{key}' must be of type {resolved_type}, got {type(value)}")
+
 
     def set(self, params: Dict[str, Any]) -> None:
         """Set entity attributes from a dictionary with type validation.

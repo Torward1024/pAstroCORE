@@ -17,7 +17,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
     Attributes:
         _items (Dict[str, Telescope | SpaceTelescope]): Dictionary of telescope objects, keyed by code.
-        isactive (bool): Whether the Telescopes object itself is active. Inherited from BaseEntity.
+        isactive (bool): Whether the Telescopes object itself is active.
 
     Notes:
         - Telescopes are identified by their unique code (`get_code()`), used as the dictionary key.
