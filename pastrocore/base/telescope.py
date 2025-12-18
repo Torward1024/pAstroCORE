@@ -1,6 +1,6 @@
 # base/telescope.py
 from copy import deepcopy
-from common.base.baseentity import BaseEntity
+from pastrocore.base.baseentityn import BaseEntityN
 from common.utils.validation import check_type, check_positive
 from common.utils.logging_setup import logger
 import numpy as np
@@ -17,7 +17,7 @@ class MountType(Enum):
     AZIMUTHAL = "AZIM"
     SPACE = "NONE"
 
-class Telescope(BaseEntity):
+class Telescope(BaseEntityN):
     """Class representing a ground-based telescope with ITRF coordinates, velocities, and SEFD properties."""
     code: str
     name: str
