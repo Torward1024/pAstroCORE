@@ -17,7 +17,9 @@ class Super(ABC):
     Attributes:
         _manipulator (Manipulator): The associated Manipulator instance for method lookup.
         _methods (Dict[Type, Dict[str, Callable]]): Custom method registry for specific object types.
-        _operation (str): The operation name, set by Manipulator during registration.
+        _method_cache (OrderedDict): Cache method.
+        _cache_size (int): Cache size.
+        OPERATION (str): The operation name, set by Manipulator during registration.
 
     Notes:
         - Method resolution order: explicit method, prefixed method (`_<operation>_<method>`), type-specific method (`_<operation>_<type>`), default method (`_<operation>`).
