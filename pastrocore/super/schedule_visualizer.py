@@ -249,49 +249,6 @@ class ScheduleVisualizer(Super):
             self._style_config = new_config
             self._apply_style_config()
             logger.info("Style configuration updated and applied")
-
-    def execute(self, obj: Union[ScheduleProject, Observation, Telescope, SpaceTelescope, Telescopes, Source, Sources, Scan, Scans, IF, Frequencies], 
-                attributes: Dict[str, Any] = None, method: str = None) -> Dict[str, Any]:
-        """Execute visualization operation on the specified object."""
-        if attributes is None:
-            attributes = {}
-        logger.debug(f"Executing visualization on {type(obj).__name__} with attributes={attributes}, method={method}")
-
-        try:
-            if method:
-                method_func = getattr(self, method, None)
-                if callable(method_func):
-                    result = method_func(obj, attributes)
-                    return self._build_response(obj, True, method, result)
-
-            method_name = attributes.get("method")
-            if method_name:
-                method = getattr(self, method_name, None)
-                if callable(method):
-                    result = method(obj, attributes)
-                    return self._build_response(obj, True, method_name, result)
-
-                prefixed_method_name = f"_visualize_{method_name}"
-                method = getattr(self, prefixed_method_name, None)
-                if callable(method):
-                    result = method(obj, attributes)
-                    return self._build_response(obj, True, prefixed_method_name, result)
-
-            obj_type_name = type(obj).__name__.lower()
-            auto_method_name = f"_visualize_{obj_type_name}"
-            method = getattr(self, auto_method_name, None)
-            if callable(method):
-                result = method(obj, attributes)
-                return self._build_response(obj, True, auto_method_name, result)
-
-            result = self._visualize(obj, attributes)
-            if result is None:
-                return self._build_response(obj, False, "_visualize", None, "Visualization failed")
-            return self._build_response(obj, True, "_visualize", result)
-
-        except Exception as e:
-            logger.error(f"Visualization execution failed: {str(e)}")
-            return self._build_response(obj, False, None, None, str(e))
         
     def _create_empty_plot(self, fig: Figure, plot_type: str, obj_name: str, 
                       projection: str = None, labels: Dict[str, str] = None) -> Dict[str, Any]:
