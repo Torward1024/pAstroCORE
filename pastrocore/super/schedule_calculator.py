@@ -758,13 +758,7 @@ class ScheduleCalculator(Super):
             logger.warning(f"No valid times for scan '{scan_name}' in source '{source.name}'")
             return None
         
-        obstime: Optional[Time] = None
-        has_ground_telescopes = any(
-            isinstance(tel, Telescope) and not isinstance(tel, SpaceTelescope)
-            for tel in active_telescopes
-        )
-        if has_ground_telescopes:
-            obstime = Time(times_mjd, format="mjd", scale="utc")
+        obstime=Time(times_mjd, format="mjd", scale="utc")
 
         times_list = []
         scan_names = []
@@ -855,7 +849,7 @@ class ScheduleCalculator(Super):
                 )
 
                 if obstime is None:
-                    obstime = Time(times_mjd, format="mjd", scale="utc")
+                    obstime=Time(times_mjd, format="mjd", scale="utc")
 
                 itrs = ITRS(itrs_coords, obstime=obstime)
                 gcrs = itrs.transform_to(GCRS(obstime=obstime))
@@ -1111,7 +1105,7 @@ class ScheduleCalculator(Super):
             return None
 
         source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-        obstime = Time(times_mjd, format="mjd", scale="utc")
+        obstime=Time(times_mjd, format="mjd", scale="utc")
 
         times_list = []
         scan_names = []
@@ -1143,7 +1137,7 @@ class ScheduleCalculator(Super):
                     y=positions[:, 1] * u.m,
                     z=positions[:, 2] * u.m
                 )
-                itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=Time(times_mjd, format="mjd", scale="utc")))
+                itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
                 locations = itrs.earth_location
                 altaz = source_coord.transform_to(AltAz(obstime=obstime, location=locations))
                 hadec = source_coord.transform_to(HADec(obstime=obstime, location=locations))
@@ -1609,6 +1603,7 @@ class ScheduleCalculator(Super):
         telescope_codes = []
         source_names = []
         sun_angles_list = []
+        obstime=Time(times_mjd, format="mjd", scale="utc")
 
         sun_coord = get_sun(Time(times_mjd, format="mjd", scale="utc"))
         sun_vec = np.array([
@@ -1670,10 +1665,10 @@ class ScheduleCalculator(Super):
                         y=positions[:, 1] * u.m,
                         z=positions[:, 2] * u.m
                     )
-                    itrs = GCRS(gcrs_coords, obstime=Time(times_mjd, format="mjd", scale="utc")).transform_to(ITRS(obstime=Time(times_mjd, format="mjd", scale="utc")))
+                    itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
                     locations = itrs.earth_location
-                    sun_altaz = sun_coord.transform_to(AltAz(obstime=Time(times_mjd, format="mjd", scale="utc"), location=locations))
-                    source_altaz = source_coord.transform_to(AltAz(obstime=Time(times_mjd, format="mjd", scale="utc"), location=locations))
+                    sun_altaz = sun_coord.transform_to(AltAz(obstime=obstime, location=locations))
+                    source_altaz = source_coord.transform_to(AltAz(obstime=obstime, location=locations))
                     sun_el = sun_altaz.alt.deg
                     sun_az = sun_altaz.az.deg
                     source_el = source_altaz.alt.deg
@@ -1854,6 +1849,7 @@ class ScheduleCalculator(Super):
         source_names = []
         az_ha_list = []
         el_dec_list = []
+        obstime=Time(times_mjd, format="mjd", scale="utc")
 
         for tel in active_telescopes:
             tel_code = tel.get_code()
@@ -1890,14 +1886,14 @@ class ScheduleCalculator(Super):
                     y=positions[:, 1] * u.m,
                     z=positions[:, 2] * u.m
                 )
-                itrs = GCRS(gcrs_coords, obstime=Time(times_mjd, format="mjd", scale="utc")).transform_to(ITRS(obstime=Time(times_mjd, format="mjd", scale="utc")))
+                itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
                 locations = itrs.earth_location
                 if mount_type == "AZIM":
-                    altaz = source_coord.transform_to(AltAz(obstime=Time(times_mjd, format="mjd", scale="utc"), location=locations))
+                    altaz = source_coord.transform_to(AltAz(obstime=obstime, location=locations))
                     az_ha[is_visible] = altaz.az.deg[is_visible]
                     el_dec[is_visible] = altaz.alt.deg[is_visible]
                 else:  # EQUA
-                    hadec = source_coord.transform_to(HADec(obstime=Time(times_mjd, format="mjd", scale="utc"), location=locations))
+                    hadec = source_coord.transform_to(HADec(obstime=obstime, location=locations))
                     az_ha[is_visible] = hadec.ha.deg[is_visible]
                     el_dec[is_visible] = hadec.dec.deg[is_visible]
 
