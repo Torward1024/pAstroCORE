@@ -1,7 +1,7 @@
 {
-    "sources_catalog_path": "catalogs\\grav_lenses.dat",
+    "sources_catalog_path": "I:/pAstroCORE/catalogs/sources.dat",
     "telescopes_catalog_path": "catalogs\\telescopes.dat",
     "log_level": "INFO",
-    "time_step": 3600,
+    "time_step": 100,
     "clear_log_on_start": true
 }
