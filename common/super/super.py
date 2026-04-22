@@ -1,5 +1,6 @@
+# super/super.py
 from abc import ABC
-from typing import Dict, Any, Callable, Type, Optional, Union
+from typing import Dict, Any, Callable, Type, Optional
 from common.utils.logging_setup import logger
 from common.super.manipulator import Manipulator
 from common.base.baseentity import BaseEntity
@@ -23,7 +24,7 @@ class Super(ABC):
 
     Notes:
         - Method resolution order: explicit method, prefixed method (`_<operation>_<method>`), type-specific method (`_<operation>_<type>`), default method (`_<operation>`).
-        - Logging is integrated via `common.utils.logging_setup.logger`.
+        - Logging is integrated via `utils.logging_setup.logger`.
         - Results are returned as dictionaries with keys: status (bool), object (str), method (str | None),
           result (Any), error (str | None, included only if status=False).
     """
@@ -146,7 +147,18 @@ class Super(ABC):
 
     def _validate_and_apply_method(self, obj: Any, method_name: str, method_args: Any,
                                    valid_methods: Dict[str, Callable], extra_args: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Validate and apply a method to an object with given arguments."""
+        """Validate and apply a method to an object with given arguments.
+
+        Args:
+            obj (Any): The object to apply the method to.
+            method_name (str): The name of the method to apply.
+            method_args (Any): Arguments to pass to the method.
+            valid_methods (Dict[str, Callable]): Dictionary of valid methods for the object type.
+            extra_args (Dict[str, Any], optional): Additional arguments to include. Defaults to None.
+
+        Returns:
+            Dict[str, Any]: Response dictionary with status, object, method, result, and error if status is False.
+        """
         if method_name not in valid_methods:
             logger.error(f"Invalid method '{method_name}' for '{type(obj).__name__}'")
             return self._build_response(obj, False, method_name, None, f"Method '{method_name}' not found")

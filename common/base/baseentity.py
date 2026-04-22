@@ -1,6 +1,12 @@
 # base/baseentity.py
 from abc import ABC, ABCMeta
-from typing import Dict, Union, List, Any, Union, get_origin, get_args
+from typing import (Dict, 
+                    Union, 
+                    List, 
+                    Any, 
+                    Union, 
+                    get_origin, 
+                    get_args)
 from common.utils.logging_setup import logger
 
 class EntityMeta(ABCMeta):
@@ -26,7 +32,7 @@ class EntityMeta(ABCMeta):
 class BaseEntity(ABC, metaclass=EntityMeta):
     """Abstract base class for entities with attribute management, type validation, and universal serialization.
 
-    Provides a foundation for base entity classes in the MBS system. Defines common functionality
+    Provides a foundation for base entity classes in the MSB system. Defines common functionality
     for managing attributes with type checking, an active/inactive state, and universal serialization methods,
     including support for nested entities.
 
@@ -65,7 +71,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """Initialize the BaseEntity with a name, activation status, and optional typed attributes.
 
         Args:
-            name (str, optional): An optional identifier for the entity. Defaults to None.
+            name (str): A required identifier for the entity.
             isactive (bool): Initial activation status of the entity. Defaults to True.
             **kwargs: Arbitrary keyword arguments to set initial attributes, validated against type annotations.
 
@@ -74,7 +80,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             ValueError: If an unknown attribute is provided.
         """
         
-        self._validate_type('use_cache', isactive, bool)
+        self._validate_type('use_cache', use_cache, bool)
         super().__setattr__('_use_cache', use_cache)
         super().__setattr__('_cached_to_dict', None)
         self._validate_type('name', name, str)
@@ -110,7 +116,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             expected_type (Any): The expected type from type annotations.
 
         Raises:
-            TypeError: If the value does not match the expected type and is not None.
+            TypeError: If the value does not match the expected type, or if 'name' or 'value' is None.
         """
         if key in ('name', 'value') and value is None:
             raise TypeError(f"Attribute '{key}' cannot be None")
@@ -214,7 +220,7 @@ class BaseEntity(ABC, metaclass=EntityMeta):
             else:
                 raise ValueError(f"Unknown attribute '{key}' for {self.__class__.__name__}")
         self._invalidate_cache()
-        logger.debug(f"Updated attributes of {self.__class__.__name__}: {params.keys}")
+        logger.debug(f"Updated attributes of {self.__class__.__name__}: {list(params.keys())}")
 
     def get(self, key: Union[str, List[str], None] = None) -> Union[Any, Dict[str, Any]]:
         """Retrieve one or more attributes of the entity.
@@ -477,7 +483,8 @@ class BaseEntity(ABC, metaclass=EntityMeta):
         """Clear all non-internal attributes to release references."""
         for key in self._fields:
             if key not in {"name", "isactive", "_use_cache", "_cached_to_dict"}:
-                super().__setattr__(key, None)
+                if hasattr(self, key):
+                    super().__setattr__(key, None)
         self._invalidate_cache()
 
     def __getitem__(self, key: str) -> Any:
