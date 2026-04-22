@@ -1,7 +1,17 @@
 # base/basecontainer.py
 from abc import ABC
 from copy import deepcopy
-from typing import Dict, TypeVar, Generic, Any, Optional, List, Iterator, Union, get_type_hints, get_args, get_origin
+from typing import (Dict, 
+                    TypeVar, 
+                    Generic, 
+                    Any, 
+                    Optional, 
+                    List, 
+                    Iterator, 
+                    Union, 
+                    get_type_hints, 
+                    get_args, 
+                    get_origin)
 from common.base.baseentity import BaseEntity
 from common.utils.logging_setup import logger
 
@@ -10,7 +20,7 @@ T = TypeVar('T', bound=BaseEntity)
 class BaseContainer(BaseEntity, ABC, Generic[T]):
     """Abstract base class for managing collections of BaseEntity objects using a dictionary.
 
-    Provides a foundation for container classes in the MBS system. Manages a collection of entities
+    Provides a foundation for container classes in the MSB system. Manages a collection of entities
     indexed by their `name` attribute, with support for validation, activation state management,
     and universal serialization. Subclasses can extend validation logic or add specialized behavior.
 
@@ -65,13 +75,18 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         
         if not hasattr(self.__class__, '_fields'):
             self.__class__._fields = get_type_hints(self.__class__)
-        
+    
         initial_items = items or {}
         if not isinstance(initial_items, dict):
             raise TypeError(f"'items' must be a dict, got {type(initial_items)}")
         
+        if not (hasattr(self, '__orig_bases__') and self.__orig_bases__):
+            raise TypeError(f"Cannot determine generic type for {self.__class__.__name__}. "
+                "Make sure you use BaseContainer[YourType] syntax.")
+        
         generic_base = self.__orig_bases__[0]
         item_type = self._resolve_type(generic_base.__args__[0])
+
         for key, item in initial_items.items():
             if not isinstance(key, str):
                 raise TypeError(f"Keys in '_items' must be str, got {type(key)}")
@@ -80,11 +95,21 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         resolved_items_type = Dict[str, item_type]
         self._fields["_items"] = resolved_items_type
         
-        generic_base = self.__orig_bases__[0]
-        self._item_type = self._resolve_type(generic_base.__args__[0])
-        super().__init__(name=name, isactive=isactive, _items=initial_items, _use_cache=use_cache, _cached_to_dict=None)
+        self._item_type = item_type
+        
+        super().__init__(
+            name=name,
+            isactive=isactive,
+            _items=initial_items,
+            _use_cache=use_cache,
+            _cached_to_dict=None
+        )
+        
         self._validate_items(self._items)
-        logger.debug(f"Initialized {self.__class__.__name__} with name={name}, isactive={isactive}, item_count={len(self._items)}")
+        logger.debug(
+            f"Initialized {self.__class__.__name__} with "
+            f"name={name}, isactive={isactive}, item_count={len(self._items)}"
+        )
 
     def _validate_items(self, items: Dict[str, T]) -> None:
         """Validate the initial dictionary of items.
@@ -132,7 +157,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             TypeError: If any item's type does not match the expected type T, or if the input type is unsupported.
             AttributeError: If an item or container lacks a 'copy' method when copy_items is True.
         """
-        generic_base = self.__orig_bases__[0]
+        if hasattr(self, '__orig_bases__') and self.__orig_bases__:
+            generic_base = self.__orig_bases__[0]
+        else:
+            raise TypeError(f"Cannot determine generic type for {self.__class__.__name__}. "
+                            "Make sure you use BaseContainer[YourType] syntax.")
         item_type = self._resolve_type(generic_base.__args__[0])
 
         if isinstance(item, item_type):
@@ -159,6 +188,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 logger.debug(f"Added item with name '{item_to_add.name}' to {self.__class__.__name__}")
 
         elif isinstance(item, BaseContainer):
+            if not (hasattr(item, '__orig_bases__') and item.__orig_bases__):
+                raise TypeError(
+                    f"Cannot determine generic type for other container {item.__class__.__name__}. "
+                    "Make sure you use BaseContainer[YourType] syntax."
+                )
             other_generic_base = item.__orig_bases__[0]
             other_item_type = item._resolve_type(other_generic_base.__args__[0])
             if other_item_type != item_type:
@@ -189,7 +223,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             ValueError: If the item's name does not match the provided name or if it fails validation.
             TypeError: If the item's type does not match the expected type T.
         """
-        generic_base = self.__orig_bases__[0]
+        if hasattr(self, '__orig_bases__') and self.__orig_bases__:
+            generic_base = self.__orig_bases__[0]
+        else:
+            raise TypeError(f"Cannot determine generic type for {self.__class__.__name__}. "
+                            "Make sure you use BaseContainer[YourType] syntax.")
         item_type = self._resolve_type(generic_base.__args__[0])
         if not isinstance(item, item_type):
             raise TypeError(f"Item must be of type {item_type.__name__}, got {type(item).__name__}")
@@ -349,7 +387,8 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         Notes:
             - Logs an info message indicating the container has been cleared.
         """
-        self._items.clear()
+        if hasattr(self, '_items'):
+            self._items.clear()
         self._invalidate_cache()
         logger.info(f"Cleared all items from {self.__class__.__name__}")
 
@@ -495,6 +534,12 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             TypeError: If the item type cannot be resolved or if data is invalid.
             ValueError: If item data cannot be mapped to a valid type in a Union.
         """
+        if not (hasattr(cls, '__orig_bases__') and cls.__orig_bases__):
+            raise TypeError(
+                f"Cannot determine generic type for {cls.__name__}. "
+                "Make sure you use BaseContainer[YourType] syntax."
+            )
+        
         generic_base = cls.__orig_bases__[0]
         item_type_hint = generic_base.__args__[0]
         item_types = cls._resolve_type(item_type_hint, field_path=f"{cls.__name__}.items")
@@ -509,7 +554,7 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             item_types = [item_types]
 
         items = {}
-        for key, item_data in data["items"].items():
+        for key, item_data in data.get("items", {}).items():
             type_name = item_data.get("type")
             selected_type = None
 
@@ -620,11 +665,6 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
         except Exception as e:
             logger.error(f"Failed to resolve type hint {type_hint}: {str(e)}")
             raise TypeError(f"Type resolution failed for {type_hint} in {field_path or cls.__name__}: {str(e)}") from e
-    
-    def clear(self) -> None:
-        """Clear all items from the container and release references."""
-        self._items.clear()
-        self._invalidate_cache()
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over the items in the container.

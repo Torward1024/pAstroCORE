@@ -1,4 +1,4 @@
-# /common/super/project.py
+# super/project.py
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, Type, List, TypeVar
 from common.utils.validation import check_non_empty_string
@@ -19,7 +19,15 @@ class Project(ABC):
     _item_type: Type[BaseEntity] = BaseEntity
 
     def __init__(self, name: str = "DEFAULT_PROJECT", items: Optional[Dict[str, BaseEntity]] = None):
-        """Initialize a Project with a name and an optional dictionary of BaseEntity items."""
+        """Initialize a Project with a name and an optional dictionary of BaseEntity items.
+
+        Args:
+            name (str): The name of the project. Must be a non-empty string. Defaults to "DEFAULT_PROJECT".
+            items (Optional[Dict[str, BaseEntity]]): Optional dictionary of BaseEntity items to initialize the project with. Defaults to None.
+
+        Raises:
+            ValueError: If the name is not a non-empty string.
+        """
         check_non_empty_string(name, "Project name")
         self.name = name
         self._items = self._create_container(items=items, name=f"{name}_items")
@@ -27,7 +35,15 @@ class Project(ABC):
 
     @classmethod
     def _create_container(cls, items: Optional[Dict[str, BaseEntity]] = None, name: str = None) -> BaseContainer:
-        """Create a BaseContainer instance with the specified item type."""
+        """Create a BaseContainer instance with the specified item type.
+
+        Args:
+            items (Optional[Dict[str, BaseEntity]]): Optional dictionary of items to initialize the container with. Defaults to None.
+            name (str): Optional name for the container. Defaults to None.
+
+        Returns:
+            BaseContainer: A new BaseContainer instance typed for the project's item type.
+        """
         class TypedContainer(BaseContainer[cls._item_type]):
             pass
         return TypedContainer(items=items, name=name)
@@ -51,16 +67,30 @@ class Project(ABC):
 
     @abstractmethod
     def create_item(self, item_code: str = "ITEM_DEFAULT", isactive: bool = True) -> None:
-        """Create and add a new BaseEntity item to the project."""
+        """Create and add a new BaseEntity item to the project.
+
+        Args:
+            item_code (str): The code identifier for the new item. Defaults to "ITEM_DEFAULT".
+            isactive (bool): Whether the new item should be active. Defaults to True.
+        """
         pass
 
     def set_item(self, name: str, item: BaseEntity) -> None:
-        """Set an item in the project by its name."""
+        """Set an item in the project by its name.
+
+        Args:
+            name (str): The name to assign to the item.
+            item (BaseEntity): The BaseEntity item to set in the project.
+        """
         self._items.set_item(name, item)
         logger.info(f"Set item '{item.name}' in project '{self.name}'")
 
     def remove_item(self, name: str) -> None:
-        """Remove an item from the project by its name."""
+        """Remove an item from the project by its name.
+
+        Args:
+            name (str): The name of the item to remove from the project.
+        """
         self._items.remove(name)
         logger.info(f"Removed item '{name}' from project '{self.name}'")
     
@@ -81,22 +111,44 @@ class Project(ABC):
         return self._items.get_inactive_items()
 
     def get_item(self, name: str) -> BaseEntity:
-        """Retrieve an item from the project by its name."""
+        """Retrieve an item from the project by its name.
+
+        Args:
+            name (str): The name of the item to retrieve.
+
+        Returns:
+            BaseEntity: The BaseEntity item associated with the given name.
+        """
         item = self._items.get(name)
         logger.debug(f"Retrieved item '{name}' from project '{self.name}'")
         return item
 
     def get_items(self) -> Dict[str, BaseEntity]:
-        """Retrieve all items in the project as a dictionary."""
+        """Retrieve all items in the project as a dictionary.
+
+        Returns:
+            Dict[str, BaseEntity]: A dictionary of all BaseEntity items in the project, keyed by their names.
+        """
         return self._items.get_all()
 
     def get_name(self) -> str:
-        """Retrieve the project's name."""
+        """Retrieve the project's name.
+
+        Returns:
+            str: The name of the project.
+        """
         logger.debug(f"Retrieved name '{self.name}' for project")
         return self.name
 
     def set_name(self, name: str) -> None:
-        """Set the project's name."""
+        """Set the project's name.
+
+        Args:
+            name (str): The new name to assign to the project.
+
+        Raises:
+            ValueError: If the name is not a non-empty string.
+        """
         check_non_empty_string(name, "Project name")
         old_name = self.name
         self.name = name
@@ -104,7 +156,15 @@ class Project(ABC):
         logger.info(f"Project name changed from '{old_name}' to '{name}'")
 
     def set_project(self, name: str, items: Dict[str, BaseEntity]) -> None:
-        """Set the entire project configuration, replacing name and items."""
+        """Set the entire project configuration, replacing name and items.
+
+        Args:
+            name (str): The new name for the project.
+            items (Dict[str, BaseEntity]): The new dictionary of BaseEntity items to set in the project.
+
+        Raises:
+            ValueError: If the name is not a non-empty string.
+        """
         check_non_empty_string(name, "Project name")
         old_name = self.name
         old_count = len(self._items)
@@ -115,13 +175,20 @@ class Project(ABC):
                     f"items count changed from {old_count} to {len(self._items)}")
 
     def get_project(self) -> Dict[str, Any]:
-        """Get the entire project configuration as a dictionary."""
+        """Get the entire project configuration as a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary with 'name' and 'items' keys representing the project configuration.
+        """
         result = {"name": self.name, "items": self._items.to_dict()["items"]}
         logger.info(f"Retrieved project configuration for '{self.name}' with {len(self._items)} items")
         return result
     
     def clear(self):
-        """Clear all observations and their resources."""
+        """Clear all items from the project.
+
+        This method removes all items from the project's container.
+        """
         try:
             self._items.clear()
             logger.info(f"Cleared project '{self.name}'")
@@ -185,7 +252,11 @@ class Project(ABC):
         return self._items.drop_inactive()
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert the project to a dictionary for serialization."""
+        """Convert the project to a dictionary for serialization.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the project's name and serialized items.
+        """
         return {"name": self.name, "items": self._items.to_dict()["items"]}
 
     @classmethod

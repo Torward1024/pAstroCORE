@@ -1,3 +1,4 @@
+# mega/manipulator.py
 from abc import ABC
 from typing import Dict, Any, Optional, Callable, List, Type
 from common.utils.logging_setup import logger
@@ -17,10 +18,11 @@ class Manipulator(ABC):
         _base_classes (List[Type]): List of base classes whose methods are registered.
         _operations (Dict[str, Callable]): Dictionary mapping operation names to super-instance handlers.
         _registry (Dict[Type, Dict[str, Callable]]): Registry of object types and their available methods.
+        _strict_type_check (bool): If True, enforces strict type checking for objects.
 
     Notes:
         - Uses `functools.lru_cache` to optimize method registry generation.
-        - Logging is integrated via `common.utils.logging_setup.logger`.
+        - Logging is integrated via `..utils.logging_setup.logger`.
         - Operations are executed via super-instances that must have an `execute` method.
         - Results are returned as dictionaries with keys: status (bool), object (Any), method (str | None),
           result (Any), error (str | None, included only if status=False).
@@ -53,9 +55,7 @@ class Manipulator(ABC):
         if operations:
             for op_name, super_inst in operations.items():
                 self.register_operation(super_inst, operation=op_name)
-#        if self._operations:
-#            for op_name, super_inst in list(self._operations.items()):
-#                self.register_operation(super_inst, operation=op_name)
+        
         self._registry = self._get_method_registry()
         logger.debug(f"Initialized Manipulator with {len(self._operations)} initial operations")
         self._create_facades()
@@ -182,12 +182,19 @@ class Manipulator(ABC):
         self._add_facade(operation)
     
     def _create_facades(self) -> None:
-        """Create facade methods for all registered operations."""
+        """Create facade methods for all registered operations.
+
+        Iterates through all registered operations and adds facade methods to the instance.
+        """
         for op in self._operations:
             self._add_facade(op)
     
     def _add_facade(self, operation: str) -> None:
-        """Dynamically add a facade method for the given operation."""
+        """Dynamically add a facade method for the given operation.
+
+        Args:
+            operation (str): The name of the operation to add a facade for.
+        """
         def facade_wrapper(self, obj: Optional[Any] = None, method: Optional[str] = None, raise_on_error: bool = True, **attributes) -> Any:
             """Facade for {operation}.
 
@@ -445,9 +452,6 @@ class Manipulator(ABC):
     def clear_ops(self):
         """Clear all registered operations and their handlers."""
         try:
-            for op_name, op_instance in self._operations.items():
-                if hasattr(op_instance, 'deleteLater'):
-                    op_instance.deleteLater()
             self._operations.clear()
         except Exception as e:
             logger.error(f"Error clearing operations: {str(e)}")
