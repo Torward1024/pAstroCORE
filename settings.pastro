@@ -2,6 +2,6 @@
     "sources_catalog_path": "I:/pAstroCORE/catalogs/sources.dat",
     "telescopes_catalog_path": "catalogs\\telescopes.dat",
     "log_level": "INFO",
-    "time_step": 100,
+    "time_step": 30,
     "clear_log_on_start": true
 }
