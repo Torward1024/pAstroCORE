@@ -1,11 +1,11 @@
-from common.super.super import Super
+from msb_arch.super.super import Super
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.frequencies import IF, Frequencies
 from pastrocore.base.sources import Source, Sources
 from pastrocore.base.telescopes import Telescope, SpaceTelescope, Telescopes
 from pastrocore.base.scans import Scan, Scans
 from pastrocore.base.observation import Observation
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from typing import Dict, Any, Union
 from astropy.time import Time
 import astropy.units as u

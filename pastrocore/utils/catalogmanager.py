@@ -2,7 +2,7 @@
 from pastrocore.base.sources import Source, Sources
 from pastrocore.base.telescopes import Telescope, Telescopes
 
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from typing import Optional, List
 import re
 
@@ -17,7 +17,7 @@ class CatalogManager:
         telescope_catalog (Telescopes): Collection of Telescope objects.
 
     Notes:
-        - Logging is integrated via `common.utils.logging_setup.logger`.
+        - Logging is integrated via `msb_arch.utils.logging_setup.logger`.
         - Source file format: `name j2000_name alt_name ra_hh:mm:ss.ssss dec_dd:mm:ss.ssss`.
         - Telescope file format: `number short_name full_name x y z diameter`.
         - Lines starting with '#' or empty lines are skipped during loading.

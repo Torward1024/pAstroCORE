@@ -4,7 +4,7 @@ from pastrocore.utils.catalogmanager import CatalogManager
 from pastrocore.gui.ui_tab_observation import Ui_ObservationInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from .p_tab_frequencies import FrequenciesTab
 from .p_tab_sources import SourcesTab
 from .p_tab_telescopes import TelescopesTab

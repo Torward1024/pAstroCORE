@@ -6,7 +6,7 @@ from .ui_tab_observation_any import Ui_observation_tab
 from .p_dialog_edit_scan import ScanEditorDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from pastrocore.gui.p_tab_telescopes import TelescopesTab
 from pastrocore.gui.p_tab_frequencies import FrequenciesTab
 from pastrocore.gui.p_tab_sources import SourcesTab

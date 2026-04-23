@@ -11,7 +11,7 @@ from pastrocore.base.observation import Observation
 from pastrocore.base.telescope import Telescope
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.utils.catalogmanager import CatalogManager
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 import json
 
 class TelescopesTab(QWidget):

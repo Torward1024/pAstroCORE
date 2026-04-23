@@ -1,8 +1,8 @@
 # base/frequencies.py
 from typing import List, Optional, Union, Dict
 from pastrocore.base.baseentityn import BaseEntityN
-from common.base.basecontainer import BaseContainer
-from common.utils.logging_setup import logger
+from msb_arch.base.basecontainer import BaseContainer
+from msb_arch.utils.logging_setup import logger
 import uuid
 
 C_MHZ_CM = 29979.2458

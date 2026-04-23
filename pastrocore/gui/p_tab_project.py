@@ -4,7 +4,7 @@ from PySide6.QtGui import QStandardItem, QIcon
 from pastrocore.gui.ui_tab_project import Ui_ProjectInfoTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFilterProxyModel
 
 class ProjectInfoTab(QWidget):

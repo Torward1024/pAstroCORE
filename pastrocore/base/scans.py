@@ -1,8 +1,8 @@
 # base/scans.py
 from pastrocore.base.baseentityn import BaseEntityN
-from common.base.basecontainer import BaseContainer
-from common.utils.validation import check_type, check_positive
-from common.utils.logging_setup import logger
+from msb_arch.base.basecontainer import BaseContainer
+from msb_arch.utils.validation import check_type, check_positive
+from msb_arch.utils.logging_setup import logger
 from .frequencies import IF, Frequencies
 from .sources import Source
 from .telescopes import Telescope, SpaceTelescope, Telescopes

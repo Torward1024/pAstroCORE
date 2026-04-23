@@ -29,12 +29,11 @@ from pastrocore.gui.p_dialog_visualize import VisualizationDialog
 from pastrocore.gui.p_dialog_generate_observations import GenerateObservationsDialog
 from pastrocore.gui.p_dialog_export_calculated_data import ExportCalculatedDataDialog
 # Common/utils files
-from common.utils.logging_setup import (
-                                        logger, 
-                                        setup_logging, 
-                                        update_logging_level, 
-                                        update_logging_clear
-                                        )
+from msb_arch.utils import (logger, 
+                            setup_logging, 
+                            update_logging_level, 
+                            update_logging_clear
+                            )
 import logging
 import sys
 import os

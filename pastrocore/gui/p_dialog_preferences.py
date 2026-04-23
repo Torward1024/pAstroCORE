@@ -2,7 +2,7 @@
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 from PySide6.QtCore import Signal, Slot
 from pastrocore.gui.ui_dialog_preferences import Ui_PreferencesDialog
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 import os
 
 class PreferencesDialog(QDialog):

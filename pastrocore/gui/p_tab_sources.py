@@ -8,7 +8,7 @@ from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFil
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 import uuid
 
 class SourcesTab(QWidget):

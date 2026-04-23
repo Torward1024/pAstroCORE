@@ -1,6 +1,6 @@
 from PySide6.QtGui import QStandardItemModel
 from PySide6.QtCore import Qt, QSortFilterProxyModel
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 
 class CustomStandardItemModel(QStandardItemModel):
     """Custom model that sorts the first column numerically using Qt.UserRole + 1 data."""

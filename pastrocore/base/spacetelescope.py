@@ -1,6 +1,6 @@
 from copy import deepcopy
 from .telescope import Telescope
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from typing import Optional, Dict, Tuple, Any
 from astropy.time import Time
 from enum import Enum

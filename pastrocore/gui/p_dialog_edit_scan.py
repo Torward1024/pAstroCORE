@@ -6,7 +6,7 @@ from .ui_dialog_edit_scan import Ui_ScanEditorDialog
 from pastrocore.base.observation import Observation
 from pastrocore.base.scans import Scan
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from astropy.time import Time
 from datetime import timedelta
 import uuid

@@ -2,7 +2,7 @@
 from PySide6.QtWidgets import QDialog, QMessageBox
 from pastrocore.gui.ui_dialog_edit_if import Ui_IFEditorDialog
 from pastrocore.base.frequencies import IF
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 import uuid
 
 class IFEditorDialog(QDialog):

@@ -7,7 +7,7 @@ from pastrocore.gui.p_custom_model import CustomStandardItemModel, CustomSortFil
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.frequencies import IF
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 import uuid
 import json
 

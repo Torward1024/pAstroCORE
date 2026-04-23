@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Any, get_origin, get_args
-from common.base.baseentity import BaseEntity
+from msb_arch.base.baseentity import BaseEntity
 
 class BaseEntityN(BaseEntity):
     """Entity with numpy array validation support."""

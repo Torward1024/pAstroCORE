@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QDialog, QMessageBox
 from PySide6.QtCore import Signal, Slot
 from pastrocore.gui.ui_dialog_add_observation import Ui_AddObservationDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 
 class AddObservationDialog(QDialog):
     """Dialog for adding a new observation with code and type."""

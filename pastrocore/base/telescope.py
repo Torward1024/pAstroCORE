@@ -1,8 +1,8 @@
 # base/telescope.py
 from copy import deepcopy
 from pastrocore.base.baseentityn import BaseEntityN
-from common.utils.validation import check_type, check_positive
-from common.utils.logging_setup import logger
+from msb_arch.utils.validation import check_type, check_positive
+from msb_arch.utils.logging_setup import logger
 import numpy as np
 from typing import Optional, Dict, Tuple, Any
 from enum import Enum

@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from pastrocore.gui.ui_dialog_edit_telescope import Ui_TelescopeEditorDialog
 from pastrocore.base.telescope import Telescope, MountType
 import re
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 
 class SEFDTableModel(QAbstractTableModel):
     """Table model for SEFD (MHz, Jy) data."""
