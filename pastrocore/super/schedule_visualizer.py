@@ -1199,10 +1199,6 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            #ref_freq = min(freq_list)
-            #ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
-            #logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
-
             tel_list = sorted(filtered_df["telescope_code"].unique())
             n_tels = len(tel_list)
             n_cols = int(np.ceil(np.sqrt(n_tels)))
