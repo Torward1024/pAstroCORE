@@ -108,7 +108,6 @@ class CalculatedDataStructure:
             "columns": ["telescope_code", "theta", "pattern"],
             "metadata": {
                 "telescope_count": int,
-                "frequency_agnostic": bool,
                 "scale_instruction": str
             },
             "converters": {},

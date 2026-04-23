@@ -1180,11 +1180,7 @@ class ScheduleVisualizer(Super):
                 )
 
             metadata = obj.calculated_data.get(store_key).get("metadata", {})
-            frequency_agnostic = metadata.get("frequency_agnostic", False)
-            if frequency_agnostic and len(frequencies) > 1:
-                logger.warning("Beam pattern is frequency-agnostic, using first frequency only")
-                frequencies = [frequencies[0]]
-
+            
             filtered_df = beam_data.filter(pl.col("telescope_code").is_in(telescopes))
             if filtered_df.is_empty():
                 logger.debug("No valid telescopes in beam_data, returning empty result")
@@ -1248,10 +1244,10 @@ class ScheduleVisualizer(Super):
                         if wavelength <= 0:
                             logger.warning(f"Invalid frequency {freq_mhz} MHz for {tel_code}")
                             continue
-                        theta_scaling_factor = ref_wavelength / wavelength if not frequency_agnostic else 1.0
+                        theta_scaling_factor = ref_wavelength / wavelength
                         scaled_theta = theta * theta_scaling_factor
                         scaled_pattern = pattern / np.max(np.abs(pattern)) if np.max(np.abs(pattern)) > 0 else pattern
-                        color = cmap(norm(freq_mhz)) if cmap and not frequency_agnostic else self._style_config["colors"][freq_idx % len(self._style_config["colors"])]
+                        color = self._style_config["colors"][freq_idx % len(self._style_config["colors"])]
                         line, = ax.plot(
                             scaled_theta, scaled_pattern,
                             color=color,
