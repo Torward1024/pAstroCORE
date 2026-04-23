@@ -2174,7 +2174,6 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "telescope_count": len(obj.get_telescopes().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_telescopes().get_active_items()) for o in obj.get_items()),
-                "frequency_agnostic": True,
                 "scale_instruction": "Multiply pattern by wavelength during visualization"
             }
             df = self._process_object(obj, attributes, calculate_beam_pattern, store_key, metadata)
