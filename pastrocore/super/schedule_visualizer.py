@@ -1199,9 +1199,9 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            ref_freq = min(freq_list)
-            ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
-            logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
+            #ref_freq = min(freq_list)
+            #ref_wavelength = self.SPEED_OF_LIGHT / (ref_freq * 1e6)
+            #logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
 
             tel_list = sorted(filtered_df["telescope_code"].unique())
             n_tels = len(tel_list)
@@ -1244,8 +1244,8 @@ class ScheduleVisualizer(Super):
                         if wavelength <= 0:
                             logger.warning(f"Invalid frequency {freq_mhz} MHz for {tel_code}")
                             continue
-                        theta_scaling_factor = ref_wavelength / wavelength
-                        scaled_theta = theta * theta_scaling_factor
+                        
+                        scaled_theta = theta * wavelength
                         scaled_pattern = pattern / np.max(np.abs(pattern)) if np.max(np.abs(pattern)) > 0 else pattern
                         color = self._style_config["colors"][freq_idx % len(self._style_config["colors"])]
                         line, = ax.plot(
@@ -1261,7 +1261,7 @@ class ScheduleVisualizer(Super):
                         ax.set_xlim(-theta_range, theta_range)
                         plotted_frequencies.add(freq_mhz)
                         logger.debug(f"Plotted beam for {tel_code} at {freq_mhz:.2f} MHz: "
-                                     f"theta_scaling_factor={theta_scaling_factor:.2f}, "
+                                     f"theta_scaling_factor={wavelength:.2f}, "
                                      f"max_pattern={np.max(scaled_pattern):.2f}")
                     except (ValueError, TypeError) as e:
                         logger.error(f"Error plotting beam for {tel_code} at {freq_mhz} MHz: {str(e)}")
