@@ -1,6 +1,6 @@
 from pastrocore.super.schedule_project import ScheduleProject
-from common.utils.logging_setup import logger
-from common.super.manipulator import Manipulator
+from msb_arch.utils.logging_setup import logger
+from msb_arch.mega.manipulator import Manipulator
 from typing import Optional
 
 class ScheduleManipulator(Manipulator):

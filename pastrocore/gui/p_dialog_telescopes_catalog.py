@@ -3,7 +3,7 @@ from PySide6.QtCore import Slot, Qt, Signal
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from pastrocore.gui.ui_dialog_catalog import Ui_CatalogDialog
 from pastrocore.utils.catalogmanager import CatalogManager
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 
 class TelescopesCatalogDialog(QDialog):
     """Dialog for browsing and selecting telescopes from the catalog."""

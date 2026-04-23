@@ -4,7 +4,7 @@ from PySide6.QtCore import Slot
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from pastrocore.gui.ui_dialog_edit_source import Ui_SourceEditorDialog
 from pastrocore.base.sources import Source
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 
 class SourceEditorDialog(QDialog):
     """Dialog for editing or adding a source."""

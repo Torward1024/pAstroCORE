@@ -12,7 +12,7 @@ from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from typing import Dict
 import polars as pl
 

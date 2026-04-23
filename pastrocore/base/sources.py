@@ -2,8 +2,8 @@
 from copy import deepcopy
 from typing import Optional, Dict
 from pastrocore.base.baseentityn import BaseEntityN
-from common.base.basecontainer import BaseContainer
-from common.utils.logging_setup import logger
+from msb_arch.base.basecontainer import BaseContainer
+from msb_arch.utils.logging_setup import logger
 import uuid
 
 class Source(BaseEntityN):

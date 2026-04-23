@@ -1,5 +1,5 @@
-from common.super.super import Super
-from common.utils.logging_setup import logger
+from msb_arch.super.super import Super
+from msb_arch.utils.logging_setup import logger
 
 from pastrocore.base.sources import Source
 from pastrocore.base.telescopes import Telescope, SpaceTelescope

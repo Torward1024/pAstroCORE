@@ -15,7 +15,7 @@ from pastrocore.gui.p_dialog_edit_source import SourceEditorDialog
 from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
 from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
 from .ui_dialog_calc_progress import Ui_ProgressDialog
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 import uuid
 import json
 from datetime import datetime, timedelta

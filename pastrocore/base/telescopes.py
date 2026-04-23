@@ -1,7 +1,7 @@
 # telescopes.py
-from common.base.basecontainer import BaseContainer
-from common.utils.validation import check_type
-from common.utils.logging_setup import logger
+from msb_arch.base.basecontainer import BaseContainer
+from msb_arch.utils.validation import check_type
+from msb_arch.utils.logging_setup import logger
 from typing import Optional, Dict, Tuple, Union, Any
 from .telescope import Telescope
 from .spacetelescope import SpaceTelescope

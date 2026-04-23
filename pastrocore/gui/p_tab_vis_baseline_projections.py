@@ -6,7 +6,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.base.frequencies import IF
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure

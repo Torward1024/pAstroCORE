@@ -4,8 +4,8 @@ import numpy as np
 from astropy.time import Time
 from typing import Optional, Dict
 from pastrocore.base.baseentityn import BaseEntityN
-from common.utils.validation import check_type, check_non_empty_string
-from common.utils.logging_setup import logger
+from msb_arch.utils.validation import check_type, check_non_empty_string
+from msb_arch.utils.logging_setup import logger
 from .sources import Sources
 from .telescopes import Telescopes
 from .frequencies import Frequencies

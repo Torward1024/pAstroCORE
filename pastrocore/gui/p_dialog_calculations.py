@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QDialog, QListWidgetItem, QMessageBox
 from PySide6.QtCore import Qt, QThread, Signal
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from common.utils.logging_setup import logger
+from msb_arch.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_calculations import Ui_CalculationDialog
 from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
 
