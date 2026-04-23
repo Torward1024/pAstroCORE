@@ -1179,7 +1179,7 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            metadata = obj.calculated_data.get(store_key).get("metatada", {})
+            metadata = obj.calculated_data.get(store_key).get("metadata", {})
             frequency_agnostic = metadata.get("frequency_agnostic", False)
             if frequency_agnostic and len(frequencies) > 1:
                 logger.warning("Beam pattern is frequency-agnostic, using first frequency only")

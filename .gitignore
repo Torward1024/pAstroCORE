@@ -30,3 +30,4 @@ build/
 dist/
 docs/
 .vscode/
+pAstroCORE.code-workspace
