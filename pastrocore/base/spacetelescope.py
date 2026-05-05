@@ -1,16 +1,10 @@
 from copy import deepcopy
-from .telescope import Telescope
+from .telescope import Telescope, MountType
 from msb_arch.utils.logging_setup import logger
 from typing import Optional, Dict, Tuple, Any
 from astropy.time import Time
-from enum import Enum
 import os
 import uuid
-
-class MountType(Enum):
-    EQUATORIAL = "EQUA"
-    AZIMUTHAL = "AZIM"
-    SPACE = "NONE"
 
 class SpaceTelescope(Telescope):
     """Class representing a space-based telescope with orbital parameters and SEFD properties.
