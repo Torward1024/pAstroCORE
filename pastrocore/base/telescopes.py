@@ -117,7 +117,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
         Args:
             code (str): Unique short name. Defaults to "TEMP".
-            name (str): Full name (set to code for consistency). Defaults to "Temporary Telescope".
+            name (str): Full name. Defaults to "Temporary Telescope".
             x (float): X-coordinate in ITRF (meters). Defaults to 0.0.
             y (float): Y-coordinate in ITRF (meters). Defaults to 0.0.
             z (float): Z-coordinate in ITRF (meters). Defaults to 0.0.
