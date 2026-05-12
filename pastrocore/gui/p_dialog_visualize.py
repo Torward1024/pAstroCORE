@@ -9,6 +9,7 @@ from .p_tab_vis_sun_angles import SunAnglesVisualizationTab
 from .p_tab_vis_beam_pattern import BeamPatternVisualizationTab
 from .p_tab_vis_time_on_source import TimeOnSourceVisualizationTab
 from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab
+from .p_tab_vis_parallactic import ParallacticAngleVisualizationTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
@@ -120,7 +121,8 @@ class VisualizationDialog(QDialog):
                 "uv_coverage": "UV Coverage",
                 "baseline_projections": "Baseline Projections",
                 "beam_pattern": "Beam Pattern",
-                "mollweide_tracks": "Mollweide Tracks"
+                "mollweide_tracks": "Mollweide Tracks",
+                "parallactic_angle": "Parallactic Angle"
             }
             available_types = []
             for key in CalculatedDataStructure.SCHEMAS.keys():
@@ -222,7 +224,8 @@ class VisualizationDialog(QDialog):
                 "UV Coverage": UVVisualizationTab,
                 "Baseline Projections": BaselineProjectionsVisualizationTab,
                 "Beam Pattern": BeamPatternVisualizationTab,
-                "Mollweide Tracks": MollweideVisualizationTab
+                "Mollweide Tracks": MollweideVisualizationTab,
+                "Parallactic Angle": ParallacticAngleVisualizationTab
             }
             tab_class = tab_classes.get(vis_type)
             if not tab_class:
@@ -273,7 +276,8 @@ class VisualizationDialog(QDialog):
                 "UV Coverage": "uv_coverage",
                 "Baseline Projections": "baseline_projections",
                 "Beam Pattern": "beam_pattern",
-                "Mollweide Tracks": "mollweide_tracks"
+                "Mollweide Tracks": "mollweide_tracks",
+                "Parallactic Angle": "parallactic_angle"
             }.get(vis_type)
             if not vis_key:
                 logger.error(f"Invalid visualization type '{vis_type}'")

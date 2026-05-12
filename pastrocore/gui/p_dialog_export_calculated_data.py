@@ -99,7 +99,7 @@ class ExportThread(QThread):
                     if self.export_vis:
                         visualizable_keys = [
                             "uv_coverage", "baseline_projections", "time_on_source",
-                            "sun_angles", "az_el", "mollweide_tracks", "beam_pattern"
+                            "sun_angles", "az_el", "mollweide_tracks", "beam_pattern", "parallactic_angle"
                         ]
                         if key not in visualizable_keys:
                             logger.debug(f"Skipping visualization for {calc_type} as it is not visualizable")
@@ -119,7 +119,7 @@ class ExportThread(QThread):
                                 "dpi": 76,
                                 "source_name": source_name,
                                 "baselines": baselines if key in ["uv_coverage", "baseline_projections"] else [],
-                                "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source", "beam_pattern"] else [],
+                                "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source", "beam_pattern", "parallactic_angle"] else [],
                                 "scans": scans,
                                 "frequencies": frequencies if key in ["uv_coverage", "baseline_projections", "beam_pattern"] else [],
                                 "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
@@ -262,7 +262,7 @@ class ExportCalculatedDataDialog(QDialog):
         calc_types = [
             "UV Coverage", "Mollweide Tracks", "Baseline Projections",
             "Time on Source", "Sun Angles", "Az/El", "Beam Pattern",
-            "Source Visibility", "Telescope Positions"
+            "Source Visibility", "Telescope Positions", "Parallactic Angle"
         ]
         self.ui.calcList.clear()
         for calc_type in calc_types:

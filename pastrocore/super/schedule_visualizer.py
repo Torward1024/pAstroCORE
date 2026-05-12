@@ -135,6 +135,7 @@ class ScheduleVisualizer(Super):
             "beam_pattern": self._plot_beam_pattern,
             "baseline_projections": self._plot_baseline_projections,
             "mollweide_tracks": self._plot_mollweide_tracks,
+            "parallactic_angle": self._plot_parallactic_angle
         }
         
         logger.debug("Initialized Scheduling Visualizer")
@@ -1682,4 +1683,140 @@ class ScheduleVisualizer(Super):
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
+            return result
+    
+    def _plot_parallactic_angle(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+        """
+        Plot parallactic angle for ground telescopes.
+        Similar to sun_angles, but with special meaning for polarization observations.
+        """
+        with self._lock:
+            logger.debug(f"Plotting parallactic angle for {obj.get_observation_code()} with attributes: {attributes}")
+            store_key = attributes.get("store_key", "parallactic_angle")
+            source_name = attributes.get("source_name", None)
+            telescopes = attributes.get("telescopes", [])
+            scans = attributes.get("scans", None)
+            time_range = attributes.get("time_range", None)
+
+            if not self._check_filters(attributes, ["source_name", "telescopes"]):
+                logger.debug(f"Missing required filters for parallactic angle plot")
+                return self._create_empty_plot(
+                    fig, "parallactic_angle", obj.get_observation_code(),
+                    labels={
+                        "xlabel": "Time, (MJD)",
+                        "ylabel": "Parallactic Angle, (deg)",
+                        "title": f"Parallactic Angle\nObs. code: {obj.get_observation_code()}"
+                    }
+                )
+
+            data_df = obj.get_calculated_data_by_key(store_key).get("data", {})
+            if data_df is None or data_df.is_empty():
+                logger.debug("No parallactic angle data available")
+                return self._create_empty_plot(
+                    fig, "parallactic_angle", obj.get_observation_code(),
+                    labels={
+                        "xlabel": "Time, (MJD)",
+                        "ylabel": "Parallactic Angle, (deg)",
+                        "title": f"Parallactic Angle\nObs. code: {obj.get_observation_code()}"
+                    }
+                )
+
+            filtered_df = data_df
+            if source_name:
+                filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
+            if telescopes:
+                filtered_df = filtered_df.filter(pl.col("telescope_code").is_in(telescopes))
+            if scans:
+                filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
+            if time_range:
+                start_time, end_time = time_range
+                filtered_df = filtered_df.filter(
+                    (pl.col("time") >= float(start_time)) & (pl.col("time") <= float(end_time))
+                )
+
+            if filtered_df.is_empty():
+                logger.debug("No data after filtering")
+                return self._create_empty_plot(
+                    fig, "parallactic_angle", obj.get_observation_code(),
+                    labels={
+                        "xlabel": "Time, (MJD)",
+                        "ylabel": "Parallactic Angle, (deg)",
+                        "title": f"Parallactic Angle\nObs. code: {obj.get_observation_code()}"
+                    }
+                )
+
+            ax = self._setup_axes(fig, "parallactic_angle", obj.get_observation_code())
+            ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
+            ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
+            ax.set_ylabel("Parallactic Angle, (deg)", fontsize=self._style_config["font"]["label_size"])
+            ax.set_title(f"Parallactic Angle\nObs. code: {obj.get_observation_code()}\nSource: {source_name or 'All'}",
+                         fontsize=self._style_config["font"]["title_size"])
+            ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
+            ax.grid(True, linestyle='--', alpha=0.7)
+
+            ax.axhline(0, color='gray', linestyle='-', alpha=0.5, linewidth=1)
+            ax.axhline(90, color='red', linestyle='--', alpha=0.4, linewidth=1)
+            ax.axhline(-90, color='red', linestyle='--', alpha=0.4, linewidth=1)
+
+            result = {"scans": len(filtered_df["scan_name"].unique()), "telescopes": 0, "points": 0}
+            plotted_telescopes = set()
+            legend_handles = []
+            legend_labels = []
+
+            for tel_idx, tel in enumerate(filtered_df["telescope_code"].unique()):
+                tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
+                if tel_data.is_empty():
+                    continue
+
+                tel_data = tel_data.sort("time")
+                times_mjd = tel_data["time"].to_numpy()
+                pa_angles = tel_data["parallactic_angle"].to_numpy()
+
+                valid_mask = ~np.isnan(pa_angles)
+                if not np.any(valid_mask):
+                    continue
+
+                valid_times = times_mjd[valid_mask]
+                valid_pa = pa_angles[valid_mask]
+
+                color = self._style_config["colors"][tel_idx % len(self._style_config["colors"])]
+                handle = ax.plot(
+                    valid_times, valid_pa,
+                    color=color,
+                    linestyle=self._style_config.get("lines", {}).get("style", "-"),
+                    linewidth=self._style_config.get("lines", {}).get("width", 1.8),
+                    alpha=0.85,
+                    label=tel
+                )[0]
+
+                plotted_telescopes.add(tel)
+                result["points"] += len(valid_pa)
+                legend_handles.append(handle)
+                legend_labels.append(tel)
+
+            if not plotted_telescopes:
+                logger.debug("No valid parallactic angle data plotted")
+                return self._create_empty_plot(
+                    fig, "parallactic_angle", obj.get_observation_code(),
+                    labels={
+                        "xlabel": "Time, (MJD)",
+                        "ylabel": "Parallactic Angle, (deg)",
+                        "title": f"Parallactic Angle\nObs. code: {obj.get_observation_code()}"
+                    }
+                )
+
+            if legend_handles:
+                fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
+                fig.legend(
+                    handles=legend_handles,
+                    labels=legend_labels,
+                    loc=self._style_config["legend"]["loc"],
+                    bbox_to_anchor=self._style_config["legend"]["bbox_to_anchor"],
+                    fontsize=self._style_config["legend"]["fontsize"],
+                    title="Telescopes:",
+                    title_fontsize=self._style_config["legend"]["title_fontsize"]
+                )
+
+            result["telescopes"] = len(plotted_telescopes)
+            logger.debug(f"Parallactic angle plot completed: {result}")
             return result
