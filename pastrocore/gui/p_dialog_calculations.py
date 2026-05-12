@@ -23,7 +23,8 @@ class CalculationThread(QThread):
         logger.debug(f"CalculationThread initialized with calc_types: {self.calc_types}")
         valid_calcs = [
             "UV Coverage", "Mollweide Tracks", "Baseline Projections",
-            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern"
+            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern", 
+            "Parallactic Angle"
         ]
         invalid_calcs = [calc for calc in calc_types if calc not in valid_calcs]
         if invalid_calcs:
@@ -60,7 +61,8 @@ class CalculationThread(QThread):
                         "Beam Pattern": "beam_pattern",
                         "Time on Source": "time_on_source",
                         "Sun Angles": "sun_angles",
-                        "Azimuth/Elevation": "az_el"
+                        "Azimuth/Elevation": "az_el",
+                        "Parallactic Angle": "parallactic_angle"
                     }
                     method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
                     if calc_type in freq_dependent_calcs:
@@ -160,7 +162,8 @@ class CalculationDialog(QDialog):
             "Beam Pattern",
             "Time on Source",
             "Sun Angles",
-            "Azimuth/Elevation"
+            "Azimuth/Elevation",
+            "Parallactic Angle"
         ]
         dependencies = {
             "Synthesized Beam": ["UV Coverage"],

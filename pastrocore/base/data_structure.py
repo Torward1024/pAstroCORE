@@ -211,6 +211,26 @@ class CalculatedDataStructure:
                 "telescope_code": pl.String,
                 "lon": pl.Float64,
                 "lat": pl.Float64
+            }  
+        },
+        "parallactic_angle": {
+            "columns": ["time", "source_name", "scan_name", "telescope_code", "parallactic_angle"],
+            "metadata": {
+                "time_step": float,
+                "scan_count": int,
+                "position_store_key": str,
+                "visibility_store_key": str
+            },
+            "converters": {
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
+            },
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "source_name": pl.String,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "parallactic_angle": pl.Float64
             }
         }
     }

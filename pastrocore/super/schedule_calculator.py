@@ -2569,3 +2569,245 @@ class ScheduleCalculator(Super):
             np.concatenate(lons_list),
             np.concatenate(lats_list)
         )
+
+    @time_execution
+    def _calculate_parallactic_angle(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
+        """Calculate parallactic angle for ground-based telescopes in all active scans.
+
+        The parallactic angle is crucial for polarization observations as it describes
+        the orientation of the feed relative to the sky.
+
+        Args:
+            obj: The object to calculate parallactic angle for (Observation or ScheduleProject).
+            attributes: Parameters including "time_step", "store_key", "recalculate",
+                       "position_store_key", "visibility_store_key".
+
+        Returns:
+            pl.DataFrame: DataFrame with columns 
+                ["time", "scan_name", "telescope_code", "source_name", "parallactic_angle"] 
+                (angle in degrees, range usually -180 to +180).
+        """
+        try:
+            time_step = attributes.get("time_step")
+            store_key = attributes.get("store_key", "parallactic_angle")
+            position_store_key = attributes.get("position_store_key", "telescope_positions")
+            visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
+            recalculate = attributes.get("recalculate", False)
+
+            def calculate_parallactic(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
+                scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True)
+                if not scans:
+                    logger.warning(f"No active scans in observation '{obs.get_observation_code()}'")
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("parallactic_angle"))
+
+                # Only ground telescopes are relevant for parallactic angle
+                ground_telescopes = [tel for tel in telescopes if not isinstance(tel, SpaceTelescope)]
+                if not ground_telescopes:
+                    logger.debug(f"No ground telescopes in '{obs.get_observation_code()}' for parallactic angle calculation")
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("parallactic_angle"))
+
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+
+                times_df = self._calculate_time_arrays(obs, time_attrs)
+                position_df = self._calculate_telescope_positions(obs, position_attrs)
+                visibility_df = self._calculate_source_visibility(obs, visibility_attrs)
+
+                if times_df.is_empty() or position_df.is_empty() or visibility_df.is_empty():
+                    logger.error(f"Missing required data for parallactic angle in '{obs.get_observation_code()}'")
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("parallactic_angle"))
+
+                times_list = []
+                scan_names = []
+                telescope_codes = []
+                source_names = []
+                pa_list = []
+
+                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {}
+                    for scan in scans:
+                        scan_name = scan.name
+                        scan_times = times_df.filter(pl.col("scan_name") == scan_name)["time"].to_numpy()
+                        if len(scan_times) == 0:
+                            logger.warning(f"No valid times for scan '{scan_name}'")
+                            continue
+                        scan_positions = position_df.filter(pl.col("scan_name") == scan_name)
+                        scan_visibility = visibility_df.filter(pl.col("scan_name") == scan_name)
+                        futures[executor.submit(
+                            self._process_parallactic_angle,
+                            scan, obs, scan_times, scan_positions, scan_visibility
+                        )] = scan_name
+
+                    for future in futures:
+                        scan_name = futures[future]
+                        scan_result = future.result()
+                        if scan_result is not None:
+                            times, scan_name_arr, tel_codes, source_name_arr, pa = scan_result
+                            times_list.append(times)
+                            scan_names.append(scan_name_arr)
+                            telescope_codes.append(tel_codes)
+                            source_names.append(source_name_arr)
+                            pa_list.append(pa)
+
+                if not times_list:
+                    logger.warning(f"No valid parallactic angle data computed for '{obs.get_observation_code()}'")
+                    return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("parallactic_angle"))
+
+                df = pl.DataFrame({
+                    "time": np.concatenate(times_list),
+                    "scan_name": np.concatenate(scan_names),
+                    "telescope_code": np.concatenate(telescope_codes),
+                    "source_name": np.concatenate(source_names),
+                    "parallactic_angle": np.concatenate(pa_list)
+                }, schema=CalculatedDataStructure.get_dtypes("parallactic_angle"))
+
+                logger.info(f"Calculated parallactic angles for {df['scan_name'].unique().len()} scans "
+                           f"across {df['telescope_code'].unique().len()} telescopes in '{obs.get_observation_code()}', "
+                           f"DF rows: {df.height}")
+                return df
+
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) 
+                             else sum(len(o.get_scans().get_active_items()) for o in obj.get_items()),
+                "position_store_key": position_store_key,
+                "visibility_store_key": visibility_store_key
+            }
+
+            df = self._process_object(obj, attributes, calculate_parallactic, store_key, metadata)
+
+            if not df.is_empty():
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
+                    obj.set_calculated_data_by_key(store_key, df, metadata)
+
+            return df
+
+        except Exception as e:
+            logger.error(f"Failed to calculate parallactic angle for "
+                        f"'{obj.get_observation_code() if isinstance(obj, Observation) else obj.name}': {str(e)}")
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("parallactic_angle"))
+
+    def _process_parallactic_angle(
+            self,
+            scan: Scan,
+            observation: Observation,
+            times_mjd: np.ndarray,
+            position_df: pl.DataFrame,
+            visibility_df: pl.DataFrame
+        ) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+        """Process parallactic angle for a single scan using robust vectorized calculation."""
+        source = scan.get_source(observation)
+        if not source or not source.isactive:
+            logger.warning(f"No active source for scan '{scan.name}'")
+            return None
+
+        scan_name = scan.name
+        source_name = source.name
+        scan_telescopes = scan.get_telescopes(observation)
+        active_ground_telescopes = [
+            t for t in scan_telescopes.get_items() 
+            if t.isactive and not isinstance(t, SpaceTelescope)
+        ]
+
+        if not active_ground_telescopes:
+            logger.debug(f"No active ground telescopes for parallactic angle in scan '{scan_name}'")
+            return None
+
+        n_times = len(times_mjd)
+        if n_times == 0:
+            logger.warning(f"No valid times for scan '{scan_name}'")
+            return None
+
+        source_coord = SkyCoord(
+            ra=source.ra_degrees * u.deg,
+            dec=source.dec_degrees * u.deg,
+            frame='icrs'
+        )
+        obstime = Time(times_mjd, format="mjd", scale="utc")
+
+        times_list = []
+        scan_names = []
+        telescope_codes = []
+        source_names = []
+        pa_list = []
+
+        for tel in active_ground_telescopes:
+            tel_code = tel.get_code()
+
+            tel_positions = position_df.filter(pl.col("telescope_code") == tel_code)
+            tel_visibility = visibility_df.filter(pl.col("telescope_code") == tel_code)
+
+            if tel_positions.is_empty() or tel_visibility.is_empty():
+                logger.warning(f"Missing position or visibility data for '{tel_code}' in scan '{scan_name}'")
+                continue
+
+            positions = tel_positions.select(["x", "y", "z"]).to_numpy()
+            visibility = tel_visibility["visibility"].to_numpy()
+
+            if len(positions) != n_times or len(visibility) != n_times:
+                logger.warning(f"Data length mismatch for '{tel_code}' in scan '{scan_name}'")
+                positions = np.full((n_times, 3), np.nan, dtype=float)
+                visibility = np.full(n_times, False, dtype=bool)
+
+            nan_positions = np.any(np.isnan(positions), axis=1)
+            is_visible = visibility & ~nan_positions
+
+            parallactic = np.full(n_times, np.nan, dtype=float)
+
+            if np.any(is_visible):
+                try:
+                    gcrs_coords = CartesianRepresentation(
+                        x=positions[:, 0] * u.m,
+                        y=positions[:, 1] * u.m,
+                        z=positions[:, 2] * u.m
+                    )
+                    itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
+                    locations = itrs.earth_location
+
+                    altaz_frame = AltAz(obstime=obstime[is_visible], location=locations[is_visible])
+                    source_altaz = source_coord.transform_to(altaz_frame)
+
+                    hadec_frame = HADec(obstime=obstime[is_visible], location=locations[is_visible])
+                    source_hadec = source_coord.transform_to(hadec_frame)
+
+                    ha = source_hadec.ha.rad
+                    dec = np.radians(source_hadec.dec.deg)
+                    lat = np.radians(locations[is_visible].lat.deg)
+
+                    sin_pa = np.sin(ha) * np.cos(lat)
+                    cos_pa = np.sin(lat) * np.cos(dec) - np.cos(lat) * np.sin(dec) * np.cos(ha)
+                    pa_rad = np.arctan2(sin_pa, cos_pa)
+
+                    pa_deg = np.degrees(pa_rad)
+                    pa_deg = (pa_deg + 180) % 360 - 180
+
+                    parallactic[is_visible] = pa_deg
+
+                except Exception as inner_e:
+                    logger.warning(f"Failed to compute parallactic angle for '{tel_code}' "
+                                  f"in scan '{scan_name}': {inner_e}")
+
+            times_list.append(times_mjd)
+            scan_names.append(np.full(n_times, scan_name, dtype=object))
+            telescope_codes.append(np.full(n_times, tel_code, dtype=object))
+            source_names.append(np.full(n_times, source_name, dtype=object))
+            pa_list.append(parallactic)
+
+            valid_count = np.sum(~np.isnan(parallactic))
+            logger.debug(f"Computed parallactic angles for '{tel_code}' in scan '{scan_name}': "
+                        f"{valid_count}/{n_times} valid points")
+
+        if not times_list:
+            logger.warning(f"No parallactic angle data computed for scan '{scan_name}'")
+            return None
+
+        return (
+            np.concatenate(times_list),
+            np.concatenate(scan_names),
+            np.concatenate(telescope_codes),
+            np.concatenate(source_names),
+            np.concatenate(pa_list)
+        )
