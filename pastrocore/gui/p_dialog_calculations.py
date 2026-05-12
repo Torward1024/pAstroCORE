@@ -11,7 +11,7 @@ from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
 class CalculationThread(QThread):
     """Thread for performing calculations asynchronously with robust error handling."""
     progress = Signal(int, str)
-    finished = Signal(dict, list)  # results, errors
+    finished = Signal(dict, list)
     error = Signal(str)
 
     def __init__(self, manipulator, targets, calc_types, params):
@@ -42,7 +42,7 @@ class CalculationThread(QThread):
         """Execute calculations asynchronously with per-item error handling."""
         results = {}
         errors = []
-        freq_dependent_calcs = ["Synthesized Beam"]  # extend if needed
+        freq_dependent_calcs = ["Synthesized Beam"]
 
         try:
             total = sum(
@@ -98,7 +98,7 @@ class CalculationThread(QThread):
                 logger.info("All calculations completed successfully")
                 self.finished.emit(results, [])
 
-        except Exception as e:  # Global fallback
+        except Exception as e:
             logger.error(f"Unexpected error in CalculationThread: {str(e)}")
             self.error.emit(f"Critical error: {str(e)}")
 
@@ -131,7 +131,7 @@ class CalculationThread(QThread):
             err_msg = f"{calc_type} failed for {target.code}" + (f" at {freq}" if freq else "") + f": {str(e)}"
             errors.append(err_msg)
             logger.error(err_msg)
-            # Продолжаем выполнение остальных расчётов
+
             progress_pct = int((current + 1) / total * 100)
             self.progress.emit(progress_pct, f"Failed {display_name}")
 
@@ -292,7 +292,6 @@ class CalculationDialog(QDialog):
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
             return
 
-        # Clear cache if requested
         if self.ui.recalculateCheck.isChecked():
             for target in selected_targets:
                 try:
