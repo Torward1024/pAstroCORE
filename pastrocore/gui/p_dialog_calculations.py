@@ -7,10 +7,11 @@ from msb_arch.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_calculations import Ui_CalculationDialog
 from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
 
+
 class CalculationThread(QThread):
-    """Thread for performing calculations asynchronously."""
+    """Thread for performing calculations asynchronously with robust error handling."""
     progress = Signal(int, str)
-    finished = Signal(dict)
+    finished = Signal(dict, list)  # results, errors
     error = Signal(str)
 
     def __init__(self, manipulator, targets, calc_types, params):
@@ -21,9 +22,10 @@ class CalculationThread(QThread):
         self.params = params
         self._cancelled = False
         logger.debug(f"CalculationThread initialized with calc_types: {self.calc_types}")
+
         valid_calcs = [
             "UV Coverage", "Mollweide Tracks", "Baseline Projections",
-            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern", 
+            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern",
             "Parallactic Angle"
         ]
         invalid_calcs = [calc for calc in calc_types if calc not in valid_calcs]
@@ -37,23 +39,36 @@ class CalculationThread(QThread):
         logger.debug("CalculationThread cancellation requested")
 
     def run(self):
-        """Execute calculations asynchronously and emit progress signals."""
+        """Execute calculations asynchronously with per-item error handling."""
+        results = {}
+        errors = []
+        freq_dependent_calcs = ["Synthesized Beam"]  # extend if needed
+
         try:
-            results = {}
-            freq_dependent_calcs = ["Synthesized Beam"]
-            total = sum(len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1
-                        for target in self.targets for calc_type in self.calc_types)
+            total = sum(
+                len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1
+                for target in self.targets for calc_type in self.calc_types
+            )
             current = 0
+
             for target in self.targets:
-                freqs = [f.name for f in target.frequencies.get_active_items()] if isinstance(target, Observation) else [None]
+                if self._cancelled:
+                    logger.info("Calculation cancelled by user")
+                    self.error.emit("Calculation cancelled by user")
+                    return
+
+                freqs = ([f.name for f in target.frequencies.get_active_items()]
+                         if isinstance(target, Observation) else [None])
+
                 for calc_type in self.calc_types:
                     if self._cancelled:
                         logger.info("Calculation cancelled by user")
                         self.error.emit("Calculation cancelled by user")
                         return
+
                     calc_params = self.params.get(calc_type, {}).copy()
                     time_step = calc_params.get("time_step", 600)
-                    logger.debug(f"Time step for {calc_type} on {target.code} set to '{time_step}'")
+
                     method_map = {
                         "UV Coverage": "uv_coverage",
                         "Mollweide Tracks": "mollweide_tracks",
@@ -65,39 +80,61 @@ class CalculationThread(QThread):
                         "Parallactic Angle": "parallactic_angle"
                     }
                     method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
+
                     if calc_type in freq_dependent_calcs:
                         for freq in freqs:
-                            if self._cancelled:
-                                logger.info("Calculation cancelled by user during frequency loop")
-                                self.error.emit("Calculation cancelled by user")
-                                return
-                            freq_params = calc_params.copy()
-                            freq_params["freq_name"] = freq
-                            freq_params["store_key"] = f"{method}_{freq}"
-                            freq_params["time_step"] = time_step
-                            logger.debug(f"Executing calculation request for {calc_type} on {target.code} at {freq} with params: {freq_params}")
-                            try:
-                                result = self.manipulator.calculate(obj=target, method=method, **freq_params)
-                                results[f"{target.code}_{calc_type}_{freq}"] = result
-                                current += 1
-                                self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code} at {freq}")
-                            except Exception as e:
-                                raise ValueError(f"Calculation {calc_type} failed for {target.code} at {freq}: {str(e)}")
-                    else:
-                        calc_params["store_key"] = f"{method}"
-                        calc_params["time_step"] = time_step
-                        logger.debug(f"Executing calculation request for {calc_type} on {target.code} with params: {calc_params}")
-                        try:
-                            result = self.manipulator.calculate(obj=target, method=method, **calc_params)
-                            results[f"{target.code}_{calc_type}"] = result
+                            self._process_single_calc(target, calc_type, method, freq,
+                                                      calc_params, time_step, results, errors, current, total)
                             current += 1
-                            self.progress.emit(int(current / total * 100), f"Calculating {calc_type} for {target.code}")
-                        except Exception as e:
-                            raise ValueError(f"Calculation {calc_type} failed for {target.code}: {str(e)}")
-            self.finished.emit(results)
+                    else:
+                        self._process_single_calc(target, calc_type, method, None,
+                                                  calc_params, time_step, results, errors, current, total)
+                        current += 1
+
+            if errors:
+                logger.warning(f"Completed with {len(errors)} errors. Results collected: {len(results)}")
+                self.finished.emit(results, errors)
+            else:
+                logger.info("All calculations completed successfully")
+                self.finished.emit(results, [])
+
+        except Exception as e:  # Global fallback
+            logger.error(f"Unexpected error in CalculationThread: {str(e)}")
+            self.error.emit(f"Critical error: {str(e)}")
+
+    def _process_single_calc(self, target, calc_type, method, freq, base_params,
+                             time_step, results, errors, current, total):
+        """Helper to process single calculation with isolated error handling."""
+        try:
+            calc_params = base_params.copy()
+            calc_params["time_step"] = time_step
+
+            if freq is not None:
+                calc_params["freq_name"] = freq
+                calc_params["store_key"] = f"{method}_{freq}"
+                display_name = f"{calc_type} for {target.code} at {freq}"
+            else:
+                calc_params["store_key"] = method
+                display_name = f"{calc_type} for {target.code}"
+
+            logger.debug(f"Executing {calc_type} on {target.code} with params: {calc_params}")
+
+            result = self.manipulator.calculate(obj=target, method=method, **calc_params)
+            key = f"{target.code}_{calc_type}" + (f"_{freq}" if freq else "")
+            results[key] = result
+
+            progress_pct = int((current + 1) / total * 100)
+            self.progress.emit(progress_pct, f"Calculated {display_name}")
+
         except Exception as e:
-            logger.error(f"Calculation error in thread: {str(e)}")
-            self.error.emit(str(e))
+            key = f"{target.code}_{calc_type}" + (f"_{freq}" if freq else "")
+            err_msg = f"{calc_type} failed for {target.code}" + (f" at {freq}" if freq else "") + f": {str(e)}"
+            errors.append(err_msg)
+            logger.error(err_msg)
+            # Продолжаем выполнение остальных расчётов
+            progress_pct = int((current + 1) / total * 100)
+            self.progress.emit(progress_pct, f"Failed {display_name}")
+
 
 class ProgressDialog(QDialog):
     """Custom progress dialog for calculation progress."""
@@ -114,10 +151,6 @@ class ProgressDialog(QDialog):
         self.ui.label.setText(message)
         logger.debug(f"ProgressDialog updated: value={value}, message={message}")
 
-    def cancel(self):
-        """Emit cancellation signal (handled by parent dialog)."""
-        logger.debug("ProgressDialog cancel requested")
-        self.reject()
 
 class CalculationDialog(QDialog):
     """Dialog for configuring and running multiple calculations."""
@@ -251,28 +284,29 @@ class CalculationDialog(QDialog):
                           if self.ui.calcList.item(i).checkState() == Qt.Checked]
         selected_targets = [self.ui.targetList.item(i).data(Qt.UserRole) for i in range(self.ui.targetList.count())
                             if self.ui.targetList.item(i).checkState() == Qt.Checked]
+
         logger.debug(f"Selected calculations: {selected_calcs}")
-        logger.debug(f"Selected targets: {[target.code for target in selected_targets]}")
-        
+        logger.debug(f"Selected targets: {[t.code for t in selected_targets]}")
+
         if not selected_calcs or not selected_targets:
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
             return
 
+        # Clear cache if requested
         if self.ui.recalculateCheck.isChecked():
             for target in selected_targets:
                 try:
                     target.clear_calculated_data()
-                    logger.info(f"Cleared all cached data for '{target.get_observation_code()}'")
-                except AttributeError as e:
-                    logger.error(f"Failed to clear cache for '{target.get_observation_code()}': {str(e)}")
-                    QMessageBox.critical(self, "Error", f"Failed to clear cache for {target.get_observation_code()}: {str(e)}")
+                    logger.info(f"Cleared cached data for '{target.code}'")
+                except Exception as e:
+                    logger.error(f"Failed to clear cache for {target.code}: {e}")
+                    QMessageBox.critical(self, "Error", f"Failed to clear cache: {e}")
                     return
 
         params = {
             "time_step": self.ui.timeStepSpin.value(),
             "recalculate": False
         }
-        logger.debug(f"CalculationDialog: params set to {params}")
         calc_params = {calc: params.copy() for calc in selected_calcs}
 
         self.progress_dialog = ProgressDialog(self)
@@ -288,7 +322,41 @@ class CalculationDialog(QDialog):
 
         if self.ui.timeStepSpin.value() != self.time_step:
             self.time_step_updated.emit(self.ui.timeStepSpin.value())
-            logger.debug(f"Emitted time_step_updated signal with value {self.ui.timeStepSpin.value()}")
+
+    def calculation_finished(self, results: dict, errors: list):
+        """Handle calculation completion — distinguish success from partial failure."""
+        self.progress_dialog.close()
+
+        if errors:
+            error_text = "Some calculations completed with errors:\n\n" + "\n".join(errors[:10])
+            if len(errors) > 10:
+                error_text += f"\n\n... and {len(errors)-10} more errors."
+            QMessageBox.warning(self, "Partial Success", error_text)
+            logger.warning(f"Calculations finished with {len(errors)} errors.")
+        else:
+            QMessageBox.information(self, "Success", "All calculations completed successfully.")
+            logger.info("All calculations completed successfully.")
+
+        self.accept()
+
+    def calculation_error(self, error: str):
+        """Handle critical thread errors."""
+        if hasattr(self, 'progress_dialog') and self.progress_dialog:
+            self.progress_dialog.close()
+        logger.error(f"Calculation critical error: {error}")
+        QMessageBox.critical(self, "Error", f"Calculation failed: {error}")
+        self.reject()
+
+    def cancel_calculation(self):
+        """Handle user cancellation."""
+        logger.debug("Cancellation requested by user")
+        if hasattr(self, 'thread') and self.thread:
+            self.thread.cancel()
+            if hasattr(self, 'progress_dialog') and self.progress_dialog:
+                self.progress_dialog.update_progress(
+                    self.progress_dialog.ui.progressBar.value(),
+                    "Cancelling after current calculation..."
+                )
 
     def update_progress(self, value, message):
         """Update the progress dialog (kept for compatibility, delegates to ProgressDialog)."""
