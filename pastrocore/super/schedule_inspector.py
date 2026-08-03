@@ -48,552 +48,112 @@ class ScheduleInspector(Super):
         logger.debug("Initialized ScheduleInspector")
 
     def _inspect_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:
-        """Inspect an IF object and return its get() result with requested attributes.
-
-        Args:
-            if_obj (IF): The IF object to inspect.
-            attributes (Dict[str, Any]): Dictionary of getter method names and arguments.
-
-        Returns:
-            Any: Result of the last applied method or if_obj.get(getter_args).
-
-        Raises:
-            ValueError: If no valid getters are applied.
-        """
+        """Inspect an IF object and report every requested getter."""
         check_type(if_obj, IF, "IF object")
-        valid_getters = self._get_methods(IF)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(if_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for IF inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(if_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for IF inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning("No valid getters applied for IF inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected IF: frequency={if_obj.get('frequency')} MHz, result={final_result}")
-        return final_result
+        return self._apply_methods(if_obj, attributes)
+
 
     def _inspect_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> Any:
-        """Inspect a Frequencies object, supporting nested IF inspection.
-
-        Args:
-            freq_obj (Frequencies): The Frequencies object to inspect.
-            attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
-
-        Returns:
-            Any: Length of freq_obj or result of nested IF inspection.
-
-        Raises:
-            ValueError: If no valid getters are applied or nested inspection fails.
-        """
+        """Inspect a Frequencies object, supporting nested IF inspection."""
         check_type(freq_obj, Frequencies, "Frequencies object")
         if "name" in attributes:
-            name = attributes["name"]
-            if_obj = freq_obj.get(name)
-            if if_obj is None:
-                logger.error(f"IF '{name}' not found in Frequencies")
-                raise ValueError(f"Name '{name}' not found in Frequencies")
             result = self._do_nested(
-                freq_obj, attributes, "name", lambda k: freq_obj.get(k), self._inspect_if
+                freq_obj, attributes, "name", freq_obj.get, self._inspect_if
             )
             if result["status"]:
-                logger.debug(f"Inspected nested IF in Frequencies: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested IF in Frequencies: name={attributes['name']}, result={result['result']}")
                 return result["result"]
-            logger.warning(f"Failed to inspect nested IF in Frequencies: name={name}")
+            logger.warning(f"Failed to inspect nested IF in Frequencies: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
-        
-        valid_getters = self._get_methods(Frequencies)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(freq_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for Frequencies inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(freq_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for Frequencies inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning("No valid getters applied for Frequencies inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected Frequencies: name={freq_obj.name}, result={final_result}")
-        return final_result
+        return self._apply_methods(freq_obj, attributes)
+
 
     def _inspect_source(self, source_obj: Source, attributes: Dict[str, Any]) -> Any:
-        """Inspect a Source object and return its get() result with requested attributes."""
+        """Inspect a Source object and report every requested getter."""
         check_type(source_obj, Source, "Source object")
-        valid_getters = self._get_methods(Source)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(source_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for Source inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(source_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for Source inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning("No valid getters applied for Source inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected Source: name='{source_obj.name}', result={final_result}")
-        return final_result
+        return self._apply_methods(source_obj, attributes)
+
 
     def _inspect_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> Any:
-        """Inspect a Sources object, supporting nested Source inspection.
-
-        Args:
-            sources_obj (Sources): The Sources object to inspect.
-            attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
-
-        Returns:
-            Any: Length of sources_obj or result of nested Source inspection.
-
-        Raises:
-            ValueError: If no valid getters are applied or nested inspection fails.
-        """
+        """Inspect a Sources object, supporting nested Source inspection."""
         check_type(sources_obj, Sources, "Sources object")
         if "name" in attributes:
-            name = attributes["name"]
-            source_obj = sources_obj.get(name)
-            if source_obj is None:
-                logger.error(f"Source '{name}' not found in Sources")
-                raise ValueError(f"Name '{name}' not found in Sources")
             result = self._do_nested(
-                sources_obj, attributes, "name", lambda k: sources_obj.get(k), self._inspect_source
+                sources_obj, attributes, "name", sources_obj.get, self._inspect_source
             )
             if result["status"]:
-                logger.debug(f"Inspected nested Source in Sources: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested Source in Sources: name={attributes['name']}, result={result['result']}")
                 return result["result"]
-            logger.warning(f"Failed to inspect nested Source in Sources: name={name}")
+            logger.warning(f"Failed to inspect nested Source in Sources: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
-        
-        valid_getters = self._get_methods(Sources)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(sources_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for Sources inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(sources_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for Sources inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning("No valid getters applied for Sources inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected Sources: name={sources_obj.name}, result={final_result}")
-        return final_result
+        return self._apply_methods(sources_obj, attributes)
 
-    def _inspect_telescope(self, telescope_obj: Telescope, attributes: Dict[str, Any]) -> str:
-        """Inspect a Telescope or SpaceTelescope object and return its get_code() result."""
-        check_type(telescope_obj, (Telescope, SpaceTelescope), "Telescope object")
-        obj_type = type(telescope_obj)
-        valid_getters = self._get_methods(obj_type)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(telescope_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for {obj_type.__name__} inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(telescope_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for {obj_type.__name__} inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
-        return final_result
+
+    def _inspect_telescope(self, telescope_obj: Telescope, attributes: Dict[str, Any]) -> Any:
+        """Inspect a Telescope object and report every requested getter."""
+        check_type(telescope_obj, Telescope, "Telescope object")
+        return self._apply_methods(telescope_obj, attributes)
+
     
-    def _inspect_spacetelescope(self, telescope_obj: SpaceTelescope, attributes: Dict[str, Any]) -> str:
-        """Inspect a Telescope or SpaceTelescope object and return its get_code() result."""
-        check_type(telescope_obj, (Telescope, SpaceTelescope), "Telescope object")
-        obj_type = type(telescope_obj)
-        valid_getters = self._get_methods(obj_type)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(telescope_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for {obj_type.__name__} inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(telescope_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for {obj_type.__name__} inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning(f"No valid getters applied for {obj_type.__name__} inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected {obj_type.__name__}: code='{telescope_obj.get_code()}', result={final_result}")
-        return final_result
+    def _inspect_spacetelescope(self, telescope_obj: SpaceTelescope, attributes: Dict[str, Any]) -> Any:
+        """Inspect a SpaceTelescope object and report every requested getter."""
+        check_type(telescope_obj, SpaceTelescope, "SpaceTelescope object")
+        return self._apply_methods(telescope_obj, attributes)
+
 
     def _inspect_telescopes(self, telescopes_obj: Telescopes, attributes: Dict[str, Any]) -> Any:
-        """Inspect a Telescopes object, supporting nested Telescope inspection.
-
-        Args:
-            telescopes_obj (Telescopes): The Telescopes object to inspect.
-            attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
-
-        Returns:
-            Any: Length of telescopes_obj or result of nested Telescope inspection.
-
-        Raises:
-            ValueError: If no valid getters are applied or nested inspection fails.
-        """
+        """Inspect a Telescopes object, supporting nested Telescope inspection."""
         check_type(telescopes_obj, Telescopes, "Telescopes object")
         if "name" in attributes:
-            name = attributes["name"]
-            telescope_obj = telescopes_obj.get(name)
-            if telescope_obj is None:
-                logger.error(f"Telescope '{name}' not found in Telescopes")
-                raise ValueError(f"Name '{name}' not found in Telescopes")
             result = self._do_nested(
-                telescopes_obj, attributes, "name", lambda k: telescopes_obj.get(k), self._inspect_telescope
+                telescopes_obj, attributes, "name", telescopes_obj.get, self._inspect_telescope
             )
             if result["status"]:
-                logger.debug(f"Inspected nested Telescope in Telescopes: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested Telescope in Telescopes: name={attributes['name']}, result={result['result']}")
                 return result["result"]
-            logger.warning(f"Failed to inspect nested Telescope in Telescopes: name={name}")
+            logger.warning(f"Failed to inspect nested Telescope in Telescopes: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
-        
-        valid_getters = self._get_methods(Telescopes)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(telescopes_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for Telescopes inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(telescopes_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for Telescopes inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning("No valid getters applied for Telescopes inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected Telescopes: name={telescopes_obj.name}, result={final_result}")
-        return final_result
+        return self._apply_methods(telescopes_obj, attributes)
+
 
     def _inspect_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> Any:
-        """Inspect a Scan object, supporting observation-dependent getters."""
+        """Inspect a Scan object and report every requested getter."""
         check_type(scan_obj, Scan, "Scan object")
-        valid_getters = self._get_methods(Scan)
-        applied = False
-        final_result = None
+        return self._apply_methods(scan_obj, attributes)
 
-        for getter_name, getter_args in attributes.items():
-            if getter_name in {"get_source", "get_telescopes", "get_frequencies", "check_telescope_availability"}:
-                observation = None
-                if isinstance(getter_args, dict):
-                    observation = getter_args.get("observation")
-                print(f"Observation for {getter_name}: {observation}")
-                if not observation or not isinstance(observation, Observation):
-                    logger.error(f"Getter {getter_name} requires a valid Observation object, got {type(observation)}")
-                    raise ValueError(f"Getter {getter_name} requires a valid Observation object")
-                extra_args = {"observation": observation}
-            else:
-                extra_args = None
-
-            value = self._validate_and_apply_method(
-                scan_obj,
-                getter_name,
-                getter_args,
-                valid_getters,
-                extra_args
-            )
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for Scan inspection: {value['error']}")
-                raise ValueError(value["error"])
-
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(scan_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for Scan inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning("No valid getters applied for Scan inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected Scan: start={scan_obj.get('start').isot}, result={final_result}")
-        return final_result
 
     def _inspect_scans(self, scans_obj: Scans, attributes: Dict[str, Any]) -> Any:
-        """Inspect a Scans object, supporting nested Scan inspection.
-
-        Args:
-            scans_obj (Scans): The Scans object to inspect.
-            attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection.
-
-        Returns:
-            Any: Length of scans_obj or result of nested Scan inspection.
-
-        Raises:
-            ValueError: If no valid getters are applied or nested inspection fails.
-        """
+        """Inspect a Scans object, supporting nested Scan inspection."""
         check_type(scans_obj, Scans, "Scans object")
         if "name" in attributes:
-            name = attributes["name"]
-            scan_obj = scans_obj.get(name)
-            if scan_obj is None:
-                logger.error(f"Scan '{name}' not found in Scans")
-                raise ValueError(f"Name '{name}' not found in Scans")
-            if not isinstance(scan_obj, Scan):
-                logger.error(f"Object with name '{name}' is not a Scan, got {type(scan_obj).__name__}")
-                raise ValueError(f"Object with name '{name}' is not a Scan")
             result = self._do_nested(
-                scans_obj, attributes, "name", lambda k: scans_obj.get(k), self._inspect_scan
+                scans_obj, attributes, "name", scans_obj.get, self._inspect_scan
             )
             if result["status"]:
-                logger.debug(f"Inspected nested Scan in Scans: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested Scan in Scans: name={attributes['name']}, result={result['result']}")
                 return result["result"]
-            logger.warning(f"Failed to inspect nested Scan in Scans: name={name}")
+            logger.warning(f"Failed to inspect nested Scan in Scans: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
-        
-        valid_getters = self._get_methods(Scans)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            if getter_name == "get_active_scans" and getter_args and "observation" in getter_args:
-                if not isinstance(getter_args["observation"], Observation):
-                    logger.error(f"Argument 'observation' for {getter_name} must be an Observation object")
-                    raise ValueError(f"Argument 'observation' for {getter_name} must be an Observation object")
-            value = self._validate_and_apply_method(scans_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for Scans inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(scans_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for Scans inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning("No valid getters applied for Scans inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected Scans: name={scans_obj.name}, result={final_result}")
-        return final_result
+        return self._apply_methods(scans_obj, attributes)
 
-    def _inspect_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> str:
-        """Inspect an Observation object and return its get_observation_code() result."""
+
+    def _inspect_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> Any:
+        """Inspect an Observation object and report every requested getter."""
         check_type(obs_obj, Observation, "Observation object")
-        valid_getters = self._get_methods(Observation)
-        applied = False
-        final_result = None
-        
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(obs_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for Observation inspection: {value['error']}")
-                raise ValueError(value["error"])
-        
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(obs_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for Observation inspection: {result['error']}")
-                raise ValueError(result["error"])
-        
-        if not applied:
-            logger.warning("No valid getters applied for Observation inspection")
-            raise ValueError("No valid getters applied")
-        
-        logger.debug(f"Inspected Observation: code='{obs_obj.get_observation_code()}', result={final_result}")
-        return final_result
+        return self._apply_methods(obs_obj, attributes)
+
 
     def _inspect_scheduleproject(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Any:
-        """Inspect a ScheduleProject object, supporting nested Observation inspection.
-
-        Args:
-            project_obj (ScheduleProject): The ScheduleProject object to inspect.
-            attributes (Dict[str, Any]): Dictionary with optional "name" for nested inspection or getter methods.
-
-        Returns:
-            Any: Result of the requested getter method or nested Observation inspection.
-
-        Raises:
-            ValueError: If no valid getters are applied or nested inspection fails.
-        """
+        """Inspect a ScheduleProject object, supporting nested Observation inspection."""
         check_type(project_obj, ScheduleProject, "ScheduleProject object")
         if "name" in attributes:
-            name = attributes["name"]
-            obs_obj = project_obj.get_observation(name)
-            if obs_obj is None:
-                logger.error(f"Observation '{name}' not found in ScheduleProject")
-                raise ValueError(f"Name '{name}' not found in ScheduleProject")
             result = self._do_nested(
-                project_obj, attributes, "name", lambda k: project_obj.get_observation(k), self._inspect_observation
+                project_obj, attributes, "name", project_obj.get_observation, self._inspect_observation
             )
             if result["status"]:
-                logger.debug(f"Inspected nested Observation in ScheduleProject: name={name}, result={result['result']}")
+                logger.debug(f"Inspected nested Observation in ScheduleProject: name={attributes['name']}, result={result['result']}")
                 return result["result"]
-            logger.warning(f"Failed to inspect nested Observation in ScheduleProject: name={name}")
+            logger.warning(f"Failed to inspect nested Observation in ScheduleProject: name={attributes.get('name')}")
             raise ValueError(result.get("error", "Operation not executed"))
+        return self._apply_methods(project_obj, attributes)
 
-        valid_getters = self._get_methods(ScheduleProject)
-        applied = False
-        final_result = None
-
-        for getter_name, getter_args in attributes.items():
-            if getter_name == "get":
-                continue
-            value = self._validate_and_apply_method(project_obj, getter_name, getter_args, valid_getters)
-            if value["status"]:
-                applied = True
-                final_result = value["result"]
-            else:
-                logger.warning(f"Invalid getter '{getter_name}' for ScheduleProject inspection: {value['error']}")
-                raise ValueError(value["error"])
-
-        getter_args = attributes.get("get")
-        if getter_args is not None:
-            result = self._validate_and_apply_method(project_obj, "get", getter_args, valid_getters)
-            if result["status"]:
-                applied = True
-                final_result = result["result"]
-            else:
-                logger.warning(f"Invalid get method for ScheduleProject inspection: {result['error']}")
-                raise ValueError(result["error"])
-
-        if not applied:
-            logger.warning("No valid getters applied for ScheduleProject inspection")
-            raise ValueError("No valid getters applied")
-
-        logger.debug(f"Inspected ScheduleProject: name='{project_obj.get_name()}', result={final_result}")
-        return final_result
