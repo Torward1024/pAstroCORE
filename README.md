@@ -4,7 +4,7 @@ Currently reached MVP, version 0.1b.
 
 Utilizes developed MSB (Mega-Super-Base) architecture (see /common/ for more details):
 
-Requires msb_arch v0.1.3:
+Requires msb_arch v0.4.0:
 ```pip install msb_arch```
 
 For more details, please see source-code documentation: pastrocore.pdf.
