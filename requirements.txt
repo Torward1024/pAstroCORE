@@ -8,6 +8,7 @@ jsonpointer==3.0.0
 jsonschema==4.23.0
 jsonschema-specifications==2024.10.1
 matplotlib==3.10.0
+msb_arch>=0.2.0
 numpy==2.2.2
 PySide6==6.8.2.1
 PySide6_Addons==6.8.2.1
