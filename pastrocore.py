@@ -53,13 +53,11 @@ class PAstroCoreMainWindow(QMainWindow):
         self._dock_was_visible = True
         self._sync_in_progress = False 
     
+        # Logging is configured at the entry point, before anything can emit a record;
+        # here the level is only re-applied in case the settings differ from the defaults.
         log_level_str = self.settings.get("log_level", "INFO")
-        log_level = getattr(logging, log_level_str, logging.INFO)
-        clear_log = self.settings.get("clear_log_on_start", False)
-        logger = setup_logging(log_file="output.log", log_level=log_level, clear_log=clear_log)
-        update_logging_level(log_level)
-        update_logging_clear("output.log", clear_log)
-        logger.debug(f"Logging initialized with clear_log={clear_log}")
+        update_logging_level(getattr(logging, log_level_str, logging.INFO))
+        logger.debug(f"Logging re-applied at window start with level={log_level_str}")
     
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
@@ -510,8 +508,14 @@ class PAstroCoreMainWindow(QMainWindow):
         project_explorer.viewport().update()
         logger.debug("Project explorer updated and expanded")
 
-    def load_settings(self) -> dict:
-        """Load application settings from settings.pastro file."""
+    @staticmethod
+    def load_settings() -> dict:
+        """Load application settings from settings.pastro file.
+
+        Notes:
+            - Static so that the entry point can read the settings before the window
+              exists, which is where logging is configured.
+        """
         settings_file = "settings.pastro"
         default_settings = {
             "sources_catalog_path": os.path.join("catalogs", "sources.dat"),
@@ -1054,6 +1058,17 @@ class PAstroCoreMainWindow(QMainWindow):
         super().closeEvent(event)
 
 if __name__ == "__main__":
+    # Configure logging first: msb_arch 0.2.0 no longer configures it on import, so any
+    # record emitted before this line would be swallowed by the package NullHandler.
+    # Defaults come first because reading the settings already logs; the level and the
+    # clear-on-start flag are applied as soon as the settings are known.
+    setup_logging(log_file="output.log")
+    _startup_settings = PAstroCoreMainWindow.load_settings()
+    _startup_level_name = _startup_settings.get("log_level", "INFO")
+    update_logging_level(getattr(logging, _startup_level_name, logging.INFO))
+    update_logging_clear("output.log", _startup_settings.get("clear_log_on_start", False))
+    logger.debug("Logging initialized at start-up with level=%s", _startup_level_name)
+
     app = QApplication(sys.argv)
     app.setStyleSheet("""
         QMainWindow {
