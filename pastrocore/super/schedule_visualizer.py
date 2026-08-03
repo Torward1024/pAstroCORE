@@ -1393,14 +1393,12 @@ class ScheduleVisualizer(Super):
             legend_labels = []
             max_bl = 0.0
 
-            # Process data for each baseline and frequency
             for pair_idx, pair in enumerate(filtered_df["baseline"].unique()):
                 pair_data = filtered_df.filter(pl.col("baseline") == pair)
                 if pair_data.is_empty():
                     logger.debug(f"No data for baseline {pair}, skipping")
                     continue
 
-                # Sort by time and extract valid projections
                 pair_data = pair_data.sort("time")
                 times_mjd = pair_data["time"].to_numpy()
                 projections = pair_data["projection"].to_numpy()
@@ -1541,7 +1539,6 @@ class ScheduleVisualizer(Super):
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            # Apply filters using Polars
             filtered_df = data
             if telescopes:
                 filtered_df = filtered_df.filter(pl.col("telescope_code").is_in(telescopes))
@@ -1566,7 +1563,6 @@ class ScheduleVisualizer(Super):
             legend_handles = []
             legend_labels = []
 
-            # Plot sources from metadata
             source_colors = {}
             unique_sources = [src for src in sources_metadata.keys() if not sources or src in sources]
             cmap_sources = plt.get_cmap(self._style_config["colormaps"].get("viridis", "viridis"))
