@@ -17,7 +17,7 @@ def source_files():
     """Hand-written modules. Generated Qt output is not ours to hold to a style."""
     files = [p for p in (ROOT / "pastrocore").rglob("*.py")
              if "__pycache__" not in p.parts and not p.name.startswith(("ui_", "rc_"))]
-    files.append(ROOT / "pastrocore.py")
+    files.append(ROOT / "run.py")
     return sorted(p for p in files if p.exists())
 
 

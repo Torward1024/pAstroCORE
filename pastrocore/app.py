@@ -1057,7 +1057,14 @@ class PAstroCoreMainWindow(QMainWindow):
         self.clear_connections()
         super().closeEvent(event)
 
-if __name__ == "__main__":
+def main() -> None:
+    """Start the application.
+
+    Notes:
+        - Logging is configured first: `msb_arch` does not configure it on import, so any
+          record emitted before this would be swallowed by the package `NullHandler`.
+          Defaults come first because reading the settings already logs.
+    """
     # Configure logging first: msb_arch 0.2.0 no longer configures it on import, so any
     # record emitted before this line would be swallowed by the package NullHandler.
     # Defaults come first because reading the settings already logs; the level and the
@@ -1206,3 +1213,7 @@ if __name__ == "__main__":
     window = PAstroCoreMainWindow()
     window.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

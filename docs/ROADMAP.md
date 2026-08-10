@@ -72,7 +72,7 @@ Cheap, safe, and each one measured rather than assumed.
 
 | # | Item | Evidence | Exit criterion |
 | --- | --- | --- | --- |
-| H0 | Rename the entry script so it does not shadow the package | `pastrocore.py` at the root and the `pastrocore` package cannot both be imported; the script is unreachable, which is why the main window has no smoke test | `import pastrocore` is unambiguous, and the main window is covered |
+| H0 | Stop the entry script shadowing the package | **Done.** `pastrocore.py` and the `pastrocore` package could not both be imported, so the main window was unreachable and untestable. The window moved to `pastrocore/app.py` and the launcher is `run.py` | `python run.py` starts it; the main window is constructed by a test |
 | H1 | Delete the duplicated `rc_icons.py` | 21 918 identical lines in two places | One copy, imports unchanged |
 | H2 | Declare the dependencies that are used but missing | `polars` and `erfa` are imported and absent from `requirements.txt`; `pyarrow` is used through Polars | A clean environment installs and runs from `requirements.txt` alone |
 | H3 | Lazy logging throughout | **Done, and the justification was wrong.** Per call the difference is real -- 1 277 ns against 225 with the level disabled, 5.7x -- but a cold `uv_coverage` executes about 680 log statements, so the saving is 0.7 ms in 300: **303 ms before, 312 after, which is noise.** Kept as the convention MSB documents, and because the cost is unbounded in a loop, not as a performance fix | 1 169 calls rewritten through the AST, 16 left where a format spec would render differently. Every one of 682 rendered messages verified identical. A ratchet test holds the line |
