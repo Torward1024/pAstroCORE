@@ -62,8 +62,16 @@ def worst_difference(actual, expected):
             if isinstance(left, float) and isinstance(right, float):
                 if math.isnan(left) and math.isnan(right):
                     continue
-                scale = max(abs(left), abs(right), ABSOLUTE_FLOOR)
-                difference = abs(left - right) / scale
+                if math.isnan(left) or math.isnan(right):
+                    # A value that gained or lost its NaN is a real change, and this branch
+                    # exists because the arithmetic below cannot report it: the difference
+                    # comes out NaN, and `NaN > worst` is false, so it was silently ignored.
+                    # That hid a genuine defect -- baseline projections were entirely NaN and
+                    # this comparison called the recomputation identical.
+                    difference = math.inf
+                else:
+                    scale = max(abs(left), abs(right), ABSOLUTE_FLOOR)
+                    difference = abs(left - right) / scale
             else:
                 difference = 0.0 if left == right else math.inf
             if difference > worst:
