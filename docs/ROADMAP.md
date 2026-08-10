@@ -239,7 +239,7 @@ reasoning rather than letting it sit open for another year.
 | # | Item | Exit criterion |
 | --- | --- | --- |
 | R1 | Release the work so far | A tagged release with a changelog saying what changed and what to do about it, as MSB does |
-| R2 | A `CHANGELOG.md`, kept per release | Each entry carries the symptom, the cause and the fix |
+| R2 | A `CHANGELOG.md`, kept per release | **Done** for 0.4.0, and kept from here |
 | R3 | Documentation in `docs/` written for somebody who has never seen the project | Installing, running, adding an observation, reading a result -- each with a runnable example |
 | R4 | Package metadata: `pyproject.toml`, an entry point, a version that lives in one place | `pip install .` gives a working `pastrocore` command |
 | R5 | Close or rewrite the stale pull requests | None open without a decision recorded |
