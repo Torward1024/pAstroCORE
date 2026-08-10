@@ -24,7 +24,7 @@ pip install -r requirements.txt pytest
 pytest tests/
 ```
 
-73 tests. The characterization suite recomputes every calculation in
+130 tests. The characterization suite recomputes every calculation in
 `tests/fixtures/test_project.pastro` and compares the numbers against the ones the
 project was saved with, so a change to any formula fails the build. Qt runs
 offscreen, so the GUI smoke tests need no display.

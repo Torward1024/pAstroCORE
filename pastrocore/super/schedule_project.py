@@ -340,7 +340,7 @@ class ScheduleProject(Project):
             self._items.clear()
             logger.info("Cleared all observations from project '%s'", self.name)
         except Exception as e:
-            logger.error("Error clearing project '%s': %s", self.name, str(e))
+            logger.error("Error clearing project '%s': %s", self.name, str(e), exc_info=True)
 
     def __repr__(self) -> str:
         """String representation of ScheduleProject.

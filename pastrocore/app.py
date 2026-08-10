@@ -1021,7 +1021,9 @@ class PAstroCoreMainWindow(QMainWindow):
             
             try:
                 self.project_updated.disconnect()
-            except Exception:
+            except RuntimeError:
+                # Qt raises when a signal has no connections, and offers no way to ask
+                # beforehand, so this is the only way to disconnect idempotently.
                 pass
             
             if self.manipulator:

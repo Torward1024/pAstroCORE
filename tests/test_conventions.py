@@ -66,3 +66,53 @@ def test_the_allowance_is_not_larger_than_it_needs_to_be():
 def test_a_module_parses(path):
     """Cheap, and it caught a rewrite that produced unparseable output."""
     ast.parse(path.read_text(encoding="utf-8"))
+
+
+def silent_handlers(path):
+    """Find `except ...: pass` -- a failure that leaves no trace at all."""
+    found = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if (isinstance(node, ast.ExceptHandler)
+                and len(node.body) == 1
+                and isinstance(node.body[0], ast.Pass)):
+            kind = node.type
+            broad = kind is None or (isinstance(kind, ast.Name) and kind.id == "Exception")
+            if broad:
+                found.append(node.lineno)
+    return found
+
+
+def test_no_failure_is_swallowed_without_a_trace():
+    """`except Exception: pass` is the one shape that cannot be diagnosed after the fact.
+
+    A narrow catch of something Qt genuinely raises -- `except RuntimeError` around a
+    `disconnect` -- is fine and is not what this looks for.
+    """
+    offenders = {path.relative_to(ROOT).as_posix(): lines
+                 for path in source_files() if (lines := silent_handlers(path))}
+    assert not offenders, (
+        "a broad handler swallows silently:\n  "
+        + "\n  ".join(f"{name}: {lines}" for name, lines in offenders.items()))
+
+
+def test_a_swallowed_calculation_failure_keeps_its_traceback():
+    """The calculation layer catches broadly and returns an empty frame, so a failure is
+    indistinguishable from no data. The traceback is then the only way to tell them apart."""
+    offenders = []
+    for path in source_files():
+        if "super" not in path.parts:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not (isinstance(node, ast.ExceptHandler)
+                    and isinstance(node.type, ast.Name) and node.type.id == "Exception"):
+                continue
+            if any(isinstance(n, ast.Raise) for n in ast.walk(node)):
+                continue
+            logs = [call for call in ast.walk(node)
+                    if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                    and call.func.attr in ("error", "warning", "exception")
+                    and isinstance(call.func.value, ast.Name) and call.func.value.id == "logger"]
+            if logs and not any(k.arg == "exc_info" for call in logs for k in call.keywords):
+                offenders.append(f"{path.relative_to(ROOT).as_posix()}:{node.lineno}")
+    assert not offenders, (
+        "a calculation failure is logged without its traceback:\n  " + "\n  ".join(offenders))

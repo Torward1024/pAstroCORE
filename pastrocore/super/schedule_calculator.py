@@ -313,7 +313,7 @@ class ScheduleCalculator(Super):
             
             return df
         except Exception as e:
-            logger.error("Failed to calculate time arrays for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate time arrays for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("times"))
 
     @time_execution
@@ -451,7 +451,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate interpolated orbits for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate interpolated orbits for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
 
     def _interpolate_orbit(self, telescope: SpaceTelescope, times_mjd: np.ndarray, start_time_mjd: float, end_time_mjd: float) -> np.ndarray:
@@ -533,7 +533,7 @@ class ScheduleCalculator(Super):
             return full_positions
 
         except Exception as e:
-            logger.error("Failed to interpolate orbit for '%s': %s", telescope.get_code(), str(e))
+            logger.error("Failed to interpolate orbit for '%s': %s", telescope.get_code(), str(e), exc_info=True)
             return np.full((len(times_mjd), 3), np.nan)
 
     def _load_orbit_data(self, orbit_file: str, start_time_mjd: Optional[float] = None, end_time_mjd: Optional[float] = None) -> Dict[str, np.ndarray]:
@@ -617,7 +617,7 @@ class ScheduleCalculator(Super):
             logger.error("Error parsing orbit file: %s", str(e))
             raise
         except Exception as e:
-            logger.warning("Unexpected error loading orbit file '%s': %s", orbit_file, str(e))
+            logger.warning("Unexpected error loading orbit file '%s': %s", orbit_file, str(e), exc_info=True)
             return {}
 
     @time_execution
@@ -725,7 +725,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate telescope positions for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate telescope positions for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_positions"))
 
     def _process_scan_positions(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, orbit_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
@@ -926,7 +926,7 @@ class ScheduleCalculator(Super):
                 return nan_result
 
         except Exception as e:
-            logger.warning("Unexpected error in computing position for '%s': %s", telescope.get_code(), str(e))
+            logger.warning("Unexpected error in computing position for '%s': %s", telescope.get_code(), str(e), exc_info=True)
             return nan_result
 
     def _solve_kepler(self, M: np.ndarray, e: float, tol: float = 1e-8, max_iter: int = 200) -> np.ndarray:
@@ -1070,7 +1070,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate source visibility for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate source visibility for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("source_visibility"))
 
     def _process_source_visibility(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, position_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
@@ -1296,7 +1296,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate UV coverage for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate UV coverage for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
 
     def _process_uv_coverage(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, position_df: pl.DataFrame, visibility_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
@@ -1352,7 +1352,7 @@ class ScheduleCalculator(Super):
         try:
             uv_points = self._compute_uv_at_time(active_telescopes, times_mjd, source, visibility, positions)
         except Exception as e:
-            logger.error("Failed to calculate UV coverage for scan '%s': %s", scan_name, str(e))
+            logger.error("Failed to calculate UV coverage for scan '%s': %s", scan_name, str(e), exc_info=True)
             return None
 
         if not uv_points:
@@ -1561,7 +1561,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate sun angles for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate sun angles for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("sun_angles"))
 
     def _process_sun_angles(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, position_df: pl.DataFrame, visibility_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
@@ -1806,7 +1806,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate az/el or ha/dec for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate az/el or ha/dec for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("az_el"))
 
     def _process_az_el(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, position_df: pl.DataFrame, visibility_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
@@ -2015,7 +2015,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate time on source for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate time on source for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("time_on_source"))
 
     def _process_time_on_source(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, visibility_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
@@ -2185,7 +2185,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate beam pattern for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate beam pattern for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("beam_pattern"))
 
     @time_execution
@@ -2287,7 +2287,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate baseline projections for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate baseline projections for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
     def _process_baseline_projections(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, uv_coverage_df: pl.DataFrame, visibility_df: pl.DataFrame, telescopes: List[Telescope | SpaceTelescope]) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
@@ -2481,7 +2481,7 @@ class ScheduleCalculator(Super):
 
             return df
         except Exception as e:
-            logger.error("Failed to calculate Mollweide tracks for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate Mollweide tracks for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
     def _process_mollweide_tracks(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, position_df: pl.DataFrame) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
@@ -2684,7 +2684,7 @@ class ScheduleCalculator(Super):
             return df
 
         except Exception as e:
-            logger.error("Failed to calculate parallactic angle for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e))
+            logger.error("Failed to calculate parallactic angle for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("parallactic_angle"))
 
     def _process_parallactic_angle(
@@ -2784,7 +2784,7 @@ class ScheduleCalculator(Super):
                     parallactic[is_visible] = pa_deg
 
                 except Exception as inner_e:
-                    logger.warning("Failed to compute parallactic angle for '%s' in scan '%s': %s", tel_code, scan_name, inner_e)
+                    logger.warning("Failed to compute parallactic angle for '%s' in scan '%s': %s", tel_code, scan_name, inner_e, exc_info=True)
 
             times_list.append(times_mjd)
             scan_names.append(np.full(n_times, scan_name, dtype=object))
