@@ -28,12 +28,18 @@ import pytest
 # 2025 while the fixture observes in August 2026, so pinning makes astropy extrapolate
 # seventeen months and the numbers move *further* -- nine failures instead of five.
 #
-# So the comparison carries a tolerance chosen from the physics. Polar motion is of order
-# 0.3 arcsec and a UT1 prediction drifts by tens of milliseconds; at the Earth's surface that
-# is metres of position out of millions, a relative difference near 1e-6, and sub-arcsecond in
-# angle. A formula that actually changed would move a value by parts in a hundred, not parts in
-# a hundred thousand.
-RELATIVE_TOLERANCE = 1e-5
+# So the comparison carries a tolerance, and the number comes from measurement rather than
+# from estimation -- because the estimate was wrong by fifty times. Reasoning from polar motion
+# and UT1 drift suggested a relative difference near 1e-6; a build machine actually reported
+# 4.98e-05 on `telescope_positions.y` and 1.14e-05 on `az_el.az`. Five parts in a hundred
+# thousand of a coordinate near 1e6 metres is fifty metres, which is about a tenth of a second
+# of UT1 -- entirely ordinary for a prediction months ahead, and so it is noise rather than a
+# defect.
+#
+# 5e-4 sits ten times above the largest difference observed and twenty times below the parts in
+# a hundred that a changed formula moves. The test below nudges a column by one part in a
+# thousand and requires that to fail, so the gap is asserted rather than assumed.
+RELATIVE_TOLERANCE = 5e-4
 
 # Below this magnitude a relative comparison is meaningless, so it becomes an absolute one.
 ABSOLUTE_FLOOR = 1e-8
