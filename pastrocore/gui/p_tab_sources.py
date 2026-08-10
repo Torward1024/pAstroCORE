@@ -9,6 +9,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
 from msb_arch.utils.logging_setup import logger
+from msb_arch import ValidationError
 import uuid
 
 class SourcesTab(QWidget):
@@ -131,7 +132,7 @@ class SourcesTab(QWidget):
                 self.update()
                 self.data_updated.emit(source.name, None, "add")
                 logger.info("Added source '%s' to observation '%s'", source.name, self.observation.code)
-            except ValueError as ve:
+            except (ValidationError, ValueError) as ve:
                 logger.error("Validation error while adding source: %s", str(ve))
                 QMessageBox.critical(self, "Error", f"Failed to add source: {str(ve)}")
             except Exception as e:
@@ -175,7 +176,7 @@ class SourcesTab(QWidget):
                     self.update()
                     self.data_updated.emit(source_name, source.isactive, "edit")
                     logger.info("Updated source '%s' in observation '%s'", source_name, self.observation.code)
-                except ValueError as ve:
+                except (ValidationError, ValueError) as ve:
                     logger.error("Validation error while updating source: %s", str(ve))
                     QMessageBox.critical(self, "Error", f"Failed to update source: {str(ve)}")
         except Exception as e:

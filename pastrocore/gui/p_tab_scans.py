@@ -7,6 +7,7 @@ from .p_dialog_edit_scan import ScanEditorDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from msb_arch.utils.logging_setup import logger
+from msb_arch import ValidationError
 from pastrocore.gui.p_tab_telescopes import TelescopesTab
 from pastrocore.gui.p_tab_frequencies import FrequenciesTab
 from pastrocore.gui.p_tab_sources import SourcesTab
@@ -183,7 +184,7 @@ class ScansTab(QWidget):
                 self.update()
                 self.data_updated.emit()
                 logger.info("Added scan '%s' to observation '%s'", scan.name, self.observation.code)
-            except ValueError as ve:
+            except (ValidationError, ValueError) as ve:
                 logger.error("Validation error while adding scan: %s", str(ve))
                 QMessageBox.critical(self, "Error", f"Failed to add scan: {str(ve)}")
             except Exception as e:
@@ -208,7 +209,7 @@ class ScansTab(QWidget):
                     self.update()
                     self.data_updated.emit()
                     logger.info("Updated scan '%s' in observation '%s' with start=%s", scan_name, self.observation.code, scan.start.isot)
-                except ValueError as ve:
+                except (ValidationError, ValueError) as ve:
                     logger.error("Validation error while updating scan: %s", str(ve))
                     QMessageBox.critical(self, "Error", f"Failed to update scan: {str(ve)}")
                 except Exception as e:
