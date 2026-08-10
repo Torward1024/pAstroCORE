@@ -162,6 +162,49 @@ what share of it is base64, and how long a load spends decoding. **Take them bef
 G2 before G3 deliberately. The same discipline that found entity construction to be
 introspection rather than allocation applies here: the cost is rarely where it looks.
 
+## Stage 6 -- a space telescope as a target
+
+Today visibility and Az/El are computed for a `Source`. The same geometry answers a question
+the users keep asking: **when can this ground station see that spacecraft**. Radio visibility
+of a space telescope is what schedules a downlink, and the model already holds everything it
+needs.
+
+It is cheap, and here is why rather than on faith. Both inputs are already computed:
+`telescope_positions` gives the ground station over time, and `interpolated_orbits` gives the
+spacecraft over time -- the second exists because a space telescope is already an *observer*.
+What is missing is only the geometry that turns two positions into a direction: the vector from
+station to spacecraft, converted to azimuth and elevation, then checked against the station's
+elevation range exactly as a source is.
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| F1 | Az/El of a `SpaceTelescope` seen from each ground station, over the scan times | A frame with the same shape as `az_el`, keyed by station and by spacecraft |
+| F2 | Visibility from that: above the horizon, within the station's elevation range | A frame with the same shape as `source_visibility` |
+| F3 | A visualization tab, reusing the existing Az/El plot | The spacecraft appears in the same plot as a source would |
+| F4 | Characterization tests, computed once and pinned like every other calculation | A change to the geometry fails the build |
+
+### The old pull request is not the way in
+
+[#24](https://github.com/Torward1024/pAstroCORE/pull/24) proposed this in April 2025 and is
+still open. It cannot be merged, and the reason is structural rather than a matter of taste:
+it adds **a parallel copy of the entire project** under `unit_visa/` -- base, super and a CLI,
+5 594 lines, with `__pycache__` files committed alongside. The author's note, "I did not touch
+your code", is literally true and is exactly the problem: merging it would leave two divergent
+copies of every class, and the calculations would exist twice.
+
+Take the idea, which is good, and write it against the current model. Then close #24 with this
+reasoning rather than letting it sit open for another year.
+
+## Stage 7 -- release, and a repository somebody else can walk into
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| R1 | Release the work so far | A tagged release with a changelog saying what changed and what to do about it, as MSB does |
+| R2 | A `CHANGELOG.md`, kept per release | Each entry carries the symptom, the cause and the fix |
+| R3 | Documentation in `docs/` written for somebody who has never seen the project | Installing, running, adding an observation, reading a result -- each with a runnable example |
+| R4 | Package metadata: `pyproject.toml`, an entry point, a version that lives in one place | `pip install .` gives a working `pastrocore` command |
+| R5 | Close or rewrite the stale pull requests | None open without a decision recorded |
+
 ## Order, and why
 
 | Stage | Why here |
@@ -172,6 +215,8 @@ introspection rather than allocation applies here: the cost is rarely where it l
 | **3. Adopt MSB** | Mostly deletion, and it shrinks what stages 4 and 5 have to work on |
 | **4. Storage** | Changes the file format, so it wants the test suite mature and the model already simplified |
 | **5. Interface** | Last, because the model underneath it has stopped moving by then |
+| **6. Space telescope as a target** | A new capability rather than a repair, so it waits until the repairs are done -- but it is cheap and wanted, and could be pulled forward once stage 3 is finished |
+| **7. Release and tidy** | The repository is the last thing to shape, because what it documents has stopped moving |
 
 ## Not in scope
 
