@@ -1,6 +1,6 @@
 {
-    "sources_catalog_path": "catalogs\\sources.dat",
-    "telescopes_catalog_path": "catalogs\\telescopes.dat",
+    "sources_catalog_path": "catalogs/sources.dat",
+    "telescopes_catalog_path": "catalogs/telescopes.dat",
     "log_level": "INFO",
     "time_step": 300,
     "clear_log_on_start": true
