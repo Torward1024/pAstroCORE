@@ -104,10 +104,11 @@ What the numbers do show is worth acting on.
 | C1 | ~~A call that omits `time_step` silently recomputes~~ **Not a defect.** `time_step=None` does not mean "use a default": it means one point at the middle of each scan, which is a different calculation and legitimately a different cache entry. The condition was right. What was missing is that the miss said nothing, so a caller who omitted the argument had no way to know why the call took 300 ms | **Done**: the mismatch is logged with both steps |
 | C2 | Profile a cold calculation | **Done, and it moved the target twice.** The first profile said 90% of the time was in astropy coordinate transforms. It was not: nested inside them, `astropy.io.ascii.read` was loading a reference table -- two calls, 1.98 s, 963 666 field parses. That is **once per process**, not per calculation: five consecutive runs measured 1077, 408, 298, 295, 289 ms. Profiling the steady state instead shows ~180 ms of the ~290 in `erfa` -- `c2i06a`, `pnm06a`, `epv00` -- which is the precession, nutation and Earth position themselves. There is no waste there to remove | A measured list, and it is short |
 | C3 | Act on C2 | **Done.** The one finding worth acting on was the first-calculation penalty. One throwaway coordinate transform on a daemon thread at start-up costs the user nothing and removes it: **1 077 ms to 307**, the same as every subsequent calculation. A suspected second finding -- 5 760 array-to-string conversions inside a numeric calculation -- was traced and came to two real calls and 9 ms, so nothing was done about it | The first calculation is no slower than the rest |
-| C4 | The same pass over `schedule_visualizer.py` | Not yet measured | Whatever it recomputes per redraw is measured first, then fixed if it matters |
+| C4 | The same pass over `schedule_visualizer.py` | **Done, and nothing needed doing.** It reads results from `calculated_data` and never calls the calculator, so a redraw recomputes nothing. Its tabs are built on demand inside the visualization dialog rather than refreshed on every project change. A plot costs 24-108 ms, 655 ms for all eight, and profiling the slowest shows the time spread thin across matplotlib's own object model with no hot spot and no data conversion to remove | Measured; no change made |
 
-C2 before C3, and both after stage 0, for the reason this section had to be rewritten:
-the cost is not where reading the code suggests.
+C2 before C3, and both after stage 0, for the reason this section had to be rewritten twice:
+the cost is not where reading the code suggests. Of the four items here, two turned out to be
+nothing, one was a one-line fix, and the measurable win came from a place nobody had listed.
 
 ## Stage 3 -- adopt MSB 1.0.0
 
