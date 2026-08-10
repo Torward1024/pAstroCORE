@@ -21,7 +21,7 @@ class CalculationThread(QThread):
         self.calc_types = calc_types
         self.params = params
         self._cancelled = False
-        logger.debug(f"CalculationThread initialized with calc_types: {self.calc_types}")
+        logger.debug("CalculationThread initialized with calc_types: %s", self.calc_types)
 
         valid_calcs = [
             "UV Coverage", "Mollweide Tracks", "Baseline Projections",
@@ -30,7 +30,7 @@ class CalculationThread(QThread):
         ]
         invalid_calcs = [calc for calc in calc_types if calc not in valid_calcs]
         if invalid_calcs:
-            logger.error(f"Invalid calculation types provided: {invalid_calcs}")
+            logger.error("Invalid calculation types provided: %s", invalid_calcs)
             raise ValueError(f"Invalid calculation types: {invalid_calcs}")
 
     def cancel(self):
@@ -92,14 +92,14 @@ class CalculationThread(QThread):
                         current += 1
 
             if errors:
-                logger.warning(f"Completed with {len(errors)} errors. Results collected: {len(results)}")
+                logger.warning("Completed with %s errors. Results collected: %s", len(errors), len(results))
                 self.finished.emit(results, errors)
             else:
                 logger.info("All calculations completed successfully")
                 self.finished.emit(results, [])
 
         except Exception as e:
-            logger.error(f"Unexpected error in CalculationThread: {str(e)}")
+            logger.error("Unexpected error in CalculationThread: %s", str(e))
             self.error.emit(f"Critical error: {str(e)}")
 
     def _process_single_calc(self, target, calc_type, method, freq, base_params,
@@ -117,7 +117,7 @@ class CalculationThread(QThread):
                 calc_params["store_key"] = method
                 display_name = f"{calc_type} for {target.code}"
 
-            logger.debug(f"Executing {calc_type} on {target.code} with params: {calc_params}")
+            logger.debug("Executing %s on %s with params: %s", calc_type, target.code, calc_params)
 
             result = self.manipulator.calculate(obj=target, method=method, **calc_params)
             key = f"{target.code}_{calc_type}" + (f"_{freq}" if freq else "")
@@ -149,7 +149,7 @@ class ProgressDialog(QDialog):
         """Update progress bar and label."""
         self.ui.progressBar.setValue(value)
         self.ui.label.setText(message)
-        logger.debug(f"ProgressDialog updated: value={value}, message={message}")
+        logger.debug("ProgressDialog updated: value=%s, message=%s", value, message)
 
 
 class CalculationDialog(QDialog):
@@ -184,7 +184,7 @@ class CalculationDialog(QDialog):
 
     def log_calc_selection(self, item):
         """Log changes in calculation selection for debugging."""
-        logger.debug(f"Calculation {item.text()} check state changed to: {item.checkState()}")
+        logger.debug("Calculation %s check state changed to: %s", item.text(), item.checkState())
 
     def populate_calc_list(self):
         """Populate the calculation list with available calculations."""
@@ -209,7 +209,7 @@ class CalculationDialog(QDialog):
             item.setCheckState(Qt.Checked)
             item.setData(Qt.UserRole, dependencies.get(calc_type, []))
             self.ui.calcList.addItem(item)
-        logger.debug(f"Populated {self.ui.calcList.count()} calculations, all checked.")
+        logger.debug("Populated %s calculations, all checked.", self.ui.calcList.count())
 
     def populate_targets(self):
         """Populate the target list with project observations using observation code."""
@@ -225,9 +225,9 @@ class CalculationDialog(QDialog):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(Qt.Checked)
                 self.ui.targetList.addItem(item)
-            logger.debug(f"Populated {self.ui.targetList.count()} observations, all checked.")
+            logger.debug("Populated %s observations, all checked.", self.ui.targetList.count())
         except Exception as e:
-            logger.error(f"Failed to retrieve observations: {str(e)}")
+            logger.error("Failed to retrieve observations: %s", str(e))
             QMessageBox.critical(self, "Error", "Failed to load observations. Please check the project data.")
 
     def select_all_calcs(self):
@@ -262,12 +262,12 @@ class CalculationDialog(QDialog):
         if not dependencies:
             return
         calc_type = item.text()
-        logger.debug(f"Handling dependencies for {calc_type}: {dependencies}")
+        logger.debug("Handling dependencies for %s: %s", calc_type, dependencies)
         for dep in dependencies:
             for i in range(self.ui.calcList.count()):
                 if self.ui.calcList.item(i).text() == dep:
                     self.ui.calcList.item(i).setCheckState(Qt.Checked)
-                    logger.debug(f"Enabled dependency: {dep}")
+                    logger.debug("Enabled dependency: %s", dep)
                     break
         self.update_params_ui()
 
@@ -276,7 +276,7 @@ class CalculationDialog(QDialog):
         selected_calcs = [self.ui.calcList.item(i).text() for i in range(self.ui.calcList.count())
                           if self.ui.calcList.item(i).checkState() == Qt.Checked]
         self.ui.timeStepSpin.setEnabled("Beam Pattern" not in selected_calcs)
-        logger.debug(f"Updated params UI, timeStepSpin enabled: {'Beam Pattern' not in selected_calcs}")
+        logger.debug("Updated params UI, timeStepSpin enabled: %s", 'Beam Pattern' not in selected_calcs)
 
     def run_calculation(self):
         """Run the selected calculations in a separate thread."""
@@ -285,8 +285,8 @@ class CalculationDialog(QDialog):
         selected_targets = [self.ui.targetList.item(i).data(Qt.UserRole) for i in range(self.ui.targetList.count())
                             if self.ui.targetList.item(i).checkState() == Qt.Checked]
 
-        logger.debug(f"Selected calculations: {selected_calcs}")
-        logger.debug(f"Selected targets: {[t.code for t in selected_targets]}")
+        logger.debug("Selected calculations: %s", selected_calcs)
+        logger.debug("Selected targets: %s", [t.code for t in selected_targets])
 
         if not selected_calcs or not selected_targets:
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
@@ -296,9 +296,9 @@ class CalculationDialog(QDialog):
             for target in selected_targets:
                 try:
                     target.clear_calculated_data()
-                    logger.info(f"Cleared cached data for '{target.code}'")
+                    logger.info("Cleared cached data for '%s'", target.code)
                 except Exception as e:
-                    logger.error(f"Failed to clear cache for {target.code}: {e}")
+                    logger.error("Failed to clear cache for %s: %s", target.code, e)
                     QMessageBox.critical(self, "Error", f"Failed to clear cache: {e}")
                     return
 
@@ -331,7 +331,7 @@ class CalculationDialog(QDialog):
             if len(errors) > 10:
                 error_text += f"\n\n... and {len(errors)-10} more errors."
             QMessageBox.warning(self, "Partial Success", error_text)
-            logger.warning(f"Calculations finished with {len(errors)} errors.")
+            logger.warning("Calculations finished with %s errors.", len(errors))
         else:
             QMessageBox.information(self, "Success", "All calculations completed successfully.")
             logger.info("All calculations completed successfully.")
@@ -342,7 +342,7 @@ class CalculationDialog(QDialog):
         """Handle critical thread errors."""
         if hasattr(self, 'progress_dialog') and self.progress_dialog:
             self.progress_dialog.close()
-        logger.error(f"Calculation critical error: {error}")
+        logger.error("Calculation critical error: %s", error)
         QMessageBox.critical(self, "Error", f"Calculation failed: {error}")
         self.reject()
 
@@ -376,14 +376,14 @@ class CalculationDialog(QDialog):
     def calculation_error(self, error):
         """Handle calculation errors."""
         self.progress_dialog.close()
-        logger.error(f"Calculation error: {error}")
+        logger.error("Calculation error: %s", error)
         QMessageBox.critical(self, "Error", f"Calculation failed: {error}")
         self.reject()
 
     def load_settings(self):
         """Load dialog-specific settings."""
         self.ui.timeStepSpin.setValue(self.time_step)
-        logger.debug(f"Loaded time_step={self.time_step} into timeStepSpin")
+        logger.debug("Loaded time_step=%s into timeStepSpin", self.time_step)
     
     def clear_selected_data(self):
         """Clear calculated data for selected observations."""
@@ -401,8 +401,8 @@ class CalculationDialog(QDialog):
         try:
             for target in selected_targets:
                 target.clear_calculated_data()
-                logger.info(f"Cleared calculated data for observation '{target.code}'")
+                logger.info("Cleared calculated data for observation '%s'", target.code)
             QMessageBox.information(self, "Success", "Calculated data cleared for selected observations.")
         except Exception as e:
-            logger.error(f"Failed to clear calculated data: {str(e)}")
+            logger.error("Failed to clear calculated data: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to clear calculated data: {str(e)}")

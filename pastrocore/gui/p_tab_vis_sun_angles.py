@@ -35,7 +35,7 @@ class SunAnglesVisualizationTab(QWidget):
         self.toolbar = None
         self.figure = None
         self.is_processing = False
-        logger.debug(f"SunAnglesVisualizationTab initialized for observation id={id(observation)}")
+        logger.debug("SunAnglesVisualizationTab initialized for observation id=%s", id(observation))
 
         self.layout = QVBoxLayout(self.ui.widget)
         self._populate_filters()
@@ -65,7 +65,7 @@ class SunAnglesVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for Sun angles missing required columns: {missing_columns}")
+                logger.error("DataFrame for Sun angles missing required columns: %s", missing_columns)
                 self.ui.cmbSource.addItem("Invalid Sun angles data structure")
                 return
 
@@ -78,9 +78,9 @@ class SunAnglesVisualizationTab(QWidget):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(Qt.Checked)
                 self.ui.listTelescopes.addItem(item)
-            logger.debug(f"Populated {len(sources)} sources and {len(telescopes)} telescopes")
+            logger.debug("Populated %s sources and %s telescopes", len(sources), len(telescopes))
         except Exception as e:
-            logger.error(f"Failed to populate filters: {str(e)}")
+            logger.error("Failed to populate filters: %s", str(e))
             self.ui.cmbSource.addItem("Failed to retrieve data")
 
     def _lock_ui(self):
@@ -109,7 +109,7 @@ class SunAnglesVisualizationTab(QWidget):
                 self.canvas.deleteLater()
                 logger.debug("Canvas removed and scheduled for deletion")
             except Exception as e:
-                logger.warning(f"Failed to remove canvas: {str(e)}")
+                logger.warning("Failed to remove canvas: %s", str(e))
             finally:
                 self.canvas = None
 
@@ -120,7 +120,7 @@ class SunAnglesVisualizationTab(QWidget):
                 self.toolbar.deleteLater()
                 logger.debug("Toolbar removed and scheduled for deletion")
             except Exception as e:
-                logger.warning(f"Failed to remove toolbar: {str(e)}")
+                logger.warning("Failed to remove toolbar: %s", str(e))
             finally:
                 self.toolbar = None
 
@@ -131,14 +131,14 @@ class SunAnglesVisualizationTab(QWidget):
                     ax.remove()
                 self.figure.clf()
                 plt.close(self.figure)
-                logger.debug(f"Figure {id(self.figure)} closed and cleared")
+                logger.debug("Figure %s closed and cleared", id(self.figure))
             except Exception as e:
-                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
+                logger.warning("Failed to close figure %s: %s", id(self.figure), str(e))
             finally:
                 self.figure = None
 
         gc.collect(2)
-        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
+        logger.debug("Number of open figures after cleanup: %s", len(plt.get_fignums()))
 
     def embed_figure(self, figure: Figure):
         """Embed a Matplotlib figure into the widget.
@@ -153,7 +153,7 @@ class SunAnglesVisualizationTab(QWidget):
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug(f"Embedded Matplotlib figure {id(figure)} in SunAnglesVisualizationTab")
+        logger.debug("Embedded Matplotlib figure %s in SunAnglesVisualizationTab", id(figure))
 
     def get_selected_source(self) -> Optional[str]:
         """Get the currently selected source name.
@@ -162,7 +162,7 @@ class SunAnglesVisualizationTab(QWidget):
             Selected source name or None if no source is selected.
         """
         source = self.ui.cmbSource.currentText() if self.ui.cmbSource.currentText() else None
-        logger.debug(f"Selected source: {source}")
+        logger.debug("Selected source: %s", source)
         return source
 
     def get_selected_scans(self) -> List[str]:
@@ -176,7 +176,7 @@ class SunAnglesVisualizationTab(QWidget):
             item = self.ui.listScans.item(i)
             if item.checkState() == Qt.Checked:
                 selected_scans.append(item.data(Qt.UserRole))
-        logger.debug(f"Selected scans: {selected_scans}")
+        logger.debug("Selected scans: %s", selected_scans)
         return selected_scans
 
     def get_selected_telescopes(self) -> List[str]:
@@ -190,7 +190,7 @@ class SunAnglesVisualizationTab(QWidget):
             item = self.ui.listTelescopes.item(i)
             if item.checkState() == Qt.Checked:
                 selected_telescopes.append(item.text())
-        logger.debug(f"Selected telescopes: {selected_telescopes}")
+        logger.debug("Selected telescopes: %s", selected_telescopes)
         return selected_telescopes
 
     @Slot()
@@ -203,7 +203,7 @@ class SunAnglesVisualizationTab(QWidget):
         self._lock_ui()
         try:
             source_name = self.get_selected_source()
-            logger.debug(f"Filter changed, updating scans for source '{source_name}'")
+            logger.debug("Filter changed, updating scans for source '%s'", source_name)
             self.update_scans_for_source(source_name)
             self.update_visualization()
         finally:
@@ -218,7 +218,7 @@ class SunAnglesVisualizationTab(QWidget):
         """
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
                           for i in range(self.ui.listScans.count())}
-        logger.debug(f"Stored check states: {current_checks}")
+        logger.debug("Stored check states: %s", current_checks)
 
         self.ui.listScans.clear()
         if not source_name:
@@ -239,13 +239,13 @@ class SunAnglesVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for Sun angles missing required columns: {missing_columns}")
+                logger.error("DataFrame for Sun angles missing required columns: %s", missing_columns)
                 self.ui.listScans.addItem(QListWidgetItem("Invalid Sun angles data structure"))
                 return
 
             df_filtered = df.filter(pl.col("source_name") == source_name)
             if df_filtered.is_empty():
-                logger.debug(f"No data for source '{source_name}' in Sun angles DataFrame")
+                logger.debug("No data for source '%s' in Sun angles DataFrame", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
@@ -261,9 +261,9 @@ class SunAnglesVisualizationTab(QWidget):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(current_checks.get(scan_name, Qt.Checked))
                 self.ui.listScans.addItem(item)
-            logger.debug(f"Populated {len(scans)} scans for source '{source_name}'")
+            logger.debug("Populated %s scans for source '%s'", len(scans), source_name)
         except Exception as e:
-            logger.error(f"Failed to update scans for source '{source_name}': {str(e)}")
+            logger.error("Failed to update scans for source '%s': %s", source_name, str(e))
             self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
 
     def update_visualization(self):
@@ -271,7 +271,7 @@ class SunAnglesVisualizationTab(QWidget):
         source_name = self.get_selected_source()
         scans = self.get_selected_scans()
         telescopes = self.get_selected_telescopes()
-        logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
+        logger.debug("Updating visualization: source='%s', scans=%s, telescopes=%s", source_name, scans, telescopes)
 
         if not source_name or not scans or not telescopes:
             logger.debug("Missing required filters (source, scans, or telescopes), clearing canvas")
@@ -289,7 +289,7 @@ class SunAnglesVisualizationTab(QWidget):
 
         try:
             result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             if not result or (result.get("telescopes", 0) == 0):
                 logger.debug("Empty visualization result, clearing canvas")
                 self._clear_canvas()
@@ -297,12 +297,12 @@ class SunAnglesVisualizationTab(QWidget):
             figure = result.get("figure")
             if figure:
                 self.embed_figure(figure)
-                logger.debug(f"Sun angles visualization updated for source '{source_name}'")
+                logger.debug("Sun angles visualization updated for source '%s'", source_name)
             else:
                 logger.error("No figure returned from visualizer, clearing canvas")
                 self._clear_canvas()
         except Exception as e:
-            logger.error(f"Exception during Sun angles visualization update: {str(e)}")
+            logger.error("Exception during Sun angles visualization update: %s", str(e))
             self._clear_canvas()
 
     def closeEvent(self, event):

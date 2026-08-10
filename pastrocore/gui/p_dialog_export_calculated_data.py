@@ -25,7 +25,7 @@ class ProgressDialog(QDialog):
         """Update progress bar and label."""
         self.ui.progressBar.setValue(value)
         self.ui.label.setText(message)
-        logger.debug(f"ProgressDialog updated: value={value}, message={message}")
+        logger.debug("ProgressDialog updated: value=%s, message=%s", value, message)
 
 class ExportThread(QThread):
     """Thread for exporting calculated data and visualizations asynchronously."""
@@ -43,7 +43,7 @@ class ExportThread(QThread):
         self.export_path = export_path
         self.units = units
         self._cancelled = False
-        logger.debug(f"ExportThread initialized with calc_types: {self.calc_types}, export_data={export_data}, export_vis={export_vis}, units={self.units}")
+        logger.debug("ExportThread initialized with calc_types: %s, export_data=%s, export_vis=%s, units=%s", self.calc_types, export_data, export_vis, self.units)
 
     def cancel(self):
         """Set cancellation flag."""
@@ -80,7 +80,7 @@ class ExportThread(QThread):
                     key = calc_type.lower().replace(" ", "_").replace("/", "_")
                     data = target.get_calculated_data_by_key(key).get("data", {})
                     if not isinstance(data, pl.DataFrame):
-                        logger.debug(f"No data for {calc_type} in {obs_code}, skipping")
+                        logger.debug("No data for %s in %s, skipping", calc_type, obs_code)
                         continue
 
                     if self.export_data:
@@ -102,7 +102,7 @@ class ExportThread(QThread):
                             "sun_angles", "az_el", "mollweide_tracks", "beam_pattern", "parallactic_angle"
                         ]
                         if key not in visualizable_keys:
-                            logger.debug(f"Skipping visualization for {calc_type} as it is not visualizable")
+                            logger.debug("Skipping visualization for %s as it is not visualizable", calc_type)
                             continue
                         if calc_type == "Beam Pattern":
                             file_prefix = "Beam_Pattern"
@@ -133,7 +133,7 @@ class ExportThread(QThread):
 
             self.finished.emit()
         except Exception as e:
-            logger.error(f"Export error in thread: {str(e)}")
+            logger.error("Export error in thread: %s", str(e))
             self.error.emit(str(e))
 
     def _export_data_to_csv(self, data: pl.DataFrame, calc_type: str, path: str, obs_code: str, source_name: Optional[str], target: Observation):
@@ -158,11 +158,11 @@ class ExportThread(QThread):
             
             expected_columns = CalculatedDataStructure.get_columns(key)
             if expected_columns is None:
-                logger.error(f"Unsupported calc_type for TXT export: {calc_type}")
+                logger.error("Unsupported calc_type for TXT export: %s", calc_type)
                 raise ValueError(f"Unsupported calc_type for TXT export: {calc_type}")
             if not all(col in data.columns for col in expected_columns):
                 missing_cols = [col for col in expected_columns if col not in data.columns]
-                logger.error(f"Invalid DataFrame structure for key '{key}' in observation '{obs_code}': missing columns {missing_cols}")
+                logger.error("Invalid DataFrame structure for key '%s' in observation '%s': missing columns %s", key, obs_code, missing_cols)
                 raise ValueError(f"Invalid DataFrame structure for key '{key}': missing columns {missing_cols}")
 
             df_out = data.clone()
@@ -178,7 +178,7 @@ class ExportThread(QThread):
                             )
                         )
                     except Exception as e:
-                        logger.error(f"Failed to convert column '{col}' to ISOT in key '{key}' of observation '{obs_code}': {str(e)}")
+                        logger.error("Failed to convert column '%s' to ISOT in key '%s' of observation '%s': %s", col, key, obs_code, str(e))
                         raise
 
             for col, converter in converters.items():
@@ -186,7 +186,7 @@ class ExportThread(QThread):
                     try:
                         df_out = df_out.with_columns(pl.col(col).map_elements(converter, return_dtype=pl.Float64))
                     except Exception as e:
-                        logger.error(f"Failed to apply converter for column '{col}' in key '{key}' of observation '{obs_code}': {str(e)}")
+                        logger.error("Failed to apply converter for column '%s' in key '%s' of observation '%s': %s", col, key, obs_code, str(e))
                         raise
 
             if "scan_name" in df_out.columns:
@@ -196,10 +196,10 @@ class ExportThread(QThread):
 
             if key == "mollweide_tracks":
                 sources = target.calculated_data.get(key, {}).get("metadata", {}).get("sources", {})
-                logger.debug(f"Processing sources for {calc_type} in observation '{obs_code}': {sources}")
+                logger.debug("Processing sources for %s in observation '%s': %s", calc_type, obs_code, sources)
 
                 if not isinstance(sources, dict):
-                    logger.error(f"Invalid sources format in metadata for {calc_type} in observation '{obs_code}': expected dict, got {type(sources)}")
+                    logger.error("Invalid sources format in metadata for %s in observation '%s': expected dict, got %s", calc_type, obs_code, type(sources))
                     sources = {}
                 
                 source_rows = []
@@ -209,7 +209,7 @@ class ExportThread(QThread):
                         # Ensure column order matches df_out
                         source_rows.append({"time": "-----", "telescope_code": src_name, "lon": lon, "lat": lat})
                     except (ValueError, TypeError) as e:
-                        logger.warning(f"Failed to parse coordinates for source '{src_name}' in {calc_type}, observation '{obs_code}': {str(e)}")
+                        logger.warning("Failed to parse coordinates for source '%s' in %s, observation '%s': %s", src_name, calc_type, obs_code, str(e))
                         continue
                 
                 if source_rows:
@@ -217,12 +217,12 @@ class ExportThread(QThread):
                     source_df = pl.DataFrame(source_rows, schema={"time": pl.String, "telescope_code": pl.String, "lon": pl.Float64, "lat": pl.Float64})
                     df_out = pl.concat([df_out, source_df], how="vertical")
                 else:
-                    logger.warning(f"No valid sources to append for {calc_type} in observation '{obs_code}'")
+                    logger.warning("No valid sources to append for %s in observation '%s'", calc_type, obs_code)
 
             df_out.write_csv(path, separator="\t", include_bom=True, null_value="NaN")
-            logger.info(f"Exported data to {path}")
+            logger.info("Exported data to %s", path)
         except Exception as e:
-            logger.error(f"Failed to export data to {path}: {str(e)}")
+            logger.error("Failed to export data to %s: %s", path, str(e))
             raise
 
 class ExportCalculatedDataDialog(QDialog):
@@ -237,7 +237,7 @@ class ExportCalculatedDataDialog(QDialog):
         self.default_export_path = parent.current_project_path if parent and hasattr(parent, 'current_project_path') and parent.current_project_path else os.getcwd()
         if self.default_export_path and os.path.isfile(self.default_export_path):
             self.default_export_path = os.path.dirname(self.default_export_path)
-        logger.debug(f"Default export path set to: {self.default_export_path}")
+        logger.debug("Default export path set to: %s", self.default_export_path)
         self.init_ui()
         logger.debug("ExportCalculatedDataDialog initialized")
 
@@ -270,7 +270,7 @@ class ExportCalculatedDataDialog(QDialog):
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked)
             self.ui.calcList.addItem(item)
-        logger.debug(f"Populated {self.ui.calcList.count()} calculations")
+        logger.debug("Populated %s calculations", self.ui.calcList.count())
 
     def populate_targets(self):
         """Populate the target list with project observations."""
@@ -283,9 +283,9 @@ class ExportCalculatedDataDialog(QDialog):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(Qt.Checked)
                 self.ui.targetList.addItem(item)
-            logger.debug(f"Populated {self.ui.targetList.count()} observations")
+            logger.debug("Populated %s observations", self.ui.targetList.count())
         except Exception as e:
-            logger.error(f"Failed to retrieve observations: {str(e)}")
+            logger.error("Failed to retrieve observations: %s", str(e))
 
     def select_all_calcs(self):
         """Select all calculations in the list."""
@@ -316,7 +316,7 @@ class ExportCalculatedDataDialog(QDialog):
         path = QFileDialog.getExistingDirectory(self, "Select Export Directory", self.default_export_path)
         if path:
             self.ui.lineEdit.setText(path)
-            logger.debug(f"Selected export path: {path}")
+            logger.debug("Selected export path: %s", path)
 
     def run_export(self):
         """Run the export in a separate thread."""

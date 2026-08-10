@@ -42,20 +42,20 @@ class ScheduleProject(Project):
         """
         check_non_empty_string(name, "Project name")
         if items:
-            logger.debug(f"Validating {len(items)} items for project '{name}'")
+            logger.debug("Validating %s items for project '%s'", len(items), name)
             for obs in items.values():
                 check_type(obs, Observation, "Observation in items")
             codes = set()
             for key, item in items.items():
                 item_code = item.get_observation_code()
                 if item_code in codes:
-                    logger.error(f"Duplicate observation code '{item_code}' found for observation '{key}'")
+                    logger.error("Duplicate observation code '%s' found for observation '%s'", item_code, key)
                     raise ValueError(f"Observation code '{item_code}' already exists for another observation")
                 codes.add(item_code)
-                logger.debug(f"Validated observation '{key}' with code '{item_code}'")
+                logger.debug("Validated observation '%s' with code '%s'", key, item_code)
         
         super().__init__(name, items or {})
-        logger.debug(f"Initialized ScheduleProject '{name}' with {len(self._items)} observations")
+        logger.debug("Initialized ScheduleProject '%s' with %s observations", name, len(self._items))
 
     def _validate_item(self, item: Observation, exclude_name: Optional[str] = None, exclude_code: Optional[str] = None) -> None:
         """Validate an observation item, ensuring its code is unique within the project.
@@ -75,9 +75,9 @@ class ScheduleProject(Project):
             existing_code = existing_item.get_observation_code()
             if (name != exclude_name and item_code == existing_code and
                     (exclude_code is None or existing_code != exclude_code)):
-                logger.error(f"Observation code '{item_code}' already exists for observation '{name}'")
+                logger.error("Observation code '%s' already exists for observation '%s'", item_code, name)
                 raise ValueError(f"Observation code '{item_code}' already exists for another observation")
-        logger.debug(f"Validated observation with code '{item_code}' (name='{item.name}') for project '{self.name}'")
+        logger.debug("Validated observation with code '%s' (name='%s') for project '%s'", item_code, item.name, self.name)
 
     def add_item(self, item: Observation) -> None:
         """Add an observation to the project.
@@ -91,7 +91,7 @@ class ScheduleProject(Project):
         """
         self._validate_item(item)
         super().add_item(item)
-        logger.info(f"Added observation '{item.get_observation_code()}' (name='{item.name}') to project '{self.name}'")
+        logger.info("Added observation '%s' (name='%s') to project '%s'", item.get_observation_code(), item.name, self.name)
 
     def create_item(self, item_code: str = "OBS_DEFAULT", isactive: bool = True, observation_type: str = "VLBI") -> None:
         """Create and add a new Observation object to the project.
@@ -106,12 +106,12 @@ class ScheduleProject(Project):
         """
         check_non_empty_string(item_code, "Observation code")
         if observation_type not in ["VLBI", "SINGLE_DISH"]:
-            logger.error(f"Invalid observation type: {observation_type}. Must be 'VLBI' or 'SINGLE_DISH'")
+            logger.error("Invalid observation type: %s. Must be 'VLBI' or 'SINGLE_DISH'", observation_type)
             raise ValueError(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
         unique_name = f"obs_{uuid.uuid4().hex[:32]}"
         new_observation = Observation(name=unique_name, code=item_code, isactive=isactive, observation_type=observation_type)
         self.add_item(new_observation)
-        logger.info(f"Created and added observation with code '{item_code}', name='{unique_name}', type '{observation_type}' to project '{self.name}'")
+        logger.info("Created and added observation with code '%s', name='%s', type '%s' to project '%s'", item_code, unique_name, observation_type, self.name)
 
     def set_item(self, name: str, item: Observation) -> None:
         """Set or replace an observation in the project by its name.
@@ -130,7 +130,7 @@ class ScheduleProject(Project):
             existing_code = self._items[name].get_observation_code()
         self._validate_item(item, exclude_name=name, exclude_code=existing_code)
         super().set_item(name, item)
-        logger.info(f"Set observation with name='{name}' and code='{item.get_observation_code()}' in project '{self.name}'")
+        logger.info("Set observation with name='%s' and code='%s' in project '%s'", name, item.get_observation_code(), self.name)
 
     def get_observation(self, name: str) -> Observation:
         """Retrieve an observation by its name.
@@ -145,7 +145,7 @@ class ScheduleProject(Project):
             KeyError: If the observation name is not found.
         """
         observation = self.get_item(name)
-        logger.debug(f"Retrieved observation '{name}' from project '{self.name}'")
+        logger.debug("Retrieved observation '%s' from project '%s'", name, self.name)
         return observation
 
     def get_observation_by_code(self, code: str) -> Optional[Observation]:
@@ -163,9 +163,9 @@ class ScheduleProject(Project):
         check_non_empty_string(code, "Observation code")
         for name, observation in self._items.get_all().items():
             if observation.get_observation_code() == code:
-                logger.debug(f"Retrieved observation with code='{code}' from project '{self.name}'")
+                logger.debug("Retrieved observation with code='%s' from project '%s'", code, self.name)
                 return observation
-        logger.debug(f"No Observation found with code='{code}' in project '{self.name}'")
+        logger.debug("No Observation found with code='%s' in project '%s'", code, self.name)
         return None
 
     def set_project(self, name: str, items: Dict[str, Observation]) -> None:
@@ -185,7 +185,7 @@ class ScheduleProject(Project):
             for key, item in items.items():
                 self._validate_item(item, exclude_name=key)
         super().set_project(name, items)
-        logger.info(f"Set project '{name}' with {len(items)} observations")
+        logger.info("Set project '%s' with %s observations", name, len(items))
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the ScheduleProject to a dictionary.
@@ -197,7 +197,7 @@ class ScheduleProject(Project):
             "name": self.name,
             "items": {name: observation.to_dict() for name, observation in self._items.get_all().items()}
         }
-        logger.debug(f"Serialized ScheduleProject '{self.name}' to dictionary with {len(self._items)} observations")
+        logger.debug("Serialized ScheduleProject '%s' to dictionary with %s observations", self.name, len(self._items))
         return result
     
     @classmethod
@@ -220,18 +220,18 @@ class ScheduleProject(Project):
             
             if "items" in data:
                 if not data["items"]:
-                    logger.warning(f"Creating ScheduleProject '{name}' with empty items dictionary")
+                    logger.warning("Creating ScheduleProject '%s' with empty items dictionary", name)
                 else:
                     for item_name, item_data in data["items"].items():
                         observation = Observation.from_dict(item_data)
                         items[item_name] = observation
-                        logger.debug(f"Imported observation '{item_name}' for project '{name}'")
+                        logger.debug("Imported observation '%s' for project '%s'", item_name, name)
             
             project = cls(name=name, items=items)
-            logger.info(f"Deserialized ScheduleProject '{name}' from dict with {len(items)} observations")
+            logger.info("Deserialized ScheduleProject '%s' from dict with %s observations", name, len(items))
             return project
         except (KeyError, TypeError, ValueError) as e:
-            logger.error(f"Failed to deserialize ScheduleProject from dict: {str(e)}")
+            logger.error("Failed to deserialize ScheduleProject from dict: %s", str(e))
             raise ValueError(f"Invalid ScheduleProject data: {str(e)}") from e
 
     def to_file(self, file_path: str, compact: bool = False) -> None:
@@ -267,9 +267,9 @@ class ScheduleProject(Project):
                         f.write('' if compact else '\n')
                 f.write('}' if compact else '  }\n')
                 f.write('}' if compact else '}\n')
-            logger.info(f"Saved ScheduleProject '{self.name}' to file '{file_path}' with {len(self._items)} observations (compact={compact})")
+            logger.info("Saved ScheduleProject '%s' to file '%s' with %s observations (compact=%s)", self.name, file_path, len(self._items), compact)
         except IOError as e:
-            logger.error(f"Failed to write ScheduleProject to file '{file_path}': {str(e)}")
+            logger.error("Failed to write ScheduleProject to file '%s': %s", file_path, str(e))
             raise IOError(f"Error writing to file '{file_path}': {str(e)}") from e
 
     @classmethod
@@ -290,7 +290,7 @@ class ScheduleProject(Project):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                logger.debug(f"Read JSON data from file '{file_path}'")
+                logger.debug("Read JSON data from file '%s'", file_path)
             
             name = data.get("name")
             check_non_empty_string(name, "Project name")
@@ -298,7 +298,7 @@ class ScheduleProject(Project):
             
             if "items" in data:
                 if not data["items"]:
-                    logger.warning(f"Creating ScheduleProject '{name}' with empty items dictionary from file '{file_path}'")
+                    logger.warning("Creating ScheduleProject '%s' with empty items dictionary from file '%s'", name, file_path)
                 else:
                     codes = set()
                     for item_name, item_data in data["items"].items():
@@ -307,26 +307,26 @@ class ScheduleProject(Project):
                             check_type(observation, Observation, f"Observation '{item_name}'")
                             code = observation.get_observation_code()
                             if code in codes:
-                                logger.error(f"Duplicate observation code '{code}' found for observation '{item_name}' in file '{file_path}'")
+                                logger.error("Duplicate observation code '%s' found for observation '%s' in file '%s'", code, item_name, file_path)
                                 raise ValueError(f"Duplicate observation code '{code}' in file '{file_path}'")
                             codes.add(code)
                             items[item_name] = observation
-                            logger.debug(f"Validated observation '{item_name}' with code '{code}' for project '{name}'")
+                            logger.debug("Validated observation '%s' with code '%s' for project '%s'", item_name, code, name)
                         except (TypeError, ValueError) as e:
-                            logger.error(f"Invalid observation data for '{item_name}' in file '{file_path}': {str(e)}")
+                            logger.error("Invalid observation data for '%s' in file '%s': %s", item_name, file_path, str(e))
                             raise ValueError(f"Invalid observation data for '{item_name}': {str(e)}") from e
             
             project = cls(name=name, items=items)
-            logger.info(f"Loaded ScheduleProject '{name}' from file '{file_path}' with {len(items)} observations")
+            logger.info("Loaded ScheduleProject '%s' from file '%s' with %s observations", name, file_path, len(items))
             return project
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON from file '{file_path}': {str(e)}")
+            logger.error("Failed to parse JSON from file '%s': %s", file_path, str(e))
             raise ValueError(f"Invalid JSON format in file '{file_path}': {str(e)}") from e
         except IOError as e:
-            logger.error(f"Failed to read file '{file_path}': {str(e)}")
+            logger.error("Failed to read file '%s': %s", file_path, str(e))
             raise IOError(f"Error reading file '{file_path}': {str(e)}") from e
         except (KeyError, TypeError, ValueError) as e:
-            logger.error(f"Failed to deserialize ScheduleProject from file '{file_path}': {str(e)}")
+            logger.error("Failed to deserialize ScheduleProject from file '%s': %s", file_path, str(e))
             raise ValueError(f"Invalid ScheduleProject data in file '{file_path}': {str(e)}") from e
     
     def clear(self):
@@ -336,11 +336,11 @@ class ScheduleProject(Project):
                 try:
                     obs.clear_calculated_data()
                 except Exception as e:
-                    logger.debug(f"Error clearing observation {obs.get_observation_code()}: {str(e)}")
+                    logger.debug("Error clearing observation %s: %s", obs.get_observation_code(), str(e))
             self._items.clear()
-            logger.info(f"Cleared all observations from project '{self.name}'")
+            logger.info("Cleared all observations from project '%s'", self.name)
         except Exception as e:
-            logger.error(f"Error clearing project '{self.name}': {str(e)}")
+            logger.error("Error clearing project '%s': %s", self.name, str(e))
 
     def __repr__(self) -> str:
         """String representation of ScheduleProject.

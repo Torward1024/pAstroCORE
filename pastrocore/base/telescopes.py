@@ -52,7 +52,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         if name is None:
             name = f"tlscs_{uuid.uuid4().hex[:32]}"
         super().__init__(items=items, name=name, isactive=isactive, use_cache=use_cache)
-        logger.debug(f"Initialized Telescopes with {len(self._items)} telescopes")
+        logger.debug("Initialized Telescopes with %s telescopes", len(self._items))
 
     def _validate_item(self, item: Union[Telescope, SpaceTelescope], exclude_name: Optional[str] = None) -> None:
         """Validate that the item is a Telescope or SpaceTelescope and has a valid and unique name and code.
@@ -85,7 +85,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             if existing_item is not item and existing_item.get_code() == code and existing_item.name != exclude_name:
                 raise ValueError(f"Telescope with code '{code}' already exists")
                 
-        logger.debug(f"Validated telescope with name='{name}', code='{code}'")
+        logger.debug("Validated telescope with name='%s', code='%s'", name, code)
 
     def set_item(self, name: str, item: Union[Telescope, SpaceTelescope]) -> None:
         """Set or replace a telescope in the collection by its name.
@@ -104,7 +104,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         self._validate_item(item, exclude_name=name)
         self._items[name] = item
         self._invalidate_cache()
-        logger.debug(f"Set telescope with name '{name}' in Telescopes")
+        logger.debug("Set telescope with name '%s' in Telescopes", name)
 
     def create_telescope(self, code: str = "TEMP", name: str = "Temporary Telescope",
                         x: float = 0.0, y: float = 0.0, z: float = 0.0,
@@ -144,7 +144,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             mount_type=mount_type, isactive=isactive
         )
         self.add(new_telescope)
-        logger.debug(f"Created and added telescope '{code}'")
+        logger.debug("Created and added telescope '%s'", code)
 
     def create_space_telescope(self, code: str = "TS", name: str = "Temporary Space Telescope",
                           orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
@@ -191,7 +191,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
             effective_area_table=effective_area_table, system_temperature_table=system_temperature_table
         )
         self.add(new_telescope)
-        logger.debug(f"Created and added space telescope '{code}'")
+        logger.debug("Created and added space telescope '%s'", code)
 
     def set_telescope(
         self,
@@ -256,7 +256,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
         telescope = next((t for t in self._items.values() if t.get_code() == code), None)
         if telescope is None:
-            logger.error(f"Telescope with code '{code}' not found in Telescopes")
+            logger.error("Telescope with code '%s' not found in Telescopes", code)
             raise KeyError(f"Telescope with code '{code}' not found in Telescopes")
 
         params = {}
@@ -338,17 +338,17 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
             old_name = telescope.name
             telescope.set(params)
-            logger.info(f"Updated telescope '{code}' with params: {params}")
+            logger.info("Updated telescope '%s' with params: %s", code, params)
 
             if name is not None and name != old_name:
                 self._items.pop(old_name)
                 self._items[name] = telescope
-                logger.debug(f"Updated telescope dictionary key from '{old_name}' to '{name}'")
+                logger.debug("Updated telescope dictionary key from '%s' to '%s'", old_name, name)
 
             if self._parent is not None and hasattr(self._parent, '_sync_scans_with_activation'):
                 self._parent._sync_scans_with_activation()
         else:
-            logger.debug(f"No parameters to update for telescope '{code}'")
+            logger.debug("No parameters to update for telescope '%s'", code)
     
     def copy(self) -> 'Telescopes':
         """Create a deep copy of the Telescopes object."""
@@ -383,16 +383,16 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
                 else:
                     telescope = Telescope.from_dict(item_data)
                 if telescope.name in items:
-                    logger.error(f"Duplicate telescope name '{telescope.name}' found for key '{key}'")
+                    logger.error("Duplicate telescope name '%s' found for key '%s'", telescope.name, key)
                     raise ValueError(f"Telescope with name '{telescope.name}' already exists")
                 if telescope.get_code() in codes:
-                    logger.error(f"Duplicate telescope code '{telescope.get_code()}' found for key '{key}'")
+                    logger.error("Duplicate telescope code '%s' found for key '%s'", telescope.get_code(), key)
                     raise ValueError(f"Telescope with code '{telescope.get_code()}' already exists")
                 items[telescope.name] = telescope
                 codes.add(telescope.get_code())
-                logger.debug(f"Deserialized telescope with name='{telescope.name}', code='{telescope.code}' for key='{key}'")
+                logger.debug("Deserialized telescope with name='%s', code='%s' for key='%s'", telescope.name, telescope.code, key)
             except Exception as e:
-                logger.error(f"Failed to deserialize telescope for key '{key}': {str(e)}")
+                logger.error("Failed to deserialize telescope for key '%s': %s", key, str(e))
                 raise ValueError(f"Invalid telescope data for key '{key}': {str(e)}") from e
 
         return cls(

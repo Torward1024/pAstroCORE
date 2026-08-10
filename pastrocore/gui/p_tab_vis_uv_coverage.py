@@ -36,7 +36,7 @@ class UVVisualizationTab(QWidget):
         self.figure = None
         self.is_processing = False
         self.frequencies = self._get_frequencies()
-        logger.debug(f"UVVisualizationTab initialized for observation id={id(observation)}")
+        logger.debug("UVVisualizationTab initialized for observation id=%s", id(observation))
 
         self.layout = QVBoxLayout(self.ui.widget)
         self._populate_filters()
@@ -68,7 +68,7 @@ class UVVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for UV coverage missing required columns: {missing_columns}")
+                logger.error("DataFrame for UV coverage missing required columns: %s", missing_columns)
                 self.ui.comboBox.addItem("Invalid UV coverage data structure")
                 return
 
@@ -90,9 +90,9 @@ class UVVisualizationTab(QWidget):
                 self.ui.listFrequencies.addItem(item)
 
             self.ui.comboBox_2.addItems(["Wavelengths", "Earth Diameters"])
-            logger.debug(f"Populated {len(sources)} sources, {len(baselines)} baselines, and {len(self.frequencies)} frequencies")
+            logger.debug("Populated %s sources, %s baselines, and %s frequencies", len(sources), len(baselines), len(self.frequencies))
         except Exception as e:
-            logger.error(f"Failed to populate filters: {str(e)}")
+            logger.error("Failed to populate filters: %s", str(e))
             self.ui.comboBox.addItem("Failed to retrieve data")
 
     def _get_frequencies(self) -> List[float]:
@@ -100,10 +100,10 @@ class UVVisualizationTab(QWidget):
         try:
             frequencies = self.manipulator.inspect(obj=self.observation, get_frequencies=None)
             freq_list = [float(f.get("frequency")) for f in frequencies.get_items()]
-            logger.debug(f"Retrieved frequencies: {freq_list}")
+            logger.debug("Retrieved frequencies: %s", freq_list)
             return freq_list
         except Exception as e:
-            logger.error(f"Failed to retrieve frequencies: {str(e)}")
+            logger.error("Failed to retrieve frequencies: %s", str(e))
             return []
 
     def _lock_ui(self):
@@ -136,7 +136,7 @@ class UVVisualizationTab(QWidget):
                 self.canvas.deleteLater()
                 logger.debug("Canvas removed and scheduled for deletion")
             except Exception as e:
-                logger.warning(f"Failed to remove canvas: {str(e)}")
+                logger.warning("Failed to remove canvas: %s", str(e))
             finally:
                 self.canvas = None
 
@@ -147,7 +147,7 @@ class UVVisualizationTab(QWidget):
                 self.toolbar.deleteLater()
                 logger.debug("Toolbar removed and scheduled for deletion")
             except Exception as e:
-                logger.warning(f"Failed to remove toolbar: {str(e)}")
+                logger.warning("Failed to remove toolbar: %s", str(e))
             finally:
                 self.toolbar = None
 
@@ -158,14 +158,14 @@ class UVVisualizationTab(QWidget):
                     ax.remove()
                 self.figure.clf()
                 plt.close(self.figure)
-                logger.debug(f"Figure {id(self.figure)} closed and cleared")
+                logger.debug("Figure %s closed and cleared", id(self.figure))
             except Exception as e:
-                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
+                logger.warning("Failed to close figure %s: %s", id(self.figure), str(e))
             finally:
                 self.figure = None
 
         gc.collect(2)
-        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
+        logger.debug("Number of open figures after cleanup: %s", len(plt.get_fignums()))
 
     def embed_figure(self, figure: Figure):
         """Embed a Matplotlib figure into the widget.
@@ -180,7 +180,7 @@ class UVVisualizationTab(QWidget):
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug(f"Embedded Matplotlib figure {id(figure)} in UVVisualizationTab")
+        logger.debug("Embedded Matplotlib figure %s in UVVisualizationTab", id(figure))
 
     def get_selected_source(self) -> Optional[str]:
         """Get the currently selected source name.
@@ -189,7 +189,7 @@ class UVVisualizationTab(QWidget):
             Selected source name or None if no source is selected.
         """
         source = self.ui.comboBox.currentText() if self.ui.comboBox.currentText() else None
-        logger.debug(f"Selected source: {source}")
+        logger.debug("Selected source: %s", source)
         return source
 
     def get_selected_scans(self) -> List[str]:
@@ -203,7 +203,7 @@ class UVVisualizationTab(QWidget):
             item = self.ui.listScans.item(i)
             if item.checkState() == Qt.Checked:
                 selected_scans.append(item.data(Qt.UserRole))
-        logger.debug(f"Selected scans: {selected_scans}")
+        logger.debug("Selected scans: %s", selected_scans)
         return selected_scans
 
     def get_selected_baselines(self) -> List[str]:
@@ -217,7 +217,7 @@ class UVVisualizationTab(QWidget):
             item = self.ui.listBaselines.item(i)
             if item.checkState() == Qt.Checked:
                 selected_baselines.append(item.text())
-        logger.debug(f"Selected baselines: {selected_baselines}")
+        logger.debug("Selected baselines: %s", selected_baselines)
         return selected_baselines
 
     def get_selected_frequencies(self) -> List[float]:
@@ -231,7 +231,7 @@ class UVVisualizationTab(QWidget):
             item = self.ui.listFrequencies.item(i)
             if item.checkState() == Qt.Checked:
                 selected_frequencies.append(float(item.data(Qt.UserRole)))
-        logger.debug(f"Selected frequencies: {selected_frequencies}")
+        logger.debug("Selected frequencies: %s", selected_frequencies)
         return selected_frequencies
 
     def get_selected_units(self) -> str:
@@ -241,7 +241,7 @@ class UVVisualizationTab(QWidget):
             Selected units ("Wavelengths" or "Earth Diameters") or None if not selected.
         """
         units = self.ui.comboBox_2.currentText().lower() if self.ui.comboBox_2.currentText() else None
-        logger.debug(f"Selected units: {units}")
+        logger.debug("Selected units: %s", units)
         return units
 
     @Slot()
@@ -254,7 +254,7 @@ class UVVisualizationTab(QWidget):
         self._lock_ui()
         try:
             source_name = self.get_selected_source()
-            logger.debug(f"Filter changed, updating scans for source '{source_name}'")
+            logger.debug("Filter changed, updating scans for source '%s'", source_name)
             self.update_scans_for_source(source_name)
             self.update_visualization()
         finally:
@@ -269,7 +269,7 @@ class UVVisualizationTab(QWidget):
         """
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
                           for i in range(self.ui.listScans.count())}
-        logger.debug(f"Stored check states: {current_checks}")
+        logger.debug("Stored check states: %s", current_checks)
 
         self.ui.listScans.clear()
         if not source_name:
@@ -290,13 +290,13 @@ class UVVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for UV coverage missing required columns: {missing_columns}")
+                logger.error("DataFrame for UV coverage missing required columns: %s", missing_columns)
                 self.ui.listScans.addItem(QListWidgetItem("Invalid UV coverage data structure"))
                 return
 
             df_filtered = df.filter(pl.col("source_name") == source_name)
             if df_filtered.is_empty():
-                logger.debug(f"No data for source '{source_name}' in UV coverage DataFrame")
+                logger.debug("No data for source '%s' in UV coverage DataFrame", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
@@ -312,9 +312,9 @@ class UVVisualizationTab(QWidget):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(current_checks.get(scan_name, Qt.Checked))
                 self.ui.listScans.addItem(item)
-            logger.debug(f"Populated {len(scans)} scans for source '{source_name}'")
+            logger.debug("Populated %s scans for source '%s'", len(scans), source_name)
         except Exception as e:
-            logger.error(f"Failed to update scans for source '{source_name}': {str(e)}")
+            logger.error("Failed to update scans for source '%s': %s", source_name, str(e))
             self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
 
     def update_visualization(self):
@@ -324,8 +324,7 @@ class UVVisualizationTab(QWidget):
         units = self.get_selected_units()
         scans = self.get_selected_scans()
         baselines = self.get_selected_baselines()
-        logger.debug(f"Updating visualization: source='{source_name}', frequencies={frequencies}, "
-                     f"units={units}, scans={scans}, baselines={baselines}")
+        logger.debug("Updating visualization: source='%s', frequencies=%s, units=%s, scans=%s, baselines=%s", source_name, frequencies, units, scans, baselines)
 
         if not source_name or not scans or not baselines or not frequencies:
             logger.debug("Missing required filters (source, scans, baselines, or frequencies), clearing canvas")
@@ -345,7 +344,7 @@ class UVVisualizationTab(QWidget):
 
         try:
             result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             if not result or (result.get("baselines", 0) == 0 and result.get("frequencies", 0) == 0):
                 logger.debug("Empty visualization result, clearing canvas")
                 self._clear_canvas()
@@ -353,16 +352,16 @@ class UVVisualizationTab(QWidget):
             figure = result.get("figure")
             if figure:
                 self.embed_figure(figure)
-                logger.debug(f"UV coverage visualization updated for source '{source_name}', frequencies {frequencies}")
+                logger.debug("UV coverage visualization updated for source '%s', frequencies %s", source_name, frequencies)
             else:
                 logger.error("No figure returned from visualizer, clearing canvas")
                 self._clear_canvas()
         except Exception as e:
-            logger.error(f"Exception during UV coverage visualization update: {str(e)}")
+            logger.error("Exception during UV coverage visualization update: %s", str(e))
             self._clear_canvas()
 
     def closeEvent(self, event):
         """Ensure resources are cleaned up when the widget is closed."""
         self._clear_canvas()
         super().closeEvent(event)
-        logger.debug(f"UVVisualizationTab closed, resources cleaned up")
+        logger.debug("UVVisualizationTab closed, resources cleaned up")

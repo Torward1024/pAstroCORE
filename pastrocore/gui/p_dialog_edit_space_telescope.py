@@ -179,7 +179,7 @@ class SpaceTelescopeEditorDialog(QDialog):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Orbit File", "", "Orbit Files (*.txt *.csv)")
         if file_path:
             self.ui.orbitFileEdit.setText(file_path)
-            logger.debug(f"Selected orbit file: {file_path}")
+            logger.debug("Selected orbit file: %s", file_path)
 
     def load_data(self):
         """Load space telescope data into the dialog fields."""
@@ -200,7 +200,7 @@ class SpaceTelescopeEditorDialog(QDialog):
             self.ui.codeEdit.setReadOnly(True)
             self.ui.nameEdit.setReadOnly(True)
             self.setWindowTitle(f"Edit Space Telescope '{self.telescope.get_code()}'")
-            logger.debug(f"Editing existing space telescope '{self.telescope.get_code()}' with read-only code and name fields")
+            logger.debug("Editing existing space telescope '%s' with read-only code and name fields", self.telescope.get_code())
 
         self.ui.codeEdit.setText(self.telescope.get_code() or "")
         self.ui.nameEdit.setText(self.telescope.name or "")
@@ -241,7 +241,7 @@ class SpaceTelescopeEditorDialog(QDialog):
             for freq, temp in self.telescope.system_temperature_table.items():
                 self.system_temperature_model.add_row(freq, temp)
 
-        logger.info(f"Loaded space telescope '{self.telescope.get_code()}' into editor dialog")
+        logger.info("Loaded space telescope '%s' into editor dialog", self.telescope.get_code())
 
     def remove_sefd_row(self):
         """Remove selected SEFD entry from the table."""
@@ -317,7 +317,7 @@ class SpaceTelescopeEditorDialog(QDialog):
         }
 
         self.telescope.set(params)
-        logger.debug(f"Updated SpaceTelescope object '{self.telescope.name}' with params: {params}")
+        logger.debug("Updated SpaceTelescope object '%s' with params: %s", self.telescope.name, params)
         return self.telescope
 
     def accept(self):
@@ -353,10 +353,10 @@ class SpaceTelescopeEditorDialog(QDialog):
                 QMessageBox.critical(self, "Error", "Diameter must be positive.")
                 return
             super().accept()
-            logger.info(f"Validated and saved space telescope data for '{data['code']}'")
+            logger.info("Validated and saved space telescope data for '%s'", data['code'])
         except ValueError as ve:
-            logger.error(f"Validation error: {str(ve)}")
+            logger.error("Validation error: %s", str(ve))
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")
         except Exception as e:
-            logger.error(f"Unexpected error while saving space telescope: {str(e)}")
+            logger.error("Unexpected error while saving space telescope: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to save space telescope: {str(e)}")

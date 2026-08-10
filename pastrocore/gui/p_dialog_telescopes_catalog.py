@@ -97,7 +97,7 @@ class TelescopesCatalogDialog(QDialog):
             items[0].setData(telescope, Qt.UserRole)
             self.model.appendRow(items)
 
-        logger.info(f"Populated telescopes catalog table with {len(telescopes)} telescopes")
+        logger.info("Populated telescopes catalog table with %s telescopes", len(telescopes))
 
     @Slot(str)
     def filter_telescopes(self, text: str):
@@ -144,7 +144,7 @@ class TelescopesCatalogDialog(QDialog):
         if selected_telescopes:
             self.telescopes_selected.emit(selected_telescopes)
             self.accept()
-            logger.info(f"Selected {len(selected_telescopes)} telescopes for adding to observation")
+            logger.info("Selected %s telescopes for adding to observation", len(selected_telescopes))
         else:
             logger.error("No valid telescopes found in selection")
             QMessageBox.critical(self, "Error", "No valid telescopes found in selection.")

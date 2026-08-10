@@ -55,7 +55,7 @@ class Observation(BaseEntityN):
             name = f"obs_{uuid.uuid4().hex[:32]}"
         check_non_empty_string(name, "Name")
         if observation_type not in ("VLBI", "SINGLE_DISH"):
-            logger.error(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
+            logger.error("Observation type must be 'VLBI' or 'SINGLE_DISH', got %s", observation_type)
             raise ValueError(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
         if sources is not None:
             check_type(sources, Sources, "Sources")
@@ -90,10 +90,10 @@ class Observation(BaseEntityN):
                 try:
                     self._validate_calculated_data_key(key, calc_dict.get("data"), calc_dict.get("metadata", {}))
                 except ValueError as e:
-                    logger.error(f"Validation failed for calculated_data key '{key}' in observation '{self.name}': {str(e)}")
+                    logger.error("Validation failed for calculated_data key '%s' in observation '%s': %s", key, self.name, str(e))
                     raise
         
-        logger.info(f"Initialized Observation '{name}' with type '{observation_type}'")
+        logger.info("Initialized Observation '%s' with type '%s'", name, observation_type)
 
     def _validate_calculated_data_key(self, key: str, df: pl.DataFrame, metadata: Dict) -> None:
         """Validate the structure of a DataFrame and metadata for a specific calculated data key."""
@@ -101,35 +101,35 @@ class Observation(BaseEntityN):
         expected_metadata = CalculatedDataStructure.get_metadata_types(key)
 
         if expected_columns is None:
-            logger.warning(f"Unknown calculated_data key '{key}' in observation '{self.name}'")
+            logger.warning("Unknown calculated_data key '%s' in observation '%s'", key, self.name)
             return
 
         if df is None or not isinstance(df, pl.DataFrame):
-            logger.error(f"Invalid DataFrame for key '{key}' in observation '{self.name}': DataFrame is None or not a Polars DataFrame")
+            logger.error("Invalid DataFrame for key '%s' in observation '%s': DataFrame is None or not a Polars DataFrame", key, self.name)
             raise ValueError(f"Invalid DataFrame for key '{key}': DataFrame is None or not a Polars DataFrame")
 
         if not all(col in df.columns for col in expected_columns):
             missing_cols = [col for col in expected_columns if col not in df.columns]
-            logger.error(f"Invalid DataFrame structure for key '{key}' in observation '{self.name}': missing columns {missing_cols}")
+            logger.error("Invalid DataFrame structure for key '%s' in observation '%s': missing columns %s", key, self.name, missing_cols)
             raise ValueError(f"Invalid DataFrame structure for key '{key}': missing columns {missing_cols}")
 
         for meta_key, meta_type in expected_metadata.items():
             if meta_key not in metadata:
-                logger.error(f"Missing metadata '{meta_key}' for key '{key}' in observation '{self.name}'")
+                logger.error("Missing metadata '%s' for key '%s' in observation '%s'", meta_key, key, self.name)
                 raise ValueError(f"Missing metadata '{meta_key}' for key '{key}'")
             check_type(metadata[meta_key], meta_type, f"Metadata {meta_key} for {key}")
 
-        logger.debug(f"Validated DataFrame structure for key '{key}' in observation '{self.name}'")
+        logger.debug("Validated DataFrame structure for key '%s' in observation '%s'", key, self.name)
 
     def get_calculated_data_by_key(self, key: str) -> Optional[Dict[str, any]]:
         """Retrieve calculated data and metadata for a specific key as a dictionary."""
         check_non_empty_string(key, "Key")
         calc_dict = self.calculated_data.get(key)
         if calc_dict is not None:
-            logger.debug(f"Retrieved calculated data '{key}' for observation '{self.name}'")
+            logger.debug("Retrieved calculated data '%s' for observation '%s'", key, self.name)
             return {"data": calc_dict.get("data"), "metadata": calc_dict.get("metadata", {})}
         else:
-            logger.debug(f"No calculated data found for key '{key}' in observation '{self.name}'")
+            logger.debug("No calculated data found for key '%s' in observation '%s'", key, self.name)
             return {}
 
     def set_calculated_data_by_key(self, key: str, df: pl.DataFrame, metadata: Dict = None) -> None:
@@ -143,12 +143,12 @@ class Observation(BaseEntityN):
         new_data = self.calculated_data.copy()
         new_data[key] = {"data": df, "metadata": metadata}
         self.set({"calculated_data": new_data})
-        logger.info(f"Stored calculated data '{key}' for observation '{self.name}'")
+        logger.info("Stored calculated data '%s' for observation '%s'", key, self.name)
 
     def clear_calculated_data(self):
         """Clear all cached calculation data and metadata for this observation."""
         self.calculated_data.clear()
-        logger.debug(f"Cleared calculated data for observation '{self.get_observation_code()}'")
+        logger.debug("Cleared calculated data for observation '%s'", self.get_observation_code())
 
     def to_dict(self) -> dict:
         """Convert the Observation object to a dictionary for serialization."""
@@ -162,7 +162,7 @@ class Observation(BaseEntityN):
                     try:
                         df_copy = df_copy.with_columns(pl.col(col).map_elements(converter, return_dtype=pl.Float64))
                     except Exception as e:
-                        logger.error(f"Failed to apply converter for column '{col}' in key '{key}' of observation '{self.name}': {str(e)}")
+                        logger.error("Failed to apply converter for column '%s' in key '%s' of observation '%s': %s", col, key, self.name, str(e))
                         raise
 
             converted_metadata = {}
@@ -175,7 +175,7 @@ class Observation(BaseEntityN):
                     else:
                         converted_metadata[k] = v
                 except Exception as e:
-                    logger.error(f"Failed to convert metadata '{k}' for key '{key}' in observation '{self.name}': {str(e)}")
+                    logger.error("Failed to convert metadata '%s' for key '%s' in observation '%s': %s", k, key, self.name, str(e))
                     raise
 
             buffer = io.BytesIO()
@@ -186,7 +186,7 @@ class Observation(BaseEntityN):
                     "metadata": converted_metadata
                 }
             except Exception as e:
-                logger.error(f"Failed to serialize DataFrame for key '{key}' in observation '{self.name}': {str(e)}")
+                logger.error("Failed to serialize DataFrame for key '%s' in observation '%s': %s", key, self.name, str(e))
                 raise
 
         try:
@@ -196,14 +196,14 @@ class Observation(BaseEntityN):
                 try:
                     calc_data = convert_dataframe(calc_dict["data"], key, calc_dict.get("metadata", {}))
                     calculated_data[key] = calc_data
-                    logger.debug(f"Successfully serialized calculated_data key '{key}' for observation '{self.name}'")
+                    logger.debug("Successfully serialized calculated_data key '%s' for observation '%s'", key, self.name)
                 except Exception as e:
-                    logger.warning(f"Skipping calculated_data key '{key}' due to serialization error: {str(e)}")
+                    logger.warning("Skipping calculated_data key '%s' due to serialization error: %s", key, str(e))
                     failed_keys.append(key)
                     continue
 
             if failed_keys:
-                logger.warning(f"Failed to serialize {len(failed_keys)} calculated_data keys: {failed_keys}")
+                logger.warning("Failed to serialize %s calculated_data keys: %s", len(failed_keys), failed_keys)
 
             data = {
                 "name": self.name,
@@ -217,10 +217,10 @@ class Observation(BaseEntityN):
                 "isactive": self.isactive,
                 "use_cache": self._use_cache
             }
-            logger.debug(f"Serialized observation '{self.name}' to dictionary with {len(calculated_data)} calculated_data entries")
+            logger.debug("Serialized observation '%s' to dictionary with %s calculated_data entries", self.name, len(calculated_data))
             return data
         except Exception as e:
-            logger.error(f"Failed to serialize observation '{self.name}' to dictionary: {str(e)}")
+            logger.error("Failed to serialize observation '%s' to dictionary: %s", self.name, str(e))
             raise
 
     @classmethod
@@ -238,7 +238,7 @@ class Observation(BaseEntityN):
                         try:
                             df = df.with_columns(pl.col(col).map_elements(converter, return_dtype=pl.Object))
                         except Exception as e:
-                            logger.error(f"Failed to apply deserialization converter for column '{col}' in key '{key}': {str(e)}")
+                            logger.error("Failed to apply deserialization converter for column '%s' in key '%s': %s", col, key, str(e))
                             raise ValueError(f"Failed to apply deserialization converter for column '{col}' in key '{key}': {str(e)}")
 
                 metadata = calc_data.get("metadata", {})
@@ -257,12 +257,12 @@ class Observation(BaseEntityN):
                         else:
                             restored_metadata[meta_key] = meta_value
                     except Exception as e:
-                        logger.error(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
+                        logger.error("Failed to restore metadata '%s' for key '%s': %s", meta_key, key, str(e))
                         raise ValueError(f"Failed to restore metadata '{meta_key}' for key '{key}': {str(e)}")
 
                 return {"data": df, "metadata": restored_metadata}
             except Exception as e:
-                logger.error(f"Failed to restore DataFrame for key '{key}': {str(e)}")
+                logger.error("Failed to restore DataFrame for key '%s': %s", key, str(e))
                 raise
 
         try:
@@ -278,14 +278,14 @@ class Observation(BaseEntityN):
                 try:
                     calc_dict = restore_dataframe(calc_data, key)
                     calculated_data[key] = calc_dict
-                    logger.debug(f"Successfully deserialized calculated_data key '{key}' for observation '{data['name']}'")
+                    logger.debug("Successfully deserialized calculated_data key '%s' for observation '%s'", key, data['name'])
                 except Exception as e:
-                    logger.warning(f"Skipping calculated_data key '{key}' due to deserialization error: {str(e)}")
+                    logger.warning("Skipping calculated_data key '%s' due to deserialization error: %s", key, str(e))
                     failed_keys.append(key)
                     continue
 
             if failed_keys:
-                logger.warning(f"Failed to deserialize {len(failed_keys)} calculated_data keys: {failed_keys}")
+                logger.warning("Failed to deserialize %s calculated_data keys: %s", len(failed_keys), failed_keys)
 
             kwargs = {
                 "name": data["name"],
@@ -303,10 +303,10 @@ class Observation(BaseEntityN):
             kwargs["scans"] = Scans.from_dict(data.get("scans", {}), observation=obs)
             obs.set({"scans": kwargs["scans"]})
             obs.scans.activate_all(obs)
-            logger.info(f"Created observation '{data['name']}' from dictionary with {len(kwargs['scans'].get_items())} scans")
+            logger.info("Created observation '%s' from dictionary with %s scans", data['name'], len(kwargs['scans'].get_items()))
             return obs
         except Exception as e:
-            logger.error(f"Failed to deserialize observation from dictionary: {str(e)}")
+            logger.error("Failed to deserialize observation from dictionary: %s", str(e))
             raise
 
     def get_observation_code(self) -> str:
@@ -341,20 +341,20 @@ class Observation(BaseEntityN):
         """Retrieve the earliest start time of active scans."""
         active_scans = self.scans.get_active_scans(self)
         if not active_scans:
-            logger.debug(f"No active scans found for observation '{self.name}'")
+            logger.debug("No active scans found for observation '%s'", self.name)
             return None
         start_time = min(scan.get_start() for scan in active_scans)
-        logger.debug(f"Retrieved start datetime {start_time.isot} for observation '{self.name}'")
+        logger.debug("Retrieved start datetime %s for observation '%s'", start_time.isot, self.name)
         return start_time
 
     def get_duration(self) -> Optional[int]:
         """Retrieve the total observation duration in seconds by summing durations of active scans."""
         active_scans = self.scans.get_active_scans(self)
         if not active_scans:
-            logger.debug(f"No active scans found for observation '{self.name}'")
+            logger.debug("No active scans found for observation '%s'", self.name)
             return None
         total_duration = sum(scan.get_duration() for scan in active_scans)
-        logger.debug(f"Retrieved total duration {total_duration} seconds for observation '{self.name}'")
+        logger.debug("Retrieved total duration %s seconds for observation '%s'", total_duration, self.name)
         return int(total_duration)
 
     def copy(self) -> 'Observation':
@@ -379,7 +379,7 @@ class Observation(BaseEntityN):
             logger.error("Observation name must be a non-empty string")
             return False
         if self.observation_type not in ["VLBI", "SINGLE_DISH"]:
-            logger.warning(f"Invalid observation type: {self.observation_type}")
+            logger.warning("Invalid observation type: %s", self.observation_type)
             return False
         if not self.sources.get_active_items():
             logger.warning("No active sources defined in observation")
@@ -406,17 +406,16 @@ class Observation(BaseEntityN):
                     telescope_scans[tel_code] = []
                 for prev_start, prev_end in telescope_scans[tel_code]:
                     if not (scan_end <= prev_start or scan_start >= prev_end):
-                        logger.error(f"Scan overlap detected for telescope {tel_code}: "
-                                     f"[{prev_start.isot}, {prev_end.isot}] vs [{scan_start.isot}, {scan_end.isot}]")
+                        logger.error("Scan overlap detected for telescope %s: [%s, %s] vs [%s, %s]", tel_code, prev_start.isot, prev_end.isot, scan_start.isot, scan_end.isot)
                         return False
                 telescope_scans[tel_code].append((scan_start, scan_end))
         for key, calc_dict in self.calculated_data.items():
             try:
                 self._validate_calculated_data_key(key, calc_dict.get("data"), calc_dict.get("metadata", {}))
             except ValueError as e:
-                logger.error(f"Validation failed for calculated_data key '{key}' in observation '{self.name}': {str(e)}")
+                logger.error("Validation failed for calculated_data key '%s' in observation '%s': %s", key, self.name, str(e))
                 return False
-        logger.info(f"Observation '{self.name}' validated successfully")
+        logger.info("Observation '%s' validated successfully", self.name)
         return True
 
     def __repr__(self) -> str:

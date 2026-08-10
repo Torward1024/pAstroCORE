@@ -35,7 +35,7 @@ class ScheduleConfigurator(Super):
         """Configure an IF object and return its get() result."""
         self._apply_methods(if_obj, attributes)
         final_result = if_obj.get()
-        logger.info(f"Configured IF: frequency={if_obj.frequency}, bandwidth={if_obj.bandwidth}, result={final_result}")
+        logger.info("Configured IF: frequency=%s, bandwidth=%s, result=%s", if_obj.frequency, if_obj.bandwidth, final_result)
         return final_result
 
 
@@ -46,13 +46,13 @@ class ScheduleConfigurator(Super):
                 freq_obj, attributes, "name", freq_obj.get, self._configure_if
             )
             if result["status"]:
-                logger.info(f"Configured nested IF in Frequencies: name={attributes['name']}, result={result['result']}")
+                logger.info("Configured nested IF in Frequencies: name=%s, result=%s", attributes['name'], result['result'])
                 return result["result"]
-            logger.warning(f"Failed to configure nested IF in Frequencies: name={attributes.get('name')}")
+            logger.warning("Failed to configure nested IF in Frequencies: name=%s", attributes.get('name'))
             raise ValueError(result.get("error", "Operation not executed"))
         self._apply_methods(freq_obj, attributes)
         final_result = len(freq_obj)
-        logger.info(f"Configured Frequencies: count={final_result}, result={final_result}")
+        logger.info("Configured Frequencies: count=%s, result=%s", final_result, final_result)
         return final_result
 
 
@@ -60,7 +60,7 @@ class ScheduleConfigurator(Super):
         """Configure a Source object and return its get() result."""
         self._apply_methods(source_obj, attributes)
         final_result = source_obj.get()
-        logger.info(f"Configured Source: name='{source_obj.name}', result={final_result}")
+        logger.info("Configured Source: name='%s', result=%s", source_obj.name, final_result)
         return final_result
 
 
@@ -71,13 +71,13 @@ class ScheduleConfigurator(Super):
                 sources_obj, attributes, "name", sources_obj.get, self._configure_source
             )
             if result["status"]:
-                logger.info(f"Configured nested Source in Sources: name={attributes['name']}, result={result['result']}")
+                logger.info("Configured nested Source in Sources: name=%s, result=%s", attributes['name'], result['result'])
                 return result["result"]
-            logger.warning(f"Failed to configure nested Source in Sources: name={attributes.get('name')}")
+            logger.warning("Failed to configure nested Source in Sources: name=%s", attributes.get('name'))
             raise ValueError(result.get("error", "Operation not executed"))
         self._apply_methods(sources_obj, attributes)
         final_result = len(sources_obj)
-        logger.info(f"Configured Sources: count={final_result}, result={final_result}")
+        logger.info("Configured Sources: count=%s, result=%s", final_result, final_result)
         return final_result
 
 
@@ -85,7 +85,7 @@ class ScheduleConfigurator(Super):
         """Configure a Telescope or SpaceTelescope object and return its code."""
         self._apply_methods(tel_obj, attributes)
         final_result = tel_obj.get_code()
-        logger.info(f"Configured Telescope: code='{final_result}', result={final_result}")
+        logger.info("Configured Telescope: code='%s', result=%s", final_result, final_result)
         return final_result
 
 
@@ -96,13 +96,13 @@ class ScheduleConfigurator(Super):
                 tel_obj, attributes, "name", tel_obj.get, self._configure_telescope
             )
             if result["status"]:
-                logger.info(f"Configured nested Telescope in Telescopes: name={attributes['name']}, result={result['result']}")
+                logger.info("Configured nested Telescope in Telescopes: name=%s, result=%s", attributes['name'], result['result'])
                 return result["result"]
-            logger.warning(f"Failed to configure nested Telescope in Telescopes: name={attributes.get('name')}")
+            logger.warning("Failed to configure nested Telescope in Telescopes: name=%s", attributes.get('name'))
             raise ValueError(result.get("error", "Operation not executed"))
         self._apply_methods(tel_obj, attributes)
         final_result = len(tel_obj)
-        logger.info(f"Configured Telescopes: count={final_result}, result={final_result}")
+        logger.info("Configured Telescopes: count=%s, result=%s", final_result, final_result)
         return final_result
 
 
@@ -110,7 +110,7 @@ class ScheduleConfigurator(Super):
         """Configure a Scan object and return its get() result."""
         self._apply_methods(scan_obj, attributes)
         final_result = scan_obj.get()
-        logger.info(f"Configured Scan: name='{scan_obj.name}', result={final_result}")
+        logger.info("Configured Scan: name='%s', result=%s", scan_obj.name, final_result)
         return final_result
 
 
@@ -118,7 +118,7 @@ class ScheduleConfigurator(Super):
         """Configure a Scans object and return the number of scans."""
         self._apply_methods(scans_obj, attributes)
         final_result = len(scans_obj)
-        logger.info(f"Configured Scans: count={final_result}, result={final_result}")
+        logger.info("Configured Scans: count=%s, result=%s", final_result, final_result)
         return final_result
 
 
@@ -126,7 +126,7 @@ class ScheduleConfigurator(Super):
         """Configure an Observation object and return its code."""
         self._apply_methods(obs_obj, attributes)
         final_result = obs_obj.get_observation_code()
-        logger.info(f"Configured Observation: code='{final_result}', result={final_result}")
+        logger.info("Configured Observation: code='%s', result=%s", final_result, final_result)
         return final_result
 
 
@@ -134,9 +134,9 @@ class ScheduleConfigurator(Super):
         """Configure a ScheduleProject object, supporting nested Observation configuration and observation generation."""
         try:
             if "generate_observations" in attributes:
-                logger.info(f"Generating observations for project {project_obj.name}.")
+                logger.info("Generating observations for project %s.", project_obj.name)
                 result = self._generate_observations(project_obj, attributes["generate_observations"])
-                logger.debug(f"Generated observations for ScheduleProject: {result}")
+                logger.debug("Generated observations for ScheduleProject: %s", result)
                 return result
 
             if "name" in attributes:
@@ -144,17 +144,17 @@ class ScheduleConfigurator(Super):
                     project_obj, attributes, "name", project_obj.get_observation, self._configure_observation
                 )
                 if result["status"]:
-                    logger.info(f"Configured nested Observation in ScheduleProject: name={attributes['name']}, result={result['result']}")
+                    logger.info("Configured nested Observation in ScheduleProject: name=%s, result=%s", attributes['name'], result['result'])
                     return result["result"]
-                logger.warning(f"Failed to configure nested Observation in ScheduleProject: name={attributes.get('name')}")
+                logger.warning("Failed to configure nested Observation in ScheduleProject: name=%s", attributes.get('name'))
                 raise ValueError(result.get("error", "Operation not executed"))
 
             self._apply_methods(project_obj, attributes)
             final_result = project_obj.get_name()
-            logger.info(f"Configured ScheduleProject: name='{final_result}', observations={len(project_obj.get_items())}, result={final_result}")
+            logger.info("Configured ScheduleProject: name='%s', observations=%s, result=%s", final_result, len(project_obj.get_items()), final_result)
             return final_result
         except Exception as e:
-            logger.error(f"Error configuring ScheduleProject: {str(e)}")
+            logger.error("Error configuring ScheduleProject: %s", str(e))
             raise ValueError(str(e))
 
 
@@ -206,25 +206,23 @@ class ScheduleConfigurator(Super):
             progress_callback = attributes.get("progress_callback", None)
 
             if observation_type not in ["VLBI", "SINGLE_DISH"]:
-                logger.error(f"Invalid observation type: {observation_type}")
+                logger.error("Invalid observation type: %s", observation_type)
                 return {"status": False, "error": f"Invalid observation type: {observation_type}", "result": []}
 
             if not isinstance(sources, Sources):
-                logger.error(f"Expected Sources object, got {type(sources)}")
+                logger.error("Expected Sources object, got %s", type(sources))
                 return {"status": False, "error": f"Expected Sources object, got {type(sources)}", "result": []}
             if not isinstance(telescopes, Telescopes):
-                logger.error(f"Expected Telescopes object, got {type(telescopes)}")
+                logger.error("Expected Telescopes object, got %s", type(telescopes))
                 return {"status": False, "error": f"Expected Telescopes object, got {type(telescopes)}", "result": []}
             if not isinstance(frequencies, Frequencies):
-                logger.error(f"Expected Frequencies object, got {type(frequencies)}")
+                logger.error("Expected Frequencies object, got %s", type(frequencies))
                 return {"status": False, "error": f"Expected Frequencies object, got {type(frequencies)}", "result": []}
 
             source_items = sources.get_items()
             telescope_items = telescopes.get_items()
             frequency_items = frequencies.get_items()
-            logger.debug(f"Input collections: sources={len(source_items)} ({[s.name for s in source_items]}), "
-                        f"telescopes={len(telescope_items)} ({[t.name for t in telescope_items]}), "
-                        f"frequencies={len(frequency_items)} ({[f.name for f in frequency_items]})")
+            logger.debug("Input collections: sources=%s (%s), telescopes=%s (%s), frequencies=%s (%s)", len(source_items), [s.name for s in source_items], len(telescope_items), [t.name for t in telescope_items], len(frequency_items), [f.name for f in frequency_items])
             if not source_items:
                 logger.error("No sources provided")
                 return {"status": False, "error": "No sources provided", "result": []}
@@ -242,7 +240,7 @@ class ScheduleConfigurator(Super):
                 start_time = Time(time_range["start"])
                 end_time = Time(time_range["end"])
             except Exception as e:
-                logger.error(f"Invalid time format: {str(e)}")
+                logger.error("Invalid time format: %s", str(e))
                 return {"status": False, "error": f"Invalid time format: {str(e)}", "result": []}
             if start_time >= end_time:
                 logger.error("Invalid time range: start time must be before end time")
@@ -253,7 +251,7 @@ class ScheduleConfigurator(Super):
                     logger.error("No telescopes available for SINGLE_DISH")
                     return {"status": False, "error": "No telescopes available for SINGLE_DISH", "result": []}
                 telescopes = Telescopes(items={telescope_items[0].name: telescope_items[0].copy()})
-                logger.debug(f"SINGLE_DISH mode: selected telescope '{telescope_items[0].name}'")
+                logger.debug("SINGLE_DISH mode: selected telescope '%s'", telescope_items[0].name)
 
             multiplier = 2 if add_off_source else 1
             scan_group_duration = multiplier * scan_duration
@@ -278,14 +276,12 @@ class ScheduleConfigurator(Super):
                 # Check if observation fits within the time range
                 obs_end = obs_start + required_duration_sec * u.s
                 if (obs_end - end_time) > time_tolerance:
-                    logger.warning(f"Insufficient time for observation on source '{source.name}' "
-                                f"(required: {required_duration_sec}s, available: {(end_time - obs_start).to_value('s')}s)")
+                    logger.warning("Insufficient time for observation on source '%s' (required: %ss, available: %ss)", source.name, required_duration_sec, (end_time - obs_start).to_value('s'))
                     continue
 
                 sources_copy = Sources(name=f"srcs_{source.name}_{uuid.uuid4().hex[:8]}")
                 sources_copy.add(source.copy())
-                logger.debug(f"Created sources_copy with {len(sources_copy.get_items())} sources: "
-                            f"{[s.name for s in sources_copy.get_items()]}")
+                logger.debug("Created sources_copy with %s sources: %s", len(sources_copy.get_items()), [s.name for s in sources_copy.get_items()])
 
                 try:
                     iso_time = obs_start.iso
@@ -299,21 +295,19 @@ class ScheduleConfigurator(Super):
                         uuid=uuid.uuid4().hex[:8]
                     )
                 except KeyError as e:
-                    logger.error(f"Invalid naming mask: unknown placeholder {str(e)}")
+                    logger.error("Invalid naming mask: unknown placeholder %s", str(e))
                     return {"status": False, "error": f"Invalid naming mask: unknown placeholder {str(e)}", "result": []}
                 except IndexError as e:
-                    logger.error(f"Error formatting time in naming mask: {str(e)}")
+                    logger.error("Error formatting time in naming mask: %s", str(e))
                     return {"status": False, "error": f"Error formatting time in naming mask: {str(e)}", "result": []}
 
                 obs_telescopes = telescopes.copy()
                 obs_frequencies = frequencies.copy()
                 obs_telescopes_items = obs_telescopes.get_items()
                 obs_frequencies_items = obs_frequencies.get_items()
-                logger.debug(f"Observation '{obs_code}': telescopes={len(obs_telescopes_items)} "
-                            f"({[t.name for t in obs_telescopes_items]}), "
-                            f"frequencies={len(obs_frequencies_items)} ({[f.name for f in obs_frequencies_items]})")
+                logger.debug("Observation '%s': telescopes=%s (%s), frequencies=%s (%s)", obs_code, len(obs_telescopes_items), [t.name for t in obs_telescopes_items], len(obs_frequencies_items), [f.name for f in obs_frequencies_items])
                 if not obs_telescopes_items or not obs_frequencies_items:
-                    logger.error(f"Empty telescopes or frequencies for observation '{obs_code}'")
+                    logger.error("Empty telescopes or frequencies for observation '%s'", obs_code)
                     continue
 
                 obs = Observation(
@@ -326,7 +320,7 @@ class ScheduleConfigurator(Super):
                     observation_type=observation_type,
                     isactive=True
                 )
-                logger.debug(f"Created observation '{obs_code}' for source '{source.name}'")
+                logger.debug("Created observation '%s' for source '%s'", obs_code, source.name)
 
                 scans_list = []
                 for j in range(num_scans):
@@ -335,7 +329,7 @@ class ScheduleConfigurator(Super):
                     scan_telescopes = obs.telescopes.get_items()
                     scan_frequencies = obs.frequencies.get_items()
                     if not scan_telescopes or not scan_frequencies:
-                        logger.error(f"Empty telescopes or frequencies for scan '{scan_name}' in observation '{obs_code}'")
+                        logger.error("Empty telescopes or frequencies for scan '%s' in observation '%s'", scan_name, obs_code)
                         continue
                     scan = Scan(
                         name=scan_name,
@@ -367,7 +361,7 @@ class ScheduleConfigurator(Super):
                         scans_list.append(off_scan)
 
                 if not scans_list:
-                    logger.error(f"No scans generated for observation '{obs_code}'")
+                    logger.error("No scans generated for observation '%s'", obs_code)
                     continue
 
                 if randomize_order:
@@ -382,11 +376,11 @@ class ScheduleConfigurator(Super):
 
                 added_obs = project_obj.get_observation_by_code(obs_code)
                 if not added_obs:
-                    logger.error(f"Failed to add observation '{obs_code}' for source '{source.name}' to project")
+                    logger.error("Failed to add observation '%s' for source '%s' to project", obs_code, source.name)
                     continue
 
                 generated_codes.append(obs_code)
-                logger.info(f"Generated observation '{obs_code}' for source '{source.name}' with {len(scans_list)} scans")
+                logger.info("Generated observation '%s' for source '%s' with %s scans", obs_code, source.name, len(scans_list))
 
                 if not parallel:
                     current_start = obs_end
@@ -395,13 +389,13 @@ class ScheduleConfigurator(Super):
                     progress_value = int((i / total_sources) * 100)
                     progress_message = f"Generated observation {i}/{total_sources}: {obs_code}"
                     progress_callback(progress_value, progress_message)
-                    logger.debug(f"Progress callback: {progress_value}% - {progress_message}")
+                    logger.debug("Progress callback: %s%% - %s", progress_value, progress_message)
 
             if not generated_codes:
                 logger.error("No observations generated")
                 return {"status": False, "error": "No observations generated", "result": []}
 
-            logger.info(f"Successfully generated {len(generated_codes)} observations")
+            logger.info("Successfully generated %s observations", len(generated_codes))
             return {
                 "status": True,
                 "result": generated_codes,
@@ -409,5 +403,5 @@ class ScheduleConfigurator(Super):
             }
 
         except Exception as e:
-            logger.error(f"Error generating observations: {str(e)}. Generated {len(generated_codes)} observations before failure")
+            logger.error("Error generating observations: %s. Generated %s observations before failure", str(e), len(generated_codes))
             return {"status": False, "error": f"Error generating observations: {str(e)}", "result": []}

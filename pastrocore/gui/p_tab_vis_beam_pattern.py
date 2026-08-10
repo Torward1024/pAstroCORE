@@ -35,7 +35,7 @@ class BeamPatternVisualizationTab(QWidget):
         self.toolbar = None
         self.figure = None
         self.is_processing = False
-        logger.debug(f"BeamPatternVisualizationTab initialized for observation id={id(observation)}")
+        logger.debug("BeamPatternVisualizationTab initialized for observation id=%s", id(observation))
 
         self.layout = QVBoxLayout(self.ui.widget)
         self._populate_filters()
@@ -56,10 +56,10 @@ class BeamPatternVisualizationTab(QWidget):
             frequencies = self.manipulator.inspect(obj=self.observation, get_frequencies=None)
             if frequencies:
                 freqs = frequencies.get_frequencies()
-                logger.debug(f"Retrieved frequencies: {frequencies}")
+                logger.debug("Retrieved frequencies: %s", frequencies)
             return freqs or []
         except Exception as e:
-            logger.error(f"Failed to retrieve frequencies: {str(e)}")
+            logger.error("Failed to retrieve frequencies: %s", str(e))
             return []
 
     def _populate_filters(self):
@@ -78,7 +78,7 @@ class BeamPatternVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for beam pattern missing required columns: {missing_columns}")
+                logger.error("DataFrame for beam pattern missing required columns: %s", missing_columns)
                 self.ui.listTelescopes.addItem(QListWidgetItem("Invalid beam pattern data structure"))
                 return
 
@@ -98,11 +98,11 @@ class BeamPatternVisualizationTab(QWidget):
                     item.setCheckState(Qt.Checked)
                     self.ui.listFrequencies.addItem(item)
                 except (TypeError, ValueError) as e:
-                    logger.error(f"Failed to format frequency {freq}: {str(e)}")
+                    logger.error("Failed to format frequency %s: %s", freq, str(e))
                     continue
-            logger.debug(f"Populated {len(telescopes)} telescopes and {len(frequencies)} frequencies")
+            logger.debug("Populated %s telescopes and %s frequencies", len(telescopes), len(frequencies))
         except Exception as e:
-            logger.error(f"Failed to populate filters: {str(e)}")
+            logger.error("Failed to populate filters: %s", str(e))
             self.ui.listTelescopes.addItem(QListWidgetItem("Failed to retrieve filters"))
 
     def _lock_ui(self):
@@ -152,7 +152,7 @@ class BeamPatternVisualizationTab(QWidget):
             self.canvas.draw()
             logger.debug("Figure embedded successfully")
         except Exception as e:
-            logger.error(f"Failed to embed figure: {str(e)}")
+            logger.error("Failed to embed figure: %s", str(e))
             self._clear_canvas()
 
     def get_selected_frequencies(self) -> List[float]:
@@ -168,7 +168,7 @@ class BeamPatternVisualizationTab(QWidget):
                 freq = item.data(Qt.UserRole)
                 if isinstance(freq, (int, float)):
                     selected_frequencies.append(float(freq))
-        logger.debug(f"Selected frequencies: {selected_frequencies}")
+        logger.debug("Selected frequencies: %s", selected_frequencies)
         return selected_frequencies
 
     def get_selected_telescopes(self) -> List[str]:
@@ -182,7 +182,7 @@ class BeamPatternVisualizationTab(QWidget):
             item = self.ui.listTelescopes.item(i)
             if item.checkState() == Qt.Checked:
                 selected_telescopes.append(item.text())
-        logger.debug(f"Selected telescopes: {selected_telescopes}")
+        logger.debug("Selected telescopes: %s", selected_telescopes)
         return selected_telescopes
 
     @Slot()
@@ -203,7 +203,7 @@ class BeamPatternVisualizationTab(QWidget):
         """Update the beam pattern visualization based on current filter selections."""
         frequencies = self.get_selected_frequencies()
         telescopes = self.get_selected_telescopes()
-        logger.debug(f"Updating visualization: frequencies={frequencies}, telescopes={telescopes}")
+        logger.debug("Updating visualization: frequencies=%s, telescopes=%s", frequencies, telescopes)
 
         if not frequencies or not telescopes:
             logger.debug("No frequencies or telescopes selected, clearing canvas")
@@ -221,7 +221,7 @@ class BeamPatternVisualizationTab(QWidget):
 
         try:
             result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             if not result or (result.get("telescopes", 0) == 0 and result.get("frequencies", 0) == 0):
                 logger.debug("Empty visualization result, clearing canvas")
                 self._clear_canvas()
@@ -234,7 +234,7 @@ class BeamPatternVisualizationTab(QWidget):
                 logger.error("No figure returned from visualizer, clearing canvas")
                 self._clear_canvas()
         except Exception as e:
-            logger.error(f"Exception during beam pattern visualization update: {str(e)}")
+            logger.error("Exception during beam pattern visualization update: %s", str(e))
             self._clear_canvas()
 
     def closeEvent(self, event):

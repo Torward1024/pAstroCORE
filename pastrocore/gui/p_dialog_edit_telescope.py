@@ -193,7 +193,7 @@ class TelescopeEditorDialog(QDialog):
             self.ui.codeEdit.setReadOnly(True)
             self.ui.nameEdit.setReadOnly(True)
             self.setWindowTitle(f"Edit Telescope '{self.telescope.get_code()}'")
-            logger.debug(f"Editing existing telescope '{self.telescope.get_code()}' with read-only code and name fields")
+            logger.debug("Editing existing telescope '%s' with read-only code and name fields", self.telescope.get_code())
 
         self.ui.codeEdit.setText(self.telescope.get_code() or "")
         self.ui.nameEdit.setText(self.telescope.name or "")
@@ -229,7 +229,7 @@ class TelescopeEditorDialog(QDialog):
             for freq, temp in self.telescope.system_temperature_table.items():
                 self.system_temperature_model.add_row(freq, temp)
 
-        logger.info(f"Loaded telescope '{self.telescope.get_code()}' into editor dialog")
+        logger.info("Loaded telescope '%s' into editor dialog", self.telescope.get_code())
 
     def remove_sefd_row(self):
         """Remove selected SEFD entry from the table."""
@@ -276,9 +276,9 @@ class TelescopeEditorDialog(QDialog):
         mount_type_str = self.ui.mountTypeCombo.currentText()
         try:
             mount_type = MountType._value2member_map_[mount_type_str.upper()]
-            logger.debug(f"Converted mount_type '{mount_type_str}' to {mount_type}")
+            logger.debug("Converted mount_type '%s' to %s", mount_type_str, mount_type)
         except KeyError as e:
-            logger.error(f"Invalid mount_type value: {mount_type_str}")
+            logger.error("Invalid mount_type value: %s", mount_type_str)
             raise ValueError(f"Invalid mount_type value: {mount_type_str}") from e
 
         params = {
@@ -303,7 +303,7 @@ class TelescopeEditorDialog(QDialog):
         }
 
         self.telescope.set(params)
-        logger.debug(f"Updated Telescope object '{self.telescope.name}' with params: {params}")
+        logger.debug("Updated Telescope object '%s' with params: %s", self.telescope.name, params)
         return self.telescope
 
     def accept(self):
@@ -331,10 +331,10 @@ class TelescopeEditorDialog(QDialog):
                 QMessageBox.critical(self, "Error", "Diameter must be positive.")
                 return
             super().accept()
-            logger.info(f"Validated and saved telescope data for '{data['code']}'")
+            logger.info("Validated and saved telescope data for '%s'", data['code'])
         except ValueError as ve:
-            logger.error(f"Validation error: {str(ve)}")
+            logger.error("Validation error: %s", str(ve))
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")
         except Exception as e:
-            logger.error(f"Unexpected error while saving telescope: {str(e)}")
+            logger.error("Unexpected error while saving telescope: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to save telescope: {str(e)}")

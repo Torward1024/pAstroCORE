@@ -56,7 +56,7 @@ class IF(BaseEntityN):
             logger.error("IF frequency cannot be zero for wavelength calculation")
             raise ValueError("Frequency cannot be zero for wavelength calculation")
         wavelength = C_MHZ_CM / self.frequency
-        logger.debug(f"Calculated wavelength={wavelength} cm for IF frequency={self.frequency} MHz")
+        logger.debug("Calculated wavelength=%s cm for IF frequency=%s MHz", wavelength, self.frequency)
         return wavelength
 
     def set_frequency_wavelength(self, wavelength_cm: float) -> None:
@@ -72,7 +72,7 @@ class IF(BaseEntityN):
             logger.error("Wavelength must be positive")
             raise ValueError("Wavelength must be positive")
         self.frequency = C_MHZ_CM / wavelength_cm
-        logger.info(f"Set IF frequency to {self.frequency} MHz from wavelength={wavelength_cm} cm")
+        logger.info("Set IF frequency to %s MHz from wavelength=%s cm", self.frequency, wavelength_cm)
     
     def copy(self) -> 'IF':
         """Create a deep copy of the IF object."""
@@ -107,7 +107,7 @@ class IF(BaseEntityN):
 
         for p in polarizations:
             if p not in VALID_POLARIZATIONS:
-                logger.error(f"Invalid polarization value: {p}")
+                logger.error("Invalid polarization value: %s", p)
                 raise ValueError(f"Polarization must be one of {VALID_POLARIZATIONS}, got {p}")
 
         if polarizations:
@@ -116,9 +116,9 @@ class IF(BaseEntityN):
             elif all(p in SINGLE_LINEAR_POLARIZATIONS for p in polarizations):
                 group = "single linear (H, V)"
             else:
-                logger.error(f"Polarizations {polarizations} mix different groups")
+                logger.error("Polarizations %s mix different groups", polarizations)
                 raise ValueError(f"Polarizations must belong to a single group: {VALID_POLARIZATIONS}")
-            logger.debug(f"Validated polarizations {polarizations} as {group}")
+            logger.debug("Validated polarizations %s as %s", polarizations, group)
         return polarizations
 
     def __repr__(self) -> str:
@@ -192,7 +192,7 @@ class Frequencies(BaseContainer[IF]):
             isactive=isactive,
         )
         self.add(new_if)
-        logger.info(f"Created and added IF '{new_if.name}' to Frequencies")
+        logger.info("Created and added IF '%s' to Frequencies", new_if.name)
     
     def set_if(
         self,
@@ -218,7 +218,7 @@ class Frequencies(BaseContainer[IF]):
             TypeError: If polarizations contain non-string elements.
         """
         if name not in self._items:
-            logger.error(f"IF with name '{name}' not found in Frequencies")
+            logger.error("IF with name '%s' not found in Frequencies", name)
             raise KeyError(f"IF with name '{name}' not found in Frequencies")
 
         if_obj = self._items[name]
@@ -257,9 +257,9 @@ class Frequencies(BaseContainer[IF]):
 
         if params:
             if_obj.set(params)
-            logger.info(f"Updated IF '{name}' in Frequencies with params: {params}")
+            logger.info("Updated IF '%s' in Frequencies with params: %s", name, params)
         else:
-            logger.debug(f"No parameters to update for IF '{name}' in Frequencies")
+            logger.debug("No parameters to update for IF '%s' in Frequencies", name)
 
     def set_item(self, name: str, item: IF) -> None:
         """Set or replace an IF object in the collection by its name.
@@ -279,7 +279,7 @@ class Frequencies(BaseContainer[IF]):
         self._check_overlap(item, exclude_name=name)
         self._items[name] = item
         self._invalidate_cache()
-        logger.debug(f"Set IF with name '{name}' in Frequencies")
+        logger.debug("Set IF with name '%s' in Frequencies", name)
 
     def set_items(self, items: Dict[str, IF]) -> None:
         """Set or replace all IF objects in the collection.
@@ -357,11 +357,11 @@ class Frequencies(BaseContainer[IF]):
             ex_freq = existing_if.frequency
             ex_bw = existing_if.bandwidth
             if ex_bw <= 0:
-                logger.error(f"Existing IF {name} has non-positive bandwidth")
+                logger.error("Existing IF %s has non-positive bandwidth", name)
                 raise ValueError(f"Existing IF {name} has non-positive bandwidth")
             ex_end = ex_freq + ex_bw
             if new_freq < ex_end and new_end > ex_freq:
-                logger.error(f"Frequency range [{new_freq}, {new_end}] overlaps with [{ex_freq}, {ex_end}]")
+                logger.error("Frequency range [%s, %s] overlaps with [%s, %s]", new_freq, new_end, ex_freq, ex_end)
                 raise ValueError(f"Frequency range [{new_freq}, {new_end}] overlaps with [{ex_freq}, {ex_end}]")
 
     def __repr__(self) -> str:

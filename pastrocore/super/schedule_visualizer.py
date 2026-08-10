@@ -181,7 +181,7 @@ class ScheduleVisualizer(Super):
         Raises:
             ValueError: If the provided configuration is invalid.
         """
-        logger.debug(f"Setting style configuration (partial={partial}): {config}")
+        logger.debug("Setting style configuration (partial=%s): %s", partial, config)
 
         def validate_config(config: Dict[str, Any]) -> None:
             """Validate configuration values."""
@@ -237,14 +237,14 @@ class ScheduleVisualizer(Super):
                 required_keys = {'plt_style', 'figure', 'axes', 'grid', 'font', 'text', 'xtick', 'ytick', 'legend', 'colors', 'colormaps', 'intersection_color', 'markers', 'linestyles'}
                 if not all(key in config for key in required_keys):
                     missing = required_keys - set(config.keys())
-                    logger.error(f"Invalid style configuration: missing keys {missing}")
+                    logger.error("Invalid style configuration: missing keys %s", missing)
                     raise ValueError(f"Style configuration must include all required keys: {missing}")
                 new_config = config
 
             try:
                 validate_config(new_config)
             except ValueError as e:
-                logger.error(f"Invalid style configuration: {str(e)}")
+                logger.error("Invalid style configuration: %s", str(e))
                 raise
 
             self._style_config = new_config
@@ -261,7 +261,7 @@ class ScheduleVisualizer(Super):
             ax.set_title(labels.get('title', f"{plot_type.replace('_', ' ').title()} for {obj_name}"),
                         fontsize=self._style_config['font']['title_size'])
             ax.tick_params(axis='both', labelsize=self._style_config['font']['tick_size'])
-        logger.debug(f"Created empty plot for {plot_type} with obj_name={obj_name}")
+        logger.debug("Created empty plot for %s with obj_name=%s", plot_type, obj_name)
         return {}
     
     def _check_filters(self, attributes: Dict[str, Any], required_filters: List[str]) -> bool:
@@ -302,17 +302,17 @@ class ScheduleVisualizer(Super):
             if output_dir:
                 os.makedirs(output_dir, exist_ok=True)
             fig.savefig(output_file, dpi=self._style_config['figure']['dpi'], bbox_inches='tight')
-            logger.info(f"Visualization saved to '{output_file}'")
+            logger.info("Visualization saved to '%s'", output_file)
 
         if show:
             logger.debug("Displaying plot with plt.show()")
             plt.show()
 
         if not return_figure:
-            logger.debug(f"Closing figure {id(fig)}")
+            logger.debug("Closing figure %s", id(fig))
             plt.close(fig)
             if len(plt.get_fignums()) > 10:  # Check for excessive open figures
-                logger.warning(f"Excessive open figures detected: {len(plt.get_fignums())}")
+                logger.warning("Excessive open figures detected: %s", len(plt.get_fignums()))
                 plt.close('all')
 
         result["figure"] = fig if return_figure else None
@@ -335,7 +335,7 @@ class ScheduleVisualizer(Super):
                     visualizer = func
                     break
             if not visualizer:
-                logger.debug(f"Closing figure due to unsupported object type: {type(obj)}")
+                logger.debug("Closing figure due to unsupported object type: %s", type(obj))
                 fig.clf()
                 plt.close(fig)
                 gc.collect(2)
@@ -352,7 +352,7 @@ class ScheduleVisualizer(Super):
             return self._finalize_plot(fig, attributes, result)
 
         except Exception as e:
-            logger.error(f"Visualization failed: {str(e)}")
+            logger.error("Visualization failed: %s", str(e))
             fig.clf()
             plt.close(fig)
             gc.collect(2)
@@ -360,21 +360,21 @@ class ScheduleVisualizer(Super):
 
     def _visualize_project_or_observation(self, obj: Union[ScheduleProject, Observation], attributes: Dict[str, Any], fig: Figure = None) -> Dict[str, Any]:
         """Visualize a ScheduleProject or Observation object."""
-        logger.debug(f"Visualizing {type(obj).__name__} with attributes: {attributes}")
+        logger.debug("Visualizing %s with attributes: %s", type(obj).__name__, attributes)
         plot_type = attributes.get("plot_type")
         output_file = attributes.get("output_file")
         dpi = attributes.get("dpi", self._style_config['figure']['dpi'])  # Use default dpi from config if not specified
 
         if not isinstance(dpi, (int, float)):
-            logger.error(f"Invalid dpi type: expected int or float, got {type(dpi)}: {dpi}")
+            logger.error("Invalid dpi type: expected int or float, got %s: %s", type(dpi), dpi)
             raise ValueError(f"dpi must be a number, got {type(dpi)}: {dpi}")
 
-        logger.debug(f"Using dpi={dpi} for visualization of plot_type={plot_type}")
+        logger.debug("Using dpi=%s for visualization of plot_type=%s", dpi, plot_type)
 
         if isinstance(obj, ScheduleProject):
             observations = obj.get_observations()
             if not observations:
-                logger.warning(f"No observations in ScheduleProject '{obj.get_name()}'")
+                logger.warning("No observations in ScheduleProject '%s'", obj.get_name())
                 return {}
             with ThreadPoolExecutor() as executor:
                 futures = {executor.submit(self._visualize, obs, attributes, None): obs.get_observation_code() for obs in observations}
@@ -383,26 +383,26 @@ class ScheduleVisualizer(Super):
         
         plot_func = self._plot_types.get(plot_type)
         if not plot_func:
-            logger.warning(f"Unsupported plot_type '{plot_type}' for {type(obj).__name__}")
+            logger.warning("Unsupported plot_type '%s' for %s", plot_type, type(obj).__name__)
             return {}
         
         result = plot_func(obj, attributes, fig=fig)
         
         if not isinstance(result, dict):
-            logger.error(f"Plot function {plot_type} returned invalid result: {type(result)}")
+            logger.error("Plot function %s returned invalid result: %s", plot_type, type(result))
             return {"status": False, "message": f"Invalid result from {plot_type}"}
         
         if output_file and result.get("status", False):
             try:
                 with self._lock:
                     fig = result.get("figure", plt.gcf())
-                    logger.debug(f"Saving visualization to {output_file} with dpi={dpi}")
+                    logger.debug("Saving visualization to %s with dpi=%s", output_file, dpi)
                     fig.savefig(output_file, dpi=float(dpi), bbox_inches="tight")
-                    logger.info(f"Saved visualization to {output_file} with dpi={dpi}")
+                    logger.info("Saved visualization to %s with dpi=%s", output_file, dpi)
                     plt.close(fig)
                     gc.collect()
             except Exception as e:
-                logger.error(f"Failed to save visualization to {output_file}: {str(e)}")
+                logger.error("Failed to save visualization to %s: %s", output_file, str(e))
                 result["status"] = False
                 result["message"] = f"Failed to save visualization: {str(e)}"
         
@@ -421,7 +421,7 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Dictionary with visualization results (baselines, points, frequencies).
         """
         with self._lock:
-            logger.debug(f"Plotting UV coverage for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug("Plotting UV coverage for %s with attributes: %s", obj.get_observation_code(), attributes)
             store_key = attributes.get("store_key", "uv_coverage")
             baselines = attributes.get("baselines", [])
             source_name = attributes.get("source_name", None)
@@ -431,8 +431,7 @@ class ScheduleVisualizer(Super):
 
             # Validate inputs
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
-                logger.debug(f"Missing required filters: source_name={source_name}, baselines={baselines}, "
-                            f"scans={scans}, frequencies={frequencies}, returning empty plot")
+                logger.debug("Missing required filters: source_name=%s, baselines=%s, scans=%s, frequencies=%s, returning empty plot", source_name, baselines, scans, frequencies)
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
                     labels={"xlabel": f"u, ({'wavelengths' if units == 'wavelengths' else 'xED'})",
@@ -454,7 +453,7 @@ class ScheduleVisualizer(Super):
             # Filter valid UV data
             filtered_df = uv_data.filter(pl.col("u").is_not_nan() & pl.col("v").is_not_nan() & 
                                     (pl.col("u") != 0) & (pl.col("v") != 0))
-            logger.debug(f"Filtered UV data shape: {filtered_df.shape}, columns: {filtered_df.columns}")
+            logger.debug("Filtered UV data shape: %s, columns: %s", filtered_df.shape, filtered_df.columns)
             if source_name:
                 filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
             if baselines:
@@ -503,7 +502,7 @@ class ScheduleVisualizer(Super):
                 for freq_mhz in freq_list:
                     wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
                     if wavelength <= 0:
-                        logger.warning(f"Invalid wavelength {wavelength} for frequency {freq_mhz} MHz, skipping")
+                        logger.warning("Invalid wavelength %s for frequency %s MHz, skipping", wavelength, freq_mhz)
                         continue
                     for baseline in filtered_df["baseline"].unique():
                         baseline_data = filtered_df.filter(pl.col("baseline") == baseline)
@@ -531,7 +530,7 @@ class ScheduleVisualizer(Super):
             for freq_idx, freq_mhz in enumerate(freq_list):
                 wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
                 if wavelength <= 0:
-                    logger.warning(f"Invalid wavelength {wavelength} for frequency {freq_mhz} MHz, skipping")
+                    logger.warning("Invalid wavelength %s for frequency %s MHz, skipping", wavelength, freq_mhz)
                     continue
 
                 for baseline in filtered_df["baseline"].unique():
@@ -640,7 +639,7 @@ class ScheduleVisualizer(Super):
                         fontsize=self._style_config["font"]["title_size"])
             fig.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
             result["baselines"] = len(plotted_pairs)
-            logger.debug(f"Plotting completed: {result['points']} points, {result['baselines']} baselines")
+            logger.debug("Plotting completed: %s points, %s baselines", result['points'], result['baselines'])
             return result
 
     def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
@@ -656,7 +655,7 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Dictionary with visualization results (scans, telescopes, points).
         """
         with self._lock:
-            logger.debug(f"Plotting sun angles for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug("Plotting sun angles for %s with attributes: %s", obj.get_observation_code(), attributes)
             store_key = attributes.get("store_key", "sun_angles")
             source_name = attributes.get("source_name", None)
             telescopes = attributes.get("telescopes", [])
@@ -664,8 +663,7 @@ class ScheduleVisualizer(Super):
             time_range = attributes.get("time_range", None)
 
             if not self._check_filters(attributes, ["source_name", "telescopes"]):
-                logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, "
-                             f"returning empty plot")
+                logger.debug("Missing required filters: source_name=%s, telescopes=%s, returning empty plot", source_name, telescopes)
                 return self._create_empty_plot(
                     fig, "sun_angles", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": "Angle, (deg.)",
@@ -720,7 +718,7 @@ class ScheduleVisualizer(Super):
                     continue
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
                 if tel_data.is_empty():
-                    logger.debug(f"No data for telescope {tel}, skipping")
+                    logger.debug("No data for telescope %s, skipping", tel)
                     continue
 
                 tel_data = tel_data.sort("time")
@@ -728,7 +726,7 @@ class ScheduleVisualizer(Super):
                 angles = tel_data["angle"].to_numpy()
                 valid_mask = ~np.isnan(angles)
                 if not np.any(valid_mask):
-                    logger.debug(f"All angles for telescope {tel} are NaN, skipping")
+                    logger.debug("All angles for telescope %s are NaN, skipping", tel)
                     continue
                 valid_times_mjd = times_mjd[valid_mask]
                 valid_angles = angles[valid_mask]
@@ -743,7 +741,7 @@ class ScheduleVisualizer(Super):
                     alpha=0.7
                 )[0]
                 points_plotted = len(valid_angles)
-                logger.debug(f"Plotted {points_plotted} points for telescope {tel}")
+                logger.debug("Plotted %s points for telescope %s", points_plotted, tel)
 
                 if points_plotted > 0:
                     legend_handles.append(handle)
@@ -772,7 +770,7 @@ class ScheduleVisualizer(Super):
                 )
 
             result["telescopes"] = len(plotted_telescopes)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             return result
         
     def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
@@ -788,7 +786,7 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Dictionary with visualization results (scans, telescopes, points).
         """
         with self._lock:
-            logger.debug(f"Plotting az_el for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug("Plotting az_el for %s with attributes: %s", obj.get_observation_code(), attributes)
             store_key = attributes.get("store_key", "az_el")
             source_name = attributes.get("source_name", None)
             telescopes = attributes.get("telescopes", [])
@@ -797,12 +795,11 @@ class ScheduleVisualizer(Super):
             coord_type = attributes.get("coord_type", "AzEl")
 
             if coord_type not in ["AzEl", "HADec"]:
-                logger.warning(f"Invalid coord_type '{coord_type}', defaulting to 'AzEl'")
+                logger.warning("Invalid coord_type '%s', defaulting to 'AzEl'", coord_type)
                 coord_type = "AzEl"
 
             if not self._check_filters(attributes, ["source_name", "telescopes"]):
-                logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, "
-                             f"returning empty plot")
+                logger.debug("Missing required filters: source_name=%s, telescopes=%s, returning empty plot", source_name, telescopes)
                 return self._create_empty_plot(
                     fig, "az_el", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": f"{coord_type[:2]}/{coord_type[2:]}, (deg)",
@@ -877,7 +874,7 @@ class ScheduleVisualizer(Super):
                     break
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
                 if tel_data.is_empty():
-                    logger.debug(f"No data for telescope {tel}, skipping")
+                    logger.debug("No data for telescope %s, skipping", tel)
                     continue
 
                 tel_data = tel_data.sort("time")
@@ -886,7 +883,7 @@ class ScheduleVisualizer(Super):
                 el_values = tel_data["el"].to_numpy()
                 valid_mask = ~(np.isnan(az_values) | np.isnan(el_values))
                 if not np.any(valid_mask):
-                    logger.debug(f"All az/el values for telescope {tel} are NaN, skipping")
+                    logger.debug("All az/el values for telescope %s are NaN, skipping", tel)
                     continue
                 valid_times_mjd = times_mjd[valid_mask]
                 valid_az = az_values[valid_mask]
@@ -909,7 +906,7 @@ class ScheduleVisualizer(Super):
                     linewidth=linewidth,
                     alpha=0.7
                 )
-                logger.debug(f"Plotted {len(valid_az)} points for telescope {tel}")
+                logger.debug("Plotted %s points for telescope %s", len(valid_az), tel)
                 plotted_telescopes.add(tel)
                 result["points"] += len(valid_az) + len(valid_el)
 
@@ -963,7 +960,7 @@ class ScheduleVisualizer(Super):
                 ax.set_visible(False)
 
             result["telescopes"] = len(plotted_telescopes)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             return result
 
     def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
@@ -979,7 +976,7 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Dictionary with visualization results (scans, telescopes, points, intersections).
         """
         with self._lock:
-            logger.debug(f"Plotting time on source for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug("Plotting time on source for %s with attributes: %s", obj.get_observation_code(), attributes)
             store_key = attributes.get("store_key", "time_on_source")
             source_name = attributes.get("source_name", None)
             telescopes = attributes.get("telescopes", None)
@@ -987,7 +984,7 @@ class ScheduleVisualizer(Super):
             time_range = attributes.get("time_range", None)
 
             if not source_name or not telescopes:
-                logger.debug(f"Missing required filters: source_name={source_name}, telescopes={telescopes}, returning empty plot")
+                logger.debug("Missing required filters: source_name=%s, telescopes=%s, returning empty plot", source_name, telescopes)
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
@@ -1018,7 +1015,7 @@ class ScheduleVisualizer(Super):
                 )
 
             if filtered_df.is_empty():
-                logger.debug(f"No data after filtering for source {source_name}, returning empty plot")
+                logger.debug("No data after filtering for source %s, returning empty plot", source_name)
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
@@ -1049,12 +1046,12 @@ class ScheduleVisualizer(Super):
                         duration = float(row["duration"])
                         all_blocks[tel].append((start_mjd, end_mjd, duration))
                     except (ValueError, TypeError) as e:
-                        logger.error(f"Invalid block format for {tel} in scan {row['scan_name']}: {str(e)}")
+                        logger.error("Invalid block format for %s in scan %s: %s", tel, row['scan_name'], str(e))
                         continue
 
             result["telescopes"] = len(tel_list)
             if not tel_list:
-                logger.debug(f"No telescopes found after filtering, returning empty plot")
+                logger.debug("No telescopes found after filtering, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": "Telescope",
@@ -1102,7 +1099,7 @@ class ScheduleVisualizer(Super):
                             intersection_times.append((start_time, time))
                             start_time = None
                         active_telescopes.remove(tel)
-                    logger.debug(f"Time: {time}, Type: {point_type}, Telescope: {tel}, Active: {active_telescopes}")
+                    logger.debug("Time: %s, Type: %s, Telescope: %s, Active: %s", time, point_type, tel, active_telescopes)
 
                 # Plot intersection times
                 for i, (start, end) in enumerate(intersection_times):
@@ -1125,7 +1122,7 @@ class ScheduleVisualizer(Super):
                         legend_handles.append(handle)
                         legend_labels.append("Total")
                     result["intersections"] = len(intersection_times)
-                logger.debug(f"Intersection times: {intersection_times}")
+                logger.debug("Intersection times: %s", intersection_times)
 
             # Set y-ticks and labels
             ax.set_yticks(np.arange(-1, len(tel_list)))
@@ -1158,13 +1155,13 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Dictionary with visualization results (telescopes, frequencies).
         """
         with self._lock:
-            logger.debug(f"Plotting beam pattern for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug("Plotting beam pattern for %s with attributes: %s", obj.get_observation_code(), attributes)
             store_key = attributes.get("store_key", "beam_pattern")
             frequencies = attributes.get("frequencies", [])
             telescopes = attributes.get("telescopes", [])
 
             if not telescopes or not frequencies:
-                logger.debug(f"Empty filter: telescopes={telescopes}, frequencies={frequencies}, returning empty result")
+                logger.debug("Empty filter: telescopes=%s, frequencies=%s, returning empty result", telescopes, frequencies)
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
                     labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
@@ -1226,20 +1223,20 @@ class ScheduleVisualizer(Super):
 
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel_code)
                 if tel_data.is_empty():
-                    logger.warning(f"No beam data for {tel_code}")
+                    logger.warning("No beam data for %s", tel_code)
                     continue
 
                 theta = tel_data["theta"].to_numpy()
                 pattern = tel_data["pattern"].to_numpy()
                 if len(theta) == 0 or len(pattern) == 0 or len(theta) != len(pattern):
-                    logger.warning(f"Invalid beam data for {tel_code}: theta={len(theta)}, pattern={len(pattern)}")
+                    logger.warning("Invalid beam data for %s: theta=%s, pattern=%s", tel_code, len(theta), len(pattern))
                     continue
 
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     try:
                         wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
                         if wavelength <= 0:
-                            logger.warning(f"Invalid frequency {freq_mhz} MHz for {tel_code}")
+                            logger.warning("Invalid frequency %s MHz for %s", freq_mhz, tel_code)
                             continue
                         
                         scaled_theta = theta * wavelength
@@ -1261,7 +1258,7 @@ class ScheduleVisualizer(Super):
                                      f"theta_scaling_factor={wavelength:.2f}, "
                                      f"max_pattern={np.max(scaled_pattern):.2f}")
                     except (ValueError, TypeError) as e:
-                        logger.error(f"Error plotting beam for {tel_code} at {freq_mhz} MHz: {str(e)}")
+                        logger.error("Error plotting beam for %s at %s MHz: %s", tel_code, freq_mhz, str(e))
                         continue
 
                 plotted_telescopes.add(tel_code)
@@ -1318,7 +1315,7 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Dictionary with visualization results (scans, baselines, projections, frequencies).
         """
         with self._lock:
-            logger.debug(f"Plotting baseline projections for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug("Plotting baseline projections for %s with attributes: %s", obj.get_observation_code(), attributes)
             store_key = attributes.get("store_key", "baseline_projections")
             baselines = attributes.get("baselines", [])
             source_name = attributes.get("source_name", None)
@@ -1328,8 +1325,7 @@ class ScheduleVisualizer(Super):
             units = attributes.get("units", "wavelengths")
 
             if not self._check_filters(attributes, ["source_name", "baselines", "scans", "frequencies"]):
-                logger.debug(f"Missing required filters: source_name={source_name}, baselines={baselines}, "
-                             f"scans={scans}, frequencies={frequencies}, returning empty plot")
+                logger.debug("Missing required filters: source_name=%s, baselines=%s, scans=%s, frequencies=%s, returning empty plot", source_name, baselines, scans, frequencies)
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
                     labels={"xlabel": "Time, (MJD)", "ylabel": f"Baseline Projection, ({units})",
@@ -1396,7 +1392,7 @@ class ScheduleVisualizer(Super):
             for pair_idx, pair in enumerate(filtered_df["baseline"].unique()):
                 pair_data = filtered_df.filter(pl.col("baseline") == pair)
                 if pair_data.is_empty():
-                    logger.debug(f"No data for baseline {pair}, skipping")
+                    logger.debug("No data for baseline %s, skipping", pair)
                     continue
 
                 pair_data = pair_data.sort("time")
@@ -1404,7 +1400,7 @@ class ScheduleVisualizer(Super):
                 projections = pair_data["projection"].to_numpy()
                 valid_mask = ~np.isnan(projections)
                 if not np.any(valid_mask):
-                    logger.debug(f"All projections for baseline {pair} are NaN, skipping")
+                    logger.debug("All projections for baseline %s are NaN, skipping", pair)
                     continue
                 valid_times_mjd = times_mjd[valid_mask]
                 valid_projections = projections[valid_mask]
@@ -1493,7 +1489,7 @@ class ScheduleVisualizer(Super):
                 )
 
             result["baselines"] = len(plotted_pairs)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             return result
 
     def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
@@ -1509,7 +1505,7 @@ class ScheduleVisualizer(Super):
             Dict[str, Any]: Dictionary with visualization results (scans, telescopes, sources, points).
         """
         with self._lock:
-            logger.debug(f"Plotting Mollweide tracks for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug("Plotting Mollweide tracks for %s with attributes: %s", obj.get_observation_code(), attributes)
             store_key = attributes.get("store_key", "mollweide_tracks")
             telescopes = attributes.get("telescopes", [])
             scans = attributes.get("scans", [])
@@ -1523,7 +1519,7 @@ class ScheduleVisualizer(Super):
 
             data = obj.get_calculated_data_by_key(store_key).get("data", {})
             if data is None or data.is_empty():
-                logger.warning(f"No valid Mollweide track data found for '{store_key}'")
+                logger.warning("No valid Mollweide track data found for '%s'", store_key)
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
                     projection="mollweide",
@@ -1546,7 +1542,7 @@ class ScheduleVisualizer(Super):
                 filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
             if sources:
                 if not all(source in sources_metadata for source in sources):
-                    logger.error(f"Some sources {sources} not found in calculated_data['metadata']['sources']")
+                    logger.error("Some sources %s not found in calculated_data['metadata']['sources']", sources)
                     filtered_df = filtered_df.filter(pl.col("source_name").is_in(sources))
 
             if filtered_df.is_empty():
@@ -1590,13 +1586,13 @@ class ScheduleVisualizer(Super):
                     plotted_sources.add(source_name)
                     result["sources"] += 1
                 except (ValueError, TypeError) as e:
-                    logger.warning(f"Failed to plot source {source_name}: {str(e)}")
+                    logger.warning("Failed to plot source %s: %s", source_name, str(e))
                     continue
 
             # Subsample data if necessary
             total_points = len(filtered_df)
             if total_points > max_points:
-                logger.warning(f"Total points ({total_points}) exceeds max_points ({max_points}), subsampling tracks")
+                logger.warning("Total points (%s) exceeds max_points (%s), subsampling tracks", total_points, max_points)
                 subsample_factor = total_points // max_points + 1
             else:
                 subsample_factor = 1
@@ -1607,7 +1603,7 @@ class ScheduleVisualizer(Super):
             for tel_idx, tel_code in enumerate(filtered_df["telescope_code"].unique()):
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel_code)
                 if tel_data.is_empty():
-                    logger.debug(f"No data for telescope {tel_code}, skipping")
+                    logger.debug("No data for telescope %s, skipping", tel_code)
                     continue
 
                 lon = tel_data["lon"].to_numpy()
@@ -1616,7 +1612,7 @@ class ScheduleVisualizer(Super):
                 lon = lon[valid_mask]
                 lat = lat[valid_mask]
                 if len(lon) == 0:
-                    logger.debug(f"No valid points for {tel_code} after filtering")
+                    logger.debug("No valid points for %s after filtering", tel_code)
                     continue
                 if subsample_factor > 1:
                     lon = lon[::subsample_factor]
@@ -1687,7 +1683,7 @@ class ScheduleVisualizer(Super):
         Similar to sun_angles, but with special meaning for polarization observations.
         """
         with self._lock:
-            logger.debug(f"Plotting parallactic angle for {obj.get_observation_code()} with attributes: {attributes}")
+            logger.debug("Plotting parallactic angle for %s with attributes: %s", obj.get_observation_code(), attributes)
             store_key = attributes.get("store_key", "parallactic_angle")
             source_name = attributes.get("source_name", None)
             telescopes = attributes.get("telescopes", [])
@@ -1695,7 +1691,7 @@ class ScheduleVisualizer(Super):
             time_range = attributes.get("time_range", None)
 
             if not self._check_filters(attributes, ["source_name", "telescopes"]):
-                logger.debug(f"Missing required filters for parallactic angle plot")
+                logger.debug("Missing required filters for parallactic angle plot")
                 return self._create_empty_plot(
                     fig, "parallactic_angle", obj.get_observation_code(),
                     labels={
@@ -1814,5 +1810,5 @@ class ScheduleVisualizer(Super):
                 )
 
             result["telescopes"] = len(plotted_telescopes)
-            logger.debug(f"Parallactic angle plot completed: {result}")
+            logger.debug("Parallactic angle plot completed: %s", result)
             return result

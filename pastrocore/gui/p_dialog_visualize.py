@@ -67,13 +67,13 @@ class VisualizationDialog(QDialog):
                         obs_code = self.manipulator.inspect(obj=obs, get_observation_code=None)
                         self.ui.comboBoxObservation.addItem(obs_code, obs_name)
                     except Exception as e:
-                        logger.error(f"Failed to get code for observation '{obs_name}': {str(e)}")
-                logger.debug(f"Populated {self.ui.comboBoxObservation.count()} observations in comboBoxObservation")
+                        logger.error("Failed to get code for observation '%s': %s", obs_name, str(e))
+                logger.debug("Populated %s observations in comboBoxObservation", self.ui.comboBoxObservation.count())
                 self.ui.comboBoxObservation.setEnabled(True)
             else:
                 logger.debug("No observations found in project")
         except Exception as e:
-            logger.error(f"Failed to retrieve observations: {str(e)}")
+            logger.error("Failed to retrieve observations: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to load observations: {str(e)}")
 
     @Slot()
@@ -109,7 +109,7 @@ class VisualizationDialog(QDialog):
 
         observation = self.cached_observations.get(current_obs_name)
         if not observation:
-            logger.error(f"Observation '{current_obs_name}' not found in cache")
+            logger.error("Observation '%s' not found in cache", current_obs_name)
             QMessageBox.critical(self, "Error", f"Failed to load observation: {current_obs_name}")
             return
 
@@ -134,9 +134,9 @@ class VisualizationDialog(QDialog):
             self.ui.comboBoxVisualizationType.addItems(sorted(available_types))
             self.ui.comboBoxVisualizationType.setEnabled(bool(available_types))
             self.ui.pushButtonVisualize.setEnabled(bool(available_types))
-            logger.debug(f"Populated visualization types: {available_types}")
+            logger.debug("Populated visualization types: %s", available_types)
         except Exception as e:
-            logger.error(f"Failed to retrieve calculated data keys: {str(e)}")
+            logger.error("Failed to retrieve calculated data keys: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to load visualization types: {str(e)}")
 
     @Slot(int)
@@ -147,7 +147,7 @@ class VisualizationDialog(QDialog):
             index: Index of the tab to close.
         """
         if self.is_processing:
-            logger.debug(f"Tab close request at index {index} ignored, processing in progress")
+            logger.debug("Tab close request at index %s ignored, processing in progress", index)
             return
 
         self.is_processing = True
@@ -155,31 +155,31 @@ class VisualizationDialog(QDialog):
         try:
             tab_widget = self.ui.tabWidget.widget(index)
             if not tab_widget:
-                logger.warning(f"No widget found at tab index {index}")
+                logger.warning("No widget found at tab index %s", index)
                 return
 
             vis_type = tab_widget.property("vis_type")
             if not vis_type:
-                logger.warning(f"No visualization type defined for tab at index {index}")
+                logger.warning("No visualization type defined for tab at index %s", index)
             else:
-                logger.debug(f"Closing tab '{vis_type}' at index {index}")
+                logger.debug("Closing tab '%s' at index %s", vis_type, index)
 
             if hasattr(tab_widget, '_clear_canvas'):
                 try:
                     tab_widget._clear_canvas()
-                    logger.debug(f"Canvas cleared for tab '{vis_type}'")
+                    logger.debug("Canvas cleared for tab '%s'", vis_type)
                 except Exception as e:
-                    logger.error(f"Failed to clear canvas for tab '{vis_type}': {str(e)}")
+                    logger.error("Failed to clear canvas for tab '%s': %s", vis_type, str(e))
 
             self.ui.tabWidget.removeTab(index)
             tab_widget.deleteLater()
-            logger.debug(f"Tab widget at index {index} removed and scheduled for deletion")
+            logger.debug("Tab widget at index %s removed and scheduled for deletion", index)
 
             if vis_type in self.visualization_tabs:
                 del self.visualization_tabs[vis_type]
-                logger.debug(f"Removed '{vis_type}' from visualization_tabs")
+                logger.debug("Removed '%s' from visualization_tabs", vis_type)
         except Exception as e:
-            logger.error(f"Failed to close tab at index {index}: {str(e)}")
+            logger.error("Failed to close tab at index %s: %s", index, str(e))
             QMessageBox.critical(self, "Error", f"Failed to close tab: {str(e)}")
         finally:
             self.is_processing = False
@@ -202,12 +202,12 @@ class VisualizationDialog(QDialog):
             vis_type = self.ui.comboBoxVisualizationType.currentText()
             observation = self.cached_observations.get(current_obs_name)
             if not observation:
-                logger.error(f"Observation '{current_obs_name}' not found")
+                logger.error("Observation '%s' not found", current_obs_name)
                 QMessageBox.critical(self, "Error", f"Observation '{current_obs_name}' not found")
                 return
 
             if vis_type in self.visualization_tabs:
-                logger.debug(f"Visualization tab for '{vis_type}' already exists, setting as current")
+                logger.debug("Visualization tab for '%s' already exists, setting as current", vis_type)
                 for i in range(self.ui.tabWidget.count()):
                     if self.ui.tabWidget.widget(i).property("vis_type") == vis_type:
                         self.ui.tabWidget.setCurrentIndex(i)
@@ -229,7 +229,7 @@ class VisualizationDialog(QDialog):
             }
             tab_class = tab_classes.get(vis_type)
             if not tab_class:
-                logger.error(f"No tab class defined for visualization type '{vis_type}'")
+                logger.error("No tab class defined for visualization type '%s'", vis_type)
                 QMessageBox.critical(self, "Error", f"Visualization type '{vis_type}' not supported")
                 return
 
@@ -238,9 +238,9 @@ class VisualizationDialog(QDialog):
             self.ui.tabWidget.addTab(tab_widget, vis_type)
             self.ui.tabWidget.setCurrentWidget(tab_widget)
             self.visualization_tabs[vis_type] = tab_widget
-            logger.debug(f"Added visualization tab for '{vis_type}'")
+            logger.debug("Added visualization tab for '%s'", vis_type)
         except Exception as e:
-            logger.error(f"Failed to create visualization tab for '{vis_type}': {str(e)}")
+            logger.error("Failed to create visualization tab for '%s': %s", vis_type, str(e))
             QMessageBox.critical(self, "Error", f"Failed to visualize {vis_type}: {str(e)}")
         finally:
             self.is_processing = False
@@ -265,7 +265,7 @@ class VisualizationDialog(QDialog):
             vis_type = self.ui.comboBoxVisualizationType.currentText()
             observation = self.cached_observations.get(current_obs_name)
             if not observation:
-                logger.error(f"Observation '{current_obs_name}' not found")
+                logger.error("Observation '%s' not found", current_obs_name)
                 QMessageBox.critical(self, "Error", f"Observation '{current_obs_name}' not found")
                 return
 
@@ -280,7 +280,7 @@ class VisualizationDialog(QDialog):
                 "Parallactic Angle": "parallactic_angle"
             }.get(vis_type)
             if not vis_key:
-                logger.error(f"Invalid visualization type '{vis_type}'")
+                logger.error("Invalid visualization type '%s'", vis_type)
                 QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")
                 return
 
@@ -288,23 +288,23 @@ class VisualizationDialog(QDialog):
             logger.info(calc_data)
             df = calc_data.get("data", {})
             if not isinstance(df, pl.DataFrame):
-                logger.error(f"No valid data for visualization type '{vis_type}'")
+                logger.error("No valid data for visualization type '%s'", vis_type)
                 QMessageBox.critical(self, "Error", f"No data available for {vis_type}")
                 return
 
             headers = CalculatedDataStructure.get_columns(vis_key)
             if not headers:
-                logger.error(f"No schema defined for visualization type '{vis_type}'")
+                logger.error("No schema defined for visualization type '%s'", vis_type)
                 QMessageBox.critical(self, "Error", f"No schema defined for {vis_type}")
                 return
             missing_columns = [col for col in headers if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for '{vis_type}' missing required columns: {missing_columns}")
+                logger.error("DataFrame for '%s' missing required columns: %s", vis_type, missing_columns)
                 QMessageBox.critical(self, "Error", f"DataFrame for {vis_type} missing columns: {missing_columns}")
                 return
 
             if df.is_empty():
-                logger.warning(f"No data to export for {vis_type}")
+                logger.warning("No data to export for %s", vis_type)
                 QMessageBox.warning(self, "Warning", f"No data available for {vis_type}")
                 return
 
@@ -321,10 +321,10 @@ class VisualizationDialog(QDialog):
                     for row in df.iter_rows(named=True):
                         row_data = [str(row[col]) for col in headers]
                         f.write('\t'.join(row_data) + '\n')
-                logger.info(f"Exported calculated data to {file_name}")
+                logger.info("Exported calculated data to %s", file_name)
                 QMessageBox.information(self, "Success", f"Data exported successfully to {file_name}")
             except Exception as e:
-                logger.error(f"Failed to write to file {file_name}: {str(e)}")
+                logger.error("Failed to write to file %s: %s", file_name, str(e))
                 QMessageBox.critical(self, "Error", f"Failed to export data: {str(e)}")
         finally:
             self.is_processing = False

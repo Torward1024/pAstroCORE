@@ -59,7 +59,7 @@ class ScansTab(QWidget):
             sources_tab.data_updated.connect(self.handle_data_updated)
             
         self.update()
-        logger.info(f"ScansTab initialized for observation '{observation.code}'")
+        logger.info("ScansTab initialized for observation '%s'", observation.code)
 
     @Slot(str)
     def search_changed(self, text: str):
@@ -80,11 +80,11 @@ class ScansTab(QWidget):
                 items = self.manipulator.inspect(scans, get_all=None)
                 has_scans = isinstance(items, dict) and len(items) > 0
             else:
-                logger.debug(f"No scans found in observation '{self.observation.code}'")
+                logger.debug("No scans found in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while inspecting scans: {str(e)}")
+            logger.error("Exception while inspecting scans: %s", str(e))
             has_scans = False
-            logger.debug(f"No scans found in observation '{self.observation.code}'")
+            logger.debug("No scans found in observation '%s'", self.observation.code)
 
         if has_scans:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
@@ -105,11 +105,11 @@ class ScansTab(QWidget):
             try:
                 scan_obj = self.manipulator.inspect(self.observation.get_scans(), get=scan_name)
                 if not scan_obj:
-                    logger.error(f"Failed to get scan '{scan_name}': No result returned")
+                    logger.error("Failed to get scan '%s': No result returned", scan_name)
                     return
                 is_active = bool(self.manipulator.inspect(scan_obj, get="isactive"))
             except Exception as e:
-                logger.error(f"Exception while inspecting scan '{scan_name}': {str(e)}")
+                logger.error("Exception while inspecting scan '%s': %s", scan_name, str(e))
                 return
 
             menu.addSeparator()
@@ -135,18 +135,18 @@ class ScansTab(QWidget):
 
         obs_type = self.manipulator.inspect(self.observation, get="observation_type")
         if not obs_type:
-            logger.error(f"Failed to get observation type: No result returned")
+            logger.error("Failed to get observation type: No result returned")
             QMessageBox.critical(self, "Error", f"Failed to get observation type: No result returned")
             return
 
         telescopes = self.manipulator.inspect(self.observation, get_telescopes=None)
         if not telescopes:
-            logger.warning(f"No telescopes found in observation")
+            logger.warning("No telescopes found in observation")
             missing_components.append("telescopes")
         else:
             telescopes_items = self.manipulator.inspect(telescopes, get_all=None)
             if not telescopes_items:
-                logger.warning(f"No telescopes found in observation")
+                logger.warning("No telescopes found in observation")
                 missing_components.append("telescopes")
             else:
                 telescope_count = len(telescopes_items)
@@ -157,16 +157,16 @@ class ScansTab(QWidget):
 
         frequencies = self.manipulator.inspect(self.observation, get_frequencies=None)
         if not frequencies:
-            logger.warning(f"No frequencies found in observation")
+            logger.warning("No frequencies found in observation")
             missing_components.append("frequencies")
         else:
             frequencies_items = self.manipulator.inspect(frequencies, get_all=None)
             if not frequencies_items or len(frequencies_items) < 1:
-                logger.error(f"No frequencies found found in observation")
+                logger.error("No frequencies found found in observation")
                 missing_components.append("at least 1 frequency")
 
         if missing_components:
-            logger.warning(f"Cannot add scan: missing components: {', '.join(missing_components)}")
+            logger.warning("Cannot add scan: missing components: %s", ', '.join(missing_components))
             QMessageBox.information(
                 self,
                 "Cannot Add Scan",
@@ -182,12 +182,12 @@ class ScansTab(QWidget):
                 self.manipulator.configure(self.observation.get_scans(), add=scan)
                 self.update()
                 self.data_updated.emit()
-                logger.info(f"Added scan '{scan.name}' to observation '{self.observation.code}'")
+                logger.info("Added scan '%s' to observation '%s'", scan.name, self.observation.code)
             except ValueError as ve:
-                logger.error(f"Validation error while adding scan: {str(ve)}")
+                logger.error("Validation error while adding scan: %s", str(ve))
                 QMessageBox.critical(self, "Error", f"Failed to add scan: {str(ve)}")
             except Exception as e:
-                logger.error(f"Exception while adding scan: {str(e)}")
+                logger.error("Exception while adding scan: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add scan: {str(e)}")
 
     @Slot(str)
@@ -196,7 +196,7 @@ class ScansTab(QWidget):
         try:
             scan = self.manipulator.inspect(self.observation.get_scans(), get=scan_name)
             if not scan:
-                logger.error(f"Failed to retrieve scan '{scan_name}': No result returned")
+                logger.error("Failed to retrieve scan '%s': No result returned", scan_name)
                 QMessageBox.critical(self, "Error", f"Failed to retrieve scan: No result returned")
                 return
             
@@ -207,15 +207,15 @@ class ScansTab(QWidget):
                     self.manipulator.configure(self.observation.get_scans(), set_item={"name": scan_name, "item": scan})
                     self.update()
                     self.data_updated.emit()
-                    logger.info(f"Updated scan '{scan_name}' in observation '{self.observation.code}' with start={scan.start.isot}")
+                    logger.info("Updated scan '%s' in observation '%s' with start=%s", scan_name, self.observation.code, scan.start.isot)
                 except ValueError as ve:
-                    logger.error(f"Validation error while updating scan: {str(ve)}")
+                    logger.error("Validation error while updating scan: %s", str(ve))
                     QMessageBox.critical(self, "Error", f"Failed to update scan: {str(ve)}")
                 except Exception as e:
-                    logger.error(f"Exception while updating scan: {str(e)}")
+                    logger.error("Exception while updating scan: %s", str(e))
                     QMessageBox.critical(self, "Error", f"Failed to update scan: {str(e)}")
         except Exception as e:
-            logger.error(f"Exception while editing scan: {str(e)}")
+            logger.error("Exception while editing scan: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to edit scan: {str(e)}")
 
     @Slot(str)
@@ -225,9 +225,9 @@ class ScansTab(QWidget):
             self.manipulator.configure(self.observation.get_scans(), remove=scan_name)
             self.update()
             self.data_updated.emit()
-            logger.info(f"Removed scan '{scan_name}' from observation '{self.observation.code}'")
+            logger.info("Removed scan '%s' from observation '%s'", scan_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while removing scan: {str(e)}")
+            logger.error("Exception while removing scan: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to remove scan: {str(e)}")
 
     @Slot(str)
@@ -236,22 +236,22 @@ class ScansTab(QWidget):
         try:
             scan_obj = self.manipulator.inspect(self.observation.get_scans(), get=scan_name)
             if not scan_obj:
-                logger.error(f"Failed to get scan '{scan_name}': No result returned")
+                logger.error("Failed to get scan '%s': No result returned", scan_name)
                 QMessageBox.critical(self, "Error", f"Failed to activate scan: No result returned")
                 return
 
             can_activate = self.manipulator.inspect(scan_obj, check_activity_status=self.observation)
             if not can_activate:
-                logger.warning(f"Scan '{scan_name}' cannot be activated due to invalid configuration")
+                logger.warning("Scan '%s' cannot be activated due to invalid configuration", scan_name)
                 QMessageBox.warning(self, "Cannot Activate", "The scan cannot be activated due to missing or inactive telescopes, frequencies, or source.")
                 return
 
             self.manipulator.configure(self.observation.get_scans(), activate_item=scan_name)
             self.update()
             self.data_updated.emit()
-            logger.info(f"Scan '{scan_name}' activated in observation '{self.observation.code}'")
+            logger.info("Scan '%s' activated in observation '%s'", scan_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while activating scan '{scan_name}': {str(e)}")
+            logger.error("Exception while activating scan '%s': %s", scan_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate scan: {str(e)}")
 
     @Slot(str)
@@ -261,9 +261,9 @@ class ScansTab(QWidget):
             self.manipulator.configure(self.observation.get_scans(), deactivate_item=scan_name)
             self.update()
             self.data_updated.emit()
-            logger.info(f"Scan '{scan_name}' deactivated in observation '{self.observation.code}'")
+            logger.info("Scan '%s' deactivated in observation '%s'", scan_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while deactivating scan '{scan_name}': {str(e)}")
+            logger.error("Exception while deactivating scan '%s': %s", scan_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate scan: {str(e)}")
 
     @Slot()
@@ -273,9 +273,9 @@ class ScansTab(QWidget):
             self.manipulator.configure(self.observation.get_scans(), activate_all=self.observation)
             self.update()
             self.data_updated.emit()
-            logger.info(f"All scans activated in observation '{self.observation.code}'")
+            logger.info("All scans activated in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while activating all scans: {str(e)}")
+            logger.error("Exception while activating all scans: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate all scans: {str(e)}")
 
     @Slot()
@@ -285,9 +285,9 @@ class ScansTab(QWidget):
             self.manipulator.configure(self.observation.get_scans(), deactivate_all=None)
             self.update()
             self.data_updated.emit()
-            logger.info(f"All scans deactivated in observation '{self.observation.code}'")
+            logger.info("All scans deactivated in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while deactivating all scans: {str(e)}")
+            logger.error("Exception while deactivating all scans: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate all scans: {str(e)}")
 
     @Slot()
@@ -297,9 +297,9 @@ class ScansTab(QWidget):
             self.manipulator.configure(self.observation.get_scans(), drop_active=None)
             self.update()
             self.data_updated.emit()
-            logger.info(f"All active scans dropped from observation '{self.observation.code}'")
+            logger.info("All active scans dropped from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while dropping active scans: {str(e)}")
+            logger.error("Exception while dropping active scans: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop active scans: {str(e)}")
 
     @Slot()
@@ -309,9 +309,9 @@ class ScansTab(QWidget):
             self.manipulator.configure(self.observation.get_scans(), drop_inactive=None)
             self.update()
             self.data_updated.emit()
-            logger.info(f"All inactive scans dropped from observation '{self.observation.code}'")
+            logger.info("All inactive scans dropped from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while dropping inactive scans: {str(e)}")
+            logger.error("Exception while dropping inactive scans: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop inactive scans: {str(e)}")
 
     @Slot()
@@ -321,9 +321,9 @@ class ScansTab(QWidget):
             self.manipulator.configure(self.observation.get_scans(), clear=None)
             self.update()
             self.data_updated.emit()
-            logger.info(f"All scans cleared from observation '{self.observation.code}'")
+            logger.info("All scans cleared from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while clearing scans: {str(e)}")
+            logger.error("Exception while clearing scans: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to clear scans: {str(e)}")
     
     @Slot(str, bool, str)
@@ -338,7 +338,7 @@ class ScansTab(QWidget):
             is_active (bool): Activity status of the updated entity.
             operation (str): Type of operation performed (e.g., 'activate', 'deactivate', 'edit').
         """
-        logger.debug(f"Handling data_updated: entity_name={entity_name}, is_active={is_active}, operation={operation}")
+        logger.debug("Handling data_updated: entity_name=%s, is_active=%s, operation=%s", entity_name, is_active, operation)
         entity_type_map = {
             SourcesTab: "sources",
             TelescopesTab: "telescopes",
@@ -347,7 +347,7 @@ class ScansTab(QWidget):
         sender = self.sender()
         entity_type = entity_type_map.get(type(sender), None)
         if not entity_type:
-            logger.error(f"Unknown sender for data_updated signal: {sender}")
+            logger.error("Unknown sender for data_updated signal: %s", sender)
             return
 
         try:
@@ -356,9 +356,9 @@ class ScansTab(QWidget):
                 for scan_name, scan_obj in scans.items():
                     try:
                         self.manipulator.configure(scan_obj, sync_with_observation={"observation": self.observation, "strict": False})
-                        logger.debug(f"Synchronized scan '{scan_name}' with observation '{self.observation.code}'")
+                        logger.debug("Synchronized scan '%s' with observation '%s'", scan_name, self.observation.code)
                     except Exception as e:
-                        logger.error(f"Exception while synchronizing scan '{scan_name}': {str(e)}")
+                        logger.error("Exception while synchronizing scan '%s': %s", scan_name, str(e))
                         QMessageBox.warning(
                             self,
                             "Synchronization Warning",
@@ -367,12 +367,12 @@ class ScansTab(QWidget):
 
             self.update()
             self.data_updated.emit()
-            logger.info(f"Completed handling data_updated for {entity_type}, operation={operation}, synchronized {len(scans)} scans")
+            logger.info("Completed handling data_updated for %s, operation=%s, synchronized %s scans", entity_type, operation, len(scans))
         except Exception as e:
-            logger.error(f"Exception while inspecting scans: {str(e)}")
+            logger.error("Exception while inspecting scans: %s", str(e))
             self.update()
             self.data_updated.emit()
-            logger.info(f"Completed handling data_updated for {entity_type}, operation={operation}, no scans synchronized due to error")
+            logger.info("Completed handling data_updated for %s, operation=%s, no scans synchronized due to error", entity_type, operation)
 
     @Slot()
     def update(self):
@@ -381,11 +381,11 @@ class ScansTab(QWidget):
         try:
             scans = self.manipulator.inspect(self.observation, get_scans=None)
             if not scans:
-                logger.debug(f"No scans found in observation '{self.observation.code}'")
+                logger.debug("No scans found in observation '%s'", self.observation.code)
                 return
             items = self.manipulator.inspect(scans, get_all=None)
             if not isinstance(items, dict):
-                logger.debug(f"No valid scans found in observation '{self.observation.code}'")
+                logger.debug("No valid scans found in observation '%s'", self.observation.code)
                 return
 
             idx = 1
@@ -399,7 +399,7 @@ class ScansTab(QWidget):
 
                     attrs = self.manipulator.inspect(scan_obj, get=["start", "duration", "source", "telescopes", "frequencies", "is_off_source"])
                     if not attrs:
-                        logger.error(f"Failed to get attributes for scan '{name}': No result returned")
+                        logger.error("Failed to get attributes for scan '%s': No result returned", name)
                         continue
 
                     start_time = attrs["start"].strftime("%d.%m.%Y %H:%M:%S") if attrs["start"] else "N/A"
@@ -425,14 +425,14 @@ class ScansTab(QWidget):
                     self.model.appendRow(row)
                     idx += 1
                 except Exception as e:
-                    logger.error(f"Exception while processing scan '{name}': {str(e)}")
+                    logger.error("Exception while processing scan '%s': %s", name, str(e))
                     continue
 
             self.ui.table.resizeColumnsToContents()
-            logger.debug(f"Updated scans table with {self.model.rowCount()} scans for observation '{self.observation.code}'")
+            logger.debug("Updated scans table with %s scans for observation '%s'", self.model.rowCount(), self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while updating scans table: {str(e)}")
-            logger.debug(f"Updated scans table with {self.model.rowCount()} scans for observation '{self.observation.code}'")
+            logger.error("Exception while updating scans table: %s", str(e))
+            logger.debug("Updated scans table with %s scans for observation '%s'", self.model.rowCount(), self.observation.code)
 
     def _cleanup(self):
         """Clean up resources associated with this tab."""
@@ -457,10 +457,10 @@ class ScansTab(QWidget):
             self.active_icon = None
             self.inactive_icon = None
         except Exception as e:
-            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+            logger.error("Error cleaning up %s: %s", self.objectName(), str(e))
 
     def closeEvent(self, event):
         """Override closeEvent to perform cleanup before closing."""
         self._cleanup()
         super().closeEvent(event)
-        logger.debug(f"closeEvent handled for {self.objectName()}")
+        logger.debug("closeEvent handled for %s", self.objectName())
