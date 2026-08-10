@@ -7,6 +7,7 @@ from msb_arch.utils.validation import check_type, check_non_empty_string
 from msb_arch.utils.logging_setup import logger
 import uuid
 import json
+import shutil
 from pathlib import Path
 
 class ScheduleProject(Project):
@@ -268,6 +269,19 @@ class ScheduleProject(Project):
             model["items"][observation.name] = observation.to_dict(with_results=False)
 
         (root / self.MODEL_FILE).write_text(json.dumps(model, indent=4), encoding="utf-8")
+
+        # Results belonging to observations the project no longer has. Left in place they are
+        # not merely clutter: renaming an observation away and back would find the old results
+        # still sitting there and treat them as current, which is how a stale number gets
+        # reported as a fresh one.
+        dropped = 0
+        for directory in (root / self.RESULTS_DIRECTORY).iterdir():
+            if directory.is_dir() and directory.name not in model["items"]:
+                shutil.rmtree(directory)
+                dropped += 1
+        if dropped:
+            logger.info("Dropped results for %s observation(s) no longer in the project", dropped)
+
         logger.info("Saved project '%s' to '%s': %s result(s) written", self.name, path, written)
 
     @classmethod

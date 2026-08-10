@@ -38,6 +38,7 @@ import logging
 import sys
 import threading
 import os
+from pathlib import Path
 import json
 # GUI resource file
 import pastrocore.gui.rc_icons
@@ -608,7 +609,11 @@ class PAstroCoreMainWindow(QMainWindow):
 
             self.project = new_project
             self.manipulator = ScheduleManipulator(self.project)
-            self.current_project_path = file_name
+            # What gets remembered is the project, not the file inside it. A user who
+            # navigated in and picked project.json would otherwise have that path saved
+            # over on the next save -- turning the model file itself into a directory.
+            self.current_project_path = str(Path(file_name).parent) if Path(
+                file_name).name == ScheduleProject.MODEL_FILE else file_name
             
             self.clear_connections(is_initial_setup=False)
             self.setup_connections()

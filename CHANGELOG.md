@@ -8,6 +8,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [Unreleased]
+
+### Added
+
+- **The application saves and opens the directory format.** `ScheduleProject.open` takes a
+  project directory, the `project.json` inside one, or a single file written by an earlier
+  version, and works out which it is looking at -- so no caller has to. `save` writes a
+  directory, converting a single file found at the same path. Every project saved before this
+  existed keeps opening.
+
+### Fixed
+
+- **Renaming an observation lost its results.** They are filed on disk under the owner's name,
+  so a rename left them under the old one: the new name found nothing. They now move with the
+  rename, at the one moment both names are known.
+- **Results of observations no longer in a project were left on disk.** Not merely clutter --
+  renaming an observation away and back would find the stale results still there and treat
+  them as current.
+- **Saving could have written a directory over the model file.** Opening a project by picking
+  its `project.json` remembered that path rather than the project, and the next save would
+  have converted the file it had just read.
+
+### Safety
+
+- The conversion writes the new directory beside the old file and removes the file only once
+  the directory is complete, so an interrupted save leaves the original intact. There is a
+  test that fails the write halfway to prove it.
+
 ## [0.4.0] - 2026-08-10
 
 Four stages of the road out of the MVP: a safety net, hygiene, the calculations, and adopting

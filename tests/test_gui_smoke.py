@@ -73,7 +73,7 @@ def test_the_launcher_imports():
 
 
 def test_the_shipped_settings_use_portable_paths():
-    """The settings file the repository ships was written on Windows.
+    r"""The settings file the repository ships was written on Windows.
 
     On Linux `catalogs\sources.dat` is not a directory and a file, it is one filename with a
     backslash in it, so the catalogs failed to load and the application then opened a modal
@@ -92,7 +92,7 @@ def test_the_shipped_settings_use_portable_paths():
 def test_a_settings_path_written_on_another_platform_still_resolves():
     from pastrocore.app import _portable
 
-    assert _portable("catalogs\sources.dat").endswith("sources.dat")
+    assert _portable(r"catalogs\sources.dat").endswith("sources.dat")
     assert _portable("catalogs/sources.dat").endswith("sources.dat")
 
 
@@ -114,3 +114,53 @@ def test_the_constructor_opens_no_modal_dialog():
                     and call.func.value.id == "QMessageBox"):
                 raise AssertionError(
                     f"{node.name} opens a modal QMessageBox at line {call.lineno}")
+
+
+@pytest.fixture
+def window(qt_application, project):
+    """The main window holding the fixture project, constructed but never shown."""
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    built = PAstroCoreMainWindow()
+    built.project = project
+    built.manipulator = ScheduleManipulator(project)
+    try:
+        yield built
+    finally:
+        built.close()
+        built.deleteLater()
+
+
+def test_the_window_remembers_the_project_not_the_file_inside_it(tmp_path, monkeypatch, window):
+    """A user can navigate into a project and pick project.json. What gets remembered has to
+    be the project directory, or the next save would write a directory over the model file."""
+    from pastrocore.super.schedule_project import ScheduleProject
+    from PySide6.QtWidgets import QFileDialog
+
+    root = tmp_path / "saved.pastro"
+    window.project.save(str(root))
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileName",
+                        staticmethod(lambda *a, **k: (str(root / "project.json"), "")))
+    window.open_project()
+
+    assert pathlib.Path(window.current_project_path) == root
+
+    window.save_project()
+    assert (root / "project.json").is_file(), "the model file must still be a file"
+    assert root.is_dir()
+
+
+def test_saving_from_the_window_writes_a_directory(tmp_path, monkeypatch, window):
+    """The whole point: the interface has to produce the new format, not the old one."""
+    from PySide6.QtWidgets import QFileDialog
+
+    target = tmp_path / "fresh.pastro"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName",
+                        staticmethod(lambda *a, **k: (str(target), "")))
+    window.save_project_as()
+
+    assert target.is_dir(), "Save As must write a directory"
+    assert (target / "project.json").is_file()
+    assert (target / "results").is_dir()

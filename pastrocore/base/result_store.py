@@ -56,6 +56,27 @@ class ResultStore:
         directory = self.root / owner
         return directory / f"{key}.parquet", directory / f"{key}{METADATA_SUFFIX}"
 
+    def rename_owner(self, old: str, new: str) -> None:
+        """Move an owner's results to a new name, so a rename does not strand them.
+
+        Args:
+            old (str): The name the results are filed under.
+            new (str): The name to file them under instead.
+
+        Notes:
+            - Results already written under the new name win, because they were produced by
+              the object as it is now. The old directory is removed rather than merged.
+        """
+        source, target = self.root / old, self.root / new
+        if not source.is_dir():
+            return
+        if target.exists():
+            shutil.rmtree(source)
+            logger.warning("Results already exist under '%s'; dropped those left under '%s'", new, old)
+            return
+        source.rename(target)
+        logger.info("Moved results from '%s' to '%s'", old, new)
+
     def keys(self, owner: str) -> List[str]:
         """Return the result keys stored for an owner, without reading any of them."""
         directory = self.root / owner
@@ -170,7 +191,24 @@ class CalculatedData:
         self._unwritten = set(self._resident)
 
     def attach(self, store: ResultStore, owner: Optional[str] = None) -> None:
-        """Point these results at a store, so what is held can be written and read back."""
+        """Point these results at a store, so what is held can be written and read back.
+
+        Args:
+            store (ResultStore): Where the results live on disk.
+            owner (Optional[str]): The name they are filed under. Passing a different name
+                than the one already in use is a rename, and the results move with it.
+
+        Notes:
+            - Results on disk are filed under the owner's name, so renaming an observation
+              would otherwise strand them: the new name finds nothing, and the old directory
+              is left for the next save to delete. They are moved here instead, which is the
+              one moment both names are known.
+        """
+        renamed = (owner is not None and owner != self._owner
+                   and self._store is not None and store.root == self._store.root)
+        if renamed:
+            self._store.rename_owner(self._owner, owner)
+
         self._store = store
         if owner is not None:
             self._owner = owner
