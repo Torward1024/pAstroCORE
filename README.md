@@ -36,7 +36,7 @@ python run.py
 
 ```bash
 pip install -r requirements.txt pytest
-pytest tests/
+python -m pytest tests/
 ```
 
 161 tests. The characterization suite recomputes every calculation in
