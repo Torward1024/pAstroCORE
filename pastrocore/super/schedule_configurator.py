@@ -1,3 +1,4 @@
+from msb_arch import Configurator
 from msb_arch.super.super import Super
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.frequencies import IF, Frequencies
@@ -12,7 +13,7 @@ import astropy.units as u
 import uuid
 import random
 
-class ScheduleConfigurator(Super):
+class ScheduleConfigurator(Configurator):
     """Implementation of Configurator for configuring scheduling entities using the Super framework.
 
     Provides methods to configure astronomical scheduling entities with validation and nested configuration support.
@@ -25,109 +26,40 @@ class ScheduleConfigurator(Super):
     Returns:
         Dict[str, Any]: A dictionary with results of the configuration operation, managed by Super.execute.
     """
+
+    def _nested_getter(self, obj):
+        """How to reach one member of `obj` by name.
+
+        Notes:
+            - A `ScheduleProject` holds observations and answers `get_observation(name)`,
+              where a container answers `get(name)`. That difference is the whole reason
+              msb_arch made the descent a hook rather than a convention.
+        """
+        if isinstance(obj, ScheduleProject):
+            return obj.get_observation
+        return super()._nested_getter(obj)
     OPERATION = "configure"
 
     def __init__(self, manipulator: 'Manipulator'):
         super().__init__(manipulator=manipulator)
         logger.debug("Initialized ScheduleConfigurator")
 
-    def _configure_if(self, if_obj: IF, attributes: Dict[str, Any]) -> Any:
-        """Configure an IF object and return its get() result."""
-        self._apply_methods(if_obj, attributes)
-        final_result = if_obj.get()
-        logger.info("Configured IF: frequency=%s, bandwidth=%s, result=%s", if_obj.frequency, if_obj.bandwidth, final_result)
-        return final_result
 
 
-    def _configure_frequencies(self, freq_obj: Frequencies, attributes: Dict[str, Any]) -> Any:
-        """Configure a Frequencies object, supporting nested IF configuration."""
-        if "name" in attributes:
-            result = self._do_nested(
-                freq_obj, attributes, "name", freq_obj.get, self._configure_if
-            )
-            if result["status"]:
-                logger.info("Configured nested IF in Frequencies: name=%s, result=%s", attributes['name'], result['result'])
-                return result["result"]
-            logger.warning("Failed to configure nested IF in Frequencies: name=%s", attributes.get('name'))
-            raise ValueError(result.get("error", "Operation not executed"))
-        self._apply_methods(freq_obj, attributes)
-        final_result = len(freq_obj)
-        logger.info("Configured Frequencies: count=%s, result=%s", final_result, final_result)
-        return final_result
 
 
-    def _configure_source(self, source_obj: Source, attributes: Dict[str, Any]) -> Any:
-        """Configure a Source object and return its get() result."""
-        self._apply_methods(source_obj, attributes)
-        final_result = source_obj.get()
-        logger.info("Configured Source: name='%s', result=%s", source_obj.name, final_result)
-        return final_result
 
 
-    def _configure_sources(self, sources_obj: Sources, attributes: Dict[str, Any]) -> Any:
-        """Configure a Sources object, supporting nested Source configuration."""
-        if "name" in attributes:
-            result = self._do_nested(
-                sources_obj, attributes, "name", sources_obj.get, self._configure_source
-            )
-            if result["status"]:
-                logger.info("Configured nested Source in Sources: name=%s, result=%s", attributes['name'], result['result'])
-                return result["result"]
-            logger.warning("Failed to configure nested Source in Sources: name=%s", attributes.get('name'))
-            raise ValueError(result.get("error", "Operation not executed"))
-        self._apply_methods(sources_obj, attributes)
-        final_result = len(sources_obj)
-        logger.info("Configured Sources: count=%s, result=%s", final_result, final_result)
-        return final_result
 
 
-    def _configure_telescope(self, tel_obj: Union[Telescope, SpaceTelescope], attributes: Dict[str, Any]) -> Any:
-        """Configure a Telescope or SpaceTelescope object and return its code."""
-        self._apply_methods(tel_obj, attributes)
-        final_result = tel_obj.get_code()
-        logger.info("Configured Telescope: code='%s', result=%s", final_result, final_result)
-        return final_result
 
 
-    def _configure_telescopes(self, tel_obj: Telescopes, attributes: Dict[str, Any]) -> Any:
-        """Configure a Telescopes object, supporting nested Telescope configuration."""
-        if "name" in attributes:
-            result = self._do_nested(
-                tel_obj, attributes, "name", tel_obj.get, self._configure_telescope
-            )
-            if result["status"]:
-                logger.info("Configured nested Telescope in Telescopes: name=%s, result=%s", attributes['name'], result['result'])
-                return result["result"]
-            logger.warning("Failed to configure nested Telescope in Telescopes: name=%s", attributes.get('name'))
-            raise ValueError(result.get("error", "Operation not executed"))
-        self._apply_methods(tel_obj, attributes)
-        final_result = len(tel_obj)
-        logger.info("Configured Telescopes: count=%s, result=%s", final_result, final_result)
-        return final_result
 
 
-    def _configure_scan(self, scan_obj: Scan, attributes: Dict[str, Any]) -> Any:
-        """Configure a Scan object and return its get() result."""
-        self._apply_methods(scan_obj, attributes)
-        final_result = scan_obj.get()
-        logger.info("Configured Scan: name='%s', result=%s", scan_obj.name, final_result)
-        return final_result
 
 
-    def _configure_scans(self, scans_obj: Scans, attributes: Dict[str, Any]) -> Any:
-        """Configure a Scans object and return the number of scans."""
-        self._apply_methods(scans_obj, attributes)
-        final_result = len(scans_obj)
-        logger.info("Configured Scans: count=%s, result=%s", final_result, final_result)
-        return final_result
 
 
-    def _configure_observation(self, obs_obj: Observation, attributes: Dict[str, Any]) -> Any:
-        """Configure an Observation object and return its code."""
-        self._apply_methods(obs_obj, attributes)
-        final_result = obs_obj.get_observation_code()
-        logger.info("Configured Observation: code='%s', result=%s", final_result, final_result)
-        return final_result
 
 
     def _configure_scheduleproject(self, project_obj: ScheduleProject, attributes: Dict[str, Any]) -> Any:
