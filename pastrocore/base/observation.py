@@ -138,6 +138,59 @@ class Observation(BaseEntity):
             logger.debug("No calculated data found for key '%s' in observation '%s'", key, self.name)
             return {}
 
+    def scan_calculated_data(self, key: str) -> Optional[pl.LazyFrame]:
+        """A lazy view of one calculated result, so a filter reaches the read.
+
+        Args:
+            key (str): The calculation whose result is wanted.
+
+        Returns:
+            Optional[pl.LazyFrame]: A view that reads nothing until it is collected, or None
+                if the observation has no such result.
+
+        Notes:
+            - This is the counterpart of `get_calculated_data_by_key` for a consumer that is
+              about to filter. Reading the whole result and then discarding most of it costs
+              both the read and the memory to hold what was discarded; a filter applied to
+              this view is pushed into the parquet read instead, so the rows that fail it are
+              never materialised.
+            - Falls back to a lazy view of what is held in memory when the result has not been
+              written yet, so a caller does not have to know where the result currently lives.
+        """
+        check_non_empty_string(key, "Key")
+        results = self.calculated_data
+        if hasattr(results, "scan"):
+            try:
+                return results.scan(key)
+            except KeyError:
+                logger.debug("No calculated data found for key '%s' in observation '%s'", key, self.name)
+                return None
+
+        stored = (results or {}).get(key)
+        frame = stored.get("data") if stored else None
+        return frame.lazy() if frame is not None else None
+
+    def get_calculated_metadata(self, key: str) -> Dict[str, any]:
+        """Return what was recorded about how a result was produced, without reading it.
+
+        Args:
+            key (str): The calculation whose metadata is wanted.
+
+        Returns:
+            Dict[str, any]: The metadata, empty if there is no such result.
+
+        Notes:
+            - Several plots need only the metadata -- the sources a track covers, the
+              frequency a beam was computed at. Reaching it through the result read every row
+              off disk to arrive at a handful of entries.
+        """
+        check_non_empty_string(key, "Key")
+        results = self.calculated_data
+        if hasattr(results, "metadata"):
+            return results.metadata(key)
+        stored = (results or {}).get(key)
+        return (stored or {}).get("metadata", {}) or {}
+
     def set_calculated_data_by_key(self, key: str, df: pl.DataFrame, metadata: Dict = None) -> None:
         """Set calculated data and metadata for a specific key as a Polars DataFrame and dictionary."""
         check_non_empty_string(key, "Key")
