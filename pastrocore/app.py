@@ -81,6 +81,7 @@ class PAstroCoreMainWindow(QMainWindow):
     
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
+        self._apply_residency_budget()
         self.catalog_manager = self.initialize_catalog_manager()
     
         logger.debug("pAstroCORE initialized with project id: %s, manipulator id=%s, catalog_manager id=%s", id(self.project), id(self.manipulator), id(self.catalog_manager))
@@ -89,6 +90,21 @@ class PAstroCoreMainWindow(QMainWindow):
         self._action_connections = {}
         self.setup_ui()
         self.setup_connections()
+
+    def _apply_residency_budget(self):
+        """Tell the current project how much memory its results may occupy.
+
+        Notes:
+            - Called whenever the project changes, not only when the setting does, because a
+              newly opened project starts with the default and would otherwise ignore what the
+              user chose until they opened the preferences again.
+        """
+        if self.project is None:
+            return
+        try:
+            self.project.set_residency_share(float(self.settings.get("results_memory_share", 0.5)))
+        except (TypeError, ValueError) as e:
+            logger.error("Ignoring invalid results memory share in settings: %s", str(e))
 
     def clear_connections(self, is_initial_setup: bool = False):
         """
@@ -547,7 +563,11 @@ class PAstroCoreMainWindow(QMainWindow):
             "telescopes_catalog_path": os.path.join("catalogs", "telescopes.dat"),
             "log_level": "INFO", 
             "time_step": 600,
-            "clear_log_on_start": False
+            "clear_log_on_start": False,
+            # What share of available memory the calculated results in hand may occupy before
+            # the least recently used are dropped. They can always be read back from the
+            # project directory, so this costs a read rather than a recalculation.
+            "results_memory_share": 0.5
         }
         if os.path.exists(settings_file):
             try:
@@ -609,6 +629,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
             self.project = new_project
             self.manipulator = ScheduleManipulator(self.project)
+            self._apply_residency_budget()
             # What gets remembered is the project, not the file inside it. A user who
             # navigated in and picked project.json would otherwise have that path saved
             # over on the next save -- turning the model file itself into a directory.
@@ -781,6 +802,9 @@ class PAstroCoreMainWindow(QMainWindow):
             new_log_level = getattr(logging, new_log_level_str, logging.INFO)
             update_logging_level(new_log_level)
             logger.info("Logger level updated to %s", new_log_level_str)
+
+        if "results_memory_share" in changed_keys:
+            self._apply_residency_budget()
 
         if "clear_log_on_start" in changed_keys:
             clear_log = self.settings.get("clear_log_on_start", False)
@@ -1087,6 +1111,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Initialize a new project and its dependencies."""
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
+        self._apply_residency_budget()
         logger.debug("Initialized new project with id: %s, manipulator id=%s", id(self.project), id(self.manipulator))
     
     def closeEvent(self, event):

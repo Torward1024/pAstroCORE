@@ -1,5 +1,6 @@
 # p_dialog_preferences.py
-from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
+from PySide6.QtWidgets import (QDialog, QFileDialog, QHBoxLayout, QLabel,
+                               QMessageBox, QSpinBox)
 from PySide6.QtCore import Signal, Slot
 from pastrocore.gui.ui_dialog_preferences import Ui_PreferencesDialog
 from msb_arch.utils.logging_setup import logger
@@ -41,6 +42,33 @@ class PreferencesDialog(QDialog):
         else:
             self.ui.comboLogging.setCurrentText("INFO")
             logger.warning("Invalid log level in settings: %s. Defaulting to INFO.", current_log_level)
+
+        self._add_memory_control()
+
+    def _add_memory_control(self):
+        """Add the results-memory control to the calculations tab.
+
+        Notes:
+            - Built here rather than in `ui_dialog_preferences.py`, which is generated from the
+              Qt Designer form and is overwritten whenever the form is regenerated. Anything
+              hand-written there is lost the next time somebody edits the form.
+        """
+        self.resultsMemorySpin = QSpinBox(self.ui.tab_2)
+        self.resultsMemorySpin.setObjectName("resultsMemorySpin")
+        self.resultsMemorySpin.setRange(5, 100)
+        self.resultsMemorySpin.setSuffix(" %")
+        self.resultsMemorySpin.setValue(int(round(
+            float(self.settings.get("results_memory_share", 0.5)) * 100)))
+        self.resultsMemorySpin.setToolTip(
+            "Share of available memory the calculated results may occupy before the least "
+            "recently used are dropped. They are read back from the project directory when "
+            "needed again, so this costs a read rather than a recalculation.")
+
+        label = QLabel("Results in memory, share of available:", self.ui.tab_2)
+        row = QHBoxLayout()
+        row.addWidget(label)
+        row.addWidget(self.resultsMemorySpin)
+        self.ui.gridLayout_4.addLayout(row, 1, 0, 1, 1)
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -106,6 +134,9 @@ class PreferencesDialog(QDialog):
             changed_keys.append("time_step")
         if clear_log_on_start != self.original_settings.get("clear_log_on_start", False):
             changed_keys.append("clear_log_on_start")
+        results_memory_share = round(self.resultsMemorySpin.value() / 100, 2)
+        if results_memory_share != self.original_settings.get("results_memory_share", 0.5):
+            changed_keys.append("results_memory_share")
 
         if changed_keys:
             self.settings["sources_catalog_path"] = sources_path
@@ -113,6 +144,7 @@ class PreferencesDialog(QDialog):
             self.settings["log_level"] = log_level
             self.settings["time_step"] = time_step
             self.settings["clear_log_on_start"] = clear_log_on_start
+            self.settings["results_memory_share"] = results_memory_share
             logger.info("Settings updated in PreferencesDialog: sources_path=%s, telescopes_path=%s, log_level=%s, time_step=%s, clear_log_on_start=%s", sources_path, telescopes_path, log_level, time_step, clear_log_on_start)
             if "clear_log_on_start" in changed_keys:
                 logger.info("Log file clearing setting changed and applied immediately.")

@@ -415,3 +415,185 @@ def test_scanning_a_missing_result_says_so_rather_than_raising(project):
     observation = project.get_observation(next(iter(project.get_items())))
     assert observation.scan_calculated_data("never_calculated") is None
     assert observation.get_calculated_metadata("never_calculated") == {}
+
+
+# --- the residency budget ------------------------------------------------------------------
+
+def test_the_budget_evicts_the_least_recently_used(tmp_path):
+    """Results are dropped in the order they stopped being useful, not the order they arrived."""
+    from pastrocore.base.result_store import CalculatedData, ResidencyBudget, ResultStore
+
+    store = ResultStore(tmp_path / "results")
+    frames = {}
+    for name in ("a", "b", "c"):
+        frames[name] = pl.DataFrame({"x": list(range(2000))})
+        store.write("obs", name, frames[name], {})
+
+    one_result = frames["a"].estimated_size()
+    budget = ResidencyBudget(limit_bytes=int(one_result * 2.5))
+    results = CalculatedData("obs", store=store, budget=budget)
+
+    results["a"], results["b"]
+    assert set(results._resident) == {"a", "b"}
+
+    results["a"]                       # 'b' is now the least recently used
+    results["c"]                       # which makes room for this
+
+    assert "b" not in results._resident, "the least recently used should have gone"
+    assert set(results._resident) == {"a", "c"}
+
+
+def test_an_evicted_result_reads_back_the_same(tmp_path):
+    """Eviction must cost a read, never a number."""
+    from pastrocore.base.result_store import CalculatedData, ResidencyBudget, ResultStore
+
+    store = ResultStore(tmp_path / "results")
+    original = pl.DataFrame({"x": [1.5, 2.5, 3.5], "name": ["a", "b", "c"]})
+    store.write("obs", "kept", original, {"note": "unchanged"})
+    store.write("obs", "other", pl.DataFrame({"x": list(range(5000))}), {})
+
+    budget = ResidencyBudget(limit_bytes=1)
+    results = CalculatedData("obs", store=store, budget=budget)
+
+    results["kept"]
+    results["other"]
+    assert "kept" not in results._resident
+
+    assert results["kept"]["data"].equals(original)
+    assert results["kept"]["metadata"]["note"] == "unchanged"
+
+
+def test_an_unwritten_result_is_never_evicted(tmp_path):
+    """There would be nowhere to read it back from, so the budget must leave it alone."""
+    from pastrocore.base.result_store import CalculatedData, ResidencyBudget, ResultStore
+
+    store = ResultStore(tmp_path / "results")
+    store.write("obs", "stored", pl.DataFrame({"x": list(range(5000))}), {})
+
+    budget = ResidencyBudget(limit_bytes=1)
+    results = CalculatedData("obs", store=store, budget=budget)
+    results["fresh"] = {"data": pl.DataFrame({"x": [1, 2, 3]}), "metadata": {}}
+
+    results["stored"]
+
+    assert "fresh" in results._resident, "an unwritten result must survive any budget"
+    assert results["fresh"]["data"].height == 3
+
+
+def test_a_result_larger_than_the_budget_is_still_returned(tmp_path):
+    """The budget governs what may be kept, never what may be read.
+
+    Refusing to read a result too big for the budget would turn a memory setting into a
+    correctness one: the plot would be blank and the number wrong.
+    """
+    from pastrocore.base.result_store import CalculatedData, ResidencyBudget, ResultStore
+
+    store = ResultStore(tmp_path / "results")
+    big = pl.DataFrame({"x": list(range(50000))})
+    store.write("obs", "big", big, {})
+
+    results = CalculatedData("obs", store=store, budget=ResidencyBudget(limit_bytes=1))
+    assert results["big"]["data"].height == 50000
+
+
+def test_the_budget_is_shared_across_observations(project, tmp_path):
+    """The memory they compete for is one machine's, not one observation's."""
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "shared.pastro"
+    project.save(str(root))
+
+    reopened = ScheduleProject.open(str(root))
+    budgets = {id(observation.calculated_data._budget)
+               for observation in reopened._items.get_items()}
+    assert len(budgets) == 1
+    assert budgets == {id(reopened.residency_budget)}
+
+
+def test_the_share_is_rejected_when_it_is_not_a_share(project):
+    """A budget of nothing would evict a result the instant it was read."""
+    with pytest.raises(ValueError):
+        project.set_residency_share(0)
+    with pytest.raises(ValueError):
+        project.set_residency_share(1.5)
+
+    project.set_residency_share(0.25)
+    assert project.residency_budget.share == 0.25
+
+
+def test_the_budget_follows_the_machine(project):
+    """A share, not a number, because the same project is opened on a laptop and a workstation."""
+    project.set_residency_share(0.5)
+    half = project.residency_budget.limit
+    project.set_residency_share(0.25)
+    quarter = project.residency_budget.limit
+
+    assert half > 0
+    assert quarter == pytest.approx(half / 2, rel=0.15)
+
+
+def test_copying_an_observation_does_not_fork_the_budget(project, tmp_path):
+    """Two budgets would each believe they had the whole ceiling."""
+    import copy
+
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "copied.pastro"
+    project.save(str(root))
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+
+    duplicate = copy.deepcopy(observation)
+    assert duplicate.calculated_data._budget is observation.calculated_data._budget
+
+
+def test_walking_many_observations_stays_inside_the_budget(tmp_path):
+    """The case that started all of this, at a size a build machine can afford.
+
+    Measured at sixty observations of 200 000 rows: without a budget the walk grew memory by
+    407 MB and ended holding all sixty results. With a 200 MB ceiling it grew by 71 MB and held
+    thirty-two. This is the same shape, small enough to run on every push.
+
+    It asserts residency rather than resident set size on purpose: RSS depends on the
+    allocator and on what else the machine is doing, so a build machine would fail it for
+    reasons that have nothing to do with this code.
+    """
+    from pastrocore.base.result_store import CalculatedData, ResidencyBudget, ResultStore
+
+    store = ResultStore(tmp_path / "results")
+    rows = 20000
+    for index in range(20):
+        store.write(f"obs{index:02d}", "uv_coverage",
+                    pl.DataFrame({"u": [float(v) for v in range(rows)],
+                                  "v": [float(v) for v in range(rows)]}), {})
+
+    one_result = pl.DataFrame({"u": [float(v) for v in range(rows)],
+                               "v": [float(v) for v in range(rows)]}).estimated_size()
+    budget = ResidencyBudget(limit_bytes=one_result * 4)
+
+    holders = [CalculatedData(f"obs{index:02d}", store=store, budget=budget)
+               for index in range(20)]
+    for results in holders:
+        assert results["uv_coverage"]["data"].height == rows
+
+    resident = sum(len(results._resident) for results in holders)
+    assert resident <= 5, f"the budget allows about four results, {resident} are in hand"
+    assert budget.held <= budget.limit
+
+    # And the last one read is still there, because it is what the caller is using.
+    assert "uv_coverage" in holders[-1]._resident
+
+
+def test_without_a_budget_nothing_is_evicted(tmp_path):
+    """The comparison that gives the test above its meaning."""
+    from pastrocore.base.result_store import CalculatedData, ResultStore
+
+    store = ResultStore(tmp_path / "results")
+    for index in range(20):
+        store.write(f"obs{index:02d}", "uv_coverage", pl.DataFrame({"u": [1.0] * 20000}), {})
+
+    holders = [CalculatedData(f"obs{index:02d}", store=store) for index in range(20)]
+    for results in holders:
+        results["uv_coverage"]
+
+    assert sum(len(results._resident) for results in holders) == 20

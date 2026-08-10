@@ -8,33 +8,68 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-## [Unreleased]
+## [0.5.0] - 2026-08-10
+
+Results moved out of memory. A project saves as a directory whose model is 5 KB, each result
+is a parquet file beside it, and nothing is read until something asks for it. What is read is
+subject to a ceiling.
+
+Two calculation defects were found on the way, both of which had been producing wrong output
+in silence.
 
 ### Added
 
-- **The application saves and opens the directory format.** `ScheduleProject.open` takes a
-  project directory, the `project.json` inside one, or a single file written by an earlier
-  version, and works out which it is looking at -- so no caller has to. `save` writes a
-  directory, converting a single file found at the same path. Every project saved before this
-  existed keeps opening.
+- **The directory format, wired into the application.** `ScheduleProject.open` takes a project
+  directory, the `project.json` inside one, or a single file written by an earlier version, and
+  works out which. `save` writes a directory, converting a single file at the same path -- the
+  old file is removed only after the new directory is complete. Every project saved before this
+  keeps opening.
+- **A residency budget.** One per project, defaulting to half of available memory and settable
+  in Preferences as a percentage. When the ceiling is passed the least recently used results
+  are dropped and read back from disk when next needed. An unwritten result is never dropped,
+  and a result larger than the whole budget is still read -- the budget governs what may be
+  kept, never what may be read.
+- **Lazy, filtered reads.** All eight plots read through `scan_calculated_data` and collect
+  once their filter chain is complete, so polars pushes the filter into the parquet read.
+- **Characterization tests for the plots**, which had none. They read the drawn artists back
+  out of the figure and compare coordinates, because every plot method swallows exceptions and
+  returns a blank figure -- a test that only checked for a crash would pass through exactly the
+  failure worth catching.
 
 ### Fixed
 
-- **Renaming an observation lost its results.** They are filed on disk under the owner's name,
-  so a rename left them under the old one: the new name found nothing. They now move with the
-  rename, at the one moment both names are known.
-- **Results of observations no longer in a project were left on disk.** Not merely clutter --
-  renaming an observation away and back would find the stale results still there and treat
-  them as current.
-- **Saving could have written a directory over the model file.** Opening a project by picking
-  its `project.json` remembered that path rather than the project, and the next save would
-  have converted the file it had just read.
+- **Baseline projections were NaN in every row, always.** UV coverage covers only the times the
+  source is up; the code copied those rows into the first N positions of the time grid and then
+  masked by visibility, which is true somewhere in the middle. The two never overlapped, so
+  every value was discarded. They are matched on time now.
+- **The characterization suite could not see a NaN appear or disappear.** The comparison
+  computed `abs(a - b) / scale`, which is NaN when one side is NaN, and `NaN > worst` is false.
+  That is why the defect above went unreported.
+- **Plots drew telescopes and baselines in an unpredictable order**, so colours and legend
+  order changed between runs on identical data. Eight loops iterated `unique()`, which polars
+  does not order.
+- **Renaming an observation lost its results**, which are filed under the owner's name.
+- **Results of observations no longer in a project were left on disk**, where renaming an
+  observation away and back would pick them up as current.
+- **Saving could write a directory over the model file** when a project was opened by picking
+  its `project.json`.
 
-### Safety
+### Changed
 
-- The conversion writes the new directory beside the old file and removes the file only once
-  the directory is complete, so an interrupted save leaves the original intact. There is a
-  test that fails the write halfway to prove it.
+- Metadata is read from its own file rather than through the result: 0.33 ms against 2.20 ms,
+  because the old path pulled every row off disk to reach four entries.
+- The exporter releases each observation's results before moving to the next.
+
+### Measured
+
+| | Before | After |
+|---|---|---|
+| Draw one source of 300, 1.3M rows | 55.2 ms | **6.0 ms** |
+| Memory over 60 observations, 200k rows each | 407 MB, all 60 held | **71 MB, 32 held** |
+| Loading a project | every result read | **none read** |
+| Model file | 230.5 KB | **5.1 KB** |
+
+213 tests.
 
 ## [0.4.0] - 2026-08-10
 

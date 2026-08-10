@@ -1,6 +1,6 @@
 pAstroCORE -- a versatile tool for scheduling radio-astronomical observations
 
-Version 0.4.0. Past the MVP, and the parts written under time pressure are being put in order
+Version 0.5.0. Past the MVP, and the parts written under time pressure are being put in order
 one measured stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -24,13 +24,46 @@ coverage of a baseline, azimuth and elevation over a scan, sun angles, beam patt
 parallactic angle. Eleven calculations in all, each drawn as well as computed.
 
 Every one of them is defended by a test that recomputes it against a saved project and
-compares the numbers, so a refactoring cannot change a result quietly.
+compares the numbers, so a refactoring cannot change a result quietly. The plots are defended
+the same way, by reading the drawn points back out of the figure.
 
 ## Running
 
 ```bash
 python run.py
 ```
+
+## Projects on disk
+
+A project saves as a **directory** named `something.pastro`, holding a small `project.json`
+and a `results/` directory with one parquet file per calculated result.
+
+```
+my_survey.pastro/
+    project.json           the observations, sources, telescopes, scans -- about 5 KB
+    results/
+        obs_001/
+            uv_coverage.parquet
+            az_el.parquet
+            ...
+```
+
+This is not tidiness. A year of observing 300 sources through 12 telescopes produced results
+that filled 16 GB of memory, because every one of them lived inside the project file and the
+file was loaded whole. Now opening a project reads the model and **no results at all**; each
+one is read when something asks for it, and a plot that draws one source reads that source
+rather than all 300.
+
+What is in memory is capped. **Preferences → Calculations → Results in memory** sets the share
+of available memory the results in hand may occupy; past it, the least recently used are
+dropped and read back from the directory when needed again. The default is half of what is
+available. Dropping a result costs a read, never a recalculation.
+
+**Projects saved as a single file still open.** Saving one converts it to a directory, in that
+order -- the directory is written first and the old file removed only once it is complete, so
+an interrupted save leaves the original where it was.
+
+Export is unchanged and unaffected: it writes text and pictures, not projects.
 
 ## Tests
 
@@ -39,7 +72,7 @@ pip install -r requirements.txt pytest
 python -m pytest tests/
 ```
 
-161 tests. The characterization suite recomputes every calculation in
-`tests/fixtures/test_project.pastro` and compares the numbers against the ones the
-project was saved with, so a change to any formula fails the build. Qt runs
-offscreen, so the GUI smoke tests need no display.
+213 tests. The characterization suites recompute every calculation in
+`tests/fixtures/test_project.pastro` and redraw every plot, comparing against what the project
+was saved with, so a change to any formula or any filter fails the build. Qt runs offscreen,
+so the GUI smoke tests need no display.
