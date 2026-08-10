@@ -184,7 +184,7 @@ Every consumer that filters should filter in the read.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| D1 | The directory format, and a result handle that loads on access | Opening a project with a hundred calculated observations reads the model and no results |
+| D1 | The directory format, and a result handle that loads on access | **Done.** `ScheduleProject.to_directory` / `from_directory`, with `ResultStore` and `CalculatedData` beneath them. Measured on the test project: the model is **5.1 KB against a 230.5 KB single file, 2.2%**, results are 160.8 KB of parquet beside it rather than 223 KB of base64 inside it, and loading reads **no** results while all eleven remain visible. Two things had to change in `Observation`: storing one result copied the whole mapping, which would have loaded every result to save one, and `to_dict` gained `with_results=False` so the model can be written without them |
 | D2 | Conversion from the single-file format, on open | Every existing `.pastro` opens and is converted, and the old format keeps loading for at least one release |
 | D3 | Lazy, filtered reads in the visualizer and the exporter | Drawing one source reads that source, measured |
 | D4 | A residency budget: a share of available memory, settable in preferences, evicting least-recently-used | The reported case -- 300 sources, a year, 12 telescopes -- completes inside the budget |
