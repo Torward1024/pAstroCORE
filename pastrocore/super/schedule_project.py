@@ -200,39 +200,6 @@ class ScheduleProject(Project):
         logger.debug("Serialized ScheduleProject '%s' to dictionary with %s observations", self.name, len(self._items))
         return result
     
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ScheduleProject':
-        """Deserialize a ScheduleProject from a dictionary.
-
-        Args:
-            data (Dict[str, Any]): Dictionary containing the project data.
-
-        Returns:
-            ScheduleProject: A new ScheduleProject instance populated with the deserialized data.
-
-        Raises:
-            ValueError: If the data is invalid, missing required keys, or contains non-unique observation codes.
-        """
-        try:
-            name = data.get("name")
-            check_non_empty_string(name, "Project name")
-            items = {}
-            
-            if "items" in data:
-                if not data["items"]:
-                    logger.warning("Creating ScheduleProject '%s' with empty items dictionary", name)
-                else:
-                    for item_name, item_data in data["items"].items():
-                        observation = Observation.from_dict(item_data)
-                        items[item_name] = observation
-                        logger.debug("Imported observation '%s' for project '%s'", item_name, name)
-            
-            project = cls(name=name, items=items)
-            logger.info("Deserialized ScheduleProject '%s' from dict with %s observations", name, len(items))
-            return project
-        except (KeyError, TypeError, ValueError) as e:
-            logger.error("Failed to deserialize ScheduleProject from dict: %s", str(e))
-            raise ValueError(f"Invalid ScheduleProject data: {str(e)}") from e
 
     def to_file(self, file_path: str, compact: bool = False) -> None:
         """Serialize ScheduleProject to a JSON file without loading the full dictionary into memory.
