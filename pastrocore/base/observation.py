@@ -2,8 +2,9 @@
 import polars as pl
 import numpy as np
 from astropy.time import Time
-from typing import Optional, Dict
+from typing import Any, Optional, Dict
 from msb_arch.base.baseentity import BaseEntity
+from pastrocore.base.result_store import CalculatedData
 from msb_arch.utils.validation import check_type, check_non_empty_string
 from msb_arch.utils.logging_setup import logger
 from .sources import Sources
@@ -42,7 +43,9 @@ class Observation(BaseEntity):
     telescopes: Telescopes
     frequencies: Frequencies
     scans: Scans
-    calculated_data: Dict[str, Dict]
+    # Not `Dict[str, Dict]` any more: it is a `CalculatedData`, which behaves like the
+    # mapping it replaces but reads a result from disk only when one is asked for.
+    calculated_data: Any
     _use_cache: bool
 
     def __init__(self, name: str = None, code: str = "OBS_DEFAULT", sources: Sources = None,
@@ -80,7 +83,10 @@ class Observation(BaseEntity):
             telescopes=telescopes if telescopes is not None else Telescopes(),
             frequencies=frequencies if frequencies is not None else Frequencies(),
             scans=scans if scans is not None else Scans(),
-            calculated_data=calculated_data if calculated_data is not None else {},
+            # Wrapped once, here, so every later reader gets the lazy mapping without
+            # knowing about it. An observation not yet part of a saved project has no
+            # store, and then this is simply a dictionary that lives in memory.
+            calculated_data=CalculatedData(name, resident=dict(calculated_data or {})),
             isactive=isactive,
             use_cache=use_cache
         )
@@ -140,9 +146,11 @@ class Observation(BaseEntity):
             metadata = {}
         check_type(metadata, dict, "Metadata")
         self._validate_calculated_data_key(key, df, metadata)
-        new_data = self.calculated_data.copy()
-        new_data[key] = {"data": df, "metadata": metadata}
-        self.set({"calculated_data": new_data})
+        # Set in place rather than copying the mapping and re-assigning it. The copy loaded
+        # every stored result to store one, which is exactly the cost this format exists to
+        # avoid -- and on a project of a year of observations it would load all of them.
+        self.calculated_data[key] = {"data": df, "metadata": metadata}
+        self._invalidate_cache()
         logger.info("Stored calculated data '%s' for observation '%s'", key, self.name)
 
     def clear_calculated_data(self):
@@ -150,8 +158,20 @@ class Observation(BaseEntity):
         self.calculated_data.clear()
         logger.debug("Cleared calculated data for observation '%s'", self.get_observation_code())
 
-    def to_dict(self) -> dict:
-        """Convert the Observation object to a dictionary for serialization."""
+    def to_dict(self, with_results: bool = True) -> dict:
+        """Convert the Observation object to a dictionary for serialization.
+
+        Args:
+            with_results (bool): Embed the calculated results as base64 parquet, which is the
+                single-file format. Defaults to True so that anything calling `to_dict()` --
+                including msb_arch, which calls it with no arguments -- behaves as it did.
+
+        Notes:
+            - The directory format passes False. Results then live in their own parquet files
+              beside the model, so the mapping this returns stays small and reading it does not
+              mean reading gigabytes: the single-file form of the small test project is 97.1%
+              base64, with the model under 7 KB of 230.
+        """
         def convert_dataframe(df: pl.DataFrame, key: str, metadata: Dict) -> dict:
             """Convert a Polars DataFrame and metadata to a serializable dictionary with Parquet data."""
             converters = CalculatedDataStructure.get_converters(key) or {}
@@ -192,7 +212,7 @@ class Observation(BaseEntity):
         try:
             calculated_data = {}
             failed_keys = []
-            for key, calc_dict in self.calculated_data.items():
+            for key, calc_dict in (self.calculated_data.items() if with_results else []):
                 try:
                     calc_data = convert_dataframe(calc_dict["data"], key, calc_dict.get("metadata", {}))
                     calculated_data[key] = calc_data
@@ -204,6 +224,9 @@ class Observation(BaseEntity):
 
             if failed_keys:
                 logger.warning("Failed to serialize %s calculated_data keys: %s", len(failed_keys), failed_keys)
+
+            if not with_results:
+                calculated_data = {}
 
             data = {
                 "name": self.name,

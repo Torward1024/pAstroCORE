@@ -140,3 +140,86 @@ def test_clearing_removes_what_is_on_disk_too(store, frame):
     results.clear()
     assert len(results) == 0
     assert not store.has("obs1", "uv_coverage")
+
+
+# --- a project as a directory -------------------------------------------------------------
+
+def test_a_project_saves_as_a_directory(project, tmp_path):
+    """The model in one small file, each result in its own, so opening reads only the model."""
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "saved.pastro"
+    project.to_directory(str(root))
+
+    assert (root / "project.json").is_file()
+    assert list((root / "results").rglob("*.parquet")), "no results written"
+    assert ScheduleProject.is_directory_project(str(root))
+
+
+def test_the_model_is_a_fraction_of_the_single_file(project, tmp_path):
+    """The single-file form of the fixture is 97% base64; the model itself is a few kilobytes.
+
+    That ratio is the whole argument for the format: a project of a year of observations cannot
+    be opened at all if opening means reading every result.
+    """
+    from conftest import FIXTURE
+
+    root = tmp_path / "saved.pastro"
+    project.to_directory(str(root))
+
+    model = (root / "project.json").stat().st_size
+    assert model < FIXTURE.stat().st_size / 10, (
+        f"the model is {model} bytes against a single file of {FIXTURE.stat().st_size}")
+
+
+def test_loading_a_directory_reads_no_results(project, project_data, tmp_path):
+    """The property everything else rests on."""
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "saved.pastro"
+    project.to_directory(str(root))
+
+    loaded = ScheduleProject.from_directory(str(root))
+    observation = loaded.get_observation(next(iter(project_data["items"])))
+
+    assert len(observation.calculated_data) == 11, "every result is visible"
+    assert observation.calculated_data._resident == {}, "and none of them has been read"
+
+
+def test_a_result_is_read_when_it_is_asked_for(project, project_data, tmp_path):
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "saved.pastro"
+    project.to_directory(str(root))
+    loaded = ScheduleProject.from_directory(str(root))
+    observation = loaded.get_observation(next(iter(project_data["items"])))
+
+    frame = observation.calculated_data["uv_coverage"]["data"]
+
+    assert frame.height > 0
+    assert list(observation.calculated_data._resident) == ["uv_coverage"], "only that one"
+
+
+def test_the_results_survive_the_round_trip(project, project_data, tmp_path):
+    """A format that loses numbers would be worse than the memory it saves."""
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    observation = project.get_observation(next(iter(project_data["items"])))
+    before = {key: observation.calculated_data[key]["data"].height
+              for key in observation.calculated_data.keys()}
+
+    root = tmp_path / "saved.pastro"
+    project.to_directory(str(root))
+    loaded = ScheduleProject.from_directory(str(root))
+    restored = loaded.get_observation(next(iter(project_data["items"])))
+
+    after = {key: restored.calculated_data[key]["data"].height
+             for key in restored.calculated_data.keys()}
+    assert after == before
+
+
+def test_a_directory_without_a_model_is_refused(tmp_path):
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    with pytest.raises(IOError, match="not a project directory"):
+        ScheduleProject.from_directory(str(tmp_path))
