@@ -7,39 +7,62 @@ machine can check.
 
 The reference is the project file itself. It holds eleven results the author computed and
 trusts; clearing them and calculating again has to produce the same numbers. Nothing has to be
-recorded, nothing can drift out of date, and a failure means exactly one thing.
+recorded separately and nothing can drift out of date.
 
-Comparison is by fingerprint -- shape, columns, and a digest of the values rounded to a
-tolerance -- rather than field by field, because a frame of ten thousand rows compared
-element-wise is slow to run and unreadable when it fails.
+Shape and columns must match exactly. Values are compared with a tolerance, for a reason worth
+reading before changing it -- see `RELATIVE_TOLERANCE`.
 """
-import hashlib
+import math
 
 import pytest
 
-# Rounding before hashing, so the last bits of a float do not make the suite fragile across
-# platforms while a real change of formula still moves the digest.
-TOLERANCE = 6
+# How far a recomputed value may sit from the saved one and still count as the same number.
+#
+# The first version of this file hashed the values, and a digest cannot express a tolerance.
+# Five calculations then failed on a build machine while passing locally: `telescope_positions`,
+# `uv_coverage`, `az_el`, `mollweide_tracks` and `parallactic_angle`. None of them was broken.
+# All five depend on astropy's Earth-orientation tables, which are updated, so identical code
+# legitimately produces slightly different numbers depending on which revision is in hand.
+#
+# Freezing the tables is not the answer either, and was tried: the bundled data ends in March
+# 2025 while the fixture observes in August 2026, so pinning makes astropy extrapolate
+# seventeen months and the numbers move *further* -- nine failures instead of five.
+#
+# So the comparison carries a tolerance chosen from the physics. Polar motion is of order
+# 0.3 arcsec and a UT1 prediction drifts by tens of milliseconds; at the Earth's surface that
+# is metres of position out of millions, a relative difference near 1e-6, and sub-arcsecond in
+# angle. A formula that actually changed would move a value by parts in a hundred, not parts in
+# a hundred thousand.
+RELATIVE_TOLERANCE = 1e-5
+
+# Below this magnitude a relative comparison is meaningless, so it becomes an absolute one.
+ABSOLUTE_FLOOR = 1e-8
 
 
-def fingerprint(frame):
-    """Reduce a result to something small, stable and comparable.
+def worst_difference(actual, expected):
+    """Return the largest relative difference between two frames, and the column it is in.
 
     Args:
-        frame: A Polars DataFrame.
+        actual: The recomputed frame.
+        expected: The frame the project was saved holding.
 
     Returns:
-        tuple: `(rows, columns, digest)`.
+        tuple: `(difference, column)`. A non-numeric value that differs reports as infinite,
+            so the assertion names the column rather than hiding behind a number.
     """
-    columns = list(frame.columns)
-    digest = hashlib.sha256()
-    digest.update(",".join(columns).encode())
-    for column in columns:
-        for value in frame[column].to_list():
-            if isinstance(value, float):
-                value = round(value, TOLERANCE)
-            digest.update(repr(value).encode())
-    return frame.height, columns, digest.hexdigest()[:32]
+    worst, where = 0.0, ""
+    for column in expected.columns:
+        for left, right in zip(actual[column].to_list(), expected[column].to_list()):
+            if isinstance(left, float) and isinstance(right, float):
+                if math.isnan(left) and math.isnan(right):
+                    continue
+                scale = max(abs(left), abs(right), ABSOLUTE_FLOOR)
+                difference = abs(left - right) / scale
+            else:
+                difference = 0.0 if left == right else math.inf
+            if difference > worst:
+                worst, where = difference, column
+    return worst, where
 
 
 def recompute(manipulator, observation, key, metadata):
@@ -55,8 +78,8 @@ def recompute(manipulator, observation, key, metadata):
         The recomputed frame, or None if the request failed.
 
     Notes:
-        - `time_step` is passed back in because the cache is keyed partly on it, and because
-          a different step produces different numbers. Omitting it would compare two different
+        - `time_step` is passed back in because the cache is keyed partly on it, and because a
+          different step produces different numbers. Omitting it would compare two different
           calculations and call the difference a regression.
     """
     attributes = {"method": key, "recalculate": True}
@@ -94,24 +117,26 @@ def test_recomputing_reproduces_the_saved_result(manipulator, observation, saved
     assert actual_frame is not None, f"'{method}' could not be recomputed at all"
     assert not actual_frame.is_empty(), (
         f"'{method}' recomputed to an empty frame where the project holds "
-        f"{expected_frame.height} rows"
-    )
+        f"{expected_frame.height} rows")
 
-    actual = fingerprint(actual_frame)
-    expected = fingerprint(expected_frame)
+    assert actual_frame.height == expected_frame.height, (
+        f"'{method}' changed shape: {expected_frame.height} -> {actual_frame.height} rows")
+    assert list(actual_frame.columns) == list(expected_frame.columns), (
+        f"'{method}' changed columns")
 
-    assert actual[0] == expected[0], f"'{method}' changed shape: {expected[0]} -> {actual[0]} rows"
-    assert actual[1] == expected[1], f"'{method}' changed columns"
-    assert actual[2] == expected[2], (
-        f"'{method}' produces different numbers than the saved project.\n"
-        f"  If this change is deliberate, recompute the fixture and commit it with the reason."
-    )
+    worst, column = worst_difference(actual_frame, expected_frame)
+    assert worst <= RELATIVE_TOLERANCE, (
+        "'{method}' produces different numbers than the saved project. "
+        "Worst relative difference {worst:.3e} in column '{column}', tolerance {limit:.0e}. "
+        "If the change is deliberate, recompute the fixture and commit it with the reason. "
+        "If it is barely over the tolerance on a build machine and not on yours, it is the "
+        "Earth-orientation tables, and the tolerance is what needs revisiting."
+    ).format(method=method, worst=worst, column=column, limit=RELATIVE_TOLERANCE)
 
 
 def test_the_fixture_actually_holds_results():
     """A fixture whose calculations are all empty would let every test above pass vacuously."""
     import json
-    import pathlib
 
     from conftest import FIXTURE
 
@@ -119,3 +144,16 @@ def test_the_fixture_actually_holds_results():
     observation = next(iter(data["items"].values()))
     stored = observation.get("calculated_data", {})
     assert len(stored) >= 10, f"the fixture holds only {len(stored)} results"
+
+
+def test_the_comparison_notices_a_real_change(manipulator, observation, saved_results):
+    """A tolerance that let anything through would be worse than no test.
+
+    A formula change moves a value by parts in a hundred; the tolerance is parts in a hundred
+    thousand. This asserts the gap between the two is real rather than assumed.
+    """
+    saved = saved_results["telescope_positions"]["data"]
+    nudged = saved.with_columns(saved[saved.columns[-1]] * 1.001)
+
+    worst, _ = worst_difference(nudged, saved)
+    assert worst > RELATIVE_TOLERANCE, "a one-in-a-thousand change must not pass"

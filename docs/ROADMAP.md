@@ -56,7 +56,7 @@ numbers, and there is no way to know whether it changed the numbers.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| S1 | Characterization tests | **Done.** The reference needed no separate file: the fixture project holds eleven results the author computed, and recomputing has to reproduce them |
+| S1 | Characterization tests | **Done.** The reference needed no separate file: the fixture project holds eleven results the author computed, and recomputing has to reproduce them. Comparison carries a tolerance rather than a digest, because five of the eleven depend on astropy's Earth-orientation tables and legitimately differ between machines -- a digest cannot express that, and freezing the tables makes it worse, since the bundled data ends seventeen months before the fixture's date |
 | S1a | Make the fixture produce data | **Done, by replacing the fixture.** A hand-built observation returned empty frames for eleven of twelve calculations -- most likely a source never above the horizon for those telescopes on that date. A real saved project (ALMA and APEX on 1228+126 over a day) produces rows for all eleven |
 | S2 | A round trip of a real saved project | **Done.** Eight tests covering the model, the JSON, the calculated results and each collection separately |
 | S3 | A smoke test over the GUI | **Done.** All 53 GUI modules import under the offscreen Qt platform. The main window itself is not reachable: `pastrocore.py` at the repository root shares its name with the `pastrocore` package, so `import pastrocore` finds the package and never the script. Recorded rather than fixed -- renaming the entry point is a stage 1 item |
