@@ -2298,6 +2298,39 @@ class ScheduleCalculator(Super):
             logger.error("Failed to calculate baseline projections for '%s': %s", obj.get_observation_code() if isinstance(obj, Observation) else obj.name, str(e), exc_info=True)
             return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
+    @staticmethod
+    def _on_time_grid(times_mjd: np.ndarray, frame: pl.DataFrame, columns: List[str], baseline: str, scan_name: str) -> Dict[str, np.ndarray]:
+        """Place a frame's columns on the scan's time grid, matching on time rather than on position.
+
+        Args:
+            times_mjd (np.ndarray): The scan's time grid, as MJD.
+            frame (pl.DataFrame): Rows to place, carrying a "time" column.
+            columns (List[str]): The columns to return.
+            baseline (str): Named only so a dropped row can be reported usefully.
+            scan_name (str): Likewise.
+
+        Returns:
+            Dict[str, np.ndarray]: One array per requested column, each the length of the grid,
+                holding NaN where the frame has no row for that time.
+
+        Notes:
+            - Matching on time is the whole point. A calculation that covers only part of the
+              grid -- UV coverage covers only the times the source is up -- produces fewer rows
+              than the grid has, and the two are not aligned from the start. Copying such rows
+              into the first N positions puts every value at the wrong time. Where the source
+              rose partway through a scan, as it usually does, the result was that no value
+              survived the visibility mask at all and every projection came out NaN.
+        """
+        placed = pl.DataFrame({"time": np.asarray(times_mjd, dtype=float)}).join(
+            frame.select(["time"] + columns).unique(subset=["time"], keep="first"),
+            on="time", how="left")
+        matched = placed[columns[0]].len() - placed[columns[0]].null_count()
+        if matched < frame.height:
+            logger.debug("Only %s of %s rows for baseline '%s' in scan '%s' fall on the time grid",
+                         matched, frame.height, baseline, scan_name)
+        return {column: placed[column].cast(pl.Float64).fill_null(float("nan")).to_numpy()
+                for column in columns}
+
     def _process_baseline_projections(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, uv_coverage_df: pl.DataFrame, visibility_df: pl.DataFrame, telescopes: List[Telescope | SpaceTelescope]) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
         """Process baseline projections for a single scan in geometric coordinates (meters).
 
@@ -2341,32 +2374,22 @@ class ScheduleCalculator(Super):
         for baseline in pairs:
             tel1_code, tel2_code = baseline.split('-')
             uv_data = uv_coverage_df.filter(pl.col("baseline") == baseline)
-            visibility_tel1 = visibility_df.filter(pl.col("telescope_code") == tel1_code)
-            visibility_tel2 = visibility_df.filter(pl.col("telescope_code") == tel2_code)
 
             projections = np.full(n_times, np.nan, dtype=float)
 
             if uv_data.is_empty():
                 logger.debug("No UV data for baseline '%s' in scan '%s'; filling with NaN", baseline, scan_name)
             else:
-                uvw = uv_data.select(["u", "v", "w"]).to_numpy()
-                if len(uvw) != n_times:
-                    logger.debug("UV data length mismatch for baseline '%s' in scan '%s': got %s, expected %s; adjusting with NaN", baseline, scan_name, len(uvw), n_times)
-                    temp = np.full((n_times, 3), np.nan, dtype=float)
-                    temp[:min(len(uvw), n_times)] = uvw[:n_times]
-                    uvw = temp
-                u, v = uvw[:, 0], uvw[:, 1]
+                aligned = self._on_time_grid(times_mjd, uv_data, ["u", "v"], baseline, scan_name)
+                u, v = aligned["u"], aligned["v"]
                 projections = np.sqrt(u**2 + v**2)
 
-            if not visibility_tel1.is_empty() and not visibility_tel2.is_empty():
-                vis1 = visibility_tel1["visibility"].to_numpy()
-                vis2 = visibility_tel2["visibility"].to_numpy()
-                if len(vis1) != n_times or len(vis2) != n_times:
-                    logger.debug("Visibility data length mismatch for baseline '%s' in scan '%s': tel1=%s, tel2=%s, expected %s", baseline, scan_name, len(vis1), len(vis2), n_times)
-                    vis1 = np.full(n_times, False)[:min(len(vis1), n_times)] if len(vis1) > 0 else np.full(n_times, False)
-                    vis2 = np.full(n_times, False)[:min(len(vis2), n_times)] if len(vis2) > 0 else np.full(n_times, False)
-                visibility = vis1 & vis2
-                projections[~visibility] = np.nan
+            for telescope_code in (tel1_code, tel2_code):
+                telescope_visibility = visibility_df.filter(pl.col("telescope_code") == telescope_code)
+                if telescope_visibility.is_empty():
+                    continue
+                aligned = self._on_time_grid(times_mjd, telescope_visibility, ["visibility"], baseline, scan_name)
+                projections[~(aligned["visibility"] > 0)] = np.nan
 
             valid_count = np.sum(~np.isnan(projections))
             logger.debug("Computed %s valid projections for baseline '%s' in scan '%s'", valid_count, baseline, scan_name)

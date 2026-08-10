@@ -504,7 +504,7 @@ class ScheduleVisualizer(Super):
                     if wavelength <= 0:
                         logger.warning("Invalid wavelength %s for frequency %s MHz, skipping", wavelength, freq_mhz)
                         continue
-                    for baseline in filtered_df["baseline"].unique():
+                    for baseline in sorted(filtered_df["baseline"].unique()):
                         baseline_data = filtered_df.filter(pl.col("baseline") == baseline)
                         if baseline_data.is_empty():
                             continue
@@ -533,7 +533,7 @@ class ScheduleVisualizer(Super):
                     logger.warning("Invalid wavelength %s for frequency %s MHz, skipping", wavelength, freq_mhz)
                     continue
 
-                for baseline in filtered_df["baseline"].unique():
+                for baseline in sorted(filtered_df["baseline"].unique()):
                     baseline_data = filtered_df.filter(pl.col("baseline") == baseline)
                     if baseline_data.is_empty():
                         continue
@@ -565,7 +565,7 @@ class ScheduleVisualizer(Super):
 
                     max_uv = max(max_uv, np.max(np.abs(u_scaled)), np.max(np.abs(v_scaled)))
 
-                    color_idx = (filtered_df["baseline"].unique().to_list().index(baseline)) % len(self._style_config["colors"])
+                    color_idx = sorted(filtered_df["baseline"].unique().to_list()).index(baseline) % len(self._style_config["colors"])
                     color = self._style_config["colors"][color_idx]
                     label = f"{baseline} ({freq_mhz:.2f} MHz)"
                     handle = ax.scatter(
@@ -713,7 +713,7 @@ class ScheduleVisualizer(Super):
             legend_handles = []
             legend_labels = []
 
-            for tel_idx, tel in enumerate(filtered_df["telescope_code"].unique()):
+            for tel_idx, tel in enumerate(sorted(filtered_df["telescope_code"].unique())):
                 if telescopes and tel not in telescopes:
                     continue
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
@@ -839,7 +839,7 @@ class ScheduleVisualizer(Super):
 
             # Check valid telescopes
             valid_telescopes = []
-            for tel in filtered_df["telescope_code"].unique():
+            for tel in sorted(filtered_df["telescope_code"].unique()):
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
                 az_values = tel_data["az"].to_numpy()
                 el_values = tel_data["el"].to_numpy()
@@ -1389,7 +1389,7 @@ class ScheduleVisualizer(Super):
             legend_labels = []
             max_bl = 0.0
 
-            for pair_idx, pair in enumerate(filtered_df["baseline"].unique()):
+            for pair_idx, pair in enumerate(sorted(filtered_df["baseline"].unique())):
                 pair_data = filtered_df.filter(pl.col("baseline") == pair)
                 if pair_data.is_empty():
                     logger.debug("No data for baseline %s, skipping", pair)
@@ -1600,7 +1600,7 @@ class ScheduleVisualizer(Super):
             cmap = self._style_config["colormaps"]["redpurple"] if telescopes else None
 
             # Plot telescope tracks
-            for tel_idx, tel_code in enumerate(filtered_df["telescope_code"].unique()):
+            for tel_idx, tel_code in enumerate(sorted(filtered_df["telescope_code"].unique())):
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel_code)
                 if tel_data.is_empty():
                     logger.debug("No data for telescope %s, skipping", tel_code)
@@ -1755,7 +1755,7 @@ class ScheduleVisualizer(Super):
             legend_handles = []
             legend_labels = []
 
-            for tel_idx, tel in enumerate(filtered_df["telescope_code"].unique()):
+            for tel_idx, tel in enumerate(sorted(filtered_df["telescope_code"].unique())):
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
                 if tel_data.is_empty():
                     continue
