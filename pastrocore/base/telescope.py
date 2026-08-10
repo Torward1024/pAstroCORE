@@ -363,44 +363,6 @@ class Telescope(BaseEntity):
         })
         return data
 
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Telescope':
-        """Create a Telescope object from a dictionary."""
-        data = data.copy()
-        for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
-            if table in data and isinstance(data[table], dict):
-                data[table] = {float(k): v for k, v in data[table].items()}
-        if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
-            data["elevation_range"] = tuple(data["elevation_range"])
-        if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
-            data["azimuth_range"] = tuple(data["azimuth_range"])
-        if "mount_type" in data and isinstance(data["mount_type"], str):
-            try:
-                data["mount_type"] = MountType(data["mount_type"].upper())
-            except ValueError:
-                raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
-        
-        data.setdefault("name", f"tlsc_{uuid.uuid4().hex[:32]}")
-        data.setdefault("code", data["code"])
-        data.setdefault("type", data["type"])
-        data.setdefault("x", 0.0)
-        data.setdefault("y", 0.0)
-        data.setdefault("z", 0.0)
-        data.setdefault("vx", 0.0)
-        data.setdefault("vy", 0.0)
-        data.setdefault("vz", 0.0)
-        data.setdefault("diameter", 1.0)
-        data.setdefault("sefd_table", {})
-        data.setdefault("elevation_range", (15.0, 90.0))
-        data.setdefault("azimuth_range", (0.0, 360.0))
-        data.setdefault("mount_type", MountType.AZIMUTHAL)
-        data.setdefault("isactive", True)
-        data.setdefault("surface_accuracy", None)
-        data.setdefault("surface_efficiency_table", {})
-        data.setdefault("effective_area_table", {})
-        data.setdefault("system_temperature_table", {})
-
-        return cls(**data)
 
     def __repr__(self) -> str:
         """Return a string representation of the Telescope object."""

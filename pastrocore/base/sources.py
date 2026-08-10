@@ -202,36 +202,6 @@ class Source(BaseEntity):
             isactive=self.isactive
         )
     
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Source':
-        """Create a Source instance from a dictionary, converting flux_table keys to float."""
-        data = data.copy()
-        data.pop("type", None)
-        
-        # Convert flux_table keys from str to float
-        if "flux_table" in data and isinstance(data["flux_table"], dict):
-            try:
-                flux_table = {
-                    float(key): float(value) if isinstance(value, (str, int, float)) else value
-                    for key, value in data["flux_table"].items()
-                }
-                data["flux_table"] = flux_table
-            except (ValueError, TypeError) as e:
-                logger.error("Failed to convert flux_table keys to float: %s", str(e))
-                raise ValueError(f"Invalid flux_table format: keys must be convertible to float, got {data['flux_table']}") from e
-
-        kwargs = {}
-        for key, value in data.items():
-            if key in ("name", "isactive"):
-                continue
-            if key not in cls._fields:
-                raise ValueError(f"Unknown attribute '{key}' for {cls.__name__}")
-            expected_type = cls._resolve_type(cls._fields[key])
-            if isinstance(expected_type, type) and issubclass(expected_type, BaseEntity) and isinstance(value, dict):
-                kwargs[key] = expected_type.from_dict(value)
-            else:
-                kwargs[key] = value
-        return cls(name=data.get("name"), isactive=data.get("isactive", True), **kwargs)
 
     def __repr__(self) -> str:
         """Return a string representation of the Source object."""
@@ -368,11 +338,6 @@ class Sources(BaseContainer[Source]):
             use_cache=self._use_cache
         )
 
-    @classmethod
-    def from_dict(cls, data: dict) -> "Sources":
-        """Create a Sources object from a dictionary"""
-        data.pop("type", None)
-        return super().from_dict(data)
 
     def __repr__(self) -> str:
         """Return a string representation of the Sources object."""

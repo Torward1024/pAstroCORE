@@ -66,3 +66,56 @@ def test_each_collection_survives_a_round_trip(project_data, entity):
     restored_getter = getattr(restored_observation, f"get_{entity}")
 
     assert len(restored_getter().get_items()) == len(getter().get_items())
+
+
+# --- what the fixture does not cover ------------------------------------------------------
+
+def test_a_float_keyed_instrument_table_round_trips():
+    """The fixture project happens to hold empty tables, so this path is not otherwise tested.
+
+    It is the reason `Source` and `Telescope` each carried a hand-written `from_dict`: JSON has
+    only string keys, so a `Dict[float, float]` came back keyed by strings and was rejected.
+    msb_arch 1.0.1 restores mapping keys from the annotation, and the overrides are gone.
+    """
+    from pastrocore.base.telescope import Telescope
+
+    telescope = Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0, diameter=100.0,
+                          sefd_table={1420.0: 350.0, 8400.0: 500.0})
+    restored = Telescope.from_dict(json.loads(json.dumps(telescope.to_dict())))
+
+    assert restored.sefd_table == {1420.0: 350.0, 8400.0: 500.0}
+    assert all(isinstance(key, float) for key in restored.sefd_table)
+
+
+def test_a_float_keyed_flux_table_round_trips():
+    from pastrocore.base.sources import Source
+
+    source = Source(name="3C273", ra_h=12.0, ra_m=0.0, ra_s=0.0,
+                    de_d=2.0, de_m=0.0, de_s=0.0, flux_table={1420.0: 45.0, 5000.0: 30.0})
+    restored = Source.from_dict(json.loads(json.dumps(source.to_dict())))
+
+    assert restored.flux_table == {1420.0: 45.0, 5000.0: 30.0}
+
+
+def test_a_mount_type_round_trips_as_its_enum():
+    """`Telescope.__init__` converts it, which is why removing the `from_dict` override was safe."""
+    from pastrocore.base.telescope import MountType, Telescope
+
+    telescope = Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0,
+                          mount_type="EQUA")
+    restored = Telescope.from_dict(json.loads(json.dumps(telescope.to_dict())))
+
+    assert isinstance(restored.mount_type, MountType)
+    assert restored.mount_type == telescope.mount_type
+
+
+def test_an_elevation_range_comes_back_as_a_tuple():
+    """Restored from the annotation by msb_arch 1.0, where the override used to do it."""
+    from pastrocore.base.telescope import Telescope
+
+    telescope = Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0,
+                          elevation_range=(15.0, 85.0))
+    restored = Telescope.from_dict(json.loads(json.dumps(telescope.to_dict())))
+
+    assert restored.elevation_range == (15.0, 85.0)
+    assert isinstance(restored.elevation_range, tuple)
