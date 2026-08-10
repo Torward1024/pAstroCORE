@@ -1,5 +1,5 @@
 # base/scans.py
-from pastrocore.base.baseentityn import BaseEntityN
+from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
 from msb_arch.utils.validation import check_type, check_positive
 from msb_arch.utils.logging_setup import logger
@@ -12,7 +12,7 @@ from astropy.time import Time
 import astropy.units as u
 import uuid
 
-class Scan(BaseEntityN):
+class Scan(BaseEntity):
     """Base class representing a single observation scan with timing, source, telescopes, and frequencies."""
     name: str
     start: Time

@@ -1,6 +1,6 @@
 # base/frequencies.py
 from typing import List, Optional, Union, Dict
-from pastrocore.base.baseentityn import BaseEntityN
+from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
 from msb_arch.utils.logging_setup import logger
 import uuid
@@ -10,7 +10,7 @@ CIRCULAR_POLARIZATIONS = {"RCP", "LCP"}
 SINGLE_LINEAR_POLARIZATIONS = {"H", "V"}
 VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(SINGLE_LINEAR_POLARIZATIONS)
 
-class IF(BaseEntityN):
+class IF(BaseEntity):
     """Base class representing an Intermediate Frequency (IF) with frequency, bandwidth, and polarization properties.
 
     Attributes:

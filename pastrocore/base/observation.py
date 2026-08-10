@@ -3,7 +3,7 @@ import polars as pl
 import numpy as np
 from astropy.time import Time
 from typing import Optional, Dict
-from pastrocore.base.baseentityn import BaseEntityN
+from msb_arch.base.baseentity import BaseEntity
 from msb_arch.utils.validation import check_type, check_non_empty_string
 from msb_arch.utils.logging_setup import logger
 from .sources import Sources
@@ -16,7 +16,7 @@ import uuid
 import base64
 import io
 
-class Observation(BaseEntityN):
+class Observation(BaseEntity):
     """Base class representing an astronomical observation with sources, telescopes, frequencies, and scans.
 
     Encapsulates the structure and metadata of an observation, such as its unique code, type (VLBI or

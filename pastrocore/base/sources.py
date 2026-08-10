@@ -1,12 +1,12 @@
 # base/sources.py
 from copy import deepcopy
 from typing import Optional, Dict
-from pastrocore.base.baseentityn import BaseEntityN
+from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
 from msb_arch.utils.logging_setup import logger
 import uuid
 
-class Source(BaseEntityN):
+class Source(BaseEntity):
     """Base class representing an astronomical source with coordinates, names, and optional flux properties.
 
     Attributes:
@@ -227,7 +227,7 @@ class Source(BaseEntityN):
             if key not in cls._fields:
                 raise ValueError(f"Unknown attribute '{key}' for {cls.__name__}")
             expected_type = cls._resolve_type(cls._fields[key])
-            if isinstance(expected_type, type) and issubclass(expected_type, BaseEntityN) and isinstance(value, dict):
+            if isinstance(expected_type, type) and issubclass(expected_type, BaseEntity) and isinstance(value, dict):
                 kwargs[key] = expected_type.from_dict(value)
             else:
                 kwargs[key] = value
