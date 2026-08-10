@@ -119,3 +119,40 @@ def test_an_elevation_range_comes_back_as_a_tuple():
 
     assert restored.elevation_range == (15.0, 85.0)
     assert isinstance(restored.elevation_range, tuple)
+
+
+# --- schema versioning (M5) ---------------------------------------------------------------
+
+def test_a_project_at_version_one_writes_no_version(project):
+    """Versioning must cost nothing until it is used, or every existing file changes shape."""
+    assert "schema_version" not in project.to_dict()
+
+
+def test_a_project_that_raises_its_version_refuses_older_data_by_default(project_data):
+    """Stage 4 changes how results are stored. This is what stops a project written before it
+    from being read as though nothing had changed."""
+    from msb_arch import errors
+
+    class Moved(ScheduleProject):
+        SCHEMA_VERSION = 2
+
+    payload = dict(copy.deepcopy(project_data))
+    payload["schema_version"] = 1
+    with pytest.raises(errors.SerializationError, match="version 1"):
+        Moved.from_dict(payload)
+
+
+def test_a_migration_is_taken_when_one_is_written(project_data):
+    class Renamed(ScheduleProject):
+        SCHEMA_VERSION = 2
+        migrated = False
+
+        @classmethod
+        def migrate(cls, data, from_version):
+            Renamed.migrated = True
+            return data
+
+    payload = dict(copy.deepcopy(project_data))
+    payload["schema_version"] = 1
+    Renamed.from_dict(payload)
+    assert Renamed.migrated
