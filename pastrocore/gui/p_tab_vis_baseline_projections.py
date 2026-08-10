@@ -37,7 +37,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
         self.figure = None
         self.is_processing = False
         self.frequencies = self._get_frequencies()
-        logger.debug(f"BaselineProjectionsVisualizationTab initialized for observation id={id(observation)}")
+        logger.debug("BaselineProjectionsVisualizationTab initialized for observation id=%s", id(observation))
 
         self.layout = QVBoxLayout(self.ui.widget)
         self._populate_filters()
@@ -63,10 +63,10 @@ class BaselineProjectionsVisualizationTab(QWidget):
             frequencies = self.manipulator.inspect(obj=self.observation, get_frequencies=None)
             if frequencies:
                 freqs = frequencies.get_frequencies()
-                logger.debug(f"Retrieved frequencies: {freqs}")
+                logger.debug("Retrieved frequencies: %s", freqs)
             return freqs or []
         except Exception as e:
-            logger.error(f"Failed to retrieve frequencies: {str(e)}")
+            logger.error("Failed to retrieve frequencies: %s", str(e))
             return []
 
     def _populate_filters(self):
@@ -85,7 +85,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for baseline projections missing required columns: {missing_columns}")
+                logger.error("DataFrame for baseline projections missing required columns: %s", missing_columns)
                 self.ui.comboBox.addItem("Invalid baseline projections data structure")
                 return
 
@@ -106,12 +106,12 @@ class BaselineProjectionsVisualizationTab(QWidget):
                     item.setCheckState(Qt.Checked)
                     self.ui.listFrequencies.addItem(item)
                 except (TypeError, ValueError) as e:
-                    logger.error(f"Failed to format frequency {freq}: {str(e)}")
+                    logger.error("Failed to format frequency %s: %s", freq, str(e))
                     continue
             self.ui.comboBox_2.addItems(["Wavelengths", "Earth Diameters"])
-            logger.debug(f"Populated {len(sources)} sources, {len(baselines)} baselines, {len(self.frequencies)} frequencies")
+            logger.debug("Populated %s sources, %s baselines, %s frequencies", len(sources), len(baselines), len(self.frequencies))
         except Exception as e:
-            logger.error(f"Failed to populate filters: {str(e)}")
+            logger.error("Failed to populate filters: %s", str(e))
             self.ui.comboBox.addItem("Failed to retrieve filters")
 
     def _lock_ui(self):
@@ -167,7 +167,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
             self.canvas.draw()
             logger.debug("Figure embedded successfully")
         except Exception as e:
-            logger.error(f"Failed to embed figure: {str(e)}")
+            logger.error("Failed to embed figure: %s", str(e))
             self._clear_canvas()
 
     def get_selected_source(self) -> Optional[str]:
@@ -180,7 +180,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
         if not source_name or source_name in ["No baseline projections data available", "No schema defined", "Invalid baseline projections data structure", "Failed to retrieve filters"]:
             logger.debug("No valid source selected")
             return None
-        logger.debug(f"Selected source: {source_name}")
+        logger.debug("Selected source: %s", source_name)
         return source_name
 
     def get_selected_scans(self) -> List[str]:
@@ -196,7 +196,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
                 scan_name = item.data(Qt.UserRole)
                 if scan_name:
                     selected_scans.append(scan_name)
-        logger.debug(f"Selected scans: {selected_scans}")
+        logger.debug("Selected scans: %s", selected_scans)
         return selected_scans
 
     def get_selected_baselines(self) -> List[str]:
@@ -210,7 +210,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
             item = self.ui.listBaselines.item(i)
             if item.checkState() == Qt.Checked:
                 selected_baselines.append(item.text())
-        logger.debug(f"Selected baselines: {selected_baselines}")
+        logger.debug("Selected baselines: %s", selected_baselines)
         return selected_baselines
 
     def get_selected_frequencies(self) -> List[float]:
@@ -226,7 +226,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
                 freq = item.data(Qt.UserRole)
                 if isinstance(freq, (int, float)):
                     selected_frequencies.append(float(freq))
-        logger.debug(f"Selected frequencies: {selected_frequencies}")
+        logger.debug("Selected frequencies: %s", selected_frequencies)
         return selected_frequencies
 
     def get_selected_units(self) -> str:
@@ -236,7 +236,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
             Selected units ('lambda' or 'meters').
         """
         units = self.ui.comboBox_2.currentText()
-        logger.debug(f"Selected units: {units}")
+        logger.debug("Selected units: %s", units)
         return units
 
     @Slot()
@@ -277,13 +277,13 @@ class BaselineProjectionsVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for baseline projections missing required columns: {missing_columns}")
+                logger.error("DataFrame for baseline projections missing required columns: %s", missing_columns)
                 self.ui.listScans.addItem(QListWidgetItem("Invalid baseline projections data structure"))
                 return
 
             df_filtered = df.filter(pl.col("source_name") == source_name)
             if df_filtered.is_empty():
-                logger.debug(f"No data for source '{source_name}' in baseline projections DataFrame")
+                logger.debug("No data for source '%s' in baseline projections DataFrame", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
@@ -299,9 +299,9 @@ class BaselineProjectionsVisualizationTab(QWidget):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(current_checks.get(scan_name, Qt.Checked))
                 self.ui.listScans.addItem(item)
-            logger.debug(f"Populated {len(scans)} scans for source '{source_name}'")
+            logger.debug("Populated %s scans for source '%s'", len(scans), source_name)
         except Exception as e:
-            logger.error(f"Failed to update scans for source '{source_name}': {str(e)}")
+            logger.error("Failed to update scans for source '%s': %s", source_name, str(e))
             self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
 
     def update_visualization(self):
@@ -311,8 +311,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
         units = self.get_selected_units()
         scans = self.get_selected_scans()
         baselines = self.get_selected_baselines()
-        logger.debug(f"Updating visualization: source='{source_name}', frequencies={frequencies}, "
-                     f"units={units}, scans={scans}, baselines={baselines}")
+        logger.debug("Updating visualization: source='%s', frequencies=%s, units=%s, scans=%s, baselines=%s", source_name, frequencies, units, scans, baselines)
 
         if not source_name or not scans or not baselines or not frequencies:
             logger.debug("Missing required filters (source, scans, baselines, or frequencies), clearing canvas")
@@ -332,7 +331,7 @@ class BaselineProjectionsVisualizationTab(QWidget):
 
         try:
             result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             if not result or (result.get("baselines", 0) == 0 and result.get("frequencies", 0) == 0):
                 logger.debug("Empty visualization result, clearing canvas")
                 self._clear_canvas()
@@ -340,12 +339,12 @@ class BaselineProjectionsVisualizationTab(QWidget):
             figure = result.get("figure")
             if figure:
                 self.embed_figure(figure)
-                logger.debug(f"Baseline projections visualization updated for source '{source_name}', frequencies {frequencies}")
+                logger.debug("Baseline projections visualization updated for source '%s', frequencies %s", source_name, frequencies)
             else:
                 logger.error("No figure returned from visualizer, clearing canvas")
                 self._clear_canvas()
         except Exception as e:
-            logger.error(f"Exception during baseline projections visualization update: {str(e)}")
+            logger.error("Exception during baseline projections visualization update: %s", str(e))
             self._clear_canvas()
 
     def closeEvent(self, event):

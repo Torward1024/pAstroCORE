@@ -1,5 +1,6 @@
 from pastrocore.super.schedule_project import ScheduleProject
 from msb_arch.utils.logging_setup import logger
+from msb_arch import RequestJournal
 from msb_arch.mega.manipulator import Manipulator
 from typing import Optional
 
@@ -26,11 +27,14 @@ class ScheduleManipulator(Manipulator):
         >>> manipulator.get_methods_for_type(Source)
         {'get_name': <function ...>, 'set_name': <function ...>, ...}
     """
-    def __init__(self, project: Optional['ScheduleProject'] = None):
+    def __init__(self, project: Optional['ScheduleProject'] = None,
+                 journal_limit: Optional[int] = 500):
         """Initialize the ScheduleManipulator with default operations and supported classes.
 
         Args:
             project (Optional[ScheduleProject]): The ScheduleProject instance to manage. If None, no project is set initially.
+            journal_limit (Optional[int]): How many requests to remember, most recent first.
+                Defaults to 500. Pass None to record nothing.
 
         Notes:
             - Registers base classes: ScheduleProject, Observation, IF, Frequencies, Source, Sources,
@@ -61,5 +65,30 @@ class ScheduleManipulator(Manipulator):
         self.register_operation(ScheduleInspector(self))
         self.register_operation(ScheduleCalculator(self))
         self.register_operation(ScheduleVisualizer(self))
-        
+
+        # Every request that reaches this orchestrator is recorded. It costs one interceptor
+        # and answers the question a bug report never can: what was actually asked for.
+        # Bounded, because a session that runs for a day should not accumulate without end.
+        self._journal = RequestJournal(limit=journal_limit) if journal_limit else None
+        if self._journal is not None:
+            self.add_interceptor(self._journal)
+
         logger.info("Initialized ScheduleManipulator!")
+
+    def get_journal(self) -> Optional[RequestJournal]:
+        """Return the record of every request this orchestrator has processed.
+
+        Returns:
+            Optional[RequestJournal]: The journal, or None if the orchestrator was built
+                without one.
+
+        Notes:
+            - Read backwards it answers what produced a result: `journal.touching(name)` gives
+              everything that ever touched an object, in order.
+            - Read forwards it replays: `journal.replay(manipulator)` runs the same session
+              again, which is how a reported problem becomes a reproduction.
+            - Entries hold the live object the request named, so a journal cannot be written
+              to a file as it stands. That is the persistence question, and it belongs to
+              stage 4.
+        """
+        return self._journal

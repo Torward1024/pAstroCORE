@@ -39,12 +39,12 @@ class AddObservationDialog(QDialog):
     @Slot(str)
     def obs_code_changed(self, text: str):
         """Handle changes to observation code input."""
-        logger.debug(f"Observation code input changed to: {text}")
+        logger.debug("Observation code input changed to: %s", text)
 
     @Slot(str)
     def obs_type_changed(self, text: str):
         """Handle changes to observation type selection."""
-        logger.debug(f"Observation type changed to: {text}")
+        logger.debug("Observation type changed to: %s", text)
 
     def accept(self):
         """Handle OK button click to add observation."""
@@ -61,11 +61,11 @@ class AddObservationDialog(QDialog):
                 self.project,
                 create_item={"item_code": obs_code, "isactive": True, "observation_type": obs_type}
                 )
-            logger.info(f"Observation '{obs_code}' (type: {obs_type}) added to project '{self.project.get_name()}'")
+            logger.info("Observation '%s' (type: %s) added to project '%s'", obs_code, obs_type, self.project.get_name())
             self.observation_added.emit(obs_code, obs_type)
             super().accept()
         except Exception as e:
-            logger.error(f"Failed to add observation '{obs_code}': {str(e)}")
+            logger.error("Failed to add observation '%s': %s", obs_code, str(e))
             QMessageBox.critical(self, "Error", f"Failed to add observation: {str(e)}")
 
     def reject(self):

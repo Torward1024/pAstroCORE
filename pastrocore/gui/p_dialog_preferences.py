@@ -40,7 +40,7 @@ class PreferencesDialog(QDialog):
             self.ui.comboLogging.setCurrentText(current_log_level)
         else:
             self.ui.comboLogging.setCurrentText("INFO")
-            logger.warning(f"Invalid log level in settings: {current_log_level}. Defaulting to INFO.")
+            logger.warning("Invalid log level in settings: %s. Defaulting to INFO.", current_log_level)
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -57,7 +57,7 @@ class PreferencesDialog(QDialog):
         )
         if file_path:
             self.ui.sourcesCatalogPath.setText(file_path)
-            logger.info(f"Selected sources catalog path: {file_path}")
+            logger.info("Selected sources catalog path: %s", file_path)
 
     @Slot()
     def select_telescopes_catalog(self):
@@ -67,7 +67,7 @@ class PreferencesDialog(QDialog):
         )
         if file_path:
             self.ui.telescopesCatalogPath.setText(file_path)
-            logger.info(f"Selected telescopes catalog path: {file_path}")
+            logger.info("Selected telescopes catalog path: %s", file_path)
 
     @Slot()
     def accept_settings(self):
@@ -79,19 +79,19 @@ class PreferencesDialog(QDialog):
         clear_log_on_start = self.ui.chkClearLog.isChecked()
 
         if sources_path and not os.path.isfile(sources_path):
-            logger.error(f"Invalid sources catalog path: {sources_path}")
+            logger.error("Invalid sources catalog path: %s", sources_path)
             QMessageBox.critical(self, "Error", "Sources catalog file does not exist.")
             return
         if telescopes_path and not os.path.isfile(telescopes_path):
-            logger.error(f"Invalid telescopes catalog path: {telescopes_path}")
+            logger.error("Invalid telescopes catalog path: %s", telescopes_path)
             QMessageBox.critical(self, "Error", "Telescopes catalog file does not exist.")
             return
         if log_level not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
-            logger.error(f"Invalid log level selected: {log_level}")
+            logger.error("Invalid log level selected: %s", log_level)
             QMessageBox.critical(self, "Error", "Invalid logging level selected.")
             return
         if time_step < 1:
-            logger.error(f"Invalid time step value: {time_step}. Must be positive.")
+            logger.error("Invalid time step value: %s. Must be positive.", time_step)
             QMessageBox.critical(self, "Error", "Time step must be a positive number.")
             return
 
@@ -113,9 +113,7 @@ class PreferencesDialog(QDialog):
             self.settings["log_level"] = log_level
             self.settings["time_step"] = time_step
             self.settings["clear_log_on_start"] = clear_log_on_start
-            logger.info(f"Settings updated in PreferencesDialog: sources_path={sources_path}, "
-                        f"telescopes_path={telescopes_path}, log_level={log_level}, "
-                        f"time_step={time_step}, clear_log_on_start={clear_log_on_start}")
+            logger.info("Settings updated in PreferencesDialog: sources_path=%s, telescopes_path=%s, log_level=%s, time_step=%s, clear_log_on_start=%s", sources_path, telescopes_path, log_level, time_step, clear_log_on_start)
             if "clear_log_on_start" in changed_keys:
                 logger.info("Log file clearing setting changed and applied immediately.")
             self.settings_updated.emit(self.settings, changed_keys)

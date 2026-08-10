@@ -36,7 +36,7 @@ class ParallacticAngleVisualizationTab(QWidget):
         self.figure = None
         self.is_processing = False
 
-        logger.debug(f"ParallacticAngleVisualizationTab initialized for observation id={id(observation)}")
+        logger.debug("ParallacticAngleVisualizationTab initialized for observation id=%s", id(observation))
 
         self.layout = QVBoxLayout(self.ui.widget)
         self._populate_filters()
@@ -71,7 +71,7 @@ class ParallacticAngleVisualizationTab(QWidget):
 
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for parallactic_angle missing required columns: {missing_columns}")
+                logger.error("DataFrame for parallactic_angle missing required columns: %s", missing_columns)
                 self.ui.cmbSource.addItem("Invalid parallactic angle data structure")
                 return
 
@@ -85,9 +85,9 @@ class ParallacticAngleVisualizationTab(QWidget):
                 item.setCheckState(Qt.Checked)
                 self.ui.listTelescopes.addItem(item)
 
-            logger.debug(f"Populated {len(sources)} sources and {len(telescopes)} telescopes for parallactic angle")
+            logger.debug("Populated %s sources and %s telescopes for parallactic angle", len(sources), len(telescopes))
         except Exception as e:
-            logger.error(f"Failed to populate filters: {str(e)}")
+            logger.error("Failed to populate filters: %s", str(e))
             self.ui.cmbSource.addItem("Failed to retrieve data")
 
     def _lock_ui(self):
@@ -115,7 +115,7 @@ class ParallacticAngleVisualizationTab(QWidget):
                 self.canvas.setParent(None)
                 self.canvas.deleteLater()
             except Exception as e:
-                logger.warning(f"Failed to remove canvas: {str(e)}")
+                logger.warning("Failed to remove canvas: %s", str(e))
             finally:
                 self.canvas = None
 
@@ -125,7 +125,7 @@ class ParallacticAngleVisualizationTab(QWidget):
                 self.toolbar.setParent(None)
                 self.toolbar.deleteLater()
             except Exception as e:
-                logger.warning(f"Failed to remove toolbar: {str(e)}")
+                logger.warning("Failed to remove toolbar: %s", str(e))
             finally:
                 self.toolbar = None
 
@@ -137,7 +137,7 @@ class ParallacticAngleVisualizationTab(QWidget):
                 self.figure.clf()
                 plt.close(self.figure)
             except Exception as e:
-                logger.warning(f"Failed to close figure: {str(e)}")
+                logger.warning("Failed to close figure: %s", str(e))
             finally:
                 self.figure = None
 
@@ -152,7 +152,7 @@ class ParallacticAngleVisualizationTab(QWidget):
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug(f"Embedded Matplotlib figure {id(figure)} in ParallacticAngleVisualizationTab")
+        logger.debug("Embedded Matplotlib figure %s in ParallacticAngleVisualizationTab", id(figure))
 
     def get_selected_source(self) -> Optional[str]:
         """Get the currently selected source name."""
@@ -233,7 +233,7 @@ class ParallacticAngleVisualizationTab(QWidget):
                 self.ui.listScans.addItem(item)
 
         except Exception as e:
-            logger.error(f"Failed to update scans for source '{source_name}': {str(e)}")
+            logger.error("Failed to update scans for source '%s': %s", source_name, str(e))
             self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
 
     def update_visualization(self):
@@ -267,7 +267,7 @@ class ParallacticAngleVisualizationTab(QWidget):
             else:
                 self._clear_canvas()
         except Exception as e:
-            logger.error(f"Exception during parallactic angle visualization update: {str(e)}")
+            logger.error("Exception during parallactic angle visualization update: %s", str(e))
             self._clear_canvas()
 
     def closeEvent(self, event):

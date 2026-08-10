@@ -78,11 +78,11 @@ class TelescopesTab(QWidget):
                 items = self.manipulator.inspect(telescopes, get_all=None)
                 has_telescopes = isinstance(items, dict) and len(items) > 0
             else:
-                logger.debug(f"No telescopes found in observation '{self.observation.code}'")
+                logger.debug("No telescopes found in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while inspecting telescopes: {str(e)}")
+            logger.error("Exception while inspecting telescopes: %s", str(e))
             has_telescopes = False
-            logger.debug(f"No telescopes found in observation '{self.observation.code}'")
+            logger.debug("No telescopes found in observation '%s'", self.observation.code)
 
         if has_telescopes:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
@@ -103,11 +103,11 @@ class TelescopesTab(QWidget):
             try:
                 telescope = self.manipulator.inspect(self.observation.get_telescopes(), get=telescope_name)
                 if not telescope:
-                    logger.error(f"Failed to get telescope '{telescope_name}': No result returned")
+                    logger.error("Failed to get telescope '%s': No result returned", telescope_name)
                     return
                 is_active = bool(self.manipulator.inspect(telescope, get="isactive"))
             except Exception as e:
-                logger.error(f"Exception while inspecting telescope '{telescope_name}': {str(e)}")
+                logger.error("Exception while inspecting telescope '%s': %s", telescope_name, str(e))
                 return
 
             menu.addSeparator()
@@ -141,9 +141,9 @@ class TelescopesTab(QWidget):
                 self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
                 self.update()
                 self.data_updated.emit(telescope.name, None, "add")
-                logger.info(f"Added telescope '{telescope.code}' to observation '{self.observation.code}'")
+                logger.info("Added telescope '%s' to observation '%s'", telescope.code, self.observation.code)
             except Exception as e:
-                logger.error(f"Exception while adding telescope: {str(e)}")
+                logger.error("Exception while adding telescope: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
 
     @Slot()
@@ -157,9 +157,9 @@ class TelescopesTab(QWidget):
                 self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
                 self.update()
                 self.data_updated.emit(telescope.name, None, "add")
-                logger.info(f"Added space telescope '{telescope.code}' to observation '{self.observation.code}'")
+                logger.info("Added space telescope '%s' to observation '%s'", telescope.code, self.observation.code)
             except Exception as e:
-                logger.error(f"Exception while adding space telescope: {str(e)}")
+                logger.error("Exception while adding space telescope: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add space telescope: {str(e)}")
 
     @Slot()
@@ -190,7 +190,7 @@ class TelescopesTab(QWidget):
                             existing_codes.add(code)
                         existing_names.add(name)
                     except Exception as e:
-                        logger.error(f"Failed to retrieve code for telescope '{name}': {str(e)}")
+                        logger.error("Failed to retrieve code for telescope '%s': %s", name, str(e))
                         continue
 
             unique_telescopes = []
@@ -198,25 +198,25 @@ class TelescopesTab(QWidget):
             for telescope in telescopes:
                 if telescope.name in existing_names or telescope.code in existing_codes:
                     skipped_telescopes.append(telescope.name)
-                    logger.info(f"Skipped telescope '{telescope.name}' (code: '{telescope.code}') as it already exists in observation '{self.observation.code}'")
+                    logger.info("Skipped telescope '%s' (code: '%s') as it already exists in observation '%s'", telescope.name, telescope.code, self.observation.code)
                     continue
                 unique_telescopes.append(telescope)
 
             if not unique_telescopes:
-                logger.warning(f"No new telescopes to add to observation '{self.observation.code}'")
+                logger.warning("No new telescopes to add to observation '%s'", self.observation.code)
                 QMessageBox.warning(self, "Warning", f"No new telescopes to add. Skipped: {', '.join(skipped_telescopes) if skipped_telescopes else 'None'}")
                 return
 
             self.manipulator.configure(self.observation.get_telescopes(), add=unique_telescopes)
             for telescope in unique_telescopes:
-                logger.info(f"Added telescope '{telescope.code}' from catalog to observation '{self.observation.code}'")
+                logger.info("Added telescope '%s' from catalog to observation '%s'", telescope.code, self.observation.code)
             self.data_updated.emit(None, None, "add_multiple")
             self.update()
             QMessageBox.information(self, "Success", f"Successfully added {len(unique_telescopes)} telescope(s) to observation.")
             if skipped_telescopes:
                 QMessageBox.information(self, "Note", f"Skipped {len(skipped_telescopes)} telescope(s) already in observation: {', '.join(skipped_telescopes)}")
         except Exception as e:
-            logger.error(f"Exception while adding telescopes from catalog: {str(e)}")
+            logger.error("Exception while adding telescopes from catalog: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to add telescopes: {str(e)}")
 
     @Slot()
@@ -240,9 +240,9 @@ class TelescopesTab(QWidget):
             self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
             self.update()
             self.data_updated.emit(telescope.name, None, "add")
-            logger.info(f"New telescope '{telescope.name}' imported successfully to observation '{self.observation.code}'")
+            logger.info("New telescope '%s' imported successfully to observation '%s'", telescope.name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while importing new telescope: {str(e)}")
+            logger.error("Exception while importing new telescope: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to import telescope: {str(e)}")
 
     @Slot(str)
@@ -250,7 +250,7 @@ class TelescopesTab(QWidget):
         """Import a telescope to overwrite an existing one."""
         file_path, _ = QFileDialog.getOpenFileName(self, "Import Telescope", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
-            logger.info(f"Import telescope '{telescope_name}' cancelled: No file selected")
+            logger.info("Import telescope '%s' cancelled: No file selected", telescope_name)
             return
 
         try:
@@ -267,12 +267,12 @@ class TelescopesTab(QWidget):
                 self.manipulator.configure(self.observation.get_telescopes(), set_item={"name": telescope_name, "item": telescope})
                 self.update()
                 self.data_updated.emit(telescope.name, None, "import")
-                logger.info(f"Telescope '{telescope_name}' overwritten successfully in observation '{self.observation.code}'")
+                logger.info("Telescope '%s' overwritten successfully in observation '%s'", telescope_name, self.observation.code)
             except Exception as e:
-                logger.error(f"Exception while overwriting telescope '{telescope_name}': {str(e)}")
+                logger.error("Exception while overwriting telescope '%s': %s", telescope_name, str(e))
                 QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
         except Exception as e:
-            logger.error(f"Exception while importing telescope '{telescope_name}': {str(e)}")
+            logger.error("Exception while importing telescope '%s': %s", telescope_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to import telescope: {str(e)}")
 
     @Slot(str)
@@ -280,7 +280,7 @@ class TelescopesTab(QWidget):
         """Export a telescope to a file."""
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Telescope", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
-            logger.info(f"Export telescope '{telescope_name}' cancelled: No file selected")
+            logger.info("Export telescope '%s' cancelled: No file selected", telescope_name)
             return
         if not file_path.endswith(".pastrod"):
             file_path += ".pastrod"
@@ -288,14 +288,14 @@ class TelescopesTab(QWidget):
         try:
             telescope = self.manipulator.inspect(self.observation.get_telescopes(), get=telescope_name)
             if not telescope:
-                logger.error(f"Failed to get telescope '{telescope_name}': No result returned")
+                logger.error("Failed to get telescope '%s': No result returned", telescope_name)
                 QMessageBox.critical(self, "Error", f"Telescope '{telescope_name}' not found")
                 return
             with open(file_path, "w") as f:
                 json.dump(telescope.to_dict(), f, indent=4)
-            logger.info(f"Telescope '{telescope_name}' exported to '{file_path}'")
+            logger.info("Telescope '%s' exported to '%s'", telescope_name, file_path)
         except Exception as e:
-            logger.error(f"Exception while exporting telescope '{telescope_name}': {str(e)}")
+            logger.error("Exception while exporting telescope '%s': %s", telescope_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to export telescope: {str(e)}")
 
     @Slot(str)
@@ -305,9 +305,9 @@ class TelescopesTab(QWidget):
             self.manipulator.configure(self.observation.get_telescopes(), remove=telescope_name)
             self.update()
             self.data_updated.emit(telescope_name, None, "remove")
-            logger.info(f"Removed telescope '{telescope_name}' from observation '{self.observation.code}'")
+            logger.info("Removed telescope '%s' from observation '%s'", telescope_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while removing telescope: {str(e)}")
+            logger.error("Exception while removing telescope: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to remove telescope: {str(e)}")
 
     @Slot(str)
@@ -316,7 +316,7 @@ class TelescopesTab(QWidget):
         try:
             telescope = self.manipulator.inspect(self.observation.get_telescopes(), get=telescope_name)
             if not telescope:
-                logger.error(f"Failed to retrieve telescope '{telescope_name}': No result returned")
+                logger.error("Failed to retrieve telescope '%s': No result returned", telescope_name)
                 QMessageBox.critical(self, "Error", f"Failed to retrieve telescope: No result returned")
                 return
             
@@ -331,12 +331,12 @@ class TelescopesTab(QWidget):
                     self.manipulator.configure(self.observation.get_telescopes(), set_item={"name": telescope_name, "item": telescope})
                     self.update()
                     self.data_updated.emit(telescope_name, telescope.isactive, "edit")
-                    logger.info(f"Updated telescope '{telescope_name}' in observation '{self.observation.code}'")
+                    logger.info("Updated telescope '%s' in observation '%s'", telescope_name, self.observation.code)
                 except Exception as e:
-                    logger.error(f"Exception while updating telescope: {str(e)}")
+                    logger.error("Exception while updating telescope: %s", str(e))
                     QMessageBox.critical(self, "Error", f"Failed to update telescope: {str(e)}")
         except Exception as e:
-            logger.error(f"Exception while editing telescope: {str(e)}")
+            logger.error("Exception while editing telescope: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to edit telescope: {str(e)}")
 
     @Slot(str)
@@ -344,11 +344,11 @@ class TelescopesTab(QWidget):
         """Activate the specified telescope."""
         try:
             response = self.manipulator.configure(self.observation.get_telescopes(), activate_item=telescope_name)
-            logger.info(f"Telescope '{telescope_name}' activated in observation '{self.observation.code}'")
+            logger.info("Telescope '%s' activated in observation '%s'", telescope_name, self.observation.code)
             self.update()
             self.data_updated.emit(telescope_name, True, "activate")
         except Exception as e:
-            logger.error(f"Exception while activating telescope '{telescope_name}': {str(e)}")
+            logger.error("Exception while activating telescope '%s': %s", telescope_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate telescope: {str(e)}")
 
     @Slot(str)
@@ -358,9 +358,9 @@ class TelescopesTab(QWidget):
             self.manipulator.configure(self.observation.get_telescopes(), deactivate_item=telescope_name)
             self.update()
             self.data_updated.emit(telescope_name, False, "deactivate")
-            logger.info(f"Telescope '{telescope_name}' deactivated in observation '{self.observation.code}'")
+            logger.info("Telescope '%s' deactivated in observation '%s'", telescope_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while deactivating telescope '{telescope_name}': {str(e)}")
+            logger.error("Exception while deactivating telescope '%s': %s", telescope_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate telescope: {str(e)}")
 
     @Slot()
@@ -370,9 +370,9 @@ class TelescopesTab(QWidget):
             self.manipulator.configure(self.observation.get_telescopes(), activate_all=None)
             self.update()
             self.data_updated.emit(None, None, "activate_all")
-            logger.info(f"All telescopes activated in observation '{self.observation.code}'")
+            logger.info("All telescopes activated in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while activating all telescopes: {str(e)}")
+            logger.error("Exception while activating all telescopes: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate all telescopes: {str(e)}")
 
     @Slot()
@@ -382,9 +382,9 @@ class TelescopesTab(QWidget):
             self.manipulator.configure(self.observation.get_telescopes(), deactivate_all=None)
             self.update()
             self.data_updated.emit(None, None, "deactivate_all")
-            logger.info(f"All telescopes deactivated in observation '{self.observation.code}'")
+            logger.info("All telescopes deactivated in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while deactivating all telescopes: {str(e)}")
+            logger.error("Exception while deactivating all telescopes: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate all telescopes: {str(e)}")
     
     @Slot()
@@ -394,9 +394,9 @@ class TelescopesTab(QWidget):
             self.manipulator.configure(self.observation.get_telescopes(), clear=None)
             self.update()
             self.data_updated.emit(None, None, "clear")
-            logger.info(f"All telescopes cleared from observation '{self.observation.code}'")
+            logger.info("All telescopes cleared from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while clearing telescopes: {str(e)}")
+            logger.error("Exception while clearing telescopes: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to clear telescopes: {str(e)}")
 
 
@@ -407,9 +407,9 @@ class TelescopesTab(QWidget):
             self.manipulator.configure(self.observation.get_telescopes(), drop_active=None)
             self.update()
             self.data_updated.emit(None, None, "drop_active")
-            logger.info(f"All active telescopes dropped from observation '{self.observation.code}'")
+            logger.info("All active telescopes dropped from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while dropping active telescopes: {str(e)}")
+            logger.error("Exception while dropping active telescopes: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop active telescopes: {str(e)}")
 
     @Slot()
@@ -419,9 +419,9 @@ class TelescopesTab(QWidget):
             self.manipulator.configure(self.observation.get_telescopes(), drop_inactive=None)
             self.update()
             self.data_updated.emit(None, None, "drop_inactive")
-            logger.info(f"All inactive telescopes dropped from observation '{self.observation.code}'")
+            logger.info("All inactive telescopes dropped from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while dropping inactive telescopes: {str(e)}")
+            logger.error("Exception while dropping inactive telescopes: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop inactive telescopes: {str(e)}")
 
     @Slot()
@@ -441,7 +441,7 @@ class TelescopesTab(QWidget):
                 try:
                     is_active = bool(self.manipulator.inspect(telescope, get="isactive"))
                 except Exception as e:
-                    logger.error(f"Failed to retrieve isactive from telescope '{name}': {str(e)}")
+                    logger.error("Failed to retrieve isactive from telescope '%s': %s", name, str(e))
                     is_active = False
 
                 active_item = QStandardItem()
@@ -453,13 +453,13 @@ class TelescopesTab(QWidget):
                     code = self.manipulator.inspect(telescope, get="code")
                 except Exception as e:
                     code = "N/A"
-                    logger.error(f"Failed to retrieve code from telescope '{name}': {str(e)}")
+                    logger.error("Failed to retrieve code from telescope '%s': %s", name, str(e))
 
                 try:
                     name = self.manipulator.inspect(telescope, get="name")
                 except Exception as e:
                     name = "N/A"
-                    logger.error(f"Failed to retrieve name from telescope '{name}': {str(e)}")
+                    logger.error("Failed to retrieve name from telescope '%s': %s", name, str(e))
 
                 telescope_type = "Space Telescope" if isinstance(telescope, SpaceTelescope) else "Ground Telescope"
 
@@ -479,7 +479,7 @@ class TelescopesTab(QWidget):
 
             self.ui.table.resizeColumnsToContents()
         except Exception as e:
-            logger.error(f"Exception while updating telescopes table: {str(e)}")
+            logger.error("Exception while updating telescopes table: %s", str(e))
 
     def _cleanup(self):
         """Clean up resources associated with this tab."""
@@ -502,10 +502,10 @@ class TelescopesTab(QWidget):
             self.active_icon = None
             self.inactive_icon = None
         except Exception as e:
-            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+            logger.error("Error cleaning up %s: %s", self.objectName(), str(e))
 
     def closeEvent(self, event):
         """Override closeEvent to perform cleanup before closing."""
         self._cleanup()
         super().closeEvent(event)
-        logger.debug(f"closeEvent handled for {self.objectName()}")
+        logger.debug("closeEvent handled for %s", self.objectName())

@@ -28,6 +28,5 @@ __pycache__/
 pastrocore.spec
 build/
 dist/
-docs/
 .vscode/
 pAstroCORE.code-workspace
