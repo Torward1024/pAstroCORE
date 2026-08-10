@@ -36,6 +36,9 @@ jobs:
         pip install -r requirements.txt
         pip install pytest
 
+    # `python -m pytest` rather than `pytest`: the module form puts the working directory on
+    # sys.path, which is how the suite is run locally. With the bare command CI could not
+    # import pastrocore at all, and the two ways of running had quietly diverged.
     - name: Check the model layer imports
       run: python -c "from pastrocore.super.schedule_manipulator import ScheduleManipulator; print('ok')"
 
@@ -43,13 +46,13 @@ jobs:
     # project and compare against the results it was saved holding, so a change to any formula
     # fails the build rather than reaching a user.
     - name: Characterization tests
-      run: pytest tests/test_characterization.py -v
+      run: python -m pytest tests/test_characterization.py -v
 
     - name: Project round trip
-      run: pytest tests/test_project_round_trip.py -v
+      run: python -m pytest tests/test_project_round_trip.py -v
 
     - name: GUI smoke tests
-      run: pytest tests/test_gui_smoke.py -v
+      run: python -m pytest tests/test_gui_smoke.py -v
 
     - name: Everything
-      run: pytest tests/ -q
+      run: python -m pytest tests/ -q
