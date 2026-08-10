@@ -11,6 +11,12 @@ Requires msb_arch 1.0.0 or later:
 Documentation lives in [`docs/`](docs/). Start with [the roadmap](docs/ROADMAP.md),
 which records what is being worked on, what was measured, and why.
 
+## Running
+
+```bash
+python run.py
+```
+
 ## Tests
 
 ```bash

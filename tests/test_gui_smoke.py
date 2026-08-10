@@ -47,20 +47,26 @@ def test_every_gui_module_is_covered():
 
 
 def test_the_main_window_can_be_built(qt_application):
-    """The application's entry point, constructed without being shown."""
-    import pastrocore
+    """The application's entry point, constructed without being shown.
 
-    window_class = next(
-        (getattr(pastrocore, name) for name in dir(pastrocore)
-         if name.endswith("Window") or name.endswith("MainWindow")),
-        None,
-    )
-    if window_class is None:
-        pytest.skip("no main window class exported from pastrocore")
+    This was the one part of the interface no test could reach: the window lived in
+    `pastrocore.py` beside the `pastrocore` package, so `import pastrocore` found the package
+    and the script was unreachable. It now lives in `pastrocore.app`.
+    """
+    from pastrocore.app import PAstroCoreMainWindow
 
-    window = window_class()
+    window = PAstroCoreMainWindow()
     try:
-        assert window is not None
+        assert window.windowTitle()
     finally:
         window.close()
         window.deleteLater()
+
+
+def test_the_launcher_imports():
+    """`run.py` is the entry point users type; it must at least resolve."""
+    import pathlib as _pathlib
+
+    launcher = _pathlib.Path(__file__).parent.parent / "run.py"
+    assert launcher.exists(), "run.py is missing"
+    assert "from pastrocore.app import main" in launcher.read_text(encoding="utf-8")
