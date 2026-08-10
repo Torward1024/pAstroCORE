@@ -240,7 +240,7 @@ class ScheduleConfigurator(Super):
                 start_time = Time(time_range["start"])
                 end_time = Time(time_range["end"])
             except Exception as e:
-                logger.error("Invalid time format: %s", str(e))
+                logger.error("Invalid time format: %s", str(e), exc_info=True)
                 return {"status": False, "error": f"Invalid time format: {str(e)}", "result": []}
             if start_time >= end_time:
                 logger.error("Invalid time range: start time must be before end time")
@@ -403,5 +403,5 @@ class ScheduleConfigurator(Super):
             }
 
         except Exception as e:
-            logger.error("Error generating observations: %s. Generated %s observations before failure", str(e), len(generated_codes))
+            logger.error("Error generating observations: %s. Generated %s observations before failure", str(e), len(generated_codes), exc_info=True)
             return {"status": False, "error": f"Error generating observations: {str(e)}", "result": []}

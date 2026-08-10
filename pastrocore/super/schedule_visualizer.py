@@ -352,7 +352,7 @@ class ScheduleVisualizer(Super):
             return self._finalize_plot(fig, attributes, result)
 
         except Exception as e:
-            logger.error("Visualization failed: %s", str(e))
+            logger.error("Visualization failed: %s", str(e), exc_info=True)
             fig.clf()
             plt.close(fig)
             gc.collect(2)
@@ -402,7 +402,7 @@ class ScheduleVisualizer(Super):
                     plt.close(fig)
                     gc.collect()
             except Exception as e:
-                logger.error("Failed to save visualization to %s: %s", output_file, str(e))
+                logger.error("Failed to save visualization to %s: %s", output_file, str(e), exc_info=True)
                 result["status"] = False
                 result["message"] = f"Failed to save visualization: {str(e)}"
         
