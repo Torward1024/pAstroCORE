@@ -156,3 +156,68 @@ def test_a_migration_is_taken_when_one_is_written(project_data):
     payload["schema_version"] = 1
     Renamed.from_dict(payload)
     assert Renamed.migrated
+
+
+# --- space telescopes ----------------------------------------------------------------------
+
+def test_a_space_telescope_survives_a_round_trip():
+    """It could not be read back at all, so a project holding one would not open.
+
+    A space telescope has no station geometry, no mount and no elevation limits: the
+    constructor fixes them. They are inherited fields all the same, so `to_dict` wrote them and
+    `from_dict` handed them straight back to a constructor that does not accept them.
+    """
+    from pastrocore.base.spacetelescope import SpaceTelescope
+    from pastrocore.base.telescopes import Telescopes
+
+    telescope = SpaceTelescope(code="RADIO", name="RadioAstron",
+                               pitch_range=(-90.0, 90.0), yaw_range=(-180.0, 180.0))
+    box = Telescopes(name="telescopes")
+    box.add(telescope)
+
+    restored = Telescopes.from_dict(box.to_dict()).get_all()["RadioAstron"]
+
+    assert isinstance(restored, SpaceTelescope)
+    assert restored.pitch_range == (-90.0, 90.0)
+    assert restored.yaw_range == (-180.0, 180.0)
+
+
+def test_a_space_telescope_saved_by_an_older_version_still_opens():
+    """Files already written carry the fields `to_dict` no longer emits."""
+    from pastrocore.base.spacetelescope import SpaceTelescope
+
+    telescope = SpaceTelescope(code="RADIO", name="RadioAstron")
+    older = telescope.to_dict()
+    older.update({"elevation_range": [15.0, 90.0], "azimuth_range": [0.0, 360.0],
+                  "mount_type": "AZIM", "x": 0.0, "y": 0.0, "z": 0.0})
+
+    restored = SpaceTelescope.from_dict(older)
+    assert restored.code == "RADIO"
+
+
+def test_a_space_telescope_accepts_whole_number_ranges():
+    """`(0, 90)` is how anyone writes a range of degrees."""
+    from pastrocore.base.spacetelescope import SpaceTelescope
+
+    telescope = SpaceTelescope(code="RADIO", name="RadioAstron",
+                               pitch_range=(0, 90), yaw_range=(0, 180))
+    assert telescope.pitch_range == (0, 90)
+
+
+def test_a_project_holding_a_space_telescope_opens(tmp_path):
+    """The whole point: the file has to come back."""
+    from pastrocore.base.observation import Observation
+    from pastrocore.base.spacetelescope import SpaceTelescope
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    project = ScheduleProject(name="Space")
+    observation = Observation(name="obs_space", code="SPACE")
+    observation.get_telescopes().add(SpaceTelescope(code="RADIO", name="RadioAstron"))
+    project.add_item(observation)
+
+    root = tmp_path / "space.pastro"
+    project.save(str(root))
+
+    reopened = ScheduleProject.open(str(root))
+    restored = reopened.get_observation("obs_space").get_telescopes().get_all()["RadioAstron"]
+    assert isinstance(restored, SpaceTelescope)
