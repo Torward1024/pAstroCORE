@@ -130,27 +130,65 @@ is mostly deletion.
 
 The fundamental question, and the reason it is a stage of its own.
 
-**Today:** every calculation lives in memory, and saving writes each result as a Polars
-DataFrame through parquet, then base64, into a string inside the project JSON. The consequences,
-in order of how much they hurt:
+**Today** every calculation lives in memory, and saving writes each result as a Polars
+DataFrame through parquet, then base64, into a string inside the project JSON.
 
-1. **The whole project must be read to open anything.** There is no way to load one
-   observation, or the model without its results.
-2. **Base64 inflates the parquet by a third**, on top of holding both the encoded string and
-   the decoded frame in memory during a load.
-3. **Nothing can be inspected without the application.** A project file is a JSON envelope
-   around opaque blobs.
-4. **Memory grows with every calculation** and is released only when the project is closed.
+### The scale, measured rather than estimated
+
+A real session reported: 300 sources, a year of daily observations, 12 telescopes,
+`time_step=3600`. That is not a large-sounding project, and it consumed 16 GB. The arithmetic
+agrees, which is worth writing down because it decides the design:
+
+| Result | Rows per observation | Rows over the year |
+| --- | --- | --- |
+| `telescope_positions` | 288 | 105 120 |
+| `source_visibility` | 86 400 | 31 536 000 |
+| `az_el` | 86 400 | 31 536 000 |
+| **`uv_coverage`** | **475 200** | **173 448 000** |
+
+At roughly 48 bytes a row, `uv_coverage` **alone** is 8.3 GB resident before any other result
+exists. The saved file for the small test project is 97.1% base64, with the model itself under
+7 KB of 230.
+
+Measured on one observation-sized frame of `uv_coverage`:
+
+| | |
+| --- | --- |
+| parquet on disk | 11.4 MB |
+| the same frame in memory | 21.7 MB |
+| read it all, then filter one source | 798 ms |
+| **scan with the filter pushed down** | **309 ms, and 1 584 rows instead of 475 200** |
+| two columns only | 39 ms |
+
+### Two problems, and conflating them is why this looks hard
+
+**Where the bytes live** and **what is resident right now** are separate. Fixing the first
+alone still reaches 16 GB, just later: drawing or exporting a year of observations pulls
+everything back in. Both need answering.
+
+### Decided
+
+| | Decision |
+| --- | --- |
+| **Format** | A project becomes a **directory**: `project.json` holds the model and opens instantly, and each result is its own parquet beside it. A container -- zip, SQLite -- would cost the one thing that matters most, because parquet on disk is what `scan_parquet` can filter into without unpacking first |
+| **Residency** | A **share of available memory**, with the share settable in the application's preferences. A fixed number would be wrong on both a laptop and a workstation |
+| **Old projects** | **They keep opening.** A single-file `.pastro` is converted on open, which is what M5's `SCHEMA_VERSION` and `migrate` were put in place for |
+| **Saving** | Writes the directory |
+| **Export** | Untouched. It produces `.txt` and `.png` -- text and pictures, nothing else -- so the format change does not reach it. But it *reads* results, so it goes through the same lazy access as everything else, or exporting a year loads a year |
+
+### The lever that matters most
+
+Not holding results more cheaply -- **not reading them at all**. The visualizer draws one
+source; with the filter pushed into the parquet read it touches 1 584 rows rather than 475 200.
+Every consumer that filters should filter in the read.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| D1 | Decide the shape: most likely a project *directory*, with the model in JSON and each result in its own parquet beside it | Written down with the reasoning, before any code |
-| D2 | Load results on demand rather than at open | Opening a project with a hundred calculated observations does not read them |
-| D3 | Migration from the current single-file format | Every existing project file opens and is converted, and the old format keeps loading for at least one release |
-| D4 | An explicit memory ceiling: results evictable when not in view | Calculating a hundred observations does not grow memory without bound |
-
-The measurements that would settle D1 have not been taken: how large a real project file is,
-what share of it is base64, and how long a load spends decoding. **Take them before deciding.**
+| D1 | The directory format, and a result handle that loads on access | Opening a project with a hundred calculated observations reads the model and no results |
+| D2 | Conversion from the single-file format, on open | Every existing `.pastro` opens and is converted, and the old format keeps loading for at least one release |
+| D3 | Lazy, filtered reads in the visualizer and the exporter | Drawing one source reads that source, measured |
+| D4 | A residency budget: a share of available memory, settable in preferences, evicting least-recently-used | The reported case -- 300 sources, a year, 12 telescopes -- completes inside the budget |
+| D5 | A characterization test at that scale, so the budget is defended | A regression in residency fails a build |
 
 ## Stage 5 -- the interface
 
