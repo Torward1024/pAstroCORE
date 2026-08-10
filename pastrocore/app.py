@@ -42,6 +42,24 @@ import json
 # GUI resource file
 import pastrocore.gui.rc_icons
 
+def _portable(path: str) -> str:
+    r"""Return a path that resolves on the platform it is read on.
+
+    Args:
+        path (str): A path as stored in the settings file.
+
+    Returns:
+        str: The same path with separators the running platform understands.
+
+    Notes:
+        - Settings are saved with the separator of whichever platform wrote them, and the file
+          the repository ships was written on Windows. On Linux `catalogs\sources.dat` is not
+          a directory and a file: it is one filename containing a backslash, so the catalogs
+          silently failed to load.
+    """
+    return os.path.normpath(path.replace("\\", "/")) if path else path
+
+
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
     project_updated = Signal()
@@ -145,8 +163,8 @@ class PAstroCoreMainWindow(QMainWindow):
         """Initialize CatalogManager with paths from settings or defaults."""
         default_sources_path = os.path.join("catalogs", "sources.dat")
         default_telescopes_path = os.path.join("catalogs", "telescopes.dat")
-        sources_path = self.settings.get("sources_catalog_path", default_sources_path)
-        telescopes_path = self.settings.get("telescopes_catalog_path", default_telescopes_path)
+        sources_path = _portable(self.settings.get("sources_catalog_path", default_sources_path))
+        telescopes_path = _portable(self.settings.get("telescopes_catalog_path", default_telescopes_path))
 
         try:
             if not os.path.isfile(sources_path):
@@ -160,8 +178,13 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.info("Catalog initialized with %s sources and %s telescopes", sources_count, telescopes_count)
             return catalog_manager
         except Exception as e:
-            logger.error("Failed to initialize CatalogManager with sources='%s', telescopes='%s': %s", sources_path, telescopes_path, str(e))
-            QMessageBox.warning(self, "Warning", f"Failed to load catalogs: {str(e)}. Using empty catalogs.")
+            # Logged, not shown. A modal dialog inside a constructor waits for a click that
+            # nobody is there to give: on a build machine this hung for ten minutes, and to a
+            # user with a bad catalog path it would look like an application that will not
+            # start. Degrading to empty catalogs is what the next line already did anyway.
+            logger.error("Failed to initialize CatalogManager with sources='%s', telescopes='%s': %s",
+                         sources_path, telescopes_path, str(e), exc_info=True)
+            self._catalog_error = str(e)
             return CatalogManager()
 
     def setup_ui(self):

@@ -70,3 +70,47 @@ def test_the_launcher_imports():
     launcher = _pathlib.Path(__file__).parent.parent / "run.py"
     assert launcher.exists(), "run.py is missing"
     assert "from pastrocore.app import main" in launcher.read_text(encoding="utf-8")
+
+
+def test_the_shipped_settings_use_portable_paths():
+    """The settings file the repository ships was written on Windows.
+
+    On Linux `catalogs\sources.dat` is not a directory and a file, it is one filename with a
+    backslash in it, so the catalogs failed to load and the application then opened a modal
+    dialog from inside its constructor -- which on a build machine hung for ten minutes and to
+    a user would look like a program that will not start.
+    """
+    import json
+    import pathlib as _pathlib
+
+    settings = _pathlib.Path(__file__).parent.parent / "settings.pastro"
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    for key in ("sources_catalog_path", "telescopes_catalog_path"):
+        assert "\\" not in data[key], f"{key} is a Windows-only path: {data[key]!r}"
+
+
+def test_a_settings_path_written_on_another_platform_still_resolves():
+    from pastrocore.app import _portable
+
+    assert _portable("catalogs\sources.dat").endswith("sources.dat")
+    assert _portable("catalogs/sources.dat").endswith("sources.dat")
+
+
+def test_the_constructor_opens_no_modal_dialog():
+    """A window that needs a click to finish constructing cannot be tested, and cannot start."""
+    import ast
+    import pathlib as _pathlib
+
+    source = (_pathlib.Path(__file__).parent.parent / "pastrocore" / "app.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    constructors = [node for node in ast.walk(tree)
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name in ("__init__", "initialize_catalog_manager")]
+
+    for node in constructors:
+        for call in ast.walk(node):
+            if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                    and isinstance(call.func.value, ast.Name)
+                    and call.func.value.id == "QMessageBox"):
+                raise AssertionError(
+                    f"{node.name} opens a modal QMessageBox at line {call.lineno}")
