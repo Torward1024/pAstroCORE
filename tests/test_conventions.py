@@ -116,3 +116,35 @@ def test_a_swallowed_calculation_failure_keeps_its_traceback():
                 offenders.append(f"{path.relative_to(ROOT).as_posix()}:{node.lineno}")
     assert not offenders, (
         "a calculation failure is logged without its traceback:\n  " + "\n  ".join(offenders))
+
+
+# --- constraints on annotations (M2) ------------------------------------------------------
+
+def test_a_constraint_holds_at_every_entry_point():
+    """A hand-written check in `__init__` guards construction and nothing else.
+
+    The ones replaced here ran *after* `super().__init__()`, so the object was already built
+    with the bad value, and `set` bypassed them entirely. On the annotation, the rule is
+    enforced before the value is stored and at every way in.
+    """
+    from msb_arch import errors
+    from pastrocore.base.frequencies import IF
+
+    valid = IF(name="IF1", frequency=8400.0, bandwidth=16.0)
+
+    with pytest.raises(errors.ConstraintError):
+        IF(name="bad", frequency=-1.0)
+    with pytest.raises(errors.ConstraintError):
+        valid.set({"frequency": -5.0})
+    with pytest.raises(errors.ConstraintError):
+        IF.from_dict({**valid.to_dict(), "bandwidth": -3.0})
+
+    assert valid.frequency == 8400.0, "a rejected assignment must leave the object alone"
+
+
+def test_a_telescope_diameter_is_constrained():
+    from msb_arch import errors
+    from pastrocore.base.telescope import Telescope
+
+    with pytest.raises(errors.ConstraintError):
+        Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0, diameter=-10.0)

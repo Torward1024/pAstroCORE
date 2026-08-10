@@ -1,7 +1,8 @@
 # base/frequencies.py
-from typing import List, Optional, Union, Dict
+from typing import Annotated, List, Optional, Union, Dict
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
+from msb_arch import Positive
 from msb_arch.utils.logging_setup import logger
 import uuid
 
@@ -25,8 +26,8 @@ class IF(BaseEntity):
         - Wavelength is calculated as C_MHZ_CM / frequency.
     """
     name: str
-    frequency: float
-    bandwidth: float
+    frequency: Annotated[float, Positive()]
+    bandwidth: Annotated[float, Positive()]
     polarizations: List[str]
     isactive: bool
 
@@ -38,10 +39,6 @@ class IF(BaseEntity):
                          polarizations=polarizations, isactive=isactive)
         if name is None:
             name = f"if_{uuid.uuid4().hex[:32]}"
-        if frequency <= 0:
-            raise ValueError("Frequency must be positive")
-        if bandwidth <= 0:
-            raise ValueError("Bandwidth must be positive")
 
     def get_frequency_wavelength(self) -> float:
         """Calculate the wavelength corresponding to the IF frequency.

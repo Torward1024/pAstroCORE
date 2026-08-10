@@ -2,9 +2,10 @@
 from copy import deepcopy
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.utils.validation import check_type, check_positive
+from msb_arch import Positive
 from msb_arch.utils.logging_setup import logger
 import numpy as np
-from typing import Optional, Dict, Tuple, Any
+from typing import Annotated, Optional, Dict, Tuple, Any
 from enum import Enum
 import uuid
 
@@ -28,7 +29,7 @@ class Telescope(BaseEntity):
     vx: float
     vy: float
     vz: float
-    diameter: float
+    diameter: Annotated[float, Positive()]
     sefd_table: Dict[float, float]
     elevation_range: Tuple[float, float]
     azimuth_range: Tuple[float, float]
@@ -58,8 +59,6 @@ class Telescope(BaseEntity):
         if azimuth_range[0] > azimuth_range[1]:
             raise ValueError("azimuth_range min must be less than max")
         
-        if diameter <= 0:
-            raise ValueError("Diameter must be positive")
         
         if isinstance(mount_type, str):
             try:
