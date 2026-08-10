@@ -1,6 +1,6 @@
 pAstroCORE -- a versatile tool for scheduling radio-astronomical observations
 
-Version 0.2.0. Past the MVP: the calculations are now defended by a test suite that
+Version 0.3.0. Past the MVP: the calculations are now defended by a test suite that
 recomputes a real project and compares against what it was saved holding.
 
 Utilizes developed MSB (Mega-Super-Base) architecture (see /common/ for more details):
