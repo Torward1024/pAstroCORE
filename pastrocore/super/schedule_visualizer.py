@@ -440,8 +440,8 @@ class ScheduleVisualizer(Super):
                 )
 
             # Retrieve UV data
-            uv_data = obj.get_calculated_data_by_key(store_key).get("data", {})
-            if uv_data is None or uv_data.is_empty():
+            uv_data = obj.scan_calculated_data(store_key)
+            if uv_data is None:
                 logger.debug("No UV data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "uv_coverage", obj.get_observation_code(),
@@ -453,7 +453,6 @@ class ScheduleVisualizer(Super):
             # Filter valid UV data
             filtered_df = uv_data.filter(pl.col("u").is_not_nan() & pl.col("v").is_not_nan() & 
                                     (pl.col("u") != 0) & (pl.col("v") != 0))
-            logger.debug("Filtered UV data shape: %s, columns: %s", filtered_df.shape, filtered_df.columns)
             if source_name:
                 filtered_df = filtered_df.filter(pl.col("source_name") == source_name)
             if baselines:
@@ -461,6 +460,7 @@ class ScheduleVisualizer(Super):
             if scans:
                 filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
 
+            filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
@@ -670,8 +670,8 @@ class ScheduleVisualizer(Super):
                             "title": f"Sun Angles\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            data_df = obj.get_calculated_data_by_key(store_key).get("data", {})
-            if data_df is None or data_df.is_empty():
+            data_df = obj.scan_calculated_data(store_key)
+            if data_df is None:
                 logger.debug("No sun angles data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "sun_angles", obj.get_observation_code(),
@@ -692,6 +692,7 @@ class ScheduleVisualizer(Super):
                     (pl.col("time") >= float(start_time)) & (pl.col("time") <= float(end_time))
                 )
 
+            filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
@@ -806,8 +807,8 @@ class ScheduleVisualizer(Super):
                             "title": f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            data_df = obj.get_calculated_data_by_key(store_key).get("data", {})
-            if data_df is None or data_df.is_empty():
+            data_df = obj.scan_calculated_data(store_key)
+            if data_df is None:
                 logger.debug("No az_el data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "az_el", obj.get_observation_code(),
@@ -829,6 +830,7 @@ class ScheduleVisualizer(Super):
                     (pl.col("time") >= float(start_time)) & (pl.col("time") <= float(end_time))
                 )
 
+            filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
@@ -991,8 +993,8 @@ class ScheduleVisualizer(Super):
                             "title": f"Time on {source_name or 'Source'}\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            data_df = obj.get_calculated_data_by_key(store_key).get("data", {})
-            if data_df is None or data_df.is_empty():
+            data_df = obj.scan_calculated_data(store_key)
+            if data_df is None:
                 logger.debug("No time on source data, returning empty plot")
                 return self._create_empty_plot(
                     fig, "time_on_source", obj.get_observation_code(),
@@ -1014,6 +1016,7 @@ class ScheduleVisualizer(Super):
                     (pl.col("start") >= float(start_time)) & (pl.col("end") <= float(end_time))
                 )
 
+            filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No data after filtering for source %s, returning empty plot", source_name)
                 return self._create_empty_plot(
@@ -1168,8 +1171,8 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            beam_data = obj.get_calculated_data_by_key(store_key).get("data", {})
-            if beam_data is None or beam_data.is_empty():
+            beam_data = obj.scan_calculated_data(store_key)
+            if beam_data is None:
                 logger.debug("No beam data available, returning empty result")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
@@ -1177,9 +1180,10 @@ class ScheduleVisualizer(Super):
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            metadata = obj.calculated_data.get(store_key).get("metadata", {})
+            metadata = obj.get_calculated_metadata(store_key)
             
             filtered_df = beam_data.filter(pl.col("telescope_code").is_in(telescopes))
+            filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No valid telescopes in beam_data, returning empty result")
                 return self._create_empty_plot(
@@ -1332,8 +1336,8 @@ class ScheduleVisualizer(Super):
                             "title": f"Baseline Projections\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            bl_data = obj.get_calculated_data_by_key(store_key).get("data", {})
-            if bl_data is None or bl_data.is_empty():
+            bl_data = obj.scan_calculated_data(store_key)
+            if bl_data is None:
                 logger.debug("No baseline projection data available, returning empty plot")
                 return self._create_empty_plot(
                     fig, "baseline_projections", obj.get_observation_code(),
@@ -1355,6 +1359,7 @@ class ScheduleVisualizer(Super):
                     (pl.col("time") >= float(start_time)) & (pl.col("time") <= float(end_time))
                 )
 
+            filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty plot")
                 return self._create_empty_plot(
@@ -1517,8 +1522,8 @@ class ScheduleVisualizer(Super):
                          fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
-            data = obj.get_calculated_data_by_key(store_key).get("data", {})
-            if data is None or data.is_empty():
+            data = obj.scan_calculated_data(store_key)
+            if data is None:
                 logger.warning("No valid Mollweide track data found for '%s'", store_key)
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
@@ -1526,7 +1531,7 @@ class ScheduleVisualizer(Super):
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
-            sources_metadata = obj.calculated_data.get(store_key, {}).get("metadata", {}).get("sources", {})
+            sources_metadata = obj.get_calculated_metadata(store_key).get("sources", {})
             if not sources_metadata:
                 logger.warning("No source metadata found in calculated_data['metadata']['sources']")
                 return self._create_empty_plot(
@@ -1545,6 +1550,7 @@ class ScheduleVisualizer(Super):
                     logger.error("Some sources %s not found in calculated_data['metadata']['sources']", sources)
                     filtered_df = filtered_df.filter(pl.col("source_name").is_in(sources))
 
+            filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No data after filtering, returning empty Mollweide plot")
                 return self._create_empty_plot(
@@ -1701,8 +1707,8 @@ class ScheduleVisualizer(Super):
                     }
                 )
 
-            data_df = obj.get_calculated_data_by_key(store_key).get("data", {})
-            if data_df is None or data_df.is_empty():
+            data_df = obj.scan_calculated_data(store_key)
+            if data_df is None:
                 logger.debug("No parallactic angle data available")
                 return self._create_empty_plot(
                     fig, "parallactic_angle", obj.get_observation_code(),
@@ -1726,6 +1732,7 @@ class ScheduleVisualizer(Super):
                     (pl.col("time") >= float(start_time)) & (pl.col("time") <= float(end_time))
                 )
 
+            filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No data after filtering")
                 return self._create_empty_plot(

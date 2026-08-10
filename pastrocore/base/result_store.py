@@ -56,6 +56,27 @@ class ResultStore:
         directory = self.root / owner
         return directory / f"{key}.parquet", directory / f"{key}{METADATA_SUFFIX}"
 
+    def metadata(self, owner: str, key: str) -> Optional[Dict[str, Any]]:
+        """Return one result's metadata without reading the result.
+
+        Args:
+            owner (str): The observation the result belongs to.
+            key (str): The calculation that produced it.
+
+        Returns:
+            Optional[Dict[str, Any]]: What was recorded about how the result was produced, or
+                None if there is no such result.
+
+        Notes:
+            - Metadata lives in its own file beside the parquet precisely so this is cheap.
+              Reaching it through the result itself pulls every row off disk to reach a
+              dictionary of a few entries.
+        """
+        _, metadata_path = self._paths(owner, key)
+        if not metadata_path.is_file():
+            return None
+        return json.loads(metadata_path.read_text(encoding="utf-8"))
+
     def rename_owner(self, old: str, new: str) -> None:
         """Move an owner's results to a new name, so a rename does not strand them.
 
@@ -212,6 +233,15 @@ class CalculatedData:
         self._store = store
         if owner is not None:
             self._owner = owner
+
+    def metadata(self, key: str) -> Dict[str, Any]:
+        """Return one result's metadata, reading the result only if it is not on disk yet."""
+        if self._store:
+            stored = self._store.metadata(self._owner, key)
+            if stored is not None:
+                return stored
+        held = self._resident.get(key)
+        return (held or {}).get("metadata", {}) or {}
 
     @property
     def owner(self) -> str:

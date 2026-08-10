@@ -343,3 +343,75 @@ def test_a_rename_onto_an_existing_name_keeps_the_current_results(project, tmp_p
 
     assert not (tmp_path / "results" / "first").exists()
     assert store.read("second", "times")["data"]["t"].to_list() == [2.0]
+
+
+# --- reading lazily -----------------------------------------------------------------------
+
+def test_drawing_a_plot_leaves_nothing_in_memory(project, tmp_path):
+    """The point of D3. A plot filters, so the filter belongs in the read.
+
+    Before this, drawing read every row of a result and kept it: a session that plotted its
+    way through a year of observations ended holding the whole project, which is the problem
+    the directory format was supposed to solve.
+    """
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "plotted.pastro"
+    project.save(str(root))
+
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    manipulator = ScheduleManipulator(reopened)
+    assert observation.calculated_data._resident == {}
+
+    manipulator.visualize(obj=observation, plot_type="az_el", source_name="1228+126",
+                          telescopes=["ALMA", "APEX"], return_figure=True, show=False,
+                          raise_on_error=False)
+
+    assert observation.calculated_data._resident == {}, (
+        "a plot must not leave the result it read in memory")
+
+
+def test_metadata_does_not_drag_the_result_in(project, tmp_path):
+    """Metadata is a handful of entries beside the parquet; reaching it through the result
+    read every row to get there."""
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "meta.pastro"
+    project.save(str(root))
+
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+
+    metadata = observation.get_calculated_metadata("uv_coverage")
+    assert metadata.get("time_step") is not None
+    assert observation.calculated_data._resident == {}
+
+
+def test_a_filter_reaches_the_read(project, tmp_path):
+    """A pushed-down filter must not merely give the right answer -- it must avoid the rows."""
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "scanned.pastro"
+    project.save(str(root))
+
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+
+    view = observation.scan_calculated_data("uv_coverage")
+    assert isinstance(view, pl.LazyFrame), "reading for a filter must stay lazy"
+
+    plan = view.filter(pl.col("baseline") == "ALMA-APEX").explain()
+    assert "parquet" in plan.lower()
+
+    filtered = view.filter(pl.col("baseline") == "ALMA-APEX").collect()
+    whole = observation.calculated_data["uv_coverage"]["data"]
+    assert filtered.height == whole.filter(pl.col("baseline") == "ALMA-APEX").height
+
+
+def test_scanning_a_missing_result_says_so_rather_than_raising(project):
+    """The plots ask for results that may not have been calculated yet."""
+    observation = project.get_observation(next(iter(project.get_items())))
+    assert observation.scan_calculated_data("never_calculated") is None
+    assert observation.get_calculated_metadata("never_calculated") == {}

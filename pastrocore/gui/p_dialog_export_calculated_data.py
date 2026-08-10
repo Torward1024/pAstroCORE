@@ -131,6 +131,14 @@ class ExportThread(QThread):
                         current_step += 1
                         self.progress.emit(int(current_step / total_steps * 100), f"Exported vis for {calc_type} in {obs_code}")
 
+                # Every result read here stays in memory, and an export walks all of them for
+                # every observation. Without this the exporter ends holding the entire project
+                # -- which for a year of observing is the whole reason the results moved out of
+                # the model file. Only results already on disk are released; anything not yet
+                # written has nowhere to be read back from and is left alone.
+                if hasattr(target.calculated_data, "release"):
+                    target.calculated_data.release()
+
             self.finished.emit()
         except Exception as e:
             logger.error("Export error in thread: %s", str(e))
@@ -195,7 +203,7 @@ class ExportThread(QThread):
             df_out = df_out.select(expected_columns)
 
             if key == "mollweide_tracks":
-                sources = target.calculated_data.get(key, {}).get("metadata", {}).get("sources", {})
+                sources = target.get_calculated_metadata(key).get("sources", {})
                 logger.debug("Processing sources for %s in observation '%s': %s", calc_type, obs_code, sources)
 
                 if not isinstance(sources, dict):
