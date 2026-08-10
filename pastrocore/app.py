@@ -594,13 +594,15 @@ class PAstroCoreMainWindow(QMainWindow):
         """Open a project from a file, cleaning up the old one."""
         try:
             file_name, _ = QFileDialog.getOpenFileName(
-                self, "Open Project", "", "pAstro Project Files (*.pastro)"
+                self, "Open Project", "", "pAstro Project (*.pastro project.json)"
             )
             if not file_name:
                 logger.debug("Open project cancelled")
                 return
                                  
-            new_project = ScheduleProject.from_file(file_name)
+            # One entry point: a directory, the project.json inside one, or a single
+            # file written by an earlier version. The model decides which it is.
+            new_project = ScheduleProject.open(file_name)
 
             self._cleanup_project()
 
@@ -629,7 +631,10 @@ class PAstroCoreMainWindow(QMainWindow):
             progress.setAutoClose(True)
             progress.show()
             try:
-                self.project.to_file(self.current_project_path)
+                # Saves a directory: the model in one small file and each result in
+                # its own parquet beside it. A single file at this path is converted,
+                # and only after the directory is complete.
+                self.project.save(self.current_project_path)
                 logger.info("Project saved to '%s'", self.current_project_path)
             except Exception as e:
                 logger.error("Failed to save project: %s", str(e))
