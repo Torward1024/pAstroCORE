@@ -301,3 +301,45 @@ def test_an_interrupted_conversion_leaves_the_original(tmp_path, monkeypatch):
         loaded.save(str(legacy))
 
     assert legacy.is_file(), "the original must survive a failed conversion"
+
+
+def test_saving_drops_results_of_observations_that_left(project, tmp_path):
+    """A rename must not leave the old results behind for a later rename to pick up."""
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    root = tmp_path / "saved.pastro"
+    project.save(str(root))
+
+    original = next(iter(project.get_items()))
+    assert (root / "results" / original).is_dir()
+
+    reopened = ScheduleProject.open(str(root))
+    moved = reopened.get_observation(original)
+    reopened.remove_item(original)
+    moved.name = "renamed"
+    reopened.add_item(moved)
+    reopened.save(str(root))
+
+    assert not (root / "results" / original).exists(), "the old results must not survive"
+    assert (root / "results" / "renamed").is_dir()
+
+    # The results have to survive the move, not merely be filed somewhere.
+    again = ScheduleProject.open(str(root))
+    carried = again.get_observation("renamed").calculated_data
+    assert len(carried) == 11
+    assert carried["uv_coverage"]["data"].height > 0
+
+
+def test_a_rename_onto_an_existing_name_keeps_the_current_results(project, tmp_path):
+    """Two observations cannot share a results directory, and the newer one is the truth."""
+    from pastrocore.base.result_store import CalculatedData, ResultStore
+
+    store = ResultStore(tmp_path / "results")
+    store.write("first", "times", pl.DataFrame({"t": [1.0]}), {})
+    store.write("second", "times", pl.DataFrame({"t": [2.0]}), {})
+
+    results = CalculatedData("first", store=store)
+    results.attach(store, "second")
+
+    assert not (tmp_path / "results" / "first").exists()
+    assert store.read("second", "times")["data"]["t"].to_list() == [2.0]
