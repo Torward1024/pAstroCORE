@@ -12,9 +12,10 @@ is data rather than a call.
 pip install -r requirements.txt
 ```
 
-Requires `msb_arch` 1.1.1 or later. Three releases of it came out of this project -- mapping
+Requires `msb_arch` 1.1.2 or later. Four releases of it came out of this project -- mapping
 keys that could not survive JSON, built-in operations that could not reach a member of a
-collection, and a schema version that worked everywhere except the class saved to a file.
+collection, a schema version that worked everywhere except the class saved to a file, and an
+`int` that was not accepted where a `float` was declared.
 
 ## What it does
 

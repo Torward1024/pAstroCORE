@@ -174,11 +174,45 @@ class SpaceTelescope(Telescope):
         self.set({"kepler_elements": kepler_elements, "orbit_file": None, "use_kep": True})
         logger.debug("Set Keplerian elements for SpaceTelescope '%s'", self.code)
 
+    @classmethod
+    def from_dict(cls, data: dict) -> 'SpaceTelescope':
+        """Create a SpaceTelescope from a dictionary, ignoring what the constructor derives.
+
+        Args:
+            data (dict): The serialized telescope.
+
+        Returns:
+            SpaceTelescope: The telescope.
+
+        Notes:
+            - A space telescope has no station geometry, no mount and no elevation limits: the
+              constructor sets them and does not accept them. They are inherited fields all the
+              same, so a file written before `to_dict` stopped emitting them still carries
+              them, and every such project must keep opening. They are dropped here rather
+              than rejected.
+            - Without this, a project containing a space telescope could not be opened at all.
+              The failure named `elevation_range`, which pointed at the field rather than at
+              the rule.
+        """
+        derived = ("x", "y", "z", "vx", "vy", "vz",
+                   "elevation_range", "azimuth_range", "mount_type")
+        remaining = {key: value for key, value in data.items() if key not in derived}
+        dropped = [key for key in data if key in derived]
+        if dropped:
+            logger.debug("Ignoring %s in saved SpaceTelescope '%s'; the constructor derives them",
+                         dropped, data.get("code", "unknown"))
+        return super().from_dict(remaining)
+
     def to_dict(self) -> dict:
         """Convert the SpaceTelescope object to a dictionary for serialization."""
         try:
             data = super().to_dict()
-            for key in ["x", "y", "z", "vx", "vy", "vz"]:
+            # A space telescope has no station geometry and no mount, so the constructor fixes
+            # these rather than accepting them. Writing them out would produce a file whose
+            # every key is a constructor argument except these -- which is exactly what
+            # deserialization assumes, and why it used to fail on the first one it met.
+            for key in ["x", "y", "z", "vx", "vy", "vz",
+                        "elevation_range", "azimuth_range", "mount_type"]:
                 data.pop(key, None)
             serialized_data = {
                 "type": "SpaceTelescope",

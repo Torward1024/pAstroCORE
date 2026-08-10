@@ -8,6 +8,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [Unreleased]
+
+### Fixed
+
+- **A project holding a space telescope could not be opened.** A space telescope has no station
+  geometry, no mount and no elevation limits -- the constructor fixes them rather than
+  accepting them. They are inherited fields all the same, so `to_dict` wrote them out and
+  deserialization handed them back to a constructor that rejects them. `to_dict` now omits
+  them, as it already omitted the position and velocity for the same reason, and `from_dict`
+  drops them if a file written earlier still carries them.
+- Space telescope ranges may be written as whole numbers -- `pitch_range=(0, 90)` -- which
+  needed `msb_arch` 1.1.2.
+
+### Changed
+
+- Requires `msb_arch` 1.1.2 or later.
+
 ## [0.5.0] - 2026-08-10
 
 Results moved out of memory. A project saves as a directory whose model is 5 KB, each result
