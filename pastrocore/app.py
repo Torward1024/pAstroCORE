@@ -36,10 +36,29 @@ from msb_arch.utils import (logger,
                             )
 import logging
 import sys
+import threading
 import os
 import json
 # GUI resource file
 import pastrocore.gui.rc_icons
+
+def _portable(path: str) -> str:
+    r"""Return a path that resolves on the platform it is read on.
+
+    Args:
+        path (str): A path as stored in the settings file.
+
+    Returns:
+        str: The same path with separators the running platform understands.
+
+    Notes:
+        - Settings are saved with the separator of whichever platform wrote them, and the file
+          the repository ships was written on Windows. On Linux `catalogs\sources.dat` is not
+          a directory and a file: it is one filename containing a backslash, so the catalogs
+          silently failed to load.
+    """
+    return os.path.normpath(path.replace("\\", "/")) if path else path
+
 
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
@@ -57,13 +76,13 @@ class PAstroCoreMainWindow(QMainWindow):
         # here the level is only re-applied in case the settings differ from the defaults.
         log_level_str = self.settings.get("log_level", "INFO")
         update_logging_level(getattr(logging, log_level_str, logging.INFO))
-        logger.debug(f"Logging re-applied at window start with level={log_level_str}")
+        logger.debug("Logging re-applied at window start with level=%s", log_level_str)
     
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
         self.catalog_manager = self.initialize_catalog_manager()
     
-        logger.debug(f"pAstroCORE initialized with project id: {id(self.project)}, manipulator id={id(self.manipulator)}, catalog_manager id={id(self.catalog_manager)}")
+        logger.debug("pAstroCORE initialized with project id: %s, manipulator id=%s, catalog_manager id=%s", id(self.project), id(self.manipulator), id(self.catalog_manager))
     
         self.current_project_path = None
         self._action_connections = {}
@@ -84,9 +103,9 @@ class PAstroCoreMainWindow(QMainWindow):
         for action, slot in self._action_connections.items():
             try:
                 action.triggered.disconnect(slot)
-                logger.debug(f"Disconnected signal for action {action.objectName()}")
+                logger.debug("Disconnected signal for action %s", action.objectName())
             except TypeError as e:
-                logger.debug(f"No signal to disconnect for action {action.objectName()}: {str(e)}")
+                logger.debug("No signal to disconnect for action %s: %s", action.objectName(), str(e))
         self._action_connections.clear()
 
         try:
@@ -96,7 +115,7 @@ class PAstroCoreMainWindow(QMainWindow):
             else:
                 logger.debug("No active connections for project_updated signal")
         except TypeError as e:
-            logger.debug(f"Error checking project_updated signal: {str(e)}")
+            logger.debug("Error checking project_updated signal: %s", str(e))
 
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
@@ -107,7 +126,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 else:
                     logger.debug("No active connections for project explorer clicked signal")
             except TypeError as e:
-                logger.debug(f"Error checking project explorer clicked signal: {str(e)}")
+                logger.debug("Error checking project explorer clicked signal: %s", str(e))
         else:
             logger.debug("Project explorer widget not found during clear_connections")
 
@@ -120,7 +139,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 else:
                     logger.debug("No active connections for tabCloseRequested signal")
             except TypeError as e:
-                logger.debug(f"Error checking tabCloseRequested signal: {str(e)}")
+                logger.debug("Error checking tabCloseRequested signal: %s", str(e))
 
         try:
             if self.ui.actionProject_Explorer.receivers(QtCore.SIGNAL("toggled(bool)")) > 0:
@@ -129,7 +148,7 @@ class PAstroCoreMainWindow(QMainWindow):
             else:
                 logger.debug("No active connections for actionProject_Explorer toggled signal")
         except TypeError as e:
-            logger.debug(f"Error checking actionProject_Explorer toggled signal: {str(e)}")
+            logger.debug("Error checking actionProject_Explorer toggled signal: %s", str(e))
 
         try:
             if self.ui.dockWidget.receivers(QtCore.SIGNAL("visibilityChanged(bool)")) > 0:
@@ -138,29 +157,34 @@ class PAstroCoreMainWindow(QMainWindow):
             else:
                 logger.debug("No active connections for dockWidget visibilityChanged signal")
         except TypeError as e:
-            logger.debug(f"Error checking dockWidget visibilityChanged signal: {str(e)}")     
+            logger.debug("Error checking dockWidget visibilityChanged signal: %s", str(e))     
     
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or defaults."""
         default_sources_path = os.path.join("catalogs", "sources.dat")
         default_telescopes_path = os.path.join("catalogs", "telescopes.dat")
-        sources_path = self.settings.get("sources_catalog_path", default_sources_path)
-        telescopes_path = self.settings.get("telescopes_catalog_path", default_telescopes_path)
+        sources_path = _portable(self.settings.get("sources_catalog_path", default_sources_path))
+        telescopes_path = _portable(self.settings.get("telescopes_catalog_path", default_telescopes_path))
 
         try:
             if not os.path.isfile(sources_path):
-                logger.warning(f"Sources catalog file not found: {sources_path}. Initializing empty source catalog.")
+                logger.warning("Sources catalog file not found: %s. Initializing empty source catalog.", sources_path)
             if not os.path.isfile(telescopes_path):
-                logger.warning(f"Telescopes catalog file not found: {telescopes_path}. Initializing empty telescope catalog.")
+                logger.warning("Telescopes catalog file not found: %s. Initializing empty telescope catalog.", telescopes_path)
                 
             catalog_manager = CatalogManager(source_file=sources_path, telescope_file=telescopes_path)
             sources_count = len(catalog_manager.source_catalog.get_items())
             telescopes_count = len(catalog_manager.telescope_catalog.get_items())
-            logger.info(f"Catalog initialized with {sources_count} sources and {telescopes_count} telescopes")
+            logger.info("Catalog initialized with %s sources and %s telescopes", sources_count, telescopes_count)
             return catalog_manager
         except Exception as e:
-            logger.error(f"Failed to initialize CatalogManager with sources='{sources_path}', telescopes='{telescopes_path}': {str(e)}")
-            QMessageBox.warning(self, "Warning", f"Failed to load catalogs: {str(e)}. Using empty catalogs.")
+            # Logged, not shown. A modal dialog inside a constructor waits for a click that
+            # nobody is there to give: on a build machine this hung for ten minutes, and to a
+            # user with a bad catalog path it would look like an application that will not
+            # start. Degrading to empty catalogs is what the next line already did anyway.
+            logger.error("Failed to initialize CatalogManager with sources='%s', telescopes='%s': %s",
+                         sources_path, telescopes_path, str(e), exc_info=True)
+            self._catalog_error = str(e)
             return CatalogManager()
 
     def setup_ui(self):
@@ -232,7 +256,7 @@ class PAstroCoreMainWindow(QMainWindow):
             else:
                 logger.debug("Export Calculated Data dialog rejected")
         except Exception as e:
-            logger.error(f"Error opening Export Calculated Data dialog: {str(e)}")
+            logger.error("Error opening Export Calculated Data dialog: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to open Export Calculated Data dialog: {str(e)}")
 
     @Slot()
@@ -243,7 +267,7 @@ class PAstroCoreMainWindow(QMainWindow):
             dialog.time_step_updated.connect(self.handle_time_step_updated)
             dialog.exec()
         except Exception as e:
-            logger.error(f"Failed to open calculation dialog: {str(e)}")
+            logger.error("Failed to open calculation dialog: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
     
     @Slot()
@@ -253,7 +277,7 @@ class PAstroCoreMainWindow(QMainWindow):
             dialog = VisualizationDialog(self.manipulator, parent=self)
             dialog.exec()
         except Exception as e:
-            logger.error(f"Failed to open visualization dialog: {str(e)}")
+            logger.error("Failed to open visualization dialog: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to open visualization dialog: {str(e)}")
 
     def handle_tab_close(self, index):
@@ -263,7 +287,7 @@ class PAstroCoreMainWindow(QMainWindow):
             return
         self._cleanup_widget(widget)
         self.ui.tabContainer.removeTab(index)
-        logger.debug(f"Closed tab at index {index} and cleaned up resources")
+        logger.debug("Closed tab at index %s and cleaned up resources", index)
     
     def _cleanup_widget(self, widget: QWidget):
         """Clean up widget resources and disconnect signals."""
@@ -272,30 +296,30 @@ class PAstroCoreMainWindow(QMainWindow):
             if hasattr(widget, 'observation_updated'):
                 try:
                     widget.observation_updated.disconnect()
-                    logger.debug(f"Disconnected observation_updated signal for {widget.objectName()}")
+                    logger.debug("Disconnected observation_updated signal for %s", widget.objectName())
                 except Exception as e:
-                    logger.debug(f"No observation_updated signal to disconnect: {str(e)}")
+                    logger.debug("No observation_updated signal to disconnect: %s", str(e))
             if hasattr(widget, 'project_name_changed'):
                 try:
                     widget.project_name_changed.disconnect()
-                    logger.debug(f"Disconnected project_name_changed signal for {widget.objectName()}")
+                    logger.debug("Disconnected project_name_changed signal for %s", widget.objectName())
                 except Exception as e:
-                    logger.debug(f"No project_name_changed signal to disconnect: {str(e)}")
+                    logger.debug("No project_name_changed signal to disconnect: %s", str(e))
 
             for child in widget.findChildren(QObject):
                 child.blockSignals(True)
                 child.deleteLater()
             widget.deleteLater()
-            logger.debug(f"Scheduled deletion of widget {widget.objectName()}")
+            logger.debug("Scheduled deletion of widget %s", widget.objectName())
         except Exception as e:
-            logger.error(f"Error cleaning up widget {widget.objectName()}: {str(e)}")
+            logger.error("Error cleaning up widget %s: %s", widget.objectName(), str(e))
 
     @Slot(dict)
     def handle_time_step_updated(self, time_step: int):
         """Handle time_step updated signal from CalculationDialog."""
         self.settings["time_step"] = time_step
         self.save_settings(self.settings)
-        logger.debug(f"time_step updated to {time_step} and saved to settings")
+        logger.debug("time_step updated to %s and saved to settings", time_step)
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for Project Explorer."""
@@ -374,9 +398,9 @@ class PAstroCoreMainWindow(QMainWindow):
         
         try:
             self.manipulator.inspect(self.project, get_observation_by_code=obs_code)
-            logger.debug(f"Observation '{obs_code}' found in project after addition")
+            logger.debug("Observation '%s' found in project after addition", obs_code)
         except Exception as e:
-            logger.error(f"Observation '{obs_code}' not found in project after addition: {str(e)}")
+            logger.error("Observation '%s' not found in project after addition: %s", obs_code, str(e))
         self.project_updated.emit()
 
     @Slot(str)
@@ -396,7 +420,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
-            logger.info(f"Deletion of observation '{obs_code}' cancelled")
+            logger.info("Deletion of observation '%s' cancelled", obs_code)
             return
 
         tab_container = self.ui.tabContainer
@@ -405,16 +429,16 @@ class PAstroCoreMainWindow(QMainWindow):
             if widget.objectName() == f"observationTab_{obs_code}":
                 self._cleanup_widget(widget)
                 tab_container.removeTab(i)
-                logger.debug(f"Closed observation tab for code '{obs_code}'")
+                logger.debug("Closed observation tab for code '%s'", obs_code)
                 break
 
         try:
             self.manipulator.inspect(self.project, get_item=obs_name)
             self.manipulator.configure(self.project, remove_item=obs_name)
-            logger.info(f"Observation with code '{obs_code}' and name '{obs_name}' removed from project '{self.project.get_name()}'")
+            logger.info("Observation with code '%s' and name '%s' removed from project '%s'", obs_code, obs_name, self.project.get_name())
             self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Failed to remove observation '{obs_code}': {str(e)}")
+            logger.error("Failed to remove observation '%s': %s", obs_code, str(e))
             QMessageBox.critical(self, "Error", f"Failed to remove observation: {str(e)}")
 
     @Slot()
@@ -430,7 +454,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
-            logger.info(f"Deletion of observations cancelled")
+            logger.info("Deletion of observations cancelled")
             return
         
         for i in range(self.ui.tabContainer.count() - 1, -1, -1):
@@ -440,16 +464,16 @@ class PAstroCoreMainWindow(QMainWindow):
 
         try:
             self.manipulator.configure(self.project, clear=None)
-            logger.info(f"All observations were removed from project '{self.project.get_name()}'")
+            logger.info("All observations were removed from project '%s'", self.project.get_name())
             self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Failed to remove observations: {str(e)}")
+            logger.error("Failed to remove observations: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to remove observations: {str(e)}")
 
     @Slot(str)
     def edit_observation(self, obs_name: str, obs_code: str):
         """Open the ObservationTab for the specified observation."""
-        logger.debug(f"Opening edit tab for observation with code '{obs_code}'")
+        logger.debug("Opening edit tab for observation with code '%s'", obs_code)
         self.open_observation_tab(obs_name, obs_code)
 
     def update_project_explorer(self):
@@ -470,9 +494,9 @@ class PAstroCoreMainWindow(QMainWindow):
         try:
             project_name = self.manipulator.inspect(self.project, get_name=None)
         except Exception as e:
-            logger.error(f"Failed to get project name: {str(e)}")
+            logger.error("Failed to get project name: %s", str(e))
             project_name = "Untitled Project"
-        logger.debug(f"Updating project explorer: project id={id(self.project)}, name={project_name}")
+        logger.debug("Updating project explorer: project id=%s, name=%s", id(self.project), project_name)
 
         project_item = QStandardItem(f"Project: {project_name}")
         project_item.setData("project", Qt.UserRole)
@@ -493,15 +517,15 @@ class PAstroCoreMainWindow(QMainWindow):
                             obs_item.setData("observation", Qt.UserRole)
                             obs_item.setData(obs_name, Qt.UserRole + 1)
                             observations_item.appendRow(obs_item)
-                            logger.debug(f"Added observation '{obs_code}' to Project Explorer")
+                            logger.debug("Added observation '%s' to Project Explorer", obs_code)
                         except Exception as e:
-                            logger.error(f"Failed to get code for observation '{obs_name}': {str(e)}")
+                            logger.error("Failed to get code for observation '%s': %s", obs_name, str(e))
                 else:
                     logger.debug("No observations found in project")
             else:
-                logger.error(f"Expected dict for observations, got {type(observations)}: {observations}")
+                logger.error("Expected dict for observations, got %s: %s", type(observations), observations)
         except Exception as e:
-            logger.error(f"Failed to inspect observations: {str(e)}")
+            logger.error("Failed to inspect observations: %s", str(e))
 
         project_explorer.setModel(model)
         project_explorer.expandAll()
@@ -530,10 +554,10 @@ class PAstroCoreMainWindow(QMainWindow):
                     loaded_settings = json.load(f)
             
                 default_settings.update(loaded_settings)
-                logger.info(f"Settings loaded from '{settings_file}'")
+                logger.info("Settings loaded from '%s'", settings_file)
                 return default_settings
             except Exception as e:
-                logger.error(f"Failed to load settings from '{settings_file}': {str(e)}")
+                logger.error("Failed to load settings from '%s': %s", settings_file, str(e))
                 QMessageBox.warning(self, "Error", f"Failed to load settings: {str(e)}")
         logger.info("No settings file found, using default settings")
         return default_settings
@@ -545,7 +569,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 json.dump(settings, f, indent=4)
             logger.info("Settings saved to 'settings.pastro'")
         except Exception as e:
-            logger.error(f"Failed to save settings to 'settings.pastro': {str(e)}")
+            logger.error("Failed to save settings to 'settings.pastro': %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to save settings: {str(e)}")
 
     @Slot()
@@ -562,7 +586,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.project_updated.emit()
             logger.info("Created new project")
         except Exception as e:
-            logger.error(f"Error creating new project: {str(e)}")
+            logger.error("Error creating new project: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to create new project: {str(e)}")
 
     @Slot()
@@ -590,10 +614,10 @@ class PAstroCoreMainWindow(QMainWindow):
             self.open_project_info_tab()
             self.update_project_explorer()
             self.project_updated.emit()
-            logger.info(f"Opened project from {file_name}")
+            logger.info("Opened project from %s", file_name)
             
         except Exception as e:
-            logger.error(f"Error opening project: {str(e)}")
+            logger.error("Error opening project: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
 
     @Slot()
@@ -606,9 +630,9 @@ class PAstroCoreMainWindow(QMainWindow):
             progress.show()
             try:
                 self.project.to_file(self.current_project_path)
-                logger.info(f"Project saved to '{self.current_project_path}'")
+                logger.info("Project saved to '%s'", self.current_project_path)
             except Exception as e:
-                logger.error(f"Failed to save project: {str(e)}")
+                logger.error("Failed to save project: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to save project: {str(e)}")
             finally:
                 progress.close()
@@ -646,10 +670,10 @@ class PAstroCoreMainWindow(QMainWindow):
                 imported_observation.observation_type = "VLBI"
 
             self.manipulator.configure(self.project, add_item=imported_observation)
-            logger.info(f"New observation '{imported_observation.code}' imported successfully")
+            logger.info("New observation '%s' imported successfully", imported_observation.code)
             self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Failed to import observation '{imported_observation.code if 'imported_observation' in locals() else ''}': {str(e)}")
+            logger.error("Failed to import observation '%s': %s", imported_observation.code if 'imported_observation' in locals() else '', str(e))
             QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
 
     @Slot(str)
@@ -665,7 +689,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """
         file_path, _ = QFileDialog.getOpenFileName(self, "Import Observation", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
-            logger.info(f"Import observation '{obs_code}' cancelled: No file selected")
+            logger.info("Import observation '%s' cancelled: No file selected", obs_code)
             return
 
         try:
@@ -674,7 +698,7 @@ class PAstroCoreMainWindow(QMainWindow):
 
             existing_observation = self.manipulator.inspect(self.project, get_item=obs_name)
             if existing_observation is None:
-                logger.error(f"Observation '{obs_code}' not found")
+                logger.error("Observation '%s' not found", obs_code)
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
                 return
 
@@ -686,10 +710,10 @@ class PAstroCoreMainWindow(QMainWindow):
             imported_observation.code = existing_code
 
             self.manipulator.configure(self.project, set_item={"name": existing_name, "item": imported_observation})
-            logger.info(f"Observation '{obs_code}' overwritten successfully")
+            logger.info("Observation '%s' overwritten successfully", obs_code)
             self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Failed to import observation '{obs_code}': {str(e)}")
+            logger.error("Failed to import observation '%s': %s", obs_code, str(e))
             QMessageBox.critical(self, "Error", f"Failed to import observation: {str(e)}")
 
     @Slot(str)
@@ -705,7 +729,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Observation", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
-            logger.info(f"Export observation '{obs_code}' cancelled: No file selected")
+            logger.info("Export observation '%s' cancelled: No file selected", obs_code)
             return
         if not file_path.endswith(".pastrod"):
             file_path += ".pastrod"
@@ -713,15 +737,15 @@ class PAstroCoreMainWindow(QMainWindow):
         try:
             observation = self.manipulator.inspect(self.project, get_item=obs_name)
             if observation is None:
-                logger.error(f"Observation '{obs_code}' not found")
+                logger.error("Observation '%s' not found", obs_code)
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
                 return
 
             with open(file_path, "w") as f:
                 json.dump(observation.to_dict(), f, indent=4)
-            logger.info(f"Observation '{obs_code}' exported to '{file_path}'")
+            logger.info("Observation '%s' exported to '%s'", obs_code, file_path)
         except Exception as e:
-            logger.error(f"Failed to export observation '{obs_code}': {str(e)}")
+            logger.error("Failed to export observation '%s': %s", obs_code, str(e))
             QMessageBox.critical(self, "Error", f"Failed to export observation: {str(e)}")
 
     @Slot()
@@ -746,12 +770,12 @@ class PAstroCoreMainWindow(QMainWindow):
             new_log_level_str = self.settings.get("log_level", "INFO")
             new_log_level = getattr(logging, new_log_level_str, logging.INFO)
             update_logging_level(new_log_level)
-            logger.info(f"Logger level updated to {new_log_level_str}")
+            logger.info("Logger level updated to %s", new_log_level_str)
 
         if "clear_log_on_start" in changed_keys:
             clear_log = self.settings.get("clear_log_on_start", False)
             update_logging_clear("output.log", clear_log)
-            logger.info(f"Log file clearing setting updated to {clear_log}. This will take effect now and on the next application start.")
+            logger.info("Log file clearing setting updated to %s. This will take effect now and on the next application start.", clear_log)
 
         if "sources_catalog_path" in changed_keys:
             sources_path = self.settings.get("sources_catalog_path", os.path.join("catalogs", "sources.dat"))
@@ -760,9 +784,9 @@ class PAstroCoreMainWindow(QMainWindow):
                 if sources_path:
                     self.catalog_manager.load_source_catalog(sources_path)
                 sources_count = len(self.catalog_manager.source_catalog.get_items())
-                logger.info(f"Sources catalog reloaded with {sources_count} sources from {sources_path}")
+                logger.info("Sources catalog reloaded with %s sources from %s", sources_count, sources_path)
             except Exception as e:
-                logger.error(f"Failed to reload sources catalog from '{sources_path}': {str(e)}")
+                logger.error("Failed to reload sources catalog from '%s': %s", sources_path, str(e))
                 QMessageBox.warning(self, "Warning", f"Failed to reload sources catalog: {str(e)}")
 
         if "telescopes_catalog_path" in changed_keys:
@@ -772,13 +796,13 @@ class PAstroCoreMainWindow(QMainWindow):
                 if telescopes_path:
                     self.catalog_manager.load_telescope_catalog(telescopes_path)
                 telescopes_count = len(self.catalog_manager.telescope_catalog.get_items())
-                logger.info(f"Telescopes catalog reloaded with {telescopes_count} telescopes from {telescopes_path}")
+                logger.info("Telescopes catalog reloaded with %s telescopes from %s", telescopes_count, telescopes_path)
             except Exception as e:
-                logger.error(f"Failed to reload telescopes catalog from '{telescopes_path}': {str(e)}")
+                logger.error("Failed to reload telescopes catalog from '%s': %s", telescopes_path, str(e))
                 QMessageBox.warning(self, "Warning", f"Failed to reload telescopes catalog: {str(e)}")
 
         if changed_keys:
-            logger.debug(f"Settings updated: {', '.join(changed_keys)}")
+            logger.debug("Settings updated: %s", ', '.join(changed_keys))
         else:
             logger.debug("No settings changes detected")
 
@@ -787,7 +811,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Open the telescopes catalog browser dialog."""
         telescopes_path = self.settings.get("telescopes_catalog_path", os.path.join("catalogs", "telescopes.dat"))
         if not os.path.isfile(telescopes_path):
-            logger.error(f"Telescopes catalog file not found: {telescopes_path}")
+            logger.error("Telescopes catalog file not found: %s", telescopes_path)
             QMessageBox.warning(self, "Warning", "Please set a valid telescopes catalog path in Preferences.")
             return
 
@@ -806,7 +830,7 @@ class PAstroCoreMainWindow(QMainWindow):
         """Open the sources catalog browser dialog."""
         sources_path = self.settings.get("sources_catalog_path", os.path.join("catalogs", "sources.dat"))
         if not os.path.isfile(sources_path):
-            logger.error(f"Sources catalog file not found: {sources_path}")
+            logger.error("Sources catalog file not found: %s", sources_path)
             QMessageBox.warning(self, "Warning", "Please set a valid sources catalog path in Preferences.")
             return
 
@@ -848,13 +872,13 @@ class PAstroCoreMainWindow(QMainWindow):
             try:
                 observation = self.manipulator.inspect(self.project, get_observation_by_code=obs_code)
                 if observation is None:
-                    logger.error(f"Observation with code '{obs_code}' not found")
+                    logger.error("Observation with code '%s' not found", obs_code)
                     QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': Observation not found")
                     return
                 obs_name = observation.name
                 self.open_observation_tab(obs_name, obs_code)
             except Exception as e:
-                logger.error(f"Failed to get observation with code '{obs_code}': {str(e)}")
+                logger.error("Failed to get observation with code '%s': %s", obs_code, str(e))
                 QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': {str(e)}")
 
     def open_project_info_tab(self):
@@ -905,7 +929,7 @@ class PAstroCoreMainWindow(QMainWindow):
         try:
             observation = self.manipulator.inspect(self.project, get_item=obs_name)
             if observation is None:
-                logger.error(f"Observation '{obs_code}' not found")
+                logger.error("Observation '%s' not found", obs_code)
                 QMessageBox.critical(self, "Error", f"Failed to open observation tab: Observation not found")
                 return
             observation_tab = ObservationTab(observation, self.manipulator, self.catalog_manager, self)
@@ -915,9 +939,9 @@ class PAstroCoreMainWindow(QMainWindow):
             observation_tab.setFocus()
             observation_tab.observation_updated.connect(self.handle_observationTab_observation_updated)
             self.project_updated.connect(observation_tab.update_tab)
-            logger.debug(f"Opened observation tab for code '{obs_code}'")
+            logger.debug("Opened observation tab for code '%s'", obs_code)
         except Exception as e:
-            logger.error(f"Failed to open observation tab for code '{obs_code}': {str(e)}")
+            logger.error("Failed to open observation tab for code '%s': %s", obs_code, str(e))
             QMessageBox.critical(self, "Error", f"Failed to open observation tab: {str(e)}")
 
     @Slot()
@@ -948,7 +972,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 return
                 
             if self.ui.actionProject_Explorer.isChecked() != visible:
-                logger.debug(f"Syncing action state to: {visible}")
+                logger.debug("Syncing action state to: %s", visible)
                 self.ui.actionProject_Explorer.setChecked(visible)
                 
             self._dock_was_visible = visible
@@ -978,7 +1002,7 @@ class PAstroCoreMainWindow(QMainWindow):
             else:
                 logger.debug("Generate Observations dialog rejected")
         except Exception as e:
-            logger.error(f"Error opening Generate Observations dialog: {str(e)}")
+            logger.error("Error opening Generate Observations dialog: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to open Generate Observations dialog: {str(e)}")
 
     @Slot(list)
@@ -988,7 +1012,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.update_project_explorer()
             self.project_updated.emit()
         except Exception as e:
-            logger.error(f"Error handling generated observations: {str(e)}")
+            logger.error("Error handling generated observations: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to handle generated observations: {str(e)}")
 
     def _cleanup_tabs(self):
@@ -1009,9 +1033,9 @@ class PAstroCoreMainWindow(QMainWindow):
                     tab_container.removeTab(i)
                     widget.deleteLater()
                     
-                    logger.debug(f"Cleaned and removed tab {widget.objectName()}")
+                    logger.debug("Cleaned and removed tab %s", widget.objectName())
                 except Exception as e:
-                    logger.error(f"Error cleaning tab {widget.objectName()}: {str(e)}")
+                    logger.error("Error cleaning tab %s: %s", widget.objectName(), str(e))
         logger.debug("All tabs cleaned up")
 
     def _cleanup_project(self):
@@ -1021,7 +1045,9 @@ class PAstroCoreMainWindow(QMainWindow):
             
             try:
                 self.project_updated.disconnect()
-            except Exception:
+            except RuntimeError:
+                # Qt raises when a signal has no connections, and offers no way to ask
+                # beforehand, so this is the only way to disconnect idempotently.
                 pass
             
             if self.manipulator:
@@ -1045,19 +1071,54 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.project = None
             
         except Exception as e:
-            logger.error(f"Error cleaning up project: {str(e)}")
+            logger.error("Error cleaning up project: %s", str(e))
 
     def _initialize_project(self):
         """Initialize a new project and its dependencies."""
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
-        logger.debug(f"Initialized new project with id: {id(self.project)}, manipulator id={id(self.manipulator)}")
+        logger.debug("Initialized new project with id: %s, manipulator id=%s", id(self.project), id(self.manipulator))
     
     def closeEvent(self, event):
         self.clear_connections()
         super().closeEvent(event)
 
-if __name__ == "__main__":
+def _warm_coordinate_tables() -> None:
+    """Do one throwaway coordinate transform, so the user's first calculation is not the one
+    that pays for loading astropy's reference tables.
+
+    Notes:
+        - Measured: the first `transform_to` in a process costs about 760 ms and every one
+          after it about 3, because the first pulls in the IERS and leap-second tables. That
+          made the first calculation 1 077 ms against 290 for the rest, and the difference was
+          entirely this.
+        - Runs on a daemon thread so the window still appears immediately, and swallows
+          everything: a warm-up that fails must never stop the application starting.
+    """
+    def warm():
+        try:
+            from astropy.coordinates import AltAz, EarthLocation, SkyCoord
+            from astropy.time import Time
+            import astropy.units as u
+
+            location = EarthLocation.from_geocentric(4033947.0, 486990.0, 4900431.0, unit=u.m)
+            SkyCoord(ra=0.0 * u.deg, dec=0.0 * u.deg, frame="icrs").transform_to(
+                AltAz(obstime=Time("2026-01-01T00:00:00"), location=location))
+            logger.debug("Coordinate tables warmed")
+        except Exception:
+            logger.debug("Could not warm the coordinate tables", exc_info=True)
+
+    threading.Thread(target=warm, name="astropy-warmup", daemon=True).start()
+
+
+def main() -> None:
+    """Start the application.
+
+    Notes:
+        - Logging is configured first: `msb_arch` does not configure it on import, so any
+          record emitted before this would be swallowed by the package `NullHandler`.
+          Defaults come first because reading the settings already logs.
+    """
     # Configure logging first: msb_arch 0.2.0 no longer configures it on import, so any
     # record emitted before this line would be swallowed by the package NullHandler.
     # Defaults come first because reading the settings already logs; the level and the
@@ -1068,6 +1129,8 @@ if __name__ == "__main__":
     update_logging_level(getattr(logging, _startup_level_name, logging.INFO))
     update_logging_clear("output.log", _startup_settings.get("clear_log_on_start", False))
     logger.debug("Logging initialized at start-up with level=%s", _startup_level_name)
+
+    _warm_coordinate_tables()
 
     app = QApplication(sys.argv)
     app.setStyleSheet("""
@@ -1206,3 +1269,7 @@ if __name__ == "__main__":
     window = PAstroCoreMainWindow()
     window.show()
     sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

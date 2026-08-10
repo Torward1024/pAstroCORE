@@ -37,7 +37,7 @@ class IFEditorDialog(QDialog):
             logger.debug("Creating new IF")
         else:
             self.setWindowTitle(f"Edit Intermediate Frequency")
-            logger.debug(f"Editing existing IF '{self.if_obj.name}'")
+            logger.debug("Editing existing IF '%s'", self.if_obj.name)
 
         self.ui.frequencyEdit.setValue(self.if_obj.frequency)
         self.ui.bandwidthEdit.setValue(self.if_obj.bandwidth)
@@ -47,7 +47,7 @@ class IFEditorDialog(QDialog):
             item.setSelected(item.text() in self.if_obj.polarizations)
 
         self.update_wavelength()
-        logger.info(f"Loaded IF '{self.if_obj.name}' into editor dialog")
+        logger.info("Loaded IF '%s' into editor dialog", self.if_obj.name)
 
     def update_wavelength(self):
         """Update the wavelength display based on frequency."""
@@ -60,7 +60,7 @@ class IFEditorDialog(QDialog):
             wavelength = 29979.2458 / frequency
             self.ui.wavelengthDisplay.setText(f"{wavelength:.3f}")
         except Exception as e:
-            logger.error(f"Error calculating wavelength: {str(e)}")
+            logger.error("Error calculating wavelength: %s", str(e))
             self.ui.wavelengthDisplay.setText("N/A")
 
     def clear_polarizations(self):
@@ -99,8 +99,7 @@ class IFEditorDialog(QDialog):
             "polarizations": polarizations,
             "isactive": isactive
         })
-        logger.debug(f"Updated IF object '{self.if_obj.name}' with frequency={frequency}, bandwidth={bandwidth}, "
-                     f"polarizations={polarizations}, isactive={isactive}")
+        logger.debug("Updated IF object '%s' with frequency=%s, bandwidth=%s, polarizations=%s, isactive=%s", self.if_obj.name, frequency, bandwidth, polarizations, isactive)
         return self.if_obj
 
     def accept(self):
@@ -118,10 +117,10 @@ class IFEditorDialog(QDialog):
                 return
             self.get_if_object()
             super().accept()
-            logger.info(f"Validated and saved IF data for '{self.if_obj.name}'")
+            logger.info("Validated and saved IF data for '%s'", self.if_obj.name)
         except ValueError as ve:
-            logger.error(f"Validation error: {str(ve)}")
+            logger.error("Validation error: %s", str(ve))
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")
         except Exception as e:
-            logger.error(f"Unexpected error while saving IF: {str(e)}")
+            logger.error("Unexpected error while saving IF: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to save IF: {str(e)}")

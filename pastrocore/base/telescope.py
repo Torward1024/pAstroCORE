@@ -1,10 +1,11 @@
 # base/telescope.py
 from copy import deepcopy
-from pastrocore.base.baseentityn import BaseEntityN
+from msb_arch.base.baseentity import BaseEntity
 from msb_arch.utils.validation import check_type, check_positive
+from msb_arch import Positive
 from msb_arch.utils.logging_setup import logger
 import numpy as np
-from typing import Optional, Dict, Tuple, Any
+from typing import Annotated, Optional, Dict, Tuple, Any
 from enum import Enum
 import uuid
 
@@ -17,7 +18,7 @@ class MountType(Enum):
     AZIMUTHAL = "AZIM"
     SPACE = "NONE"
 
-class Telescope(BaseEntityN):
+class Telescope(BaseEntity):
     """Class representing a ground-based telescope with ITRF coordinates, velocities, and SEFD properties."""
     code: str
     name: str
@@ -28,7 +29,7 @@ class Telescope(BaseEntityN):
     vx: float
     vy: float
     vz: float
-    diameter: float
+    diameter: Annotated[float, Positive()]
     sefd_table: Dict[float, float]
     elevation_range: Tuple[float, float]
     azimuth_range: Tuple[float, float]
@@ -58,8 +59,6 @@ class Telescope(BaseEntityN):
         if azimuth_range[0] > azimuth_range[1]:
             raise ValueError("azimuth_range min must be less than max")
         
-        if diameter <= 0:
-            raise ValueError("Diameter must be positive")
         
         if isinstance(mount_type, str):
             try:
@@ -82,7 +81,7 @@ class Telescope(BaseEntityN):
                          surface_efficiency_table=surface_efficiency_table,
                          effective_area_table=effective_area_table,
                          system_temperature_table=system_temperature_table)
-        logger.debug(f"Initialized Telescope '{code}' at ({x}, {y}, {z}) m, diameter={diameter} m")
+        logger.debug("Initialized Telescope '%s' at (%s, %s, %s) m, diameter=%s m", code, x, y, z, diameter)
 
     def set(self, params: Dict[str, Any]) -> None:
         """Set entity attributes from a dictionary with type validation, handling mount_type."""
@@ -104,14 +103,14 @@ class Telescope(BaseEntityN):
         check_positive(sefd, "SEFD")
         self._check_sefd(frequency, sefd)
         self.sefd_table[frequency] = sefd
-        logger.debug(f"Added SEFD={sefd} Jy for frequency {frequency} MHz to '{self.code}'")
+        logger.debug("Added SEFD=%s Jy for frequency %s MHz to '%s'", sefd, frequency, self.code)
 
     def remove_sefd(self, frequency: float) -> None:
         """Remove an SEFD value for a specific frequency from the SEFD table."""
         check_type(frequency, (int, float), "Frequency")
         if frequency in self.sefd_table:
             self.sefd_table.pop(frequency)
-            logger.debug(f"Removed SEFD for frequency {frequency} MHz from '{self.code}'")
+            logger.debug("Removed SEFD for frequency %s MHz from '%s'", frequency, self.code)
     
     def get_code(self) -> str:
         """Return the telescope's code.
@@ -162,7 +161,7 @@ class Telescope(BaseEntityN):
         if frequency in self.sefd_table:
             return self.sefd_table[frequency]
         if len(freqs) == 1:
-            logger.debug(f"Only one SEFD point at {freqs[0]} MHz, using it for {frequency} MHz")
+            logger.debug("Only one SEFD point at %s MHz, using it for %s MHz", freqs[0], frequency)
             return self.sefd_table[freqs[0]]
         if frequency < freqs[0] or frequency > freqs[-1]:
             return None
@@ -231,7 +230,7 @@ class Telescope(BaseEntityN):
     def clear_sefd_table(self) -> None:
         """Clear all entries from the SEFD table."""
         self.sefd_table.clear()
-        logger.debug(f"Cleared SEFD table for '{self.code}'")
+        logger.debug("Cleared SEFD table for '%s'", self.code)
 
     def calculate_surface_efficiency(self, frequency: float) -> Optional[float]:
         """Calculate surface efficiency using Ruze formula and add to table."""
@@ -239,7 +238,7 @@ class Telescope(BaseEntityN):
         check_positive(frequency, "Frequency")
         
         if self.surface_accuracy is None:
-            logger.warning(f"Cannot calculate surface efficiency for '{self.code}': surface accuracy not set")
+            logger.warning("Cannot calculate surface efficiency for '%s': surface accuracy not set", self.code)
             return None
         
         rms_m = self.surface_accuracy * 1e-6
@@ -324,32 +323,28 @@ class Telescope(BaseEntityN):
             bool: True if the frequency already exists with a different SEFD value, False otherwise.
         """
         if frequency in self.sefd_table and self.sefd_table[frequency] != sefd:
-            logger.warning(f"Overwriting SEFD for frequency {frequency} MHz on '{self.code}': "
-                           f"old={self.sefd_table[frequency]} Jy, new={sefd} Jy")
+            logger.warning("Overwriting SEFD for frequency %s MHz on '%s': old=%s Jy, new=%s Jy", frequency, self.code, self.sefd_table[frequency], sefd)
             return True
         return False
 
     def _check_surface_efficiency(self, frequency: float, efficiency: float) -> bool:
         """Check if a surface efficiency value is a duplicate with a different value."""
         if frequency in self.surface_efficiency_table and self.surface_efficiency_table[frequency] != efficiency:
-            logger.warning(f"Overwriting surface efficiency for frequency {frequency} MHz on '{self.code}': "
-                           f"old={self.surface_efficiency_table[frequency]}, new={efficiency}")
+            logger.warning("Overwriting surface efficiency for frequency %s MHz on '%s': old=%s, new=%s", frequency, self.code, self.surface_efficiency_table[frequency], efficiency)
             return True
         return False
 
     def _check_effective_area(self, frequency: float, area: float) -> bool:
         """Check if an effective area value is a duplicate with a different value."""
         if frequency in self.effective_area_table and self.effective_area_table[frequency] != area:
-            logger.warning(f"Overwriting effective area for frequency {frequency} MHz on '{self.code}': "
-                           f"old={self.effective_area_table[frequency]} m², new={area} m²")
+            logger.warning("Overwriting effective area for frequency %s MHz on '%s': old=%s m², new=%s m²", frequency, self.code, self.effective_area_table[frequency], area)
             return True
         return False
 
     def _check_system_temperature(self, frequency: float, tsys: float) -> bool:
         """Check if a system temperature value is a duplicate with a different value."""
         if frequency in self.system_temperature_table and self.system_temperature_table[frequency] != tsys:
-            logger.warning(f"Overwriting system temperature for frequency {frequency} MHz on '{self.code}': "
-                           f"old={self.system_temperature_table[frequency]} K, new={tsys} K")
+            logger.warning("Overwriting system temperature for frequency %s MHz on '%s': old=%s K, new=%s K", frequency, self.code, self.system_temperature_table[frequency], tsys)
             return True
         return False
     
@@ -367,44 +362,6 @@ class Telescope(BaseEntityN):
         })
         return data
 
-    @classmethod
-    def from_dict(cls, data: dict) -> 'Telescope':
-        """Create a Telescope object from a dictionary."""
-        data = data.copy()
-        for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
-            if table in data and isinstance(data[table], dict):
-                data[table] = {float(k): v for k, v in data[table].items()}
-        if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
-            data["elevation_range"] = tuple(data["elevation_range"])
-        if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
-            data["azimuth_range"] = tuple(data["azimuth_range"])
-        if "mount_type" in data and isinstance(data["mount_type"], str):
-            try:
-                data["mount_type"] = MountType(data["mount_type"].upper())
-            except ValueError:
-                raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
-        
-        data.setdefault("name", f"tlsc_{uuid.uuid4().hex[:32]}")
-        data.setdefault("code", data["code"])
-        data.setdefault("type", data["type"])
-        data.setdefault("x", 0.0)
-        data.setdefault("y", 0.0)
-        data.setdefault("z", 0.0)
-        data.setdefault("vx", 0.0)
-        data.setdefault("vy", 0.0)
-        data.setdefault("vz", 0.0)
-        data.setdefault("diameter", 1.0)
-        data.setdefault("sefd_table", {})
-        data.setdefault("elevation_range", (15.0, 90.0))
-        data.setdefault("azimuth_range", (0.0, 360.0))
-        data.setdefault("mount_type", MountType.AZIMUTHAL)
-        data.setdefault("isactive", True)
-        data.setdefault("surface_accuracy", None)
-        data.setdefault("surface_efficiency_table", {})
-        data.setdefault("effective_area_table", {})
-        data.setdefault("system_temperature_table", {})
-
-        return cls(**data)
 
     def __repr__(self) -> str:
         """Return a string representation of the Telescope object."""

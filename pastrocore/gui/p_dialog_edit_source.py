@@ -58,7 +58,7 @@ class SourceEditorDialog(QDialog):
         else:
             self.ui.nameEdit.setReadOnly(True)
             self.setWindowTitle(f"Edit Source '{self.source_obj.name}'")
-            logger.debug(f"Editing existing source '{self.source_obj.name}' with read-only name field")
+            logger.debug("Editing existing source '%s' with read-only name field", self.source_obj.name)
 
         self.ui.nameEdit.setText(self.source_obj.name or "")
         self.ui.nameJ2000Edit.setText(self.source_obj.name_J2000 or "")
@@ -80,7 +80,7 @@ class SourceEditorDialog(QDialog):
             flux_item.setEditable(True)
             self.model.appendRow([freq_item, flux_item])
 
-        logger.info(f"Loaded source '{self.source_obj.name}' into editor dialog")
+        logger.info("Loaded source '%s' into editor dialog", self.source_obj.name)
 
     @Slot()
     def add_flux(self):
@@ -144,7 +144,7 @@ class SourceEditorDialog(QDialog):
         }
 
         self.source_obj.set(source_data)
-        logger.debug(f"Updated Source object '{self.source_obj.name}' with params: {source_data}")
+        logger.debug("Updated Source object '%s' with params: %s", self.source_obj.name, source_data)
         return self.source_obj
 
     def accept(self):
@@ -157,10 +157,10 @@ class SourceEditorDialog(QDialog):
                 return
             self.get_source_object()
             super().accept()
-            logger.info(f"Validated and saved source data for '{name}'")
+            logger.info("Validated and saved source data for '%s'", name)
         except ValueError as ve:
-            logger.error(f"Validation error: {str(ve)}")
+            logger.error("Validation error: %s", str(ve))
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")
         except Exception as e:
-            logger.error(f"Unexpected error while saving source: {str(e)}")
+            logger.error("Unexpected error while saving source: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to save source: {str(e)}")

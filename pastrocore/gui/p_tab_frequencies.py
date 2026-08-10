@@ -8,6 +8,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.frequencies import IF
 from msb_arch.utils.logging_setup import logger
+from msb_arch import ValidationError
 import uuid
 import json
 
@@ -69,10 +70,10 @@ class FrequenciesTab(QWidget):
                 items = self.manipulator.inspect(frequencies, get_all=None)
                 has_frequencies = isinstance(items, (list, dict)) and len(items) > 0
             else:
-                logger.debug(f"No frequencies found in observation '{self.observation.code}'")
+                logger.debug("No frequencies found in observation '%s'", self.observation.code)
         except Exception as e:
             has_frequencies = False
-            logger.error(f"Exception while inspecting frequencies: {str(e)}")
+            logger.error("Exception while inspecting frequencies: %s", str(e))
 
         if has_frequencies:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
@@ -93,12 +94,12 @@ class FrequenciesTab(QWidget):
             try:
                 if_obj = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
                 if not if_obj:
-                    logger.error(f"Failed to get frequency '{freq_name}': No result returned")
+                    logger.error("Failed to get frequency '%s': No result returned", freq_name)
                     return
                 is_active = self.manipulator.inspect(if_obj, get="isactive")
                 is_active = bool(is_active)
             except Exception as e:
-                logger.error(f"Exception while inspecting frequency '{freq_name}': {str(e)}")
+                logger.error("Exception while inspecting frequency '%s': %s", freq_name, str(e))
                 return
 
             menu.addSeparator()
@@ -133,12 +134,12 @@ class FrequenciesTab(QWidget):
                 self.manipulator.configure(self.observation.get_frequencies(), add=if_obj)
                 self.update()
                 self.data_updated.emit(freq_name, None, "add")
-                logger.info(f"Added frequency '{freq_name}' to observation '{self.observation.code}'")
-            except ValueError as ve:
-                logger.error(f"Validation error while adding frequency: {str(ve)}")
+                logger.info("Added frequency '%s' to observation '%s'", freq_name, self.observation.code)
+            except (ValidationError, ValueError) as ve:
+                logger.error("Validation error while adding frequency: %s", str(ve))
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(ve)}")
             except Exception as e:
-                logger.error(f"Exception while adding frequency: {str(e)}")
+                logger.error("Exception while adding frequency: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(e)}")
 
     @Slot()
@@ -156,11 +157,11 @@ class FrequenciesTab(QWidget):
             freq_name = f"freq_{uuid.uuid4().hex[:32]}"
             imported_if.name = freq_name
             self.manipulator.configure(self.observation.get_frequencies(), add=imported_if)
-            logger.info(f"New frequency '{freq_name}' imported successfully to observation '{self.observation.code}'")
+            logger.info("New frequency '%s' imported successfully to observation '%s'", freq_name, self.observation.code)
             self.update()
             self.data_updated.emit(freq_name, None, "add")
         except Exception as e:
-            logger.error(f"Exception while importing new frequency: {str(e)}")
+            logger.error("Exception while importing new frequency: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
 
     @Slot(str)
@@ -168,7 +169,7 @@ class FrequenciesTab(QWidget):
         """Import a frequency to overwrite an existing one."""
         file_path, _ = QFileDialog.getOpenFileName(self, "Import Frequency", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
-            logger.info(f"Import frequency '{freq_name}' cancelled: No file selected")
+            logger.info("Import frequency '%s' cancelled: No file selected", freq_name)
             return
 
         try:
@@ -178,11 +179,11 @@ class FrequenciesTab(QWidget):
             try:
                 freq = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
                 if not freq:
-                    logger.error(f"Failed to find frequency '{freq_name}': No result returned")
+                    logger.error("Failed to find frequency '%s': No result returned", freq_name)
                     QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
                     return
             except Exception as e:
-                logger.error(f"Exception while inspecting frequency '{freq_name}': {str(e)}")
+                logger.error("Exception while inspecting frequency '%s': %s", freq_name, str(e))
                 QMessageBox.critical(self, "Error", f"Failed to find frequency '{freq_name}': {str(e)}")
                 return
 
@@ -191,14 +192,14 @@ class FrequenciesTab(QWidget):
     
             try:
                 self.manipulator.configure(self.observation.get_frequencies(), set_item={"name": freq_name, "item": imported_if})
-                logger.info(f"Frequency '{freq_name}' overwritten successfully in observation '{self.observation.code}'")
+                logger.info("Frequency '%s' overwritten successfully in observation '%s'", freq_name, self.observation.code)
                 self.update()
                 self.data_updated.emit(freq_name, None, "import")
             except Exception as e:
-                logger.error(f"Exception while overwriting frequency '{freq_name}': {str(e)}")
+                logger.error("Exception while overwriting frequency '%s': %s", freq_name, str(e))
                 QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
         except Exception as e:
-            logger.error(f"Exception while importing frequency '{freq_name}': {str(e)}")
+            logger.error("Exception while importing frequency '%s': %s", freq_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to import frequency: {str(e)}")
 
     @Slot(str)
@@ -206,7 +207,7 @@ class FrequenciesTab(QWidget):
         """Export a frequency to a file."""
         file_path, _ = QFileDialog.getSaveFileName(self, "Export Frequency", "", "pAstroCORE Data (*.pastrod)")
         if not file_path:
-            logger.info(f"Export frequency '{freq_name}' cancelled: No file selected")
+            logger.info("Export frequency '%s' cancelled: No file selected", freq_name)
             return
         if not file_path.endswith(".pastrod"):
             file_path += ".pastrod"
@@ -214,14 +215,14 @@ class FrequenciesTab(QWidget):
         try:
             if_obj = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
             if not if_obj:
-                logger.error(f"Failed to get frequency '{freq_name}': No result returned")
+                logger.error("Failed to get frequency '%s': No result returned", freq_name)
                 QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
                 return
             with open(file_path, "w") as f:
                 json.dump(if_obj.to_dict(), f, indent=4)
-            logger.info(f"Frequency '{freq_name}' exported to '{file_path}'")
+            logger.info("Frequency '%s' exported to '%s'", freq_name, file_path)
         except Exception as e:
-            logger.error(f"Exception while exporting frequency '{freq_name}': {str(e)}")
+            logger.error("Exception while exporting frequency '%s': %s", freq_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to export frequency: {str(e)}")
 
     @Slot(str)
@@ -231,9 +232,9 @@ class FrequenciesTab(QWidget):
             self.manipulator.configure(self.observation.get_frequencies(), remove=freq_name)
             self.update()
             self.data_updated.emit(freq_name, None, "remove")
-            logger.info(f"Removed frequency '{freq_name}' from observation '{self.observation.code}'")
+            logger.info("Removed frequency '%s' from observation '%s'", freq_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while removing frequency: {str(e)}")
+            logger.error("Exception while removing frequency: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to remove frequency: {str(e)}")
 
     @Slot(str)
@@ -242,7 +243,7 @@ class FrequenciesTab(QWidget):
         try:
             if_obj = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
             if not if_obj:
-                logger.error(f"Failed to retrieve frequency '{freq_name}': No result returned")
+                logger.error("Failed to retrieve frequency '%s': No result returned", freq_name)
                 QMessageBox.critical(self, "Error", f"Failed to retrieve frequency: No result returned")
                 return
             
@@ -253,15 +254,15 @@ class FrequenciesTab(QWidget):
                     self.manipulator.configure(self.observation.get_frequencies(), set_item={"name": freq_name, "item": updated_if})
                     self.update()
                     self.data_updated.emit(freq_name, updated_if.isactive, "edit")
-                    logger.info(f"Updated frequency '{freq_name}' in observation '{self.observation.code}'")
-                except ValueError as ve:
-                    logger.error(f"Validation error while updating frequency: {str(ve)}")
+                    logger.info("Updated frequency '%s' in observation '%s'", freq_name, self.observation.code)
+                except (ValidationError, ValueError) as ve:
+                    logger.error("Validation error while updating frequency: %s", str(ve))
                     QMessageBox.critical(self, "Error", f"Failed to update frequency: {str(ve)}")
                 except Exception as e:
-                    logger.error(f"Exception while updating frequency: {str(e)}")
+                    logger.error("Exception while updating frequency: %s", str(e))
                     QMessageBox.critical(self, "Error", f"Failed to update frequency: {str(e)}")
         except Exception as e:
-            logger.error(f"Exception while editing frequency: {str(e)}")
+            logger.error("Exception while editing frequency: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to edit frequency: {str(e)}")
 
     @Slot(str)
@@ -271,9 +272,9 @@ class FrequenciesTab(QWidget):
             self.manipulator.configure(self.observation.get_frequencies(), activate_item=freq_name)
             self.update()
             self.data_updated.emit(freq_name, True, "activate")
-            logger.info(f"Frequency '{freq_name}' activated in observation '{self.observation.code}'")
+            logger.info("Frequency '%s' activated in observation '%s'", freq_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while activating frequency '{freq_name}': {str(e)}")
+            logger.error("Exception while activating frequency '%s': %s", freq_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate frequency: {str(e)}")
 
     @Slot(str)
@@ -283,9 +284,9 @@ class FrequenciesTab(QWidget):
             self.manipulator.configure(self.observation.get_frequencies(), deactivate_item=freq_name)
             self.update()
             self.data_updated.emit(freq_name, False, "deactivate")
-            logger.info(f"Frequency '{freq_name}' deactivated in observation '{self.observation.code}'")
+            logger.info("Frequency '%s' deactivated in observation '%s'", freq_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while deactivating frequency '{freq_name}': {str(e)}")
+            logger.error("Exception while deactivating frequency '%s': %s", freq_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate frequency: {str(e)}")
 
     @Slot()
@@ -295,9 +296,9 @@ class FrequenciesTab(QWidget):
             self.manipulator.configure(self.observation.get_frequencies(), activate_all=None)
             self.update()
             self.data_updated.emit(None, None, "activate_all")
-            logger.info(f"All frequencies activated in observation '{self.observation.code}'")
+            logger.info("All frequencies activated in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while activating all frequencies: {str(e)}")
+            logger.error("Exception while activating all frequencies: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate all frequencies: {str(e)}")
 
     @Slot()
@@ -307,9 +308,9 @@ class FrequenciesTab(QWidget):
             self.manipulator.configure(self.observation.get_frequencies(), deactivate_all=None)
             self.update()
             self.data_updated.emit(None, None, "deactivate_all")
-            logger.info(f"All frequencies deactivated in observation '{self.observation.code}'")
+            logger.info("All frequencies deactivated in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while deactivating all frequencies: {str(e)}")
+            logger.error("Exception while deactivating all frequencies: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate all frequencies: {str(e)}")
 
     @Slot()
@@ -319,9 +320,9 @@ class FrequenciesTab(QWidget):
             self.manipulator.configure(self.observation.get_frequencies(), drop_active=None)
             self.update()
             self.data_updated.emit(None, None, "drop_active")
-            logger.info(f"All active frequencies dropped from observation '{self.observation.code}'")
+            logger.info("All active frequencies dropped from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while dropping active frequencies: {str(e)}")
+            logger.error("Exception while dropping active frequencies: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop active frequencies: {str(e)}")
 
     @Slot()
@@ -331,9 +332,9 @@ class FrequenciesTab(QWidget):
             self.manipulator.configure(self.observation.get_frequencies(), drop_inactive=None)
             self.update()
             self.data_updated.emit(None, None, "drop_inactive")
-            logger.info(f"All inactive frequencies dropped from observation '{self.observation.code}'")
+            logger.info("All inactive frequencies dropped from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while dropping inactive frequencies: {str(e)}")
+            logger.error("Exception while dropping inactive frequencies: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop inactive frequencies: {str(e)}")
 
     @Slot()
@@ -343,9 +344,9 @@ class FrequenciesTab(QWidget):
             self.manipulator.configure(self.observation.get_frequencies(), clear=None)
             self.update()
             self.data_updated.emit(None, None, "clear")
-            logger.info(f"All frequencies cleared from observation '{self.observation.code}'")
+            logger.info("All frequencies cleared from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while clearing frequencies: {str(e)}")
+            logger.error("Exception while clearing frequencies: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to clear frequencies: {str(e)}")
 
     @Slot()
@@ -365,7 +366,7 @@ class FrequenciesTab(QWidget):
                 try:
                     frequency = self.manipulator.inspect(if_obj, get="frequency")
                     if not isinstance(frequency, (int, float)):
-                        logger.warning(f"Unexpected frequency value type: {type(frequency)} for freq '{name}'")
+                        logger.warning("Unexpected frequency value type: %s for freq '%s'", type(frequency), name)
                         frequency = "N/A"
 
                     is_active = bool(self.manipulator.inspect(if_obj, get="isactive"))
@@ -380,7 +381,7 @@ class FrequenciesTab(QWidget):
 
                     bandwidth = self.manipulator.inspect(if_obj, get="bandwidth")
                     if not isinstance(bandwidth, (int, float)):
-                        logger.warning(f"Unexpected bandwidth value type: {type(bandwidth)} for freq '{name}'")
+                        logger.warning("Unexpected bandwidth value type: %s for freq '%s'", type(bandwidth), name)
                         bandwidth = "N/A"
 
                     polarizations = self.manipulator.inspect(if_obj, get="polarizations")
@@ -402,12 +403,12 @@ class FrequenciesTab(QWidget):
                     self.model.appendRow(row)
                     idx += 1
                 except Exception as e:
-                    logger.error(f"Exception while processing frequency '{name}': {str(e)}")
+                    logger.error("Exception while processing frequency '%s': %s", name, str(e))
                     continue
 
             self.ui.table.resizeColumnsToContents()
         except Exception as e:
-            logger.error(f"Exception while updating frequencies table: {str(e)}")
+            logger.error("Exception while updating frequencies table: %s", str(e))
     
     def _cleanup(self):
         """Clean up resources associated with this tab."""
@@ -429,10 +430,10 @@ class FrequenciesTab(QWidget):
             self.active_icon = None
             self.inactive_icon = None
         except Exception as e:
-            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+            logger.error("Error cleaning up %s: %s", self.objectName(), str(e))
 
     def closeEvent(self, event):
         """Override closeEvent to perform cleanup before closing."""
         self._cleanup()
         super().closeEvent(event)
-        logger.debug(f"closeEvent handled for {self.objectName()}")
+        logger.debug("closeEvent handled for %s", self.objectName())

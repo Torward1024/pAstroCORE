@@ -100,13 +100,13 @@ class ScanEditorDialog(QDialog):
                         scan_attrs = self.manipulator.inspect(obj=scan_obj, get=["start", "duration"])
                         scan_start = scan_attrs["start"]
                         scan_duration = scan_attrs["duration"]
-                        logger.debug(f"Processing scan '{scan_name}': start={scan_start.isot}, duration={scan_duration}")
+                        logger.debug("Processing scan '%s': start=%s, duration=%s", scan_name, scan_start.isot, scan_duration)
                         scan_end = scan_start + timedelta(seconds=scan_duration)
                         if latest_end_time is None or scan_end > latest_end_time:
                             latest_end_time = scan_end
                             latest_duration = scan_duration
             except Exception as e:
-                logger.error(f"Exception while inspecting scans: {str(e)}")
+                logger.error("Exception while inspecting scans: %s", str(e))
 
             start_time = latest_end_time if latest_end_time else Time.now()
             duration = latest_duration if latest_duration else 60.0
@@ -126,7 +126,7 @@ class ScanEditorDialog(QDialog):
             logger.debug("Creating new scan with default parameters")
         else:
             self.setWindowTitle(f"Edit Scan '{self.scan.name}'")
-            logger.debug(f"Editing existing scan '{self.scan.name}'")
+            logger.debug("Editing existing scan '%s'", self.scan.name)
 
         self.load_sources()
         self.load_telescopes()
@@ -139,7 +139,7 @@ class ScanEditorDialog(QDialog):
         self.adjust_end_time()
         self.update_active_state()
 
-        logger.info(f"Loaded scan '{self.scan.name}' into editor dialog")
+        logger.info("Loaded scan '%s' into editor dialog", self.scan.name)
 
     def load_sources(self):
         """Populate the source combo box with available sources."""
@@ -156,11 +156,11 @@ class ScanEditorDialog(QDialog):
                 # For new scan, select the first source
                 if self.is_new:
                     self.ui.sourceCombo.setCurrentIndex(0)
-                logger.debug(f"Populated {len(sources)} sources into source combo")
+                logger.debug("Populated %s sources into source combo", len(sources))
             else:
                 logger.warning("No sources available for selection")
         except Exception as e:
-            logger.error(f"Exception while populating sources: {str(e)}")
+            logger.error("Exception while populating sources: %s", str(e))
 
         if self.scan and self.scan.is_off_source:
             self.ui.sourceCombo.setEnabled(False)
@@ -195,9 +195,9 @@ class ScanEditorDialog(QDialog):
                         item.setEditable(False)
                     self.telescopes_model.appendRow(row)
                     idx += 1
-                logger.debug(f"Populated {len(telescopes)} telescopes into table")
+                logger.debug("Populated %s telescopes into table", len(telescopes))
         except Exception as e:
-            logger.error(f"Exception while populating telescopes: {str(e)}")
+            logger.error("Exception while populating telescopes: %s", str(e))
 
     def load_frequencies(self):
         """Populate the frequencies table with available frequencies."""
@@ -230,9 +230,9 @@ class ScanEditorDialog(QDialog):
                         item.setEditable(False)
                     self.frequencies_model.appendRow(row)
                     idx += 1
-                logger.debug(f"Populated {len(frequencies)} frequencies into table")
+                logger.debug("Populated %s frequencies into table", len(frequencies))
         except Exception as e:
-            logger.error(f"Exception while populating frequencies: {str(e)}")
+            logger.error("Exception while populating frequencies: %s", str(e))
 
     @Slot()
     def select_all_telescopes(self):
@@ -276,20 +276,20 @@ class ScanEditorDialog(QDialog):
         is_off_source = state == Qt.Checked
         self.ui.sourceCombo.setEnabled(not is_off_source)
         self.update_active_state()
-        logger.debug(f"Off-source state changed to: {is_off_source}")
+        logger.debug("Off-source state changed to: %s", is_off_source)
 
     @Slot()
     def telescope_changed(self, item):
         """Handle telescope selection change and update active state."""
         if item.column() == 1:
-            logger.debug(f"Telescope changed: row={item.row()}, checkState={item.checkState()}")
+            logger.debug("Telescope changed: row=%s, checkState=%s", item.row(), item.checkState())
             self.update_active_state()
 
     @Slot()
     def frequency_changed(self, item):
         """Handle frequency selection change and update active state."""
         if item.column() == 1:
-            logger.debug(f"Frequency changed: row={item.row()}, checkState={item.checkState()}")
+            logger.debug("Frequency changed: row=%s, checkState=%s", item.row(), item.checkState())
             self.update_active_state()
 
     @Slot()
@@ -297,7 +297,7 @@ class ScanEditorDialog(QDialog):
         """Update the active state checkbox based on scan conditions."""
         conditions_met = self._check_scan_conditions()
         self.ui.chk_active.setChecked(conditions_met)
-        logger.debug(f"Updated active state: {conditions_met}")
+        logger.debug("Updated active state: %s", conditions_met)
 
     @Slot()
     def adjust_duration_from_start(self):
@@ -315,9 +315,9 @@ class ScanEditorDialog(QDialog):
             self.ui.durationEdit.blockSignals(True)
             self.ui.durationEdit.setText(f"{duration:.2f}")
             self.ui.durationEdit.blockSignals(False)
-            logger.debug(f"Adjusted duration from start time: {duration}s")
+            logger.debug("Adjusted duration from start time: %ss", duration)
         except Exception as e:
-            logger.error(f"Error adjusting duration from start: {str(e)}")
+            logger.error("Error adjusting duration from start: %s", str(e))
 
     @Slot()
     def adjust_duration_from_end(self):
@@ -335,9 +335,9 @@ class ScanEditorDialog(QDialog):
             self.ui.durationEdit.blockSignals(True)
             self.ui.durationEdit.setText(f"{duration:.2f}")
             self.ui.durationEdit.blockSignals(False)
-            logger.debug(f"Adjusted duration from end time: {duration}s")
+            logger.debug("Adjusted duration from end time: %ss", duration)
         except Exception as e:
-            logger.error(f"Error adjusting duration from end: {str(e)}")
+            logger.error("Error adjusting duration from end: %s", str(e))
 
     @Slot()
     def adjust_end_time(self):
@@ -358,7 +358,7 @@ class ScanEditorDialog(QDialog):
             self.ui.endTimeEdit.blockSignals(True)
             self.ui.endTimeEdit.setDateTime(end_qdt)
             self.ui.endTimeEdit.blockSignals(False)
-            logger.debug(f"Adjusted end time to {end_qdt.toString(Qt.ISODate)} (start + duration {duration}s)")
+            logger.debug("Adjusted end time to %s (start + duration %ss)", end_qdt.toString(Qt.ISODate), duration)
         except ValueError as e:
             end_qdt = start_qdt.addSecs(1)
             self.ui.endTimeEdit.blockSignals(True)
@@ -367,9 +367,9 @@ class ScanEditorDialog(QDialog):
             self.ui.durationEdit.blockSignals(True)
             self.ui.durationEdit.setText("1.00")
             self.ui.durationEdit.blockSignals(False)
-            logger.debug(f"Adjusted end time to start + 1s (invalid duration: {str(e)})")
+            logger.debug("Adjusted end time to start + 1s (invalid duration: %s)", str(e))
         except Exception as e:
-            logger.error(f"Error adjusting end time: {str(e)}")
+            logger.error("Error adjusting end time: %s", str(e))
 
     def _check_scan_conditions(self):
         """Check if scan conditions are met for activation."""
@@ -386,7 +386,7 @@ class ScanEditorDialog(QDialog):
             return (active_telescopes >= min_telescopes and active_frequencies >= 1 and
                     (self.ui.chk_offsource.isChecked() or source_active))
         except Exception as e:
-            logger.error(f"Exception while checking scan conditions: {str(e)}")
+            logger.error("Exception while checking scan conditions: %s", str(e))
             return False
 
     def get_scan_object(self) -> Scan:
@@ -394,7 +394,7 @@ class ScanEditorDialog(QDialog):
         start_time = Time(self.ui.startTimeEdit.dateTime().toPython())
         start_time = start_time.to_datetime().replace(microsecond=0)
         start_time = Time(start_time)
-        logger.debug(f"Retrieved start time from dialog: {start_time.isot}")
+        logger.debug("Retrieved start time from dialog: %s", start_time.isot)
 
         try:
             duration_text = self.ui.durationEdit.text().strip()
@@ -405,13 +405,13 @@ class ScanEditorDialog(QDialog):
             if duration <= 0:
                 raise ValueError("Duration must be positive")
         except ValueError as e:
-            logger.error(f"Invalid duration: {str(e)}")
+            logger.error("Invalid duration: %s", str(e))
             raise ValueError(f"Invalid duration: {str(e)}")
 
         end_time = self.ui.endTimeEdit.dateTime()
         calculated_duration = self.ui.startTimeEdit.dateTime().secsTo(end_time)
         if abs(calculated_duration - duration) > 1:
-            logger.warning(f"Duration ({duration}s) and endTime ({end_time.toString(Qt.ISODate)}) mismatch, using duration")
+            logger.warning("Duration (%ss) and endTime (%s) mismatch, using duration", duration, end_time.toString(Qt.ISODate))
 
         is_off_source = self.ui.chk_offsource.isChecked()
         source = None if is_off_source else self.ui.sourceCombo.currentData()
@@ -423,7 +423,7 @@ class ScanEditorDialog(QDialog):
             telescope = telescope_item.data(Qt.UserRole) if telescope_item else None
             if check_item.checkState() == Qt.Checked and telescope:
                 telescopes.append(telescope)
-        logger.debug(f"Selected telescopes from model: {[t.name for t in telescopes]}")
+        logger.debug("Selected telescopes from model: %s", [t.name for t in telescopes])
 
         frequencies = []
         for row in range(self.frequencies_model.rowCount()):
@@ -432,7 +432,7 @@ class ScanEditorDialog(QDialog):
             frequency = frequency_item.data(Qt.UserRole) if frequency_item else None
             if check_item.checkState() == Qt.Checked and frequency:
                 frequencies.append(frequency)
-        logger.debug(f"Selected frequencies from model: {[f.name for f in frequencies]}")
+        logger.debug("Selected frequencies from model: %s", [f.name for f in frequencies])
 
         if not telescopes:
             logger.error("No telescopes selected")
@@ -458,7 +458,7 @@ class ScanEditorDialog(QDialog):
         }
 
         self.scan.set(scan_data)
-        logger.debug(f"Updated Scan object '{self.scan.name}' with params: {scan_data}")
+        logger.debug("Updated Scan object '%s' with params: %s", self.scan.name, scan_data)
         return self.scan
 
     def accept(self):
@@ -466,10 +466,10 @@ class ScanEditorDialog(QDialog):
         try:
             self.get_scan_object()
             super().accept()
-            logger.info(f"Validated and saved scan data for '{self.scan.name}'")
+            logger.info("Validated and saved scan data for '%s'", self.scan.name)
         except ValueError as ve:
-            logger.error(f"Validation error: {str(ve)}")
+            logger.error("Validation error: %s", str(ve))
             QMessageBox.critical(self, "Error", f"Invalid input: {str(ve)}")
         except Exception as e:
-            logger.error(f"Unexpected error while saving scan: {str(e)}")
+            logger.error("Unexpected error while saving scan: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to save scan: {str(e)}")

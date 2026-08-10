@@ -74,7 +74,7 @@ class ProjectInfoTab(QWidget):
             self.manipulator.configure(self.project, set_name=new_name)
             self.project_name_changed.emit(new_name)
         except Exception as e:
-            logger.error(f"Exception while changing project name: {str(e)}")
+            logger.error("Exception while changing project name: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to change project name: {str(e)}")
             self.update_tab()
         finally:
@@ -96,7 +96,7 @@ class ProjectInfoTab(QWidget):
 
             observations = self.manipulator.inspect(self.project, get_items=None)
             if not isinstance(observations, dict):
-                logger.error(f"Expected dict for observations, got {type(observations)}: {observations}")
+                logger.error("Expected dict for observations, got %s: %s", type(observations), observations)
                 return
 
             current_codes = set()
@@ -106,7 +106,7 @@ class ProjectInfoTab(QWidget):
                     if code:
                         current_codes.add(code)
                 except Exception as e:
-                    logger.error(f"Failed to get code for observation: {str(e)}")
+                    logger.error("Failed to get code for observation: %s", str(e))
                     continue
 
             for i in range(self.model.rowCount() - 1, -1, -1):
@@ -117,13 +117,13 @@ class ProjectInfoTab(QWidget):
             idx = 1
             for obs_name, obs in observations.items():
                 if not isinstance(obs, Observation):
-                    logger.error(f"Invalid observation type for name '{obs_name}': {type(obs)}")
+                    logger.error("Invalid observation type for name '%s': %s", obs_name, type(obs))
                     continue
 
                 try:
                     obs_code = self.manipulator.inspect(obs, get_observation_code=None)
                     if not obs_code:
-                        logger.error(f"Failed to get code for observation with name '{obs_name}': No result returned")
+                        logger.error("Failed to get code for observation with name '%s': No result returned", obs_name)
                         continue
 
                     row_idx = None
@@ -153,7 +153,7 @@ class ProjectInfoTab(QWidget):
                                     if isinstance(freq, (int, float)):
                                         frequencies_list.append(f"{freq:.0f} MHz")
                                 except Exception as e:
-                                    logger.error(f"Failed to get frequency for observation '{obs_name}': {str(e)}")
+                                    logger.error("Failed to get frequency for observation '%s': %s", obs_name, str(e))
                                     continue
                             if frequencies_list:
                                 freqs = ", ".join(frequencies_list)
@@ -199,12 +199,12 @@ class ProjectInfoTab(QWidget):
                             self.model.setItem(row_idx, col, item)
                     idx += 1
                 except Exception as e:
-                    logger.error(f"Exception while processing observation '{obs_name}': {str(e)}")
+                    logger.error("Exception while processing observation '%s': %s", obs_name, str(e))
                     continue
 
             self.ui.projectInfoTable.resizeColumnsToContents()
         except Exception as e:
-            logger.error(f"Exception while updating project info tab: {str(e)}")
+            logger.error("Exception while updating project info tab: %s", str(e))
 
     def show_context_menu(self, position: QPoint):
         """Show context menu for the observations table."""
@@ -219,7 +219,7 @@ class ProjectInfoTab(QWidget):
             observations = self.manipulator.inspect(self.project, get_items=None)
             has_observations = isinstance(observations, dict) and len(observations) > 0
         except Exception as e:
-            logger.error(f"Exception while inspecting observations: {str(e)}")
+            logger.error("Exception while inspecting observations: %s", str(e))
             has_observations = False
 
         if has_observations:
@@ -243,7 +243,7 @@ class ProjectInfoTab(QWidget):
                 try:
                     observation = self.manipulator.inspect(self.project, get_item=obs_name)
                 except Exception as e:
-                    logger.error(f"Failed to get observation '{obs_code}': {str(e)}")
+                    logger.error("Failed to get observation '%s': %s", obs_code, str(e))
                 
                 is_active = self.manipulator.inspect(observation, get="isactive")
 
@@ -293,9 +293,9 @@ class ProjectInfoTab(QWidget):
             self.manipulator.configure(self.project, activate_item=obs_name)
             self.update_tab()
             self.project_name_changed.emit(self.ui.lineEdit.text())
-            logger.info(f"Observation '{obs_code}' activated")
+            logger.info("Observation '%s' activated", obs_code)
         except Exception as e:
-            logger.error(f"Exception while activating observation '{obs_code}': {str(e)}")
+            logger.error("Exception while activating observation '%s': %s", obs_code, str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate observation: {str(e)}")
 
     @Slot(str)
@@ -305,9 +305,9 @@ class ProjectInfoTab(QWidget):
             self.manipulator.configure(self.project, deactivate_item=obs_name)
             self.update_tab()
             self.project_name_changed.emit(self.ui.lineEdit.text())
-            logger.info(f"Observation '{obs_name}' deactivated")
+            logger.info("Observation '%s' deactivated", obs_name)
         except Exception as e:
-            logger.error(f"Exception while deactivating observation '{obs_name}': {str(e)}")
+            logger.error("Exception while deactivating observation '%s': %s", obs_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate observation: {str(e)}")
 
     @Slot()
@@ -325,7 +325,7 @@ class ProjectInfoTab(QWidget):
             self.project_name_changed.emit(self.ui.lineEdit.text())
             logger.info("All observations activated")
         except Exception as e:
-            logger.error(f"Exception while activating all observations: {str(e)}")
+            logger.error("Exception while activating all observations: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate all observations: {str(e)}")
 
     @Slot()
@@ -337,7 +337,7 @@ class ProjectInfoTab(QWidget):
             self.project_name_changed.emit(self.ui.lineEdit.text())
             logger.info("All observations deactivated")
         except Exception as e:
-            logger.error(f"Exception while deactivating all observations: {str(e)}")
+            logger.error("Exception while deactivating all observations: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate all observations: {str(e)}")
 
     @Slot()
@@ -349,7 +349,7 @@ class ProjectInfoTab(QWidget):
             self.project_name_changed.emit(self.ui.lineEdit.text())
             logger.info("All active observations dropped")
         except Exception as e:
-            logger.error(f"Exception while dropping active observations: {str(e)}")
+            logger.error("Exception while dropping active observations: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop active observations: {str(e)}")
 
     @Slot()
@@ -361,7 +361,7 @@ class ProjectInfoTab(QWidget):
             self.project_name_changed.emit(self.ui.lineEdit.text())
             logger.info("All inactive observations dropped")
         except Exception as e:
-            logger.error(f"Exception while dropping inactive observations: {str(e)}")
+            logger.error("Exception while dropping inactive observations: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop inactive observations: {str(e)}")
 
     @Slot()
@@ -398,9 +398,9 @@ class ProjectInfoTab(QWidget):
             
             try:
                 self.project_name_changed.disconnect()
-                logger.debug(f"Disconnected project_name_changed signal for {self.objectName()}")
+                logger.debug("Disconnected project_name_changed signal for %s", self.objectName())
             except TypeError as e:
-                logger.debug(f"No connections to disconnect for project_name_changed signal in {self.objectName()}: {str(e)}")
+                logger.debug("No connections to disconnect for project_name_changed signal in %s: %s", self.objectName(), str(e))
 
             self.ui.projectInfoTable.setModel(None)
             if self.model:
@@ -415,9 +415,9 @@ class ProjectInfoTab(QWidget):
             self.model = None
             self.proxy_model = None
             
-            logger.debug(f"Cleaned up resources for {self.objectName()}")
+            logger.debug("Cleaned up resources for %s", self.objectName())
         except Exception as e:
-            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+            logger.error("Error cleaning up %s: %s", self.objectName(), str(e))
 
     def closeEvent(self, event: QEvent):
         """Override closeEvent to perform cleanup before closing."""

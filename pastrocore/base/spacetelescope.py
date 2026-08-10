@@ -54,11 +54,11 @@ class SpaceTelescope(Telescope):
 
         if use_kep and kepler_elements is not None:
             self._validate_kepler_elements(kepler_elements)
-            logger.debug(f"Initialized SpaceTelescope '{code}' with Keplerian elements, diameter={diameter} m")
+            logger.debug("Initialized SpaceTelescope '%s' with Keplerian elements, diameter=%s m", code, diameter)
         elif not use_kep and orbit_file and os.path.isfile(orbit_file):
-            logger.debug(f"Initialized SpaceTelescope '{code}' with orbit file '{orbit_file}', diameter={diameter} m")
+            logger.debug("Initialized SpaceTelescope '%s' with orbit file '%s', diameter=%s m", code, orbit_file, diameter)
         else:
-            logger.warning(f"Initialized SpaceTelescope '{code}' without orbit data or Keplerian elements")
+            logger.warning("Initialized SpaceTelescope '%s' without orbit data or Keplerian elements", code)
     
     def copy(self) -> 'SpaceTelescope':
         """Create a deep copy of the SpaceTelescope object, preserving all attributes."""
@@ -124,7 +124,7 @@ class SpaceTelescope(Telescope):
         Returns:
             Optional[str]: Path to the orbit file, or None if not set.
         """
-        logger.debug(f"Retrieving orbit file for SpaceTelescope '{self.code}': {self.orbit_file}")
+        logger.debug("Retrieving orbit file for SpaceTelescope '%s': %s", self.code, self.orbit_file)
         return self.orbit_file
 
     def set_orbit(self, orbit_file: str) -> None:
@@ -144,16 +144,16 @@ class SpaceTelescope(Telescope):
         self.orbit_file = orbit_file
         self.use_kep = False
         self.kepler_elements = None
-        logger.info(f"Set orbit file to '{orbit_file}' for SpaceTelescope '{self.code}'")
+        logger.info("Set orbit file to '%s' for SpaceTelescope '%s'", orbit_file, self.code)
 
     def get_pitch_range(self) -> Tuple[float, float]:
         """Retrieve the pitch range of the telescope."""
-        logger.debug(f"Retrieving pitch range for SpaceTelescope '{self.code}': {self.pitch_range}")
+        logger.debug("Retrieving pitch range for SpaceTelescope '%s': %s", self.code, self.pitch_range)
         return self.pitch_range
 
     def get_yaw_range(self) -> Tuple[float, float]:
         """Retrieve the yaw range of the telescope."""
-        logger.debug(f"Retrieving yaw range for SpaceTelescope '{self.code}': {self.yaw_range}")
+        logger.debug("Retrieving yaw range for SpaceTelescope '%s': %s", self.code, self.yaw_range)
         return self.yaw_range
 
     def set_interpolation_method(self, method: str) -> None:
@@ -162,7 +162,7 @@ class SpaceTelescope(Telescope):
         if method not in valid_methods:
             raise ValueError(f"Interpolation method must be one of {valid_methods}")
         self.interpolation_method = method
-        logger.debug(f"Set interpolation method to '{method}' for SpaceTelescope '{self.code}'")
+        logger.debug("Set interpolation method to '%s' for SpaceTelescope '%s'", method, self.code)
 
     def set_keplerian(self, a: float, e: float, i: float, raan: float, argp: float, nu: float, epoch: Time, mu: float = 398600.4418e9) -> None:
         """Set Keplerian elements for orbit calculation."""
@@ -172,7 +172,7 @@ class SpaceTelescope(Telescope):
         }
         self._validate_kepler_elements(kepler_elements)
         self.set({"kepler_elements": kepler_elements, "orbit_file": None, "use_kep": True})
-        logger.debug(f"Set Keplerian elements for SpaceTelescope '{self.code}'")
+        logger.debug("Set Keplerian elements for SpaceTelescope '%s'", self.code)
 
     def to_dict(self) -> dict:
         """Convert the SpaceTelescope object to a dictionary for serialization."""
@@ -201,67 +201,6 @@ class SpaceTelescope(Telescope):
             data.update(serialized_data)
             return data
         except Exception as e:
-            logger.error(f"Failed to serialize SpaceTelescope '{self.code}': {str(e)}")
+            logger.error("Failed to serialize SpaceTelescope '%s': %s", self.code, str(e))
             raise ValueError(f"Serialization failed: {str(e)}")
 
-    @classmethod
-    def from_dict(cls, data: dict) -> 'SpaceTelescope':
-        """Create a SpaceTelescope object from a dictionary."""
-        data = data.copy()
-        for table in ["sefd_table", "surface_efficiency_table", "effective_area_table", "system_temperature_table"]:
-            if table in data and isinstance(data[table], dict):
-                data[table] = {float(k): v for k, v in data[table].items()}
-        
-        if "elevation_range" in data and isinstance(data["elevation_range"], (list, tuple)):
-            data["elevation_range"] = tuple(data["elevation_range"])
-        if "azimuth_range" in data and isinstance(data["azimuth_range"], (list, tuple)):
-            data["azimuth_range"] = tuple(data["azimuth_range"])
-        if "pitch_range" in data and isinstance(data["pitch_range"], (list, tuple)):
-            data["pitch_range"] = tuple(data["pitch_range"])
-        if "yaw_range" in data and isinstance(data["yaw_range"], (list, tuple)):
-            data["yaw_range"] = tuple(data["yaw_range"])
-        
-        if "mount_type" in data and isinstance(data["mount_type"], str):
-            try:
-                data["mount_type"] = MountType(data["mount_type"].upper())
-            except ValueError:
-                raise ValueError(f"Invalid mount_type in data: {data['mount_type']}")
-        
-        if "kepler_elements" in data and data["kepler_elements"] is not None:
-            kepler = data["kepler_elements"]
-            data["kepler_elements"] = {
-                "a": kepler["a"],
-                "e": kepler["e"],
-                "i": kepler["i"],
-                "raan": kepler["raan"],
-                "argp": kepler["argp"],
-                "nu": kepler["nu"],
-                "epoch": Time(kepler["epoch"], scale='utc'),
-                "mu": kepler["mu"]
-            }
-        
-        valid_init_params = {
-            "code", "name", "type", "orbit_file", "diameter", "sefd_table", "pitch_range", "yaw_range",
-            "isactive", "use_kep", "kepler_elements", "interpolation_method",
-            "surface_accuracy", "surface_efficiency_table", "effective_area_table", "system_temperature_table"
-        }
-        
-        init_data = {k: v for k, v in data.items() if k in valid_init_params}
-        init_data.setdefault("name", f"stlsc_{uuid.uuid4().hex[:32]}")
-        init_data.setdefault("code", data.get("code", "TS"))
-        init_data.setdefault("type", "SpaceTelescope")
-        init_data.setdefault("orbit_file", "dummy_orbit.oem")
-        init_data.setdefault("diameter", 1.0)
-        init_data.setdefault("sefd_table", {})
-        init_data.setdefault("pitch_range", (-90.0, 90.0))
-        init_data.setdefault("yaw_range", (-180.0, 180.0))
-        init_data.setdefault("isactive", True)
-        init_data.setdefault("use_kep", True)
-        init_data.setdefault("kepler_elements", None)
-        init_data.setdefault("interpolation_method", "chebyshev")
-        init_data.setdefault("surface_accuracy", None)
-        init_data.setdefault("surface_efficiency_table", {})
-        init_data.setdefault("effective_area_table", {})
-        init_data.setdefault("system_temperature_table", {})
-        
-        return cls(**init_data)

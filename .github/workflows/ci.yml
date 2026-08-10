@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  # Also on every pull request: a suite that only runs after a merge cannot stop anything.
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # A hung test should fail the build in minutes, not occupy a runner until it is noticed.
+    timeout-minutes: 15
+
+    env:
+      # Qt has no display on a build machine; the offscreen platform is how it runs anyway.
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: pip
+
+    # PySide6 needs these to load even offscreen.
+    - name: Install system libraries Qt links against
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-timeout
+
+    # `python -m pytest` rather than `pytest`: the module form puts the working directory on
+    # sys.path, which is how the suite is run locally. With the bare command CI could not
+    # import pastrocore at all, and the two ways of running had quietly diverged.
+    - name: Check the model layer imports
+      run: python -c "from pastrocore.super.schedule_manipulator import ScheduleManipulator; print('ok')"
+
+    # The characterization tests are the point of this workflow: they recompute the fixture
+    # project and compare against the results it was saved holding, so a change to any formula
+    # fails the build rather than reaching a user.
+    - name: Characterization tests
+      run: python -m pytest tests/test_characterization.py -v
+
+    - name: Project round trip
+      run: python -m pytest tests/test_project_round_trip.py -v
+
+    - name: GUI smoke tests
+      run: python -m pytest tests/test_gui_smoke.py -v --timeout=60 --timeout-method=thread
+
+    - name: Everything
+      run: python -m pytest tests/ -q --timeout=120 --timeout-method=thread
