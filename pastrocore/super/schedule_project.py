@@ -26,6 +26,35 @@ class ScheduleProject(Project):
         >>> project.get_project()["name"]
         'NewProject'
     """
+
+    # The version of a saved project. Raise it when the shape of what `to_dict` writes
+    # changes -- a renamed field, a field that means something new -- and teach `migrate`
+    # to read the older shape. Stage 4 replaces how results are stored, and this is what
+    # will let a project written before that keep opening.
+    #
+    # Written into the file only once it is no longer 1, so nothing changes until it has to.
+    SCHEMA_VERSION = 1
+
+    @classmethod
+    def migrate(cls, data: dict, from_version: int) -> dict:
+        """Bring a project saved by an older version up to the current shape.
+
+        Args:
+            data (dict): The saved project, with its original field names.
+            from_version (int): The `SCHEMA_VERSION` it was written under.
+
+        Returns:
+            dict: The same project in the shape this version expects.
+
+        Raises:
+            SerializationError: If the version is one this code has no route from.
+
+        Notes:
+            - Migrate forward one version at a time. Each step is easier to reason about than
+              one jump, and the intermediate shapes are the ones already tested.
+            - There is nothing to do yet: version 1 is the only version there has been.
+        """
+        return super().migrate(data, from_version)
     _item_type = Observation
 
     def __init__(self, name: str = "OBS_DEFAULT_PROJECT", items: Optional[Dict[str, Observation]] = None):
