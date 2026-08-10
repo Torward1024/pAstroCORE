@@ -8,6 +8,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.frequencies import IF
 from msb_arch.utils.logging_setup import logger
+from msb_arch import ValidationError
 import uuid
 import json
 
@@ -134,7 +135,7 @@ class FrequenciesTab(QWidget):
                 self.update()
                 self.data_updated.emit(freq_name, None, "add")
                 logger.info("Added frequency '%s' to observation '%s'", freq_name, self.observation.code)
-            except ValueError as ve:
+            except (ValidationError, ValueError) as ve:
                 logger.error("Validation error while adding frequency: %s", str(ve))
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(ve)}")
             except Exception as e:
@@ -254,7 +255,7 @@ class FrequenciesTab(QWidget):
                     self.update()
                     self.data_updated.emit(freq_name, updated_if.isactive, "edit")
                     logger.info("Updated frequency '%s' in observation '%s'", freq_name, self.observation.code)
-                except ValueError as ve:
+                except (ValidationError, ValueError) as ve:
                     logger.error("Validation error while updating frequency: %s", str(ve))
                     QMessageBox.critical(self, "Error", f"Failed to update frequency: {str(ve)}")
                 except Exception as e:
