@@ -48,7 +48,7 @@ class SourcesTab(QWidget):
         self.ui.table.customContextMenuRequested.connect(self.show_context_menu)
         self.update()
 
-        logger.info(f"SourcesTab initialized for observation '{observation.code}' with catalog_manager id={id(catalog_manager)}")
+        logger.info("SourcesTab initialized for observation '%s' with catalog_manager id=%s", observation.code, id(catalog_manager))
 
     @Slot(str)
     def search_changed(self, text: str):
@@ -72,11 +72,11 @@ class SourcesTab(QWidget):
                 items = self.manipulator.inspect(sources, get_all=None)
                 has_sources = isinstance(items, dict) and len(items) > 0
             else:
-                logger.debug(f"No sources found in observation '{self.observation.code}'")
+                logger.debug("No sources found in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while inspecting sources: {str(e)}")
+            logger.error("Exception while inspecting sources: %s", str(e))
             has_sources = False
-            logger.debug(f"No sources found in observation '{self.observation.code}'")
+            logger.debug("No sources found in observation '%s'", self.observation.code)
 
         if has_sources:
             activate_all_action = menu.addAction(QIcon(":/icons/active_icon.svg"), "Activate All")
@@ -97,11 +97,11 @@ class SourcesTab(QWidget):
             try:
                 source_obj = self.manipulator.inspect(self.observation.get_sources(), get=source_name)
                 if not source_obj:
-                    logger.error(f"Failed to get source '{source_name}': No result returned")
+                    logger.error("Failed to get source '%s': No result returned", source_name)
                     return
                 is_active = bool(self.manipulator.inspect(source_obj, get="isactive"))
             except Exception as e:
-                logger.error(f"Exception while inspecting source '{source_name}': {str(e)}")
+                logger.error("Exception while inspecting source '%s': %s", source_name, str(e))
                 return
 
             menu.addSeparator()
@@ -130,12 +130,12 @@ class SourcesTab(QWidget):
                 self.manipulator.configure(self.observation.get_sources(), add=source)
                 self.update()
                 self.data_updated.emit(source.name, None, "add")
-                logger.info(f"Added source '{source.name}' to observation '{self.observation.code}'")
+                logger.info("Added source '%s' to observation '%s'", source.name, self.observation.code)
             except ValueError as ve:
-                logger.error(f"Validation error while adding source: {str(ve)}")
+                logger.error("Validation error while adding source: %s", str(ve))
                 QMessageBox.critical(self, "Error", f"Failed to add source: {str(ve)}")
             except Exception as e:
-                logger.error(f"Exception while adding source: {str(e)}")
+                logger.error("Exception while adding source: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add source: {str(e)}")
 
     @Slot()
@@ -152,9 +152,9 @@ class SourcesTab(QWidget):
             self.manipulator.configure(self.observation.get_sources(), remove=source_name)
             self.update()
             self.data_updated.emit(source_name, None, "remove")
-            logger.info(f"Removed source '{source_name}' from observation '{self.observation.code}'")
+            logger.info("Removed source '%s' from observation '%s'", source_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while removing source: {str(e)}")
+            logger.error("Exception while removing source: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to remove source: {str(e)}")
 
     @Slot(str)
@@ -163,7 +163,7 @@ class SourcesTab(QWidget):
         try:
             source_obj = self.manipulator.inspect(self.observation.get_sources(), get=source_name)
             if not source_obj:
-                logger.error(f"Failed to retrieve source '{source_name}': No result returned")
+                logger.error("Failed to retrieve source '%s': No result returned", source_name)
                 QMessageBox.critical(self, "Error", f"Failed to retrieve source: No result returned")
                 return
             
@@ -174,12 +174,12 @@ class SourcesTab(QWidget):
                     self.manipulator.configure(self.observation.get_sources(), set_item={"name": source_name, "item": source})
                     self.update()
                     self.data_updated.emit(source_name, source.isactive, "edit")
-                    logger.info(f"Updated source '{source_name}' in observation '{self.observation.code}'")
+                    logger.info("Updated source '%s' in observation '%s'", source_name, self.observation.code)
                 except ValueError as ve:
-                    logger.error(f"Validation error while updating source: {str(ve)}")
+                    logger.error("Validation error while updating source: %s", str(ve))
                     QMessageBox.critical(self, "Error", f"Failed to update source: {str(ve)}")
         except Exception as e:
-            logger.error(f"Exception while editing source: {str(e)}")
+            logger.error("Exception while editing source: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to edit source: {str(e)}")
 
     @Slot(str)
@@ -189,9 +189,9 @@ class SourcesTab(QWidget):
             self.manipulator.configure(self.observation.get_sources(), activate_item=source_name)
             self.update()
             self.data_updated.emit(source_name, True, "activate")
-            logger.info(f"Source '{source_name}' activated in observation '{self.observation.code}'")
+            logger.info("Source '%s' activated in observation '%s'", source_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while activating source '{source_name}': {str(e)}")
+            logger.error("Exception while activating source '%s': %s", source_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate source: {str(e)}")
 
     @Slot(str)
@@ -201,9 +201,9 @@ class SourcesTab(QWidget):
             self.manipulator.inspect(self.observation.get_sources(), deactivate_item=source_name)
             self.update()
             self.data_updated.emit(source_name, False, "deactivate")
-            logger.info(f"Source '{source_name}' deactivated in observation '{self.observation.code}'")
+            logger.info("Source '%s' deactivated in observation '%s'", source_name, self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while deactivating source '{source_name}': {str(e)}")
+            logger.error("Exception while deactivating source '%s': %s", source_name, str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate source: {str(e)}")
 
     @Slot()
@@ -213,9 +213,9 @@ class SourcesTab(QWidget):
             self.manipulator.configure(self.observation.get_sources(), activate_all=None)
             self.update()
             self.data_updated.emit(None, None, "activate_all")
-            logger.info(f"All sources activated in observation '{self.observation.code}'")
+            logger.info("All sources activated in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while activating all sources: {str(e)}")
+            logger.error("Exception while activating all sources: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to activate all sources: {str(e)}")
 
     @Slot()
@@ -225,9 +225,9 @@ class SourcesTab(QWidget):
             self.manipulator.configure(self.observation.get_sources(), deactivate_all=None)
             self.update()
             self.data_updated.emit(None, None, "deactivate_all")
-            logger.info(f"All sources deactivated in observation '{self.observation.code}'")
+            logger.info("All sources deactivated in observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while deactivating all sources: {str(e)}")
+            logger.error("Exception while deactivating all sources: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to deactivate all sources: {str(e)}")
 
     @Slot()
@@ -237,9 +237,9 @@ class SourcesTab(QWidget):
             self.manipulator.configure(self.observation.get_sources(), drop_active=None)
             self.update()
             self.data_updated.emit(None, None, "drop_active")
-            logger.info(f"All active sources dropped from observation '{self.observation.code}'")
+            logger.info("All active sources dropped from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while dropping active sources: {str(e)}")
+            logger.error("Exception while dropping active sources: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop active sources: {str(e)}")
 
     @Slot()
@@ -249,9 +249,9 @@ class SourcesTab(QWidget):
             self.manipulator.configure(self.observation.get_sources(), drop_inactive=None)
             self.update()
             self.data_updated.emit(None, None, "drop_inactive")
-            logger.info(f"All inactive sources dropped from observation '{self.observation.code}'")
+            logger.info("All inactive sources dropped from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while dropping inactive sources: {str(e)}")
+            logger.error("Exception while dropping inactive sources: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to drop inactive sources: {str(e)}")
 
     @Slot()
@@ -261,9 +261,9 @@ class SourcesTab(QWidget):
             self.manipulator.configure(self.observation.get_sources(), clear=None)
             self.update()
             self.data_updated.emit(None, None, "clear")
-            logger.info(f"All sources cleared from observation '{self.observation.code}'")
+            logger.info("All sources cleared from observation '%s'", self.observation.code)
         except Exception as e:
-            logger.error(f"Exception while clearing sources: {str(e)}")
+            logger.error("Exception while clearing sources: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to clear sources: {str(e)}")
 
     @Slot()
@@ -293,7 +293,7 @@ class SourcesTab(QWidget):
                         "de_d", "de_m", "de_s"
                     ])
                     if not attrs:
-                        logger.error(f"Failed to get attributes for source '{name}': No result returned")
+                        logger.error("Failed to get attributes for source '%s': No result returned", name)
                         continue
 
                     source_name = attrs.get("name", "N/A")
@@ -327,12 +327,12 @@ class SourcesTab(QWidget):
                     self.model.appendRow(row)
                     idx += 1
                 except Exception as e:
-                    logger.error(f"Exception while processing source '{name}': {str(e)}")
+                    logger.error("Exception while processing source '%s': %s", name, str(e))
                     continue
 
             self.ui.table.resizeColumnsToContents()
         except Exception as e:
-            logger.error(f"Exception while updating sources table: {str(e)}")
+            logger.error("Exception while updating sources table: %s", str(e))
 
     @Slot(list)
     def handle_sources_selected(self, sources: list):
@@ -352,25 +352,25 @@ class SourcesTab(QWidget):
             for source in sources:
                 if source.name in existing_names:
                     skipped_sources.append(source.name)
-                    logger.info(f"Skipped source '{source.name}' as it already exists in observation '{self.observation.code}'")
+                    logger.info("Skipped source '%s' as it already exists in observation '%s'", source.name, self.observation.code)
                     continue
                 unique_sources.append(source)
 
             if not unique_sources:
-                logger.warning(f"No new sources to add to observation '{self.observation.code}'")
+                logger.warning("No new sources to add to observation '%s'", self.observation.code)
                 QMessageBox.warning(self, "Warning", f"No new sources to add. Skipped: {', '.join(skipped_sources) if skipped_sources else 'None'}")
                 return
 
             self.manipulator.configure(self.observation.get_sources(), add=unique_sources)
             for source in unique_sources:
-                logger.info(f"Added source '{source.name}' from catalog to observation '{self.observation.code}'")
+                logger.info("Added source '%s' from catalog to observation '%s'", source.name, self.observation.code)
             self.data_updated.emit(None, None, "add_multiple")
             self.update()
             QMessageBox.information(self, "Success", f"Successfully added {len(unique_sources)} source(s) to observation.")
             if skipped_sources:
                 QMessageBox.information(self, "Note", f"Skipped {len(skipped_sources)} source(s) already in observation: {', '.join(skipped_sources)}")
         except Exception as e:
-            logger.error(f"Exception while adding sources from catalog: {str(e)}")
+            logger.error("Exception while adding sources from catalog: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to add sources: {str(e)}")
 
     def _cleanup(self):
@@ -394,10 +394,10 @@ class SourcesTab(QWidget):
             self.active_icon = None
             self.inactive_icon = None
         except Exception as e:
-            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+            logger.error("Error cleaning up %s: %s", self.objectName(), str(e))
 
     def closeEvent(self, event):
         """Override closeEvent to perform cleanup before closing."""
         self._cleanup()
         super().closeEvent(event)
-        logger.debug(f"closeEvent handled for {self.objectName()}")
+        logger.debug("closeEvent handled for %s", self.objectName())

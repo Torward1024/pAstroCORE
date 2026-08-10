@@ -94,11 +94,11 @@ class ObservationTab(QWidget):
             return
         try:
             self.manipulator.configure(obj=self.observation, set={"params": {"code": new_code}})
-            logger.info(f"Observation code changed from '{old_code}' to '{new_code}'")
+            logger.info("Observation code changed from '%s' to '%s'", old_code, new_code)
             self.observation.code = new_code
             self.observation_updated.emit()
         except Exception as e:
-            logger.error(f"Failed to change observation code: {str(e)}")
+            logger.error("Failed to change observation code: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to change observation code: {str(e)}")
             self.observation.code = old_code
             self.update_tab()
@@ -112,10 +112,10 @@ class ObservationTab(QWidget):
             return
         try:
             self.manipulator.configure(obj=self.observation, set={"params": {"observation_type": text}})
-            logger.info(f"Observation type changed to '{text}' for code '{self.observation.get_observation_code()}'")
+            logger.info("Observation type changed to '%s' for code '%s'", text, self.observation.get_observation_code())
             self.observation_updated.emit()
         except Exception as e:
-            logger.error(f"Failed to change observation type: {str(e)}")
+            logger.error("Failed to change observation type: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to change observation type: {str(e)}")
             self.update_tab()
 
@@ -127,10 +127,10 @@ class ObservationTab(QWidget):
             self.close_tab()
             return
         if self._updating:
-            logger.debug(f"Skipping update_tab for code '{self.observation.get_observation_code()}' as it is already updating")
+            logger.debug("Skipping update_tab for code '%s' as it is already updating", self.observation.get_observation_code())
             return
         self._updating = True
-        logger.debug(f"Starting update_tab for observation with code '{self.observation.get_observation_code()}'")
+        logger.debug("Starting update_tab for observation with code '%s'", self.observation.get_observation_code())
         try:
             obs_code = self.manipulator.inspect(obj=self.observation, get_observation_code=None)
             if not obs_code:
@@ -140,12 +140,12 @@ class ObservationTab(QWidget):
 
             new_observation = self.manipulator.inspect(obj=self.project, get_observation_by_code=obs_code)
             if not new_observation:
-                logger.info(f"Observation with code '{obs_code}' no longer exists, closing tab")
+                logger.info("Observation with code '%s' no longer exists, closing tab", obs_code)
                 self.close_tab()
                 return
 
             if new_observation != self.observation:
-                logger.debug(f"Observation with code '{obs_code}' data updated, refreshing local reference")
+                logger.debug("Observation with code '%s' data updated, refreshing local reference", obs_code)
                 self.observation = new_observation
                 self.frequencies_tab.observation = self.observation
                 self.sources_tab.observation = self.observation
@@ -181,9 +181,9 @@ class ObservationTab(QWidget):
             self.telescopes_tab.update()
             self.scans_tab.update()
 
-            logger.info(f"Observation tab updated for code '{obs_code}'")
+            logger.info("Observation tab updated for code '%s'", obs_code)
         except Exception as e:
-            logger.error(f"Error updating observation tab for code '{obs_code}': {str(e)}")
+            logger.error("Error updating observation tab for code '%s': %s", obs_code, str(e))
             QMessageBox.critical(self, "Error", f"Failed to update observation tab: {str(e)}")
         finally:
             self._updating = False
@@ -192,7 +192,7 @@ class ObservationTab(QWidget):
     def observation_changed(self):
         """Handle changes in observation data."""
         if not self._updating:
-            logger.info(f"Observation changed, emitting observation_updated for code '{self.observation.get_observation_code()}'")
+            logger.info("Observation changed, emitting observation_updated for code '%s'", self.observation.get_observation_code())
             self.observation_updated.emit()
     
     def close_tab(self):
@@ -202,7 +202,7 @@ class ObservationTab(QWidget):
             if tab_container.widget(i) == self:
                 self._cleanup()
                 tab_container.removeTab(i)
-                logger.info(f"Closed and cleaned observation tab for code '{self.observation.get_observation_code()}'")
+                logger.info("Closed and cleaned observation tab for code '%s'", self.observation.get_observation_code())
                 break
     
     def _cleanup(self):
@@ -229,7 +229,7 @@ class ObservationTab(QWidget):
             self.catalog_manager = None
             self.parent_widget = None
         except Exception as e:
-            logger.error(f"Error cleaning up {self.objectName()}: {str(e)}")
+            logger.error("Error cleaning up %s: %s", self.objectName(), str(e))
     
     def closeEvent(self, event: QEvent):
         """Override closeEvent to perform cleanup before closing."""

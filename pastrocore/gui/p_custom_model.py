@@ -15,7 +15,7 @@ class CustomStandardItemModel(QStandardItemModel):
                 right_num = int(right_data) if right_data is not None else 0
                 return left_num < right_num
             except (ValueError, TypeError):
-                logger.warning(f"Non-numeric data in first column: left={left_data}, right={right_data}")
+                logger.warning("Non-numeric data in first column: left=%s, right=%s", left_data, right_data)
                 return super().lessThan(left, right)
         return super().lessThan(left, right)
 
@@ -32,6 +32,6 @@ class CustomSortFilterProxyModel(QSortFilterProxyModel):
                 right_num = int(right_data) if right_data is not None else 0
                 return left_num < right_num
             except (ValueError, TypeError):
-                logger.warning(f"Non-numeric data in first column: left={left_data}, right={right_data}")
+                logger.warning("Non-numeric data in first column: left=%s, right=%s", left_data, right_data)
                 return super().lessThan(left, right)
         return super().lessThan(left, right)

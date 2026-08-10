@@ -37,7 +37,7 @@ class ProgressDialog(QDialog):
         """Update progress bar and label."""
         self.ui.progressBar.setValue(value)
         self.ui.label.setText(message)
-        logger.debug(f"Progress updated: {value}% - {message}")
+        logger.debug("Progress updated: %s%% - %s", value, message)
 
     def cancel(self):
         """Emit cancelRequested signal and update UI."""
@@ -77,7 +77,7 @@ class GenerationThread(QThread):
             result = self.manipulator.configure(obj=self.project, generate_observations=self.attributes)
             self.finished.emit({"status": True, "result": result})
         except Exception as e:
-            logger.error(f"Error in GenerationThread: {str(e)}")
+            logger.error("Error in GenerationThread: %s", str(e))
             self.error.emit(str(e))
 
 class GenerateObservationsDialog(QDialog):
@@ -212,9 +212,9 @@ class GenerateObservationsDialog(QDialog):
                 self.frequencies.add(if_obj)
                 self._frequency_order.append(if_obj.name)
                 self.update_frequency_list()
-                logger.info(f"Added frequency '{if_obj.name}' to frequencies collection")
+                logger.info("Added frequency '%s' to frequencies collection", if_obj.name)
             except Exception as e:
-                logger.error(f"Failed to add frequency: {str(e)}")
+                logger.error("Failed to add frequency: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add frequency: {str(e)}")
 
     @Slot(int)
@@ -229,9 +229,9 @@ class GenerateObservationsDialog(QDialog):
                     if_data = dialog.get_if_data()
                     if_obj.set(if_data)
                     self.update_frequency_list()
-                    logger.info(f"Edited frequency '{if_obj.name}'")
+                    logger.info("Edited frequency '%s'", if_obj.name)
                 except Exception as e:
-                    logger.error(f"Failed to edit frequency: {str(e)}")
+                    logger.error("Failed to edit frequency: %s", str(e))
                     QMessageBox.critical(self, "Error", f"Failed to edit frequency: {str(e)}")
 
     @Slot(int)
@@ -243,7 +243,7 @@ class GenerateObservationsDialog(QDialog):
             self.frequencies.remove(name)
             self._frequency_order.remove(name)
             self.update_frequency_list()
-            logger.info(f"Removed frequency '{name}' from frequencies collection")
+            logger.info("Removed frequency '%s' from frequencies collection", name)
 
     @Slot()
     def move_source_up(self):
@@ -255,7 +255,7 @@ class GenerateObservationsDialog(QDialog):
             )
             self.update_source_list()
             self.ui.sourceList.setCurrentRow(current_row - 1)
-            logger.debug(f"Moved source '{self._source_order[current_row - 1]}' up to position {current_row}")
+            logger.debug("Moved source '%s' up to position %s", self._source_order[current_row - 1], current_row)
 
     @Slot()
     def move_source_down(self):
@@ -267,7 +267,7 @@ class GenerateObservationsDialog(QDialog):
             )
             self.update_source_list()
             self.ui.sourceList.setCurrentRow(current_row + 1)
-            logger.debug(f"Moved source '{self._source_order[current_row + 1]}' down to position {current_row + 2}")
+            logger.debug("Moved source '%s' down to position %s", self._source_order[current_row + 1], current_row + 2)
 
     @Slot(QPoint)
     def show_source_context_menu(self, position: QPoint):
@@ -294,9 +294,9 @@ class GenerateObservationsDialog(QDialog):
                 self.sources.add(source)
                 self._source_order.append(source.name)
                 self.update_source_list()
-                logger.info(f"Added source '{source.name}' manually to sources collection")
+                logger.info("Added source '%s' manually to sources collection", source.name)
             except Exception as e:
-                logger.error(f"Failed to add source manually: {str(e)}")
+                logger.error("Failed to add source manually: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add source: {str(e)}")
 
     @Slot()
@@ -314,12 +314,12 @@ class GenerateObservationsDialog(QDialog):
         for source in sources:
             if source.name in self.sources.get_all():
                 skipped_sources.append(source.name)
-                logger.info(f"Skipped source '{source.name}' as it already exists in sources collection")
+                logger.info("Skipped source '%s' as it already exists in sources collection", source.name)
                 continue
             self.sources.add(source)
             self._source_order.append(source.name)
             added_count += 1
-            logger.info(f"Added source '{source.name}' from catalog to sources collection")
+            logger.info("Added source '%s' from catalog to sources collection", source.name)
         self.update_source_list()
         if added_count:
             QMessageBox.information(self, "Success", f"Added {added_count} source(s) from catalog.")
@@ -337,7 +337,7 @@ class GenerateObservationsDialog(QDialog):
             self.sources.remove(name)
             self._source_order.remove(name)
             self.update_source_list()
-            logger.info(f"Removed source '{name}' from sources collection")
+            logger.info("Removed source '%s' from sources collection", name)
 
     @Slot(QPoint)
     def show_telescope_context_menu(self, position: QPoint):
@@ -366,10 +366,10 @@ class GenerateObservationsDialog(QDialog):
                 self.telescopes.add(telescope)
                 self._telescope_order.append(telescope.name)
                 self.update_telescope_list()
-                logger.info(f"Added telescope '{telescope.name}' to telescopes collection")
+                logger.info("Added telescope '%s' to telescopes collection", telescope.name)
                 QMessageBox.information(self, "Success", f"Added telescope '{telescope.name}'.")
             except Exception as e:
-                logger.error(f"Failed to add telescope manually: {str(e)}")
+                logger.error("Failed to add telescope manually: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add telescope: {str(e)}")
 
     @Slot()
@@ -382,10 +382,10 @@ class GenerateObservationsDialog(QDialog):
                 self.telescopes.add(telescope)
                 self._telescope_order.append(telescope.name)
                 self.update_telescope_list()
-                logger.info(f"Added space telescope '{telescope.name}' to telescopes collection")
+                logger.info("Added space telescope '%s' to telescopes collection", telescope.name)
                 QMessageBox.information(self, "Success", f"Added space telescope '{telescope.name}'.")
             except Exception as e:
-                logger.error(f"Failed to add space telescope manually: {str(e)}")
+                logger.error("Failed to add space telescope manually: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to add space telescope: {str(e)}")
 
     @Slot()
@@ -404,12 +404,12 @@ class GenerateObservationsDialog(QDialog):
             name = telescope.name
             if name in self.telescopes.get_all():
                 skipped_telescopes.append(name)
-                logger.info(f"Skipped telescope '{name}' as it already exists in telescopes collection")
+                logger.info("Skipped telescope '%s' as it already exists in telescopes collection", name)
                 continue
             self.telescopes.add(telescope)
             self._telescope_order.append(name)
             added_count += 1
-            logger.info(f"Added telescope '{name}' from catalog to telescopes collection")
+            logger.info("Added telescope '%s' from catalog to telescopes collection", name)
         self.update_telescope_list()
         if added_count:
             QMessageBox.information(self, "Success", f"Added {added_count} telescope(s) from catalog.")
@@ -427,7 +427,7 @@ class GenerateObservationsDialog(QDialog):
             self.telescopes.remove(name)
             self._telescope_order.remove(name)
             self.update_telescope_list()
-            logger.info(f"Removed telescope '{name}' from telescopes collection")
+            logger.info("Removed telescope '%s' from telescopes collection", name)
 
     @Slot()
     def save_preset(self):
@@ -449,9 +449,9 @@ class GenerateObservationsDialog(QDialog):
                 }
                 with open(file_name, 'w') as f:
                     json.dump(preset_data, f)
-                logger.info(f"Saved preset to {file_name}")
+                logger.info("Saved preset to %s", file_name)
             except Exception as e:
-                logger.error(f"Failed to save preset: {str(e)}")
+                logger.error("Failed to save preset: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to save preset: {str(e)}")
 
     @Slot()
@@ -472,9 +472,9 @@ class GenerateObservationsDialog(QDialog):
                 self.ui.randomizeOrderCheck.setChecked(preset_data.get("randomize_order", False))
                 self.ui.intervalSpinBox.setValue(preset_data.get("interval_min", 5))
                 self.ui.chkParallel.setChecked(preset_data.get("parallel", True))
-                logger.info(f"Loaded preset from {file_name}")
+                logger.info("Loaded preset from %s", file_name)
             except Exception as e:
-                logger.error(f"Failed to load preset: {str(e)}")
+                logger.error("Failed to load preset: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to load preset: {str(e)}")
 
     @Slot(int)
@@ -497,7 +497,7 @@ class GenerateObservationsDialog(QDialog):
             self.ui.randomizeOrderCheck.setChecked(True)
             self.ui.intervalSpinBox.setValue(1)
             self.ui.chkParallel.setChecked(False)
-        logger.info(f"Loaded preset '{preset}'")
+        logger.info("Loaded preset '%s'", preset)
 
     @Slot()
     def generate(self):
@@ -532,9 +532,7 @@ class GenerateObservationsDialog(QDialog):
             if not naming_mask:
                 raise ValueError("Naming mask cannot be empty")
 
-            logger.debug(f"Generating with: sources={len(source_items)} ({[s.name for s in source_items]}), "
-                        f"telescopes={len(telescope_items)} ({[t.name for t in telescope_items]}, Types: {[type(t).__name__ for t in telescope_items]}), "
-                        f"frequencies={len(frequency_items)} ({[f.name for f in frequency_items]})")
+            logger.debug("Generating with: sources=%s (%s), telescopes=%s (%s, Types: %s), frequencies=%s (%s)", len(source_items), [s.name for s in source_items], len(telescope_items), [t.name for t in telescope_items], [type(t).__name__ for t in telescope_items], len(frequency_items), [f.name for f in frequency_items])
 
             pattern_attributes = {
                 "add_off_source": self.ui.addOffSourceCheck.isChecked(),
@@ -566,7 +564,7 @@ class GenerateObservationsDialog(QDialog):
             self.progress_dialog.exec()
 
         except Exception as e:
-            logger.error(f"Error during observation generation setup: {str(e)}")
+            logger.error("Error during observation generation setup: %s", str(e))
             QMessageBox.critical(self, "Error", f"Error setting up observation generation: {str(e)}")
 
     @Slot(dict)
@@ -577,8 +575,7 @@ class GenerateObservationsDialog(QDialog):
             self.observation_generated.emit(response["result"])
             self.accept()
         else:
-            logger.error(f"Generation failed: {response.get('error', 'Unknown error')}. "
-                        f"Partial results: {len(response.get('result', []))} observations")
+            logger.error("Generation failed: %s. Partial results: %s observations", response.get('error', 'Unknown error'), len(response.get('result', [])))
             QMessageBox.critical(self, "Error", f"Generation failed: {response.get('error', 'Unknown error')}")
             self.reject()
 
@@ -586,7 +583,7 @@ class GenerateObservationsDialog(QDialog):
     def generation_error(self, error):
         """Handle generation errors."""
         self.progress_dialog.close()
-        logger.error(f"Generation error: {error}")
+        logger.error("Generation error: %s", error)
         QMessageBox.critical(self, "Error", f"Generation failed: {error}")
         self.reject()
 
@@ -611,8 +608,7 @@ class GenerateObservationsDialog(QDialog):
         self.ui.endTimeEdit.blockSignals(True)
         self.ui.endTimeEdit.setDateTime(end_qdt)
         self.ui.endTimeEdit.blockSignals(False)
-        logger.debug(f"Updated end time: parallel={is_parallel}, num_sources={num_sources}, "
-                    f"add_off={add_off_source}, total_seconds={total_seconds}, end={end_qdt.toString(Qt.ISODate)}")
+        logger.debug("Updated end time: parallel=%s, num_sources=%s, add_off=%s, total_seconds=%s, end=%s", is_parallel, num_sources, add_off_source, total_seconds, end_qdt.toString(Qt.ISODate))
     
     @Slot()
     def update_scan_duration_from_end(self):
@@ -652,5 +648,4 @@ class GenerateObservationsDialog(QDialog):
         self.ui.scanDurationSpinBox.blockSignals(True)
         self.ui.scanDurationSpinBox.setValue(new_duration)
         self.ui.scanDurationSpinBox.blockSignals(False)
-        logger.debug(f"Updated scan duration from end: new_duration={new_duration}, total_seconds={total_seconds}, "
-                     f"multiplier={multiplier}, num_sources={num_sources}")
+        logger.debug("Updated scan duration from end: new_duration=%s, total_seconds=%s, multiplier=%s, num_sources=%s", new_duration, total_seconds, multiplier, num_sources)

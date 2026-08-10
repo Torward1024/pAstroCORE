@@ -35,7 +35,7 @@ class MollweideVisualizationTab(QWidget):
         self.toolbar = None
         self.figure = None
         self.is_processing = False
-        logger.debug(f"MollweideVisualizationTab initialized for observation id={id(observation)}")
+        logger.debug("MollweideVisualizationTab initialized for observation id=%s", id(observation))
 
         self.ui.listWidget.setObjectName("listSources")
         self.layout = QVBoxLayout(self.ui.widget)
@@ -67,7 +67,7 @@ class MollweideVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for Mollweide tracks missing required columns: {missing_columns}")
+                logger.error("DataFrame for Mollweide tracks missing required columns: %s", missing_columns)
                 self.ui.listWidget.addItem(QListWidgetItem("Invalid Mollweide tracks data structure"))
                 return
 
@@ -91,9 +91,9 @@ class MollweideVisualizationTab(QWidget):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(Qt.Checked)
                 self.ui.listTelescopes.addItem(item)
-            logger.debug(f"Populated {len(sources)} sources and {len(telescopes)} telescopes")
+            logger.debug("Populated %s sources and %s telescopes", len(sources), len(telescopes))
         except Exception as e:
-            logger.error(f"Failed to populate filters: {str(e)}")
+            logger.error("Failed to populate filters: %s", str(e))
             self.ui.listWidget.addItem(QListWidgetItem("Failed to retrieve data"))
 
     def _lock_ui(self):
@@ -122,7 +122,7 @@ class MollweideVisualizationTab(QWidget):
                 self.canvas.deleteLater()
                 logger.debug("Canvas removed and scheduled for deletion")
             except Exception as e:
-                logger.warning(f"Failed to remove canvas: {str(e)}")
+                logger.warning("Failed to remove canvas: %s", str(e))
             finally:
                 self.canvas = None
 
@@ -133,7 +133,7 @@ class MollweideVisualizationTab(QWidget):
                 self.toolbar.deleteLater()
                 logger.debug("Toolbar removed and scheduled for deletion")
             except Exception as e:
-                logger.warning(f"Failed to remove toolbar: {str(e)}")
+                logger.warning("Failed to remove toolbar: %s", str(e))
             finally:
                 self.toolbar = None
 
@@ -144,14 +144,14 @@ class MollweideVisualizationTab(QWidget):
                     ax.remove()
                 self.figure.clf()
                 plt.close(self.figure)
-                logger.debug(f"Figure {id(self.figure)} closed and cleared")
+                logger.debug("Figure %s closed and cleared", id(self.figure))
             except Exception as e:
-                logger.warning(f"Failed to close figure {id(self.figure)}: {str(e)}")
+                logger.warning("Failed to close figure %s: %s", id(self.figure), str(e))
             finally:
                 self.figure = None
 
         gc.collect(2)
-        logger.debug(f"Number of open figures after cleanup: {len(plt.get_fignums())}")
+        logger.debug("Number of open figures after cleanup: %s", len(plt.get_fignums()))
 
     def embed_figure(self, figure: Figure):
         """Embed a Matplotlib figure into the widget.
@@ -166,7 +166,7 @@ class MollweideVisualizationTab(QWidget):
         self.layout.addWidget(self.toolbar)
         self.layout.addWidget(self.canvas)
         self.canvas.draw()
-        logger.debug(f"Embedded Matplotlib figure {id(figure)} in MollweideVisualizationTab")
+        logger.debug("Embedded Matplotlib figure %s in MollweideVisualizationTab", id(figure))
 
     def get_selected_sources(self) -> List[str]:
         """Get the list of selected source names.
@@ -179,7 +179,7 @@ class MollweideVisualizationTab(QWidget):
             item = self.ui.listWidget.item(i)
             if item.checkState() == Qt.Checked:
                 selected_sources.append(item.text())
-        logger.debug(f"Selected sources: {selected_sources}")
+        logger.debug("Selected sources: %s", selected_sources)
         return selected_sources
 
     def get_selected_scans(self) -> List[str]:
@@ -193,7 +193,7 @@ class MollweideVisualizationTab(QWidget):
             item = self.ui.listScans.item(i)
             if item.checkState() == Qt.Checked:
                 selected_scans.append(item.data(Qt.UserRole))
-        logger.debug(f"Selected scans: {selected_scans}")
+        logger.debug("Selected scans: %s", selected_scans)
         return selected_scans
 
     def get_selected_telescopes(self) -> List[str]:
@@ -207,7 +207,7 @@ class MollweideVisualizationTab(QWidget):
             item = self.ui.listTelescopes.item(i)
             if item.checkState() == Qt.Checked:
                 selected_telescopes.append(item.text())
-        logger.debug(f"Selected telescopes: {selected_telescopes}")
+        logger.debug("Selected telescopes: %s", selected_telescopes)
         return selected_telescopes
 
     @Slot()
@@ -229,7 +229,7 @@ class MollweideVisualizationTab(QWidget):
         """Update the scans list based on the Mollweide tracks DataFrame, preserving check states."""
         current_checks = {self.ui.listScans.item(i).data(Qt.UserRole): self.ui.listScans.item(i).checkState()
                         for i in range(self.ui.listScans.count())}
-        logger.debug(f"Stored check states: {current_checks}")
+        logger.debug("Stored check states: %s", current_checks)
 
         self.ui.listScans.clear()
         try:
@@ -246,7 +246,7 @@ class MollweideVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for Mollweide tracks missing required columns: {missing_columns}")
+                logger.error("DataFrame for Mollweide tracks missing required columns: %s", missing_columns)
                 self.ui.listScans.addItem(QListWidgetItem("Invalid Mollweide tracks data structure"))
                 return
 
@@ -264,16 +264,16 @@ class MollweideVisualizationTab(QWidget):
                     start_time = Time(start_time_mjd, format="mjd").isot  # Convert MJD to ISOT
                     display_text = f"{start_time} (ISOT)"
                 except Exception as e:
-                    logger.error(f"Failed to convert MJD {start_time_mjd} to ISOT: {str(e)}")
+                    logger.error("Failed to convert MJD %s to ISOT: %s", start_time_mjd, str(e))
                     display_text = f"{start_time_mjd:.6f} (MJD)"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(current_checks.get(scan_name, Qt.Checked))
                 self.ui.listScans.addItem(item)
-            logger.debug(f"Populated {len(scans)} scans")
+            logger.debug("Populated %s scans", len(scans))
         except Exception as e:
-            logger.error(f"Failed to update scans: {str(e)}")
+            logger.error("Failed to update scans: %s", str(e))
             self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
 
     def update_visualization(self):
@@ -281,7 +281,7 @@ class MollweideVisualizationTab(QWidget):
         sources = self.get_selected_sources()
         scans = self.get_selected_scans()
         telescopes = self.get_selected_telescopes()
-        logger.debug(f"Updating visualization: sources={sources}, scans={scans}, telescopes={telescopes}")
+        logger.debug("Updating visualization: sources=%s, scans=%s, telescopes=%s", sources, scans, telescopes)
 
         if not sources or not scans or not telescopes:
             logger.debug("Missing required filters (sources, scans, or telescopes), creating empty Mollweide plot")
@@ -300,7 +300,7 @@ class MollweideVisualizationTab(QWidget):
 
         try:
             result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             figure = result.get("figure")
             if figure:
                 self.embed_figure(figure)
@@ -309,7 +309,7 @@ class MollweideVisualizationTab(QWidget):
                 logger.warning("No figure returned from visualizer, embedding empty plot")
                 self._create_empty_mollweide()
         except Exception as e:
-            logger.error(f"Exception during Mollweide tracks visualization update: {str(e)}")
+            logger.error("Exception during Mollweide tracks visualization update: %s", str(e))
             self._create_empty_mollweide()
 
     def _create_empty_mollweide(self):
@@ -319,7 +319,7 @@ class MollweideVisualizationTab(QWidget):
         try:
             widget_size = self.ui.widget.size()
             width, height = widget_size.width(), widget_size.height()
-            logger.debug(f"Widget size: width={width}, height={height}")
+            logger.debug("Widget size: width=%s, height=%s", width, height)
             if width <= 0 or height <= 0:
                 logger.error("Invalid widget size, using default size")
                 width, height = 800, 600
@@ -331,11 +331,11 @@ class MollweideVisualizationTab(QWidget):
             self.figure.subplots_adjust(left=0.10, bottom=0.10, right=0.85, top=0.90)
             self.embed_figure(self.figure)
         except Exception as e:
-            logger.error(f"Failed to create empty Mollweide plot: {str(e)}")
+            logger.error("Failed to create empty Mollweide plot: %s", str(e))
             self.figure = None
 
     def closeEvent(self, event):
         """Ensure resources are cleaned up when the widget is closed."""
         self._clear_canvas()
         super().closeEvent(event)
-        logger.debug(f"MollweideVisualizationTab closed, resources cleaned up")
+        logger.debug("MollweideVisualizationTab closed, resources cleaned up")

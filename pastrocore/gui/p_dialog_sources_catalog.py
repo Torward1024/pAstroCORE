@@ -93,7 +93,7 @@ class SourcesCatalogDialog(QDialog):
             items[0].setData(source, Qt.UserRole)
             self.model.appendRow(items)
 
-        logger.info(f"Populated sources catalog table with {len(sources)} sources")
+        logger.info("Populated sources catalog table with %s sources", len(sources))
 
     @Slot(str)
     def filter_sources(self, text: str):
@@ -143,7 +143,7 @@ class SourcesCatalogDialog(QDialog):
         if selected_sources:
             self.sources_selected.emit(selected_sources)
             self.accept()
-            logger.info(f"Selected {len(selected_sources)} sources for adding to observation")
+            logger.info("Selected %s sources for adding to observation", len(selected_sources))
         else:
             logger.error("No valid sources found in selection")
             QMessageBox.critical(self, "Error", "No valid sources found in selection.")

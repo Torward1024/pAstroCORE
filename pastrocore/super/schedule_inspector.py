@@ -61,9 +61,9 @@ class ScheduleInspector(Super):
                 freq_obj, attributes, "name", freq_obj.get, self._inspect_if
             )
             if result["status"]:
-                logger.debug(f"Inspected nested IF in Frequencies: name={attributes['name']}, result={result['result']}")
+                logger.debug("Inspected nested IF in Frequencies: name=%s, result=%s", attributes['name'], result['result'])
                 return result["result"]
-            logger.warning(f"Failed to inspect nested IF in Frequencies: name={attributes.get('name')}")
+            logger.warning("Failed to inspect nested IF in Frequencies: name=%s", attributes.get('name'))
             raise ValueError(result.get("error", "Operation not executed"))
         return self._apply_methods(freq_obj, attributes)
 
@@ -82,9 +82,9 @@ class ScheduleInspector(Super):
                 sources_obj, attributes, "name", sources_obj.get, self._inspect_source
             )
             if result["status"]:
-                logger.debug(f"Inspected nested Source in Sources: name={attributes['name']}, result={result['result']}")
+                logger.debug("Inspected nested Source in Sources: name=%s, result=%s", attributes['name'], result['result'])
                 return result["result"]
-            logger.warning(f"Failed to inspect nested Source in Sources: name={attributes.get('name')}")
+            logger.warning("Failed to inspect nested Source in Sources: name=%s", attributes.get('name'))
             raise ValueError(result.get("error", "Operation not executed"))
         return self._apply_methods(sources_obj, attributes)
 
@@ -109,9 +109,9 @@ class ScheduleInspector(Super):
                 telescopes_obj, attributes, "name", telescopes_obj.get, self._inspect_telescope
             )
             if result["status"]:
-                logger.debug(f"Inspected nested Telescope in Telescopes: name={attributes['name']}, result={result['result']}")
+                logger.debug("Inspected nested Telescope in Telescopes: name=%s, result=%s", attributes['name'], result['result'])
                 return result["result"]
-            logger.warning(f"Failed to inspect nested Telescope in Telescopes: name={attributes.get('name')}")
+            logger.warning("Failed to inspect nested Telescope in Telescopes: name=%s", attributes.get('name'))
             raise ValueError(result.get("error", "Operation not executed"))
         return self._apply_methods(telescopes_obj, attributes)
 
@@ -130,9 +130,9 @@ class ScheduleInspector(Super):
                 scans_obj, attributes, "name", scans_obj.get, self._inspect_scan
             )
             if result["status"]:
-                logger.debug(f"Inspected nested Scan in Scans: name={attributes['name']}, result={result['result']}")
+                logger.debug("Inspected nested Scan in Scans: name=%s, result=%s", attributes['name'], result['result'])
                 return result["result"]
-            logger.warning(f"Failed to inspect nested Scan in Scans: name={attributes.get('name')}")
+            logger.warning("Failed to inspect nested Scan in Scans: name=%s", attributes.get('name'))
             raise ValueError(result.get("error", "Operation not executed"))
         return self._apply_methods(scans_obj, attributes)
 
@@ -151,9 +151,9 @@ class ScheduleInspector(Super):
                 project_obj, attributes, "name", project_obj.get_observation, self._inspect_observation
             )
             if result["status"]:
-                logger.debug(f"Inspected nested Observation in ScheduleProject: name={attributes['name']}, result={result['result']}")
+                logger.debug("Inspected nested Observation in ScheduleProject: name=%s, result=%s", attributes['name'], result['result'])
                 return result["result"]
-            logger.warning(f"Failed to inspect nested Observation in ScheduleProject: name={attributes.get('name')}")
+            logger.warning("Failed to inspect nested Observation in ScheduleProject: name=%s", attributes.get('name'))
             raise ValueError(result.get("error", "Operation not executed"))
         return self._apply_methods(project_obj, attributes)
 

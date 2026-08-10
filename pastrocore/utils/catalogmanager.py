@@ -80,7 +80,7 @@ class CatalogManager:
                         continue
                     parts = re.split(r'\s+', line)
                     if len(parts) < 5:
-                        logger.warning(f"Skipping invalid source format: {line}")
+                        logger.warning("Skipping invalid source format: %s", line)
                         failed_count += 1
                         continue
 
@@ -111,13 +111,13 @@ class CatalogManager:
                         )
                         self.source_catalog.add(source)
                     except ValueError as e:
-                        logger.warning(f"Failed to parse source '{line}': {e}")
+                        logger.warning("Failed to parse source '%s': %s", line, e)
                         failed_count += 1
                         continue
             if failed_count > 0:
-                logger.warning(f"Loaded {len(self.source_catalog)} sources from '{source_file}', {failed_count} failed")
+                logger.warning("Loaded %s sources from '%s', %s failed", len(self.source_catalog), source_file, failed_count)
             else:
-                logger.debug(f"Successfully loaded {len(self.source_catalog)} sources from '{source_file}'")
+                logger.debug("Successfully loaded %s sources from '%s'", len(self.source_catalog), source_file)
         except FileNotFoundError:
             raise FileNotFoundError(f"Source catalog file '{source_file}' not found!")
         except ValueError as e:
@@ -187,7 +187,7 @@ class CatalogManager:
                         continue
                     parts = re.split(r'\s+', line)
                     if len(parts) < 6:
-                        logger.warning(f"Skipping invalid telescope format: {line}")
+                        logger.warning("Skipping invalid telescope format: %s", line)
                         failed_count += 1
                         continue
 
@@ -207,13 +207,13 @@ class CatalogManager:
                         )
                         self.telescope_catalog.add(telescope)
                     except (ValueError, IndexError) as e:
-                        logger.warning(f"Failed to parse telescope '{line}': {e}")
+                        logger.warning("Failed to parse telescope '%s': %s", line, e)
                         failed_count += 1
                         continue
             if failed_count > 0:
-                logger.warning(f"Loaded {len(self.telescope_catalog)} telescopes from '{telescope_file}', {failed_count} failed")
+                logger.warning("Loaded %s telescopes from '%s', %s failed", len(self.telescope_catalog), telescope_file, failed_count)
             else:
-                logger.debug(f"Successfully loaded {len(self.telescope_catalog)} telescopes from '{telescope_file}'")
+                logger.debug("Successfully loaded %s telescopes from '%s'", len(self.telescope_catalog), telescope_file)
         except FileNotFoundError:
             raise FileNotFoundError(f"Telescope catalog file '{telescope_file}' not found!")
         except ValueError as e:

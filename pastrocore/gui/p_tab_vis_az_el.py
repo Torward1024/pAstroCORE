@@ -36,7 +36,7 @@ class AzElVisualizationTab(QWidget):
         self.figure = None
         self.is_processing = False
         self.coord_type = "AzEl"
-        logger.debug(f"AzElVisualizationTab initialized for observation id={id(observation)}")
+        logger.debug("AzElVisualizationTab initialized for observation id=%s", id(observation))
 
         self.layout = QVBoxLayout(self.ui.widget)
         self._populate_filters()
@@ -66,7 +66,7 @@ class AzElVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for Az/El missing required columns: {missing_columns}")
+                logger.error("DataFrame for Az/El missing required columns: %s", missing_columns)
                 self.ui.cmbSource.addItem("Invalid Az/El data structure")
                 return
 
@@ -79,9 +79,9 @@ class AzElVisualizationTab(QWidget):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(Qt.Checked)
                 self.ui.listTelescopes.addItem(item)
-            logger.debug(f"Populated {len(sources)} sources and {len(telescopes)} telescopes")
+            logger.debug("Populated %s sources and %s telescopes", len(sources), len(telescopes))
         except Exception as e:
-            logger.error(f"Failed to populate filters: {str(e)}")
+            logger.error("Failed to populate filters: %s", str(e))
             self.ui.cmbSource.addItem("Failed to retrieve filters")
 
     def _lock_ui(self):
@@ -133,7 +133,7 @@ class AzElVisualizationTab(QWidget):
             self.canvas.draw()
             logger.debug("Figure embedded successfully")
         except Exception as e:
-            logger.error(f"Failed to embed figure: {str(e)}")
+            logger.error("Failed to embed figure: %s", str(e))
             self._clear_canvas()
 
     def get_selected_source(self) -> Optional[str]:
@@ -146,7 +146,7 @@ class AzElVisualizationTab(QWidget):
         if not source_name or source_name in ["No Az/El data available", "No schema defined", "Invalid Az/El data structure", "Failed to retrieve filters"]:
             logger.debug("No valid source selected")
             return None
-        logger.debug(f"Selected source: {source_name}")
+        logger.debug("Selected source: %s", source_name)
         return source_name
 
     def get_selected_scans(self) -> List[str]:
@@ -162,7 +162,7 @@ class AzElVisualizationTab(QWidget):
                 scan_name = item.data(Qt.UserRole)
                 if scan_name:
                     selected_scans.append(scan_name)
-        logger.debug(f"Selected scans: {selected_scans}")
+        logger.debug("Selected scans: %s", selected_scans)
         return selected_scans
 
     def get_selected_telescopes(self) -> List[str]:
@@ -176,7 +176,7 @@ class AzElVisualizationTab(QWidget):
             item = self.ui.listTelescopes.item(i)
             if item.checkState() == Qt.Checked:
                 selected_telescopes.append(item.text())
-        logger.debug(f"Selected telescopes: {selected_telescopes}")
+        logger.debug("Selected telescopes: %s", selected_telescopes)
         return selected_telescopes
 
     @Slot()
@@ -217,13 +217,13 @@ class AzElVisualizationTab(QWidget):
                 return
             missing_columns = [col for col in expected_columns if col not in df.columns]
             if missing_columns:
-                logger.error(f"DataFrame for Az/El missing required columns: {missing_columns}")
+                logger.error("DataFrame for Az/El missing required columns: %s", missing_columns)
                 self.ui.listScans.addItem(QListWidgetItem("Invalid Az/El data structure"))
                 return
 
             df_filtered = df.filter(pl.col("source_name") == source_name)
             if df_filtered.is_empty():
-                logger.debug(f"No data for source '{source_name}' in Az/El DataFrame")
+                logger.debug("No data for source '%s' in Az/El DataFrame", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
@@ -239,9 +239,9 @@ class AzElVisualizationTab(QWidget):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(current_checks.get(scan_name, Qt.Checked))
                 self.ui.listScans.addItem(item)
-            logger.debug(f"Populated {len(scans)} scans for source '{source_name}'")
+            logger.debug("Populated %s scans for source '%s'", len(scans), source_name)
         except Exception as e:
-            logger.error(f"Failed to update scans for source '{source_name}': {str(e)}")
+            logger.error("Failed to update scans for source '%s': %s", source_name, str(e))
             self.ui.listScans.addItem(QListWidgetItem("Failed to retrieve scans"))
 
     def update_visualization(self):
@@ -249,7 +249,7 @@ class AzElVisualizationTab(QWidget):
         source_name = self.get_selected_source()
         scans = self.get_selected_scans()
         telescopes = self.get_selected_telescopes()
-        logger.debug(f"Updating visualization: source='{source_name}', scans={scans}, telescopes={telescopes}")
+        logger.debug("Updating visualization: source='%s', scans=%s, telescopes=%s", source_name, scans, telescopes)
 
         if not source_name or not scans or not telescopes:
             logger.debug("Missing required filters (source, scans, or telescopes), clearing canvas")
@@ -269,7 +269,7 @@ class AzElVisualizationTab(QWidget):
 
         try:
             result = self.manipulator.visualize(obj=self.observation, **vis_attributes)
-            logger.debug(f"Visualization result: {result}")
+            logger.debug("Visualization result: %s", result)
             if not result or (result.get("telescopes", 0) == 0):
                 logger.debug("Empty visualization result, clearing canvas")
                 self._clear_canvas()
@@ -277,12 +277,12 @@ class AzElVisualizationTab(QWidget):
             figure = result.get("figure")
             if figure:
                 self.embed_figure(figure)
-                logger.debug(f"Az/El visualization updated for source '{source_name}'")
+                logger.debug("Az/El visualization updated for source '%s'", source_name)
             else:
                 logger.error("No figure returned from visualizer, clearing canvas")
                 self._clear_canvas()
         except Exception as e:
-            logger.error(f"Exception during Az/El visualization update: {str(e)}")
+            logger.error("Exception during Az/El visualization update: %s", str(e))
             self._clear_canvas()
 
     def closeEvent(self, event):
