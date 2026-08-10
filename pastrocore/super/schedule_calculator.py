@@ -144,6 +144,14 @@ class ScheduleCalculator(Super):
         obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
 
         existing_data = obj.get_calculated_data_by_key(store_key)
+        if existing_data and not recalculate:
+            stored_step = existing_data["metadata"].get("time_step")
+            if stored_step != time_step:
+                # A different step is a different calculation, not a stale cache, so
+                # recomputing is right. Said out loud because the alternative is a caller
+                # who omitted `time_step` wondering why the call took 300 ms instead of one.
+                logger.info("Cached '%s' for '%s' was computed with time_step=%s, not %s; "
+                            "recalculating", store_key, obj_name, stored_step, time_step)
         if existing_data and not recalculate and existing_data["metadata"].get("time_step") == time_step:
             df = existing_data.get("data")
             if df is not None and not df.is_empty():

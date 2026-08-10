@@ -36,6 +36,7 @@ from msb_arch.utils import (logger,
                             )
 import logging
 import sys
+import threading
 import os
 import json
 # GUI resource file
@@ -1059,6 +1060,34 @@ class PAstroCoreMainWindow(QMainWindow):
         self.clear_connections()
         super().closeEvent(event)
 
+def _warm_coordinate_tables() -> None:
+    """Do one throwaway coordinate transform, so the user's first calculation is not the one
+    that pays for loading astropy's reference tables.
+
+    Notes:
+        - Measured: the first `transform_to` in a process costs about 760 ms and every one
+          after it about 3, because the first pulls in the IERS and leap-second tables. That
+          made the first calculation 1 077 ms against 290 for the rest, and the difference was
+          entirely this.
+        - Runs on a daemon thread so the window still appears immediately, and swallows
+          everything: a warm-up that fails must never stop the application starting.
+    """
+    def warm():
+        try:
+            from astropy.coordinates import AltAz, EarthLocation, SkyCoord
+            from astropy.time import Time
+            import astropy.units as u
+
+            location = EarthLocation.from_geocentric(4033947.0, 486990.0, 4900431.0, unit=u.m)
+            SkyCoord(ra=0.0 * u.deg, dec=0.0 * u.deg, frame="icrs").transform_to(
+                AltAz(obstime=Time("2026-01-01T00:00:00"), location=location))
+            logger.debug("Coordinate tables warmed")
+        except Exception:
+            logger.debug("Could not warm the coordinate tables", exc_info=True)
+
+    threading.Thread(target=warm, name="astropy-warmup", daemon=True).start()
+
+
 def main() -> None:
     """Start the application.
 
@@ -1077,6 +1106,8 @@ def main() -> None:
     update_logging_level(getattr(logging, _startup_level_name, logging.INFO))
     update_logging_clear("output.log", _startup_settings.get("clear_log_on_start", False))
     logger.debug("Logging initialized at start-up with level=%s", _startup_level_name)
+
+    _warm_coordinate_tables()
 
     app = QApplication(sys.argv)
     app.setStyleSheet("""
