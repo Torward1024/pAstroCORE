@@ -85,3 +85,38 @@ def test_recording_does_not_change_what_a_request_returns(manipulator, observati
     without_journal = manipulator.inspect(observation, get_observation_code=None)
 
     assert with_journal == without_journal
+
+
+# --- the built-in operations, adopted (M3) ------------------------------------------------
+
+def test_reading_and_writing_still_work_through_the_builtins(manipulator, observation):
+    """Twenty handlers were deleted in favour of msb_arch's. Nothing a caller does changed."""
+    assert manipulator.inspect(observation, get_observation_code=None)
+    assert len(manipulator.inspect(observation.get_telescopes(), get_all=None)) == 2
+
+
+def test_a_request_reaches_one_member_of_a_container(manipulator, observation):
+    """The ten container handlers existed only for this. msb_arch 1.1.0 does it."""
+    telescopes = observation.get_telescopes()
+    name = next(iter(manipulator.inspect(telescopes, get_all=None)))
+
+    assert manipulator.inspect(telescopes, name=name, get_code=None)
+
+    manipulator.configure(telescopes, name=name, deactivate=None)
+    assert telescopes.get(name).isactive is False
+    manipulator.configure(telescopes, name=name, activate=None)
+    assert telescopes.get(name).isactive is True
+
+
+def test_a_request_reaches_one_observation_of_the_project(manipulator, project, project_data):
+    """The case that made the descent a hook: a project answers `get_observation`, not `get`."""
+    code = next(iter(project_data["items"]))
+    assert manipulator.inspect(project, name=code, get_observation_code=None)
+
+
+def test_generating_observations_still_has_its_own_handler(manipulator):
+    """The one handler of twenty-one that carries domain logic, and the reason it stayed."""
+    from pastrocore.super.schedule_configurator import ScheduleConfigurator
+
+    assert hasattr(ScheduleConfigurator, "_configure_scheduleproject")
+    assert not hasattr(ScheduleConfigurator, "_configure_observation")
