@@ -1,7 +1,7 @@
 # unit_scheduling/super/schedule_project.py
 from typing import Dict, Any, Optional, Union
 from pastrocore.base.observation import Observation
-from pastrocore.base.result_store import ResultStore
+from pastrocore.base.result_store import ResidencyBudget, ResultStore
 from msb_arch.super.project import Project
 from msb_arch.utils.validation import check_type, check_non_empty_string
 from msb_arch.utils.logging_setup import logger
@@ -259,7 +259,7 @@ class ScheduleProject(Project):
         for observation in self._items.get_items():
             results = observation.calculated_data
             if hasattr(results, "attach"):
-                results.attach(store, observation.name)
+                results.attach(store, observation.name, budget=self.residency_budget)
                 written += results.flush()
 
         model = {"name": self.name, "items": {}}
@@ -307,9 +307,43 @@ class ScheduleProject(Project):
         store = ResultStore(root / cls.RESULTS_DIRECTORY)
         for observation in project._items.get_items():
             if hasattr(observation.calculated_data, "attach"):
-                observation.calculated_data.attach(store, observation.name)
+                observation.calculated_data.attach(store, observation.name,
+                                                   budget=project.residency_budget)
         logger.info("Loaded project '%s' from '%s', results not read", project.name, path)
         return project
+
+    @property
+    def residency_budget(self) -> ResidencyBudget:
+        """How much memory this project's results may occupy in hand.
+
+        Returns:
+            ResidencyBudget: One budget shared by every observation, because the memory they
+                compete for is one machine's, not one observation's.
+
+        Notes:
+            - Created on first use rather than in the constructor, so a project built by
+              `from_dict` -- which every older saved file goes through -- has one too.
+        """
+        if getattr(self, "_residency_budget", None) is None:
+            self._residency_budget = ResidencyBudget()
+        return self._residency_budget
+
+    def set_residency_share(self, share: float) -> None:
+        """Set what share of available memory the results in hand may occupy.
+
+        Args:
+            share (float): Between 0 and 1, exclusive of 0.
+
+        Raises:
+            ValueError: If the share is outside that range. A budget of nothing would evict a
+                result the instant it was read, and a budget above what is available is not a
+                budget.
+        """
+        if not 0 < share <= 1:
+            raise ValueError(f"Residency share must be above 0 and at most 1, got {share}")
+        self.residency_budget.share = share
+        logger.info("Results may occupy %.0f%% of available memory (%.1f GB just now)",
+                    share * 100, self.residency_budget.limit / 1024 ** 3)
 
     @staticmethod
     def is_directory_project(path: str) -> bool:
