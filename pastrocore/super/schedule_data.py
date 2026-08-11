@@ -16,7 +16,9 @@ export: this writes what a person wants to look at, they write a contract with s
 correlator. Mixing them would give this module their vocabulary and give them this module's
 tolerance for "close enough".
 """
+import json
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import polars as pl
@@ -25,6 +27,7 @@ from msb_arch.super.super import Super
 from msb_arch.utils.logging_setup import logger
 
 from pastrocore.base.data_structure import CalculatedDataStructure
+from pastrocore.base.result_store import json_safe
 from pastrocore.base.observation import Observation
 from pastrocore.super.schedule_project import ScheduleProject
 
@@ -160,7 +163,38 @@ class ScheduleData(Super):
         return {"written": written, "cancelled": False}
 
     def _save(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Save a project to its directory.
+        """Write any serialisable object to a file.
+
+        Args:
+            obj (Serializable): Anything the model can turn into a dictionary -- a telescope, a
+                source, a container of scans.
+            attributes: `path`, the file to write.
+
+        Returns:
+            Dict[str, Any]: `{"path": str}`.
+
+        Raises:
+            TypeError: If the object cannot serialise itself.
+            ValueError: If no path was given.
+
+        Notes:
+            - The general case. A project is not one, because a project is a directory rather
+              than a file, and it gets `_save_scheduleproject` -- which MSB reaches on its own,
+              since a handler named for the object's type wins over this one. Nothing here has
+              to know that branch exists.
+        """
+        path = self._destination(attributes)
+        if not hasattr(obj, "to_dict"):
+            raise TypeError(f"{type(obj).__name__} cannot be written to a file: it has no to_dict")
+
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(json.dumps(json_safe(obj.to_dict()), indent=4, allow_nan=False),
+                              encoding="utf-8")
+        logger.info("Wrote %s to '%s'", type(obj).__name__, path)
+        return {"path": path}
+
+    def _save_scheduleproject(self, obj: 'ScheduleProject', attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Save a project, which is a directory rather than a file.
 
         Args:
             obj (ScheduleProject): The project.
@@ -168,10 +202,6 @@ class ScheduleData(Super):
 
         Returns:
             Dict[str, Any]: `{"path": str}`.
-
-        Raises:
-            TypeError: If asked to save something that is not a project.
-            ValueError: If no path was given.
 
         Notes:
             - A facade, not a second implementation: the model still serialises itself and this
@@ -182,35 +212,103 @@ class ScheduleData(Super):
             - Which is why it matters more than it looks: a journal that replays every
               calculation and then saves nothing is a rehearsal, not a pipeline.
         """
-        if not isinstance(obj, ScheduleProject):
-            raise TypeError(f"Only a project can be saved, got {type(obj).__name__}")
-        path = attributes.get("path")
-        if not path:
-            raise ValueError("No 'path' given; there is nowhere to save")
-
+        path = self._destination(attributes)
         obj.save(path)
         return {"path": path}
 
     def _load(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Read a file back into an object of the same kind as the one asked.
+
+        Args:
+            obj (Serializable): An object of the type to reconstruct. A request operates on
+                something, and here that something says what to build.
+            attributes: `path`, the file to read, and optionally `kind` -- the class to build,
+                for importing something that does not exist yet.
+
+        Returns:
+            Dict[str, Any]: `{"object": ...}`.
+
+        Raises:
+            TypeError: If the type cannot reconstruct itself from a dictionary.
+            ValueError: If no path was given.
+        """
+        path = self._destination(attributes, verb="load")
+        # The object says what to build, unless the caller says otherwise -- which it must
+        # when importing something that does not exist yet and so cannot be operated on.
+        kind = attributes.get("kind") or type(obj)
+        if not hasattr(kind, "from_dict"):
+            raise TypeError(f"{kind.__name__} cannot be read from a file: it has no from_dict")
+
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        restored = kind.from_dict(data)
+        logger.info("Read %s from '%s'", kind.__name__, path)
+        return {"object": restored}
+
+    def _load_scheduleproject(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Load a project from its directory.
 
         Args:
-            obj: Ignored. A load has nothing to operate on yet, which is the one place this
-                surface fits the request model awkwardly rather than naturally.
+            obj: The project the request was made on. Its contents are not read -- a load has
+                nothing to operate on yet, which is the one place this surface fits the request
+                model awkwardly rather than naturally.
             attributes: `path`, the project directory to read.
 
         Returns:
-            Dict[str, Any]: `{"project": ScheduleProject}`.
+            Dict[str, Any]: `{"object": ScheduleProject, "project": ScheduleProject}`. Both
+                names, because "object" is what the general case returns and "project" is what
+                a caller working with projects will look for.
+        """
+        path = self._destination(attributes, verb="load")
+        project = ScheduleProject.open(path)
+        return {"object": project, "project": project}
+
+    def _load_telescopes(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Read a telescope, choosing its kind from the file rather than from the caller.
+
+        Args:
+            obj (Telescopes): The container it is being imported into.
+            attributes: `path`, the file to read.
+
+        Returns:
+            Dict[str, Any]: `{"object": Telescope | SpaceTelescope}`.
+
+        Notes:
+            - A ground station and a spacecraft are written to the same kind of file and are
+              told apart by what is in it. The general `_load` builds whatever type it was
+              given, which cannot answer this -- so the answer lives here, where MSB finds it
+              by the type of the container being imported into.
+        """
+        from pastrocore.base.spacetelescope import SpaceTelescope
+        from pastrocore.base.telescope import Telescope
+
+        path = self._destination(attributes, verb="load")
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+
+        # The same handler is reached whether a telescope is being imported *into* a container
+        # or the container itself is being read back, because MSB resolves on the type of the
+        # object the request runs on and both are `Telescopes`. The file says which it is.
+        if "items" in data:
+            restored = type(obj).from_dict(data)
+            logger.info("Read %s from '%s'", type(restored).__name__, path)
+            return {"object": restored}
+
+        kind = SpaceTelescope if data.get("type") == "SpaceTelescope" else Telescope
+        restored = kind.from_dict(data)
+        logger.info("Read %s '%s' from '%s'", kind.__name__, restored.get_code(), path)
+        return {"object": restored}
+
+    @staticmethod
+    def _destination(attributes: Dict[str, Any], verb: str = "save") -> str:
+        """Return the path a request names, refusing to guess one.
 
         Raises:
-            ValueError: If no path was given.
+            ValueError: If none was given. There is no sensible default for where a user's
+                files live.
         """
         path = attributes.get("path")
         if not path:
-            raise ValueError("No 'path' given; there is nothing to load")
-
-        project = ScheduleProject.open(path)
-        return {"project": project}
+            raise ValueError(f"No 'path' given; there is nowhere to {verb}")
+        return path
 
     @staticmethod
     def _targets(obj: Any) -> List[Observation]:

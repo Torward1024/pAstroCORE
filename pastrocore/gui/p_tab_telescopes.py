@@ -228,13 +228,10 @@ class TelescopesTab(QWidget):
             return
 
         try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-            telescope_type = data.get("type", "Telescope")
-            if telescope_type == "SpaceTelescope":
-                telescope = SpaceTelescope.from_dict(data)
-            else:
-                telescope = Telescope.from_dict(data)
+            response = self.manipulator.load(self.observation.get_telescopes(), path=file_path)
+            telescope = (response["result"]["object"]
+                         if isinstance(response, dict) and "status" in response
+                         else response["object"])
             telescope.code = telescope.code
             telescope.name = telescope.name
             self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
@@ -254,13 +251,10 @@ class TelescopesTab(QWidget):
             return
 
         try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-            telescope_type = data.get("type", "Telescope")
-            if telescope_type == "SpaceTelescope":
-                telescope = SpaceTelescope.from_dict(data)
-            else:
-                telescope = Telescope.from_dict(data)
+            response = self.manipulator.load(self.observation.get_telescopes(), path=file_path)
+            telescope = (response["result"]["object"]
+                         if isinstance(response, dict) and "status" in response
+                         else response["object"])
             telescope.name = telescope_name
             
             try:
@@ -291,8 +285,7 @@ class TelescopesTab(QWidget):
                 logger.error("Failed to get telescope '%s': No result returned", telescope_name)
                 QMessageBox.critical(self, "Error", f"Telescope '{telescope_name}' not found")
                 return
-            with open(file_path, "w") as f:
-                json.dump(telescope.to_dict(), f, indent=4)
+            self.manipulator.save(telescope, path=file_path)
             logger.info("Telescope '%s' exported to '%s'", telescope_name, file_path)
         except Exception as e:
             logger.error("Exception while exporting telescope '%s': %s", telescope_name, str(e))
