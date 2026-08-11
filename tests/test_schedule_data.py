@@ -172,20 +172,63 @@ def test_the_model_still_owns_its_serialization(project, tmp_path):
 
     from pastrocore.super.schedule_data import ScheduleData
 
-    source = inspect.getsource(ScheduleData._save)
+    source = inspect.getsource(ScheduleData._save_scheduleproject)
     assert "obj.save(" in source, "the operation must delegate to the model"
     assert "to_directory" not in source and "json.dumps" not in source, (
         "the operation is writing a project itself instead of asking the model to")
 
 
-def test_saving_something_that_is_not_a_project_is_refused(project, tmp_path):
-    observation = project.get_observation(next(iter(project.get_items())))
+def test_anything_serialisable_can_be_saved_and_read_back(project, tmp_path):
+    """Save and load are not about projects. Any object the model can describe goes to a file,
+    and a project takes a branch of its own because it is a directory rather than a file --
+    which MSB reaches on its own, by the type of the object the request runs on.
+    """
     manipulator = ScheduleManipulator(project)
+    observation = project.get_observation(next(iter(project.get_items())))
 
-    response = manipulator.save(observation, path=str(tmp_path / "x.pastro"),
-                                raise_on_error=False)
-    failed = isinstance(response, dict) and response.get("status") is False
-    assert failed, "an observation is not a project and saving one should say so"
+    for name, obj in [("telescopes", observation.get_telescopes()),
+                      ("source", observation.get_sources().get_items()[0]),
+                      ("frequencies", observation.get_frequencies())]:
+        path = tmp_path / f"{name}.pastrod"
+        manipulator.save(obj, path=str(path), raise_on_error=False)
+        assert path.is_file(), f"{name} was not written"
+
+        response = manipulator.load(obj, path=str(path), raise_on_error=False)
+        result = response["result"] if isinstance(response, dict) and "status" in response else response
+        assert type(result["object"]) is type(obj), f"{name} came back as something else"
+
+
+def test_a_telescope_is_read_back_as_the_kind_the_file_says(project, tmp_path):
+    """A ground station and a spacecraft are written to the same kind of file and told apart
+    by what is in it, which the general case cannot answer."""
+    from pastrocore.base.spacetelescope import SpaceTelescope
+
+    manipulator = ScheduleManipulator(project)
+    observation = project.get_observation(next(iter(project.get_items())))
+    telescopes = observation.get_telescopes()
+    telescopes.add(SpaceTelescope(code="RADIO", name="RadioAstron"))
+
+    for code, expected in [("ALMA", "Telescope"), ("RADIO", "SpaceTelescope")]:
+        telescope = next(t for t in telescopes.get_items() if t.get_code() == code)
+        path = tmp_path / f"{code}.pastrod"
+        manipulator.save(telescope, path=str(path), raise_on_error=False)
+
+        response = manipulator.load(telescopes, path=str(path), raise_on_error=False)
+        result = response["result"] if isinstance(response, dict) and "status" in response else response
+        assert type(result["object"]).__name__ == expected
+
+
+def test_the_tabs_no_longer_read_and_write_files_themselves(project):
+    """All the logic into the Supers, including the small pieces scattered through the tabs."""
+    import pathlib as _pathlib
+
+    gui = _pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui"
+    offenders = []
+    for module in gui.glob("p_tab_*.py"):
+        source = module.read_text(encoding="utf-8")
+        if "json.dump(" in source or "json.load(" in source:
+            offenders.append(module.name)
+    assert not offenders, f"{offenders} still serialise objects by hand"
 
 
 def test_saving_nowhere_is_refused(project):

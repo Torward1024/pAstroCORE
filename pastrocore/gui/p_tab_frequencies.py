@@ -151,9 +151,9 @@ class FrequenciesTab(QWidget):
             return
 
         try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-            imported_if = IF.from_dict(data)
+            response = self.manipulator.load(self.observation.get_frequencies(),
+                                             path=file_path, kind=IF)
+            imported_if = response["result"]["object"] if isinstance(response, dict) and "status" in response else response["object"]
             freq_name = f"freq_{uuid.uuid4().hex[:32]}"
             imported_if.name = freq_name
             self.manipulator.configure(self.observation.get_frequencies(), add=imported_if)
@@ -173,9 +173,6 @@ class FrequenciesTab(QWidget):
             return
 
         try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-
             try:
                 freq = self.manipulator.inspect(self.observation.get_frequencies(), get=freq_name)
                 if not freq:
@@ -187,7 +184,11 @@ class FrequenciesTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Failed to find frequency '{freq_name}': {str(e)}")
                 return
 
-            imported_if = IF.from_dict(data)
+            response = self.manipulator.load(self.observation.get_frequencies(),
+                                             path=file_path, kind=IF)
+            imported_if = (response["result"]["object"]
+                           if isinstance(response, dict) and "status" in response
+                           else response["object"])
             imported_if.name = freq_name
     
             try:
@@ -218,8 +219,7 @@ class FrequenciesTab(QWidget):
                 logger.error("Failed to get frequency '%s': No result returned", freq_name)
                 QMessageBox.critical(self, "Error", f"Frequency '{freq_name}' not found")
                 return
-            with open(file_path, "w") as f:
-                json.dump(if_obj.to_dict(), f, indent=4)
+            self.manipulator.save(if_obj, path=file_path)
             logger.info("Frequency '%s' exported to '%s'", freq_name, file_path)
         except Exception as e:
             logger.error("Exception while exporting frequency '%s': %s", freq_name, str(e))
