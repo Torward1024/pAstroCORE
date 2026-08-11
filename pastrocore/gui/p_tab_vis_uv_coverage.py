@@ -4,15 +4,12 @@ from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_uv_coverage import Ui_UVCoverageVisTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from pastrocore.base.data_structure import CalculatedDataStructure
 from msb_arch.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from typing import List, Optional
-from astropy.time import Time
 import matplotlib.pyplot as plt
-import polars as pl  # Изменено с pandas на polars
 import gc
 
 class UVVisualizationTab(QWidget):
@@ -55,28 +52,22 @@ class UVVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source, baseline, and frequency filters from UV coverage DataFrame and observation."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="uv_coverage").get("data", {})
-            if not isinstance(df, pl.DataFrame):
+            # One request instead of reading the frame, checking it against the schema and
+            # calling unique() twice. The same question fills a combo box in every tab.
+            response = self.manipulator.export(
+                obj=self.observation, method="distinct",
+                key="uv_coverage", columns=["source_name", "baseline"])
+            values = (response["result"] if isinstance(response, dict) and "status" in response
+                      else response) or {}
+            sources = values.get("source_name", [])
+            baselines = values.get("baseline", [])
+            if not sources:
                 logger.error("No valid UV coverage data available for populating filters")
                 self.ui.comboBox.addItem("No UV coverage data available")
                 return
 
-            expected_columns = CalculatedDataStructure.get_columns("uv_coverage")
-            if not expected_columns:
-                logger.error("No schema defined for UV coverage data")
-                self.ui.comboBox.addItem("No schema defined")
-                return
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                logger.error("DataFrame for UV coverage missing required columns: %s", missing_columns)
-                self.ui.comboBox.addItem("Invalid UV coverage data structure")
-                return
-
-            sources = df["source_name"].unique().to_list()
-            baselines = df["baseline"].unique().to_list()
-
-            self.ui.comboBox.addItems(sorted(sources))
-            for baseline in sorted(baselines):
+            self.ui.comboBox.addItems(sources)
+            for baseline in baselines:
                 item = QListWidgetItem(baseline)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(Qt.Checked)
@@ -277,36 +268,24 @@ class UVVisualizationTab(QWidget):
             return
 
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="uv_coverage").get("data", {})
-            if not isinstance(df, pl.DataFrame):
-                logger.error("No valid UV coverage data available for updating scans")
-                self.ui.listScans.addItem(QListWidgetItem("No UV coverage data available"))
-                return
-
-            expected_columns = CalculatedDataStructure.get_columns("uv_coverage")
-            if not expected_columns:
-                logger.error("No schema defined for UV coverage data")
-                self.ui.listScans.addItem(QListWidgetItem("No schema defined for UV coverage data"))
-                return
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                logger.error("DataFrame for UV coverage missing required columns: %s", missing_columns)
-                self.ui.listScans.addItem(QListWidgetItem("Invalid UV coverage data structure"))
-                return
-
-            df_filtered = df.filter(pl.col("source_name") == source_name)
-            if df_filtered.is_empty():
-                logger.debug("No data for source '%s' in UV coverage DataFrame", source_name)
+            # One request instead of a read, a schema check, a filter, a group-by and a time
+            # conversion. The same question is asked by every visualization tab, so it lives
+            # in ScheduleData where a script can ask it too.
+            response = self.manipulator.export(
+                obj=self.observation, method="scan_times",
+                key="uv_coverage", source_name=source_name)
+            scan_times = (response["result"] if isinstance(response, dict) and "status" in response
+                          else response) or []
+            if not scan_times:
+                logger.debug("No scans for source '%s' in UV coverage", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scan_times = df_filtered.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
-            scans = scan_times["scan_name"].to_list()
+            scans = [entry["scan_name"] for entry in scan_times]
 
-            for row in scan_times.iter_rows(named=True):
-                scan_name = row["scan_name"]
-                start_time = Time(row["time"], format="mjd").isot
-                display_text = f"{start_time}"
+            for entry in scan_times:
+                scan_name = entry["scan_name"]
+                display_text = entry["start"]
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)

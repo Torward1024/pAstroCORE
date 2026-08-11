@@ -363,6 +363,51 @@ class ScheduleData(Super):
         return [{"scan_name": row["scan_name"], "start": Time(row["time"], format="mjd").isot}
                 for row in starts.iter_rows(named=True)]
 
+    def _export_distinct(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, List[Any]]:
+        """List the distinct values a result holds in the columns asked for.
+
+        Args:
+            obj (Observation): The observation to read.
+            attributes: `key`, the result to look in, and `columns`, the column names.
+
+        Returns:
+            Dict[str, List[Any]]: `{column: sorted values}`. A column the result does not have
+                comes back empty rather than missing, so a caller filling a list needs no
+                second check.
+
+        Notes:
+            - The other question every visualization tab asks for itself: which sources are in
+              this result, which baselines, which telescopes. Each copy read the frame, checked
+              it against the schema and called `unique()` -- which is why each needed polars to
+              fill a combo box.
+        """
+        key = attributes.get("key")
+        columns = attributes.get("columns") or []
+        if not key or not columns:
+            raise ValueError("Both 'key' and 'columns' are needed to list distinct values")
+
+        stored = obj.get_calculated_data_by_key(key) or {}
+        frame = stored.get("data")
+        if not isinstance(frame, pl.DataFrame) or frame.is_empty():
+            logger.debug("No '%s' data to list values from", key)
+            return {column: [] for column in columns}
+
+        expected = CalculatedDataStructure.get_columns(key)
+        if expected:
+            missing = [column for column in expected if column not in frame.columns]
+            if missing:
+                logger.error("Result '%s' is missing columns %s", key, missing)
+                return {column: [] for column in columns}
+
+        found = {}
+        for column in columns:
+            if column not in frame.columns:
+                logger.debug("Result '%s' has no column '%s'", key, column)
+                found[column] = []
+                continue
+            found[column] = sorted(frame[column].unique().to_list())
+        return found
+
     @staticmethod
     def _targets(obj: Any) -> List[Observation]:
         """Return the observations an export covers.

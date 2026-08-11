@@ -219,7 +219,6 @@ MODULES_STILL_REACHING_FOR_THE_MODEL = {
     "p_tab_vis_parallactic.py",
     "p_tab_vis_sun_angles.py",
     "p_tab_vis_time_on_source.py",
-    "p_tab_vis_uv_coverage.py",
 }
 
 HEAVY = re.compile(r"^\s*(?:import|from)\s+(polars|astropy|numpy|scipy)\b", re.M)
