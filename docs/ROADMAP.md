@@ -352,7 +352,7 @@ what a user loses by waiting rather than by what is interesting to build.
 | --- | --- | --- | --- |
 | ~~1~~ | ~~**D8**~~ | **Done.** | |
 | ~~1~~ | ~~**D9**~~ | **Done.** | |
-| 1 | **T1, T2** -- a stale result must not pass for a current one | Measured: moving a telescope 1 000 km and recalculating returns the old numbers in silence. The honest half needs no dependency graph and belongs in 1.0; knowing what to recompute does need one and does not | Days |
+| ~~1~~ | ~~**T1-T3**~~ | **Done.** | |
 | 2 | **G0** -- the regenerate-from-`.ui` rule | Cheap, and it has to precede any interface work or that work is done twice. It is the gate on G1, G1a and G4 | Hours |
 | ~~3~~ | ~~**D6 + D7**~~ | **Done.** | |
 | ~~4~~ | ~~**F1-F5**~~ | **Done.** | |
@@ -398,9 +398,9 @@ it is much better than answering wrongly.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| T1 | A result records what it was computed from, beyond the time step | The metadata of every calculation names its inputs |
-| T2 | Reading a result whose inputs have changed says so -- **as a state, not an interruption** | A stale result stays readable and is *labelled*; nothing pops up, nothing blocks, nothing recalculates by itself. Recalculating is the user's choice and the label is what makes it an informed one |
-| T3 | **Stale marks only what actually depends on the change** | The refinement that decides whether T2 is useful or unbearable, and it is worth stating separately because it is easy to build T2 without it and discover the problem afterwards |
+| T1 | A result records what it was computed from | **Done.** Every stored result carries `inputs_digest`, a hash over the parts of the model it actually reads plus the parameters that change the answer. Survives being saved and reopened |
+| T2 | Reading a result whose inputs have changed says so -- as a state, not an interruption | **Done.** `Observation.is_result_stale(key)` answers in **three** values: stale, current, or *unknown* -- a result saved before fingerprints existed is neither, and claiming either would send a user to recompute everything they own the first time they open an old project. The explorer labels a stale observation and names the results in a tooltip. Nothing pops up, nothing recalculates by itself, and a stale result stays readable and unchanged, which the storage work of 0.5.0 and 0.7.0 made affordable |
+| T3 | Stale marks only what actually depends on the change | **Done, and it is what makes T2 bearable.** Each result declares its dependencies **in its own schema**, beside its columns and dtypes -- not in a table of its own, which would be the second file somebody forgets when adding a calculation. A test refuses a schema without one, because forgetting fails quietly: the result would depend on everything and go stale on every edit. Measured: editing a scan stales `uv_coverage` and leaves `beam_pattern` alone |
 
 **The pain is granularity, not detection.** Recalculating on every configuration change
 would be unbearable, and so would a dialog announcing staleness after every edit -- but neither

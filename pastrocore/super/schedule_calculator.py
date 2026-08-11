@@ -5,6 +5,7 @@ from pastrocore.base.sources import Source
 from pastrocore.base.telescopes import Telescope, SpaceTelescope
 from pastrocore.base.scans import Scan
 from pastrocore.base.observation import Observation
+from pastrocore.base import freshness
 from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.super.schedule_project import ScheduleProject
 
@@ -238,9 +239,15 @@ class ScheduleCalculator(Super):
             - Written only when the metadata actually differs, because a write now reaches the
               disk and re-writing an unchanged result on every call would be a real cost.
         """
-        if metadata == obj.get_calculated_metadata(store_key):
+        # Stamped with a fingerprint of the inputs this calculation actually reads, so a later
+        # session can tell whether the configuration has moved underneath it. Taken over the
+        # subset in `freshness.DEPENDENCIES` rather than the whole observation: editing a scan
+        # must not make a beam pattern stale, or every edit would stale everything and
+        # "everything" would be all there is to recompute.
+        stamped = freshness.stamp(obj, store_key, metadata)
+        if stamped == obj.get_calculated_metadata(store_key):
             return
-        obj.set_calculated_data_by_key(store_key, df, metadata)
+        obj.set_calculated_data_by_key(store_key, df, stamped)
 
     @time_execution
     def _calculate_time_arrays(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
