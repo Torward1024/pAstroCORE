@@ -156,6 +156,71 @@ def is_stale(observation: Any, key: str) -> Optional[bool]:
     return current != recorded
 
 
+#: Marks a fingerprint that was adopted when a project was opened rather than taken when the
+#: result was calculated. The distinction is kept because it is a real one.
+ADOPTED_FIELD = "inputs_digest_adopted"
+
+
+def adopt_baseline(observation: Any) -> int:
+    """Give results that carry no fingerprint the one their configuration has right now.
+
+    Args:
+        observation (Observation): The object whose results should get a baseline.
+
+    Returns:
+        int: How many results were given one.
+
+    Notes:
+        - Without this the mechanism is invisible to every project that already exists, which
+          is every project anyone has. Answering "unknown" forever is honest and useless: a
+          user changes a scan, nothing is reported, and the feature has never once fired.
+        - It is **not** a claim that the results are current. It records what the configuration
+          was when the project was opened, so that changes *from now on* are visible, and marks
+          the fingerprint as adopted so nothing later mistakes it for one taken at calculation
+          time.
+        - Metadata only. No result is read and no frame is rewritten.
+    """
+    results = observation.calculated_data
+    if not hasattr(results, "keys"):
+        return 0
+
+    adopted = 0
+    for key in list(results.keys()):
+        metadata = observation.get_calculated_metadata(key) or {}
+        if metadata.get(DIGEST_FIELD):
+            continue
+        fingerprint = digest(observation, key, metadata)
+        if fingerprint is None:
+            continue
+        updated = dict(metadata)
+        updated[DIGEST_FIELD] = fingerprint
+        updated[ADOPTED_FIELD] = True
+        if _rewrite_metadata(results, observation.name, key, updated):
+            adopted += 1
+
+    if adopted:
+        logger.info("Recorded the current configuration as the baseline for %s result(s) of "
+                    "'%s'; changes from now on will be reported", adopted, observation.name)
+    return adopted
+
+
+def _rewrite_metadata(results: Any, owner: str, key: str, metadata: Dict[str, Any]) -> bool:
+    """Replace one result's metadata without touching the result itself."""
+    store = getattr(results, "_store", None)
+    if store is None:
+        held = results._resident.get(key) if hasattr(results, "_resident") else None
+        if held is None:
+            return False
+        held["metadata"] = metadata
+        return True
+    try:
+        store.write_metadata(owner, key, metadata)
+        return True
+    except Exception as e:
+        logger.debug("Could not record a baseline for '%s' of '%s': %s", key, owner, str(e))
+        return False
+
+
 def stale_results(observation: Any) -> Tuple[str, ...]:
     """Return the keys of every result whose inputs have changed.
 

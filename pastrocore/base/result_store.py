@@ -86,6 +86,24 @@ class ResultStore:
         directory = self.root / owner
         return directory / f"{key}.parquet", directory / f"{key}{METADATA_SUFFIX}"
 
+    def write_metadata(self, owner: str, key: str, metadata: Dict[str, Any]) -> None:
+        """Replace one result's metadata, leaving the result itself untouched.
+
+        Args:
+            owner (str): The observation it belongs to.
+            key (str): The calculation that produced it.
+            metadata (Dict[str, Any]): What to record.
+
+        Notes:
+            - Metadata lives in its own file, which is what makes this cheap: nothing is read
+              and no parquet is rewritten.
+        """
+        _, metadata_path = self._paths(owner, key)
+        if not metadata_path.parent.is_dir():
+            raise IOError(f"no results stored for '{owner}'")
+        metadata_path.write_text(
+            json.dumps(json_safe(metadata), indent=2, allow_nan=False), encoding="utf-8")
+
     def metadata(self, owner: str, key: str) -> Optional[Dict[str, Any]]:
         """Return one result's metadata without reading the result.
 
