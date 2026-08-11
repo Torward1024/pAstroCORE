@@ -112,16 +112,13 @@ class VisualizationDialog(QDialog):
             return
 
         try:
-            vis_types = {
-                "az_el": "Az/El Plot",
-                "sun_angles": "Sun Angles",
-                "time_on_source": "Time on Source",
-                "uv_coverage": "UV Coverage",
-                "baseline_projections": "Baseline Projections",
-                "beam_pattern": "Beam Pattern",
-                "mollweide_tracks": "Mollweide Tracks",
-                "parallactic_angle": "Parallactic Angle"
-            }
+            # Asked, not listed. A calculation that can be drawn appears here because the
+            # visualizer has a handler for it, not because somebody added it to a table.
+            described = self.manipulator.export(obj=observation, method="catalogue")
+            catalogue = (described["result"] if isinstance(described, dict) and "status" in described
+                         else described) or []
+            vis_types = {entry["key"]: entry["label"] for entry in catalogue if entry["can_plot"]}
+
             # One request, counted from the parquet footers rather than by reading the frames.
             # This loop used to read *every* result to decide what to offer -- 142 ms and
             # eleven frames held in memory on a small project, to fill one combo box.
@@ -216,17 +213,20 @@ class VisualizationDialog(QDialog):
                 QApplication.restoreOverrideCursor()
                 return
 
+            # Which widget draws which result: a fact about this interface, and the one thing
+            # here the model cannot answer. Keyed by the result rather than by its label, so a
+            # label can be reworded without silently unbinding a tab.
             tab_classes = {
-                "Az/El Plot": AzElVisualizationTab,
-                "Sun Angles": SunAnglesVisualizationTab,
-                "Time on Source": TimeOnSourceVisualizationTab,
-                "UV Coverage": UVVisualizationTab,
-                "Baseline Projections": BaselineProjectionsVisualizationTab,
-                "Beam Pattern": BeamPatternVisualizationTab,
-                "Mollweide Tracks": MollweideVisualizationTab,
-                "Parallactic Angle": ParallacticAngleVisualizationTab
+                "az_el": AzElVisualizationTab,
+                "sun_angles": SunAnglesVisualizationTab,
+                "time_on_source": TimeOnSourceVisualizationTab,
+                "uv_coverage": UVVisualizationTab,
+                "baseline_projections": BaselineProjectionsVisualizationTab,
+                "beam_pattern": BeamPatternVisualizationTab,
+                "mollweide_tracks": MollweideVisualizationTab,
+                "parallactic_angle": ParallacticAngleVisualizationTab,
             }
-            tab_class = tab_classes.get(vis_type)
+            tab_class = tab_classes.get(vis_key)
             if not tab_class:
                 logger.error("No tab class defined for visualization type '%s'", vis_type)
                 QMessageBox.critical(self, "Error", f"Visualization type '{vis_type}' not supported")
@@ -268,16 +268,13 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"Observation '{current_obs_name}' not found")
                 return
 
-            vis_key = {
-                "Az/El Plot": "az_el",
-                "Sun Angles": "sun_angles",
-                "Time on Source": "time_on_source",
-                "UV Coverage": "uv_coverage",
-                "Baseline Projections": "baseline_projections",
-                "Beam Pattern": "beam_pattern",
-                "Mollweide Tracks": "mollweide_tracks",
-                "Parallactic Angle": "parallactic_angle"
-            }.get(vis_type)
+            described = self.manipulator.export(obj=observation, method="catalogue")
+            catalogue = (described["result"] if isinstance(described, dict) and "status" in described
+                         else described) or []
+            # The label a user picked and the key a request needs are two spellings of one
+            # thing, and the catalogue holds both.
+            vis_key = next((entry["key"] for entry in catalogue
+                            if entry["label"] == vis_type and entry["can_plot"]), None)
             if not vis_key:
                 logger.error("Invalid visualization type '%s'", vis_type)
                 QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")

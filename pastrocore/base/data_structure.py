@@ -7,6 +7,12 @@ class CalculatedDataStructure:
     """Schema definition for calculated data Polars DataFrames."""
     SCHEMAS = {
         "times": {
+            "label": "Time Arrays",
+            # The one calculation whose handler and store key differ: `_calculate_time_arrays`
+            # files its result under `times`. Stated here so the catalogue, which knows only
+            # handler names, can find this entry -- rather than special-cased where it is read.
+            "handler": "time_arrays",
+            "intermediate": True,
             "depends_on": ("scans",),
             "columns": ["source_name", "scan_name", "time"],
             "metadata": {
@@ -29,6 +35,7 @@ class CalculatedDataStructure:
             }
         },
         "interpolated_orbits": {
+            "intermediate": True,
             "depends_on": ("telescopes", "scans"),
             "columns": ["time", "scan_name", "telescope_code", "x", "y", "z"],
             "metadata": {
@@ -49,6 +56,7 @@ class CalculatedDataStructure:
             }
         },
         "telescope_positions": {
+            "intermediate": True,
             "depends_on": ("telescopes", "scans"),
             "columns": ["time", "scan_name", "telescope_code", "x", "y", "z"],
             "metadata": {
@@ -69,6 +77,7 @@ class CalculatedDataStructure:
             }
         },
         "source_visibility": {
+            "intermediate": True,
             "depends_on": ("telescopes", "sources", "scans"),
             "columns": ["time", "source_name", "scan_name", "telescope_code", "visibility"],
             "metadata": {
@@ -89,6 +98,7 @@ class CalculatedDataStructure:
             }
         },
         "uv_coverage": {
+            "label": "UV Coverage",
             "depends_on": ("telescopes", "sources", "scans", "frequencies"),
             "columns": ["time", "source_name", "scan_name", "baseline", "u", "v", "w"],
             "metadata": {
@@ -143,6 +153,7 @@ class CalculatedDataStructure:
             }
         },
         "telescope_az_el": {
+            "label": "Space Telescope Pointing",
             "depends_on": ("telescopes", "scans"),
             "columns": ["time", "target_code", "scan_name", "telescope_code", "az", "el", "range"],
             "metadata": {
@@ -167,6 +178,7 @@ class CalculatedDataStructure:
             }
         },
         "telescope_visibility": {
+            "label": "Space Telescope Visibility",
             "depends_on": ("telescopes", "scans"),
             "columns": ["time", "target_code", "scan_name", "telescope_code", "visibility"],
             "metadata": {
@@ -188,6 +200,7 @@ class CalculatedDataStructure:
             }
         },
         "az_el": {
+            "label": "Az/El",
             "depends_on": ("telescopes", "sources", "scans"),
             "columns": ["time", "source_name", "scan_name", "telescope_code", "az", "el"],
             "metadata": {
@@ -315,6 +328,68 @@ class CalculatedDataStructure:
         """Return converters for specific columns or metadata for deserialization."""
         schema = cls.SCHEMAS.get(key)
         return schema["deserialization_converters"] if schema else None
+
+    @classmethod
+    def is_intermediate(cls, key: str) -> bool:
+        """Report whether a result exists for other calculations rather than for a user.
+
+        Args:
+            key (str): The result's store key.
+
+        Returns:
+            bool: True for a step nobody asks for by name -- times, positions, orbits,
+                visibility. False for everything else, so a calculation added without saying
+                otherwise is offered.
+
+        Notes:
+            - Declared rather than derived. It cannot be worked out from the graph: `uv_coverage`
+              is needed by baseline projections *and* asked for by name, while `source_visibility`
+              is only ever a step. One is a leaf, the other is not, and both are required by
+              something -- the difference is intent, and intent has to be stated.
+        """
+        return bool(cls.entry_for(key).get("intermediate", False))
+
+    @classmethod
+    def uses_time_step(cls, key: str) -> bool:
+        """Report whether a calculation is sampled over time.
+
+        Args:
+            key (str): The result's store key or its handler's name.
+
+        Returns:
+            bool: True when the result's metadata records a `time_step`, which is what a
+                calculation sampled over a grid records and one that is not does not.
+
+        Notes:
+            - Read from what the schema already declares rather than from a name. The dialog
+              used to ask whether "Beam Pattern" was selected, which is the one calculation
+              that happens not to be sampled -- a fact about that calculation, spelled as a
+              comparison against its title.
+        """
+        return "time_step" in (cls.entry_for(key).get("metadata") or {})
+
+    @classmethod
+    def entry_for(cls, key: str) -> dict:
+        """Return a result's schema, found by its store key or by its handler's name.
+
+        Args:
+            key (str): Either spelling.
+
+        Returns:
+            dict: The entry, or an empty one.
+
+        Notes:
+            - The catalogue knows handlers, results are filed under store keys, and for one
+              calculation the two differ. Resolving it here means nothing that reads the schema
+              has to know which spelling it was handed.
+        """
+        entry = cls.SCHEMAS.get(key)
+        if entry is not None:
+            return entry
+        for candidate in cls.SCHEMAS.values():
+            if candidate.get("handler") == key:
+                return candidate
+        return {}
 
     @classmethod
     def get_dependencies(cls, key: str) -> tuple:
