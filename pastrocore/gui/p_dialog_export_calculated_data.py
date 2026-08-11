@@ -51,187 +51,34 @@ class ExportThread(QThread):
         logger.debug("ExportThread cancellation requested")
 
     def run(self):
-        """Execute export asynchronously."""
+        """Ask the orchestrator to export, and pass on what it reports.
+
+        Notes:
+            - The 252 lines that used to be here are in `ScheduleData`, where a script or a
+              server can reach them. What is left is the part that is genuinely a thread: it
+              turns the operation's progress into Qt signals and its own cancellation flag into
+              a question the operation can ask.
+        """
         try:
-            num_data_steps = 1 if self.export_data else 0
-            num_vis_steps = 1 if self.export_vis else 0
-            steps_per_target = len(self.calc_types) * (num_data_steps + num_vis_steps)
-            total_steps = len(self.targets) * steps_per_target if steps_per_target > 0 else 1
-            current_step = 0
-
-            for target in self.targets:
-                if self._cancelled:
-                    self.error.emit("Export cancelled by user")
-                    return
-                obs_code = target.code
-                self.progress.emit(int(current_step / total_steps * 100), f"Exporting for {obs_code}...")
-
-                sources = list(target.get_sources()._items.keys())
-                telescopes = [telescope.get_code() for telescope in target.get_telescopes()._items.values()]
-                scans = [scan.name for scan in target.get_scans().get_items()]
-                frequencies = [if_obj.frequency for if_obj in target.get_frequencies().get_items()]
-                baselines = [f"{t1}-{t2}" for i, t1 in enumerate(telescopes) for t2 in telescopes[i+1:]]
-
-                for calc_type in self.calc_types:
-                    if self._cancelled:
-                        self.error.emit("Export cancelled by user")
-                        return
-
-                    key = calc_type.lower().replace(" ", "_").replace("/", "_")
-                    data = target.get_calculated_data_by_key(key).get("data", {})
-                    if not isinstance(data, pl.DataFrame):
-                        logger.debug("No data for %s in %s, skipping", calc_type, obs_code)
-                        continue
-
-                    if self.export_data:
-                        if calc_type == "Beam Pattern":
-                            file_prefix = "Beam_Pattern"
-                        elif calc_type == "Mollweide Tracks":
-                            file_prefix = "Mollweide"
-                        else:
-                            file_prefix = calc_type.replace(" ", "_").replace("/", "_")
-                        file_name = f"{obs_code}_{file_prefix}"
-                        txt_path = os.path.join(self.export_path, f"{file_name}.txt")
-                        self._export_data_to_csv(data, calc_type, txt_path, obs_code, source_name=None, target=target)
-                        current_step += 1
-                        self.progress.emit(int(current_step / total_steps * 100), f"Exported data for {calc_type} in {obs_code}")
-
-                    if self.export_vis:
-                        visualizable_keys = [
-                            "uv_coverage", "baseline_projections", "time_on_source",
-                            "sun_angles", "az_el", "mollweide_tracks", "beam_pattern", "parallactic_angle"
-                        ]
-                        if key not in visualizable_keys:
-                            logger.debug("Skipping visualization for %s as it is not visualizable", calc_type)
-                            continue
-                        if calc_type == "Beam Pattern":
-                            file_prefix = "Beam_Pattern"
-                        elif calc_type == "Mollweide Tracks":
-                            file_prefix = "Mollweide"
-                        else:
-                            file_prefix = calc_type.replace(" ", "_").replace("/", "_")
-                        for source_name in sources:
-                            file_name = f"{obs_code}_{file_prefix}_{source_name}"
-                            png_path = os.path.join(self.export_path, f"{file_name}.png")
-                            attributes = {
-                                "plot_type": key,
-                                "output_file": png_path,
-                                "dpi": 76,
-                                "source_name": source_name,
-                                "baselines": baselines if key in ["uv_coverage", "baseline_projections"] else [],
-                                "telescopes": telescopes if key in ["sun_angles", "az_el", "time_on_source", "beam_pattern", "parallactic_angle"] else [],
-                                "scans": scans,
-                                "frequencies": frequencies if key in ["uv_coverage", "baseline_projections", "beam_pattern"] else [],
-                                "units": self.units if key in ["uv_coverage", "baseline_projections"] else None
-                            }
-                            try:
-                                self.manipulator.visualize(obj=target, **attributes)
-                            except Exception as e:
-                                raise ValueError(f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
-                        current_step += 1
-                        self.progress.emit(int(current_step / total_steps * 100), f"Exported vis for {calc_type} in {obs_code}")
-
-                # Every result read here stays in memory, and an export walks all of them for
-                # every observation. Without this the exporter ends holding the entire project
-                # -- which for a year of observing is the whole reason the results moved out of
-                # the model file. Only results already on disk are released; anything not yet
-                # written has nowhere to be read back from and is left alone.
-                if hasattr(target.calculated_data, "release"):
-                    target.calculated_data.release()
-
+            response = self.manipulator.export(
+                obj=self.targets,
+                calc_types=self.calc_types,
+                export_data=self.export_data,
+                export_vis=self.export_vis,
+                export_path=self.export_path,
+                units=self.units,
+                progress=lambda percent, message: self.progress.emit(percent, message),
+                cancelled=lambda: self._cancelled,
+            )
+            result = response.get("result") if isinstance(response, dict) and "status" in response else response
+            if result and result.get("cancelled"):
+                self.error.emit("Export cancelled by user")
+                return
             self.finished.emit()
         except Exception as e:
             logger.error("Export error in thread: %s", str(e))
             self.error.emit(str(e))
 
-    def _export_data_to_csv(self, data: pl.DataFrame, calc_type: str, path: str, obs_code: str, source_name: Optional[str], target: Observation):
-        """Export calculated data to a TXT file with tab separator.
-
-        Uses polars DataFrame to write CSV with tab delimiter. Converts time-related columns
-        (time, start, end) from float64 (MJD) to ISOT format for readability. For mollweide_tracks,
-        adds source coordinates from metadata as separate rows
-        at the end of the file with 'time' set to '-----'. Preserves NaN values as is.
-
-        Args:
-            data: polars DataFrame containing calculated data.
-            calc_type: Type of calculation (e.g., "UV Coverage").
-            path: Output file path for TXT.
-            obs_code: Observation code.
-            source_name: Source name (ignored, kept for compatibility).
-            target: Observation object containing calculated_data.
-        """
-        try:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            key = calc_type.lower().replace(" ", "_").replace("/", "_")
-            
-            expected_columns = CalculatedDataStructure.get_columns(key)
-            if expected_columns is None:
-                logger.error("Unsupported calc_type for TXT export: %s", calc_type)
-                raise ValueError(f"Unsupported calc_type for TXT export: {calc_type}")
-            if not all(col in data.columns for col in expected_columns):
-                missing_cols = [col for col in expected_columns if col not in data.columns]
-                logger.error("Invalid DataFrame structure for key '%s' in observation '%s': missing columns %s", key, obs_code, missing_cols)
-                raise ValueError(f"Invalid DataFrame structure for key '{key}': missing columns {missing_cols}")
-
-            df_out = data.clone()
-            converters = CalculatedDataStructure.get_converters(key) or {}
-            
-            for col in ["time", "start", "end"]:
-                if col in df_out.columns:
-                    try:
-                        df_out = df_out.with_columns(
-                            pl.col(col).map_elements(
-                                lambda x: Time(x, format='mjd', scale='utc').isot if isinstance(x, (int, float)) and x is not None else x,
-                                return_dtype=pl.String
-                            )
-                        )
-                    except Exception as e:
-                        logger.error("Failed to convert column '%s' to ISOT in key '%s' of observation '%s': %s", col, key, obs_code, str(e))
-                        raise
-
-            for col, converter in converters.items():
-                if col in df_out.columns and col not in ["time", "start", "end"]:
-                    try:
-                        df_out = df_out.with_columns(pl.col(col).map_elements(converter, return_dtype=pl.Float64))
-                    except Exception as e:
-                        logger.error("Failed to apply converter for column '%s' in key '%s' of observation '%s': %s", col, key, obs_code, str(e))
-                        raise
-
-            if "scan_name" in df_out.columns:
-                df_out = df_out.drop("scan_name")
-            expected_columns = [col for col in expected_columns if col != "scan_name"]
-            df_out = df_out.select(expected_columns)
-
-            if key == "mollweide_tracks":
-                sources = target.get_calculated_metadata(key).get("sources", {})
-                logger.debug("Processing sources for %s in observation '%s': %s", calc_type, obs_code, sources)
-
-                if not isinstance(sources, dict):
-                    logger.error("Invalid sources format in metadata for %s in observation '%s': expected dict, got %s", calc_type, obs_code, type(sources))
-                    sources = {}
-                
-                source_rows = []
-                for src_name, coords in sources.items():
-                    try:
-                        lon, lat = float(coords[0]), float(coords[1])
-                        # Ensure column order matches df_out
-                        source_rows.append({"time": "-----", "telescope_code": src_name, "lon": lon, "lat": lat})
-                    except (ValueError, TypeError) as e:
-                        logger.warning("Failed to parse coordinates for source '%s' in %s, observation '%s': %s", src_name, calc_type, obs_code, str(e))
-                        continue
-                
-                if source_rows:
-                    # Define schema with correct column order to match df_out
-                    source_df = pl.DataFrame(source_rows, schema={"time": pl.String, "telescope_code": pl.String, "lon": pl.Float64, "lat": pl.Float64})
-                    df_out = pl.concat([df_out, source_df], how="vertical")
-                else:
-                    logger.warning("No valid sources to append for %s in observation '%s'", calc_type, obs_code)
-
-            df_out.write_csv(path, separator="\t", include_bom=True, null_value="NaN")
-            logger.info("Exported data to %s", path)
-        except Exception as e:
-            logger.error("Failed to export data to %s: %s", path, str(e))
-            raise
 
 class ExportCalculatedDataDialog(QDialog):
     """Dialog for exporting calculated data and visualizations."""
