@@ -340,7 +340,7 @@ reasoning rather than letting it sit open for another year.
 | **5. Interface** | Last, because the model underneath it has stopped moving by then |
 | **6. Space telescope as a target** | A new capability rather than a repair, so it waits until the repairs are done -- but it is cheap and wanted, and could be pulled forward once stage 3 is finished |
 | **7. Release and tidy** | The repository is the last thing to shape, because what it documents has stopped moving |
-| **8. VEX** | Changes what the tool is rather than how well it does what it does, and it wants the model settled first |
+| **8. Formats (after 1.0)** | Changes what the tool *is* rather than how well it does what it does. A project of its own: three contracts with other people's software, each needing a parser we did not write to check it. Nothing in 1.0 depends on it |
 | **9. The logic into `Super` classes** | Before 1.0, because it decides what every feature after 1.0 costs. A front end added afterwards is a wrapper if this holds and a rewrite if it does not |
 | **10. Analysis** | After 9, because analysis written into the interface would have to be written twice. It is what turns a set of numbers into an answer, and it is the stage most in need of a scope rule, which it carries |
 
@@ -359,8 +359,8 @@ what a user loses by waiting rather than by what is interesting to build.
 | ~~4~~ | ~~**F1-F5**~~ | **Done.** | |
 | 5 | ~~**G1, G1a, G4, G5**~~ | **After 1.0.** Appearance and convenience: one stylesheet in a file, editable from Preferences, a recent-projects list, and the visualizer's own settings. Real, wanted, and nobody loses work to them -- and G1 turned out to be authoring rather than extraction, which is not a thing to rush | Days |
 | 6 | **A1-A4** -- the logic into `Super` classes | Stage 9. The pre-release condition: every operation reachable through the manipulator, so a second front end costs a wrapper rather than a reimplementation | Weeks |
-| 7 | **V1-V6, K1, X1** -- VEX, CFX, SKED | The largest thing on the list and the one that changes what the tool is. It wants the model settled, which stages 4 and 6 finish, and it wants A1 because an exporter belongs beside the other exporter rather than in a dialog | Weeks |
-| 8 | **N1-N4** -- analysis | What makes the numbers answer a question. Last of the large items because it is the one that most needs everything under it to have stopped moving -- and because it is reachable from a CLI only if stage 9 came first | Weeks |
+| 7 | **N1-N4** -- analysis | What makes the numbers answer a question rather than be one. Reachable from a CLI only because stage 9 came first | Weeks |
+| -- | ~~**V1-V6, K1, X1**~~ -- VEX, CFX, SKED | **After 1.0.** A project of its own, and nothing before 1.0 depends on it | Weeks |
 
 D8 and G0 are done, which opens the rest of the interface work. D6 before F1
 because losing a day of calculation is worse than not yet having a calculation. F1 before the
@@ -485,6 +485,25 @@ nothing and risks a working screen; A1 is first precisely because R6, the CLI an
 all need the export. What makes this a stage rather than a preference is A4: a rule nothing
 checks is a preference, which is what G0 turned out to be until a test enforced it.
 
+### How much of it is actually done, counted rather than claimed
+
+Two measurements, and they disagree in a way worth stating.
+
+**Lines say 73%.** Of 7 452 lines in the hand-written interface, 5 464 match no Qt name --
+against 5 861 of 7 772 when stage 9 began. That looks like almost nothing moved, and it is the
+wrong measurement: it was recorded as *an upper bound on the gap* from the start, and most of
+those lines are glue that only means anything beside a widget.
+
+**Requests say it is nearly done.** Counting the places that touch a model object *outside* a
+request, the whole interface has **twelve lines across seven modules**, plus ten in `app.py`.
+Every one of the twelve reads something a request had just returned -- counting a collection
+from `inspect`, or listing the frequencies it handed back. That is what `inspect` is for, not
+logic that escaped.
+
+So: the logic is in the `Super` classes. What remains in the interface is turning what a user
+typed into what the model expects -- the two editor dialogs -- and reading what a request
+answered. The line count should stop being quoted as a gap, because it is measuring glue.
+
 ### What it unlocks, which is the reason it is pre-release
 
 Once configuring, calculating, saving and exporting are all requests, a session is a **list of
@@ -496,7 +515,12 @@ journal that replays every calculation and then saves nothing is a rehearsal.**
 It is also the seam where MSB's P1 meets this repository: P1 has been waiting for one real
 dependent pipeline to design against, and configure-calculate-export is it.
 
-## Stage 8 -- the formats other people's software reads
+## Stage 8 -- the formats other people's software reads (after 1.0)
+
+**Deferred past 1.0, deliberately.** This is a project of its own, not a stage of this one:
+three formats, each a contract with software nobody here controls, each needing validation
+against a parser we did not write. Bolting it onto the run-up to 1.0 would either rush it or
+delay everything else. Nothing in 1.0 depends on it.
 
 Everything above makes pAstroCORE better at what it already does. This is the item that changes
 what it *is*: a schedule that cannot be handed to the stations and the correlator is a study,
