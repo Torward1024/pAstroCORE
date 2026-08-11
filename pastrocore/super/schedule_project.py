@@ -1,6 +1,7 @@
 # unit_scheduling/super/schedule_project.py
 from typing import Dict, Any, Optional, Union
 from pastrocore.base.observation import Observation
+from pastrocore.base import freshness
 from pastrocore.base.result_store import ResidencyBudget, ResultStore, json_safe
 from pastrocore.base.scratch import ScratchSpace
 from msb_arch.super.project import Project
@@ -317,6 +318,14 @@ class ScheduleProject(Project):
             if hasattr(observation.calculated_data, "attach"):
                 observation.calculated_data.attach(store, observation.name,
                                                    budget=project.residency_budget)
+        # Results calculated before fingerprints existed carry none, and answering "unknown"
+        # about them forever is honest and useless -- the user changes a scan, nothing is
+        # reported, and staleness never once fires for a project that already exists. Record
+        # what the configuration is now, so that changes from here on are visible. Metadata
+        # only: no result is read.
+        for observation in project._items.get_items():
+            freshness.adopt_baseline(observation)
+
         logger.info("Loaded project '%s' from '%s', results not read", project.name, path)
         return project
 

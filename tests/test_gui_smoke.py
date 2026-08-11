@@ -366,3 +366,63 @@ def test_the_explorer_labels_a_stale_observation(project, qt_application):
     finally:
         window.close()
         window.deleteLater()
+
+
+def test_editing_a_telescope_makes_the_label_appear_by_itself(project, qt_application):
+    """The question "where is it shown" is only half an answer without "and when".
+
+    A label that appears only when something else happens to refresh the tree is worse than no
+    label, because it would be right sometimes. This goes through the signal an editor emits
+    rather than calling the refresh directly.
+    """
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QTreeView
+
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.get_observation(next(iter(project.get_items())))
+    observation.calculated_data.clear()
+    ScheduleManipulator(project).calculate(observation, method="uv_coverage",
+                                           time_step=300.0, raise_on_error=False)
+
+    window = PAstroCoreMainWindow()
+    try:
+        window.project = project
+        window.manipulator = ScheduleManipulator(project)
+        window.clear_connections(is_initial_setup=True)
+        window.setup_connections()
+        window.update_project_explorer()
+
+        explorer = window.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+
+        def observation_labels():
+            model = explorer.model()
+            found = []
+
+            def walk(item):
+                for row in range(item.rowCount()):
+                    child = item.child(row, 0)
+                    if child is None:
+                        continue
+                    if child.data(Qt.UserRole) == "observation":
+                        found.append(child.text())
+                    walk(child)
+
+            for row in range(model.rowCount()):
+                walk(model.item(row, 0))
+            return found
+
+        assert all("stale" not in text for text in observation_labels())
+
+        telescope = observation.get_telescopes().get_active_items()[0]
+        telescope.set({"x": telescope.get_coordinates()[0] + 1_000_000.0})
+
+        # What an editor tab emits when it changes something, rather than a direct refresh.
+        window.handle_observationTab_observation_updated()
+
+        assert any("stale" in text for text in observation_labels()), (
+            "an edit must make the label appear without anything else being clicked")
+    finally:
+        window.close()
+        window.deleteLater()

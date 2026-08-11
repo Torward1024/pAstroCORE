@@ -188,3 +188,81 @@ def test_something_that_depends_on_nothing_would_be_caught():
     """The test above is only worth having if it can fail."""
     known = set(freshness._ACCESSORS)
     assert not {"telescopes", "typo_here"} <= known
+
+
+# --- projects that already exist ------------------------------------------------------------
+
+def test_opening_an_old_project_records_a_baseline(project, tmp_path):
+    """Without this the mechanism is invisible to every project that already exists.
+
+    Answering "unknown" forever is honest and useless: a user changes a scan, nothing is
+    reported, and staleness never once fires. Reported exactly that way -- telescopes and scan
+    times changed, no label.
+    """
+    root = tmp_path / "old.pastro"
+    project.save(str(root))
+
+    # Strip the fingerprints, so the directory looks like one written before they existed.
+    for sidecar in (root / "results").rglob("*.meta.json"):
+        metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+        metadata.pop(freshness.DIGEST_FIELD, None)
+        sidecar.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+
+    assert observation.stale_results() == (), "opening alone must not accuse anything"
+    assert observation.is_result_stale("uv_coverage") is False
+
+    scan = observation.get_scans().get_active_items()[0]
+    scan.set({"duration": scan.get("duration") + 600.0})
+
+    assert "uv_coverage" in observation.stale_results(), (
+        "a change after opening must be reported, which is the whole point")
+
+
+def test_an_adopted_baseline_says_it_was_adopted(project, tmp_path):
+    """It is not a claim that the results were current -- only a record of what the
+    configuration was when the project was opened."""
+    root = tmp_path / "adopted.pastro"
+    project.save(str(root))
+    for sidecar in (root / "results").rglob("*.meta.json"):
+        metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+        metadata.pop(freshness.DIGEST_FIELD, None)
+        sidecar.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+
+    metadata = observation.get_calculated_metadata("uv_coverage")
+    assert metadata[freshness.ADOPTED_FIELD] is True
+    assert metadata.get(freshness.DIGEST_FIELD)
+
+
+def test_adopting_reads_no_results(project, tmp_path):
+    """Metadata only. Opening a project must not become a reason to load it."""
+    root = tmp_path / "cheap_adopt.pastro"
+    project.save(str(root))
+    for sidecar in (root / "results").rglob("*.meta.json"):
+        metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+        metadata.pop(freshness.DIGEST_FIELD, None)
+        sidecar.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    assert observation.calculated_data._resident == {}
+
+
+def test_a_real_calculation_keeps_its_own_fingerprint(computed, tmp_path):
+    """Adoption must not overwrite a fingerprint taken when the result was calculated."""
+    project, observation = computed
+    taken = observation.get_calculated_metadata("uv_coverage")[freshness.DIGEST_FIELD]
+
+    root = tmp_path / "kept.pastro"
+    project.save(str(root))
+    reopened = ScheduleProject.open(str(root))
+    restored = reopened.get_observation(observation.name)
+
+    metadata = restored.get_calculated_metadata("uv_coverage")
+    assert metadata[freshness.DIGEST_FIELD] == taken
+    assert freshness.ADOPTED_FIELD not in metadata
