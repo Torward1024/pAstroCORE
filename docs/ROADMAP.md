@@ -176,6 +176,31 @@ everything back in. Both need answering.
 | **Saving** | Writes the directory |
 | **Export** | Untouched. It produces `.txt` and `.png` -- text and pictures, nothing else -- so the format change does not reach it. But it *reads* results, so it goes through the same lazy access as everything else, or exporting a year loads a year |
 
+### Should a saved project be packed into one file?
+
+Asked because the scratch directory of D6 exists anyway: if every session unpacks into scratch
+regardless, the saved form could be an archive. Measured on a project at the reported scale --
+1.3 million rows, 38.6 MB on disk -- rather than argued:
+
+| | |
+| --- | --- |
+| Project directory | 38.6 MB |
+| The same, zipped | 38.4 MB -- **99.4%** of it |
+| Packing | 1 586 ms |
+| Unpacking | 172 ms, and it would be paid on **every** open |
+| Opening it as a directory today | 3.7 ms, reading no results at all |
+
+**No.** The compression saves 0.6%, because parquet is already zstd-compressed and zipping
+compressed data achieves nothing. What it costs is the property the whole of stage 4 was built
+to get: opening a project reads nothing. Packing makes opening **46x slower** at 38 MB, and the
+cost scales with the project rather than with the part of it anyone looks at. At the 8 GB the
+reported case produces, opening would mean unpacking 8 GB before the first plot -- which is the
+memory problem again, moved to disk.
+
+Worth separating from a real want it resembles: **sending a project to a colleague** genuinely
+does want one file. That is an export -- an explicit action producing an archive -- not the
+save format. Recorded in stage 7 rather than here.
+
 ### Where a result lives before it is saved
 
 Raised by the same question that produced D6, and worth deciding before writing it: a result is
@@ -211,14 +236,17 @@ D1 to D5 are done. **D6 is what they left open**: all of it governs results that
 | D4 | A residency budget: a share of available memory, settable in preferences, evicting least-recently-used | **Done.** One budget per project, defaulting to half of *available* memory and settable in Preferences. Least-recently-used results are dropped when the ceiling is passed; an unwritten result is never dropped, and a result larger than the whole budget is still read. Measured over 60 observations of 200 000 rows: without a budget the walk grew memory by 407 MB and held all 60 results; with a 200 MB ceiling, 71 MB and 32 |
 | D5 | A characterization test at that scale, so the budget is defended | **Done.** The same walk at a size a build machine can afford, asserting residency rather than resident set size -- RSS depends on the allocator and on what else the machine is doing, and would fail builds for reasons unrelated to this code. Paired with a test that the walk holds everything when there is no budget, so the ratchet cannot pass vacuously |
 | D6 | **Somewhere for results to live before they are saved** | A result is held in memory and marked unwritten until the project is saved. Measured, and it is true in **both** cases, not just the obvious one: a project that has never been saved has no directory to write to, and a project opened from a directory still does not write a freshly computed result until the next save. In both, the result is **not on disk** and counts **0 bytes** against the residency ceiling -- so an unsaved session is ungoverned as well as unprotected. The budget cannot evict such a result either, and correctly so: there would be nowhere to read it back from. The ceiling is not the fix; a place to put them is | A result survives killing the application mid-session; the ceiling governs a result the moment it exists; saving moves results rather than recomputing or rewriting them |
+| D7 | **One scratch directory per running session** | Not an implementation detail of D6 but a requirement on it. Two copies of the application open at once must not share a scratch directory, or each will evict and adopt the other's results. Naming it per session -- process, plus a token that survives nothing -- is also what makes the client-server version in L3 possible at all, where the parallel sessions are different people rather than different windows | Two instances calculating at once never touch each other's results; a clean exit removes only its own; a session interrupted leaves its directory for the recovery offer in D6 |
+| D8 | **The save and open dialogs ask for a directory, because that is what a project is** | Shipped in 0.5.0 and wrong from the first click: `save_project_as` calls `getSaveFileName`, so the user is asked to name a *file* and Qt warns about overwriting one. Open has the mirror problem -- `getOpenFileName` cannot select a directory, so a user must navigate inside the project and pick `project.json`, which works only because `open` was written to tolerate it. Every user meets this on their first save | Saving asks for a directory name and offers to replace an existing project directory; opening selects a project directory directly, and picking `project.json` keeps working for anyone who learned the workaround |
 
 ## Stage 5 -- the interface
 
 | # | Item | Evidence | Exit criterion |
 | --- | --- | --- | --- |
-| G0 | Regenerate the forms whose `.ui` has moved ahead of its `.py` | `SettingsDialog` is the one today: the memory-share control is built by hand in `p_dialog_preferences.py` because editing generated code would lose it on the next regeneration. That was the right call for one control and is the wrong shape for several | Each changed `.ui` regenerated to `.py`, and any hand-built control that the form now carries removed from the hand-written class |
+| G0 | **A standing rule: interface changes are made in the `.ui` and regenerated** | Not a one-off task. A form edited only in its generated `.py` cannot be opened in Designer again without losing the edit, so the rule protects the tool rather than the file. `SettingsDialog` is the one that has drifted: the memory-share control of 0.5.0 is built by hand in `p_dialog_preferences.py`, which was right for one control and is the wrong shape for a tab | Every changed form regenerated from its `.ui`; the hand-built control removed once the form carries it; the rule stated where a contributor will read it |
 | G1 | One stylesheet, in a file rather than in code | 226 `setStyleSheet` calls, of which **224 are in generated `ui_*.py`** -- so the styling lives in the `.ui` sources and is re-emitted on every regeneration. Extraction means removing it there and applying one `.qss` at application level. G0 first, or the regeneration puts the styling back | No `setStyleSheet` anywhere in the codebase; one `.qss` describes the appearance |
-| G1a | The stylesheet is editable from Preferences | Following from G1: once appearance is one file rather than 224 call sites, choosing it becomes a setting instead of a rebuild. Font size and contrast are the ones that get asked for, and a lab machine driving a projector is a real case | Preferences changes the appearance without restarting, and what it writes is the same `.qss` a user could edit by hand |
+| G1a | **A stylesheet tab in Preferences, and one sheet that reaches every window** | Following G1. Two halves, and the second is the one that bites: applying a sheet to a window does not reach dialogs created later, because a `QDialog` styled at construction keeps what it was given. Applying it to the `QApplication` does reach everything, which is the reason G1 has to remove the 224 generated `setStyleSheet` calls first -- a widget with its own sheet ignores the application's | Preferences edits the sheet and the change reaches every window and every dialog opened afterwards, without restarting; what it writes is the same `.qss` a user could edit by hand |
+| G4 | **A most-recently-used list** | A project is now a directory, which is more tedious to navigate to than a file was, so the list matters more than it did before it. Small and self-contained | The File menu lists recent projects, entries that no longer exist are removed when clicked rather than at startup, and the list survives a restart |
 | G2 | Profile the interface before optimising it | The obvious suspects are already handled: figures are closed, `deleteLater` is used. Guessing further would waste the effort | A measured list of what is actually slow, with numbers |
 | G3 | Act on what G2 found | | Each finding either fixed, or recorded as not worth fixing |
 
@@ -241,7 +269,7 @@ elevation range exactly as a source is.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| F1 | Az/El of a `SpaceTelescope` seen from each ground station, over the scan times | A frame with the same shape as `az_el`, keyed by station and by spacecraft |
+| F1 | Az/El of a `SpaceTelescope` seen from each ground station, over the scan times, **as a calculation of its own that the user chooses** | A frame with the same shape as `az_el`, keyed by station and by spacecraft. It appears in the calculations dialog beside the others, and is never run as part of an ordinary observation -- pointing at a spacecraft is a different question from observing a source, and computing it unasked would cost time for nothing on every project that has no spacecraft in it |
 | F2 | Visibility from that: above the horizon, within the station's elevation range | A frame with the same shape as `source_visibility` |
 | F3 | A visualization tab, reusing the existing Az/El plot | The spacecraft appears in the same plot as a source would |
 | F4 | Characterization tests, computed once and pinned like every other calculation | A change to the geometry fails the build |
@@ -295,6 +323,7 @@ reasoning rather than letting it sit open for another year.
 | R3 | Documentation in `docs/` written for somebody who has never seen the project | Installing, running, adding an observation, reading a result -- each with a runnable example |
 | R4 | Package metadata: `pyproject.toml`, an entry point, a version that lives in one place | `pip install .` gives a working `pastrocore` command |
 | R5 | Close or rewrite the stale pull requests | None open without a decision recorded |
+| R6 | **Export a project as one file, for sending it to somebody** | The want that packing the save format looked like it would satisfy, separated from it in stage 4. An explicit action, so the cost is paid when a user asks for it rather than on every open | A project becomes one archive and comes back from one, and the round trip is covered by a test |
 
 ## Order, and why
 
@@ -308,6 +337,23 @@ reasoning rather than letting it sit open for another year.
 | **5. Interface** | Last, because the model underneath it has stopped moving by then |
 | **6. Space telescope as a target** | A new capability rather than a repair, so it waits until the repairs are done -- but it is cheap and wanted, and could be pulled forward once stage 3 is finished |
 | **7. Release and tidy** | The repository is the last thing to shape, because what it documents has stopped moving |
+
+### What to do next, in order
+
+The stages above are the shape of the work. This is the queue within what is left, ranked by
+what a user loses by waiting rather than by what is interesting to build.
+
+| | Item | Why here | Size |
+| --- | --- | --- | --- |
+| 1 | **D8** -- the dialogs ask for a directory | A defect in what 0.5.0 shipped, met on the first save, and the cheapest thing on this list. Nothing is blocked by it and nothing blocks it | Hours |
+| 2 | **G0** -- the regenerate-from-`.ui` rule | Cheap, and it has to precede any interface work or that work is done twice. It is the gate on G1, G1a and G4 | Hours |
+| 3 | **D6 + D7** -- scratch directory, per session, with recovery | The only item here where waiting costs *data*. A day of calculation is lost to a crash today, and an unsaved session is not governed by the memory ceiling either. The largest of the four | Days |
+| 4 | **F1-F5** -- the space telescope as a target | The first item that adds something the lab does not have, rather than repairing something it does. Wanted, and cheap because both inputs are already computed | Days |
+| 5 | **G1, G1a, G4** -- one stylesheet, editable, and the recent list | Appearance and convenience. Real, but nobody loses work to them | Days |
+
+D8 and G0 first because they are hours rather than days and because G0 is a gate. D6 before F1
+because losing a day of calculation is worse than not yet having a calculation. F1 before the
+interface work because it is the only thing on the list a user asked for by name.
 
 ## Beyond the stages
 
