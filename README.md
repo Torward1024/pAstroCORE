@@ -1,6 +1,6 @@
 pAstroCORE -- a versatile tool for scheduling radio-astronomical observations
 
-Version 0.5.0. Past the MVP, and the parts written under time pressure are being put in order
+Version 0.5.1. Past the MVP, and the parts written under time pressure are being put in order
 one measured stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -73,7 +73,7 @@ pip install -r requirements.txt pytest
 python -m pytest tests/
 ```
 
-213 tests. The characterization suites recompute every calculation in
+217 tests. The characterization suites recompute every calculation in
 `tests/fixtures/test_project.pastro` and redraw every plot, comparing against what the project
 was saved with, so a change to any formula or any filter fails the build. Qt runs offscreen,
 so the GUI smoke tests need no display.
