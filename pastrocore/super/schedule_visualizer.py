@@ -128,14 +128,14 @@ class ScheduleVisualizer(Super):
         }
 
         self._plot_types: Dict[str, Callable] = {
-            "uv_coverage": self._plot_uv_coverage,
-            "sun_angles": self._plot_sun_angles,
-            "az_el": self._plot_az_el,
-            "time_on_source": self._plot_time_on_source,
-            "beam_pattern": self._plot_beam_pattern,
-            "baseline_projections": self._plot_baseline_projections,
-            "mollweide_tracks": self._plot_mollweide_tracks,
-            "parallactic_angle": self._plot_parallactic_angle
+            "uv_coverage": self._visualize_uv_coverage,
+            "sun_angles": self._visualize_sun_angles,
+            "az_el": self._visualize_az_el,
+            "time_on_source": self._visualize_time_on_source,
+            "beam_pattern": self._visualize_beam_pattern,
+            "baseline_projections": self._visualize_baseline_projections,
+            "mollweide_tracks": self._visualize_mollweide_tracks,
+            "parallactic_angle": self._visualize_parallactic_angle
         }
         
         logger.debug("Initialized Scheduling Visualizer")
@@ -408,7 +408,7 @@ class ScheduleVisualizer(Super):
         
         return result
 
-    def _plot_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+    def _visualize_uv_coverage(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
         Plot UV coverage for an Observation with flexible filtering and frequency scaling using Polars DataFrame.
 
@@ -642,7 +642,7 @@ class ScheduleVisualizer(Super):
             logger.debug("Plotting completed: %s points, %s baselines", result['points'], result['baselines'])
             return result
 
-    def _plot_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+    def _visualize_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
         Plot angles to the Sun for an Observation with flexible filtering using Polars DataFrame.
 
@@ -774,7 +774,7 @@ class ScheduleVisualizer(Super):
             logger.debug("Visualization result: %s", result)
             return result
         
-    def _plot_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+    def _visualize_az_el(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
         Plot Azimuth/Elevation or Hour Angle/Declination for an Observation with flexible filtering using Polars DataFrame.
 
@@ -965,7 +965,7 @@ class ScheduleVisualizer(Super):
             logger.debug("Visualization result: %s", result)
             return result
 
-    def _plot_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+    def _visualize_time_on_source(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
         Plot time on source for an Observation with flexible filtering using Polars DataFrame.
 
@@ -1153,7 +1153,7 @@ class ScheduleVisualizer(Super):
 
             return result
 
-    def _plot_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+    def _visualize_beam_pattern(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
         Plot beam patterns for an Observation with one subplot per telescope and a shared frequency legend using Polars DataFrame.
 
@@ -1314,7 +1314,7 @@ class ScheduleVisualizer(Super):
             result["frequencies"] = len(plotted_frequencies)
             return result
 
-    def _plot_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+    def _visualize_baseline_projections(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
         Plot baseline projections for an Observation with flexible filtering, frequency scaling, and grouped legend using Polars DataFrame.
 
@@ -1505,7 +1505,7 @@ class ScheduleVisualizer(Super):
             logger.debug("Visualization result: %s", result)
             return result
 
-    def _plot_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+    def _visualize_mollweide_tracks(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
         Plot Mollweide tracks for an Observation with flexible filtering and grouped legend using Polars DataFrame.
 
@@ -1691,7 +1691,7 @@ class ScheduleVisualizer(Super):
 
             return result
     
-    def _plot_parallactic_angle(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
+    def _visualize_parallactic_angle(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
         Plot parallactic angle for ground telescopes.
         Similar to sun_angles, but with special meaning for polarization observations.
