@@ -279,7 +279,7 @@ def test_declining_a_recovered_session_removes_it(window, tmp_path, monkeypatch)
     ScratchSpace(root=root, session="1-dead").store.write(
         "obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
 
-    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
+    monkeypatch.setattr(scratch_module, "live_pids", lambda: set())
     asked = []
     monkeypatch.setattr(QMessageBox, "question",
                         staticmethod(lambda *a, **k: asked.append(a) or QMessageBox.StandardButton.No))
@@ -292,6 +292,8 @@ def test_declining_a_recovered_session_removes_it(window, tmp_path, monkeypatch)
 def test_keeping_a_recovered_session_leaves_it_alone(window, tmp_path, monkeypatch):
     """The default answer, and the one that matters: the results are still there afterwards."""
     from PySide6.QtWidgets import QMessageBox
+    import os
+
     from pastrocore.base import scratch as scratch_module
     from pastrocore.base.scratch import ScratchSpace
     import polars as pl
@@ -300,7 +302,7 @@ def test_keeping_a_recovered_session_leaves_it_alone(window, tmp_path, monkeypat
     ScratchSpace(root=root, session="2-dead").store.write(
         "obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
 
-    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
+    monkeypatch.setattr(scratch_module, "live_pids", lambda: set())
     asked = []
     monkeypatch.setattr(QMessageBox, "question",
                         staticmethod(lambda *a, **k: asked.append(a) or QMessageBox.StandardButton.Yes))
