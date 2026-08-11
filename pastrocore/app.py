@@ -566,7 +566,16 @@ class PAstroCoreMainWindow(QMainWindow):
                     for obs_name, obs in observations.items():
                         try:
                             obs_code = self.manipulator.inspect(obs, get_observation_code=None)
-                            obs_item = QStandardItem(obs_code)
+                            # A label, never a dialog. Staleness is a state the user can see
+                            # and act on when they choose; announcing it after every edit
+                            # would be worse than not detecting it.
+                            stale = obs.stale_results() if hasattr(obs, "stale_results") else ()
+                            label = f"{obs_code}  • {len(stale)} stale" if stale else obs_code
+                            obs_item = QStandardItem(label)
+                            if stale:
+                                obs_item.setToolTip(
+                                    "Computed from a different configuration and not "
+                                    "recalculated since:\n  " + "\n  ".join(stale))
                             obs_item.setData("observation", Qt.UserRole)
                             obs_item.setData(obs_name, Qt.UserRole + 1)
                             observations_item.appendRow(obs_item)

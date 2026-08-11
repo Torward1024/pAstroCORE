@@ -308,3 +308,61 @@ def test_keeping_a_recovered_session_leaves_it_alone(window, tmp_path, monkeypat
 
     assert asked, "an assertion that nothing was deleted is worthless if nothing was offered"
     assert (root / "2-dead" / "results" / "obs" / "uv_coverage.parquet").is_file()
+
+
+# --- what the interface does with it ---------------------------------------------------------
+
+def test_the_explorer_labels_a_stale_observation(project, qt_application):
+    """T2 in the interface: a label the user can see, not a dialog that interrupts them."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QTreeView
+
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.get_observation(next(iter(project.get_items())))
+    observation.calculated_data.clear()
+    ScheduleManipulator(project).calculate(observation, method="uv_coverage",
+                                          time_step=300.0, raise_on_error=False)
+
+    window = PAstroCoreMainWindow()
+    try:
+        window.project = project
+        window.manipulator = ScheduleManipulator(project)
+        window.update_project_explorer()
+
+        explorer = window.ui.dockWidget.findChild(QTreeView, "projectExplorer")
+
+        def labels():
+            # Re-fetched every time: update_project_explorer installs a *new* model, so a
+            # reference taken once goes on describing the tree as it used to be.
+            model = explorer.model()
+            found = []
+
+            def walk(item):
+                for row in range(item.rowCount()):
+                    child = item.child(row, 0)
+                    if child is None:
+                        continue
+                    if child.data(Qt.UserRole) == "observation":
+                        found.append(child.text())
+                    walk(child)
+
+            for row in range(model.rowCount()):
+                top = model.item(row, 0)
+                if top.data(Qt.UserRole) == "observation":
+                    found.append(top.text())
+                walk(top)
+            return found
+
+        assert all("stale" not in text for text in labels()), "nothing is stale yet"
+
+        telescope = observation.get_telescopes().get_active_items()[0]
+        telescope.set({"x": telescope.get_coordinates()[0] + 1_000_000.0})
+        window.update_project_explorer()
+
+        assert any("stale" in text for text in labels()), (
+            "a stale observation must be visible in the explorer")
+    finally:
+        window.close()
+        window.deleteLater()

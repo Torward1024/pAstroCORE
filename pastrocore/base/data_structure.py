@@ -7,6 +7,7 @@ class CalculatedDataStructure:
     """Schema definition for calculated data Polars DataFrames."""
     SCHEMAS = {
         "times": {
+            "depends_on": ("scans",),
             "columns": ["source_name", "scan_name", "time"],
             "metadata": {
                 "time_step": float,
@@ -28,6 +29,7 @@ class CalculatedDataStructure:
             }
         },
         "interpolated_orbits": {
+            "depends_on": ("telescopes", "scans"),
             "columns": ["time", "scan_name", "telescope_code", "x", "y", "z"],
             "metadata": {
                 "time_step": float,
@@ -47,6 +49,7 @@ class CalculatedDataStructure:
             }
         },
         "telescope_positions": {
+            "depends_on": ("telescopes", "scans"),
             "columns": ["time", "scan_name", "telescope_code", "x", "y", "z"],
             "metadata": {
                 "time_step": float,
@@ -66,6 +69,7 @@ class CalculatedDataStructure:
             }
         },
         "source_visibility": {
+            "depends_on": ("telescopes", "sources", "scans"),
             "columns": ["time", "source_name", "scan_name", "telescope_code", "visibility"],
             "metadata": {
                 "time_step": float,
@@ -85,6 +89,7 @@ class CalculatedDataStructure:
             }
         },
         "uv_coverage": {
+            "depends_on": ("telescopes", "sources", "scans", "frequencies"),
             "columns": ["time", "source_name", "scan_name", "baseline", "u", "v", "w"],
             "metadata": {
                 "time_step": float,
@@ -105,6 +110,7 @@ class CalculatedDataStructure:
             }
         },
         "beam_pattern": {
+            "depends_on": ("telescopes", "frequencies"),
             "columns": ["telescope_code", "theta", "pattern"],
             "metadata": {
                 "telescope_count": int,
@@ -119,6 +125,7 @@ class CalculatedDataStructure:
             }
         },
         "time_on_source": {
+            "depends_on": ("telescopes", "sources", "scans"),
             "columns": ["source_name", "scan_name", "telescope_code", "start", "end", "duration"],
             "metadata": {},
             "converters": {
@@ -136,6 +143,7 @@ class CalculatedDataStructure:
             }
         },
         "telescope_az_el": {
+            "depends_on": ("telescopes", "scans"),
             "columns": ["time", "target_code", "scan_name", "telescope_code", "az", "el", "range"],
             "metadata": {
                 "time_step": float,
@@ -159,6 +167,7 @@ class CalculatedDataStructure:
             }
         },
         "telescope_visibility": {
+            "depends_on": ("telescopes", "scans"),
             "columns": ["time", "target_code", "scan_name", "telescope_code", "visibility"],
             "metadata": {
                 "time_step": float,
@@ -179,6 +188,7 @@ class CalculatedDataStructure:
             }
         },
         "az_el": {
+            "depends_on": ("telescopes", "sources", "scans"),
             "columns": ["time", "source_name", "scan_name", "telescope_code", "az", "el"],
             "metadata": {
                 "time_step": float,
@@ -200,6 +210,7 @@ class CalculatedDataStructure:
             }
         },
         "sun_angles": {
+            "depends_on": ("telescopes", "sources", "scans"),
             "columns": ["time", "source_name", "scan_name", "telescope_code", "angle"],
             "metadata": {
                 "time_step": float,
@@ -220,6 +231,7 @@ class CalculatedDataStructure:
             }
         },
         "baseline_projections": {
+            "depends_on": ("telescopes", "sources", "scans", "frequencies"),
             "columns": ["time", "source_name", "scan_name", "baseline", "projection"],
             "metadata": {},
             "converters": {
@@ -235,6 +247,7 @@ class CalculatedDataStructure:
             }
         },
         "mollweide_tracks": {
+            "depends_on": ("telescopes", "sources", "scans"),
             "columns": ["time", "scan_name", "telescope_code", "lon", "lat"],
             "metadata": {
                 "time_step": float,
@@ -257,6 +270,7 @@ class CalculatedDataStructure:
             }  
         },
         "parallactic_angle": {
+            "depends_on": ("telescopes", "sources", "scans"),
             "columns": ["time", "source_name", "scan_name", "telescope_code", "parallactic_angle"],
             "metadata": {
                 "time_step": float,
@@ -301,6 +315,30 @@ class CalculatedDataStructure:
         """Return converters for specific columns or metadata for deserialization."""
         schema = cls.SCHEMAS.get(key)
         return schema["deserialization_converters"] if schema else None
+
+    @classmethod
+    def get_dependencies(cls, key: str) -> tuple:
+        """Return the parts of an observation a result is computed from.
+
+        Args:
+            key (str): The result's store key.
+
+        Returns:
+            tuple: Names from "telescopes", "sources", "scans", "frequencies". Everything, for
+                a key that does not declare them -- safe, and merely coarse.
+
+        Notes:
+            - Declared here rather than in a table of its own, because this is the one place a
+              new calculation already has to register: it cannot produce a frame without
+              dtypes. A separate table would be the file somebody forgets, and forgetting it
+              fails quietly by making a result look permanently fresh or permanently stale.
+            - The granularity of staleness is exactly this: editing a scan does not make a beam
+              pattern stale, and changing a frequency does not move azimuth and elevation.
+        """
+        schema = cls.SCHEMAS.get(key)
+        if not schema or "depends_on" not in schema:
+            return ("telescopes", "sources", "scans", "frequencies")
+        return tuple(schema["depends_on"])
 
     @classmethod
     def get_dtypes(cls, key: str) -> Optional[Dict[str, pl.DataType]]:

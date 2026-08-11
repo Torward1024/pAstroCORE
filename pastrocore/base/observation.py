@@ -191,6 +191,39 @@ class Observation(BaseEntity):
         stored = (results or {}).get(key)
         return (stored or {}).get("metadata", {}) or {}
 
+    def is_result_stale(self, key: str) -> Optional[bool]:
+        """Report whether a result was computed from a different configuration than the one now.
+
+        Args:
+            key (str): The calculation's store key.
+
+        Returns:
+            Optional[bool]: True if the inputs it depends on have changed, False if they have
+                not, and None if it cannot be told -- a result saved before results carried
+                fingerprints is neither stale nor fresh, and claiming either would be a guess.
+
+        Notes:
+            - A state, not an event. Nothing here raises, blocks or recalculates; a stale
+              result stays perfectly readable and what to do about it is the user's decision.
+        """
+        from pastrocore.base import freshness
+
+        return freshness.is_stale(self, key)
+
+    def stale_results(self) -> tuple:
+        """Return the keys of every result whose inputs have changed.
+
+        Returns:
+            tuple: Sorted store keys, empty when nothing is known to be stale.
+
+        Notes:
+            - Reads no result: the answer comes from the metadata beside them, so asking costs
+              a directory listing rather than the project.
+        """
+        from pastrocore.base import freshness
+
+        return freshness.stale_results(self)
+
     def set_calculated_data_by_key(self, key: str, df: pl.DataFrame, metadata: Dict = None) -> None:
         """Set calculated data and metadata for a specific key as a Polars DataFrame and dictionary."""
         check_non_empty_string(key, "Key")
