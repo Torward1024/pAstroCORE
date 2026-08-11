@@ -77,7 +77,12 @@ class CalculationThread(QThread):
                         "Time on Source": "time_on_source",
                         "Sun Angles": "sun_angles",
                         "Azimuth/Elevation": "az_el",
-                        "Parallactic Angle": "parallactic_angle"
+                        "Parallactic Angle": "parallactic_angle",
+                        # Chosen, never run as part of an ordinary observation: pointing at a
+                        # spacecraft is a different question from observing a source, and a
+                        # project with no spacecraft in it must pay nothing for the option.
+                        "Space Telescope Pointing": "telescope_az_el",
+                        "Space Telescope Visibility": "telescope_visibility"
                     }
                     method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
 

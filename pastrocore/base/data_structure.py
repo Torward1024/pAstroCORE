@@ -135,6 +135,49 @@ class CalculatedDataStructure:
                 "duration": pl.Float64
             }
         },
+        "telescope_az_el": {
+            "columns": ["time", "target_code", "scan_name", "telescope_code", "az", "el", "range"],
+            "metadata": {
+                "time_step": float,
+                "scan_count": int,
+                "target_code": str,
+                "position_store_key": str,
+                "orbit_store_key": str
+            },
+            "converters": {
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
+            },
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "target_code": pl.String,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "az": pl.Float64,
+                "el": pl.Float64,
+                "range": pl.Float64
+            }
+        },
+        "telescope_visibility": {
+            "columns": ["time", "target_code", "scan_name", "telescope_code", "visibility"],
+            "metadata": {
+                "time_step": float,
+                "scan_count": int,
+                "target_code": str,
+                "az_el_store_key": str
+            },
+            "converters": {
+                "time": lambda x: float(x) if isinstance(x, (int, float)) and x is not None else None
+            },
+            "deserialization_converters": {},
+            "dtypes": {
+                "time": pl.Float64,
+                "target_code": pl.String,
+                "scan_name": pl.String,
+                "telescope_code": pl.String,
+                "visibility": pl.Boolean
+            }
+        },
         "az_el": {
             "columns": ["time", "source_name", "scan_name", "telescope_code", "az", "el"],
             "metadata": {
