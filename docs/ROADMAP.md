@@ -377,6 +377,10 @@ not a category that exists here.
 | V2 | Export ground-telescope schedules to VEX | A file a VEX parser accepts, for a project the lab actually ran |
 | V3 | Validate against a real parser rather than against our own reading of the specification | The exporter's output is checked by something we did not write, in the test suite |
 | V4 | Characterization tests, pinned like every calculation | A change to the exporter that alters the file fails the build |
+| V5 | **Import VEX**, after export and not before | Worth doing, and it changes what the tool is for a second time: reading VEX turns pAstroCORE from a thing that *produces* schedules into one that can analyse anybody's -- compute uv coverage and visibility for an experiment somebody else scheduled, or for one already run and archived | A real VEX file from an experiment this lab did not schedule loads, and its uv coverage can be computed |
+| V6 | **Decide what happens to what the model cannot represent -- before V5 is written** | The hazard that makes import harder than export, and it is not parsing. Writing, we choose the subset; reading, we must accept whatever anyone emitted. An importer that silently drops blocks it does not understand, feeding an exporter that writes only what the model knows, is a **lossy round trip that looks lossless**: a user imports a real schedule, edits one field, exports, and the file has quietly lost what the correlator needed. Two honest answers -- keep unrecognised blocks verbatim and re-emit them, or refuse to export a file that was imported with losses. The first is what good format tools do | Importing a file with a block we do not model, then exporting, produces that block unchanged, and a test proves it |
+
+Once V5 exists, export-then-import is a cheap and strong test -- but it does not replace V3, and assuming it does is the trap. A round trip passes when the reader and the writer are wrong in the same way, which is exactly what happens when one person writes both from one reading of the specification.
 
 V3 is not optional and is the reason this is a stage rather than a line item. A format is a
 contract with software nobody here controls, and a file that looks right to its author is the
@@ -389,6 +393,10 @@ orbit and its downlink are a second conversation, and stage 6 has to exist first
 
 **The interface holds interface code and calls to the manipulator. Everything else is a
 `Super`.**
+
+Read forwards rather than as cleanup, this is the growth rule: **a new feature is a new `Super` plus a thin wrapper wherever it is invoked from** -- a dialog, a CLI verb, an HTTP route. The operation is written once and every front end reaches it the same way, so adding the second and third front end costs a wrapper each rather than a reimplementation.
+
+One qualification, so the rule does not turn into ceremony. A `Super` earns its place when *some caller other than the one in front of you* would want the operation. Wrapping a single function that only one screen will ever call buys indirection and a dictionary of attributes in place of a typed signature. And the model keeps its own data: `ScheduleProject` serialises itself, and the `Super` in L0a is a facade over that, not a second implementation of it.
 
 Stated once here rather than repeated in each item below, because L1, L2 and L3 are all cheap
 or expensive depending only on whether it holds. A CLI is a thin layer over `process_request`
