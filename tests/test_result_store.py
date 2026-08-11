@@ -775,3 +775,120 @@ def test_discard_refuses_rather_than_deletes(tmp_path):
 
     assert project.is_dir(), "a project directory must survive being handed to discard"
     assert (project / "project.json").is_file()
+
+
+# --- metadata that agrees with its data, and files anything can read ------------------------
+
+def strict(text):
+    """Parse JSON the way something that is not Python would.
+
+    Notes:
+        - `json.loads` accepts `NaN` and `Infinity` by default, so reading a file back with it
+          proves nothing about whether the file is valid JSON. This refuses them, which is what
+          a parser in another language does without being asked.
+    """
+    def refuse(constant):
+        raise ValueError(f"{constant} is not valid JSON")
+
+    return json.loads(text, parse_constant=refuse)
+
+
+def test_the_metadata_describes_the_frame_beside_it(project, tmp_path):
+    """The reported defect: 288 rows over one scan, beside metadata saying it covered nothing.
+
+    `_process_object` stores the frame with placeholder metadata, and the correction afterwards
+    was guarded by "or nothing is stored yet" -- which is false precisely because the frame has
+    just been stored. The correction could never happen.
+    """
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    observation = project.get_observation(next(iter(project.get_items())))
+    observation.calculated_data.clear()
+    manipulator = ScheduleManipulator(project)
+
+    # recalculate=False is the path the defect lived on.
+    manipulator.calculate(observation, method="time_arrays", time_step=300.0,
+                          raise_on_error=False)
+
+    frame = observation.calculated_data["times"]["data"]
+    metadata = observation.get_calculated_metadata("times")
+
+    assert metadata["scan_count"] == frame["scan_name"].unique().len()
+    assert metadata["start_time"] == pytest.approx(frame["time"].min())
+    assert metadata["end_time"] == pytest.approx(frame["time"].max())
+
+
+def test_the_metadata_survives_being_saved(project, tmp_path):
+    """It has to still agree after a round trip, since that is where it was found wrong."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    observation = project.get_observation(next(iter(project.get_items())))
+    observation.calculated_data.clear()
+    ScheduleManipulator(project).calculate(observation, method="time_arrays", time_step=300.0,
+                                           raise_on_error=False)
+
+    root = tmp_path / "metadata.pastro"
+    project.save(str(root))
+    reopened = ScheduleProject.open(str(root))
+    restored = reopened.get_observation(observation.name)
+
+    metadata = restored.get_calculated_metadata("times")
+    frame = restored.calculated_data["times"]["data"]
+    assert metadata["scan_count"] == frame["scan_name"].unique().len()
+    assert metadata["start_time"] is not None
+
+
+def test_no_file_the_application_writes_contains_nan(project, tmp_path):
+    """`json.dumps` writes bare NaN, which is not valid JSON. A file in that state can be read
+    by us and by nothing else -- which surfaces the first time an export, an import or a server
+    response is parsed by something we did not write.
+    """
+    root = tmp_path / "strict.pastro"
+    project.save(str(root))
+
+    written = list(root.rglob("*.json"))
+    assert written, "nothing was written to check"
+    for path in written:
+        try:
+            strict(path.read_text(encoding="utf-8"))
+        except ValueError as reason:
+            pytest.fail(f"{path.relative_to(root)} is not valid JSON: {reason}")
+
+
+def test_an_unrepresentable_number_becomes_null_rather_than_nan(tmp_path):
+    """None is not a workaround: a span that could not be determined is absent, and null is how
+    JSON says absent."""
+    store = ResultStore(tmp_path / "results")
+    store.write("obs", "times", pl.DataFrame({"x": [1.0]}),
+                {"start_time": float("nan"), "end_time": float("inf"),
+                 "nested": {"deep": float("nan")}, "listed": [1.0, float("nan")],
+                 "kept": 300.0})
+
+    text = (tmp_path / "results" / "obs" / "times.meta.json").read_text(encoding="utf-8")
+    assert "NaN" not in text and "Infinity" not in text
+
+    metadata = strict(text)
+    assert metadata["start_time"] is None
+    assert metadata["end_time"] is None
+    assert metadata["nested"]["deep"] is None
+    assert metadata["listed"] == [1.0, None]
+    assert metadata["kept"] == 300.0
+
+
+def test_recalculating_does_not_rewrite_an_unchanged_result(project, tmp_path):
+    """Storing is a disk write now, so correcting metadata must not mean writing every time."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    root = tmp_path / "rewrite.pastro"
+    project.save(str(root))
+    observation = project.get_observation(next(iter(project.get_items())))
+    manipulator = ScheduleManipulator(project)
+
+    manipulator.calculate(observation, method="time_arrays", time_step=300.0, raise_on_error=False)
+    written = root / "results" / observation.name / "times.parquet"
+    before = written.stat().st_mtime_ns
+
+    manipulator.calculate(observation, method="time_arrays", time_step=300.0, raise_on_error=False)
+    assert written.stat().st_mtime_ns == before, "an unchanged result was written again"

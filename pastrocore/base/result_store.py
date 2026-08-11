@@ -24,6 +24,7 @@ replaces -- `results["uv_coverage"]`, `.get`, `.items`, `in`, `len` -- and reads
 when a key is actually asked for.
 """
 import json
+import math
 import shutil
 from collections import OrderedDict
 from pathlib import Path
@@ -36,6 +37,33 @@ from msb_arch.utils.logging_setup import logger
 __all__ = ["CalculatedData", "ResultStore"]
 
 METADATA_SUFFIX = ".meta.json"
+
+
+def json_safe(value: Any) -> Any:
+    """Return a value JSON can actually represent, replacing what it cannot with None.
+
+    Args:
+        value (Any): Anything about to be written to a file.
+
+    Returns:
+        Any: The same value, with NaN and infinity replaced by None throughout.
+
+    Notes:
+        - `json.dumps` writes bare `NaN` and `Infinity` by default, and **neither is valid
+          JSON**. Python reads them back only because its own parser is lenient, so a file in
+          that state is readable by us and by nothing else -- which surfaces the first time an
+          export, an import or a server response has to be parsed by something we did not
+          write.
+        - `None` is not a workaround here but the honest answer: a span that could not be
+          determined is absent, and `null` is how JSON says absent.
+    """
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+        return None
+    if isinstance(value, dict):
+        return {key: json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(item) for item in value]
+    return value
 
 
 class ResultStore:
@@ -170,12 +198,13 @@ class ResultStore:
         keepable = {}
         for name, value in (metadata or {}).items():
             try:
-                json.dumps(value)
-                keepable[name] = value
+                keepable[name] = json_safe(value)
+                json.dumps(keepable[name], allow_nan=False)
             except (TypeError, ValueError):
+                keepable.pop(name, None)
                 logger.warning("Dropping unserializable metadata '%s' for result '%s' of '%s'",
                                name, key, owner)
-        meta_path.write_text(json.dumps(keepable, indent=2), encoding="utf-8")
+        meta_path.write_text(json.dumps(keepable, indent=2, allow_nan=False), encoding="utf-8")
         logger.debug("Wrote result '%s' for '%s': %s rows", key, owner, frame.height)
 
     def drop(self, owner: str, key: Optional[str] = None) -> None:

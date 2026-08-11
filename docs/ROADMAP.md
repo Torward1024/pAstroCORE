@@ -351,7 +351,8 @@ what a user loses by waiting rather than by what is interesting to build.
 | | Item | Why here | Size |
 | --- | --- | --- | --- |
 | ~~1~~ | ~~**D8**~~ | **Done.** | |
-| 1 | **D9** -- NaN in the metadata | Hours, and it is not cosmetic: it leaves files that only a lenient parser can read, which every export, import and server response later depends on | Hours |
+| ~~1~~ | ~~**D9**~~ | **Done.** | |
+| 1 | **T1, T2** -- a stale result must not pass for a current one | Measured: moving a telescope 1 000 km and recalculating returns the old numbers in silence. The honest half needs no dependency graph and belongs in 1.0; knowing what to recompute does need one and does not | Days |
 | 2 | **G0** -- the regenerate-from-`.ui` rule | Cheap, and it has to precede any interface work or that work is done twice. It is the gate on G1, G1a and G4 | Hours |
 | ~~3~~ | ~~**D6 + D7**~~ | **Done.** | |
 | ~~4~~ | ~~**F1-F5**~~ | **Done.** | |
@@ -363,6 +364,62 @@ what a user loses by waiting rather than by what is interesting to build.
 D8 and G0 are done, which opens the rest of the interface work. D6 before F1
 because losing a day of calculation is worse than not yet having a calculation. F1 before the
 interface work because it is the only thing on the list a user asked for by name.
+
+## Staleness -- how a result knows its inputs changed
+
+Measured before being written down, and it is not future work: **moving a telescope 1 000 km
+and recalculating returns the previous numbers, unchanged and without a word.** A cached result
+is keyed by its store key alone, so nothing about the configuration it was computed from is
+compared against the configuration in hand.
+
+The question crosses MSB's dependency-graph work, and hashing was the obvious first thought.
+Both halves are needed and neither works alone:
+
+| | What it gives | What it cannot do |
+| --- | --- | --- |
+| Content hashes of the inputs | Notices that something changed | Does not know *what depends on it*. Hashing the whole observation invalidates `uv_coverage` because a comment was edited -- false invalidation, which trains users to ignore it |
+| A dependency graph | Knows which results depend on which inputs | Cannot tell whether an input actually changed. It says what *would* be affected, not what *was* |
+
+So: the graph names the subset a result depends on, and a hash over *that subset* says whether
+it moved. Neither is useful without the other, and building either one first tends to produce
+something that looks finished and is not.
+
+### What belongs in 1.0, and what does not
+
+Splitting it this way makes the 1.0 part small and the rest genuinely deferrable.
+
+**In 1.0: stop pretending.** The application does not have to know *what* to recompute; it has
+to stop returning a stale result as though it were current. The mechanism already exists in
+embryo -- metadata records `time_step`, which is exactly "what this was computed with", asked
+about one parameter. Recording the rest of what a result was computed from, and comparing it on
+read, gives an honest answer without any graph: *this was computed with a different
+configuration, recalculate it*. Refusing to answer is not as good as answering correctly, and
+it is much better than answering wrongly.
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| T1 | A result records what it was computed from, beyond the time step | The metadata of every calculation names its inputs |
+| T2 | Reading a result whose inputs have changed says so -- **as a state, not an interruption** | A stale result stays readable and is *labelled*; nothing pops up, nothing blocks, nothing recalculates by itself. Recalculating is the user's choice and the label is what makes it an informed one |
+| T3 | **Stale marks only what actually depends on the change** | The refinement that decides whether T2 is useful or unbearable, and it is worth stating separately because it is easy to build T2 without it and discover the problem afterwards |
+
+**The pain is granularity, not detection.** Recalculating on every configuration change
+would be unbearable, and so would a dialog announcing staleness after every edit -- but neither
+is what T2 asks for. The cost comes from *coarseness*: without knowing what depends on what,
+moving one telescope marks everything stale, and "everything" is the only thing left to
+recompute. With the graph, the same edit marks three results and leaves the rest alone, and
+recalculating stops being an event worth dreading.
+
+Two things make the labelled-but-readable state affordable, and neither existed six versions
+ago. Results are on disk rather than in memory, so a stale result costs nothing to keep beside
+the knowledge that it is stale -- there is no reason to discard numbers merely because they are
+out of date, and every reason not to, since the user may want to compare. And a result is
+written when it is calculated, so "recompute this one" is a real option rather than a
+euphemism for reopening the project.
+
+**After 1.0, and needing MSB's P1:** knowing *which* results a change invalidates, and
+recomputing only those. That is the dependency graph, and it is the same graph that would let
+independent calculations run in parallel -- which is why it is one piece of work in MSB rather
+than two here.
 
 ## Stage 10 -- analysis, or the difference between a calculator and an instrument
 
