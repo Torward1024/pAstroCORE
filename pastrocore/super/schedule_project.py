@@ -352,151 +352,34 @@ class ScheduleProject(Project):
 
     @classmethod
     def open(cls, path: str) -> 'ScheduleProject':
-        """Load a project, whichever of the two shapes it has on disk.
+        """Load a project from its directory.
 
         Args:
-            path (str): A project directory, the `project.json` inside one, or a project saved
-                as a single file by an earlier version.
+            path (str): The project directory, or the `project.json` inside it. Both are
+                accepted because a file dialog can hand back either.
 
         Returns:
-            ScheduleProject: The project. Loaded from a directory it holds no results in memory
-                until one is asked for; loaded from a single file it holds all of them, because
-                that format offers no other way.
+            ScheduleProject: The project, holding no results in memory until one is asked for.
 
-        Notes:
-            - One entry point rather than three, so a caller does not have to know which format
-              it is looking at. The interface asks this, and so does anything scripted.
+        Raises:
+            IOError: If the path is not a project directory.
         """
         check_non_empty_string(path, "Project path")
         candidate = Path(path)
 
         if candidate.name == cls.MODEL_FILE and candidate.is_file():
             return cls.from_directory(str(candidate.parent))
-        if candidate.is_dir():
-            return cls.from_directory(str(candidate))
-        logger.info("Opening '%s' as a single-file project; its results load with it", path)
-        return cls.from_file(str(candidate))
+        return cls.from_directory(str(candidate))
 
     def save(self, path: str) -> None:
-        """Save the project as a directory, converting a single file in place if that is what
-        the path currently holds.
+        """Save the project as a directory.
 
         Args:
-            path (str): Where to save. An existing single file at this path is replaced by a
-                directory, and only once the directory has been written.
-
-        Notes:
-            - The old file is removed after the new directory is complete, never before, so an
-              interrupted save leaves the original intact.
+            path (str): The project directory. Created if it does not exist.
         """
         check_non_empty_string(path, "Project path")
-        target = Path(path)
+        self.to_directory(str(Path(path)))
 
-        if target.is_file():
-            staging = target.with_name(target.name + ".converting")
-            self.to_directory(str(staging))
-            target.unlink()
-            staging.rename(target)
-            logger.info("Converted single-file project '%s' to a directory", path)
-            return
-
-        self.to_directory(str(target))
-
-    def to_file(self, file_path: str, compact: bool = False) -> None:
-        """Serialize ScheduleProject to a JSON file without loading the full dictionary into memory.
-
-        Args:
-            file_path (str): Path to the output JSON file.
-            compact (bool): If True, write compact JSON without indentation. Defaults to False.
-
-        Raises:
-            ValueError: If file_path is not a non-empty string.
-            IOError: If there are issues with file writing.
-        """
-        check_non_empty_string(file_path, "File path")
-        try:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                indent = None if compact else 4
-                f.write('{' if compact else '{\n')
-                name_line = f'"name": "{json.dumps(self.name)[1:-1]}"' if compact else f'  "name": "{json.dumps(self.name)[1:-1]}",\n'
-                f.write(name_line)
-                items_line = ',' if compact else ',\n'
-                f.write('"items": {' if compact else '  "items": {\n')
-                items = self._items.get_all().items()
-                items_count = len(self._items)
-                for i, (name, observation) in enumerate(items):
-                    obs_dict = observation.to_dict()
-                    name_prefix = '' if compact else '    '
-                    f.write(f'{name_prefix}"{json.dumps(name)[1:-1]}": ')
-                    json.dump(obs_dict, f, indent=indent)
-                    if i < items_count - 1:
-                        f.write(items_line)
-                    else:
-                        f.write('' if compact else '\n')
-                f.write('}' if compact else '  }\n')
-                f.write('}' if compact else '}\n')
-            logger.info("Saved ScheduleProject '%s' to file '%s' with %s observations (compact=%s)", self.name, file_path, len(self._items), compact)
-        except IOError as e:
-            logger.error("Failed to write ScheduleProject to file '%s': %s", file_path, str(e))
-            raise IOError(f"Error writing to file '{file_path}': {str(e)}") from e
-
-    @classmethod
-    def from_file(cls, file_path: str) -> 'ScheduleProject':
-        """Deserialize a ScheduleProject from a JSON file with minimal memory usage.
-
-        Args:
-            file_path (str): Path to the input JSON file.
-
-        Returns:
-            ScheduleProject: A new ScheduleProject instance populated with the data from the file.
-
-        Raises:
-            ValueError: If file_path is not a non-empty string or the JSON data is invalid.
-            IOError: If there are issues with file reading.
-        """
-        check_non_empty_string(file_path, "File path")
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                logger.debug("Read JSON data from file '%s'", file_path)
-            
-            name = data.get("name")
-            check_non_empty_string(name, "Project name")
-            items = {}
-            
-            if "items" in data:
-                if not data["items"]:
-                    logger.warning("Creating ScheduleProject '%s' with empty items dictionary from file '%s'", name, file_path)
-                else:
-                    codes = set()
-                    for item_name, item_data in data["items"].items():
-                        try:
-                            observation = Observation.from_dict(item_data)
-                            check_type(observation, Observation, f"Observation '{item_name}'")
-                            code = observation.get_observation_code()
-                            if code in codes:
-                                logger.error("Duplicate observation code '%s' found for observation '%s' in file '%s'", code, item_name, file_path)
-                                raise ValueError(f"Duplicate observation code '{code}' in file '{file_path}'")
-                            codes.add(code)
-                            items[item_name] = observation
-                            logger.debug("Validated observation '%s' with code '%s' for project '%s'", item_name, code, name)
-                        except (TypeError, ValueError) as e:
-                            logger.error("Invalid observation data for '%s' in file '%s': %s", item_name, file_path, str(e))
-                            raise ValueError(f"Invalid observation data for '{item_name}': {str(e)}") from e
-            
-            project = cls(name=name, items=items)
-            logger.info("Loaded ScheduleProject '%s' from file '%s' with %s observations", name, file_path, len(items))
-            return project
-        except json.JSONDecodeError as e:
-            logger.error("Failed to parse JSON from file '%s': %s", file_path, str(e))
-            raise ValueError(f"Invalid JSON format in file '{file_path}': {str(e)}") from e
-        except IOError as e:
-            logger.error("Failed to read file '%s': %s", file_path, str(e))
-            raise IOError(f"Error reading file '{file_path}': {str(e)}") from e
-        except (KeyError, TypeError, ValueError) as e:
-            logger.error("Failed to deserialize ScheduleProject from file '%s': %s", file_path, str(e))
-            raise ValueError(f"Invalid ScheduleProject data in file '{file_path}': {str(e)}") from e
-    
     def clear(self):
         """Clear all observations and their resources."""
         try:

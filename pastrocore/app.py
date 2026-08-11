@@ -614,15 +614,24 @@ class PAstroCoreMainWindow(QMainWindow):
     def open_project(self):
         """Open a project from a file, cleaning up the old one."""
         try:
-            file_name, _ = QFileDialog.getOpenFileName(
-                self, "Open Project", "", "pAstro Project (*.pastro project.json)"
+            # A project is a directory, so the dialog asks for one. It used to ask for a
+            # file, which meant navigating into the project and picking project.json --
+            # a workaround that worked only because `open` was written to tolerate it.
+            file_name = QFileDialog.getExistingDirectory(
+                self, "Open Project", "", QFileDialog.Option.ShowDirsOnly
             )
             if not file_name:
                 logger.debug("Open project cancelled")
                 return
-                                 
-            # One entry point: a directory, the project.json inside one, or a single
-            # file written by an earlier version. The model decides which it is.
+
+            if not ScheduleProject.is_directory_project(file_name):
+                logger.info("'%s' is not a project directory", file_name)
+                QMessageBox.warning(
+                    self, "Not a project",
+                    f"'{os.path.basename(file_name)}' is not a pAstroCORE project.\n\n"
+                    f"A project is a folder containing {ScheduleProject.MODEL_FILE}.")
+                return
+
             new_project = ScheduleProject.open(file_name)
 
             self._cleanup_project()
@@ -630,11 +639,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.project = new_project
             self.manipulator = ScheduleManipulator(self.project)
             self._apply_residency_budget()
-            # What gets remembered is the project, not the file inside it. A user who
-            # navigated in and picked project.json would otherwise have that path saved
-            # over on the next save -- turning the model file itself into a directory.
-            self.current_project_path = str(Path(file_name).parent) if Path(
-                file_name).name == ScheduleProject.MODEL_FILE else file_name
+            self.current_project_path = file_name
             
             self.clear_connections(is_initial_setup=False)
             self.setup_connections()
@@ -657,9 +662,8 @@ class PAstroCoreMainWindow(QMainWindow):
             progress.setAutoClose(True)
             progress.show()
             try:
-                # Saves a directory: the model in one small file and each result in
-                # its own parquet beside it. A single file at this path is converted,
-                # and only after the directory is complete.
+                # Saves a directory: the model in one small file and each result in its
+                # own parquet beside it.
                 self.project.save(self.current_project_path)
                 logger.info("Project saved to '%s'", self.current_project_path)
             except Exception as e:
@@ -672,13 +676,56 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def save_project_as(self):
-        """Save the current project to a new file."""
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save Project As", "", "pAstroCORE Project (*.pastro)")
-        if file_path:
-            if not file_path.endswith(".pastro"):
-                file_path += ".pastro"
-            self.current_project_path = file_path
-            self.save_project()
+        """Save the current project to a directory the user chooses.
+
+        Notes:
+            - A directory chooser rather than a file chooser, because a project is a directory.
+              Use the dialog's "New Folder" button to make one; an existing empty folder or an
+              existing project may also be chosen.
+            - Writing into a folder that already holds something else is the one case worth
+              stopping for: the results directory would land beside a stranger's files, and
+              nothing about the dialog would have warned of it.
+        """
+        directory = QFileDialog.getExistingDirectory(
+            self, "Save Project As -- choose or create a folder", "",
+            QFileDialog.Option.ShowDirsOnly)
+        if not directory:
+            logger.debug("Save project as cancelled")
+            return
+
+        if not self._directory_is_free_for_a_project(directory):
+            return
+
+        self.current_project_path = directory
+        self.save_project()
+
+    def _directory_is_free_for_a_project(self, directory: str) -> bool:
+        """Report whether a project may be written into a directory, asking if it is unclear.
+
+        Args:
+            directory (str): The directory chosen in the dialog.
+
+        Returns:
+            bool: True to go ahead. False if the user declined.
+
+        Notes:
+            - An empty directory and an existing project both go ahead without a question. The
+              first is what "New Folder" produces and the second is a deliberate overwrite.
+        """
+        existing = [entry for entry in os.listdir(directory)]
+        if not existing or ScheduleProject.is_directory_project(directory):
+            return True
+
+        answer = QMessageBox.question(
+            self, "Folder is not empty",
+            f"'{os.path.basename(directory)}' already contains {len(existing)} item(s) and is "
+            f"not a pAstroCORE project.\n\nSave the project into it anyway?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            logger.info("Declined to save into non-empty directory '%s'", directory)
+            return False
+        return True
 
     @Slot()
     def import_new_observation(self):

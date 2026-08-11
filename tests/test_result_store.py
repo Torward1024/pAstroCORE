@@ -244,65 +244,6 @@ def test_open_accepts_the_model_file_inside_a_directory(project, tmp_path):
     assert ScheduleProject.open(str(root / "project.json")).name == project.name
 
 
-def test_open_still_accepts_a_single_file(tmp_path):
-    """Every project saved before this format existed has to keep opening."""
-    import shutil
-
-    from conftest import FIXTURE
-    from pastrocore.super.schedule_project import ScheduleProject
-
-    legacy = tmp_path / "old.pastro"
-    shutil.copy(FIXTURE, legacy)
-
-    loaded = ScheduleProject.open(str(legacy))
-    assert loaded.name
-
-
-def test_saving_over_a_single_file_converts_it(tmp_path, project_data):
-    """The path a user already has in their recent files keeps working, and becomes the new
-    format the first time they save."""
-    import shutil
-
-    from conftest import FIXTURE
-    from pastrocore.super.schedule_project import ScheduleProject
-
-    legacy = tmp_path / "old.pastro"
-    shutil.copy(FIXTURE, legacy)
-    assert legacy.is_file()
-
-    loaded = ScheduleProject.open(str(legacy))
-    loaded.save(str(legacy))
-
-    assert legacy.is_dir(), "the single file became a directory"
-    assert (legacy / "project.json").is_file()
-
-    reopened = ScheduleProject.open(str(legacy))
-    observation = reopened.get_observation(next(iter(project_data["items"])))
-    assert len(observation.calculated_data) == 11
-    assert observation.calculated_data._resident == {}, "and reopening reads none of them"
-
-
-def test_an_interrupted_conversion_leaves_the_original(tmp_path, monkeypatch):
-    """The old file is removed only once the directory is complete, never before."""
-    import shutil
-
-    from conftest import FIXTURE
-    from pastrocore.super.schedule_project import ScheduleProject
-
-    legacy = tmp_path / "old.pastro"
-    shutil.copy(FIXTURE, legacy)
-    loaded = ScheduleProject.open(str(legacy))
-
-    def explode(self, path):
-        raise RuntimeError("disk full")
-
-    monkeypatch.setattr(ScheduleProject, "to_directory", explode)
-    with pytest.raises(RuntimeError):
-        loaded.save(str(legacy))
-
-    assert legacy.is_file(), "the original must survive a failed conversion"
-
-
 def test_saving_drops_results_of_observations_that_left(project, tmp_path):
     """A rename must not leave the old results behind for a later rename to pick up."""
     from pastrocore.super.schedule_project import ScheduleProject
