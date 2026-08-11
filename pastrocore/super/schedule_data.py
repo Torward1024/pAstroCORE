@@ -350,8 +350,12 @@ class ScheduleData(Super):
                 logger.error("Result '%s' is missing columns %s", key, missing)
                 return []
 
-        if "source_name" not in frame.columns or "time" not in frame.columns:
-            logger.debug("Result '%s' is not keyed by source and time", key)
+        # Most results record the moment in "time"; time_on_source records an interval and
+        # calls its beginning "start". The question is the same either way, so the column is
+        # found rather than assumed.
+        moment = next((column for column in ("time", "start") if column in frame.columns), None)
+        if "source_name" not in frame.columns or moment is None:
+            logger.debug("Result '%s' is not keyed by source and a time", key)
             return []
 
         filtered = frame.filter(pl.col("source_name") == source_name)
@@ -359,8 +363,9 @@ class ScheduleData(Super):
             logger.debug("No '%s' data for source '%s'", key, source_name)
             return []
 
-        starts = filtered.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
-        return [{"scan_name": row["scan_name"], "start": Time(row["time"], format="mjd").isot}
+        starts = (filtered.group_by("scan_name")
+                  .agg(moment=pl.col(moment).first()).sort("moment"))
+        return [{"scan_name": row["scan_name"], "start": Time(row["moment"], format="mjd").isot}
                 for row in starts.iter_rows(named=True)]
 
     def _export_distinct(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, List[Any]]:
