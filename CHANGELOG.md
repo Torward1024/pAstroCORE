@@ -8,6 +8,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [0.6.0] - 2026-08-11
+
+### Removed
+
+- **The single-file project format.** It was tolerated for one release and is now gone: nobody
+  outside this repository had saved a project in it, so the window to carry it forever was open
+  for a day and was not worth a branch in every load path. `ScheduleProject.to_file` and
+  `from_file` went with it -- 147 lines of two-format handling. The test fixture is unaffected:
+  it is a JSON file read through `from_dict`, the model's own serialization, not through a file
+  format.
+
+### Changed
+
+- **Open and Save ask for a folder.** Both dialogs used to ask for a file: Save warned about
+  overwriting one, and Open could not select a directory at all, so a user had to navigate
+  inside the project and pick `project.json` -- which worked only because `open` had been
+  written to tolerate it. Opening now checks that the chosen directory really is a project and
+  says so plainly when it is not, because a directory chooser will return any directory.
+- **Saving into a folder that already holds something else asks first.** An empty folder --
+  what the dialog's New Folder button produces -- and an existing project both go ahead without
+  a question. Anything else would have dropped `project.json` and a `results/` directory among
+  a user's files with nothing said.
+
 ## [0.5.1] - 2026-08-10
 
 A bug-fix release. A space telescope could be built but not read back, so any

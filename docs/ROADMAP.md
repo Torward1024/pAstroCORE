@@ -231,13 +231,13 @@ D1 to D5 are done. **D6 is what they left open**: all of it governs results that
 | # | Item | Exit criterion |
 | --- | --- | --- |
 | D1 | The directory format, and a result handle that loads on access | **Done.** `ScheduleProject.to_directory` / `from_directory`, with `ResultStore` and `CalculatedData` beneath them. Measured on the test project: the model is **5.1 KB against a 230.5 KB single file, 2.2%**, results are 160.8 KB of parquet beside it rather than 223 KB of base64 inside it, and loading reads **no** results while all eleven remain visible. Two things had to change in `Observation`: storing one result copied the whole mapping, which would have loaded every result to save one, and `to_dict` gained `with_results=False` so the model can be written without them |
-| D2 | Conversion from the single-file format | **Done.** `ScheduleProject.open` takes a directory, the `project.json` inside one, or a single file written by an earlier version, so no caller has to know which it is looking at. `save` writes a directory, converting a single file at the same path -- the old file is removed only after the new directory is complete, so an interrupted save leaves the original intact. The interface uses both |
+| D2 | Conversion from the single-file format | **Dropped, deliberately.** The old format was tolerated for one release and then removed, because nobody outside this repository had saved a project in it yet -- the window to carry it forever was open for a day and it was not worth the branch in every load path. `open` takes a directory, `save` writes one, and 147 lines of two-format handling went with it. The test fixture is still a single JSON file, which is unaffected: it is read through `from_dict`, the model's own serialization, not through a file format |
 | D3 | Lazy, filtered reads in the visualizer and the exporter | **Done.** All eight plots read through `scan_calculated_data` and collect once the filter chain is complete, so the filter is pushed into the parquet read. At the reported scale -- 300 sources, a year, 1.3M rows -- drawing one source is **9.2x faster** (6.0 ms against 55.2 ms) and never materialises the 50 MB frame. Metadata reads its own file: 0.33 ms against 2.20 ms. Drawing a plot now leaves **nothing** resident, and there is a test that fails if it ever does again |
 | D4 | A residency budget: a share of available memory, settable in preferences, evicting least-recently-used | **Done.** One budget per project, defaulting to half of *available* memory and settable in Preferences. Least-recently-used results are dropped when the ceiling is passed; an unwritten result is never dropped, and a result larger than the whole budget is still read. Measured over 60 observations of 200 000 rows: without a budget the walk grew memory by 407 MB and held all 60 results; with a 200 MB ceiling, 71 MB and 32 |
 | D5 | A characterization test at that scale, so the budget is defended | **Done.** The same walk at a size a build machine can afford, asserting residency rather than resident set size -- RSS depends on the allocator and on what else the machine is doing, and would fail builds for reasons unrelated to this code. Paired with a test that the walk holds everything when there is no budget, so the ratchet cannot pass vacuously |
 | D6 | **Somewhere for results to live before they are saved** | A result is held in memory and marked unwritten until the project is saved. Measured, and it is true in **both** cases, not just the obvious one: a project that has never been saved has no directory to write to, and a project opened from a directory still does not write a freshly computed result until the next save. In both, the result is **not on disk** and counts **0 bytes** against the residency ceiling -- so an unsaved session is ungoverned as well as unprotected. The budget cannot evict such a result either, and correctly so: there would be nowhere to read it back from. The ceiling is not the fix; a place to put them is | A result survives killing the application mid-session; the ceiling governs a result the moment it exists; saving moves results rather than recomputing or rewriting them |
 | D7 | **One scratch directory per running session** | Not an implementation detail of D6 but a requirement on it. Two copies of the application open at once must not share a scratch directory, or each will evict and adopt the other's results. Naming it per session -- process, plus a token that survives nothing -- is also what makes the client-server version in L3 possible at all, where the parallel sessions are different people rather than different windows | Two instances calculating at once never touch each other's results; a clean exit removes only its own; a session interrupted leaves its directory for the recovery offer in D6 |
-| D8 | **The save and open dialogs ask for a directory, because that is what a project is** | Shipped in 0.5.0 and wrong from the first click: `save_project_as` calls `getSaveFileName`, so the user is asked to name a *file* and Qt warns about overwriting one. Open has the mirror problem -- `getOpenFileName` cannot select a directory, so a user must navigate inside the project and pick `project.json`, which works only because `open` was written to tolerate it. Every user meets this on their first save | Saving asks for a directory name and offers to replace an existing project directory; opening selects a project directory directly, and picking `project.json` keeps working for anyone who learned the workaround |
+| D8 | The save and open dialogs ask for a directory, because that is what a project is | **Done.** Both use `getExistingDirectory`. Opening checks that the chosen directory is a project and says so plainly when it is not, since a directory chooser will return any directory at all. Saving asks before writing into a folder that already holds something else -- an empty folder, which is what the dialog's New Folder button produces, and an existing project both go ahead without a question. Removing the single-file format is what made this simple: one dialog, one shape |
 
 ## Stage 5 -- the interface
 
@@ -323,7 +323,7 @@ reasoning rather than letting it sit open for another year.
 | R3 | Documentation in `docs/` written for somebody who has never seen the project | Installing, running, adding an observation, reading a result -- each with a runnable example |
 | R4 | Package metadata: `pyproject.toml`, an entry point, a version that lives in one place | `pip install .` gives a working `pastrocore` command |
 | R5 | Close or rewrite the stale pull requests | None open without a decision recorded |
-| R6 | **Export a project as one file, for sending it to somebody** | The want that packing the save format looked like it would satisfy, separated from it in stage 4. An explicit action, so the cost is paid when a user asks for it rather than on every open | A project becomes one archive and comes back from one, and the round trip is covered by a test |
+| R6 | **Import and export a whole project** | Export produces one file and import reads it back, which is how a project reaches a colleague, a ticket or a bug report. Separated in stage 4 from the idea of *saving* into one file, which was measured and rejected: an export pays the packing cost when somebody asks for it, rather than on every open | A project becomes one file and comes back from it unchanged, covered by a round-trip test that compares the model and every result |
 
 ## Order, and why
 
@@ -350,10 +350,40 @@ what a user loses by waiting rather than by what is interesting to build.
 | 3 | **D6 + D7** -- scratch directory, per session, with recovery | The only item here where waiting costs *data*. A day of calculation is lost to a crash today, and an unsaved session is not governed by the memory ceiling either. The largest of the four | Days |
 | 4 | **F1-F5** -- the space telescope as a target | The first item that adds something the lab does not have, rather than repairing something it does. Wanted, and cheap because both inputs are already computed | Days |
 | 5 | **G1, G1a, G4** -- one stylesheet, editable, and the recent list | Appearance and convenience. Real, but nobody loses work to them | Days |
+| 6 | **L0 and L0a** -- export into a `Super`, and save/load as operations | 252 of the 312 lines in the export dialog are logic rather than interface. Every later item that is not the GUI -- R6, the CLI, the server -- needs them reachable, so this gates all three; L0a is small beside it and is what stops save being a special case in each | Days |
+| 7 | **V1-V4** -- VEX | The largest thing on the list and the one that changes what the tool is. It wants the model settled, which stages 4 and 6 finish, and it wants L0 because an exporter belongs beside the other exporter rather than in a dialog | Weeks |
 
-D8 and G0 first because they are hours rather than days and because G0 is a gate. D6 before F1
+D8 is done. G0 is next because it is hours rather than days and because it gates every other interface item. D6 before F1
 because losing a day of calculation is worse than not yet having a calculation. F1 before the
 interface work because it is the only thing on the list a user asked for by name.
+
+## Stage 8 -- VEX, and being usable by the rest of the pipeline
+
+Everything above makes pAstroCORE better at what it already does. This is the item that changes
+what it *is*: a schedule that cannot be handed to the stations and the correlator is a study,
+and a schedule in VEX is an observation.
+
+VEX -- the VLBI Experiment Definition format -- is what stations are commanded with and what
+correlators read. The model already holds nearly everything it names: stations with positions
+and mounts, sources with coordinates, frequency setups with bandwidths and polarizations, scans
+with start times and durations. What is missing is not data but the format's own vocabulary,
+and the discipline that it is a format other people's software parses -- so "close enough" is
+not a category that exists here.
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| V0 | A `VexExporter(Super)` of its own, rather than a format inside the general exporter | The two share nothing but the word export: one writes what a user wants to look at, the other writes a contract with software at a correlator. Keeping them apart is what stops the general exporter growing VEX's vocabulary and VEX inheriting the general exporter's tolerance for "close enough" |
+| V1 | Map the model onto the VEX blocks, and write down what has no source in the model yet | A table: every required block, where its content comes from, and what has to be asked of the user because the model does not know it |
+| V2 | Export ground-telescope schedules to VEX | A file a VEX parser accepts, for a project the lab actually ran |
+| V3 | Validate against a real parser rather than against our own reading of the specification | The exporter's output is checked by something we did not write, in the test suite |
+| V4 | Characterization tests, pinned like every calculation | A change to the exporter that alters the file fails the build |
+
+V3 is not optional and is the reason this is a stage rather than a line item. A format is a
+contract with software nobody here controls, and a file that looks right to its author is the
+normal way to discover, months later at a correlator, that it was not.
+
+Space telescopes are deliberately out of scope for V2. VEX describes them, but a spacecraft's
+orbit and its downlink are a second conversation, and stage 6 has to exist first.
 
 ## Beyond the stages
 
@@ -363,6 +393,8 @@ because a direction recorded without its prerequisites is how a plan grows witho
 | # | Item | What it needs first |
 | --- | --- | --- |
 | L1 | **A command-line version**, and scripts that drive the model without the interface | Little. A request is already data and the orchestrator already accepts one, so a CLI is a thin layer over `process_request` rather than a second application. What it does need is stage 7's packaging, so there is a command to install |
+| L0 | **A `ScheduleExporter(Super)` for data, pictures and text** | The export the interface already offers -- results as tab-separated text, plots as PNG -- lives inside a `QDialog` and a `QThread`. `p_dialog_export_calculated_data.py` is 312 lines of which only 60 touch Qt: **252 lines of export logic a CLI would have to reimplement and a server could not reach at all** | The exporter owns the formats, the dialog keeps only the file chooser and the progress bar, and the same export runs from a script with no Qt imported |
+| L0a | **Save, load, import and export a project as operations too** | Recorded first as *not worth doing*, on the grounds that `ScheduleProject.open` and `save` already work without Qt so moving them removes nothing from the interface. That measured the wrong thing. The question is not how much code leaves the GUI but **what surface a caller programs against**, and by that measure a method among operations is the odd one out: a CLI mapping commands to requests needs a special case for save, the request journal records every calculation of a session but not the save that ended it -- so a replayed script in L2 would not save -- and a server in L3 needs an endpoint outside the request model for it. The *logic* still belongs on `ScheduleProject`, which is the model serializing itself; what is missing is the operation in front of it | Save, load, import and export are requests like any other, the journal records them, and the model keeps the code -- the `Super` is a facade, not a second implementation |
 | L2 | **Script support inside the application**: a saved sequence of requests, replayed | L1, and MSB's `RequestJournal`, which already records a session and replays it. The step from "record what I did" to "save it as a script" is small once M7 is in |
 | L3 | **Client-server**: configure in a browser, calculate on a server, get pictures back | L1 first, and stage 4 storage before that -- a server cannot hold every project in memory the way a desktop application can. The visualization layer already writes to a `Figure` rather than to a screen, so rendering server-side is not the hard part. The hard parts are storage, identity, and deciding what a long calculation looks like to a caller who is not sitting in front of it |
 

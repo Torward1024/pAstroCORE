@@ -1,6 +1,6 @@
 pAstroCORE -- a versatile tool for scheduling radio-astronomical observations
 
-Version 0.5.1. Past the MVP, and the parts written under time pressure are being put in order
+Version 0.6.0. Past the MVP, and the parts written under time pressure are being put in order
 one measured stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -60,9 +60,8 @@ of available memory the results in hand may occupy; past it, the least recently 
 dropped and read back from the directory when needed again. The default is half of what is
 available. Dropping a result costs a read, never a recalculation.
 
-**Projects saved as a single file still open.** Saving one converts it to a directory, in that
-order -- the directory is written first and the old file removed only once it is complete, so
-an interrupted save leaves the original where it was.
+**Open and Save ask for a folder**, not a file, because that is what a project is. Use the
+dialog's New Folder button to make one.
 
 Export is unchanged and unaffected: it writes text and pictures, not projects.
 
