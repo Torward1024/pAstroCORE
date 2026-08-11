@@ -30,7 +30,8 @@ Two rules that earned their place the hard way:
 | 3 | Adopt MSB | Three MSB releases came out of it: 1.0.1, 1.1.0, 1.1.1 |
 | 4 | Storage | Model **5.1 KB against 230.5 KB**; opening reads no results; one filtered draw **9.2x faster**; memory over 60 observations **407 MB → 71 MB**; results written when calculated, per-session scratch, recovery offered |
 | 6 | Space telescope as a target | `telescope_az_el` and `telescope_visibility`, chosen by name. Checked against the law of cosines, not against a stored number |
-| 9 | Logic into `Super` classes | `ScheduleData` owns export, save, load and four queries. Export dialog 312 → 210 lines. Twelve GUI modules reached for the model; **two remain and both are decided, not owed** |
+| 9 | Logic into `Super` classes | `ScheduleData` owns export, save, load and five queries. Export dialog 312 → 210 lines. Twelve GUI modules reached for the model; **two remain and both are decided, not owed** |
+| -- | One catalogue (A5) | Nine hardcoded copies across three dialogs became one request. The manipulator works out what it offers from its own handlers -- MSB 1.2.0 -- so adding a calculation touches the calculator and the schema and nothing in the interface, which a test asserts by adding one |
 | -- | Freshness | A result records what it was computed from and says when its inputs have changed. Three answers: stale, current, unknown |
 
 Details of any of these are in `CHANGELOG.md` and in the commit that made the change.
@@ -40,12 +41,11 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 | | Item | Exit criterion | Size |
 | --- | --- | --- | --- |
 | ~~1~~ | ~~**D9**~~ | **Done.** The frame is the authority: `scan_count`, `start_time` and `end_time` are computed where the frame and its metadata are both in hand, so a caller cannot supply a wrong value -- whatever it passes is replaced, on the way into memory and on the way to disk alike. Kept beside the parquet rather than removed, because reading them without reading the result is worth more than having them nowhere. Nothing written contains `NaN`: unrepresentable numbers become `null` and the write uses `allow_nan=False`, checked with a strict parser rather than the lenient one that wrote it | -- |
-| 1 | **A5** -- one catalogue, discovered rather than written down | Adding a calculation means editing three dialogs: the same knowledge is duplicated **nine times** in four shapes -- key to label, label to key, label to tab class, plain lists -- and the calculations dialog also carries a **dependency graph between calculations** ("Synthesized Beam" needs "UV Coverage"), which is knowledge about the model living in a widget. **Most of the registry already exists**: the manipulator knows its 7 operations, the calculator's 14 `_calculate_*` handlers and the visualizer's 8 `_plot_*`. What is missing is the label and the prerequisites | An operation reports the catalogue, discovered from the handlers rather than listed. Label and `requires` live in the result's schema, beside its columns, dtypes and `depends_on`. Adding a calculation touches the calculator and the schema and nothing in the interface, proved by adding one in a test and finding it offered. A test fails if a dialog hardcodes a key or a label | Days |
-| 2 | **R4** -- packaging | `pyproject.toml`, an entry point, the version in one place. `pip install .` gives a working command | Hours |
-| 3 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
-| 4 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
-| 5 | **R5** -- stale pull requests | None open without a decision recorded | Hours |
-| 6 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
+| 1 | **R4** -- packaging | `pyproject.toml`, an entry point, the version in one place. `pip install .` gives a working command | Hours |
+| 2 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
+| 3 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
+| 4 | **R5** -- stale pull requests | None open without a decision recorded | Hours |
+| 5 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
 
 **A5 is the dependency graph in disguise, and worth saying so.** A result's schema already
 declares `depends_on` -- which *parts of the model* it reads, which is what makes freshness
