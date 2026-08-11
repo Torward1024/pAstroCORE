@@ -8,6 +8,59 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [0.8.0] - 2026-08-11
+
+Adding a calculation now touches the calculator and its schema, and nothing in the interface.
+A space telescope can be pointed at. A result says when the configuration moved underneath it.
+
+### Added
+
+- **Pointing a ground station at a space telescope.** `telescope_az_el` and
+  `telescope_visibility`, chosen by name and never run as part of an ordinary observation. The
+  direction is the **vector from station to spacecraft**: a source is far enough away that
+  every station sees it alike, a spacecraft at twenty thousand kilometres is not, and reusing
+  the source geometry would have been wrong by degrees while looking entirely plausible. The
+  scans supply the time window, the stations supply the vantage point, and the spacecraft need
+  not take part in the observation it is tracked during. Checked against the law of cosines
+  rather than against a stored number.
+- **A result knows when its inputs changed.** Moving a telescope 1 000 km and recalculating
+  used to return the previous numbers in silence. Three answers now -- stale, current, or
+  *unknown*, since a result computed before this existed is neither. Shown as a label in the
+  project explorer, never as a dialog. Granular: editing a scan stales `uv_coverage` and
+  leaves `beam_pattern` alone, because each result declares what it reads in its own schema.
+- **`ScheduleData`.** Export, save and load are operations reached through the manipulator, so
+  a script or a server can do what the interface does. The export dialog went from 312 lines to
+  210, its non-Qt logic from 252 to 130. Proved by bytes: four exported files hashed before a
+  line moved and identical after.
+- **One catalogue.** The same knowledge was written down nine times across three dialogs,
+  including a table of which calculation needs which. It is one request now, answered by the
+  manipulator from its own handlers -- `msb_arch` 1.2.0. Adding a calculation makes it appear
+  with its label, its prerequisites and its place in the order, without a line changing in
+  `pastrocore/gui`, which a test asserts by adding one.
+
+### Fixed
+
+- **Time on source lost its whole plot** with `KeyError` when a source was visible for less
+  than one time step: a zero-length block, whose end sorted before its start.
+- **Mollweide lost the source coordinates it draws against.** They are numpy arrays and
+  `json.dumps` refuses them, so the metadata write dropped the key behind a warning nobody
+  reads. Broke in 0.5.0 and broke silently. A project written before this needs
+  `mollweide_tracks` recalculated once.
+- **Metadata could disagree with the data beside it** -- 288 rows over one scan, described as
+  covering nothing. Three fields restated what the frame already said, so one fact had two
+  sources. The frame is the authority now.
+- **Startup scanned 199 scratch directories** and asked the operating system about each,
+  1 246 ms of it, for an answer it then threw away. 31 ms.
+- **Every visualization tab failed to open** after the catalogue landed, and no test could see
+  it: the tests build tabs directly, and none opened one through the dialog.
+
+### Changed
+
+- The visualizer's handlers follow MSB's naming, so the catalogue can see what it draws.
+- Requires `msb_arch` 1.2.0 or later.
+
+351 tests.
+
 ## [0.7.0] - 2026-08-11
 
 A day of calculation is no longer lost to a crash.

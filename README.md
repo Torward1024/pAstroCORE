@@ -1,6 +1,6 @@
 pAstroCORE -- a versatile tool for scheduling radio-astronomical observations
 
-Version 0.7.0. Past the MVP, and the parts written under time pressure are being put in order
+Version 0.8.0. Past the MVP, and the parts written under time pressure are being put in order
 one measured stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -12,10 +12,11 @@ is data rather than a call.
 pip install -r requirements.txt
 ```
 
-Requires `msb_arch` 1.1.2 or later. Four releases of it came out of this project -- mapping
+Requires `msb_arch` 1.2.0 or later. Six releases of it came out of this project -- mapping
 keys that could not survive JSON, built-in operations that could not reach a member of a
 collection, a schema version that worked everywhere except the class saved to a file, and an
-`int` that was not accepted where a `float` was declared.
+`int` that was not accepted where a `float` was declared, and a manipulator that
+could not say what it offers.
 
 ## What it does
 
@@ -96,7 +97,7 @@ pip install -r requirements.txt pytest
 python -m pytest tests/
 ```
 
-238 tests. The characterization suites recompute every calculation in
+351 tests. The characterization suites recompute every calculation in
 `tests/fixtures/test_project.pastro` and redraw every plot, comparing against what the project
 was saved with, so a change to any formula or any filter fails the build. Qt runs offscreen,
 so the GUI smoke tests need no display.
