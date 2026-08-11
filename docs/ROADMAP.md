@@ -372,7 +372,7 @@ Named as the existing ones are: `Schedule<Thing>` in `super/schedule_<thing>.py`
 | # | Item | Evidence | Exit criterion |
 | --- | --- | --- | --- |
 | A1 | **`ScheduleData`** (`schedule_data.py`) -- import, export, save, load | The export the interface offers -- results as tab-separated text, plots as PNG -- lives inside a `QDialog` and a `QThread`. `p_dialog_export_calculated_data.py` is 312 lines of which only 60 touch Qt: **252 lines a CLI would have to reimplement and a server could not reach**. Save and load are already on `ScheduleProject` and already work without Qt, so the model keeps the code -- what is missing is the operation in front of it, because a method among operations is the odd one out: a CLI needs a special case, the journal records every calculation of a session but not the save that ended it, and a server needs an endpoint outside the request model | Every data operation is a request; the dialog keeps the file chooser and the progress bar; the model keeps its serialization and the `Super` is a facade over it, not a second implementation |
-| A2 | **`ScheduleVEX`** (`schedule_vex.py`) -- stage 8 lives here | Its own class rather than a format inside `ScheduleData`. The two share nothing but the word export: one writes what a user wants to look at, the other a contract with software at a correlator. Kept apart so the general exporter never grows VEX's vocabulary and VEX never inherits the general exporter's tolerance for "close enough" | V1-V6 are implemented in it, and nothing about VEX appears in `ScheduleData` |
+| A2 | **`ScheduleVEX`, `ScheduleCFX`, `ScheduleSKED`** (`schedule_vex.py` and so on) -- stage 8 lives here | One class per format rather than one exporter with a switch. They share nothing with `ScheduleData` but the word export: it writes what a user wants to look at, these write contracts with software at a correlator. Kept apart so the general exporter never grows their vocabulary and they never inherit its tolerance for "close enough". What they *do* share -- one reading of the model into stations, sources, scans and setups -- lives once beneath them | Each format is its own `Super`; nothing about any of them appears in `ScheduleData`; the shared reading of the model exists once |
 | A3 | **The rest of the interface, tab by tab** | Counting lines in the hand-written GUI files that match no Qt name gives **5 861 of 7 772, about 75%** -- an *upper bound* on the gap rather than the amount of extractable logic, since much of it is glue that only means anything beside a widget. The one file read closely rather than counted was 252 of 312. Largest: `p_dialog_generate_observations.py` 361, `p_tab_telescopes.py` 344, `p_tab_scans.py` 318 | Each moves when something outside the GUI needs what it holds. Not one item, and not a sweep |
 | A4 | **A ratchet, so it does not drift back** | The rule is only a rule while something checks it. What can be checked mechanically is narrow but real: no `pastrocore.gui` module may import `polars`, `astropy` or `numpy` | The check runs in the suite, with the modules that legitimately need them listed and shrinking |
 
@@ -392,7 +392,7 @@ journal that replays every calculation and then saves nothing is a rehearsal.**
 It is also the seam where MSB's P1 meets this repository: P1 has been waiting for one real
 dependent pipeline to design against, and configure-calculate-export is it.
 
-## Stage 8 -- VEX, and being usable by the rest of the pipeline
+## Stage 8 -- the formats other people's software reads
 
 Everything above makes pAstroCORE better at what it already does. This is the item that changes
 what it *is*: a schedule that cannot be handed to the stations and the correlator is a study,
@@ -420,6 +420,34 @@ Once V5 exists, export-then-import is a cheap and strong test -- but it does not
 V3 is not optional and is the reason this is a stage rather than a line item. A format is a
 contract with software nobody here controls, and a file that looks right to its author is the
 normal way to discover, months later at a correlator, that it was not.
+
+### Three formats, three `Super` classes, one shared layer
+
+VEX is the first, not the only one. **SKED** is what a good deal of geodetic and astrometric
+VLBI is actually scheduled in, and **CFX** is what the ASC correlator reads -- so a schedule
+this lab produces reaches its own correlator through CFX or does not reach it at all.
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| K1 | **`ScheduleSKED`** -- export, then import | A SKED file a parser accepts, and a real one read back |
+| X1 | **`ScheduleCFX`** -- export, then import | A CFX file the ASC correlator accepts, checked against a real one |
+
+One class per format, for the same reason `ScheduleVEX` is not a mode of `ScheduleData`: a
+single exporter with a format switch accretes every format's quirks into one body of code, and
+the quirks are the whole difficulty. Three classes keep each format's compromises where they
+belong.
+
+But they must not each re-derive the model. What all three need is the same intermediate
+reading of it -- which stations, which sources, which scans, with what setup and when -- and
+that belongs in one place beneath them, not copied three times. **Deciding where that layer
+lives is part of V1** rather than something to discover while writing the third exporter: V1
+maps the model onto VEX's blocks, and the same map is most of what SKED and CFX need. Getting
+it wrong costs three exporters that disagree about what a scan is.
+
+The order is VEX, then CFX, then SKED: VEX because it is the widest, CFX because this lab's own
+correlator reads it, SKED last because it is the least likely to be needed here first. Each is
+export before import, and V6 -- what happens to what the model cannot represent -- governs all
+three.
 
 Space telescopes are deliberately out of scope for V2. VEX describes them, but a spacecraft's
 orbit and its downlink are a second conversation, and stage 6 has to exist first.
