@@ -505,8 +505,22 @@ class ScheduleCalculator(Super):
             valid_mask = (interp_times >= t_start) & (interp_times <= t_end)
             valid_interp_times = interp_times[valid_mask]
 
+            # What the orbit file does not cover comes back NaN, and NaN reaches a plot as a
+            # blank rather than as a complaint -- the same silent-empty failure as the
+            # baseline projections defect. Say it once, plainly, naming both spans.
+            uncovered = int(np.sum(~valid_mask))
+            if uncovered:
+                covered_from = j2000_mjd + data_times[0] / 86400.0
+                covered_to = j2000_mjd + data_times[-1] / 86400.0
+                logger.warning(
+                    "The orbit of '%s' covers MJD %.5f to %.5f, which leaves %s of %s requested "
+                    "times outside it (MJD %.5f to %.5f). Those positions are unknown, not zero",
+                    telescope.get_code(), covered_from, covered_to, uncovered, len(times_mjd),
+                    float(np.min(times_mjd)), float(np.max(times_mjd)))
+
             if not valid_interp_times.size:
-                logger.warning("No valid interpolation times for '%s' in range %s to %s", telescope.get_code(), start_time_mjd, end_time_mjd)
+                logger.warning("The orbit of '%s' does not cover any of the requested times; "
+                               "its position over this scan is unknown", telescope.get_code())
                 return np.full((len(times_mjd), 3), np.nan)
 
             unique_indices = np.unique(data_times, return_index=True)[1]
@@ -1927,6 +1941,375 @@ class ScheduleCalculator(Super):
             np.concatenate(az_ha_list),
             np.concatenate(el_dec_list)
         )
+
+    @time_execution
+    def _calculate_telescope_az_el(self, obj: "Observation | ScheduleProject", attributes: Dict[str, Any]) -> pl.DataFrame:
+        """Calculate where each ground station must point to see a space telescope.
+
+        Args:
+            obj: The observation, or a project of them.
+            attributes: Parameters including "target_telescope" -- the code of the spacecraft to
+                point at -- and "time_step", "store_key", "position_store_key",
+                "orbit_store_key", "recalculate".
+
+        Returns:
+            pl.DataFrame: Columns ["time", "target_code", "scan_name", "telescope_code", "az",
+                "el", "range"], with angles in degrees and range in metres.
+
+        Notes:
+            - A calculation of its own that the user asks for by name, never part of an
+              ordinary observation. Pointing at a spacecraft is a different question from
+              observing a source, and a project with no spacecraft in it must pay nothing.
+            - The target is named by a parameter rather than by a new kind of observation or a
+              time-dependent `Source`. An observation already holds its telescopes; asking when
+              one of them is visible from the others needs no new entity, and the request is
+              already data, so one more attribute is the shape the architecture has.
+        """
+        try:
+            time_step = attributes.get("time_step")
+            store_key = attributes.get("store_key", "telescope_az_el")
+            position_store_key = attributes.get("position_store_key", "telescope_positions")
+            orbit_store_key = attributes.get("orbit_store_key", "interpolated_orbits")
+            target_code = attributes.get("target_telescope")
+            recalculate = attributes.get("recalculate", False)
+
+            if not target_code:
+                logger.error("No 'target_telescope' given; there is nothing to point at")
+                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_az_el"))
+
+            def calculate_telescope_az_el(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
+                empty = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_az_el"))
+                scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True)
+                if not scans:
+                    logger.warning("No active scans in observation '%s'", obs.get_observation_code())
+                    return empty
+
+                target = next((tel for tel in telescopes
+                               if isinstance(tel, SpaceTelescope) and tel.get_code() == target_code), None)
+                if target is None:
+                    logger.warning("No active space telescope '%s' in observation '%s'",
+                                   target_code, obs.get_observation_code())
+                    return empty
+
+                observers = [tel for tel in telescopes
+                             if not isinstance(tel, SpaceTelescope) and tel.get_code() != target_code]
+                if not observers:
+                    logger.warning("No ground stations to see '%s' from in observation '%s'",
+                                   target_code, obs.get_observation_code())
+                    return empty
+
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
+                orbit_attrs = {"time_step": time_step, "store_key": orbit_store_key, "recalculate": recalculate}
+                times_df = self._calculate_time_arrays(obs, time_attrs)
+                position_df = self._calculate_telescope_positions(obs, position_attrs)
+                orbit_df = self._calculate_interpolated_orbits(obs, orbit_attrs)
+
+                if times_df.is_empty() or position_df.is_empty():
+                    logger.error("Missing time or station position data for '%s'", obs.get_observation_code())
+                    return empty
+
+                collected = []
+                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {}
+                    for scan in scans:
+                        scan_name = scan.name
+                        scan_times = times_df.filter(pl.col("scan_name") == scan_name)["time"].to_numpy()
+                        if len(scan_times) == 0:
+                            logger.warning("No valid times for scan '%s'", scan_name)
+                            continue
+                        futures[executor.submit(
+                            self._process_telescope_az_el, scan, obs, scan_times,
+                            position_df.filter(pl.col("scan_name") == scan_name),
+                            orbit_df.filter(pl.col("scan_name") == scan_name),
+                            target, observers)] = scan_name
+
+                    for future in futures:
+                        result = future.result()
+                        if result is not None:
+                            collected.append(result)
+
+                if not collected:
+                    logger.warning("No pointing computed towards '%s' in '%s'",
+                                   target_code, obs.get_observation_code())
+                    return empty
+
+                df = pl.DataFrame({
+                    "time": np.concatenate([c[0] for c in collected]),
+                    "target_code": np.concatenate([c[1] for c in collected]),
+                    "scan_name": np.concatenate([c[2] for c in collected]),
+                    "telescope_code": np.concatenate([c[3] for c in collected]),
+                    "az": np.concatenate([c[4] for c in collected]),
+                    "el": np.concatenate([c[5] for c in collected]),
+                    "range": np.concatenate([c[6] for c in collected])
+                }, schema=CalculatedDataStructure.get_dtypes("telescope_az_el"))
+
+                logger.info("Computed pointing towards '%s' from %s station(s) over %s scan(s), %s rows",
+                            target_code, df["telescope_code"].unique().len(),
+                            df["scan_name"].unique().len(), df.height)
+                return df
+
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_items()),
+                "target_code": target_code,
+                "position_store_key": position_store_key,
+                "orbit_store_key": orbit_store_key
+            }
+            df = self._process_object(obj, attributes, calculate_telescope_az_el, store_key, metadata)
+
+            if not df.is_empty():
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
+                    obj.set_calculated_data_by_key(store_key, df, metadata)
+            return df
+        except Exception as e:
+            logger.error("Failed to compute pointing towards a space telescope for '%s': %s",
+                         obj.get_observation_code() if isinstance(obj, Observation) else obj.name,
+                         str(e), exc_info=True)
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_az_el"))
+
+    def _process_telescope_az_el(self, scan: Scan, observation: Observation, times_mjd: np.ndarray,
+                                 position_df: pl.DataFrame, orbit_df: pl.DataFrame,
+                                 target: SpaceTelescope, observers: List[Telescope]) -> Optional[Tuple]:
+        """Point each ground station at the spacecraft, for one scan.
+
+        Args:
+            scan (Scan): The scan being processed.
+            observation (Observation): Its parent.
+            times_mjd (np.ndarray): The scan's time grid.
+            position_df (pl.DataFrame): Ground station positions for this scan.
+            orbit_df (pl.DataFrame): Spacecraft positions for this scan.
+            target (SpaceTelescope): What is being pointed at.
+            observers (List[Telescope]): The stations doing the pointing.
+
+        Returns:
+            Optional[Tuple]: Arrays of (times, target codes, scan names, station codes, az, el,
+                range), or None if nothing could be computed.
+
+        Notes:
+            - The direction is the *vector from station to spacecraft*, not a fixed sky
+              position. A source is far enough away that every station sees it in the same
+              direction; a spacecraft in Earth orbit is not, and two stations a baseline apart
+              point measurably differently at it. Using a source's geometry here would give
+              answers that look plausible and are wrong by degrees.
+            - Both positions are rotated into the Earth-fixed frame first, so the vector
+              between them is taken between two things that are stationary with respect to
+              each other's frame rather than between one that is and one that is not.
+        """
+        target_code = target.get_code()
+        n_times = len(times_mjd)
+        if n_times == 0:
+            return None
+
+        # The target need not take part in the scan. Asking when a station can see a spacecraft
+        # is a question about the spacecraft, not about the observation it may or may not be
+        # observing in -- so its position is computed here rather than read out of a result
+        # that only covers scan participants.
+        orbit_rows = orbit_df.filter(pl.col("telescope_code") == target_code)
+        if orbit_rows.is_empty():
+            spacecraft_xyz = self._compute_telescope_position(target, times_mjd)
+        else:
+            placed = self._on_time_grid(times_mjd, orbit_rows, ["x", "y", "z"], target_code, scan.name)
+            spacecraft_xyz = np.column_stack([placed["x"], placed["y"], placed["z"]])
+
+        if spacecraft_xyz is None or np.all(np.isnan(spacecraft_xyz)):
+            logger.warning("The orbit of '%s' does not cover scan '%s'; nothing to point at",
+                           target_code, scan.name)
+            return None
+
+        obstime = Time(times_mjd, format="mjd", scale="utc")
+        target_itrs = self._to_earth_fixed(spacecraft_xyz, obstime)
+
+        times_list, target_codes, scan_names, station_codes = [], [], [], []
+        az_list, el_list, range_list = [], [], []
+
+        for station in observers:
+            code = station.get_code()
+            station_rows = position_df.filter(pl.col("telescope_code") == code)
+            if station_rows.is_empty():
+                logger.debug("No position for station '%s' in scan '%s'", code, scan.name)
+                continue
+
+            placed = self._on_time_grid(times_mjd, station_rows, ["x", "y", "z"], code, scan.name)
+            station_xyz = np.column_stack([placed["x"], placed["y"], placed["z"]])
+            station_itrs = self._to_earth_fixed(station_xyz, obstime)
+
+            az, el, distance = self._look_angles(station_itrs, target_itrs)
+
+            times_list.append(times_mjd)
+            target_codes.append(np.full(n_times, target_code, dtype=object))
+            scan_names.append(np.full(n_times, scan.name, dtype=object))
+            station_codes.append(np.full(n_times, code, dtype=object))
+            az_list.append(az)
+            el_list.append(el)
+            range_list.append(distance)
+
+        if not times_list:
+            return None
+        return (np.concatenate(times_list), np.concatenate(target_codes), np.concatenate(scan_names),
+                np.concatenate(station_codes), np.concatenate(az_list), np.concatenate(el_list),
+                np.concatenate(range_list))
+
+    @staticmethod
+    def _to_earth_fixed(positions: np.ndarray, obstime: Time) -> np.ndarray:
+        """Rotate celestial-frame positions into the Earth-fixed frame.
+
+        Args:
+            positions (np.ndarray): An (n, 3) array of GCRS positions in metres.
+            obstime (Time): The times they belong to.
+
+        Returns:
+            np.ndarray: The same positions in ITRS, in metres, NaN where the input was NaN.
+        """
+        finite = ~np.any(np.isnan(positions), axis=1)
+        result = np.full_like(positions, np.nan, dtype=float)
+        if not np.any(finite):
+            return result
+
+        gcrs = GCRS(CartesianRepresentation(x=positions[:, 0] * u.m, y=positions[:, 1] * u.m,
+                                            z=positions[:, 2] * u.m), obstime=obstime)
+        itrs = gcrs.transform_to(ITRS(obstime=obstime)).cartesian
+        rotated = np.column_stack([itrs.x.to_value(u.m), itrs.y.to_value(u.m), itrs.z.to_value(u.m)])
+        result[finite] = rotated[finite]
+        return result
+
+    @staticmethod
+    def _look_angles(station: np.ndarray, target: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return azimuth, elevation and range from a station to a target, both Earth-fixed.
+
+        Args:
+            station (np.ndarray): An (n, 3) array of station positions in metres, ITRS.
+            target (np.ndarray): An (n, 3) array of target positions in metres, ITRS.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray, np.ndarray]: Azimuth east of north in degrees,
+                elevation above the horizon in degrees, and range in metres. NaN wherever
+                either position is unknown.
+
+        Notes:
+            - The local east-north-up frame is built from the station's own geocentric
+              direction, so this is geocentric rather than geodetic elevation. The difference
+              reaches about 0.2 degrees at mid-latitudes, which matters for a horizon mask and
+              is why it is written down here rather than left to be discovered.
+        """
+        count = station.shape[0]
+        azimuth = np.full(count, np.nan)
+        elevation = np.full(count, np.nan)
+        distance = np.full(count, np.nan)
+
+        usable = ~(np.any(np.isnan(station), axis=1) | np.any(np.isnan(target), axis=1))
+        if not np.any(usable):
+            return azimuth, elevation, distance
+
+        s = station[usable]
+        line = target[usable] - s
+
+        radius = np.linalg.norm(s, axis=1)
+        radius[radius == 0] = np.nan
+        up = s / radius[:, None]
+
+        # East is perpendicular to both the polar axis and the local vertical.
+        east = np.column_stack([-s[:, 1], s[:, 0], np.zeros(len(s))])
+        east_norm = np.linalg.norm(east, axis=1)
+        east_norm[east_norm == 0] = np.nan          # directly over a pole: east is undefined
+        east = east / east_norm[:, None]
+        north = np.cross(up, east)
+
+        length = np.linalg.norm(line, axis=1)
+        length[length == 0] = np.nan
+
+        azimuth[usable] = np.degrees(np.arctan2(np.sum(line * east, axis=1),
+                                                np.sum(line * north, axis=1))) % 360.0
+        elevation[usable] = np.degrees(np.arcsin(np.clip(np.sum(line * up, axis=1) / length, -1.0, 1.0)))
+        distance[usable] = length
+        return azimuth, elevation, distance
+
+    @time_execution
+    def _calculate_telescope_visibility(self, obj: "Observation | ScheduleProject", attributes: Dict[str, Any]) -> pl.DataFrame:
+        """Report when each ground station can actually see the space telescope.
+
+        Args:
+            obj: The observation, or a project of them.
+            attributes: Parameters including "target_telescope", and "time_step", "store_key",
+                "az_el_store_key", "recalculate".
+
+        Returns:
+            pl.DataFrame: Columns ["time", "target_code", "scan_name", "telescope_code",
+                "visibility"].
+
+        Notes:
+            - Above the horizon is not enough: a station has an elevation range it can drive
+              to, and a spacecraft below that limit is as unreachable as one below the horizon.
+              The same rule a source is checked against.
+        """
+        try:
+            time_step = attributes.get("time_step")
+            store_key = attributes.get("store_key", "telescope_visibility")
+            az_el_store_key = attributes.get("az_el_store_key", "telescope_az_el")
+            target_code = attributes.get("target_telescope")
+            recalculate = attributes.get("recalculate", False)
+            empty = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_visibility"))
+
+            if not target_code:
+                logger.error("No 'target_telescope' given; there is nothing to be visible")
+                return empty
+
+            def calculate_telescope_visibility(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
+                angles = self._calculate_telescope_az_el(obs, {
+                    "time_step": time_step, "store_key": az_el_store_key,
+                    "target_telescope": target_code, "recalculate": recalculate})
+                if angles.is_empty():
+                    return empty
+
+                limits = {}
+                for telescope in obs.get_telescopes().get_active_items():
+                    if isinstance(telescope, SpaceTelescope):
+                        continue
+                    low, high = telescope.get("elevation_range")
+                    limits[telescope.get_code()] = (float(low), float(high))
+
+                elevation = angles["el"].to_numpy()
+                codes = angles["telescope_code"].to_list()
+                low = np.array([limits.get(code, (0.0, 90.0))[0] for code in codes])
+                high = np.array([limits.get(code, (0.0, 90.0))[1] for code in codes])
+
+                with np.errstate(invalid="ignore"):
+                    visible = (elevation >= low) & (elevation <= high)
+                visible &= ~np.isnan(elevation)
+
+                df = pl.DataFrame({
+                    "time": angles["time"].to_numpy(),
+                    "target_code": angles["target_code"].to_list(),
+                    "scan_name": angles["scan_name"].to_list(),
+                    "telescope_code": codes,
+                    "visibility": visible
+                }, schema=CalculatedDataStructure.get_dtypes("telescope_visibility"))
+
+                logger.info("'%s' is visible for %s of %s sampled moments across %s station(s)",
+                            target_code, int(visible.sum()), len(visible),
+                            df["telescope_code"].unique().len())
+                return df
+
+            metadata = {
+                "time_step": time_step,
+                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.get_items()),
+                "target_code": target_code,
+                "az_el_store_key": az_el_store_key
+            }
+            df = self._process_object(obj, attributes, calculate_telescope_visibility, store_key, metadata)
+
+            if not df.is_empty():
+                metadata["scan_count"] = df["scan_name"].unique().len()
+                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
+                    obj.set_calculated_data_by_key(store_key, df, metadata)
+            return df
+        except Exception as e:
+            logger.error("Failed to compute visibility of a space telescope for '%s': %s",
+                         obj.get_observation_code() if isinstance(obj, Observation) else obj.name,
+                         str(e), exc_info=True)
+            return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_visibility"))
 
     @time_execution
     def _calculate_time_on_source(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:

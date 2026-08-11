@@ -76,6 +76,39 @@ def _process_is_alive(pid: int) -> bool:
         return True
 
 
+def _is_a_scratch_directory(candidate: Path, root: Path) -> bool:
+    """Report whether a path is safe to delete as scratch.
+
+    Args:
+        candidate (Path): What is about to be removed.
+        root (Path): The directory scratch sessions live in.
+
+    Returns:
+        bool: True only for a direct child of the scratch root carrying a session marker.
+
+    Notes:
+        - Two conditions, both required, and neither is satisfied by a project directory: it
+          is not inside the scratch root, and it holds `project.json` rather than
+          `session.json`. Deleting a project would be the worst failure this module could
+          have, so it is made unreachable rather than merely avoided.
+        - A project saved *into* the scratch root -- which nothing invites but nothing
+          forbids -- still fails the marker test.
+    """
+    try:
+        candidate, root = Path(candidate).resolve(), Path(root).resolve()
+    except OSError:
+        return False
+
+    if candidate == root or root not in candidate.parents:
+        return False
+    if not (candidate / MARKER).is_file():
+        return False
+    if (candidate / "project.json").is_file():
+        logger.error("'%s' holds a project; it will not be treated as scratch", candidate)
+        return False
+    return True
+
+
 class AbandonedSession:
     """A scratch directory whose session is no longer running.
 
@@ -108,6 +141,9 @@ class AbandonedSession:
 
     def discard(self) -> None:
         """Delete it, once the user has decided they do not want it."""
+        if not _is_a_scratch_directory(self.path, self.path.parent):
+            logger.error("Refusing to delete '%s': it is not a scratch directory", self.path)
+            return
         shutil.rmtree(self.path, ignore_errors=True)
         logger.info("Discarded abandoned session at '%s'", self.path)
 
@@ -174,9 +210,15 @@ class ScratchSpace:
 
     def discard(self) -> None:
         """Remove this session's scratch. For a clean exit, and only for a clean exit."""
-        if self._path is not None and self._path.exists():
-            shutil.rmtree(self._path, ignore_errors=True)
-            logger.info("Removed this session's scratch directory")
+        if self._path is None or not self._path.exists():
+            self._path = None
+            return
+        if not _is_a_scratch_directory(self._path, self._root):
+            logger.error("Refusing to delete '%s': it is not a scratch directory", self._path)
+            self._path = None
+            return
+        shutil.rmtree(self._path, ignore_errors=True)
+        logger.info("Removed this session's scratch directory")
         self._path = None
 
     @classmethod

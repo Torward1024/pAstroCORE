@@ -719,3 +719,59 @@ def test_an_empty_abandoned_session_is_not_offered(scratch_root, monkeypatch):
 
     monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
     assert ScratchSpace.abandoned(root=scratch_root) == []
+
+
+def test_nothing_but_a_scratch_directory_can_ever_be_deleted(tmp_path):
+    """Deleting a project would be the worst failure this module could have, so it is made
+    unreachable rather than merely avoided.
+
+    Reported as happening after a save, and not reproducible on any path through the code --
+    which is exactly when a guard earns its place, because "I could not make it happen" is not
+    the same as "it cannot happen".
+    """
+    from pastrocore.base.scratch import ScratchSpace, _is_a_scratch_directory
+
+    root = tmp_path / "scratch"
+    space = ScratchSpace(root=root, session="mine")
+    space.store.write("obs", "a", pl.DataFrame({"x": [1.0]}), {})
+    assert _is_a_scratch_directory(space.path, root), "a real scratch directory must qualify"
+
+    project = tmp_path / "real.pastro"
+    (project / "results").mkdir(parents=True)
+    (project / "project.json").write_text("{}", encoding="utf-8")
+
+    assert not _is_a_scratch_directory(project, root), "outside the scratch root"
+    assert not _is_a_scratch_directory(project, tmp_path), "and it holds a project"
+    assert not _is_a_scratch_directory(root, root), "the root itself is not a session"
+
+
+def test_a_project_inside_the_scratch_root_is_still_refused(tmp_path):
+    """Nothing invites this and nothing forbids it, so the marker has to be what decides."""
+    from pastrocore.base.scratch import MARKER, ScratchSpace, _is_a_scratch_directory
+
+    root = tmp_path / "scratch"
+    intruder = root / "a_project.pastro"
+    (intruder / "results").mkdir(parents=True)
+    (intruder / "project.json").write_text("{}", encoding="utf-8")
+    (intruder / MARKER).write_text('{"pid": 1}', encoding="utf-8")
+
+    assert not _is_a_scratch_directory(intruder, root)
+
+
+def test_discard_refuses_rather_than_deletes(tmp_path):
+    """The guard has to be wired in, not merely written."""
+    from pastrocore.base.scratch import ScratchSpace
+
+    root = tmp_path / "scratch"
+    space = ScratchSpace(root=root, session="mine")
+    space.store.write("obs", "a", pl.DataFrame({"x": [1.0]}), {})
+
+    project = tmp_path / "real.pastro"
+    (project / "results").mkdir(parents=True)
+    (project / "project.json").write_text("{}", encoding="utf-8")
+
+    space._path = project            # the failure that was reported, forced
+    space.discard()
+
+    assert project.is_dir(), "a project directory must survive being handed to discard"
+    assert (project / "project.json").is_file()
