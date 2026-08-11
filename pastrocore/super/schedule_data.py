@@ -488,12 +488,13 @@ class ScheduleData(Super):
 
         entries = []
         for key in sorted(calculations):
-            schema = CalculatedDataStructure.SCHEMAS.get(key, {})
+            schema = CalculatedDataStructure.entry_for(key)
             entry = {
                 "key": key,
                 "label": schema.get("label") or calculations[key]["label"],
                 "requires": calculations[key]["requires"],
                 "can_plot": key in plots,
+                "offer": not CalculatedDataStructure.is_intermediate(key),
             }
             if observation is not None:
                 entry["available"] = key in held

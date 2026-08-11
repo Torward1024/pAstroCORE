@@ -277,13 +277,35 @@ def test_an_orbit_that_does_not_cover_the_scan_says_so():
         f"the message must name both spans so the gap is obvious: {spoken}")
 
 
-def test_the_calculations_are_offered_in_the_interface():
-    """F3. A calculation nobody can choose is a calculation nobody has."""
-    import pathlib
-    import re
+def test_the_calculations_are_offered_in_the_interface(observation_with_a_spacecraft):
+    """F3. A calculation nobody can choose is a calculation nobody has.
 
-    source = (pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui"
-              / "p_dialog_calculations.py").read_text(encoding="utf-8")
-    for method in ("telescope_az_el", "telescope_visibility"):
-        assert re.search(rf'":\s*"{method}"|"{method}"', source), (
-            f"'{method}' cannot be chosen from the calculations dialog")
+    Asserted against the catalogue rather than against a dialog's source, because the dialog no
+    longer holds a list: it asks the manipulator what exists. That is the point of A5 -- adding
+    a calculation makes it appear without the interface being touched, and this is what that
+    claim means in practice.
+    """
+    project, observation, manipulator = observation_with_a_spacecraft
+
+    response = manipulator.export(obj=project, method="catalogue", raise_on_error=False)
+    catalogue = response["result"] if isinstance(response, dict) and "status" in response else response
+
+    offered = {entry["key"] for entry in catalogue if entry["offer"]}
+    assert "telescope_az_el" in offered
+    assert "telescope_visibility" in offered
+
+    labels = {entry["key"]: entry["label"] for entry in catalogue}
+    assert labels["telescope_az_el"] == "Space Telescope Pointing"
+
+
+def test_a_step_nobody_asks_for_is_not_offered(observation_with_a_spacecraft):
+    """Positions and visibility exist so other calculations can use them. Offering them would
+    be offering the user a choice that means nothing to them."""
+    project, _, manipulator = observation_with_a_spacecraft
+
+    response = manipulator.export(obj=project, method="catalogue", raise_on_error=False)
+    catalogue = response["result"] if isinstance(response, dict) and "status" in response else response
+
+    steps = {entry["key"] for entry in catalogue if not entry["offer"]}
+    assert steps == {"time_arrays", "telescope_positions", "interpolated_orbits",
+                     "source_visibility"}

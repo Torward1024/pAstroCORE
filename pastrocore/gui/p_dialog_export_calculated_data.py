@@ -109,14 +109,17 @@ class ExportCalculatedDataDialog(QDialog):
 
     def populate_calc_list(self):
         """Populate the calculation list."""
-        calc_types = [
-            "UV Coverage", "Mollweide Tracks", "Baseline Projections",
-            "Time on Source", "Sun Angles", "Az/El", "Beam Pattern",
-            "Source Visibility", "Telescope Positions", "Parallactic Angle"
-        ]
+        # Everything, including the steps other calculations need. Choosing what to *compute*
+        # leaves those out because nobody asks for them by name; choosing what to *export*
+        # includes them, because the numbers are the numbers and somebody may want them.
+        response = self.manipulator.export(obj=None, method="catalogue", raise_on_error=False)
+        catalogue = (response["result"] if isinstance(response, dict) and "status" in response
+                     else response) or []
+
         self.ui.calcList.clear()
-        for calc_type in calc_types:
-            item = QListWidgetItem(calc_type)
+        for entry in catalogue:
+            item = QListWidgetItem(entry["label"])
+            item.setData(Qt.UserRole, entry["key"])
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked)
             self.ui.calcList.addItem(item)

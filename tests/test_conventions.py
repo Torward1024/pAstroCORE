@@ -10,6 +10,8 @@ import re
 
 import pytest
 
+from pastrocore.super.schedule_calculator import ScheduleCalculator
+
 ROOT = pathlib.Path(__file__).parent.parent
 LOG_METHODS = {"debug", "info", "warning", "error", "critical", "exception"}
 
@@ -260,3 +262,104 @@ def test_the_exporter_dialog_is_off_the_list():
               / "p_dialog_export_calculated_data.py").read_text(encoding="utf-8")
     assert not HEAVY.search(source), (
         "the export dialog reaches for the model again; its logic is in ScheduleData")
+
+
+# --- one catalogue -------------------------------------------------------------------------
+
+#: Spellings of calculations that must not appear in a dialog. A dialog asks the manipulator
+#: what exists; a dialog that spells a calculation is a dialog that has to be edited when one
+#: is added, which is the whole thing A5 removed.
+CALCULATION_SPELLINGS = re.compile(
+    r'"(?:UV Coverage|Mollweide Tracks|Baseline Projections|Time on Source|Sun Angles|'
+    r'Azimuth/Elevation|Beam Pattern|Parallactic Angle|uv_coverage|mollweide_tracks|'
+    r'baseline_projections|time_on_source|sun_angles|az_el|beam_pattern|parallactic_angle)"')
+
+#: Where a spelling is legitimate, with why.
+SPELLING_IS_ALLOWED = {
+    # Each visualization tab is written for one result and says which, once, when it asks for
+    # its own data. That is the tab naming itself, not a catalogue kept by hand.
+    "p_tab_vis_uv_coverage.py", "p_tab_vis_az_el.py", "p_tab_vis_sun_angles.py",
+    "p_tab_vis_time_on_source.py", "p_tab_vis_baseline_projections.py",
+    "p_tab_vis_parallactic.py", "p_tab_vis_beam_pattern.py", "p_tab_vis_mollweide.py",
+    # Maps a result to the widget that draws it. That is a fact about this interface and the
+    # one thing the model cannot answer -- and it is keyed by the result rather than by a
+    # label, so rewording a label cannot silently unbind a tab.
+    "p_dialog_visualize.py",
+}
+
+
+def test_no_dialog_keeps_its_own_list_of_calculations():
+    """Adding a calculation should touch the calculator and the schema, and nothing else.
+
+    It used to touch three dialogs, which held the same knowledge nine times in four shapes --
+    including a table of which calculation needs which, that being knowledge about the model
+    living in a widget.
+    """
+    gui = pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui"
+    offenders = {}
+    for module in sorted(gui.glob("p_dialog_*.py")):
+        if module.name in SPELLING_IS_ALLOWED:
+            continue
+        found = CALCULATION_SPELLINGS.findall(module.read_text(encoding="utf-8"))
+        if found:
+            offenders[module.name] = sorted(set(found))
+
+    assert not offenders, (
+        f"{offenders} spell calculations by hand. Ask the manipulator instead: "
+        f"export(method='catalogue') -- see A5 in docs/ROADMAP.md.")
+
+
+class CalculatorWithOneMore(ScheduleCalculator):
+    """A calculator with a calculation the interface has never heard of.
+
+    Defined in a file rather than attached at runtime, because the derivation reads source: a
+    method glued onto a class after import is invisible to it, which is a real limit of the
+    approach and not a thing to work around in a test.
+    """
+
+    def _calculate_invented_thing(self, obj, attributes):
+        return self._calculate_time_arrays(obj, attributes)
+
+
+def test_adding_a_calculation_needs_no_change_to_any_interface(project):
+    """The claim A5 makes, tested rather than asserted.
+
+    A calculation registered on the calculator appears in the catalogue -- which is what every
+    dialog now reads -- with its label, its prerequisites and its place in the order, and
+    without a line changing anywhere in `pastrocore/gui`.
+    """
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    manipulator = ScheduleManipulator(project)
+    # Replacing the registered calculator, which is what an application does when it extends
+    # one; registering a second under the same name is refused, and rightly.
+    manipulator._operations["calculate"] = CalculatorWithOneMore(manipulator)
+
+    response = manipulator.export(obj=project, method="catalogue", raise_on_error=False)
+    catalogue = (response["result"] if isinstance(response, dict) else response) or []
+
+    entry = next((e for e in catalogue if e["key"] == "invented_thing"), None)
+    assert entry is not None, "a new handler must appear in the catalogue on its own"
+    assert entry["label"] == "Invented Thing", "and be labelled without anybody naming it"
+    assert entry["offer"] is True, "and be offered, since nothing said it was a step"
+    assert entry["requires"] == ["time_arrays"], "and bring the edge it wrote in its own body"
+
+    ordered = manipulator.export(obj=project, method="order",
+                                 keys=["invented_thing", "time_arrays"], raise_on_error=False)
+    ordered = ordered["result"] if isinstance(ordered, dict) else ordered
+    assert ordered == ["time_arrays", "invented_thing"], "and take its place in the order"
+
+
+def test_a_handler_added_after_import_is_invisible():
+    """A limit of reading source rather than the live class, asserted so it is known rather
+    than discovered. Handlers are written in files; this only bites a caller who was expecting
+    otherwise."""
+    from pastrocore.super.schedule_calculator import ScheduleCalculator as Calculator
+
+    Calculator._calculate_glued_on = lambda self, obj, attributes: None
+    try:
+        from msb_arch.catalogue import derive
+
+        assert "glued_on" not in derive(Calculator(None), "calculate")
+    finally:
+        del Calculator._calculate_glued_on

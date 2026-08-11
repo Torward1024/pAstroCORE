@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from msb_arch.utils.logging_setup import logger
+from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.gui.ui_dialog_calculations import Ui_CalculationDialog
 from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
 
@@ -23,11 +24,19 @@ class CalculationThread(QThread):
         self._cancelled = False
         logger.debug("CalculationThread initialized with calc_types: %s", self.calc_types)
 
-        valid_calcs = [
-            "UV Coverage", "Mollweide Tracks", "Baseline Projections",
-            "Time on Source", "Sun Angles", "Azimuth/Elevation", "Beam Pattern",
-            "Parallactic Angle"
-        ]
+        # Asked once when the work starts, so every step below spells a calculation the way
+        # the manipulator does.
+        response = manipulator.export(obj=None, method="catalogue", raise_on_error=False)
+        offered = (response["result"] if isinstance(response, dict) and "status" in response
+                   else response) or []
+        self._keys_by_label = {entry["label"]: entry["key"] for entry in offered}
+
+        # What is valid is what the manipulator offers, so a new calculation needs no second
+        # list to be added to before it can be run.
+        response = manipulator.export(obj=None, method="catalogue", raise_on_error=False)
+        offered = (response["result"] if isinstance(response, dict) and "status" in response
+                   else response) or []
+        valid_calcs = {entry["label"] for entry in offered} | {entry["key"] for entry in offered}
         invalid_calcs = [calc for calc in calc_types if calc not in valid_calcs]
         if invalid_calcs:
             logger.error("Invalid calculation types provided: %s", invalid_calcs)
@@ -69,22 +78,10 @@ class CalculationThread(QThread):
                     calc_params = self.params.get(calc_type, {}).copy()
                     time_step = calc_params.get("time_step", 600)
 
-                    method_map = {
-                        "UV Coverage": "uv_coverage",
-                        "Mollweide Tracks": "mollweide_tracks",
-                        "Baseline Projections": "baseline_projections",
-                        "Beam Pattern": "beam_pattern",
-                        "Time on Source": "time_on_source",
-                        "Sun Angles": "sun_angles",
-                        "Azimuth/Elevation": "az_el",
-                        "Parallactic Angle": "parallactic_angle",
-                        # Chosen, never run as part of an ordinary observation: pointing at a
-                        # spacecraft is a different question from observing a source, and a
-                        # project with no spacecraft in it must pay nothing for the option.
-                        "Space Telescope Pointing": "telescope_az_el",
-                        "Space Telescope Visibility": "telescope_visibility"
-                    }
-                    method = method_map.get(calc_type, calc_type.lower().replace(" ", "_"))
+                    # The label a user sees and the key a request needs are two spellings of
+                    # one thing, and the manipulator knows both. A table here was a third copy.
+                    method = self._keys_by_label.get(
+                        calc_type, calc_type.lower().replace(" ", "_"))
 
                     if calc_type in freq_dependent_calcs:
                         for freq in freqs:
@@ -193,26 +190,23 @@ class CalculationDialog(QDialog):
 
     def populate_calc_list(self):
         """Populate the calculation list with available calculations."""
-        calc_types = [
-            "UV Coverage",
-            "Mollweide Tracks",
-            "Baseline Projections",
-            "Beam Pattern",
-            "Time on Source",
-            "Sun Angles",
-            "Azimuth/Elevation",
-            "Parallactic Angle"
-        ]
-        dependencies = {
-            "Synthesized Beam": ["UV Coverage"],
-            "Baseline Projections": ["UV Coverage"]
-        }
+        # Asked, not listed. The manipulator works out what it offers from the handlers that
+        # do the work, so a calculation added to the calculator appears here on its own -- and
+        # the prerequisites come from the code that states them rather than from a table kept
+        # by hand in a dialog.
+        response = self.manipulator.export(obj=self.project, method="catalogue")
+        catalogue = (response["result"] if isinstance(response, dict) and "status" in response
+                     else response) or []
+
         self.ui.calcList.clear()
-        for calc_type in calc_types:
-            item = QListWidgetItem(calc_type)
+        for entry in catalogue:
+            if not entry["offer"]:
+                continue        # a step other calculations need, not one a user asks for
+            item = QListWidgetItem(entry["label"])
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked)
-            item.setData(Qt.UserRole, dependencies.get(calc_type, []))
+            item.setData(Qt.UserRole, entry["requires"])
+            item.setData(Qt.UserRole + 1, entry["key"])
             self.ui.calcList.addItem(item)
         logger.debug("Populated %s calculations, all checked.", self.ui.calcList.count())
 
@@ -278,10 +272,14 @@ class CalculationDialog(QDialog):
 
     def update_params_ui(self):
         """Update the parameters UI based on selected calculations."""
-        selected_calcs = [self.ui.calcList.item(i).text() for i in range(self.ui.calcList.count())
-                          if self.ui.calcList.item(i).checkState() == Qt.Checked]
-        self.ui.timeStepSpin.setEnabled("Beam Pattern" not in selected_calcs)
-        logger.debug("Updated params UI, timeStepSpin enabled: %s", 'Beam Pattern' not in selected_calcs)
+        selected_keys = [self.ui.calcList.item(i).data(Qt.UserRole + 1)
+                         for i in range(self.ui.calcList.count())
+                         if self.ui.calcList.item(i).checkState() == Qt.Checked]
+        # Whether a time step applies follows from what the calculations record, not from
+        # comparing a title against the one calculation that happens not to be sampled.
+        sampled = all(CalculatedDataStructure.uses_time_step(key) for key in selected_keys if key)
+        self.ui.timeStepSpin.setEnabled(bool(selected_keys) and sampled)
+        logger.debug("Updated params UI, timeStepSpin enabled: %s", sampled)
 
     def run_calculation(self):
         """Run the selected calculations in a separate thread."""
