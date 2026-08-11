@@ -212,10 +212,8 @@ MODULES_STILL_REACHING_FOR_THE_MODEL = {
     "p_dialog_edit_scan.py",
     "p_dialog_edit_space_telescope.py",
     "p_dialog_visualize.py",
-    "p_tab_vis_baseline_projections.py",
     "p_tab_vis_beam_pattern.py",
     "p_tab_vis_mollweide.py",
-    "p_tab_vis_parallactic.py",
 }
 
 HEAVY = re.compile(r"^\s*(?:import|from)\s+(polars|astropy|numpy|scipy)\b", re.M)

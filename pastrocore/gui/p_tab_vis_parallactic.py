@@ -4,15 +4,12 @@ from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_default import Ui_VisDefaultTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from pastrocore.base.data_structure import CalculatedDataStructure
 from msb_arch.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from typing import List, Optional
-from astropy.time import Time
 import matplotlib.pyplot as plt
-import polars as pl
 import gc
 
 class ParallacticAngleVisualizationTab(QWidget):
@@ -53,33 +50,22 @@ class ParallacticAngleVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source and telescope filters from Parallactic Angle DataFrame."""
         try:
-            df = self.manipulator.inspect(
-                obj=self.observation, 
-                get_calculated_data_by_key="parallactic_angle"
-            ).get("data", {})
-
-            if not isinstance(df, pl.DataFrame):
+            # One request instead of reading the frame, checking it against the schema and
+            # calling unique() twice.
+            response = self.manipulator.export(
+                obj=self.observation, method="distinct",
+                key="parallactic_angle", columns=["source_name", "telescope_code"])
+            values = (response["result"] if isinstance(response, dict) and "status" in response
+                      else response) or {}
+            sources = values.get("source_name", [])
+            telescopes = values.get("telescope_code", [])
+            if not sources:
                 logger.error("No valid parallactic angle data available for populating filters")
                 self.ui.cmbSource.addItem("No parallactic angle data available")
                 return
 
-            expected_columns = CalculatedDataStructure.get_columns("parallactic_angle")
-            if not expected_columns:
-                logger.error("No schema defined for parallactic_angle data")
-                self.ui.cmbSource.addItem("No schema defined")
-                return
-
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                logger.error("DataFrame for parallactic_angle missing required columns: %s", missing_columns)
-                self.ui.cmbSource.addItem("Invalid parallactic angle data structure")
-                return
-
-            sources = df["source_name"].unique().to_list()
-            telescopes = df["telescope_code"].unique().to_list()
-
-            self.ui.cmbSource.addItems(sorted(sources))
-            for telescope in sorted(telescopes):
+            self.ui.cmbSource.addItems(sources)
+            for telescope in telescopes:
                 item = QListWidgetItem(telescope)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(Qt.Checked)
@@ -204,28 +190,19 @@ class ParallacticAngleVisualizationTab(QWidget):
             return
 
         try:
-            df = self.manipulator.inspect(
-                obj=self.observation, 
-                get_calculated_data_by_key="parallactic_angle"
-            ).get("data", {})
-
-            if not isinstance(df, pl.DataFrame):
-                self.ui.listScans.addItem(QListWidgetItem("No parallactic angle data available"))
-                return
-
-            df_filtered = df.filter(pl.col("source_name") == source_name)
-            if df_filtered.is_empty():
+            # One request instead of a read, a filter, a group-by and a time conversion.
+            response = self.manipulator.export(
+                obj=self.observation, method="scan_times",
+                key="parallactic_angle", source_name=source_name)
+            scan_times = (response["result"] if isinstance(response, dict) and "status" in response
+                          else response) or []
+            if not scan_times:
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scan_times = df_filtered.group_by("scan_name").agg(
-                time=pl.col("time").first()
-            ).sort("time")
-
-            for row in scan_times.iter_rows(named=True):
-                scan_name = row["scan_name"]
-                start_time = Time(row["time"], format="mjd").isot
-                display_text = f"{start_time}"
+            for entry in scan_times:
+                scan_name = entry["scan_name"]
+                display_text = entry["start"]
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
