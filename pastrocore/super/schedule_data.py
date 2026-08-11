@@ -447,6 +447,76 @@ class ScheduleData(Super):
                 logger.debug("Cannot tell whether '%s' holds anything: %s", key, str(e))
         return sorted(available)
 
+    #: What this model calls its parts, keyed by the accessor that reaches each. MSB reports
+    #: the names a handler calls, without claiming to know what any of them mean; this is
+    #: where that is said, and it is the only application-shaped thing the catalogue needs.
+    MODEL_PARTS = {"get_telescopes": "telescopes", "get_sources": "sources",
+                   "get_scans": "scans", "get_frequencies": "frequencies"}
+
+    #: Words that keep their capitals when a handler's name becomes a label.
+    ACRONYMS = {"uv": "UV", "az": "Az", "el": "El", "if": "IF", "sefd": "SEFD"}
+
+    def _export_catalogue(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Report what this application can calculate and draw.
+
+        Args:
+            obj: Ignored by the catalogue itself.
+            attributes: `available_for` -- an observation, to mark which entries it already
+                holds a result for.
+
+        Returns:
+            List[Dict[str, Any]]: One entry per calculation, each with its `key`, `label`, the
+                other calculations it `requires`, whether it `can_plot`, and `available` when
+                an observation was given.
+
+        Notes:
+            - Discovered, not listed. The manipulator works out its own registry -- handlers
+              name themselves and call each other by name -- so adding a calculation means
+              writing `_calculate_x` and a schema entry, and nothing in any interface has to be
+              told about it.
+            - All this adds is what the framework cannot know: what this model calls its parts,
+              and how a few words are spelled.
+        """
+        described = self._manipulator.describe_operations(
+            interpret=self.MODEL_PARTS.get, acronyms=self.ACRONYMS)
+
+        calculations = described.get("calculate", {})
+        plots = set(described.get("visualize", {}))
+
+        observation = attributes.get("available_for")
+        held = set(self._export_available(observation, {})) if observation is not None else set()
+
+        entries = []
+        for key in sorted(calculations):
+            schema = CalculatedDataStructure.SCHEMAS.get(key, {})
+            entry = {
+                "key": key,
+                "label": schema.get("label") or calculations[key]["label"],
+                "requires": calculations[key]["requires"],
+                "can_plot": key in plots,
+            }
+            if observation is not None:
+                entry["available"] = key in held
+            entries.append(entry)
+        return entries
+
+    def _export_order(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
+        """Return calculations in an order that satisfies their prerequisites.
+
+        Args:
+            obj: Ignored.
+            attributes: `keys`, the calculations asked for in any order.
+
+        Returns:
+            List[str]: The same keys, each after everything it needs.
+
+        Notes:
+            - The calculations dialog used to carry this as a hardcoded table of which
+              calculation needs which. That is knowledge about the model, and the model's own
+              code states it already.
+        """
+        return self._manipulator.order_handlers("calculate", attributes.get("keys") or [])
+
     @staticmethod
     def _targets(obj: Any) -> List[Observation]:
         """Return the observations an export covers.
