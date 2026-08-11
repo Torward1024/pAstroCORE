@@ -8,6 +8,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [0.7.0] - 2026-08-11
+
+A day of calculation is no longer lost to a crash.
+
+### Added
+
+- **Results are written to disk the moment they are calculated**, rather than waiting for a
+  save. They used to be held in memory and marked unwritten -- true whether or not the project
+  had a directory -- so they were lost to a crash, a power cut or the memory running out. They
+  also counted **zero bytes** against the residency ceiling, because the budget cannot evict
+  what it has nowhere to read back from, which meant an unsaved session was ungoverned as well
+  as unprotected. Both are fixed by the same change.
+- **A scratch directory per running session.** Before a project has a directory of its own its
+  results live there; saving migrates them across rather than recalculating. One per session,
+  named for the process, so two open windows never adopt or evict each other's results -- the
+  same rule a server needs to run sessions for several people.
+- **Recovery.** A session that did not close normally leaves its scratch directory behind on
+  purpose, and the next start offers it back, naming the project and how much it holds. Closing
+  normally removes its own and only its own. Nothing is ever swept at startup: a directory left
+  by a previous run is the day of calculation this exists to protect.
+- **Interface changes are made in the `.ui` files and regenerated**, with
+  `tools/regenerate_ui.py` and a test that fails if a generated module and its form have
+  drifted. It found one that had. The memory-share control added in 0.5.0 now lives in the
+  form.
+
+### Fixed
+
+- `ui_dialog_edit_if.py` and its form had each been edited without the other, both only in
+  styling. The form was the newer, so regenerating restored the dialog's own styling.
+
+### Notes
+
+- Writing through is best effort. A store that fails leaves the result held and unwritten, so a
+  full disk costs the protection rather than the calculation.
+- The scratch lives in the per-user data directory, deliberately not the system temporary
+  directory: results have to survive a crash and be findable afterwards, and temporary
+  directories are exactly what gets swept.
+
 ## [0.6.0] - 2026-08-11
 
 ### Removed
