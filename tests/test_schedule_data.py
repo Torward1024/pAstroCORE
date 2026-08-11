@@ -332,3 +332,44 @@ def test_a_column_that_is_not_there_comes_back_empty(project):
 
     assert result["source_name"], "the column that exists still answers"
     assert result["telescope_code"] == []
+
+
+def test_available_answers_without_reading_the_results(project, tmp_path):
+    """The visualize dialog asked which results it could offer by reading every one of them --
+    142 ms and eleven frames held in memory on a small project, to fill one combo box. On a
+    project of any size that is the memory problem again."""
+    root = tmp_path / "available.pastro"
+    project.save(str(root))
+    reopened = ScheduleProject.open(str(root))
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    manipulator = ScheduleManipulator(reopened)
+
+    assert observation.calculated_data._resident == {}
+
+    response = manipulator.export(obj=observation, method="available", raise_on_error=False)
+    result = response["result"] if isinstance(response, dict) and "status" in response else response
+
+    assert "uv_coverage" in result
+    assert observation.calculated_data._resident == {}, (
+        "asking what is available must not read what is available")
+
+
+def test_available_leaves_out_what_holds_nothing(project, tmp_path):
+    """An empty result is not something to offer a user."""
+    observation = project.get_observation(next(iter(project.get_items())))
+    from pastrocore.base.data_structure import CalculatedDataStructure
+
+    empty = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
+    # Built from the schema rather than guessed a field at a time.
+    required = CalculatedDataStructure.get_metadata_types("uv_coverage") or {}
+    metadata = {name: (0 if kind is int else 0.0 if kind is float else "")
+                for name, kind in required.items()}
+    observation.set_calculated_data_by_key("uv_coverage", empty, metadata)
+    manipulator = ScheduleManipulator(project)
+
+    response = manipulator.export(obj=observation, method="available",
+                                  keys=["uv_coverage", "az_el"], raise_on_error=False)
+    result = response["result"] if isinstance(response, dict) and "status" in response else response
+
+    assert "uv_coverage" not in result
+    assert "az_el" in result

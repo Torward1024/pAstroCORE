@@ -414,6 +414,39 @@ class ScheduleData(Super):
             found[column] = sorted(frame[column].unique().to_list())
         return found
 
+    def _export_available(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
+        """List the results this observation actually holds data for.
+
+        Args:
+            obj (Observation): The observation to ask.
+            attributes: `keys`, to narrow the question; every result by default.
+
+        Returns:
+            List[str]: Sorted store keys whose result has at least one row.
+
+        Notes:
+            - The question the visualize dialog asks to decide what it can offer, and it used
+              to answer it by **reading every result** -- 142 ms and eleven frames held in
+              memory on a small project, to fill one combo box. On a project of any size that
+              is the memory problem all over again.
+            - Counted through a lazy scan, so a parquet file answers from its footer and the
+              rows are never read.
+        """
+        results = obj.calculated_data
+        keys = attributes.get("keys") or (list(results.keys()) if hasattr(results, "keys") else [])
+
+        available = []
+        for key in keys:
+            try:
+                view = obj.scan_calculated_data(key)
+                if view is None:
+                    continue
+                if view.select(pl.len()).collect().item() > 0:
+                    available.append(key)
+            except Exception as e:
+                logger.debug("Cannot tell whether '%s' holds anything: %s", key, str(e))
+        return sorted(available)
+
     @staticmethod
     def _targets(obj: Any) -> List[Observation]:
         """Return the observations an export covers.

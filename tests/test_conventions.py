@@ -203,15 +203,17 @@ def test_the_preferences_control_lives_in_the_form():
 
 # --- the interface holds interface code -----------------------------------------------------
 
-#: Hand-written GUI modules that still import a model library, with the count they import.
-#: This list is a debt, not a permission. It may shrink and must never grow: every entry is a
-#: module doing work that belongs in a `Super`, where a CLI and a server could reach it.
+#: Hand-written GUI modules that import a model library. The list may shrink and must never
+#: grow, and every entry carries the reason it is there. Twelve began on it; the two that
+#: remain are decided rather than owed -- see the comment on each.
 #:
-#: Removing one means moving its logic, not moving its import.
+#: Removing an entry means moving its logic, not moving its import.
 MODULES_STILL_REACHING_FOR_THE_MODEL = {
+    # Both turn what a user typed in a Qt widget into the model's own type -- a date from a
+    # QDateTimeEdit into an astropy Time. That is the dialog's job and not a Super's: an
+    # operation taking a Qt datetime would be worse than the import. Decided, not owed.
     "p_dialog_edit_scan.py",
     "p_dialog_edit_space_telescope.py",
-    "p_dialog_visualize.py",
 }
 
 HEAVY = re.compile(r"^\s*(?:import|from)\s+(polars|astropy|numpy|scipy)\b", re.M)
