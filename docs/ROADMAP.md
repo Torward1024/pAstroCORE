@@ -238,6 +238,7 @@ D1 to D5 are done. **D6 is what they left open**: all of it governs results that
 | D6 | Somewhere for results to live before they are saved | **Done.** A result is written to disk the moment it is calculated rather than waiting for a save, so it is safe from a crash and the residency ceiling governs it immediately -- it used to count zero bytes because the budget cannot evict what it cannot read back. Until a project has a directory the results go to a scratch directory; saving migrates them across rather than asking for them again. Writing through is best effort: a store that fails leaves the result held and unwritten, so a full disk costs the protection rather than the calculation |
 | D7 | One scratch directory per running session | **Done.** Named for the process and a token, so two windows never adopt or evict each other's results -- the same rule a server needs to run sessions for several people. Nothing is created until a result is written, so opening and closing the application leaves nothing. A clean exit removes its own and only its own. An interrupted session is offered back at startup, never swept: a directory left by a previous run is the day of calculation this exists to protect. Whether the owning process is still alive is answered by `psutil`, biased towards "alive" -- saying "dead" wrongly would offer up a directory another window is writing to, while saying "alive" wrongly costs one stale directory |
 | D8 | The save and open dialogs ask for a directory, because that is what a project is | **Done.** Both use `getExistingDirectory`. Opening checks that the chosen directory is a project and says so plainly when it is not, since a directory chooser will return any directory at all. Saving asks before writing into a folder that already holds something else -- an empty folder, which is what the dialog's New Folder button produces, and an existing project both go ahead without a question. Removing the single-file format is what made this simple: one dialog, one shape |
+| D9 | **Metadata can disagree with the data it describes, and NaN makes the file invalid JSON** | Measured on a real project rather than guessed, and the first guess -- "an observation with no scans" -- was wrong. In `test_project_pastro` the *same file pair* holds `times.parquet` with **288 rows spanning MJD 62602.000 to 62602.997 for one scan**, beside `times.meta.json` saying `start_time: NaN, end_time: NaN, scan_count: 0`. Recomputing gives the right metadata, so it was wrong when written: it is built from the object's state *before* the calculation and stored beside a frame computed after, and the two need not agree. The root cause is that all three fields **restate what the frame already says** -- `time.min()`, `time.max()`, `scan_name.n_unique()` -- so there are two sources for one fact and they can drift. Second, separate consequence: `json.dumps` writes bare `NaN`, which is **not valid JSON**; a strict parser rejects it and Python's own reader accepts it only by being lenient, so such a file cannot be read by anything but us -- which matters the moment stage 8 exports, R6 imports, or a server answers a browser | Metadata records only what the frame cannot say -- the step that was asked for, the store keys used; anything derivable is derived from the frame. No file the application writes contains `NaN`, asserted with a strict `parse_constant` rather than by reading it back with the same lenient parser that wrote it |
 
 ## Stage 5 -- the interface
 
@@ -340,6 +341,7 @@ reasoning rather than letting it sit open for another year.
 | **7. Release and tidy** | The repository is the last thing to shape, because what it documents has stopped moving |
 | **8. VEX** | Changes what the tool is rather than how well it does what it does, and it wants the model settled first |
 | **9. The logic into `Super` classes** | Before 1.0, because it decides what every feature after 1.0 costs. A front end added afterwards is a wrapper if this holds and a rewrite if it does not |
+| **10. Analysis** | After 9, because analysis written into the interface would have to be written twice. It is what turns a set of numbers into an answer, and it is the stage most in need of a scope rule, which it carries |
 
 ### What to do next, in order
 
@@ -348,17 +350,60 @@ what a user loses by waiting rather than by what is interesting to build.
 
 | | Item | Why here | Size |
 | --- | --- | --- | --- |
-| 1 | **D8** -- the dialogs ask for a directory | A defect in what 0.5.0 shipped, met on the first save, and the cheapest thing on this list. Nothing is blocked by it and nothing blocks it | Hours |
+| ~~1~~ | ~~**D8**~~ | **Done.** | |
+| 1 | **D9** -- NaN in the metadata | Hours, and it is not cosmetic: it leaves files that only a lenient parser can read, which every export, import and server response later depends on | Hours |
 | 2 | **G0** -- the regenerate-from-`.ui` rule | Cheap, and it has to precede any interface work or that work is done twice. It is the gate on G1, G1a and G4 | Hours |
 | ~~3~~ | ~~**D6 + D7**~~ | **Done.** | |
 | ~~4~~ | ~~**F1-F5**~~ | **Done.** | |
 | 5 | **G1, G1a, G4** -- one stylesheet, editable, and the recent list | Appearance and convenience. Real, but nobody loses work to them | Days |
 | 6 | **A1-A4** -- the logic into `Super` classes | Stage 9. The pre-release condition: every operation reachable through the manipulator, so a second front end costs a wrapper rather than a reimplementation | Weeks |
-| 7 | **V1-V4** -- VEX | The largest thing on the list and the one that changes what the tool is. It wants the model settled, which stages 4 and 6 finish, and it wants L0 because an exporter belongs beside the other exporter rather than in a dialog | Weeks |
+| 7 | **V1-V6, K1, X1** -- VEX, CFX, SKED | The largest thing on the list and the one that changes what the tool is. It wants the model settled, which stages 4 and 6 finish, and it wants A1 because an exporter belongs beside the other exporter rather than in a dialog | Weeks |
+| 8 | **N1-N4** -- analysis | What makes the numbers answer a question. Last of the large items because it is the one that most needs everything under it to have stopped moving -- and because it is reachable from a CLI only if stage 9 came first | Weeks |
 
 D8 and G0 are done, which opens the rest of the interface work. D6 before F1
 because losing a day of calculation is worse than not yet having a calculation. F1 before the
 interface work because it is the only thing on the list a user asked for by name.
+
+## Stage 10 -- analysis, or the difference between a calculator and an instrument
+
+Today a calculation finishes and that is the end of it: a frame of numbers, and whatever the
+user can see by eye in a plot. There is no way to ask **what the numbers mean**. Space
+telescope visibility is the clearest case, and it is new enough to be honest about: the result
+is a boolean per station per sampled moment, and the questions anyone actually has of it --
+*when is it visible, for how long at a stretch, where are the gaps, which station covers the
+gap another leaves* -- cannot be asked at all. The frame can be exported and dug through
+elsewhere, and that is a real answer, but it is the answer that gives up what makes an
+application worth having.
+
+**The risk here is not difficulty, it is that "analysis" has no natural end.** Everything is
+analysis. So the scope rule comes first, before any item:
+
+> An analysis operation earns its place when it answers a question somebody asks **while
+> scheduling** -- when can I observe, how long do I get, where are the gaps, which station
+> covers them. It does not earn its place by being a statistic that exists. Mean, median and
+> standard deviation of an arbitrary column are what a spreadsheet is for, and adding them
+> here buys a menu rather than an answer.
+
+The second thing that makes this finite: most of these questions are **one primitive**. "Find
+the runs of consecutive True in a boolean column, grouped by station" answers visibility
+windows, gaps between them, longest continuous pass and total time visible -- and the same
+primitive over `source_visibility` answers the same four questions about a source. One piece of
+code, keyed differently.
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| N1 | **`ScheduleAnalyzer`** (`schedule_analyzer.py`) -- runs of a boolean, grouped | Windows, gaps, longest run and total from any visibility-shaped result, as a frame of intervals rather than a printed summary |
+| N2 | Coverage across stations: when is it visible from **any**, from **all**, from **at least two** | The question a schedule turns on, answered without the user joining frames by hand |
+| N3 | Summaries a scheduler reads: time on source per station, fraction of the scan usable, the worst gap | One frame per question, not a report -- so it can be plotted, exported or fed to the next step |
+| N4 | The same operations over a `ScheduleProject`, not only one `Observation` | A year of observations answers "which nights are usable" without a loop in the interface |
+
+All of it in a `Super`, by stage 9's rule, which is what makes it reachable from a CLI and a
+server rather than being another thing welded to a dialog. That is also why this comes after
+stage 9 rather than before: written into the interface first, it would have to be written twice.
+
+What is deliberately **not** here: fitting, forecasting, anything that recommends a schedule
+rather than describing one. Those are a different project, and the scope rule above is what
+keeps them out.
 
 ## Stage 9 -- the logic into `Super` classes, before 1.0
 
