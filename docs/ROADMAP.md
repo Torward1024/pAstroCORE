@@ -40,11 +40,12 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 | | Item | Exit criterion | Size |
 | --- | --- | --- | --- |
 | 1 | **D9** -- metadata disagrees with its data | Metadata records only what the frame cannot say; anything derivable is derived. No file the application writes contains `NaN`, asserted with a strict parser rather than the lenient one that wrote it | Hours |
-| 2 | **R4** -- packaging | `pyproject.toml`, an entry point, the version in one place. `pip install .` gives a working command | Hours |
-| 3 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
-| 4 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
-| 5 | **R5** -- stale pull requests | None open without a decision recorded | Hours |
-| 6 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
+| 2 | **A5** -- one catalogue of calculations and plots | Adding a calculation or a plot means editing the dialogs, because the same knowledge is duplicated **nine times across three of them** in four shapes: key to label, label to key, label to tab class, and plain lists of labels. The calculations dialog also holds a **dependency graph between calculations** -- "Synthesized Beam" needs "UV Coverage" -- which is knowledge about the model sitting in a widget. There are 14 schema entries, 14 `_calculate_*` handlers and 8 `_plot_*` handlers, and none of them is what the dialogs read | Label and prerequisites live in the result's schema, beside its columns and dtypes; the dialogs ask the manipulator what exists. Adding a calculation touches the calculator and the schema, and nothing in the interface. A test fails if a dialog hardcodes a key or a label | Days |
+| 3 | **R4** -- packaging | `pyproject.toml`, an entry point, the version in one place. `pip install .` gives a working command | Hours |
+| 4 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
+| 5 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
+| 6 | **R5** -- stale pull requests | None open without a decision recorded | Hours |
+| 7 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
 
 **1.0 is reached when**: all of the above hold, the suite is green on CI, a project saved by 1.0
 opens in 1.0.
