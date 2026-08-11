@@ -286,16 +286,25 @@ def test_an_unobserved_source_is_an_answer_rather_than_an_error(project):
     assert result == []
 
 
-def test_scan_times_needs_to_be_told_what_to_look_at(project):
+def test_scan_times_needs_to_be_told_what_to_look_in(project):
+    """A key is required; a source is not.
+
+    Narrowing to one source is what most tabs want, but the Mollweide tab draws every scan the
+    result holds, so asking without a source is a legitimate question rather than an omission.
+    """
     from pastrocore.super.schedule_data import ScheduleData
 
     observation = project.get_observation(next(iter(project.get_items())))
     data = ScheduleData(ScheduleManipulator(project))
 
     with pytest.raises(ValueError):
-        data._export_scan_times(observation, {"key": "uv_coverage"})
-    with pytest.raises(ValueError):
         data._export_scan_times(observation, {"source_name": "1228+126"})
+
+    every = data._export_scan_times(observation, {"key": "mollweide_tracks"})
+    narrowed = data._export_scan_times(observation, {"key": "mollweide_tracks",
+                                                     "source_name": "1228+126"})
+    assert every, "asking without a source must answer for every scan"
+    assert len(every) >= len(narrowed)
 
 
 def test_distinct_lists_what_fills_a_combo_box(project):
