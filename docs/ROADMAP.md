@@ -40,12 +40,20 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 | | Item | Exit criterion | Size |
 | --- | --- | --- | --- |
 | ~~1~~ | ~~**D9**~~ | **Done.** The frame is the authority: `scan_count`, `start_time` and `end_time` are computed where the frame and its metadata are both in hand, so a caller cannot supply a wrong value -- whatever it passes is replaced, on the way into memory and on the way to disk alike. Kept beside the parquet rather than removed, because reading them without reading the result is worth more than having them nowhere. Nothing written contains `NaN`: unrepresentable numbers become `null` and the write uses `allow_nan=False`, checked with a strict parser rather than the lenient one that wrote it | -- |
-| 2 | **A5** -- one catalogue of calculations and plots | Adding a calculation or a plot means editing the dialogs, because the same knowledge is duplicated **nine times across three of them** in four shapes: key to label, label to key, label to tab class, and plain lists of labels. The calculations dialog also holds a **dependency graph between calculations** -- "Synthesized Beam" needs "UV Coverage" -- which is knowledge about the model sitting in a widget. There are 14 schema entries, 14 `_calculate_*` handlers and 8 `_plot_*` handlers, and none of them is what the dialogs read | Label and prerequisites live in the result's schema, beside its columns and dtypes; the dialogs ask the manipulator what exists. Adding a calculation touches the calculator and the schema, and nothing in the interface. A test fails if a dialog hardcodes a key or a label | Days |
-| 3 | **R4** -- packaging | `pyproject.toml`, an entry point, the version in one place. `pip install .` gives a working command | Hours |
-| 4 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
-| 5 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
-| 6 | **R5** -- stale pull requests | None open without a decision recorded | Hours |
-| 7 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
+| 1 | **A5** -- one catalogue, discovered rather than written down | Adding a calculation means editing three dialogs: the same knowledge is duplicated **nine times** in four shapes -- key to label, label to key, label to tab class, plain lists -- and the calculations dialog also carries a **dependency graph between calculations** ("Synthesized Beam" needs "UV Coverage"), which is knowledge about the model living in a widget. **Most of the registry already exists**: the manipulator knows its 7 operations, the calculator's 14 `_calculate_*` handlers and the visualizer's 8 `_plot_*`. What is missing is the label and the prerequisites | An operation reports the catalogue, discovered from the handlers rather than listed. Label and `requires` live in the result's schema, beside its columns, dtypes and `depends_on`. Adding a calculation touches the calculator and the schema and nothing in the interface, proved by adding one in a test and finding it offered. A test fails if a dialog hardcodes a key or a label | Days |
+| 2 | **R4** -- packaging | `pyproject.toml`, an entry point, the version in one place. `pip install .` gives a working command | Hours |
+| 3 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
+| 4 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
+| 5 | **R5** -- stale pull requests | None open without a decision recorded | Hours |
+| 6 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
+
+**A5 is the dependency graph in disguise, and worth saying so.** A result's schema already
+declares `depends_on` -- which *parts of the model* it reads, which is what makes freshness
+granular. A5 adds `requires`: which *other results* a calculation needs. Those are the two edge
+types of one graph, and the second is the one MSB's P1 will schedule on. Declaring it for a
+dialog's benefit is the same declaration that later says what may run in parallel and what a
+change invalidates. So this is not a GUI convenience with a graph hidden in it; it is the node
+table and one edge set, arriving early because a dialog needed them first.
 
 **1.0 is reached when**: all of the above hold, the suite is green on CI, a project saved by 1.0
 opens in 1.0.
