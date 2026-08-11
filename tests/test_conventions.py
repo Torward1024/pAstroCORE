@@ -199,3 +199,70 @@ def test_the_preferences_control_lives_in_the_form():
     assert 'name="resultsMemorySpin"' in form, "the control belongs in the .ui"
     assert "QSpinBox(" not in dialog, "the dialog must not build widgets the form already has"
     assert "self.ui.resultsMemorySpin" in dialog, "and it must reach it through the form"
+
+
+# --- the interface holds interface code -----------------------------------------------------
+
+#: Hand-written GUI modules that still import a model library, with the count they import.
+#: This list is a debt, not a permission. It may shrink and must never grow: every entry is a
+#: module doing work that belongs in a `Super`, where a CLI and a server could reach it.
+#:
+#: Removing one means moving its logic, not moving its import.
+MODULES_STILL_REACHING_FOR_THE_MODEL = {
+    "p_dialog_edit_scan.py",
+    "p_dialog_edit_space_telescope.py",
+    "p_dialog_visualize.py",
+    "p_tab_vis_az_el.py",
+    "p_tab_vis_baseline_projections.py",
+    "p_tab_vis_beam_pattern.py",
+    "p_tab_vis_mollweide.py",
+    "p_tab_vis_parallactic.py",
+    "p_tab_vis_sun_angles.py",
+    "p_tab_vis_time_on_source.py",
+    "p_tab_vis_uv_coverage.py",
+}
+
+HEAVY = re.compile(r"^\s*(?:import|from)\s+(polars|astropy|numpy|scipy)\b", re.M)
+
+
+def _gui_modules():
+    """Hand-written interface modules, excluding what Qt Designer generates."""
+    gui = pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui"
+    return [module for module in sorted(gui.glob("*.py"))
+            if not module.name.startswith("ui_") and module.name != "rc_icons.py"]
+
+
+def test_no_new_interface_module_reaches_for_the_model():
+    """A rule nothing checks is a preference, which is what the regenerate-from-`.ui` rule was
+    until a test enforced it -- and it had drifted in exactly one file meanwhile.
+
+    A module importing polars or astropy is doing work a command-line version would have to
+    write again and a server could not reach at all.
+    """
+    offenders = {module.name for module in _gui_modules()
+                 if HEAVY.search(module.read_text(encoding="utf-8"))}
+
+    new = offenders - MODULES_STILL_REACHING_FOR_THE_MODEL
+    assert not new, (
+        f"{sorted(new)} now import a model library. That logic belongs in a Super, where a CLI "
+        f"and a server can reach it -- see stage 9 in docs/ROADMAP.md.")
+
+
+def test_the_debt_list_shrinks_and_is_not_padded():
+    """A stale entry would make the list look like progress that has not happened, and would
+    quietly permit a module to reach for the model again."""
+    offenders = {module.name for module in _gui_modules()
+                 if HEAVY.search(module.read_text(encoding="utf-8"))}
+
+    settled = MODULES_STILL_REACHING_FOR_THE_MODEL - offenders
+    assert not settled, (
+        f"{sorted(settled)} no longer import a model library -- remove them from "
+        f"MODULES_STILL_REACHING_FOR_THE_MODEL so the list keeps meaning something.")
+
+
+def test_the_exporter_dialog_is_off_the_list():
+    """The first one moved, and the proof that the list can shrink at all."""
+    source = (pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui"
+              / "p_dialog_export_calculated_data.py").read_text(encoding="utf-8")
+    assert not HEAVY.search(source), (
+        "the export dialog reaches for the model again; its logic is in ScheduleData")
