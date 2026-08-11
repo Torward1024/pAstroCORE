@@ -669,7 +669,7 @@ def test_an_interrupted_session_is_offered_back(scratch_root, monkeypatch):
     dead.note_project("Survey A")
     dead.store.write("obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
 
-    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
+    monkeypatch.setattr(scratch_module, "live_pids", lambda: set())
     found = ScratchSpace.abandoned(root=scratch_root)
 
     assert len(found) == 1
@@ -683,10 +683,13 @@ def test_a_running_session_is_not_offered_back(scratch_root, monkeypatch):
     from pastrocore.base import scratch as scratch_module
     from pastrocore.base.scratch import ScratchSpace
 
+    import os
+
     alive = ScratchSpace(root=scratch_root, session="12345-live")
     alive.store.write("obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
 
-    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: True)
+    # The marker records this process, so claiming it is running is claiming the truth.
+    monkeypatch.setattr(scratch_module, "live_pids", lambda: {os.getpid()})
     assert ScratchSpace.abandoned(root=scratch_root) == []
 
 
@@ -717,7 +720,7 @@ def test_an_empty_abandoned_session_is_not_offered(scratch_root, monkeypatch):
     empty = ScratchSpace(root=scratch_root, session="4242-empty")
     empty.store                                    # creates the directory, writes nothing
 
-    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
+    monkeypatch.setattr(scratch_module, "live_pids", lambda: set())
     assert ScratchSpace.abandoned(root=scratch_root) == []
 
 
@@ -892,3 +895,67 @@ def test_recalculating_does_not_rewrite_an_unchanged_result(project, tmp_path):
 
     manipulator.calculate(observation, method="time_arrays", time_step=300.0, raise_on_error=False)
     assert written.stat().st_mtime_ns == before, "an unchanged result was written again"
+
+
+def test_looking_for_abandoned_sessions_does_not_ask_about_every_directory(tmp_path, monkeypatch):
+    """Startup got slow: 1 246 ms, of which 843 was psutil.pid_exists called once per scratch
+    directory, against a hundred and ninety-nine of them -- every one empty, so the answer was
+    never even used.
+
+    Two mistakes, and this holds both fixed: ask the operating system once rather than per
+    directory, and only for directories that hold something worth offering back.
+    """
+    from pastrocore.base import scratch as scratch_module
+    from pastrocore.base.scratch import ScratchSpace
+
+    root = tmp_path / "scratch"
+    for index in range(30):
+        ScratchSpace(root=root, session=f"{index}-empty").store       # a directory, no results
+    ScratchSpace(root=root, session="99-real").store.write(
+        "obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
+
+    asked = []
+    monkeypatch.setattr(scratch_module, "live_pids",
+                        lambda: asked.append(1) or set())
+
+    found = ScratchSpace.abandoned(root=root)
+
+    assert len(asked) <= 1, f"the process list was asked for {len(asked)} times, not once"
+    assert len(found) == 1 and found[0].results == 1
+
+
+def test_scratch_directories_holding_nothing_are_swept(tmp_path):
+    """One accumulates per run otherwise. "A scratch directory is not litter" protects
+    calculations, and one holding none is exactly litter."""
+    import os
+    import time
+
+    from pastrocore.base.scratch import ScratchSpace
+
+    root = tmp_path / "scratch"
+    empty = ScratchSpace(root=root, session="1-empty")
+    empty.store
+    kept = ScratchSpace(root=root, session="2-kept")
+    kept.store.write("obs", "a", pl.DataFrame({"x": [1.0]}), {})
+
+    old = time.time() - 7200
+    os.utime(empty.path, (old, old))
+
+    ScratchSpace.abandoned(root=root)
+
+    assert not empty.path.exists(), "an empty, untouched directory should have been swept"
+    assert kept.path.exists(), "one holding results must survive"
+
+
+def test_a_session_running_right_now_is_not_swept(tmp_path):
+    """Protected by how recently it was touched, which costs nothing to check -- asking the
+    operating system per directory is the expense this whole path exists to avoid."""
+    from pastrocore.base.scratch import ScratchSpace
+
+    root = tmp_path / "scratch"
+    fresh = ScratchSpace(root=root, session="3-live")
+    fresh.store                                  # created just now, still empty
+
+    ScratchSpace.abandoned(root=root)
+
+    assert fresh.path.exists(), "a directory touched moments ago belongs to a live session"

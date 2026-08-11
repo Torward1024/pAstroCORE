@@ -52,11 +52,33 @@ def data_home() -> Path:
     return Path(base) / "pAstroCORE"
 
 
-def _process_is_alive(pid: int) -> bool:
+def live_pids() -> Optional[set]:
+    """Return the process ids currently running, or None if the question cannot be answered.
+
+    Returns:
+        Optional[set]: Every running pid, asked once.
+
+    Notes:
+        - One call rather than one per directory. `psutil.pid_exists` costs about four
+          milliseconds on Windows, so asking it for each scratch directory made startup take
+          **1 246 ms** against a hundred and ninety-nine of them -- and every one of those was
+          empty, so the answer was not even used.
+    """
+    try:
+        import psutil
+
+        return set(psutil.pids())
+    except Exception:
+        logger.debug("Cannot list running processes; no session will be treated as abandoned")
+        return None
+
+
+def _process_is_alive(pid: int, running: Optional[set] = None) -> bool:
     """Report whether a process is still running, erring towards "yes".
 
     Args:
         pid (int): The process that owned a scratch directory.
+        running (Optional[set]): The result of `live_pids`, when a caller has already asked.
 
     Returns:
         bool: True if it is running, or if the question cannot be answered.
@@ -67,13 +89,11 @@ def _process_is_alive(pid: int) -> bool:
           written to. Answering "yes" wrongly means one stale directory survives until the user
           is asked about it, which costs disk and nothing else.
     """
-    try:
-        import psutil
-
-        return psutil.pid_exists(pid)
-    except Exception:
-        logger.debug("Cannot tell whether process %s is alive; assuming it is", pid)
+    if running is None:
+        running = live_pids()
+    if running is None:
         return True
+    return pid in running
 
 
 def _is_a_scratch_directory(candidate: Path, root: Path) -> bool:
@@ -222,6 +242,42 @@ class ScratchSpace:
         self._path = None
 
     @classmethod
+    def _sweep_empty(cls, directories: List[Path], root: Path) -> None:
+        """Remove scratch directories that hold no results.
+
+        Args:
+            directories (List[Path]): Candidates, all of them empty of results.
+            root (Path): The scratch root they must lie under.
+
+        Notes:
+            - Safe in a way the rest of this module is careful not to be: there is nothing to
+              lose. The rule "a scratch directory is not litter" protects *calculations*, and
+              one that holds none is exactly litter. Left alone they accumulate one per run --
+              a hundred and ninety-nine of them was what made startup slow.
+            - Recently touched directories are left alone, which protects a session running
+              right now without asking the operating system about it -- the cost this exists to
+              avoid. An hour is generous: a session that has written nothing for an hour has
+              nothing anyone wants.
+        """
+        cutoff = time.time() - 3600
+        removed = 0
+        for candidate in directories:
+            if not _is_a_scratch_directory(candidate, root):
+                continue
+            try:
+                if candidate.stat().st_mtime > cutoff:
+                    continue
+            except OSError:
+                continue
+            try:
+                shutil.rmtree(candidate, ignore_errors=True)
+                removed += 1
+            except OSError:
+                continue
+        if removed:
+            logger.debug("Removed %s scratch director(ies) that held no results", removed)
+
+    @classmethod
     def abandoned(cls, root: Optional[Path] = None) -> List[AbandonedSession]:
         """Return scratch directories left by sessions that are no longer running.
 
@@ -240,21 +296,34 @@ class ScratchSpace:
         if not base.is_dir():
             return []
 
-        found = []
+        found, running, empty = [], None, []
         for candidate in base.iterdir():
             marker = candidate / MARKER
             if not candidate.is_dir() or not marker.is_file():
                 continue
+
+            # Counted before the process is asked about, because a session that wrote nothing
+            # has nothing to offer back whether it is alive or not -- and asking the operating
+            # system is the expensive part. Reversing these two is what made startup slow.
+            if not any(candidate.rglob("*.parquet")):
+                empty.append(candidate)
+                continue
+
             try:
                 data = json.loads(marker.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 logger.debug("Ignoring '%s': its session marker cannot be read", candidate)
                 continue
-            if _process_is_alive(data.get("pid", 0)):
+
+            if running is None:
+                running = live_pids()
+            if _process_is_alive(data.get("pid", 0), running):
                 continue
-            session = AbandonedSession(candidate, data)
-            if session.results:
-                found.append(session)
+            found.append(AbandonedSession(candidate, data))
+
+        if empty:
+            cls._sweep_empty(empty, base)
+
         return sorted(found, key=lambda item: item.started, reverse=True)
 
     def __repr__(self) -> str:
