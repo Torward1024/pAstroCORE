@@ -1,7 +1,7 @@
 # unit_scheduling/super/schedule_project.py
 from typing import Dict, Any, Optional, Union
 from pastrocore.base.observation import Observation
-from pastrocore.base.result_store import ResidencyBudget, ResultStore
+from pastrocore.base.result_store import ResidencyBudget, ResultStore, json_safe
 from pastrocore.base.scratch import ScratchSpace
 from msb_arch.super.project import Project
 from msb_arch.utils.validation import check_type, check_non_empty_string
@@ -273,7 +273,10 @@ class ScheduleProject(Project):
         for observation in self._items.get_items():
             model["items"][observation.name] = observation.to_dict(with_results=False)
 
-        (root / self.MODEL_FILE).write_text(json.dumps(model, indent=4), encoding="utf-8")
+        # allow_nan=False so an unrepresentable number fails here, loudly, rather than
+        # producing a file only a lenient parser can read.
+        (root / self.MODEL_FILE).write_text(
+            json.dumps(json_safe(model), indent=4, allow_nan=False), encoding="utf-8")
 
         # Results belonging to observations the project no longer has. Left in place they are
         # not merely clutter: renaming an observation away and back would find the old results

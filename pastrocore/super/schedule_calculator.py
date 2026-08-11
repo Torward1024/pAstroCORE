@@ -219,6 +219,29 @@ class ScheduleCalculator(Super):
             logger.warning("No data computed for '%s' with store_key '%s'", obj_name, store_key)
         return result_df
     
+    def _store_result(self, obj, store_key: str, df: "pl.DataFrame", metadata: Dict[str, Any]) -> None:
+        """Store a result together with metadata that describes *this* frame.
+
+        Args:
+            obj: The observation or project the result belongs to.
+            store_key (str): Where to file it.
+            df (pl.DataFrame): The frame just computed or read from cache.
+            metadata (Dict[str, Any]): What is known about how it was produced.
+
+        Notes:
+            - This replaces a guard that read "store it if recalculating, or if nothing is
+              stored yet", which could never correct anything: `_process_object` has already
+              stored the frame with the placeholder metadata by the time the guard is reached,
+              so the second condition is false exactly when the correction is needed. A real
+              project was found holding `times.parquet` with 288 rows over one scan beside
+              metadata saying `scan_count: 0` and `start_time: NaN`.
+            - Written only when the metadata actually differs, because a write now reaches the
+              disk and re-writing an unchanged result on every call would be a real cost.
+        """
+        if metadata == obj.get_calculated_metadata(store_key):
+            return
+        obj.set_calculated_data_by_key(store_key, df, metadata)
+
     @time_execution
     def _calculate_time_arrays(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
         """Calculate time arrays for active scans grouped by active sources with a configurable time threshold.
@@ -302,22 +325,24 @@ class ScheduleCalculator(Super):
                 logger.info("Calculated time arrays for %s scans across %s sources in '%s', DF rows: %s", processed_scans, df['source_name'].unique().len(), obs.get_observation_code(), df.height)
                 return df
 
+            # No placeholders for anything the frame itself will answer. They were NaN and 0
+            # here, and a frame stored beside them kept them -- so a result with 288 rows over
+            # one scan advertised itself as covering nothing.
             metadata = {
                 "time_step": time_step,
                 "time_threshold": time_threshold,
-                "start_time": np.nan,
-                "end_time": np.nan,
+                "start_time": None,
+                "end_time": None,
                 "scan_count": 0
             }
-            
+
             df = self._process_object(obj, attributes, calculate_times, store_key, metadata)
-            
+
             if not df.is_empty():
-                metadata["start_time"] = df["time"].min()
-                metadata["end_time"] = df["time"].max()
+                metadata["start_time"] = float(df["time"].min())
+                metadata["end_time"] = float(df["time"].max())
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
             
             return df
         except Exception as e:
@@ -454,8 +479,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -742,8 +766,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -1087,8 +1110,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -1313,8 +1335,7 @@ class ScheduleCalculator(Super):
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
                 metadata["baseline_count"] = df["baseline"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -1578,8 +1599,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -1823,8 +1843,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -2061,8 +2080,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
             return df
         except Exception as e:
             logger.error("Failed to compute pointing towards a space telescope for '%s': %s",
@@ -2302,8 +2320,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
             return df
         except Exception as e:
             logger.error("Failed to compute visibility of a space telescope for '%s': %s",
@@ -2401,8 +2418,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -2571,8 +2587,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["telescope_count"] = df["telescope_code"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -2673,8 +2688,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -2890,8 +2904,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
         except Exception as e:
@@ -3092,8 +3105,7 @@ class ScheduleCalculator(Super):
 
             if not df.is_empty():
                 metadata["scan_count"] = df["scan_name"].unique().len()
-                if attributes.get("recalculate", False) or not obj.get_calculated_data_by_key(store_key):
-                    obj.set_calculated_data_by_key(store_key, df, metadata)
+                self._store_result(obj, store_key, df, metadata)
 
             return df
 
