@@ -315,8 +315,9 @@ class ScheduleData(Super):
 
         Args:
             obj (Observation): The observation to read.
-            attributes: `key`, the result to look in, and `source_name`, the source to filter
-                by.
+            attributes: `key`, the result to look in, and optionally `source_name` to narrow
+                it to one source. Without a source the answer covers every scan the result
+                holds, which is what a plot showing all of them wants.
 
         Returns:
             List[Dict[str, Any]]: `[{"scan_name": str, "start": str}]`, sorted by time, with
@@ -334,8 +335,8 @@ class ScheduleData(Super):
         """
         key = attributes.get("key")
         source_name = attributes.get("source_name")
-        if not key or not source_name:
-            raise ValueError("Both 'key' and 'source_name' are needed to list scan times")
+        if not key:
+            raise ValueError("A 'key' is needed to list scan times")
 
         stored = obj.get_calculated_data_by_key(key) or {}
         frame = stored.get("data")
@@ -354,13 +355,13 @@ class ScheduleData(Super):
         # calls its beginning "start". The question is the same either way, so the column is
         # found rather than assumed.
         moment = next((column for column in ("time", "start") if column in frame.columns), None)
-        if "source_name" not in frame.columns or moment is None:
+        if (source_name and "source_name" not in frame.columns) or moment is None:
             logger.debug("Result '%s' is not keyed by source and a time", key)
             return []
 
-        filtered = frame.filter(pl.col("source_name") == source_name)
+        filtered = frame.filter(pl.col("source_name") == source_name) if source_name else frame
         if filtered.is_empty():
-            logger.debug("No '%s' data for source '%s'", key, source_name)
+            logger.debug("No '%s' data for source '%s'", key, source_name or "any")
             return []
 
         starts = (filtered.group_by("scan_name")

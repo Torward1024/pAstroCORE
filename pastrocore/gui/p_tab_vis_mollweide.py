@@ -4,17 +4,13 @@ from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_mollweide import Ui_MollweideVisTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from pastrocore.base.data_structure import CalculatedDataStructure
 from msb_arch.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from typing import List
 import matplotlib.pyplot as plt
-import polars as pl
 import gc
-from astropy.time import Time
-
 class MollweideVisualizationTab(QWidget):
     """Widget for Mollweide tracks visualization with source, scan, and telescope selection."""
 
@@ -53,32 +49,30 @@ class MollweideVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source and telescope filters from Mollweide tracks DataFrame and its metadata."""
         try:
-            calc_data = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="mollweide_tracks")
-            df = calc_data.get("data", {})
-            if not isinstance(df, pl.DataFrame):
-                logger.error("No valid Mollweide tracks data available for populating filters")
-                self.ui.listWidget.addItem(QListWidgetItem("No Mollweide tracks data available"))
-                return
-
-            expected_columns = CalculatedDataStructure.get_columns("mollweide_tracks")
-            if not expected_columns:
-                logger.error("No schema defined for Mollweide tracks data")
-                self.ui.listWidget.addItem(QListWidgetItem("No schema defined"))
-                return
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                logger.error("DataFrame for Mollweide tracks missing required columns: %s", missing_columns)
-                self.ui.listWidget.addItem(QListWidgetItem("Invalid Mollweide tracks data structure"))
-                return
-
-            sources_metadata = calc_data.get("metadata", {}). get("sources", {})
+            # This tab is the one that takes its sources from the result's *metadata* rather
+            # than from a column -- a track is drawn per telescope, and the sources are the
+            # coordinates it is drawn against. Metadata is read without touching the result,
+            # which is what makes asking cheap.
+            sources_metadata = self.manipulator.inspect(
+                obj=self.observation, get_calculated_metadata="mollweide_tracks") or {}
+            sources_metadata = sources_metadata.get("sources", {})
             if not sources_metadata:
                 logger.error("No valid 'sources' metadata in Mollweide tracks")
                 self.ui.listWidget.addItem(QListWidgetItem("No sources metadata available"))
                 return
 
+            response = self.manipulator.export(
+                obj=self.observation, method="distinct",
+                key="mollweide_tracks", columns=["telescope_code"])
+            values = (response["result"] if isinstance(response, dict) and "status" in response
+                      else response) or {}
+            telescopes = values.get("telescope_code", [])
+            if not telescopes:
+                logger.error("No valid Mollweide tracks data available for populating filters")
+                self.ui.listWidget.addItem(QListWidgetItem("No Mollweide tracks data available"))
+                return
+
             sources = list(sources_metadata.keys())
-            telescopes = df["telescope_code"].unique().to_list()
 
             for source in sorted(sources):
                 item = QListWidgetItem(source)
@@ -233,39 +227,21 @@ class MollweideVisualizationTab(QWidget):
 
         self.ui.listScans.clear()
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="mollweide_tracks").get("data", {})
-            if not isinstance(df, pl.DataFrame):
-                logger.error("No valid Mollweide tracks data available for updating scans")
-                self.ui.listScans.addItem(QListWidgetItem("No Mollweide tracks data available"))
-                return
-
-            expected_columns = CalculatedDataStructure.get_columns("mollweide_tracks")
-            if not expected_columns:
-                logger.error("No schema defined for Mollweide tracks data")
-                self.ui.listScans.addItem(QListWidgetItem("No schema defined for Mollweide tracks data"))
-                return
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                logger.error("DataFrame for Mollweide tracks missing required columns: %s", missing_columns)
-                self.ui.listScans.addItem(QListWidgetItem("Invalid Mollweide tracks data structure"))
-                return
-
-            scan_times = df.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
-            if scan_times.is_empty():
-                logger.debug("No scans found in Mollweide tracks DataFrame")
+            # No source filter here: this tab draws every scan the result holds, so the
+            # question is asked without one.
+            response = self.manipulator.export(
+                obj=self.observation, method="scan_times", key="mollweide_tracks")
+            scan_times = (response["result"] if isinstance(response, dict) and "status" in response
+                          else response) or []
+            if not scan_times:
+                logger.debug("No scans found in Mollweide tracks")
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scans = scan_times["scan_name"].to_list()
-            for row in scan_times.iter_rows(named=True):
-                scan_name = row["scan_name"]
-                start_time_mjd = row["time"]  # MJD as float64
-                try:
-                    start_time = Time(start_time_mjd, format="mjd").isot  # Convert MJD to ISOT
-                    display_text = f"{start_time} (ISOT)"
-                except Exception as e:
-                    logger.error("Failed to convert MJD %s to ISOT: %s", start_time_mjd, str(e))
-                    display_text = f"{start_time_mjd:.6f} (MJD)"
+            scans = [entry["scan_name"] for entry in scan_times]
+            for entry in scan_times:
+                scan_name = entry["scan_name"]
+                display_text = f"{entry['start']} (ISOT)"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)

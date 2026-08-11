@@ -4,7 +4,6 @@ from PySide6.QtCore import Slot, Qt
 from .ui_tab_vis_beam_pattern import Ui_VisBeamPatternTab
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
-from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.base.frequencies import IF  # Импортируем IF для обработки объектов
 from msb_arch.utils.logging_setup import logger
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -12,7 +11,6 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from typing import List, Optional
 import matplotlib.pyplot as plt
-import polars as pl
 import gc
 
 class BeamPatternVisualizationTab(QWidget):
@@ -65,27 +63,23 @@ class BeamPatternVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate telescope and frequency filters from beam pattern DataFrame and observation."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="beam_pattern").get("data", {})
-            if not isinstance(df, pl.DataFrame):
+            # One request instead of reading the frame, checking it against the schema and
+            # calling unique(). This tab has no sources or scans to choose -- only telescopes
+            # and frequencies -- so it asks for the one column it needs.
+            response = self.manipulator.export(
+                obj=self.observation, method="distinct",
+                key="beam_pattern", columns=["telescope_code"])
+            values = (response["result"] if isinstance(response, dict) and "status" in response
+                      else response) or {}
+            telescopes = values.get("telescope_code", [])
+            if not telescopes:
                 logger.error("No valid beam pattern data available for populating filters")
                 self.ui.listTelescopes.addItem(QListWidgetItem("No beam pattern data available"))
                 return
 
-            expected_columns = CalculatedDataStructure.get_columns("beam_pattern")
-            if not expected_columns:
-                logger.error("No schema defined for beam pattern data")
-                self.ui.listTelescopes.addItem(QListWidgetItem("No schema defined"))
-                return
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                logger.error("DataFrame for beam pattern missing required columns: %s", missing_columns)
-                self.ui.listTelescopes.addItem(QListWidgetItem("Invalid beam pattern data structure"))
-                return
-
-            telescopes = df["telescope_code"].unique().to_list()
             frequencies = self._get_frequencies()
 
-            for telescope in sorted(telescopes):
+            for telescope in telescopes:
                 item = QListWidgetItem(telescope)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
                 item.setCheckState(Qt.Checked)
