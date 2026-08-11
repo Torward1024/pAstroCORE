@@ -39,7 +39,7 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 
 | | Item | Exit criterion | Size |
 | --- | --- | --- | --- |
-| 1 | **D9** -- metadata disagrees with its data | Metadata records only what the frame cannot say; anything derivable is derived. No file the application writes contains `NaN`, asserted with a strict parser rather than the lenient one that wrote it | Hours |
+| ~~1~~ | ~~**D9**~~ | **Done.** The frame is the authority: `scan_count`, `start_time` and `end_time` are computed where the frame and its metadata are both in hand, so a caller cannot supply a wrong value -- whatever it passes is replaced, on the way into memory and on the way to disk alike. Kept beside the parquet rather than removed, because reading them without reading the result is worth more than having them nowhere. Nothing written contains `NaN`: unrepresentable numbers become `null` and the write uses `allow_nan=False`, checked with a strict parser rather than the lenient one that wrote it | -- |
 | 2 | **A5** -- one catalogue of calculations and plots | Adding a calculation or a plot means editing the dialogs, because the same knowledge is duplicated **nine times across three of them** in four shapes: key to label, label to key, label to tab class, and plain lists of labels. The calculations dialog also holds a **dependency graph between calculations** -- "Synthesized Beam" needs "UV Coverage" -- which is knowledge about the model sitting in a widget. There are 14 schema entries, 14 `_calculate_*` handlers and 8 `_plot_*` handlers, and none of them is what the dialogs read | Label and prerequisites live in the result's schema, beside its columns and dtypes; the dialogs ask the manipulator what exists. Adding a calculation touches the calculator and the schema, and nothing in the interface. A test fails if a dialog hardcodes a key or a label | Days |
 | 3 | **R4** -- packaging | `pyproject.toml`, an entry point, the version in one place. `pip install .` gives a working command | Hours |
 | 4 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
@@ -49,11 +49,6 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 
 **1.0 is reached when**: all of the above hold, the suite is green on CI, a project saved by 1.0
 opens in 1.0.
-
-Two known facts that shape D9, both measured on a real project: `times.parquet` held 288 rows
-over one scan beside metadata claiming `scan_count: 0`, because three metadata fields restate
-what the frame already says and the two drifted. And `json.dumps` writes bare `NaN`, which is
-not valid JSON -- such a file is readable by us and by nothing else.
 
 ## After 1.0
 

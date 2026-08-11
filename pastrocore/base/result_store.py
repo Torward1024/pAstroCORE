@@ -222,8 +222,12 @@ class ResultStore:
         data_path.parent.mkdir(parents=True, exist_ok=True)
         frame.write_parquet(data_path)
 
+        # Whatever the caller says about the frame, the frame is the authority.
+        recorded = dict(metadata or {})
+        recorded.update(derived_metadata(frame))
+
         keepable = {}
-        for name, value in (metadata or {}).items():
+        for name, value in recorded.items():
             try:
                 keepable[name] = json_safe(value)
                 json.dumps(keepable[name], allow_nan=False)
@@ -241,6 +245,41 @@ class ResultStore:
             return
         for path in self._paths(owner, key):
             path.unlink(missing_ok=True)
+
+
+def derived_metadata(frame: "pl.DataFrame") -> Dict[str, Any]:
+    """Return the metadata fields that are a restatement of the frame itself.
+
+    Args:
+        frame (pl.DataFrame): The result being stored.
+
+    Returns:
+        Dict[str, Any]: `scan_count`, and `start_time`/`end_time` when the frame records a
+            time. Absent keys for a frame that has no such column, rather than nulls.
+
+    Notes:
+        - These three used to be supplied by the caller, which made one fact have two sources
+          -- and they drifted. A real project held a result of 288 rows over one scan beside
+          metadata claiming `scan_count: 0`, because the caller built the metadata from the
+          object's state *before* the calculation and stored it beside a frame computed after.
+        - Computed here because this is the one moment the frame and its metadata are both in
+          hand, so a caller cannot supply a wrong value: whatever it passes is replaced.
+        - Not removed from metadata altogether, which was the other option. They live beside
+          the parquet so a caller can read them without reading the result, and that is worth
+          more than the tidiness of having them nowhere.
+    """
+    derived: Dict[str, Any] = {}
+    if frame is None or frame.height == 0:
+        return derived
+
+    if "scan_name" in frame.columns:
+        derived["scan_count"] = frame["scan_name"].n_unique()
+
+    moment = next((column for column in ("time", "start") if column in frame.columns), None)
+    if moment is not None:
+        derived["start_time"] = float(frame[moment].min())
+        derived["end_time"] = float(frame["end" if "end" in frame.columns else moment].max())
+    return derived
 
 
 class ResidencyBudget:
@@ -495,6 +534,13 @@ class CalculatedData:
               which is exactly the old behaviour, so a full disk costs the protection rather
               than the calculation.
         """
+        # Corrected here as well as in the store, so a project with nowhere to write yet is
+        # described as truthfully as one that has been saved.
+        frame = value.get("data") if isinstance(value, dict) else None
+        if frame is not None:
+            value = dict(value)
+            value["metadata"] = {**(value.get("metadata") or {}), **derived_metadata(frame)}
+
         self._resident[key] = value
         self._unwritten.add(key)
 
