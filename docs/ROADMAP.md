@@ -337,6 +337,8 @@ reasoning rather than letting it sit open for another year.
 | **5. Interface** | Last, because the model underneath it has stopped moving by then |
 | **6. Space telescope as a target** | A new capability rather than a repair, so it waits until the repairs are done -- but it is cheap and wanted, and could be pulled forward once stage 3 is finished |
 | **7. Release and tidy** | The repository is the last thing to shape, because what it documents has stopped moving |
+| **8. VEX** | Changes what the tool is rather than how well it does what it does, and it wants the model settled first |
+| **9. The logic into `Super` classes** | Before 1.0, because it decides what every feature after 1.0 costs. A front end added afterwards is a wrapper if this holds and a rewrite if it does not |
 
 ### What to do next, in order
 
@@ -350,12 +352,45 @@ what a user loses by waiting rather than by what is interesting to build.
 | ~~3~~ | ~~**D6 + D7**~~ | **Done.** | |
 | 4 | **F1-F5** -- the space telescope as a target | The first item that adds something the lab does not have, rather than repairing something it does. Wanted, and cheap because both inputs are already computed | Days |
 | 5 | **G1, G1a, G4** -- one stylesheet, editable, and the recent list | Appearance and convenience. Real, but nobody loses work to them | Days |
-| 6 | **L0 and L0a** -- export into a `Super`, and save/load as operations | 252 of the 312 lines in the export dialog are logic rather than interface. Every later item that is not the GUI -- R6, the CLI, the server -- needs them reachable, so this gates all three; L0a is small beside it and is what stops save being a special case in each | Days |
+| 6 | **A1-A4** -- the logic into `Super` classes | Stage 9. The pre-release condition: every operation reachable through the manipulator, so a second front end costs a wrapper rather than a reimplementation | Weeks |
 | 7 | **V1-V4** -- VEX | The largest thing on the list and the one that changes what the tool is. It wants the model settled, which stages 4 and 6 finish, and it wants L0 because an exporter belongs beside the other exporter rather than in a dialog | Weeks |
 
 D8 and G0 are done, which opens the rest of the interface work. D6 before F1
 because losing a day of calculation is worse than not yet having a calculation. F1 before the
 interface work because it is the only thing on the list a user asked for by name.
+
+## Stage 9 -- the logic into `Super` classes, before 1.0
+
+The condition for calling this finished, and the one that decides what every later feature
+costs. **A feature is a `Super` plus a thin wrapper wherever it is invoked from** -- a dialog,
+a CLI verb, an HTTP route. Written once, reached the same way by all three. Get this wrong and
+the CLI is a second application and the server is a third.
+
+Named as the existing ones are: `Schedule<Thing>` in `super/schedule_<thing>.py`, beside
+`ScheduleCalculator`, `ScheduleVisualizer`, `ScheduleInspector`, `ScheduleConfigurator`.
+
+| # | Item | Evidence | Exit criterion |
+| --- | --- | --- | --- |
+| A1 | **`ScheduleData`** (`schedule_data.py`) -- import, export, save, load | The export the interface offers -- results as tab-separated text, plots as PNG -- lives inside a `QDialog` and a `QThread`. `p_dialog_export_calculated_data.py` is 312 lines of which only 60 touch Qt: **252 lines a CLI would have to reimplement and a server could not reach**. Save and load are already on `ScheduleProject` and already work without Qt, so the model keeps the code -- what is missing is the operation in front of it, because a method among operations is the odd one out: a CLI needs a special case, the journal records every calculation of a session but not the save that ended it, and a server needs an endpoint outside the request model | Every data operation is a request; the dialog keeps the file chooser and the progress bar; the model keeps its serialization and the `Super` is a facade over it, not a second implementation |
+| A2 | **`ScheduleVEX`** (`schedule_vex.py`) -- stage 8 lives here | Its own class rather than a format inside `ScheduleData`. The two share nothing but the word export: one writes what a user wants to look at, the other a contract with software at a correlator. Kept apart so the general exporter never grows VEX's vocabulary and VEX never inherits the general exporter's tolerance for "close enough" | V1-V6 are implemented in it, and nothing about VEX appears in `ScheduleData` |
+| A3 | **The rest of the interface, tab by tab** | Counting lines in the hand-written GUI files that match no Qt name gives **5 861 of 7 772, about 75%** -- an *upper bound* on the gap rather than the amount of extractable logic, since much of it is glue that only means anything beside a widget. The one file read closely rather than counted was 252 of 312. Largest: `p_dialog_generate_observations.py` 361, `p_tab_telescopes.py` 344, `p_tab_scans.py` 318 | Each moves when something outside the GUI needs what it holds. Not one item, and not a sweep |
+| A4 | **A ratchet, so it does not drift back** | The rule is only a rule while something checks it. What can be checked mechanically is narrow but real: no `pastrocore.gui` module may import `polars`, `astropy` or `numpy` | The check runs in the suite, with the modules that legitimately need them listed and shrinking |
+
+A3 is deliberately not a sweep. Moving a tab that nothing outside the GUI wants yet buys
+nothing and risks a working screen; A1 is first precisely because R6, the CLI and the server
+all need the export. What makes this a stage rather than a preference is A4: a rule nothing
+checks is a preference, which is what G0 turned out to be until a test enforced it.
+
+### What it unlocks, which is the reason it is pre-release
+
+Once configuring, calculating, saving and exporting are all requests, a session is a **list of
+requests** -- configure, calculate, save -- and that list is already a script. MSB's
+`RequestJournal` records it today. What it cannot record is the last step of any real pipeline,
+the one that keeps the result, because that step is a method call rather than a request. **A
+journal that replays every calculation and then saves nothing is a rehearsal.**
+
+It is also the seam where MSB's P1 meets this repository: P1 has been waiting for one real
+dependent pipeline to design against, and configure-calculate-export is it.
 
 ## Stage 8 -- VEX, and being usable by the rest of the pipeline
 
@@ -430,9 +465,6 @@ because a direction recorded without its prerequisites is how a plan grows witho
 | # | Item | What it needs first |
 | --- | --- | --- |
 | L1 | **A command-line version**, and scripts that drive the model without the interface | Little. A request is already data and the orchestrator already accepts one, so a CLI is a thin layer over `process_request` rather than a second application. What it does need is stage 7's packaging, so there is a command to install |
-| L0 | **A `ScheduleExporter(Super)` for data, pictures and text** | The export the interface already offers -- results as tab-separated text, plots as PNG -- lives inside a `QDialog` and a `QThread`. `p_dialog_export_calculated_data.py` is 312 lines of which only 60 touch Qt: **252 lines of export logic a CLI would have to reimplement and a server could not reach at all** | The exporter owns the formats, the dialog keeps only the file chooser and the progress bar, and the same export runs from a script with no Qt imported |
-| L0a | **Save, load, import and export a project as operations too** | Recorded first as *not worth doing*, on the grounds that `ScheduleProject.open` and `save` already work without Qt so moving them removes nothing from the interface. That measured the wrong thing. The question is not how much code leaves the GUI but **what surface a caller programs against**, and by that measure a method among operations is the odd one out: a CLI mapping commands to requests needs a special case for save, the request journal records every calculation of a session but not the save that ended it -- so a replayed script in L2 would not save -- and a server in L3 needs an endpoint outside the request model for it. The *logic* still belongs on `ScheduleProject`, which is the model serializing itself; what is missing is the operation in front of it | Save, load, import and export are requests like any other, the journal records them, and the model keeps the code -- the `Super` is a facade, not a second implementation |
-| L0b | **What L0 and L0a actually unlock: the session becomes a pipeline** | Not a separate piece of work so much as the reason the two above are worth doing. Once configuring, calculating, saving and exporting are all requests, a session is a *list of requests* -- configure, calculate, save -- and that list is already a script. MSB's `RequestJournal` records it today, which is why L2 is described as a small step: the recording exists, and what is missing is that the last step of any real pipeline, the one that keeps the result, is not a request and so is not in the recording. A journal that replays every calculation and then does not save is not a pipeline, it is a rehearsal. This is also the seam where MSB's P1 meets this repository: P1 wants one real dependent pipeline to design against, and configure-calculate-export is it | A journal replayed end to end reproduces a session including its output files, with no step performed outside the request model |
 | L2 | **Script support inside the application**: a saved sequence of requests, replayed | L1, and MSB's `RequestJournal`, which already records a session and replays it. L0a is the precondition nobody notices until the replay produces no file. The step from "record what I did" to "save it as a script" is small once M7 is in |
 | L3 | **Client-server**: configure in a browser, calculate on a server, get pictures back | L1 first, and stage 4 storage before that -- a server cannot hold every project in memory the way a desktop application can. The visualization layer already writes to a `Figure` rather than to a screen, so rendering server-side is not the hard part. The hard parts are storage, identity, and deciding what a long calculation looks like to a caller who is not sitting in front of it |
 
