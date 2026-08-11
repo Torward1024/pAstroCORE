@@ -2,6 +2,7 @@
 from typing import Dict, Any, Optional, Union
 from pastrocore.base.observation import Observation
 from pastrocore.base.result_store import ResidencyBudget, ResultStore
+from pastrocore.base.scratch import ScratchSpace
 from msb_arch.super.project import Project
 from msb_arch.utils.validation import check_type, check_non_empty_string
 from msb_arch.utils.logging_setup import logger
@@ -258,9 +259,13 @@ class ScheduleProject(Project):
         written = 0
         for observation in self._items.get_items():
             results = observation.calculated_data
-            if hasattr(results, "attach"):
-                results.attach(store, observation.name, budget=self.residency_budget)
-                written += results.flush()
+            if not hasattr(results, "attach"):
+                continue
+            # Results calculated before the project had a directory are already on disk, in
+            # this session's scratch. Saving moves them rather than asking for them again.
+            written += results.migrate_to(store)
+            results.attach(store, observation.name, budget=self.residency_budget)
+            written += results.flush()
 
         model = {"name": self.name, "items": {}}
         if self.SCHEMA_VERSION != 1:
@@ -344,6 +349,44 @@ class ScheduleProject(Project):
         self.residency_budget.share = share
         logger.info("Results may occupy %.0f%% of available memory (%.1f GB just now)",
                     share * 100, self.residency_budget.limit / 1024 ** 3)
+
+    @property
+    def scratch(self) -> ScratchSpace:
+        """Where this project's results are kept until it is saved.
+
+        Returns:
+            ScratchSpace: One per session, created on first use, so two windows never write
+                into the same place.
+
+        Notes:
+            - A project that has been saved still calculates into its own directory rather than
+              here; the scratch is what a project uses before it has one.
+        """
+        if getattr(self, "_scratch", None) is None:
+            self._scratch = ScratchSpace()
+            self._scratch.note_project(self.name)
+        return self._scratch
+
+    def attach_results_store(self, store: ResultStore) -> None:
+        """Point every observation's results at a store.
+
+        Args:
+            store (ResultStore): Where results are written and read.
+        """
+        for observation in self._items.get_items():
+            results = observation.calculated_data
+            if hasattr(results, "attach"):
+                results.attach(store, observation.name, budget=self.residency_budget)
+
+    def hold_results_in_scratch(self) -> None:
+        """Give results somewhere to live before the project has a directory of its own.
+
+        Notes:
+            - Called once the project is in place rather than in the constructor, because
+              creating the scratch directory is what tells a later session that a session
+              existed. A project that is opened and closed without calculating leaves nothing.
+        """
+        self.attach_results_store(self.scratch.store)
 
     @staticmethod
     def is_directory_project(path: str) -> bool:

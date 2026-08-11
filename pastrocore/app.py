@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt, Signal, Slot, QPoint, QObject
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 # Core files
 from pastrocore.super.schedule_project import ScheduleProject
+from pastrocore.base.scratch import ScratchSpace
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
@@ -82,6 +83,9 @@ class PAstroCoreMainWindow(QMainWindow):
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
         self._apply_residency_budget()
+        # Calculations reach the disk from the moment they are made, so a session that never
+        # gets saved is still recoverable.
+        self.project.hold_results_in_scratch()
         self.catalog_manager = self.initialize_catalog_manager()
     
         logger.debug("pAstroCORE initialized with project id: %s, manipulator id=%s, catalog_manager id=%s", id(self.project), id(self.manipulator), id(self.catalog_manager))
@@ -90,6 +94,38 @@ class PAstroCoreMainWindow(QMainWindow):
         self._action_connections = {}
         self.setup_ui()
         self.setup_connections()
+
+    def _offer_abandoned_sessions(self, root=None):
+        """Offer back results left by a session that did not close normally.
+
+        Args:
+            root: Where to look for them. Defaults to the per-user data directory; a test
+                passes its own so it never reads or deletes anything of the user's.
+
+        Notes:
+            - Offered, never swept. A scratch directory from a previous run is not litter: it
+              is whatever was calculated before the crash, which is the only reason the
+              directory exists. Deleting it at startup would be the failure it prevents.
+            - Sessions belonging to a window that is still running are not listed, which is
+              why each session gets a directory of its own.
+        """
+        try:
+            abandoned = ScratchSpace.abandoned(root)
+        except Exception as e:
+            logger.error("Could not look for interrupted sessions: %s", str(e))
+            return
+
+        for session in abandoned:
+            answer = QMessageBox.question(
+                self, "Recover an interrupted session",
+                f"A previous session did not close normally and left "
+                f"{session.describe()}.\n\nKeep these results so they can be recovered?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes)
+            if answer == QMessageBox.StandardButton.Yes:
+                logger.info("Keeping recovered results at '%s'", session.path)
+            else:
+                session.discard()
 
     def _apply_residency_budget(self):
         """Tell the current project how much memory its results may occupy.
@@ -1159,10 +1195,23 @@ class PAstroCoreMainWindow(QMainWindow):
         self.project = ScheduleProject(name="Untitled Project")
         self.manipulator = ScheduleManipulator(self.project)
         self._apply_residency_budget()
+        self.project.hold_results_in_scratch()
         logger.debug("Initialized new project with id: %s, manipulator id=%s", id(self.project), id(self.manipulator))
     
     def closeEvent(self, event):
+        """Close the window, taking this session's scratch directory with it.
+
+        Notes:
+            - Only on this path. A session removed here is one that ended normally, which is
+              exactly the case where nothing needs recovering. Anything else leaves its
+              directory behind on purpose.
+        """
         self.clear_connections()
+        try:
+            if self.project is not None:
+                self.project.scratch.discard()
+        except Exception as e:
+            logger.error("Could not remove this session's scratch directory: %s", str(e))
         super().closeEvent(event)
 
 def _warm_coordinate_tables() -> None:
@@ -1350,6 +1399,10 @@ def main() -> None:
     """)
     window = PAstroCoreMainWindow()
     window.show()
+    # After the window is up, never from the constructor. A modal dialog raised before there
+    # is a window to own it blocks with nothing on screen to dismiss it -- which is how the
+    # build hung for ten minutes once already, and why a test forbids it.
+    QtCore.QTimer.singleShot(0, window._offer_abandoned_sessions)
     sys.exit(app.exec())
 
 

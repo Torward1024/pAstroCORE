@@ -1,6 +1,6 @@
 pAstroCORE -- a versatile tool for scheduling radio-astronomical observations
 
-Version 0.6.0. Past the MVP, and the parts written under time pressure are being put in order
+Version 0.7.0. Past the MVP, and the parts written under time pressure are being put in order
 one measured stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -60,6 +60,12 @@ of available memory the results in hand may occupy; past it, the least recently 
 dropped and read back from the directory when needed again. The default is half of what is
 available. Dropping a result costs a read, never a recalculation.
 
+**A calculation is written to disk as soon as it is made**, not when you press save. Before a
+project has been saved anywhere, results go to a scratch directory belonging to that session --
+so a crash, a power cut or a full memory costs you nothing, and two open windows never disturb
+each other. Saving moves them into the project. Closing normally clears the scratch; a session
+that ended any other way is offered back the next time the application starts.
+
 **Open and Save ask for a folder**, not a file, because that is what a project is. Use the
 dialog's New Folder button to make one.
 
@@ -90,7 +96,7 @@ pip install -r requirements.txt pytest
 python -m pytest tests/
 ```
 
-220 tests. The characterization suites recompute every calculation in
+238 tests. The characterization suites recompute every calculation in
 `tests/fixtures/test_project.pastro` and redraw every plot, comparing against what the project
 was saved with, so a change to any formula or any filter fails the build. Qt runs offscreen,
 so the GUI smoke tests need no display.

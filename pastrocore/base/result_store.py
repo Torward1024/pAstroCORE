@@ -428,8 +428,33 @@ class CalculatedData:
             return default
 
     def __setitem__(self, key: str, value: Dict[str, Any]) -> None:
+        """Hold a result, writing it through to the store at once if there is one.
+
+        Notes:
+            - Written now rather than at save time. A result that exists only in memory is lost
+              to a crash and is invisible to the residency budget, which cannot evict what it
+              cannot read back. Writing on arrival fixes both at once: the result is safe, and
+              the moment it is on disk the ceiling governs it like any other.
+            - A store that fails to write is not fatal. The result stays held and unwritten,
+              which is exactly the old behaviour, so a full disk costs the protection rather
+              than the calculation.
+        """
         self._resident[key] = value
         self._unwritten.add(key)
+
+        if self._store is None:
+            return
+        try:
+            self._store.write(self._owner, key, value["data"], value.get("metadata") or {})
+        except Exception as e:
+            logger.warning("Could not write '%s' for '%s' yet, keeping it in memory: %s",
+                           key, self._owner, str(e))
+            return
+
+        self._unwritten.discard(key)
+        if self._budget:
+            frame = value.get("data")
+            self._budget.note(self, key, frame.estimated_size() if frame is not None else 0)
 
     def items(self):
         """Every result, loading each as it is reached.
@@ -498,6 +523,39 @@ class CalculatedData:
     def copy(self) -> Dict[str, Dict]:
         """Every result as a plain dictionary. Loads all of them; use sparingly."""
         return {key: self[key] for key in self.keys()}
+
+    def migrate_to(self, store: ResultStore) -> int:
+        """Copy results already on disk into another store.
+
+        Args:
+            store (ResultStore): Where they should live from now on -- a project's own
+                `results/` directory, when a project that was calculating into scratch is
+                saved for the first time.
+
+        Returns:
+            int: How many results were copied.
+
+        Notes:
+            - Copied rather than moved, and the scratch is cleared afterwards by whoever owns
+              it. A save that fails halfway must leave the results where they were, and the
+              scratch is the only copy until the new one is complete.
+            - A result already present in the destination is left alone. The destination is a
+              project the user is saving over, and what has just been calculated is written
+              through `attach` and `flush` afterwards.
+        """
+        if self._store is None or store.root == self._store.root:
+            return 0
+
+        copied = 0
+        for key in self._store.keys(self._owner):
+            if store.has(self._owner, key):
+                continue
+            entry = self._store.read(self._owner, key)
+            store.write(self._owner, key, entry["data"], entry.get("metadata") or {})
+            copied += 1
+        if copied:
+            logger.info("Moved %s result(s) for '%s' out of scratch", copied, self._owner)
+        return copied
 
     def flush(self, store: Optional[ResultStore] = None) -> int:
         """Write everything held but not yet stored.

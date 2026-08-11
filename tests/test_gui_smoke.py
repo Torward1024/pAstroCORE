@@ -225,3 +225,86 @@ def test_saving_into_an_empty_folder_asks_nothing(tmp_path, monkeypatch, window)
     window.save_project_as()
 
     assert (fresh / "project.json").is_file()
+
+
+def test_the_window_keeps_its_results_where_a_crash_cannot_reach_them(window, tmp_path, monkeypatch):
+    """A calculation must be on disk before anyone presses save."""
+    from pastrocore.base.scratch import ScratchSpace
+    import polars as pl
+
+    space = ScratchSpace(root=tmp_path / "scratch", session="test-session")
+    window.project.attach_results_store(space.store)
+
+    observation = window.project.get_observation(next(iter(window.project.get_items())))
+    observation.set_calculated_data_by_key("fresh", pl.DataFrame({"x": [1.0]}), {})
+
+    assert list((space.path / "results").rglob("*.parquet")), "not waiting for a save"
+
+
+def test_a_clean_close_takes_the_scratch_with_it(window, tmp_path):
+    """Only on this path: a session that ended normally has nothing worth recovering."""
+    from pastrocore.base.scratch import ScratchSpace
+    import polars as pl
+
+    space = ScratchSpace(root=tmp_path / "scratch", session="closing")
+    window.project._scratch = space
+    space.store.write("obs", "a", pl.DataFrame({"x": [1.0]}), {})
+    assert space.path.exists()
+
+    window.close()
+
+    assert not (tmp_path / "scratch" / "closing").exists()
+
+
+def test_the_recovery_offer_is_not_raised_from_the_constructor():
+    """A modal dialog with no window to own it blocks forever. That hung the build for ten
+    minutes once, and this is the second thing that could have done it."""
+    import inspect
+
+    from pastrocore.app import PAstroCoreMainWindow
+
+    source = inspect.getsource(PAstroCoreMainWindow.__init__)
+    assert "_offer_abandoned_sessions" not in source, (
+        "the recovery offer must be raised after the window is shown, not while building it")
+
+
+def test_declining_a_recovered_session_removes_it(window, tmp_path, monkeypatch):
+    """The user is asked. The one thing that must never happen is deleting without asking."""
+    from PySide6.QtWidgets import QMessageBox
+    from pastrocore.base import scratch as scratch_module
+    from pastrocore.base.scratch import ScratchSpace
+    import polars as pl
+
+    root = tmp_path / "scratch"
+    ScratchSpace(root=root, session="1-dead").store.write(
+        "obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
+
+    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
+    asked = []
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: asked.append(a) or QMessageBox.StandardButton.No))
+    window._offer_abandoned_sessions(root=root)
+
+    assert asked, "the user must be asked before anything is removed"
+    assert not (root / "1-dead").exists()
+
+
+def test_keeping_a_recovered_session_leaves_it_alone(window, tmp_path, monkeypatch):
+    """The default answer, and the one that matters: the results are still there afterwards."""
+    from PySide6.QtWidgets import QMessageBox
+    from pastrocore.base import scratch as scratch_module
+    from pastrocore.base.scratch import ScratchSpace
+    import polars as pl
+
+    root = tmp_path / "scratch"
+    ScratchSpace(root=root, session="2-dead").store.write(
+        "obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
+
+    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
+    asked = []
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: asked.append(a) or QMessageBox.StandardButton.Yes))
+    window._offer_abandoned_sessions(root=root)
+
+    assert asked, "an assertion that nothing was deleted is worthless if nothing was offered"
+    assert (root / "2-dead" / "results" / "obs" / "uv_coverage.parquet").is_file()

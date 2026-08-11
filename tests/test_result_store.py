@@ -94,13 +94,38 @@ def test_a_stored_result_exists_without_being_read(store, frame):
     assert "uv_coverage" in results._resident, "asking for it does load it"
 
 
-def test_flush_writes_what_is_held(store, frame):
+def test_a_result_reaches_the_disk_the_moment_it_is_calculated(store, frame):
+    """It used to wait for the next save, which is how a day of calculation was lost."""
     results = CalculatedData("obs1", store)
     results["uv_coverage"] = {"data": frame, "metadata": {}}
 
-    assert results.flush() == 1
+    assert store.has("obs1", "uv_coverage"), "written on arrival, not at save time"
+    assert results.flush() == 0, "so there is nothing left for flush to do"
+
+
+def test_flush_still_writes_what_could_not_be_written_earlier(store, frame):
+    """Write-through is best effort: a store that fails leaves the result held, and flush is
+    the second chance. Without this the fallback path would never be exercised."""
+    results = CalculatedData("obs1", store=None)
+    results["uv_coverage"] = {"data": frame, "metadata": {}}
+    assert "uv_coverage" in results._unwritten
+
+    assert results.flush(store) == 1
     assert store.has("obs1", "uv_coverage")
-    assert results.flush() == 0, "nothing left unwritten"
+    assert results.flush() == 0
+
+
+def test_a_failing_write_costs_the_protection_and_not_the_result(store, frame, monkeypatch):
+    """A full disk must not lose the calculation that has just been done."""
+    def refuse(*args, **kwargs):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(type(store), "write", refuse)
+    results = CalculatedData("obs1", store)
+    results["uv_coverage"] = {"data": frame, "metadata": {}}
+
+    assert results["uv_coverage"]["data"].equals(frame), "the result is still in hand"
+    assert "uv_coverage" in results._unwritten, "and will be written at the next opportunity"
 
 
 def test_released_results_come_back_from_disk(store, frame):
@@ -413,7 +438,12 @@ def test_an_unwritten_result_is_never_evicted(tmp_path):
 
     budget = ResidencyBudget(limit_bytes=1)
     results = CalculatedData("obs", store=store, budget=budget)
-    results["fresh"] = {"data": pl.DataFrame({"x": [1, 2, 3]}), "metadata": {}}
+
+    # Genuinely unwritten: the store refused it, so there is nowhere to read it back from.
+    # With write-through this is the only way a result is unwritten, and it is exactly the
+    # case where evicting it would destroy it.
+    results._resident["fresh"] = {"data": pl.DataFrame({"x": [1, 2, 3]}), "metadata": {}}
+    results._unwritten.add("fresh")
 
     results["stored"]
 
@@ -538,3 +568,154 @@ def test_without_a_budget_nothing_is_evicted(tmp_path):
         results["uv_coverage"]
 
     assert sum(len(results._resident) for results in holders) == 20
+
+
+# --- the scratch directory ------------------------------------------------------------------
+
+@pytest.fixture
+def scratch_root(tmp_path):
+    """A scratch root of our own, so tests never write to the user's data directory."""
+    return tmp_path / "scratch"
+
+
+def test_a_result_survives_the_session_that_calculated_it(project, scratch_root):
+    """The scenario this exists for: calculate for a day, never save, lose the process."""
+    from pastrocore.base.scratch import ScratchSpace
+
+    space = ScratchSpace(root=scratch_root, session="1234-aaaa")
+    project.attach_results_store(space.store)
+
+    observation = project.get_observation(next(iter(project.get_items())))
+    observation.set_calculated_data_by_key("fresh", pl.DataFrame({"x": [1.0, 2.0]}), {"note": "kept"})
+
+    owner = observation.name
+    del project, observation                      # the session goes away without saving
+
+    # A later session reads the scratch directory with nothing but the path.
+    survivor = ResultStore(scratch_root / "1234-aaaa" / "results")
+    assert "fresh" in survivor.keys(owner)
+    assert survivor.read(owner, "fresh")["data"]["x"].to_list() == [1.0, 2.0]
+    assert survivor.read(owner, "fresh")["metadata"]["note"] == "kept"
+
+
+def test_what_is_calculated_is_on_disk_before_anything_is_saved(project, scratch_root):
+    from pastrocore.base.scratch import ScratchSpace
+
+    space = ScratchSpace(root=scratch_root, session="1234-bbbb")
+    project.attach_results_store(space.store)
+    observation = project.get_observation(next(iter(project.get_items())))
+    observation.set_calculated_data_by_key("fresh", pl.DataFrame({"x": [1.0, 2.0]}), {})
+
+    written = list((space.path / "results").rglob("*.parquet"))
+    assert written, "the result must reach the disk without waiting for a save"
+
+
+def test_saving_brings_the_scratch_results_into_the_project(project, scratch_root, tmp_path):
+    """Saving moves results rather than asking for them to be calculated again."""
+    from pastrocore.base.scratch import ScratchSpace
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    space = ScratchSpace(root=scratch_root, session="1234-cccc")
+    project.attach_results_store(space.store)
+    observation = project.get_observation(next(iter(project.get_items())))
+    observation.set_calculated_data_by_key("fresh", pl.DataFrame({"x": [7.0, 8.0]}), {"note": "carried"})
+
+    root = tmp_path / "saved.pastro"
+    project.save(str(root))
+
+    reopened = ScheduleProject.open(str(root))
+    carried = reopened.get_observation(observation.name).calculated_data
+    assert "fresh" in carried
+    assert carried["fresh"]["data"]["x"].to_list() == [7.0, 8.0]
+    assert carried["fresh"]["metadata"]["note"] == "carried"
+
+
+def test_two_sessions_do_not_share_a_scratch(scratch_root):
+    """A window must not adopt or evict another window's results -- and the same rule is what
+    lets a server run sessions for several people."""
+    from pastrocore.base.scratch import ScratchSpace
+
+    first, second = ScratchSpace(root=scratch_root), ScratchSpace(root=scratch_root)
+    assert first.session != second.session
+
+    first.store.write("obs", "a", pl.DataFrame({"x": [1.0]}), {})
+    second.store.write("obs", "b", pl.DataFrame({"x": [2.0]}), {})
+
+    assert first.store.keys("obs") == ["a"]
+    assert second.store.keys("obs") == ["b"]
+
+
+def test_a_clean_exit_removes_only_its_own(scratch_root):
+    from pastrocore.base.scratch import ScratchSpace
+
+    mine, theirs = ScratchSpace(root=scratch_root), ScratchSpace(root=scratch_root)
+    mine.store.write("obs", "a", pl.DataFrame({"x": [1.0]}), {})
+    theirs.store.write("obs", "b", pl.DataFrame({"x": [2.0]}), {})
+    other_path = theirs.path
+
+    mine.discard()
+
+    assert not (scratch_root / mine.session).exists()
+    assert other_path.exists(), "another session's results are not ours to delete"
+
+
+def test_an_interrupted_session_is_offered_back(scratch_root, monkeypatch):
+    """A scratch directory left by a previous run is not litter. It is the day of calculation
+    this whole mechanism exists to protect."""
+    from pastrocore.base import scratch as scratch_module
+    from pastrocore.base.scratch import ScratchSpace
+
+    dead = ScratchSpace(root=scratch_root, session="99999-dead")
+    dead.note_project("Survey A")
+    dead.store.write("obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
+
+    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
+    found = ScratchSpace.abandoned(root=scratch_root)
+
+    assert len(found) == 1
+    assert found[0].results == 1
+    assert "Survey A" in found[0].describe()
+
+
+def test_a_running_session_is_not_offered_back(scratch_root, monkeypatch):
+    """Offering another window's live directory would invite the user to recover results that
+    are still being written."""
+    from pastrocore.base import scratch as scratch_module
+    from pastrocore.base.scratch import ScratchSpace
+
+    alive = ScratchSpace(root=scratch_root, session="12345-live")
+    alive.store.write("obs", "uv_coverage", pl.DataFrame({"x": [1.0]}), {})
+
+    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: True)
+    assert ScratchSpace.abandoned(root=scratch_root) == []
+
+
+def test_an_unanswerable_process_is_treated_as_alive(scratch_root, monkeypatch):
+    """The bias is deliberate: wrongly claiming a session is dead offers up a directory that
+    is being written to, while wrongly claiming it is alive costs one stale directory."""
+    from pastrocore.base import scratch as scratch_module
+
+    monkeypatch.setattr(scratch_module, "psutil", None, raising=False)
+    monkeypatch.setitem(__import__("sys").modules, "psutil", None)
+    assert scratch_module._process_is_alive(999999) is True
+
+
+def test_a_session_that_calculated_nothing_leaves_nothing(scratch_root):
+    """Starting the application and closing it must not litter."""
+    from pastrocore.base.scratch import ScratchSpace
+
+    space = ScratchSpace(root=scratch_root)
+    assert space.path is None
+    assert not scratch_root.exists()
+
+
+def test_an_empty_abandoned_session_is_not_offered(scratch_root, monkeypatch):
+    """There is nothing to recover, so asking would be noise."""
+    from pastrocore.base import scratch as scratch_module
+    from pastrocore.base.scratch import ScratchSpace
+
+    empty = ScratchSpace(root=scratch_root, session="4242-empty")
+    empty.store                                    # creates the directory, writes nothing
+
+    monkeypatch.setattr(scratch_module, "_process_is_alive", lambda pid: False)
+    assert ScratchSpace.abandoned(root=scratch_root) == []
