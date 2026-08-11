@@ -959,3 +959,27 @@ def test_a_session_running_right_now_is_not_swept(tmp_path):
     ScratchSpace.abandoned(root=root)
 
     assert fresh.path.exists(), "a directory touched moments ago belongs to a live session"
+
+
+def test_numpy_in_metadata_survives_being_written(tmp_path):
+    """Mollweide tracks lost the source coordinates they are drawn against, and the plot then
+    reported "no sources metadata" with nothing to show.
+
+    A calculation records coordinates as a numpy array because that is what it was working
+    with. `json.dumps` refuses it, so the metadata write dropped the key behind a warning
+    nobody reads. Numpy reaches metadata by the front door, so the write has to accept it.
+    """
+    import numpy as np
+
+    store = ResultStore(tmp_path / "results")
+    store.write("obs", "mollweide_tracks", pl.DataFrame({"x": [1.0]}),
+                {"sources": {"1228+126": np.array([-172.29, 12.39])},
+                 "count": np.int64(3), "scale": np.float64(1.5)})
+
+    metadata = store.metadata("obs", "mollweide_tracks")
+    assert metadata["sources"]["1228+126"] == [-172.29, 12.39]
+    assert metadata["count"] == 3
+    assert metadata["scale"] == 1.5
+
+    text = (tmp_path / "results" / "obs" / "mollweide_tracks.meta.json").read_text(encoding="utf-8")
+    assert strict(text), "and it must still be valid JSON"

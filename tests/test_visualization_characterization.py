@@ -284,3 +284,23 @@ if __name__ == "__main__":
         regenerate()
     else:
         print(__doc__)
+
+
+def test_a_zero_length_block_does_not_take_the_plot_with_it(manipulator, observation):
+    """Reported from a real project: `KeyError: 'ALMA'` and no time-on-source plot at all.
+
+    A source visible for less than one time step produces a block whose start equals its end.
+    The sweep sorted its events as plain tuples, and "end" sorts before "start", so the
+    telescope was removed from the active set before it was ever added.
+    """
+    import polars as pl
+
+    stored = observation.get_calculated_data_by_key("time_on_source")
+    frame = stored["data"]
+    zero_length = frame.with_columns(pl.col("start").alias("end"),
+                                     pl.lit(0.0).alias("duration"))
+    observation.set_calculated_data_by_key("time_on_source", zero_length,
+                                           stored.get("metadata") or {})
+
+    figure = render(manipulator, observation, "time_on_source")
+    assert figure is not None, "a zero-length block must not destroy the plot"

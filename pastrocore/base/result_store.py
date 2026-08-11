@@ -63,6 +63,15 @@ def json_safe(value: Any) -> Any:
         return {key: json_safe(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [json_safe(item) for item in value]
+
+    # Numpy reaches metadata by the front door -- a calculation records coordinates as an
+    # array because that is what it was working with -- and `json.dumps` refuses it. The
+    # metadata write then dropped the key with a warning nobody reads, which is how Mollweide
+    # tracks lost the source coordinates they are drawn against.
+    if hasattr(value, "tolist") and not isinstance(value, (str, bytes)):
+        return json_safe(value.tolist())
+    if hasattr(value, "item") and type(value).__module__ == "numpy":
+        return json_safe(value.item())
     return value
 
 
