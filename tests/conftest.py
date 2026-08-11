@@ -72,3 +72,12 @@ def saved_results(observation):
         dict: Calculation key mapped to `{"data": DataFrame, "metadata": dict}`.
     """
     return {key: dict(value) for key, value in observation.calculated_data.items()}
+
+
+@pytest.fixture(scope="session")
+def qt_application():
+    """One QApplication for the session; Qt permits no more."""
+    from PySide6.QtWidgets import QApplication
+
+    application = QApplication.instance() or QApplication([])
+    yield application

@@ -296,3 +296,30 @@ def test_scan_times_needs_to_be_told_what_to_look_at(project):
         data._export_scan_times(observation, {"key": "uv_coverage"})
     with pytest.raises(ValueError):
         data._export_scan_times(observation, {"source_name": "1228+126"})
+
+
+def test_distinct_lists_what_fills_a_combo_box(project):
+    """The other question every visualization tab asked for itself: which sources are in this
+    result, which baselines. Each copy read the frame, checked the schema and called unique()."""
+    manipulator = ScheduleManipulator(project)
+    observation = project.get_observation(next(iter(project.get_items())))
+
+    response = manipulator.export(obj=observation, method="distinct", key="uv_coverage",
+                                  columns=["source_name", "baseline"], raise_on_error=False)
+    result = response["result"] if isinstance(response, dict) and "status" in response else response
+
+    assert result["source_name"] == ["1228+126"]
+    assert result["baseline"] == ["ALMA-APEX"]
+
+
+def test_a_column_that_is_not_there_comes_back_empty(project):
+    """Empty rather than missing, so a caller filling a list needs no second check."""
+    manipulator = ScheduleManipulator(project)
+    observation = project.get_observation(next(iter(project.get_items())))
+
+    response = manipulator.export(obj=observation, method="distinct", key="uv_coverage",
+                                  columns=["source_name", "telescope_code"], raise_on_error=False)
+    result = response["result"] if isinstance(response, dict) and "status" in response else response
+
+    assert result["source_name"], "the column that exists still answers"
+    assert result["telescope_code"] == []

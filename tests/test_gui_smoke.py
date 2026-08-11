@@ -26,15 +26,6 @@ def gui_modules():
     return sorted(name for _, name, _ in pkgutil.iter_modules([str(GUI)]))
 
 
-@pytest.fixture(scope="session")
-def qt_application():
-    """One QApplication for the session; Qt permits no more."""
-    from PySide6.QtWidgets import QApplication
-
-    application = QApplication.instance() or QApplication([])
-    yield application
-
-
 @pytest.mark.parametrize("module", gui_modules())
 def test_a_gui_module_imports(qt_application, module):
     """A module that cannot be imported is a window that cannot be opened."""
