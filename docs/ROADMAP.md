@@ -385,6 +385,35 @@ normal way to discover, months later at a correlator, that it was not.
 Space telescopes are deliberately out of scope for V2. VEX describes them, but a spacecraft's
 orbit and its downlink are a second conversation, and stage 6 has to exist first.
 
+## The rule the long-term items depend on
+
+**The interface holds interface code and calls to the manipulator. Everything else is a
+`Super`.**
+
+Stated once here rather than repeated in each item below, because L1, L2 and L3 are all cheap
+or expensive depending only on whether it holds. A CLI is a thin layer over `process_request`
+*if* the operations exist to request; otherwise it is a second application. A server is the
+same layer over a socket, on the same condition.
+
+How far the codebase is from it, measured rather than guessed -- and the number needs its
+caveat stated first. Counting lines in the hand-written GUI files that match no Qt name gives
+**5 861 of 7 772, about 75%**. That is an *upper bound on the gap*, not the amount of
+extractable logic: plenty of those lines are glue that only makes sense beside a widget --
+building a dict to hand to a table, formatting a number for a label, the `else:` of a branch
+about a checkbox. The one file read closely rather than counted, `p_dialog_export_calculated_
+data.py`, was 252 lines of genuine logic out of 312, so the bound is not empty either.
+
+| | |
+| --- | --- |
+| Hand-written GUI, lines not touching Qt | 5 861 of 7 772 (~75%), an upper bound |
+| Verified by reading, in the export dialog | 252 of 312 |
+| Largest offenders | `p_dialog_generate_observations.py` 361, `p_tab_telescopes.py` 344, `p_tab_scans.py` 318 |
+
+The work is not one item and should not become one: each tab and dialog moves when something
+else needs what it holds, which is how L0 came to be first -- R6, the CLI and the server all
+need the export. Moving a tab that nothing outside the GUI wants yet buys nothing and risks a
+working screen.
+
 ## Beyond the stages
 
 Wanted, not scheduled, and deliberately not started. Each says what it would need first,
@@ -395,7 +424,8 @@ because a direction recorded without its prerequisites is how a plan grows witho
 | L1 | **A command-line version**, and scripts that drive the model without the interface | Little. A request is already data and the orchestrator already accepts one, so a CLI is a thin layer over `process_request` rather than a second application. What it does need is stage 7's packaging, so there is a command to install |
 | L0 | **A `ScheduleExporter(Super)` for data, pictures and text** | The export the interface already offers -- results as tab-separated text, plots as PNG -- lives inside a `QDialog` and a `QThread`. `p_dialog_export_calculated_data.py` is 312 lines of which only 60 touch Qt: **252 lines of export logic a CLI would have to reimplement and a server could not reach at all** | The exporter owns the formats, the dialog keeps only the file chooser and the progress bar, and the same export runs from a script with no Qt imported |
 | L0a | **Save, load, import and export a project as operations too** | Recorded first as *not worth doing*, on the grounds that `ScheduleProject.open` and `save` already work without Qt so moving them removes nothing from the interface. That measured the wrong thing. The question is not how much code leaves the GUI but **what surface a caller programs against**, and by that measure a method among operations is the odd one out: a CLI mapping commands to requests needs a special case for save, the request journal records every calculation of a session but not the save that ended it -- so a replayed script in L2 would not save -- and a server in L3 needs an endpoint outside the request model for it. The *logic* still belongs on `ScheduleProject`, which is the model serializing itself; what is missing is the operation in front of it | Save, load, import and export are requests like any other, the journal records them, and the model keeps the code -- the `Super` is a facade, not a second implementation |
-| L2 | **Script support inside the application**: a saved sequence of requests, replayed | L1, and MSB's `RequestJournal`, which already records a session and replays it. The step from "record what I did" to "save it as a script" is small once M7 is in |
+| L0b | **What L0 and L0a actually unlock: the session becomes a pipeline** | Not a separate piece of work so much as the reason the two above are worth doing. Once configuring, calculating, saving and exporting are all requests, a session is a *list of requests* -- configure, calculate, save -- and that list is already a script. MSB's `RequestJournal` records it today, which is why L2 is described as a small step: the recording exists, and what is missing is that the last step of any real pipeline, the one that keeps the result, is not a request and so is not in the recording. A journal that replays every calculation and then does not save is not a pipeline, it is a rehearsal. This is also the seam where MSB's P1 meets this repository: P1 wants one real dependent pipeline to design against, and configure-calculate-export is it | A journal replayed end to end reproduces a session including its output files, with no step performed outside the request model |
+| L2 | **Script support inside the application**: a saved sequence of requests, replayed | L1, and MSB's `RequestJournal`, which already records a session and replays it. L0a is the precondition nobody notices until the replay produces no file. The step from "record what I did" to "save it as a script" is small once M7 is in |
 | L3 | **Client-server**: configure in a browser, calculate on a server, get pictures back | L1 first, and stage 4 storage before that -- a server cannot hold every project in memory the way a desktop application can. The visualization layer already writes to a `Figure` rather than to a screen, so rendering server-side is not the hard part. The hard parts are storage, identity, and deciding what a long calculation looks like to a caller who is not sitting in front of it |
 
 The order matters more than the ambition. **L1 is nearly free and makes the other two
