@@ -256,3 +256,43 @@ def test_a_session_can_be_expressed_entirely_as_requests(project, tmp_path):
 
     assert (root / "project.json").is_file()
     assert (tmp_path / "out" / "OBS_DEFAULT_UV_Coverage.txt").is_file()
+
+
+def test_scan_times_answers_what_ten_tabs_used_to_ask_for_themselves(project):
+    """The same filter, group-by and time conversion existed in every visualization tab, each
+    copy needing polars and astropy to do it. A command-line version would have written an
+    eleventh."""
+    manipulator = ScheduleManipulator(project)
+    observation = project.get_observation(next(iter(project.get_items())))
+
+    response = manipulator.export(obj=observation, method="scan_times", key="uv_coverage",
+                                  source_name="1228+126", raise_on_error=False)
+    result = response["result"] if isinstance(response, dict) and "status" in response else response
+
+    assert result, "the fixture observes one source over one scan"
+    assert set(result[0]) == {"scan_name", "start"}
+    assert result[0]["start"].startswith("20"), "the start is readable, not an MJD float"
+
+
+def test_an_unobserved_source_is_an_answer_rather_than_an_error(project):
+    """A source may simply not be observed, and a tab filling a list needs that back as an
+    empty list rather than as an exception."""
+    manipulator = ScheduleManipulator(project)
+    observation = project.get_observation(next(iter(project.get_items())))
+
+    response = manipulator.export(obj=observation, method="scan_times", key="uv_coverage",
+                                  source_name="not_observed", raise_on_error=False)
+    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    assert result == []
+
+
+def test_scan_times_needs_to_be_told_what_to_look_at(project):
+    from pastrocore.super.schedule_data import ScheduleData
+
+    observation = project.get_observation(next(iter(project.get_items())))
+    data = ScheduleData(ScheduleManipulator(project))
+
+    with pytest.raises(ValueError):
+        data._export_scan_times(observation, {"key": "uv_coverage"})
+    with pytest.raises(ValueError):
+        data._export_scan_times(observation, {"source_name": "1228+126"})
