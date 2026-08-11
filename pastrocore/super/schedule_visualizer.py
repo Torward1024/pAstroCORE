@@ -1086,7 +1086,12 @@ class ScheduleVisualizer(Super):
                     for start, end, _ in all_blocks[tel]:
                         time_points.append((start, "start", tel))
                         time_points.append((end, "end", tel))
-                time_points.sort()  # Sort by time, then by type (start before end)
+                # Sorted so that at the same instant a start is processed before an end.
+                # A plain sort orders the tuples, and "end" < "start" alphabetically -- so a
+                # block of zero length, which is what a source visible for less than one time
+                # step produces, was removed from the active set before it was ever added.
+                # That raised KeyError and took the whole plot with it.
+                time_points.sort(key=lambda point: (point[0], point[1] != "start", point[2]))
 
                 # Find intervals where all telescopes are active
                 intersection_times = []
@@ -1101,7 +1106,10 @@ class ScheduleVisualizer(Super):
                         if len(active_telescopes) == len(tel_list) and start_time is not None:
                             intersection_times.append((start_time, time))
                             start_time = None
-                        active_telescopes.remove(tel)
+                        # discard rather than remove: the set is a view of what is currently
+                        # open, and an end without a matching start says the data is odd, not
+                        # that the plot should fail.
+                        active_telescopes.discard(tel)
                     logger.debug("Time: %s, Type: %s, Telescope: %s, Active: %s", time, point_type, tel, active_telescopes)
 
                 # Plot intersection times
