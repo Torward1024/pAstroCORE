@@ -983,3 +983,50 @@ def test_numpy_in_metadata_survives_being_written(tmp_path):
 
     text = (tmp_path / "results" / "obs" / "mollweide_tracks.meta.json").read_text(encoding="utf-8")
     assert strict(text), "and it must still be valid JSON"
+
+
+def test_the_frame_is_the_authority_on_what_describes_it(tmp_path):
+    """One fact had two sources and they drifted: a real project held 288 rows over one scan
+    beside metadata claiming `scan_count: 0`, because the caller built the metadata from the
+    object's state before the calculation and stored it beside a frame computed after.
+
+    Whatever a caller says about the frame is now replaced by what the frame says.
+    """
+    store = ResultStore(tmp_path / "results")
+    frame = pl.DataFrame({"time": [1.0, 2.0, 3.0], "scan_name": ["a", "a", "b"]})
+
+    store.write("obs", "times", frame,
+                {"scan_count": 0, "start_time": float("nan"), "end_time": float("nan"),
+                 "time_step": 300.0})
+
+    metadata = store.metadata("obs", "times")
+    assert metadata["scan_count"] == 2
+    assert metadata["start_time"] == 1.0
+    assert metadata["end_time"] == 3.0
+    assert metadata["time_step"] == 300.0, "what only the caller knows is kept"
+
+
+def test_it_is_corrected_before_anything_is_saved(project):
+    """A project with nowhere to write yet must describe itself as truthfully as a saved one."""
+    observation = project.get_observation(next(iter(project.get_items())))
+    frame = pl.DataFrame({"time": [10.0, 20.0], "scan_name": ["s1", "s1"],
+                          "source_name": ["x", "x"]})
+
+    observation.calculated_data["times"] = {"data": frame,
+                                            "metadata": {"scan_count": 99, "time_step": 300.0}}
+
+    metadata = observation.calculated_data["times"]["metadata"]
+    assert metadata["scan_count"] == 1
+    assert metadata["start_time"] == 10.0
+
+
+def test_a_frame_with_no_time_records_no_span(tmp_path):
+    """Absent rather than null: a result that records no moment has no span, and saying
+    `start_time: null` would invite a reader to treat it as one that failed."""
+    store = ResultStore(tmp_path / "results")
+    store.write("obs", "beam_pattern", pl.DataFrame({"telescope_code": ["ALMA"], "theta": [0.1]}),
+                {"time_step": 300.0})
+
+    metadata = store.metadata("obs", "beam_pattern")
+    assert "start_time" not in metadata
+    assert "end_time" not in metadata
