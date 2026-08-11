@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_edtior_sourceKgFpYX.ui'
+## Form generated from reading UI file 'dialog_edtior_source.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDial
     QHBoxLayout, QHeaderView, QLabel, QLineEdit,
     QPushButton, QSizePolicy, QSpacerItem, QTableView,
     QVBoxLayout, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_SourceEditorDialog(object):
     def setupUi(self, SourceEditorDialog):
         if not SourceEditorDialog.objectName():
@@ -1042,3 +1042,4 @@ class Ui_SourceEditorDialog(object):
         self.saveButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("SourceEditorDialog", u"Cancel", None))
     # retranslateUi
+

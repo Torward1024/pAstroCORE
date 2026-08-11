@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_catalogwgUwkC.ui'
+## Form generated from reading UI file 'dialog_catalog.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -18,7 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QDialog, QGridLayout,
     QHeaderView, QLabel, QLineEdit, QPushButton,
     QSizePolicy, QSpacerItem, QTableView, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_CatalogDialog(object):
     def setupUi(self, CatalogDialog):
         if not CatalogDialog.objectName():
@@ -173,3 +173,4 @@ class Ui_CatalogDialog(object):
         self.closeButton.setText(QCoreApplication.translate("CatalogDialog", u"Close", None))
         self.lbl_search.setText(QCoreApplication.translate("CatalogDialog", u"Search:", None))
     # retranslateUi
+

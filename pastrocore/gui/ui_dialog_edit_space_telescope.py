@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_space_telescopeeLOodA.ui'
+## Form generated from reading UI file 'dialog_editor_space_telescope.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
     QFrame, QGridLayout, QHBoxLayout, QHeaderView,
     QLabel, QLineEdit, QPushButton, QSizePolicy,
     QSpacerItem, QTabWidget, QTableView, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_SpaceTelescopeEditorDialog(object):
     def setupUi(self, SpaceTelescopeEditorDialog):
         if not SpaceTelescopeEditorDialog.objectName():
@@ -2367,3 +2367,4 @@ class Ui_SpaceTelescopeEditorDialog(object):
         self.clearSefdButton.setText(QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Clear", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), QCoreApplication.translate("SpaceTelescopeEditorDialog", u"Sensitivity", None))
     # retranslateUi
+

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_observation_anyGWohZu.ui'
+## Form generated from reading UI file 'tab_observation_any.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -148,3 +148,4 @@ class Ui_observation_tab(object):
         observation_tab.setWindowTitle(QCoreApplication.translate("observation_tab", u"Form", None))
         self.lbl_search.setText(QCoreApplication.translate("observation_tab", u"Search:", None))
     # retranslateUi
+

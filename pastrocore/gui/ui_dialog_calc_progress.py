@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_calc_progressFRUefZ.ui'
+## Form generated from reading UI file 'dialog_calc_progress.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -18,7 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QDialog, QGridLayout, QHBoxLayout,
     QLabel, QProgressBar, QPushButton, QSizePolicy,
     QSpacerItem, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_ProgressDialog(object):
     def setupUi(self, ProgressDialog):
         if not ProgressDialog.objectName():
@@ -117,3 +117,4 @@ class Ui_ProgressDialog(object):
         self.label.setText(QCoreApplication.translate("ProgressDialog", u"lblProgress", None))
         self.pushButtonCancel.setText(QCoreApplication.translate("ProgressDialog", u"Cancel", None))
     # retranslateUi
+

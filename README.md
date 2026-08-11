@@ -65,6 +65,24 @@ dialog's New Folder button to make one.
 
 Export is unchanged and unaffected: it writes text and pictures, not projects.
 
+## Working on the interface
+
+**Interface changes are made in the `.ui` files with Qt Designer, then regenerated.**
+
+```bash
+python tools/regenerate_ui.py
+```
+
+The forms live in `pastrocore/gui_pyside/`; the modules they generate live in
+`pastrocore/gui/ui_*.py` and are not edited by hand. A form edited only in its generated `.py`
+cannot be opened in Designer again without losing the edit -- the rule protects the tool, not
+the file. Hand-written code that *uses* a form goes in `pastrocore/gui/p_*.py`, which is yours.
+
+The test suite runs `tools/regenerate_ui.py --check` and fails if the two have drifted, so this
+cannot be forgotten quietly. Do not run `pyside6-uic` directly: it emits `import icons_rc`, a
+bare module name that only resolves if `pastrocore/gui` is on `sys.path`, and the icons then
+fail at the first use. The script rewrites it.
+
 ## Tests
 
 ```bash
@@ -72,7 +90,7 @@ pip install -r requirements.txt pytest
 python -m pytest tests/
 ```
 
-217 tests. The characterization suites recompute every calculation in
+220 tests. The characterization suites recompute every calculation in
 `tests/fixtures/test_project.pastro` and redraw every plot, comparing against what the project
 was saved with, so a change to any formula or any filter fails the build. Qt runs offscreen,
 so the GUI smoke tests need no display.

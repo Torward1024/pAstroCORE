@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_scanrXYwfQ.ui'
+## Form generated from reading UI file 'dialog_editor_scan.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateTimeEdit
     QDialog, QFrame, QGridLayout, QHBoxLayout,
     QHeaderView, QLabel, QLineEdit, QPushButton,
     QSizePolicy, QSpacerItem, QTableView, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_ScanEditorDialog(object):
     def setupUi(self, ScanEditorDialog):
         if not ScanEditorDialog.objectName():
@@ -833,3 +833,4 @@ class Ui_ScanEditorDialog(object):
         self.labelStartTime.setText(QCoreApplication.translate("ScanEditorDialog", u"Start Time:", None))
         self.labelEndTime.setText(QCoreApplication.translate("ScanEditorDialog", u"End Time:", None))
     # retranslateUi
+

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_preferencescbaMqz.ui'
+## Form generated from reading UI file 'dialog_preferences.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -17,9 +17,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog,
     QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QSizePolicy, QTabWidget,
-    QWidget)
-
+    QLineEdit, QPushButton, QSizePolicy, QSpinBox,
+    QTabWidget, QWidget)
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_PreferencesDialog(object):
     def setupUi(self, PreferencesDialog):
         if not PreferencesDialog.objectName():
@@ -439,6 +439,24 @@ class Ui_PreferencesDialog(object):
 
         self.gridLayout_4.addLayout(self.horizontalLayout, 0, 0, 1, 1)
 
+        self.horizontalLayoutResultsMemory = QHBoxLayout()
+        self.horizontalLayoutResultsMemory.setObjectName(u"horizontalLayoutResultsMemory")
+        self.labelResultsMemory = QLabel(self.tab_2)
+        self.labelResultsMemory.setObjectName(u"labelResultsMemory")
+
+        self.horizontalLayoutResultsMemory.addWidget(self.labelResultsMemory)
+
+        self.resultsMemorySpin = QSpinBox(self.tab_2)
+        self.resultsMemorySpin.setObjectName(u"resultsMemorySpin")
+        self.resultsMemorySpin.setMinimum(5)
+        self.resultsMemorySpin.setMaximum(100)
+        self.resultsMemorySpin.setValue(50)
+
+        self.horizontalLayoutResultsMemory.addWidget(self.resultsMemorySpin)
+
+
+        self.gridLayout_4.addLayout(self.horizontalLayoutResultsMemory, 1, 0, 1, 1)
+
         self.tabWidget.addTab(self.tab_2, "")
 
         self.gridLayout.addWidget(self.tabWidget, 3, 0, 1, 5)
@@ -506,7 +524,13 @@ class Ui_PreferencesDialog(object):
         self.chkClearLog.setText(QCoreApplication.translate("PreferencesDialog", u"Clear log-file on start", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("PreferencesDialog", u"Common", None))
         self.labelTimestep.setText(QCoreApplication.translate("PreferencesDialog", u"Time step (s):", None))
+        self.labelResultsMemory.setText(QCoreApplication.translate("PreferencesDialog", u"Results in memory, share of available:", None))
+#if QT_CONFIG(tooltip)
+        self.resultsMemorySpin.setToolTip(QCoreApplication.translate("PreferencesDialog", u"Share of available memory the calculated results may occupy before the least recently used are dropped. They are read back from the project directory when needed again, so this costs a read rather than a recalculation.", None))
+#endif // QT_CONFIG(tooltip)
+        self.resultsMemorySpin.setSuffix(QCoreApplication.translate("PreferencesDialog", u" %", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("PreferencesDialog", u"Calculations", None))
         self.cancelButton.setText(QCoreApplication.translate("PreferencesDialog", u"Cancel", None))
         self.okButton.setText(QCoreApplication.translate("PreferencesDialog", u"OK", None))
     # retranslateUi
+

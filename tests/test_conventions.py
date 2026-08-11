@@ -6,6 +6,7 @@ again.
 """
 import ast
 import pathlib
+import re
 
 import pytest
 
@@ -148,3 +149,53 @@ def test_a_telescope_diameter_is_constrained():
 
     with pytest.raises(errors.ConstraintError):
         Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0, diameter=-10.0)
+
+
+# --- the forms and their generated modules --------------------------------------------------
+
+def test_every_generated_form_matches_its_ui_source():
+    """An interface change made in the generated `.py` alone is lost the next time anyone
+    opens the form in Designer. This fails the build instead of waiting for that.
+
+    It found a real one when it was written: `ui_dialog_edit_if.py` carried styling for two
+    spin boxes that `dialog_editor_if.ui` did not, and the `.ui` carried styling for the dialog
+    that the `.py` did not. Both had been edited, neither knew about the other.
+    """
+    import subprocess
+    import sys
+
+    tool = pathlib.Path(__file__).resolve().parent.parent / "tools" / "regenerate_ui.py"
+    result = subprocess.run([sys.executable, str(tool), "--check"],
+                            capture_output=True, text=True, encoding="utf-8")
+
+    if result.returncode != 0 and "cannot find pyside6-uic" in (result.stdout + result.stderr):
+        pytest.skip("pyside6-uic is not available here")
+
+    assert result.returncode == 0, (
+        "a generated form no longer matches its .ui source:\n\n"
+        f"{result.stdout}\n{result.stderr}\n"
+        "Make the change in the .ui with Designer, then run: python tools/regenerate_ui.py")
+
+
+def test_the_generated_forms_import_the_resource_by_package():
+    """`uic` emits a bare `import icons_rc`, which resolves only if `pastrocore/gui` is on
+    `sys.path` -- it is not. Regenerating looks like it worked and fails on the first icon."""
+    generated = pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui"
+    offenders = [module.name for module in generated.glob("ui_*.py")
+                 if re.search(r"^import icons_rc\s*$", module.read_text(encoding="utf-8"),
+                              re.MULTILINE)]
+    assert not offenders, (
+        f"{offenders} import the resource by a bare name. "
+        f"Regenerate with tools/regenerate_ui.py, which rewrites it.")
+
+
+def test_the_preferences_control_lives_in_the_form():
+    """The memory-share control was built by hand in 0.5.0 because editing generated code
+    would have lost it. The form carries it now, which is what the rule is for."""
+    root = pathlib.Path(__file__).resolve().parent.parent
+    form = (root / "pastrocore" / "gui_pyside" / "dialog_preferences.ui").read_text(encoding="utf-8")
+    dialog = (root / "pastrocore" / "gui" / "p_dialog_preferences.py").read_text(encoding="utf-8")
+
+    assert 'name="resultsMemorySpin"' in form, "the control belongs in the .ui"
+    assert "QSpinBox(" not in dialog, "the dialog must not build widgets the form already has"
+    assert "self.ui.resultsMemorySpin" in dialog, "and it must reach it through the form"

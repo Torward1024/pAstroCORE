@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_calculationsEWhPRH.ui'
+## Form generated from reading UI file 'dialog_calculations.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDial
     QDoubleSpinBox, QFrame, QGridLayout, QHBoxLayout,
     QLabel, QListWidget, QListWidgetItem, QPushButton,
     QSizePolicy, QSpacerItem, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_CalculationDialog(object):
     def setupUi(self, CalculationDialog):
         if not CalculationDialog.objectName():
@@ -458,3 +458,4 @@ class Ui_CalculationDialog(object):
         self.labelTimestep.setText(QCoreApplication.translate("CalculationDialog", u"Time step (s):", None))
         self.recalculateCheck.setText(QCoreApplication.translate("CalculationDialog", u"Recalculate", None))
     # retranslateUi
+
