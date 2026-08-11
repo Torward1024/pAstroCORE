@@ -226,6 +226,14 @@ class VisualizationDialog(QDialog):
                 "mollweide_tracks": MollweideVisualizationTab,
                 "parallactic_angle": ParallacticAngleVisualizationTab,
             }
+            # The user picked a label; the map is keyed by the result. The catalogue holds both
+            # spellings, which is the whole reason neither is written down twice.
+            described = self.manipulator.export(obj=observation, method="catalogue")
+            catalogue = (described["result"] if isinstance(described, dict) and "status" in described
+                         else described) or []
+            vis_key = next((entry["key"] for entry in catalogue
+                            if entry["label"] == vis_type and entry["can_plot"]), None)
+
             tab_class = tab_classes.get(vis_key)
             if not tab_class:
                 logger.error("No tab class defined for visualization type '%s'", vis_type)

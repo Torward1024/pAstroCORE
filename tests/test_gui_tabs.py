@@ -141,3 +141,60 @@ def test_a_tab_uses_no_name_it_never_defines(module_name):
                 problems.append(f"{function.name} uses '{name}' without defining it")
 
     assert not problems, f"{module_name}: " + "; ".join(problems)
+
+
+# --- the dialog that creates the tabs -------------------------------------------------------
+
+def test_the_visualize_dialog_can_actually_open_a_tab(project, qt_application):
+    """The path none of the tests above covered, and it broke the moment it was changed.
+
+    They build a tab directly; the dialog picks one by the label a user chose, which needs the
+    label turned back into a result key. A name that was in scope in one method and not in the
+    other raised `vis_key is not defined` for every visualization, and every test passed.
+    """
+    from PySide6.QtWidgets import QMessageBox
+
+    from pastrocore.gui.p_dialog_visualize import VisualizationDialog
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    dialog = VisualizationDialog(ScheduleManipulator(project))
+    try:
+        assert dialog.ui.comboBoxVisualizationType.count() > 0, (
+            "the fixture holds results, so something must be offered")
+
+        complaints = []
+        original = QMessageBox.critical
+        QMessageBox.critical = staticmethod(lambda *a, **k: complaints.append(a))
+        try:
+            for index in range(dialog.ui.comboBoxVisualizationType.count()):
+                dialog.ui.comboBoxVisualizationType.setCurrentIndex(index)
+                dialog.perform_visualization()
+        finally:
+            QMessageBox.critical = original
+
+        assert not complaints, f"opening a tab failed: {complaints}"
+        assert dialog.ui.tabWidget.count() > 0, "no tab was opened"
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+
+
+def test_every_offered_visualization_has_a_widget(project, qt_application):
+    """The dialog offers what the visualizer can draw and maps each to a widget by hand. If the
+    two ever disagree, a user picks something and gets an error box."""
+    from pastrocore.gui.p_dialog_visualize import VisualizationDialog
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    manipulator = ScheduleManipulator(project)
+    observation = project.get_observation(next(iter(project.get_items())))
+
+    response = manipulator.export(obj=observation, method="catalogue", raise_on_error=False)
+    catalogue = (response["result"] if isinstance(response, dict) else response) or []
+    drawable = {entry["key"] for entry in catalogue if entry["can_plot"]}
+
+    source = pathlib.Path(VisualizationDialog.__module__.replace(".", "/") + ".py")
+    text = (pathlib.Path(__file__).resolve().parent.parent / source).read_text(encoding="utf-8")
+    mapped = {key for key in drawable if f'"{key}":' in text}
+
+    assert drawable == mapped, (
+        f"the visualizer can draw {sorted(drawable - mapped)} but no widget is mapped to them")
