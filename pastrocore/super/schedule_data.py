@@ -310,6 +310,59 @@ class ScheduleData(Super):
             raise ValueError(f"No 'path' given; there is nowhere to {verb}")
         return path
 
+    def _export_scan_times(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """List the scans a result covers for one source, with the time each starts.
+
+        Args:
+            obj (Observation): The observation to read.
+            attributes: `key`, the result to look in, and `source_name`, the source to filter
+                by.
+
+        Returns:
+            List[Dict[str, Any]]: `[{"scan_name": str, "start": str}]`, sorted by time, with
+                the start as an ISOT string. Empty when there is no such data, which is an
+                answer rather than an error -- a source may simply not be observed.
+
+        Notes:
+            - This existed ten times over, once in each visualization tab, and each copy needed
+              polars to filter and group and astropy to turn an MJD into something readable.
+              That is ten screens holding a query, and a command-line version would have had to
+              write an eleventh.
+            - Reached through the `export` operation because it is the same concern: getting
+              data out of a project in a form something else can use. The interface uses it to
+              fill a list; a script would use it to decide what to plot.
+        """
+        key = attributes.get("key")
+        source_name = attributes.get("source_name")
+        if not key or not source_name:
+            raise ValueError("Both 'key' and 'source_name' are needed to list scan times")
+
+        stored = obj.get_calculated_data_by_key(key) or {}
+        frame = stored.get("data")
+        if not isinstance(frame, pl.DataFrame) or frame.is_empty():
+            logger.debug("No '%s' data to list scans from", key)
+            return []
+
+        expected = CalculatedDataStructure.get_columns(key)
+        if expected:
+            missing = [column for column in expected if column not in frame.columns]
+            if missing:
+                logger.error("Result '%s' is missing columns %s", key, missing)
+                return []
+
+        if "source_name" not in frame.columns or "time" not in frame.columns:
+            logger.debug("Result '%s' is not keyed by source and time", key)
+            return []
+
+        filtered = frame.filter(pl.col("source_name") == source_name)
+        if filtered.is_empty():
+            logger.debug("No '%s' data for source '%s'", key, source_name)
+            return []
+
+        starts = filtered.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
+        return [{"scan_name": row["scan_name"], "start": Time(row["time"], format="mjd").isot}
+                for row in starts.iter_rows(named=True)]
+
     @staticmethod
     def _targets(obj: Any) -> List[Observation]:
         """Return the observations an export covers.

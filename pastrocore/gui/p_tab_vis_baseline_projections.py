@@ -11,9 +11,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from typing import List, Optional
-from astropy.time import Time
 import matplotlib.pyplot as plt
-import polars as pl
 import gc
 
 class BaselineProjectionsVisualizationTab(QWidget):
@@ -72,227 +70,23 @@ class BaselineProjectionsVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source, baseline, and frequency filters from baseline projections DataFrame and observation."""
         try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="baseline_projections").get("data", {})
-            if not isinstance(df, pl.DataFrame):
-                logger.error("No valid baseline projections data available for populating filters")
-                self.ui.comboBox.addItem("No baseline projections data available")
-                return
-
-            expected_columns = CalculatedDataStructure.get_columns("baseline_projections")
-            if not expected_columns:
-                logger.error("No schema defined for baseline projections data")
-                self.ui.comboBox.addItem("No schema defined")
-                return
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                logger.error("DataFrame for baseline projections missing required columns: %s", missing_columns)
-                self.ui.comboBox.addItem("Invalid baseline projections data structure")
-                return
-
-            sources = df["source_name"].unique().to_list()
-            baselines = df["baseline"].unique().to_list()
-
-            self.ui.comboBox.addItems(sorted(sources))
-            for baseline in sorted(baselines):
-                item = QListWidgetItem(baseline)
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                item.setCheckState(Qt.Checked)
-                self.ui.listBaselines.addItem(item)
-            for freq in sorted(self.frequencies):
-                try:
-                    item = QListWidgetItem(f"{float(freq):.2f} MHz")
-                    item.setData(Qt.UserRole, float(freq))
-                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
-                    item.setCheckState(Qt.Checked)
-                    self.ui.listFrequencies.addItem(item)
-                except (TypeError, ValueError) as e:
-                    logger.error("Failed to format frequency %s: %s", freq, str(e))
-                    continue
-            self.ui.comboBox_2.addItems(["Wavelengths", "Earth Diameters"])
-            logger.debug("Populated %s sources, %s baselines, %s frequencies", len(sources), len(baselines), len(self.frequencies))
-        except Exception as e:
-            logger.error("Failed to populate filters: %s", str(e))
-            self.ui.comboBox.addItem("Failed to retrieve filters")
-
-    def _lock_ui(self):
-        """Lock UI elements during visualization processing."""
-        self.ui.comboBox.setEnabled(False)
-        self.ui.listScans.setEnabled(False)
-        self.ui.listBaselines.setEnabled(False)
-        self.ui.listFrequencies.setEnabled(False)
-        self.ui.comboBox_2.setEnabled(False)
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        logger.debug("UI locked for visualization processing")
-
-    def _unlock_ui(self):
-        """Unlock UI elements after visualization processing."""
-        self.ui.comboBox.setEnabled(True)
-        self.ui.listScans.setEnabled(True)
-        self.ui.listBaselines.setEnabled(True)
-        self.ui.listFrequencies.setEnabled(True)
-        self.ui.comboBox_2.setEnabled(True)
-        QApplication.restoreOverrideCursor()
-        QApplication.processEvents()
-        logger.debug("UI unlocked after visualization processing")
-
-    def _clear_canvas(self):
-        """Clear the current figure, canvas, and toolbar."""
-        if self.canvas:
-            self.layout.removeWidget(self.canvas)
-            self.canvas.deleteLater()
-            self.canvas = None
-        if self.toolbar:
-            self.layout.removeWidget(self.toolbar)
-            self.toolbar.deleteLater()
-            self.toolbar = None
-        if self.figure:
-            plt.close(self.figure)
-            self.figure = None
-        gc.collect()
-        logger.debug("Canvas, toolbar, and figure cleared")
-
-    def embed_figure(self, figure: Figure):
-        """Embed a Matplotlib figure into the widget layout.
-
-        Args:
-            figure: Matplotlib figure to embed.
-        """
-        self._clear_canvas()
-        try:
-            self.figure = figure
-            self.canvas = FigureCanvas(self.figure)
-            self.toolbar = NavigationToolbar(self.canvas, self)
-            self.layout.addWidget(self.toolbar)
-            self.layout.addWidget(self.canvas)
-            self.canvas.draw()
-            logger.debug("Figure embedded successfully")
-        except Exception as e:
-            logger.error("Failed to embed figure: %s", str(e))
-            self._clear_canvas()
-
-    def get_selected_source(self) -> Optional[str]:
-        """Get the currently selected source name.
-
-        Returns:
-            Selected source name or None if no source is selected.
-        """
-        source_name = self.ui.comboBox.currentText()
-        if not source_name or source_name in ["No baseline projections data available", "No schema defined", "Invalid baseline projections data structure", "Failed to retrieve filters"]:
-            logger.debug("No valid source selected")
-            return None
-        logger.debug("Selected source: %s", source_name)
-        return source_name
-
-    def get_selected_scans(self) -> List[str]:
-        """Get the list of selected scan names.
-
-        Returns:
-            List of selected scan names.
-        """
-        selected_scans = []
-        for i in range(self.ui.listScans.count()):
-            item = self.ui.listScans.item(i)
-            if item.checkState() == Qt.Checked:
-                scan_name = item.data(Qt.UserRole)
-                if scan_name:
-                    selected_scans.append(scan_name)
-        logger.debug("Selected scans: %s", selected_scans)
-        return selected_scans
-
-    def get_selected_baselines(self) -> List[str]:
-        """Get the list of selected baseline names.
-
-        Returns:
-            List of selected baseline names.
-        """
-        selected_baselines = []
-        for i in range(self.ui.listBaselines.count()):
-            item = self.ui.listBaselines.item(i)
-            if item.checkState() == Qt.Checked:
-                selected_baselines.append(item.text())
-        logger.debug("Selected baselines: %s", selected_baselines)
-        return selected_baselines
-
-    def get_selected_frequencies(self) -> List[float]:
-        """Get the list of selected frequency values.
-
-        Returns:
-            List of selected frequency values in MHz.
-        """
-        selected_frequencies = []
-        for i in range(self.ui.listFrequencies.count()):
-            item = self.ui.listFrequencies.item(i)
-            if item.checkState() == Qt.Checked:
-                freq = item.data(Qt.UserRole)
-                if isinstance(freq, (int, float)):
-                    selected_frequencies.append(float(freq))
-        logger.debug("Selected frequencies: %s", selected_frequencies)
-        return selected_frequencies
-
-    def get_selected_units(self) -> str:
-        """Get the selected units for visualization.
-
-        Returns:
-            Selected units ('lambda' or 'meters').
-        """
-        units = self.ui.comboBox_2.currentText()
-        logger.debug("Selected units: %s", units)
-        return units
-
-    @Slot()
-    def filter_changed(self):
-        """Handle changes in filter selections by updating visualization."""
-        if self.is_processing:
-            logger.debug("Filter change ignored, visualization is processing")
-            return
-        self.is_processing = True
-        self._lock_ui()
-        try:
-            self.update_scans_for_source(self.ui.comboBox.currentText())
-            self.update_visualization()
-        finally:
-            self.is_processing = False
-            self._unlock_ui()
-
-    def update_scans_for_source(self, source_name: str):
-        """Update the scans list based on the selected source.
-
-        Args:
-            source_name: Name of the selected source.
-        """
-        self.ui.listScans.clear()
-        current_checks = {item.data(Qt.UserRole): item.checkState() for item in [self.ui.listScans.item(i) for i in range(self.ui.listScans.count())]}
-
-        try:
-            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="baseline_projections").get("data", {})
-            if not isinstance(df, pl.DataFrame):
-                logger.error("No valid baseline projections data available for updating scans")
-                self.ui.listScans.addItem(QListWidgetItem("No baseline projections data available"))
-                return
-
-            expected_columns = CalculatedDataStructure.get_columns("baseline_projections")
-            if not expected_columns:
-                logger.error("No schema defined for baseline projections data")
-                self.ui.listScans.addItem(QListWidgetItem("No schema defined"))
-                return
-            missing_columns = [col for col in expected_columns if col not in df.columns]
-            if missing_columns:
-                logger.error("DataFrame for baseline projections missing required columns: %s", missing_columns)
-                self.ui.listScans.addItem(QListWidgetItem("Invalid baseline projections data structure"))
-                return
-
-            df_filtered = df.filter(pl.col("source_name") == source_name)
-            if df_filtered.is_empty():
-                logger.debug("No data for source '%s' in baseline projections DataFrame", source_name)
+            # One request instead of a filter, a group-by and a time conversion repeated
+            # in every visualization tab. The query lives in ScheduleData, where a script
+            # can ask it too.
+            response = self.manipulator.export(
+                obj=self.observation, method="scan_times",
+                key="baseline_projections", source_name=source_name)
+            scans_found = (response["result"] if isinstance(response, dict) and "status" in response
+                           else response) or []
+            if not scans_found:
+                logger.debug("No scans for source '%s' in baseline_projections", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scan_times = df_filtered.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
-            scans = scan_times["scan_name"].to_list()
-
-            for row in scan_times.iter_rows(named=True):
-                scan_name = row["scan_name"]
-                start_time = Time(row["time"], format="mjd").isot
+            scans = [entry["scan_name"] for entry in scans_found]
+            for entry in scans_found:
+                scan_name = entry["scan_name"]
+                start_time = entry["start"]
                 display_text = f"{start_time}"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)
