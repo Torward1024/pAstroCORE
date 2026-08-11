@@ -40,7 +40,8 @@ class ScheduleManipulator(Manipulator):
             - Registers base classes: ScheduleProject, Observation, IF, Frequencies, Source, Sources,
             Telescope, SpaceTelescope, Telescopes, Scan, Scans.
             - Registers operations: configure (ScheduleConfigurator), inspect (ScheduleInspector),
-            calculate (ScheduleCalculator), visualize (ScheduleVisualizer).
+            calculate (ScheduleCalculator), visualize (ScheduleVisualizer),
+            export (ScheduleData).
             - Logs initialization upon completion.
         """
         from pastrocore.super.schedule_project import ScheduleProject
@@ -53,6 +54,7 @@ class ScheduleManipulator(Manipulator):
         from pastrocore.super.schedule_inspector import ScheduleInspector
         from pastrocore.super.schedule_calculator import ScheduleCalculator
         from pastrocore.super.schedule_visualizer import ScheduleVisualizer
+        from pastrocore.super.schedule_data import ScheduleData
 
         base_classes = [
             ScheduleProject, Observation, IF, Frequencies, Source, Sources,
@@ -65,6 +67,14 @@ class ScheduleManipulator(Manipulator):
         self.register_operation(ScheduleInspector(self))
         self.register_operation(ScheduleCalculator(self))
         self.register_operation(ScheduleVisualizer(self))
+        # One Super, three operations. MSB binds an instance to one operation name, so an
+        # instance is registered per name and each resolves its own `_export`, `_save` or
+        # `_load`. Keeping them in one class is deliberate: they are the same concern -- data
+        # in and data out -- and a caller mapping commands to requests needs no special case
+        # for the one that happens to be a save.
+        self.register_operation(ScheduleData(self), operation="export")
+        self.register_operation(ScheduleData(self), operation="save")
+        self.register_operation(ScheduleData(self), operation="load")
 
         # Every request that reaches this orchestrator is recorded. It costs one interceptor
         # and answers the question a bug report never can: what was actually asked for.
