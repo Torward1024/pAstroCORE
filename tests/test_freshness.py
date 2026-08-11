@@ -266,3 +266,39 @@ def test_a_real_calculation_keeps_its_own_fingerprint(computed, tmp_path):
     metadata = restored.get_calculated_metadata("uv_coverage")
     assert metadata[freshness.DIGEST_FIELD] == taken
     assert freshness.ADOPTED_FIELD not in metadata
+
+
+def test_asking_serialises_each_part_once(project, tmp_path, monkeypatch):
+    """Opening one project converted the same scan ten times over, which a user saw in the log
+    as twenty identical lines.
+
+    A dozen results depend on nearly the same handful of parts, so the naive version paid for
+    every overlap. The explorer asks the same question on every refresh, so it was not only a
+    load-time cost.
+    """
+    import collections
+
+    from pastrocore.base.scans import Scans
+
+    root = tmp_path / "counted.pastro"
+    project.save(str(root))
+    for sidecar in (root / "results").rglob("*.meta.json"):
+        metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+        metadata.pop(freshness.DIGEST_FIELD, None)
+        sidecar.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    calls = collections.Counter()
+    original = Scans.to_dict
+    monkeypatch.setattr(Scans, "to_dict",
+                        lambda self, *a, **k: (calls.update(["scans"]), original(self, *a, **k))[1])
+
+    reopened = ScheduleProject.open(str(root))
+    assert calls["scans"] <= 1, (
+        f"opening converted the scans {calls['scans']} times; once is enough for any number "
+        f"of results that depend on them")
+
+    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    calls.clear()
+    observation.stale_results()
+    assert calls["scans"] <= 1, (
+        f"one refresh converted the scans {calls['scans']} times")

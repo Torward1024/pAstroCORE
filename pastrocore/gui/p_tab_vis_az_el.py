@@ -10,7 +10,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from typing import List, Optional
+from astropy.time import Time
 import matplotlib.pyplot as plt
+import polars as pl
 import gc
 
 class AzElVisualizationTab(QWidget):
@@ -51,23 +53,186 @@ class AzElVisualizationTab(QWidget):
     def _populate_filters(self):
         """Populate source and telescope filters from Az/El DataFrame."""
         try:
-            # One request instead of a filter, a group-by and a time conversion repeated
-            # in every visualization tab. The query lives in ScheduleData, where a script
-            # can ask it too.
-            response = self.manipulator.export(
-                obj=self.observation, method="scan_times",
-                key="az_el", source_name=source_name)
-            scans_found = (response["result"] if isinstance(response, dict) and "status" in response
-                           else response) or []
-            if not scans_found:
-                logger.debug("No scans for source '%s' in az_el", source_name)
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="az_el").get("data", {})
+            if not isinstance(df, pl.DataFrame):
+                logger.error("No valid Az/El data available for populating filters")
+                self.ui.cmbSource.addItem("No Az/El data available")
+                return
+
+            expected_columns = CalculatedDataStructure.get_columns("az_el")
+            if not expected_columns:
+                logger.error("No schema defined for Az/El data")
+                self.ui.cmbSource.addItem("No schema defined")
+                return
+            missing_columns = [col for col in expected_columns if col not in df.columns]
+            if missing_columns:
+                logger.error("DataFrame for Az/El missing required columns: %s", missing_columns)
+                self.ui.cmbSource.addItem("Invalid Az/El data structure")
+                return
+
+            sources = df["source_name"].unique().to_list()
+            telescopes = df["telescope_code"].unique().to_list()
+
+            self.ui.cmbSource.addItems(sorted(sources))
+            for telescope in sorted(telescopes):
+                item = QListWidgetItem(telescope)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                item.setCheckState(Qt.Checked)
+                self.ui.listTelescopes.addItem(item)
+            logger.debug("Populated %s sources and %s telescopes", len(sources), len(telescopes))
+        except Exception as e:
+            logger.error("Failed to populate filters: %s", str(e))
+            self.ui.cmbSource.addItem("Failed to retrieve filters")
+
+    def _lock_ui(self):
+        """Lock UI elements during visualization processing."""
+        self.ui.cmbSource.setEnabled(False)
+        self.ui.listScans.setEnabled(False)
+        self.ui.listTelescopes.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        logger.debug("UI locked for visualization processing")
+
+    def _unlock_ui(self):
+        """Unlock UI elements after visualization processing."""
+        self.ui.cmbSource.setEnabled(True)
+        self.ui.listScans.setEnabled(True)
+        self.ui.listTelescopes.setEnabled(True)
+        QApplication.restoreOverrideCursor()
+        QApplication.processEvents()
+        logger.debug("UI unlocked after visualization processing")
+
+    def _clear_canvas(self):
+        """Clear the current figure, canvas, and toolbar."""
+        if self.canvas:
+            self.layout.removeWidget(self.canvas)
+            self.canvas.deleteLater()
+            self.canvas = None
+        if self.toolbar:
+            self.layout.removeWidget(self.toolbar)
+            self.toolbar.deleteLater()
+            self.toolbar = None
+        if self.figure:
+            plt.close(self.figure)
+            self.figure = None
+        gc.collect()
+        logger.debug("Canvas, toolbar, and figure cleared")
+
+    def embed_figure(self, figure: Figure):
+        """Embed a Matplotlib figure into the widget layout.
+
+        Args:
+            figure: Matplotlib figure to embed.
+        """
+        self._clear_canvas()
+        try:
+            self.figure = figure
+            self.canvas = FigureCanvas(self.figure)
+            self.toolbar = NavigationToolbar(self.canvas, self)
+            self.layout.addWidget(self.toolbar)
+            self.layout.addWidget(self.canvas)
+            self.canvas.draw()
+            logger.debug("Figure embedded successfully")
+        except Exception as e:
+            logger.error("Failed to embed figure: %s", str(e))
+            self._clear_canvas()
+
+    def get_selected_source(self) -> Optional[str]:
+        """Get the currently selected source name.
+
+        Returns:
+            Selected source name or None if no source is selected.
+        """
+        source_name = self.ui.cmbSource.currentText()
+        if not source_name or source_name in ["No Az/El data available", "No schema defined", "Invalid Az/El data structure", "Failed to retrieve filters"]:
+            logger.debug("No valid source selected")
+            return None
+        logger.debug("Selected source: %s", source_name)
+        return source_name
+
+    def get_selected_scans(self) -> List[str]:
+        """Get the list of selected scan names.
+
+        Returns:
+            List of selected scan names.
+        """
+        selected_scans = []
+        for i in range(self.ui.listScans.count()):
+            item = self.ui.listScans.item(i)
+            if item.checkState() == Qt.Checked:
+                scan_name = item.data(Qt.UserRole)
+                if scan_name:
+                    selected_scans.append(scan_name)
+        logger.debug("Selected scans: %s", selected_scans)
+        return selected_scans
+
+    def get_selected_telescopes(self) -> List[str]:
+        """Get the list of selected telescope codes.
+
+        Returns:
+            List of selected telescope codes.
+        """
+        selected_telescopes = []
+        for i in range(self.ui.listTelescopes.count()):
+            item = self.ui.listTelescopes.item(i)
+            if item.checkState() == Qt.Checked:
+                selected_telescopes.append(item.text())
+        logger.debug("Selected telescopes: %s", selected_telescopes)
+        return selected_telescopes
+
+    @Slot()
+    def filter_changed(self):
+        """Handle changes in filter selections by updating visualization."""
+        if self.is_processing:
+            logger.debug("Filter change ignored, visualization is processing")
+            return
+        self.is_processing = True
+        self._lock_ui()
+        try:
+            self.update_scans_for_source(self.ui.cmbSource.currentText())
+            self.update_visualization()
+        finally:
+            self.is_processing = False
+            self._unlock_ui()
+
+    def update_scans_for_source(self, source_name: str):
+        """Update the scans list based on the selected source.
+
+        Args:
+            source_name: Name of the selected source.
+        """
+        self.ui.listScans.clear()
+        current_checks = {item.data(Qt.UserRole): item.checkState() for item in [self.ui.listScans.item(i) for i in range(self.ui.listScans.count())]}
+
+        try:
+            df = self.manipulator.inspect(obj=self.observation, get_calculated_data_by_key="az_el").get("data", {})
+            if not isinstance(df, pl.DataFrame):
+                logger.error("No valid Az/El data available for updating scans")
+                self.ui.listScans.addItem(QListWidgetItem("No Az/El data available"))
+                return
+
+            expected_columns = CalculatedDataStructure.get_columns("az_el")
+            if not expected_columns:
+                logger.error("No schema defined for Az/El data")
+                self.ui.listScans.addItem(QListWidgetItem("No schema defined"))
+                return
+            missing_columns = [col for col in expected_columns if col not in df.columns]
+            if missing_columns:
+                logger.error("DataFrame for Az/El missing required columns: %s", missing_columns)
+                self.ui.listScans.addItem(QListWidgetItem("Invalid Az/El data structure"))
+                return
+
+            df_filtered = df.filter(pl.col("source_name") == source_name)
+            if df_filtered.is_empty():
+                logger.debug("No data for source '%s' in Az/El DataFrame", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return
 
-            scans = [entry["scan_name"] for entry in scans_found]
-            for entry in scans_found:
-                scan_name = entry["scan_name"]
-                start_time = entry["start"]
+            scan_times = df_filtered.group_by("scan_name").agg(time=pl.col("time").first()).sort("time")
+            scans = scan_times["scan_name"].to_list()
+
+            for row in scan_times.iter_rows(named=True):
+                scan_name = row["scan_name"]
+                start_time = Time(row["time"], format="mjd").isot
                 display_text = f"{start_time}"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, scan_name)

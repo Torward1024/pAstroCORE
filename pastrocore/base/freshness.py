@@ -74,7 +74,8 @@ def dependencies_of(key: str) -> Tuple[str, ...]:
     return CalculatedDataStructure.get_dependencies(key)
 
 
-def digest(observation: Any, key: str, metadata: Optional[Dict[str, Any]] = None) -> Optional[str]:
+def digest(observation: Any, key: str, metadata: Optional[Dict[str, Any]] = None,
+           parts_cache: Optional[Dict[str, Any]] = None) -> Optional[str]:
     """Fingerprint the inputs one calculation depends on.
 
     Args:
@@ -84,18 +85,27 @@ def digest(observation: Any, key: str, metadata: Optional[Dict[str, Any]] = None
             `PARAMETERS` are taken, because the rest of the metadata describes the *result*
             rather than its inputs, and including it would make every result stale against
             itself.
+        parts_cache (Optional[Dict[str, Any]]): Somewhere to keep each part's serialization,
+            for a caller asking about several results of one observation.
 
     Returns:
         Optional[str]: A short hex digest, or None if the observation could not be read -- in
             which case nothing can be said about freshness, and nothing is.
     """
     parts = {}
+    # Serialising a part is not free -- a container of scans converts every scan inside it --
+    # and a project has a dozen results whose dependencies overlap almost entirely. Without
+    # this, opening one project converted the same scan ten times over, which is what a user
+    # saw in the log.
+    cache = parts_cache if parts_cache is not None else {}
     try:
         for name in dependencies_of(key):
             accessor = getattr(observation, _ACCESSORS[name], None)
             if accessor is None:
                 continue
-            parts[name] = accessor().to_dict()
+            if name not in cache:
+                cache[name] = accessor().to_dict()
+            parts[name] = cache[name]
         for name in PARAMETERS:
             if metadata and metadata.get(name) is not None:
                 parts[name] = metadata[name]
@@ -127,7 +137,8 @@ def stamp(observation: Any, key: str, metadata: Dict[str, Any]) -> Dict[str, Any
     return stamped
 
 
-def is_stale(observation: Any, key: str) -> Optional[bool]:
+def is_stale(observation: Any, key: str,
+             parts_cache: Optional[Dict[str, Any]] = None) -> Optional[bool]:
     """Report whether a stored result was computed from a different configuration.
 
     Args:
@@ -150,7 +161,7 @@ def is_stale(observation: Any, key: str) -> Optional[bool]:
     if not recorded:
         return None
 
-    current = digest(observation, key, metadata)
+    current = digest(observation, key, metadata, parts_cache=parts_cache)
     if current is None:
         return None
     return current != recorded
@@ -185,11 +196,12 @@ def adopt_baseline(observation: Any) -> int:
         return 0
 
     adopted = 0
+    cache: Dict[str, Any] = {}
     for key in list(results.keys()):
         metadata = observation.get_calculated_metadata(key) or {}
         if metadata.get(DIGEST_FIELD):
             continue
-        fingerprint = digest(observation, key, metadata)
+        fingerprint = digest(observation, key, metadata, parts_cache=cache)
         if fingerprint is None:
             continue
         updated = dict(metadata)
@@ -237,4 +249,8 @@ def stale_results(observation: Any) -> Tuple[str, ...]:
     """
     results = observation.calculated_data
     keys = list(results.keys()) if hasattr(results, "keys") else []
-    return tuple(sorted(key for key in keys if is_stale(observation, key) is True))
+    # One cache for the whole question: the dozen results of an observation depend on nearly
+    # the same handful of parts, and the explorer asks this on every refresh.
+    cache: Dict[str, Any] = {}
+    return tuple(sorted(key for key in keys
+                        if is_stale(observation, key, parts_cache=cache) is True))
