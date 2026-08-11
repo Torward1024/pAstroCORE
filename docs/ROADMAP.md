@@ -176,11 +176,32 @@ everything back in. Both need answering.
 | **Saving** | Writes the directory |
 | **Export** | Untouched. It produces `.txt` and `.png` -- text and pictures, nothing else -- so the format change does not reach it. But it *reads* results, so it goes through the same lazy access as everything else, or exporting a year loads a year |
 
+### Where a result lives before it is saved
+
+Raised by the same question that produced D6, and worth deciding before writing it: a result is
+computed long before anyone presses save, and until then it exists only in memory. Two shapes,
+and they are not the same trade:
+
+| | What it means | Cost |
+| --- | --- | --- |
+| Write into the project's own `results/` as soon as it is computed | Simplest for a project that already has a directory. The result is safe immediately and the ceiling governs it immediately | Changes what save means. A user who calculates, dislikes the result and closes without saving finds the project directory already changed. And it does nothing for a project that has never been saved, which has no directory at all -- so a second mechanism is needed anyway |
+| **A scratch directory, adopted on save** | One mechanism for both cases: results go to a scratch directory from the first calculation, and saving moves that directory into the project | The project directory is untouched until save, which is what save is for. Moving is cheap on one filesystem and must fall back to copying across two. Needs a cleanup rule |
+
+**Recommended: the scratch directory**, because it is one mechanism rather than two and because
+it keeps save meaning what a user expects it to mean.
+
+The cleanup rule needs care and is the part most likely to be got wrong. A scratch directory
+left behind by a previous run is not litter to be swept up: it is exactly the day of
+calculation this item exists to protect. It should be offered back, not deleted. Deleting on
+*clean* exit is right; deleting on startup is the bug this item is meant to prevent.
+
 ### The lever that matters most
 
 Not holding results more cheaply -- **not reading them at all**. The visualizer draws one
 source; with the filter pushed into the parquet read it touches 1 584 rows rather than 475 200.
 Every consumer that filters should filter in the read.
+
+D1 to D5 are done. **D6 is what they left open**: all of it governs results that have been *written*, and a result is not written until the project is saved.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
@@ -189,12 +210,15 @@ Every consumer that filters should filter in the read.
 | D3 | Lazy, filtered reads in the visualizer and the exporter | **Done.** All eight plots read through `scan_calculated_data` and collect once the filter chain is complete, so the filter is pushed into the parquet read. At the reported scale -- 300 sources, a year, 1.3M rows -- drawing one source is **9.2x faster** (6.0 ms against 55.2 ms) and never materialises the 50 MB frame. Metadata reads its own file: 0.33 ms against 2.20 ms. Drawing a plot now leaves **nothing** resident, and there is a test that fails if it ever does again |
 | D4 | A residency budget: a share of available memory, settable in preferences, evicting least-recently-used | **Done.** One budget per project, defaulting to half of *available* memory and settable in Preferences. Least-recently-used results are dropped when the ceiling is passed; an unwritten result is never dropped, and a result larger than the whole budget is still read. Measured over 60 observations of 200 000 rows: without a budget the walk grew memory by 407 MB and held all 60 results; with a 200 MB ceiling, 71 MB and 32 |
 | D5 | A characterization test at that scale, so the budget is defended | **Done.** The same walk at a size a build machine can afford, asserting residency rather than resident set size -- RSS depends on the allocator and on what else the machine is doing, and would fail builds for reasons unrelated to this code. Paired with a test that the walk holds everything when there is no budget, so the ratchet cannot pass vacuously |
+| D6 | **Somewhere for results to live before they are saved** | A result is held in memory and marked unwritten until the project is saved. Measured, and it is true in **both** cases, not just the obvious one: a project that has never been saved has no directory to write to, and a project opened from a directory still does not write a freshly computed result until the next save. In both, the result is **not on disk** and counts **0 bytes** against the residency ceiling -- so an unsaved session is ungoverned as well as unprotected. The budget cannot evict such a result either, and correctly so: there would be nowhere to read it back from. The ceiling is not the fix; a place to put them is | A result survives killing the application mid-session; the ceiling governs a result the moment it exists; saving moves results rather than recomputing or rewriting them |
 
 ## Stage 5 -- the interface
 
 | # | Item | Evidence | Exit criterion |
 | --- | --- | --- | --- |
-| G1 | One stylesheet | 226 `setStyleSheet` calls, of which **224 are in generated `ui_*.py`** -- so the styling lives in the `.ui` sources and is re-emitted on every regeneration. Extraction means removing it there and applying one `.qss` at application level | No `setStyleSheet` in generated code; one file describes the appearance |
+| G0 | Regenerate the forms whose `.ui` has moved ahead of its `.py` | `SettingsDialog` is the one today: the memory-share control is built by hand in `p_dialog_preferences.py` because editing generated code would lose it on the next regeneration. That was the right call for one control and is the wrong shape for several | Each changed `.ui` regenerated to `.py`, and any hand-built control that the form now carries removed from the hand-written class |
+| G1 | One stylesheet, in a file rather than in code | 226 `setStyleSheet` calls, of which **224 are in generated `ui_*.py`** -- so the styling lives in the `.ui` sources and is re-emitted on every regeneration. Extraction means removing it there and applying one `.qss` at application level. G0 first, or the regeneration puts the styling back | No `setStyleSheet` anywhere in the codebase; one `.qss` describes the appearance |
+| G1a | The stylesheet is editable from Preferences | Following from G1: once appearance is one file rather than 224 call sites, choosing it becomes a setting instead of a rebuild. Font size and contrast are the ones that get asked for, and a lab machine driving a projector is a real case | Preferences changes the appearance without restarting, and what it writes is the same `.qss` a user could edit by hand |
 | G2 | Profile the interface before optimising it | The obvious suspects are already handled: figures are closed, `deleteLater` is used. Guessing further would waste the effort | A measured list of what is actually slow, with numbers |
 | G3 | Act on what G2 found | | Each finding either fixed, or recorded as not worth fixing |
 
@@ -221,6 +245,34 @@ elevation range exactly as a source is.
 | F2 | Visibility from that: above the horizon, within the station's elevation range | A frame with the same shape as `source_visibility` |
 | F3 | A visualization tab, reusing the existing Az/El plot | The spacecraft appears in the same plot as a source would |
 | F4 | Characterization tests, computed once and pinned like every other calculation | A change to the geometry fails the build |
+| F5 | **Say when the orbit does not cover the scan, rather than returning NaN** | Checked rather than assumed, and the two sources of position behave differently. From an **orbit file** the times are clamped to the file's span and everything outside comes back NaN, with a `logger.warning` nobody reads -- so it does not extrapolate, it goes quietly blank, which is the same silent-empty-plot symptom as the baseline projections defect in 0.5.0. From **Keplerian elements** there is no span at all: propagation answers for any time asked, and accuracy far from the epoch degrades with nothing to signal it. Different faults, one missing answer to "does this orbit cover this scan" | A scan the orbit does not cover is reported to the user, naming the span and the scan, instead of producing NaN or an unmarked extrapolation; a test asserts the report rather than a number |
+
+### How a user asks for it, which is the harder half
+
+F1 and F2 are geometry and are cheap. The question that is not answered by geometry is **how a
+user says what they want**: today a calculation runs over an `Observation`, which holds sources
+observed *by* telescopes. Asking "when can these antennas see that spacecraft" inverts the
+roles -- the space telescope is the target and the ground stations are the observers -- and
+there is no source involved at all.
+
+Three ways to express it, and they are not equally cheap:
+
+| | What it means | Cost |
+| --- | --- | --- |
+| A new observation type | `observation_type = "DOWNLINK"`, where the space telescope in `telescopes` is read as the target and the rest as observers | A new type that every calculation, every tab and every export has to learn about. Largest change, and it spreads |
+| A spacecraft as a `Source` | Wrap the orbit in something source-shaped, so the existing pipeline works unchanged | Sounds cheapest, is not: a source has fixed coordinates and a spacecraft does not, so `Source` grows a time-dependent position and every calculation that assumed otherwise has to be re-examined |
+| **A parameter naming the target** | `calculate(observation, method="telescope_visibility", target_telescope="RADIO")` -- any observation can be asked when one of its telescopes is visible from the others | Smallest. No new entity, no new observation type. The request is already data, so a calculation taking one more attribute is the shape the architecture already has |
+
+**Recommended: the third.** It also answers the interface question, which was the part the
+model made awkward: the visualization dialog already builds its filters from what the
+observation contains, so a target selector is one more combo box listing the space telescopes
+in that observation, empty and hidden when there are none. Nothing changes for an observation
+that has no spacecraft in it.
+
+What it does *not* answer, and should be decided before F1 is written: whether the result is
+stored under one key per target (`telescope_visibility` keyed by target and station, like
+`source_visibility` is keyed by source and station) or one key per target telescope. The first
+matches every existing calculation and should win unless something argues otherwise.
 
 ### The old pull request is not the way in
 

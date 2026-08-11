@@ -8,7 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-## [Unreleased]
+## [0.5.1] - 2026-08-10
+
+A bug-fix release. A space telescope could be built but not read back, so any
+project containing one failed to open.
 
 ### Fixed
 
