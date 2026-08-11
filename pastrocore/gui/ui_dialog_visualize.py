@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_visualizeckAUDB.ui'
+## Form generated from reading UI file 'dialog_visualize.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QFormLayout,
     QFrame, QGridLayout, QHBoxLayout, QLabel,
     QPushButton, QSizePolicy, QSpacerItem, QTabWidget,
     QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_VisualizationDialog(object):
     def setupUi(self, VisualizationDialog):
         if not VisualizationDialog.objectName():
@@ -378,3 +378,4 @@ class Ui_VisualizationDialog(object):
         self.pushButton.setText(QCoreApplication.translate("VisualizationDialog", u"Export", None))
         self.closeButton.setText(QCoreApplication.translate("VisualizationDialog", u"Close", None))
     # retranslateUi
+

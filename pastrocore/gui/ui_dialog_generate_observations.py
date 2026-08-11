@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_generate_observationsHxWzNS.ui'
+## Form generated from reading UI file 'dialog_generate_observations.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
     QHBoxLayout, QLabel, QLineEdit, QListWidget,
     QListWidgetItem, QPushButton, QSizePolicy, QSpacerItem,
     QSpinBox, QTabWidget, QVBoxLayout, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_GenerateObservationsDialog(object):
     def setupUi(self, GenerateObservationsDialog):
         if not GenerateObservationsDialog.objectName():
@@ -1153,3 +1153,4 @@ class Ui_GenerateObservationsDialog(object):
         self.generateButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Generate", None))
         self.cancelButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Cancel", None))
     # retranslateUi
+

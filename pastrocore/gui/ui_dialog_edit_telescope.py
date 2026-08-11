@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_telescoperDVNtK.ui'
+## Form generated from reading UI file 'dialog_editor_telescope.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
     QGridLayout, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QPushButton, QSizePolicy, QSpacerItem,
     QTabWidget, QTableView, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_TelescopeEditorDialog(object):
     def setupUi(self, TelescopeEditorDialog):
         if not TelescopeEditorDialog.objectName():
@@ -2030,3 +2030,4 @@ class Ui_TelescopeEditorDialog(object):
         self.saveButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("TelescopeEditorDialog", u"Cancel", None))
     # retranslateUi
+

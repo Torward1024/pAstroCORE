@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_aboutKnXCkB.ui'
+## Form generated from reading UI file 'dialog_about.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -18,7 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QDialog, QFrame, QGridLayout,
     QLabel, QPushButton, QSizePolicy, QSpacerItem,
     QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_AboutDialog(object):
     def setupUi(self, AboutDialog):
         if not AboutDialog.objectName():
@@ -156,3 +156,4 @@ class Ui_AboutDialog(object):
 " planning and visualization.", None))
         self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.1b", None))
     # retranslateUi
+

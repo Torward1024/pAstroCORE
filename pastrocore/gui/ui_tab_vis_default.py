@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_vis_sun_anglesBrBfrq.ui'
+## Form generated from reading UI file 'tab_vis_default.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -17,7 +17,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QLabel,
     QListWidget, QListWidgetItem, QSizePolicy, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_VisDefaultTab(object):
     def setupUi(self, VisDefaultTab):
         if not VisDefaultTab.objectName():

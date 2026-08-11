@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_observationstVgSU.ui'
+## Form generated from reading UI file 'tab_observation.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -18,7 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QComboBox, QFrame, QGridLayout,
     QLabel, QLineEdit, QSizePolicy, QTabWidget,
     QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_ObservationInfoTab(object):
     def setupUi(self, ObservationInfoTab):
         if not ObservationInfoTab.objectName():
@@ -213,3 +213,4 @@ class Ui_ObservationInfoTab(object):
         self.combo_obs_type.setCurrentText("")
         pass
     # retranslateUi
+

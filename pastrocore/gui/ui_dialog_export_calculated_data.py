@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_export_calculated_datasEinBh.ui'
+## Form generated from reading UI file 'dialog_export_calculated_data.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComb
     QDialog, QFrame, QGridLayout, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QListWidgetItem,
     QPushButton, QSizePolicy, QSpacerItem, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_ExportCalculatedDataDialog(object):
     def setupUi(self, ExportCalculatedDataDialog):
         if not ExportCalculatedDataDialog.objectName():
@@ -591,3 +591,4 @@ class Ui_ExportCalculatedDataDialog(object):
         self.cmbUnits.setCurrentText("")
         self.labelParameters.setText(QCoreApplication.translate("ExportCalculatedDataDialog", u"Parameters:", None))
     # retranslateUi
+

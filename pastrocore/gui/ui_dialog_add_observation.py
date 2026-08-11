@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_add_observationTUoHys.ui'
+## Form generated from reading UI file 'dialog_add_observation.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -18,7 +18,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QFrame,
     QGridLayout, QLabel, QLineEdit, QPushButton,
     QSizePolicy, QWidget)
-
+from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_AddObservationDialog(object):
     def setupUi(self, AddObservationDialog):
         if not AddObservationDialog.objectName():
@@ -252,3 +252,4 @@ class Ui_AddObservationDialog(object):
         self.lbl_obs_code.setText(QCoreApplication.translate("AddObservationDialog", u"Observation code:", None))
         self.closeButton.setText(QCoreApplication.translate("AddObservationDialog", u"Cancel", None))
     # retranslateUi
+

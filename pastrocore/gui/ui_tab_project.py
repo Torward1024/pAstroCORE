@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'tab_projectSAjDWk.ui'
+## Form generated from reading UI file 'tab_project.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -204,3 +204,4 @@ class Ui_ProjectInfoTab(object):
         self.label_2.setText(QCoreApplication.translate("ProjectInfoTab", u"Search:", None))
         self.label.setText(QCoreApplication.translate("ProjectInfoTab", u"Name:", None))
     # retranslateUi
+

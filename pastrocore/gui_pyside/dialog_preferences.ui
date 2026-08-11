@@ -484,6 +484,36 @@ QDoubleSpinBox::down-arrow {
          </item>
         </layout>
        </item>
+      <item row="1" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayoutResultsMemory">
+         <item>
+          <widget class="QLabel" name="labelResultsMemory">
+           <property name="text">
+            <string>Results in memory, share of available:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="resultsMemorySpin">
+           <property name="toolTip">
+            <string>Share of available memory the calculated results may occupy before the least recently used are dropped. They are read back from the project directory when needed again, so this costs a read rather than a recalculation.</string>
+           </property>
+           <property name="suffix">
+            <string> %</string>
+           </property>
+           <property name="minimum">
+            <number>5</number>
+           </property>
+           <property name="maximum">
+            <number>100</number>
+           </property>
+           <property name="value">
+            <number>50</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
       </layout>
      </widget>
     </widget>
