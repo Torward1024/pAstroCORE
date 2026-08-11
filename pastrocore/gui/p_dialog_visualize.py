@@ -15,8 +15,6 @@ from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
 from msb_arch.utils.logging_setup import logger
 from typing import Dict
-import polars as pl
-
 SPEED_OF_LIGHT = 299792458.0  # m/s
 
 class VisualizationDialog(QDialog):
@@ -124,13 +122,14 @@ class VisualizationDialog(QDialog):
                 "mollweide_tracks": "Mollweide Tracks",
                 "parallactic_angle": "Parallactic Angle"
             }
-            available_types = []
-            for key in CalculatedDataStructure.SCHEMAS.keys():
-                calc_data = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=key)
-                df = calc_data.get("data", {})
-                if isinstance(df, pl.DataFrame) and not df.is_empty():
-                    if key in vis_types:
-                        available_types.append(vis_types[key])
+            # One request, counted from the parquet footers rather than by reading the frames.
+            # This loop used to read *every* result to decide what to offer -- 142 ms and
+            # eleven frames held in memory on a small project, to fill one combo box.
+            response = self.manipulator.export(
+                obj=observation, method="available", keys=list(vis_types))
+            available = (response["result"] if isinstance(response, dict) and "status" in response
+                         else response) or []
+            available_types = [vis_types[key] for key in available if key in vis_types]
             self.ui.comboBoxVisualizationType.addItems(sorted(available_types))
             self.ui.comboBoxVisualizationType.setEnabled(bool(available_types))
             self.ui.pushButtonVisualize.setEnabled(bool(available_types))
@@ -284,13 +283,19 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"Invalid visualization type: {vis_type}")
                 return
 
-            calc_data = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=vis_key)
-            logger.info(calc_data)
-            df = calc_data.get("data", {})
-            if not isinstance(df, pl.DataFrame):
+            # Asked before reading: this is the one place the dialog genuinely needs the rows,
+            # so it checks that there are any without pulling them in first.
+            response = self.manipulator.export(obj=observation, method="available",
+                                               keys=[vis_key])
+            available = (response["result"] if isinstance(response, dict) and "status" in response
+                         else response) or []
+            if vis_key not in available:
                 logger.error("No valid data for visualization type '%s'", vis_type)
                 QMessageBox.critical(self, "Error", f"No data available for {vis_type}")
                 return
+
+            calc_data = self.manipulator.inspect(obj=observation, get_calculated_data_by_key=vis_key)
+            df = calc_data.get("data", {})
 
             headers = CalculatedDataStructure.get_columns(vis_key)
             if not headers:
