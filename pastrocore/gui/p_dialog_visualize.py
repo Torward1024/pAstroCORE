@@ -10,6 +10,8 @@ from .p_tab_vis_beam_pattern import BeamPatternVisualizationTab
 from .p_tab_vis_time_on_source import TimeOnSourceVisualizationTab
 from .p_tab_vis_baseline_projections import BaselineProjectionsVisualizationTab
 from .p_tab_vis_parallactic import ParallacticAngleVisualizationTab
+from .p_tab_vis_spacecraft import (SpacecraftPointingVisualizationTab,
+                                   SpacecraftVisibilityVisualizationTab)
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.base.data_structure import CalculatedDataStructure
@@ -225,6 +227,8 @@ class VisualizationDialog(QDialog):
                 "beam_pattern": BeamPatternVisualizationTab,
                 "mollweide_tracks": MollweideVisualizationTab,
                 "parallactic_angle": ParallacticAngleVisualizationTab,
+                "telescope_az_el": SpacecraftPointingVisualizationTab,
+                "telescope_visibility": SpacecraftVisibilityVisualizationTab,
             }
             # The user picked a label; the map is keyed by the result. The catalogue holds both
             # spellings, which is the whole reason neither is written down twice.
