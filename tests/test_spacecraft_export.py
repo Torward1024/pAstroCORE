@@ -9,6 +9,7 @@ import json
 import os
 
 import pytest
+from PySide6.QtCore import Qt
 
 from pastrocore.base.telescopes import SpaceTelescope
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -205,3 +206,70 @@ def test_no_spacecraft_refuses_rather_than_computing_nothing(qt_application, mon
     assert dialog._ask_for_target([observation], ["telescope_az_el"]) is None
     assert "no space telescope" in warned["text"].lower()
     dialog.close()
+
+
+def test_running_from_the_dialog_passes_the_target(tracked, qt_application, monkeypatch):
+    """The test the first fix lacked, and the reason it did not work.
+
+    The list shows labels, the catalogue speaks keys, and the fix compared one against the
+    other -- so nothing was found to need a target and the calculation ran with none, exactly
+    as the reported log showed.
+    """
+    from pastrocore.gui import p_dialog_calculations
+    from pastrocore.gui.p_dialog_calculations import CalculationDialog
+
+    manipulator, observation = tracked
+    started = {}
+
+    class CapturedThread:
+        def __init__(self, manipulator, targets, calc_types, params):
+            started["calc_types"] = list(calc_types)
+            started["params"] = params
+            self.progress = self.finished = self.error = _Signal()
+
+        def start(self):
+            started["started"] = True
+
+    class _Signal:
+        def connect(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr(p_dialog_calculations, "CalculationThread", CapturedThread)
+    monkeypatch.setattr(p_dialog_calculations, "ProgressDialog",
+                        lambda parent=None: _FakeProgress())
+
+    dialog = CalculationDialog(manipulator, time_step=600)
+    for index in range(dialog.ui.targetList.count()):
+        item = dialog.ui.targetList.item(index)
+        item.setCheckState(Qt.Checked if item.data(Qt.UserRole) is observation else Qt.Unchecked)
+    for index in range(dialog.ui.calcList.count()):
+        item = dialog.ui.calcList.item(index)
+        wanted = item.data(Qt.UserRole + 1) in ("telescope_az_el", "telescope_visibility")
+        item.setCheckState(Qt.Checked if wanted else Qt.Unchecked)
+
+    dialog.run_calculation()
+
+    assert started.get("started") is True
+    for label, given in started["params"].items():
+        assert given.get("target_telescope") == "RADIO", f"{label} was run with no target"
+    dialog.close()
+
+
+class _FakeProgress:
+    """Stands in for the modal progress dialog, which would block the suite."""
+
+    class _Button:
+        clicked = property(lambda self: _FakeProgress._Signal())
+
+    class _Signal:
+        def connect(self, *args, **kwargs):
+            return None
+
+    def __init__(self):
+        self.ui = type("ui", (), {"pushButtonCancel": type("b", (), {"clicked": _FakeProgress._Signal()})()})()
+
+    def update_progress(self, *args, **kwargs):
+        return None
+
+    def show(self):
+        return None
