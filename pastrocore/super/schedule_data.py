@@ -482,8 +482,8 @@ class ScheduleData(Super):
 
         Returns:
             List[Dict[str, Any]]: One entry per calculation, each with its `key`, `label`, the
-                other calculations it `requires`, whether it `can_plot`, and `available` when
-                an observation was given.
+                other calculations it `requires`, whether it `can_plot`, whether it
+                `needs_target`, and `available` when an observation was given.
 
         Notes:
             - Discovered, not listed. The manipulator works out its own registry -- handlers
@@ -511,6 +511,10 @@ class ScheduleData(Super):
                 "requires": calculations[key]["requires"],
                 "can_plot": key in plots,
                 "offer": not CalculatedDataStructure.is_intermediate(key),
+                # A result recording a `target_code` is about something being tracked, so the
+                # request has to say what. Read from the columns rather than listed, so a new
+                # calculation of the same shape needs nothing added here.
+                "needs_target": "target_code" in (schema.get("columns") or []),
             }
             if observation is not None:
                 entry["available"] = key in held

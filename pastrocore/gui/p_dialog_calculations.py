@@ -1,5 +1,5 @@
 # p_dialog_calculations.py
-from PySide6.QtWidgets import QDialog, QListWidgetItem, QMessageBox
+from PySide6.QtWidgets import QDialog, QInputDialog, QListWidgetItem, QMessageBox
 from PySide6.QtCore import Qt, QThread, Signal
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
@@ -165,6 +165,9 @@ class CalculationDialog(QDialog):
         self.manipulator = manipulator
         self.project = manipulator.get_managing_object()
         self.targets = targets or []
+        # Which calculations cannot run without being told what to point at. The catalogue says
+        # so, from the columns of the result, so nothing here lists them.
+        self._needs_target = set()
         self.calc_type = calc_type
         self.time_step = time_step
         self.init_ui()
@@ -208,6 +211,8 @@ class CalculationDialog(QDialog):
             item.setData(Qt.UserRole, entry["requires"])
             item.setData(Qt.UserRole + 1, entry["key"])
             self.ui.calcList.addItem(item)
+            if entry.get("needs_target"):
+                self._needs_target.add(entry["key"])
         logger.debug("Populated %s calculations, all checked.", self.ui.calcList.count())
 
     def populate_targets(self):
@@ -228,6 +233,50 @@ class CalculationDialog(QDialog):
         except Exception as e:
             logger.error("Failed to retrieve observations: %s", str(e))
             QMessageBox.critical(self, "Error", "Failed to load observations. Please check the project data.")
+
+    def _ask_for_target(self, observations, calculations):
+        """Return the code of the spacecraft to point at, or None to stop.
+
+        Args:
+            observations (list): The observations about to be calculated.
+            calculations (list): The calculations that need a target, for the message.
+
+        Returns:
+            Optional[str]: A telescope code, or None when there is nothing to point at or the
+                user cancelled.
+
+        Notes:
+            - Chosen once for the run rather than per calculation: pointing two of them at
+                different spacecraft in one go is not something anyone has wanted, and the
+                dialog would have to grow a table to express it.
+            - With exactly one spacecraft in the selected observations, that is the answer and
+              nothing is asked.
+        """
+        from pastrocore.base.telescopes import SpaceTelescope
+
+        codes = []
+        for observation in observations:
+            for telescope in observation.get_telescopes().get_items():
+                if isinstance(telescope, SpaceTelescope) and telescope.get_code() not in codes:
+                    codes.append(telescope.get_code())
+
+        if not codes:
+            QMessageBox.warning(
+                self, "Nothing to point at",
+                "These calculations need a spacecraft to track:\n\n  "
+                + "\n  ".join(sorted(calculations))
+                + "\n\nThe selected observations hold no space telescope.")
+            return None
+
+        if len(codes) == 1:
+            logger.debug("One spacecraft in the selection; pointing at '%s'", codes[0])
+            return codes[0]
+
+        chosen, accepted = QInputDialog.getItem(
+            self, "Which spacecraft?",
+            "These calculations track a spacecraft:\n  " + "\n  ".join(sorted(calculations))
+            + "\n\nPoint at:", sorted(codes), 0, False)
+        return chosen if accepted else None
 
     def select_all_calcs(self):
         """Select all calculations in the list."""
@@ -310,6 +359,14 @@ class CalculationDialog(QDialog):
             "recalculate": False
         }
         calc_params = {calc: params.copy() for calc in selected_calcs}
+
+        wanting_target = [calc for calc in selected_calcs if calc in self._needs_target]
+        if wanting_target:
+            target_code = self._ask_for_target(selected_targets, wanting_target)
+            if target_code is None:
+                return
+            for calc in wanting_target:
+                calc_params[calc]["target_telescope"] = target_code
 
         self.progress_dialog = ProgressDialog(self)
         self.progress_dialog.ui.pushButtonCancel.clicked.connect(self.cancel_calculation)

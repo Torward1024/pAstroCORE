@@ -133,3 +133,75 @@ def test_scan_times_narrows_by_whatever_the_result_holds(tracked):
     nothing = manipulator.export(observation, method="scan_times",
                                  key="telescope_az_el", target_code="NOSUCH")
     assert nothing == []
+
+
+# --- asking what to point at ---------------------------------------------------------------
+
+def test_the_dialog_learns_which_calculations_need_a_target(tracked, qt_application):
+    """Read from the catalogue, which reads it from the result's columns. A list here is what
+    goes stale when a calculation is added."""
+    from pastrocore.gui.p_dialog_calculations import CalculationDialog
+
+    manipulator, _ = tracked
+    dialog = CalculationDialog(manipulator, time_step=600)
+
+    assert dialog._needs_target == {"telescope_az_el", "telescope_visibility"}
+    dialog.close()
+
+
+def test_one_spacecraft_is_chosen_without_asking(tracked, qt_application):
+    from pastrocore.gui.p_dialog_calculations import CalculationDialog
+
+    manipulator, observation = tracked
+    dialog = CalculationDialog(manipulator, time_step=600)
+
+    assert dialog._ask_for_target([observation], ["telescope_az_el"]) == "RADIO"
+    dialog.close()
+
+
+def test_several_spacecraft_are_offered(tracked, qt_application, monkeypatch):
+    from PySide6.QtWidgets import QInputDialog
+
+    from pastrocore.base.telescopes import SpaceTelescope
+    from pastrocore.gui.p_dialog_calculations import CalculationDialog
+
+    manipulator, observation = tracked
+    scan = observation.get_scans().get_active_items()[0]
+    observation.get_telescopes().add(SpaceTelescope(
+        code="SECOND", name="Another", use_kep=True,
+        kepler_elements={"a": 3.0e7, "e": 0.01, "i": 51.0, "raan": 10.0, "argp": 90.0,
+                         "nu": 0.0, "epoch": scan.get_start(), "mu": 3.986004418e14}))
+
+    offered = {}
+
+    def choose(parent, title, label, items, current, editable):
+        offered["items"] = list(items)
+        return "SECOND", True
+
+    monkeypatch.setattr(QInputDialog, "getItem", staticmethod(choose))
+    dialog = CalculationDialog(manipulator, time_step=600)
+
+    assert dialog._ask_for_target([observation], ["telescope_az_el"]) == "SECOND"
+    assert offered["items"] == ["RADIO", "SECOND"]
+    dialog.close()
+
+
+def test_no_spacecraft_refuses_rather_than_computing_nothing(qt_application, monkeypatch):
+    """What the reported log showed: the calculation ran, said it had nothing to point at, and
+    finished in a millisecond having produced nothing."""
+    from PySide6.QtWidgets import QMessageBox
+
+    from pastrocore.gui.p_dialog_calculations import CalculationDialog
+
+    project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
+    observation = project.get_observation(next(iter(project.get_items())))
+    manipulator = ScheduleManipulator(project)
+
+    warned = {}
+    monkeypatch.setattr(QMessageBox, "warning",
+                        staticmethod(lambda parent, title, text, *rest: warned.update(text=text)))
+
+    dialog = CalculationDialog(manipulator, time_step=600)
+    assert dialog._ask_for_target([observation], ["telescope_az_el"]) is None
+    assert "no space telescope" in warned["text"].lower()
+    dialog.close()
