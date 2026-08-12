@@ -472,6 +472,119 @@ class ScheduleData(Super):
     #: Words that keep their capitals when a handler's name becomes a label.
     ACRONYMS = {"uv": "UV", "az": "Az", "el": "El", "if": "IF", "sefd": "SEFD"}
 
+
+    def _export_plan(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Build the plan that runs a set of calculations over a set of observations.
+
+        Args:
+            obj: Ignored; the observations are named in `targets`.
+            attributes: `calculations`, the result keys asked for; `targets`, the observations;
+                and any other attribute -- `time_step`, `target_telescope`, `recalculate` --
+                which is passed to every step that accepts it.
+
+        Returns:
+            Dict[str, Dict[str, Any]]: A pipeline plan, keyed `<observation code>/<result>`.
+
+        Notes:
+            - The edges come from `requirements_of`, which MSB derives from the handlers
+              themselves, so a calculation that gains a prerequisite gains an edge here without
+              anything being written down.
+            - A prerequisite nobody asked for is added to the plan: `telescope_visibility`
+              cannot run without `telescope_az_el`, and a caller naming only the first means
+              both.
+            - Building the plan is separate from running it so a caller can look at it -- a
+              command line printing what it is about to do, a test asserting the order.
+        """
+        targets = attributes.get("targets") or self._targets(obj)
+        wanted = list(attributes.get("calculations") or [])
+        if not targets:
+            raise ValueError("No 'targets' given; there is nothing to calculate for")
+        if not wanted:
+            raise ValueError("No 'calculations' given; there is nothing to run")
+
+        # Everything asked for, plus everything those need, in an order that satisfies them.
+        needed = list(wanted)
+        for key in wanted:
+            for prerequisite in self._manipulator.requirements_of("calculate", key):
+                if prerequisite not in needed:
+                    needed.append(prerequisite)
+        ordered = self._manipulator.order_handlers("calculate", needed)
+
+        passed = {name: value for name, value in attributes.items()
+                  if name not in ("calculations", "targets", "method")}
+
+        plan: Dict[str, Dict[str, Any]] = {}
+        for target in targets:
+            previous_by_key = {}
+            for key in ordered:
+                name = f"{target.code}/{key}"
+                step = {"operation": "calculate", "obj": target, "method": key,
+                        "store_key": key}
+                step.update(passed)
+                waits = [previous_by_key[prerequisite]
+                         for prerequisite in self._manipulator.requirements_of("calculate", key)
+                         if prerequisite in previous_by_key]
+                if waits:
+                    step["after"] = waits
+                plan[name] = step
+                previous_by_key[key] = name
+        return plan
+
+    def _export_run(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Run the plan `_export_plan` builds, and report what each step did.
+
+        Args:
+            obj: As for `_export_plan`.
+            attributes: As for `_export_plan`, plus `concurrent` to let independent steps of a
+                stage run together, `progress`, called with a percentage and a message, and
+                `cancelled`, called to ask whether to stop.
+
+        Returns:
+            Dict[str, Any]: `{"ran": [...], "failed": [...], "cancelled": bool}` -- step names,
+                in plan order.
+
+        Notes:
+            - The whole point of doing it here rather than in a dialog: an interface, a command
+              line and a server all send one request, and the ordering, the prerequisites and
+              the skipping of a branch below a failure are the framework's job.
+            - Progress and cancellation ride on an interceptor, which is what the hook is for.
+              It sees each step as it goes past, so nothing has to be counted twice, and a
+              cancellation is a refused request -- which skips the branch below it exactly as a
+              failure does.
+        """
+        plan = self._export_plan(obj, attributes)
+        report = attributes.get("progress") or (lambda percent, message: None)
+        cancelled = attributes.get("cancelled") or (lambda: False)
+
+        total = len(plan)
+        seen = {"done": 0, "stopped": False}
+        labels = {name: name.split("/", 1)[-1] for name in plan}
+
+        def watch(request, call_next):
+            if request.get("operation") != "calculate":
+                return call_next(request)
+            if cancelled():
+                seen["stopped"] = True
+                return {"status": False, "object": None, "method": None, "result": None,
+                        "error": "Cancelled", "error_type": "RequestError"}
+            response = call_next(request)
+            seen["done"] += 1
+            step = request.get("attributes", {}).get("store_key", "")
+            report(int(seen["done"] / total * 100) if total else 100,
+                   f"Calculated {labels.get(step, step) or step}")
+            return response
+
+        self._manipulator.add_interceptor(watch)
+        try:
+            outcome = self._manipulator.pipeline(
+                plan, raise_on_error=False, concurrent=bool(attributes.get("concurrent")))
+        finally:
+            self._manipulator.remove_interceptor(watch)
+
+        return {"ran": [name for name in outcome if name not in outcome.failed],
+                "failed": list(outcome.failed),
+                "cancelled": seen["stopped"]}
+
     def _export_catalogue(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Report what this application can calculate and draw.
 

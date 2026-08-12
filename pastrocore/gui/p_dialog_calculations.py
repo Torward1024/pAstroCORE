@@ -10,7 +10,22 @@ from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
 
 
 class CalculationThread(QThread):
-    """Thread for performing calculations asynchronously with robust error handling."""
+    """Runs a set of calculations off the interface thread.
+
+    Args:
+        manipulator (ScheduleManipulator): The orchestrator every request goes through.
+        targets (list): The observations to calculate for.
+        calc_types (list): The result keys asked for.
+        params (dict): What to pass to every step -- `time_step`, `target_telescope`,
+            `recalculate`.
+
+    Notes:
+        - One request. Which prerequisites are needed, what order they go in, and what to skip
+          when a step fails are worked out by the backend from the handlers themselves, so a
+          command line or a server sending the same request gets the same behaviour.
+        - Progress and cancellation are carried by the request, not by a loop here.
+    """
+
     progress = Signal(int, str)
     finished = Signal(dict, list)
     error = Signal(str)
@@ -20,122 +35,41 @@ class CalculationThread(QThread):
         self.manipulator = manipulator
         self.targets = targets
         self.calc_types = calc_types
-        self.params = params
+        self.params = params or {}
         self._cancelled = False
-        logger.debug("CalculationThread initialized with calc_types: %s", self.calc_types)
-
-        # Asked once when the work starts, so every step below spells a calculation the way
-        # the manipulator does.
-        response = manipulator.export(obj=None, method="catalogue", raise_on_error=False)
-        offered = (response["result"] if isinstance(response, dict) and "status" in response
-                   else response) or []
-        self._keys_by_label = {entry["label"]: entry["key"] for entry in offered}
-
-        # What is valid is what the manipulator offers, so a new calculation needs no second
-        # list to be added to before it can be run.
-        response = manipulator.export(obj=None, method="catalogue", raise_on_error=False)
-        offered = (response["result"] if isinstance(response, dict) and "status" in response
-                   else response) or []
-        valid_calcs = {entry["label"] for entry in offered} | {entry["key"] for entry in offered}
-        invalid_calcs = [calc for calc in calc_types if calc not in valid_calcs]
-        if invalid_calcs:
-            logger.error("Invalid calculation types provided: %s", invalid_calcs)
-            raise ValueError(f"Invalid calculation types: {invalid_calcs}")
 
     def cancel(self):
-        """Set cancellation flag to stop after current calculation."""
+        """Ask the run to stop after the step in flight."""
         self._cancelled = True
-        logger.debug("CalculationThread cancellation requested")
+        logger.debug("Calculation cancellation requested")
 
     def run(self):
-        """Execute calculations asynchronously with per-item error handling."""
-        results = {}
-        errors = []
-        freq_dependent_calcs = ["Synthesized Beam"]
-
+        """Send the request and report what came back."""
         try:
-            total = sum(
-                len(target.frequencies.get_active_items()) if calc_type in freq_dependent_calcs else 1
-                for target in self.targets for calc_type in self.calc_types
-            )
-            current = 0
+            shared = {}
+            for per_calculation in self.params.values():
+                shared.update(per_calculation)
 
-            for target in self.targets:
-                if self._cancelled:
-                    logger.info("Calculation cancelled by user")
-                    self.error.emit("Calculation cancelled by user")
-                    return
+            outcome = self.manipulator.export(
+                obj=None, method="run",
+                targets=self.targets, calculations=self.calc_types,
+                progress=lambda percent, message: self.progress.emit(percent, message),
+                cancelled=lambda: self._cancelled,
+                **shared)
 
-                freqs = ([f.name for f in target.frequencies.get_active_items()]
-                         if isinstance(target, Observation) else [None])
+            if outcome.get("cancelled"):
+                self.error.emit("Calculation cancelled by user")
+                return
 
-                for calc_type in self.calc_types:
-                    if self._cancelled:
-                        logger.info("Calculation cancelled by user")
-                        self.error.emit("Calculation cancelled by user")
-                        return
-
-                    calc_params = self.params.get(calc_type, {}).copy()
-                    time_step = calc_params.get("time_step", 600)
-
-                    # The label a user sees and the key a request needs are two spellings of
-                    # one thing, and the manipulator knows both. A table here was a third copy.
-                    method = self._keys_by_label.get(
-                        calc_type, calc_type.lower().replace(" ", "_"))
-
-                    if calc_type in freq_dependent_calcs:
-                        for freq in freqs:
-                            self._process_single_calc(target, calc_type, method, freq,
-                                                      calc_params, time_step, results, errors, current, total)
-                            current += 1
-                    else:
-                        self._process_single_calc(target, calc_type, method, None,
-                                                  calc_params, time_step, results, errors, current, total)
-                        current += 1
-
+            results = {name: True for name in outcome.get("ran", [])}
+            errors = [f"{name} failed" for name in outcome.get("failed", [])]
             if errors:
-                logger.warning("Completed with %s errors. Results collected: %s", len(errors), len(results))
-                self.finished.emit(results, errors)
-            else:
-                logger.info("All calculations completed successfully")
-                self.finished.emit(results, [])
+                logger.warning("Completed with %s failed step(s)", len(errors))
+            self.finished.emit(results, errors)
 
-        except Exception as e:
-            logger.error("Unexpected error in CalculationThread: %s", str(e))
-            self.error.emit(f"Critical error: {str(e)}")
-
-    def _process_single_calc(self, target, calc_type, method, freq, base_params,
-                             time_step, results, errors, current, total):
-        """Helper to process single calculation with isolated error handling."""
-        try:
-            calc_params = base_params.copy()
-            calc_params["time_step"] = time_step
-
-            if freq is not None:
-                calc_params["freq_name"] = freq
-                calc_params["store_key"] = f"{method}_{freq}"
-                display_name = f"{calc_type} for {target.code} at {freq}"
-            else:
-                calc_params["store_key"] = method
-                display_name = f"{calc_type} for {target.code}"
-
-            logger.debug("Executing %s on %s with params: %s", calc_type, target.code, calc_params)
-
-            result = self.manipulator.calculate(obj=target, method=method, **calc_params)
-            key = f"{target.code}_{calc_type}" + (f"_{freq}" if freq else "")
-            results[key] = result
-
-            progress_pct = int((current + 1) / total * 100)
-            self.progress.emit(progress_pct, f"Calculated {display_name}")
-
-        except Exception as e:
-            key = f"{target.code}_{calc_type}" + (f"_{freq}" if freq else "")
-            err_msg = f"{calc_type} failed for {target.code}" + (f" at {freq}" if freq else "") + f": {str(e)}"
-            errors.append(err_msg)
-            logger.error(err_msg)
-
-            progress_pct = int((current + 1) / total * 100)
-            self.progress.emit(progress_pct, f"Failed {display_name}")
+        except Exception as error:                       # noqa: BLE001 - shown to the user
+            logger.error("Calculation run failed: %s", str(error))
+            self.error.emit(f"Critical error: {error}")
 
 
 class ProgressDialog(QDialog):
@@ -323,14 +257,14 @@ class CalculationDialog(QDialog):
         dependencies = item.data(Qt.UserRole)
         if not dependencies:
             return
-        calc_type = item.text()
-        logger.debug("Handling dependencies for %s: %s", calc_type, dependencies)
-        for dep in dependencies:
-            for i in range(self.ui.calcList.count()):
-                if self.ui.calcList.item(i).text() == dep:
-                    self.ui.calcList.item(i).setCheckState(Qt.Checked)
-                    logger.debug("Enabled dependency: %s", dep)
-                    break
+        # Compared on the key: `requires` names results, the list shows labels. A prerequisite
+        # that is not offered -- a step nobody asks for by name -- is not in the list at all,
+        # and the backend adds it to the plan anyway.
+        logger.debug("Ticking what %s needs: %s", item.data(Qt.UserRole + 1), dependencies)
+        for index in range(self.ui.calcList.count()):
+            other = self.ui.calcList.item(index)
+            if other.data(Qt.UserRole + 1) in dependencies:
+                other.setCheckState(Qt.Checked)
         self.update_params_ui()
 
     def update_params_ui(self):
@@ -384,13 +318,18 @@ class CalculationDialog(QDialog):
                 return
             for calc in wanting_target:
                 calc_params[calc]["target_telescope"] = target_code
+            # Every step that accepts it gets the target; the ones that do not ignore it.
+            for calc in calc_params:
+                calc_params[calc].setdefault("target_telescope", target_code)
 
         self.progress_dialog = ProgressDialog(self)
         self.progress_dialog.ui.pushButtonCancel.clicked.connect(self.cancel_calculation)
         self.progress_dialog.update_progress(0, "Preparing calculations...")
         self.progress_dialog.show()
 
-        self.thread = CalculationThread(self.manipulator, selected_targets, selected_calcs, calc_params)
+        selected_keys = [self._key_for_label(label) for label in selected_calcs]
+        self.thread = CalculationThread(self.manipulator, selected_targets, selected_keys,
+                                        calc_params)
         self.thread.progress.connect(self.progress_dialog.update_progress)
         self.thread.finished.connect(self.calculation_finished)
         self.thread.error.connect(self.calculation_error)
