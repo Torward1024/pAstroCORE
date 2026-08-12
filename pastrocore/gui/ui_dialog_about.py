@@ -154,6 +154,6 @@ class Ui_AboutDialog(object):
         self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
         self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for  radio astronomical observations\n"
 " planning and visualization.", None))
-        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.1b", None))
+        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.8.0", None))
     # retranslateUi
 
