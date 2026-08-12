@@ -16,19 +16,12 @@ from pastrocore.base.scratch import ScratchSpace
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
-# UI files
+# UI files. The dialogs are imported where they are opened rather than here: between them
+# they pull in matplotlib and every visualization tab, which is 570 ms of a start-up that
+# happens whether or not anyone opens a dialog.
 from pastrocore.gui.ui_main_window import Ui_MainWindow
-from pastrocore.gui.p_dialog_calculations import CalculationDialog
-from pastrocore.gui.p_dialog_about import AboutDialog
-from pastrocore.gui.p_dialog_preferences import PreferencesDialog
-from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
-from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
 from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
-from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
-from pastrocore.gui.p_dialog_visualize import VisualizationDialog
-from pastrocore.gui.p_dialog_generate_observations import GenerateObservationsDialog
-from pastrocore.gui.p_dialog_export_calculated_data import ExportCalculatedDataDialog
 # Common/utils files
 from msb_arch.utils import (logger, 
                             setup_logging, 
@@ -66,11 +59,19 @@ class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
     project_updated = Signal()
 
-    def __init__(self):
+    def __init__(self, settings: dict = None):
+        """Build the main window.
+
+        Args:
+            settings (dict, optional): What `load_settings` returned. Read here when not given,
+                which is what a test that builds the window directly does.
+        """
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.settings = self.load_settings()
+        # Read once, by `main`, and passed in: reading them again here parsed the file twice
+        # and logged it twice on every start.
+        self.settings = settings if settings is not None else self.load_settings()
         self._dock_was_visible = True
         self._sync_in_progress = False 
     
@@ -303,6 +304,7 @@ class PAstroCoreMainWindow(QMainWindow):
     def open_export_dialog(self):
         """Open the Export Calculated Data dialog."""
         try:
+            from pastrocore.gui.p_dialog_export_calculated_data import ExportCalculatedDataDialog
             dialog = ExportCalculatedDataDialog(self.manipulator, self)
             if dialog.exec() == QDialog.Accepted:
                 logger.debug("Export Calculated Data dialog accepted")
@@ -316,6 +318,7 @@ class PAstroCoreMainWindow(QMainWindow):
     def open_calculation_dialog(self):
         """Open the calculation dialog with time_step from settings."""
         try:
+            from pastrocore.gui.p_dialog_calculations import CalculationDialog
             dialog = CalculationDialog(self.manipulator, time_step=self.settings.get("time_step", 600), parent=self)
             dialog.time_step_updated.connect(self.handle_time_step_updated)
             dialog.exec()
@@ -327,6 +330,7 @@ class PAstroCoreMainWindow(QMainWindow):
     def open_visualization_dialog(self):
         """Open the visualization dialog for the current project."""
         try:
+            from pastrocore.gui.p_dialog_visualize import VisualizationDialog
             dialog = VisualizationDialog(self.manipulator, parent=self)
             dialog.exec()
         except Exception as e:
@@ -433,6 +437,7 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def add_observation(self):
         """Add a new observation to the project via ScheduleManipulator."""
+        from pastrocore.gui.p_dialog_add_observation import AddObservationDialog
         dialog = AddObservationDialog(self.manipulator, self)
         dialog.observation_added.connect(self.handle_observation_added)
         dialog.exec()
@@ -874,6 +879,7 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def open_preferences(self):
         """Open the preferences dialog to configure settings."""
+        from pastrocore.gui.p_dialog_preferences import PreferencesDialog
         dialog = PreferencesDialog(self.settings, self)
         dialog.settings_updated.connect(self.handle_settings_updated)
         dialog.exec()
@@ -947,6 +953,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Telescopes catalog is empty. Check the catalog file or reload in Preferences.")
             return
 
+        from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
         dialog = TelescopesCatalogDialog(self.catalog_manager, self)
         dialog.exec()
         logger.debug("Telescopes catalog browser dialog opened")
@@ -966,6 +973,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Sources catalog is empty. Check the catalog file or reload in Preferences.")
             return
 
+        from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
         dialog = SourcesCatalogDialog(self.catalog_manager, self)
         dialog.exec()
         logger.debug("Sources catalog browser dialog opened")
@@ -973,6 +981,7 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def show_about(self):
         """Show about dialog."""
+        from pastrocore.gui.p_dialog_about import AboutDialog
         dialog = AboutDialog(self)
         dialog.exec()
 
@@ -1121,6 +1130,7 @@ class PAstroCoreMainWindow(QMainWindow):
     def handle_generate_observations(self):
         """Handle the Generate Observations action from the Tools menu."""
         try:
+            from pastrocore.gui.p_dialog_generate_observations import GenerateObservationsDialog
             dialog = GenerateObservationsDialog(self.project, self.manipulator, self.catalog_manager, self)
             dialog.observation_generated.connect(self.handle_observation_generated)
             if dialog.exec() == QDialog.Accepted:
@@ -1406,8 +1416,13 @@ def main() -> None:
             background-color: #f5f5f5;
         }
     """)
-    window = PAstroCoreMainWindow()
+    window = PAstroCoreMainWindow(_startup_settings)
     window.show()
+    # Build the deferred operations while the user is looking at the window rather than at the
+    # first dialog. Anything that asks meanwhile waits on the same lock, so the only question
+    # is who does the waiting.
+    threading.Thread(target=window.manipulator.warm, name="warm-operations",
+                     daemon=True).start()
     # After the window is up, never from the constructor. A modal dialog raised before there
     # is a window to own it blocks with nothing on screen to dismiss it -- which is how the
     # build hung for ten minutes once already, and why a test forbids it.

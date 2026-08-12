@@ -52,8 +52,6 @@ class ScheduleManipulator(Manipulator):
         from pastrocore.base.scans import Scan, Scans
         from pastrocore.super.schedule_configurator import ScheduleConfigurator
         from pastrocore.super.schedule_inspector import ScheduleInspector
-        from pastrocore.super.schedule_calculator import ScheduleCalculator
-        from pastrocore.super.schedule_visualizer import ScheduleVisualizer
         from pastrocore.super.schedule_data import ScheduleData
 
         base_classes = [
@@ -65,8 +63,13 @@ class ScheduleManipulator(Manipulator):
         
         self.register_operation(ScheduleConfigurator(self))
         self.register_operation(ScheduleInspector(self))
-        self.register_operation(ScheduleCalculator(self))
-        self.register_operation(ScheduleVisualizer(self))
+        # Deferred: between them these two import matplotlib, astropy.coordinates and scipy,
+        # which is 2.3 s of a start-up that happens whether or not anyone calculates or plots.
+        # They are registered from here -- the catalogue lists them, a facade exists, a plan may
+        # name them -- and built when something first asks. `app.main` warms them in the
+        # background once the window is up.
+        self.register_deferred("calculate", self._make_calculator)
+        self.register_deferred("visualize", self._make_visualizer)
         # One Super, three operations. MSB binds an instance to one operation name, so an
         # instance is registered per name and each resolves its own `_export`, `_save` or
         # `_load`. Keeping them in one class is deliberate: they are the same concern -- data
@@ -84,6 +87,18 @@ class ScheduleManipulator(Manipulator):
             self.add_interceptor(self._journal)
 
         logger.info("Initialized ScheduleManipulator!")
+
+    def _make_calculator(self):
+        """Build the calculator. Called once, by MSB, when `calculate` is first needed."""
+        from pastrocore.super.schedule_calculator import ScheduleCalculator
+
+        return ScheduleCalculator(self)
+
+    def _make_visualizer(self):
+        """Build the visualizer. Called once, by MSB, when `visualize` is first needed."""
+        from pastrocore.super.schedule_visualizer import ScheduleVisualizer
+
+        return ScheduleVisualizer(self)
 
     def get_journal(self) -> Optional[RequestJournal]:
         """Return the record of every request this orchestrator has processed.
