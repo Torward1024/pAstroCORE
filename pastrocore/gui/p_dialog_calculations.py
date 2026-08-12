@@ -234,6 +234,20 @@ class CalculationDialog(QDialog):
             logger.error("Failed to retrieve observations: %s", str(e))
             QMessageBox.critical(self, "Error", "Failed to load observations. Please check the project data.")
 
+    def _key_for_label(self, label: str) -> str:
+        """Return the result key an item in the list stands for.
+
+        Notes:
+            - The list shows labels because that is what a person reads; every request needs
+              the key. The dialog holds the pairing from the catalogue rather than deriving it,
+              since a label may be spelled anything.
+        """
+        for index in range(self.ui.calcList.count()):
+            item = self.ui.calcList.item(index)
+            if item.text() == label:
+                return item.data(Qt.UserRole + 1)
+        return label.lower().replace(" ", "_")
+
     def _ask_for_target(self, observations, calculations):
         """Return the code of the spacecraft to point at, or None to stop.
 
@@ -360,7 +374,10 @@ class CalculationDialog(QDialog):
         }
         calc_params = {calc: params.copy() for calc in selected_calcs}
 
-        wanting_target = [calc for calc in selected_calcs if calc in self._needs_target]
+        # The list shows labels and the catalogue speaks keys, so compare on the key the item
+        # carries. Matching on the label is how the target went missing in the first place.
+        wanting_target = [calc for calc in selected_calcs
+                          if self._key_for_label(calc) in self._needs_target]
         if wanting_target:
             target_code = self._ask_for_target(selected_targets, wanting_target)
             if target_code is None:
