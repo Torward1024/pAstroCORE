@@ -599,6 +599,22 @@ class PAstroCoreMainWindow(QMainWindow):
         project_explorer.viewport().update()
         logger.debug("Project explorer updated and expanded")
 
+    def _warm_manipulator(self) -> None:
+        """Build the deferred operations and derive the catalogue, off the interface thread.
+
+        Notes:
+            - Anything asking meanwhile waits on the same lock rather than doing the work
+              twice, so the only thing at stake is who waits.
+            - Failures are logged and dropped: this is an optimisation, and a session that
+              cannot warm up must still be usable.
+        """
+        try:
+            self.manipulator.warm()
+            self.manipulator.describe_operations()
+            logger.debug("Operations and catalogue warmed")
+        except Exception as error:                          # noqa: BLE001 - logged below
+            logger.warning("Could not warm the manipulator: %s", str(error))
+
     @staticmethod
     def load_settings() -> dict:
         """Load application settings from settings.pastro file.
@@ -1418,10 +1434,11 @@ def main() -> None:
     """)
     window = PAstroCoreMainWindow(_startup_settings)
     window.show()
-    # Build the deferred operations while the user is looking at the window rather than at the
-    # first dialog. Anything that asks meanwhile waits on the same lock, so the only question
-    # is who does the waiting.
-    threading.Thread(target=window.manipulator.warm, name="warm-operations",
+    # Build the deferred operations, and then read the catalogue once, while the user is
+    # looking at the window rather than at the first dialog. Deriving the catalogue parses the
+    # source of every registered Super, which is 550 ms for the calculator alone; MSB keeps the
+    # answer, so every dialog afterwards costs milliseconds.
+    threading.Thread(target=window._warm_manipulator, name="warm-operations",
                      daemon=True).start()
     # After the window is up, never from the constructor. A modal dialog raised before there
     # is a window to own it blocks with nothing on screen to dismiss it -- which is how the

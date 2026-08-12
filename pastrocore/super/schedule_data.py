@@ -32,8 +32,6 @@ from pastrocore.base.observation import Observation
 from pastrocore.super.schedule_project import ScheduleProject
 
 #: Results that can be drawn. Anything else is exported as text only.
-VISUALIZABLE = ("uv_coverage", "baseline_projections", "time_on_source", "sun_angles",
-                "az_el", "mollweide_tracks", "beam_pattern", "parallactic_angle")
 
 #: Filenames that do not follow from the calculation's name.
 FILE_PREFIXES = {"Beam Pattern": "Beam_Pattern", "Mollweide Tracks": "Mollweide"}
@@ -84,6 +82,11 @@ class ScheduleData(Super):
         if not export_path:
             raise ValueError("No 'export_path' given; there is nowhere to write")
 
+        # What can be drawn is whatever the visualizer offers a handler for. Asking means a new
+        # plot is exported the moment it exists, without a list here to be updated as well.
+        drawable = set(self._manipulator.describe_operations("visualize").get("visualize", {})) \
+            if export_vis else set()
+
         steps_per_target = len(calc_types) * ((1 if export_data else 0) + (1 if export_vis else 0))
         total_steps = len(targets) * steps_per_target if steps_per_target > 0 else 1
         current_step = 0
@@ -126,14 +129,20 @@ class ScheduleData(Super):
                            f"Exported data for {calc_type} in {obs_code}")
 
                 if export_vis:
-                    if key not in VISUALIZABLE:
-                        logger.debug("Skipping visualization for %s as it is not visualizable", calc_type)
+                    if key not in drawable:
+                        logger.debug("Nothing draws '%s'; exporting its data only", calc_type)
                         continue
-                    for source_name in sources:
+                    # Whether a result is per source is a fact about its columns: one that
+                    # names a `source_name` is drawn once per source, one that does not -- a
+                    # spacecraft is tracked, not observed -- is drawn once.
+                    columns = set(CalculatedDataStructure.entry_for(key).get("columns") or [])
+                    per_source = sources if "source_name" in columns else [None]
+                    for source_name in per_source:
+                        suffix = f"_{source_name}" if source_name else ""
                         png_path = os.path.join(
-                            export_path, f"{obs_code}_{file_prefix}_{source_name}.png")
+                            export_path, f"{obs_code}_{file_prefix}{suffix}.png")
                         try:
-                            self.manipulator.visualize(
+                            self._manipulator.visualize(
                                 obj=target, plot_type=key, output_file=png_path, dpi=76,
                                 source_name=source_name,
                                 baselines=baselines if key in ("uv_coverage", "baseline_projections") else [],
@@ -315,7 +324,8 @@ class ScheduleData(Super):
 
         Args:
             obj (Observation): The observation to read.
-            attributes: `key`, the result to look in, and optionally `source_name` to narrow
+            attributes: `key`, the result to look in, and optionally any column the result has
+                -- `source_name`, `target_code` -- to narrow
                 it to one source. Without a source the answer covers every scan the result
                 holds, which is what a plot showing all of them wants.
 
@@ -334,7 +344,6 @@ class ScheduleData(Super):
               fill a list; a script would use it to decide what to plot.
         """
         key = attributes.get("key")
-        source_name = attributes.get("source_name")
         if not key:
             raise ValueError("A 'key' is needed to list scan times")
 
@@ -355,13 +364,20 @@ class ScheduleData(Super):
         # calls its beginning "start". The question is the same either way, so the column is
         # found rather than assumed.
         moment = next((column for column in ("time", "start") if column in frame.columns), None)
-        if (source_name and "source_name" not in frame.columns) or moment is None:
-            logger.debug("Result '%s' is not keyed by source and a time", key)
+        if moment is None:
+            logger.debug("Result '%s' records no time", key)
             return []
 
-        filtered = frame.filter(pl.col("source_name") == source_name) if source_name else frame
+        # Narrow by whatever the caller named that this result actually has a column for --
+        # `source_name` for a result about a source, `target_code` for one about a spacecraft.
+        # Asking the frame means a new kind of result needs no case here.
+        narrowing = {column: value for column, value in attributes.items()
+                     if column in frame.columns and value is not None}
+        filtered = frame
+        for column, value in narrowing.items():
+            filtered = filtered.filter(pl.col(column) == value)
         if filtered.is_empty():
-            logger.debug("No '%s' data for source '%s'", key, source_name or "any")
+            logger.debug("No '%s' data for %s", key, narrowing or "any")
             return []
 
         starts = (filtered.group_by("scan_name")

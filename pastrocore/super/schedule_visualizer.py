@@ -127,15 +127,14 @@ class ScheduleVisualizer(Super):
             (ScheduleProject, Observation): self._visualize_project_or_observation
         }
 
+        # Every `_visualize_<key>` method, found rather than listed: a plot that exists is a
+        # plot that can be asked for, drawn in a tab and written by an export, without three
+        # tables agreeing about it. `project_or_observation` is the entry point, not a plot.
         self._plot_types: Dict[str, Callable] = {
-            "uv_coverage": self._visualize_uv_coverage,
-            "sun_angles": self._visualize_sun_angles,
-            "az_el": self._visualize_az_el,
-            "time_on_source": self._visualize_time_on_source,
-            "beam_pattern": self._visualize_beam_pattern,
-            "baseline_projections": self._visualize_baseline_projections,
-            "mollweide_tracks": self._visualize_mollweide_tracks,
-            "parallactic_angle": self._visualize_parallactic_angle
+            name[len("_visualize_"):]: getattr(self, name)
+            for name in dir(self)
+            if name.startswith("_visualize_") and name != "_visualize_project_or_observation"
+            and callable(getattr(self, name, None))
         }
         
         logger.debug("Initialized Scheduling Visualizer")
@@ -641,6 +640,179 @@ class ScheduleVisualizer(Super):
             result["baselines"] = len(plotted_pairs)
             logger.debug("Plotting completed: %s points, %s baselines", result['points'], result['baselines'])
             return result
+
+
+    def _visualize_telescope_az_el(self, obj: Observation, attributes: Dict[str, Any],
+                                   fig: Figure) -> Dict[str, Any]:
+        """Plot where each station points to follow a spacecraft, and how far away it is.
+
+        Args:
+            obj: The observation holding the result.
+            attributes: `telescopes` and `scans` narrow it; `target_code` picks one spacecraft
+                when the result holds several; `time_range` is a pair of MJD.
+            fig: The figure to draw on.
+
+        Returns:
+            Dict[str, Any]: `scans`, `telescopes` and `points` drawn.
+
+        Notes:
+            - Azimuth and elevation share the left axis, in degrees; range is drawn against a
+              right axis in thousands of kilometres, because a spacecraft's range moves over
+              four orders of magnitude more than its angles do.
+        """
+        with self._lock:
+            store_key = attributes.get("store_key", "telescope_az_el")
+            frame = obj.scan_calculated_data(store_key)
+            labels = {"xlabel": "Time, (MJD)", "ylabel": "Az/El, (deg)",
+                      "title": f"Pointing at a spacecraft\nObs. code: {obj.get_observation_code()}"}
+            if frame is None:
+                return self._create_empty_plot(fig, store_key, obj.get_observation_code(),
+                                               labels=labels)
+
+            frame = self._filter_spacecraft(frame, attributes)
+            filtered = frame.collect()
+            if filtered.is_empty():
+                return self._create_empty_plot(fig, store_key, obj.get_observation_code(),
+                                               labels=labels)
+
+            stations = sorted(filtered["telescope_code"].unique())
+            rows = min(len(stations), self._style_config.get("max_subplots", 10))
+            axes = np.atleast_1d(self._setup_axes(fig, store_key, obj.get_observation_code(),
+                                                  n_rows=rows, n_cols=1, sharex=True)).tolist()
+
+            az_color = self._style_config["colors"][2]
+            el_color = self._style_config["colors"][4]
+            range_color = self._style_config["colors"][0]
+            width = self._style_config.get("lines", {}).get("width", 1.5)
+            result = {"scans": len(filtered["scan_name"].unique()), "telescopes": 0, "points": 0}
+
+            for index, station in enumerate(stations[:rows]):
+                data = filtered.filter(pl.col("telescope_code") == station).sort("time")
+                times = data["time"].to_numpy()
+                azimuth = data["az"].to_numpy()
+                elevation = data["el"].to_numpy()
+                usable = ~(np.isnan(azimuth) | np.isnan(elevation))
+                if not np.any(usable):
+                    continue
+
+                axis = axes[index]
+                axis.plot(times[usable], azimuth[usable], color=az_color, linewidth=width,
+                          label="Az" if index == 0 else "")
+                axis.plot(times[usable], elevation[usable], color=el_color, linewidth=width,
+                          label="El" if index == 0 else "")
+                axis.set_ylabel(f"{station}\nAz/El, (deg)",
+                                fontsize=self._style_config["font"]["label_size"])
+                axis.grid(True, alpha=0.3)
+
+                if "range" in data.columns:
+                    distance = data["range"].to_numpy()
+                    if np.any(~np.isnan(distance)):
+                        right = axis.twinx()
+                        right.plot(times[usable], distance[usable] / 1e6, color=range_color,
+                                   linewidth=width, linestyle="--",
+                                   label="Range" if index == 0 else "")
+                        right.set_ylabel("Range, (1000 km)",
+                                         fontsize=self._style_config["font"]["label_size"])
+                        if index == 0:
+                            right.legend(loc="upper right",
+                                         fontsize=self._style_config["font"]["legend_size"])
+
+                if index == 0:
+                    axis.legend(loc="upper left",
+                                fontsize=self._style_config["font"]["legend_size"])
+                    axis.set_title(labels["title"],
+                                   fontsize=self._style_config["font"]["title_size"])
+                result["telescopes"] += 1
+                result["points"] += int(np.count_nonzero(usable))
+
+            axes[-1].set_xlabel(labels["xlabel"],
+                                fontsize=self._style_config["font"]["label_size"])
+            return self._finalize_plot(fig, attributes, result)
+
+    def _visualize_telescope_visibility(self, obj: Observation, attributes: Dict[str, Any],
+                                        fig: Figure) -> Dict[str, Any]:
+        """Plot when each station can see the spacecraft.
+
+        Args:
+            obj: The observation holding the result.
+            attributes: As for `_visualize_telescope_az_el`.
+            fig: The figure to draw on.
+
+        Returns:
+            Dict[str, Any]: `scans`, `telescopes` and `points` drawn.
+
+        Notes:
+            - One row per station, drawn as filled bands rather than a line: the value is a
+              boolean, and what a reader wants from it is when it is true and for how long.
+        """
+        with self._lock:
+            store_key = attributes.get("store_key", "telescope_visibility")
+            frame = obj.scan_calculated_data(store_key)
+            labels = {"xlabel": "Time, (MJD)", "ylabel": "Station",
+                      "title": f"Spacecraft visibility\nObs. code: {obj.get_observation_code()}"}
+            if frame is None:
+                return self._create_empty_plot(fig, store_key, obj.get_observation_code(),
+                                               labels=labels)
+
+            frame = self._filter_spacecraft(frame, attributes)
+            filtered = frame.collect()
+            if filtered.is_empty():
+                return self._create_empty_plot(fig, store_key, obj.get_observation_code(),
+                                               labels=labels)
+
+            stations = sorted(filtered["telescope_code"].unique())
+            axis = np.atleast_1d(self._setup_axes(fig, store_key, obj.get_observation_code()))[0]
+            visible_color = self._style_config["colors"][1]
+            result = {"scans": len(filtered["scan_name"].unique()), "telescopes": 0, "points": 0}
+
+            for index, station in enumerate(stations):
+                data = filtered.filter(pl.col("telescope_code") == station).sort("time")
+                times = data["time"].to_numpy()
+                visible = data["visibility"].to_numpy().astype(bool)
+                if times.size == 0:
+                    continue
+
+                axis.fill_between(times, index - 0.4, index + 0.4, where=visible,
+                                  color=visible_color, step="post",
+                                  label="Visible" if index == 0 else "")
+                result["telescopes"] += 1
+                result["points"] += int(np.count_nonzero(visible))
+
+            axis.set_yticks(range(len(stations)))
+            axis.set_yticklabels(stations, fontsize=self._style_config["font"]["tick_size"])
+            axis.set_ylim(-0.6, len(stations) - 0.4)
+            axis.set_xlabel(labels["xlabel"],
+                            fontsize=self._style_config["font"]["label_size"])
+            axis.set_title(labels["title"],
+                           fontsize=self._style_config["font"]["title_size"])
+            axis.grid(True, axis="x", alpha=0.3)
+            if result["telescopes"]:
+                axis.legend(loc="upper right",
+                            fontsize=self._style_config["font"]["legend_size"])
+            return self._finalize_plot(fig, attributes, result)
+
+    @staticmethod
+    def _filter_spacecraft(frame, attributes: Dict[str, Any]):
+        """Apply the filters both spacecraft plots accept.
+
+        Notes:
+            - These results are keyed by `target_code` rather than by `source_name`: what is
+              being pointed at is a spacecraft, not a source.
+        """
+        target = attributes.get("target_code")
+        if target:
+            frame = frame.filter(pl.col("target_code") == target)
+        telescopes = attributes.get("telescopes")
+        if telescopes:
+            frame = frame.filter(pl.col("telescope_code").is_in(telescopes))
+        scans = attributes.get("scans")
+        if scans:
+            frame = frame.filter(pl.col("scan_name").is_in(scans))
+        window = attributes.get("time_range")
+        if window:
+            start, end = window
+            frame = frame.filter((pl.col("time") >= float(start)) & (pl.col("time") <= float(end)))
+        return frame
 
     def _visualize_sun_angles(self, obj: Observation, attributes: Dict[str, Any], fig: Figure) -> Dict[str, Any]:
         """
