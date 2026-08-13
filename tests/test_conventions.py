@@ -401,3 +401,56 @@ def test_a_handler_added_after_import_is_invisible():
         assert "glued_on" not in derive(Calculator(None), "calculate")
     finally:
         del Calculator._calculate_glued_on
+
+
+# --- one way in ------------------------------------------------------------------------------
+
+#: Methods that belong to the model. A window calling one of these is reaching past the
+#: orchestrator, which is the thing a command line and a server cannot do -- so every one of
+#: them is a line those two would have to write again.
+MODEL_METHODS = re.compile(
+    r"\.(get_telescopes|get_sources|get_scans|get_frequencies|get_observation|"
+    r"get_observation_by_code|observations|create_telescope|create_source|create_scan|"
+    r"create_if|create_item|add_item|set_item|clear_calculated_data|"
+    r"set_calculated_data_by_key|stale_results|unsaved_results|discard_scratch_if_empty|"
+    r"to_dict|from_dict)\(")
+
+#: Where reaching the model is decided rather than owed, with the reason.
+REACHING_IS_ALLOWED = {
+    # Reads one result to draw it. Going through the orchestrator for the frame it is about to
+    # filter would mean reading it whole first, which is the cost the lazy view exists to avoid.
+    "p_dialog_visualize.py",
+}
+
+
+def test_the_interface_reaches_the_model_only_through_the_orchestrator():
+    """One entry point, checked rather than believed.
+
+    Six were found when this was written: the calculation dialog walked the telescopes to find
+    a spacecraft and cleared results itself, two visualization tabs read the frequencies, and
+    the window asked an observation what was stale, saved the project by calling it, and wrote
+    an observation to a file with `json.dump(observation.to_dict())` -- which MSB's own `save`
+    does atomically.
+    """
+    modules = [module for module in sorted((ROOT / "pastrocore" / "gui").glob("*.py"))
+               if not module.name.startswith(("ui_", "rc_"))]
+    modules.append(ROOT / "pastrocore" / "app.py")
+
+    offenders = {}
+    for module in modules:
+        if module.name in REACHING_IS_ALLOWED:
+            continue
+        found = []
+        for number, line in enumerate(module.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#") or "manipulator." in stripped:
+                continue
+            for match in MODEL_METHODS.finditer(line):
+                found.append(f"{match.group(1)} at line {number}")
+        if found:
+            offenders[module.name] = found
+
+    assert not offenders, (
+        "the interface reaches the model directly:\n  "
+        + "\n  ".join(f"{name}: {'; '.join(calls)}" for name, calls in offenders.items())
+        + "\nSend a request instead -- that is what a command line and a server will send.")

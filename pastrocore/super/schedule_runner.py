@@ -414,3 +414,65 @@ class ScheduleRunner(Super):
         return {"ran": [name for name in outcome if name not in outcome.failed],
                 "failed": list(outcome.failed),
                 "unresolved": unresolved}
+
+    def _compute_targets(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
+        """Return what could be pointed at in a set of observations.
+
+        Args:
+            obj: An observation, a project, or a list of them; `targets` overrides it.
+            attributes: `targets`, the observations to look in.
+
+        Returns:
+            List[str]: The codes of the space telescopes there, sorted, without repeats.
+
+        Notes:
+            - Asked by the calculation dialog before running anything that needs a target. It
+              used to walk the model itself -- which is the model reaching into a window, and
+              the reason a command line asking the same question would have to write it again.
+        """
+        from pastrocore.base.telescopes import SpaceTelescope
+
+        codes = []
+        for observation in (attributes.get("targets") or self._targets(obj)):
+            for telescope in observation.get_telescopes().get_items():
+                if isinstance(telescope, SpaceTelescope) and telescope.get_code() not in codes:
+                    codes.append(telescope.get_code())
+        return sorted(codes)
+
+    def _compute_clear(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Discard the calculated results of a set of observations.
+
+        Args:
+            obj: An observation, a project, or a list of them; `targets` overrides it.
+            attributes: `targets`, the observations to clear.
+
+        Returns:
+            Dict[str, Any]: `{"cleared": [codes]}`.
+
+        Notes:
+            - A request, because a window is not the only thing that wants it: a command line
+              rebuilding a project from scratch asks for exactly this.
+        """
+        cleared = []
+        for observation in (attributes.get("targets") or self._targets(obj)):
+            observation.clear_calculated_data()
+            cleared.append(observation.code)
+        logger.info("Cleared the results of %s observation(s)", len(cleared))
+        return {"cleared": cleared}
+
+    def _compute_stale(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
+        """Return the results of one observation whose inputs have changed since they were made.
+
+        Args:
+            obj (Observation): The observation to ask about.
+            attributes: Ignored.
+
+        Returns:
+            List[str]: Store keys, sorted. Empty when nothing is known to be stale, which
+                includes a result that predates the mechanism.
+
+        Notes:
+            - Reads no result: the answer comes from the metadata beside them and from the
+              model, so asking costs a directory listing rather than the project.
+        """
+        return sorted(obj.stale_results()) if hasattr(obj, "stale_results") else []
