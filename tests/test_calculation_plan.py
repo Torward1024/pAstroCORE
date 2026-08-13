@@ -151,14 +151,27 @@ def test_a_run_with_a_failed_step_is_not_called_a_success(bench, qt_application,
 
     thread = CalculationThread(manipulator, [observation], ["uv_coverage"], {})
     thread.finished.connect(dialog.calculation_finished)
-    thread.finished.emit({f"{observation.code}/time_arrays": True},
-                         [f"{observation.code}/uv_coverage failed"],
-                         {f"{observation.code}/time_arrays": 0.1})
+    thread.finished.emit(
+        {f"{observation.code}/times": True},
+        [f"{observation.code}/uv_coverage failed"],
+        {"ran": [f"{observation.code}/times"],
+         "failed": [f"{observation.code}/uv_coverage"],
+         "cancelled": False,
+         "timings": {f"{observation.code}/times": 0.1},
+         "report": [{"step": f"{observation.code}/times", "observation": observation.code,
+                     "label": "Time Arrays", "seconds": 0.1, "outcome": "ok"},
+                    {"step": f"{observation.code}/uv_coverage", "observation": observation.code,
+                     "label": "UV Coverage", "seconds": 0.0, "outcome": "failed"}],
+         "summary": {"steps": 1, "failed": 1, "seconds": 0.1, "slowest": "times",
+                     "slowest_seconds": 0.1}})
 
     assert "information" not in said, (
-        f"a run with a failed step was reported as a success: {said['information']!r}")
-    assert "uv_coverage" in said.get("warning", ""), (
-        f"the user was not told which step failed: {said!r}")
+        f"a run with a failed step was reported as a success: {said.get('information')!r}")
+    # The failure is carried, not summarised into a box: the window opens the report from it
+    # once this dialog has closed, and keeps it for Tools -> Last Run Report afterwards.
+    failed = dialog.outcome["failed"]
+    assert failed == [f"{observation.code}/uv_coverage"], (
+        f"the failure did not reach the window: {dialog.outcome!r}")
     dialog.close()
 
 
@@ -242,3 +255,85 @@ def test_the_progress_percentage_counts_finished_work(bench):
     assert seen[0][0] > 0, "the first report is a step already finished"
     assert seen[-1][0] == 100
     assert [percent for percent, _ in seen] == sorted(percent for percent, _ in seen)
+
+
+# --- the run says what it did ------------------------------------------------------------------
+
+def test_the_run_reports_every_step_with_its_outcome(bench):
+    """One report, built where the run happens. A window renders it, a command line prints it
+    and a server serialises it -- none of them assembles it from three lists."""
+    manipulator, observation = bench
+    outcome = manipulator.compute(obj=None, method="run", targets=[observation],
+                                  calculations=["uv_coverage"], time_step=600.0,
+                                  recalculate=True)
+
+    report = outcome["report"]
+    assert [row["step"] for row in report] == outcome["ran"], "in plan order, one row per step"
+    assert all(row["outcome"] == "ok" for row in report)
+    assert all(row["seconds"] >= 0.0 for row in report)
+    assert {row["label"] for row in report} >= {"Time Arrays", "UV Coverage"}, (
+        "labelled as a person reads them, by the catalogue rather than by the window")
+
+
+def test_a_failed_step_appears_in_the_report_as_failed(bench):
+    """The report is what makes a failure visible without opening a log file, so a failure has
+    to be *in* it -- the run that reported success while steps failed is the reason M4 exists."""
+    manipulator, observation = bench
+    outcome = manipulator.compute(obj=None, method="run", targets=[observation],
+                                  calculations=["telescope_az_el"], time_step=600.0,
+                                  recalculate=True)
+
+    # No spacecraft in the fixture and no target given: the pointing cannot produce anything.
+    by_step = {row["step"]: row for row in outcome["report"]}
+    assert by_step, "a run that produced nothing still has to report the steps it took"
+    assert set(by_step) == set(outcome["ran"]) | set(outcome["failed"])
+    for name in outcome["failed"]:
+        assert by_step[name]["outcome"] == "failed"
+
+
+def test_a_step_stores_its_result_where_the_schema_says(bench):
+    """The plan names steps by handler, and results are filed under store keys. For one
+    calculation the two differ: `_calculate_time_arrays` files under `times`.
+
+    The plan passed the handler name as `store_key`, so the result landed under `time_arrays`
+    -- which nothing reads, and which the model reports as an unknown key on every save:
+
+        WARNING - Unknown calculated_data key 'time_arrays' in observation '...'
+    """
+    manipulator, observation = bench
+    manipulator.compute(obj=None, method="run", targets=[observation],
+                        calculations=["uv_coverage"], time_step=600.0, recalculate=True)
+
+    assert "times" in observation.calculated_data, "the schema files time arrays under `times`"
+    assert "time_arrays" not in observation.calculated_data, (
+        "stored under the handler's name, where nothing looks for it")
+
+
+def test_the_chain_is_computed_once_however_much_is_asked_for(bench):
+    """The plan runs `times`, then positions, then visibility -- each once, in order. What the
+    later steps need is what the earlier steps just produced.
+
+    Every handler used to hand `recalculate` down to its own prerequisites, so asking for one
+    calculation with `recalculate=True` recomputed the base of the chain at every level:
+    `times` was calculated and written **ten times** for a single `source_visibility`.
+    """
+    from collections import Counter
+
+    from pastrocore.base.observation import Observation
+
+    manipulator, observation = bench
+    stored = Counter()
+    original = Observation.set_calculated_data_by_key
+    Observation.set_calculated_data_by_key = (
+        lambda self, key, df, metadata=None, *a, **kw: (
+            stored.update([key]), original(self, key, df, metadata, *a, **kw))[1])
+    try:
+        manipulator.compute(obj=None, method="run", targets=[observation],
+                            calculations=["source_visibility"], time_step=600.0,
+                            recalculate=True)
+    finally:
+        Observation.set_calculated_data_by_key = original
+
+    assert stored["times"] <= 2, (
+        f"the base of the chain was stored {stored['times']} times for one request: {dict(stored)}")
+    assert stored["telescope_positions"] <= 2, dict(stored)

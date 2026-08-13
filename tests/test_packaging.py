@@ -247,3 +247,51 @@ def test_the_readme_asks_for_the_msb_it_actually_needs():
     badge = re.search(r"MSB%20(\d+\.\d+\.\d+)", readme)
     assert badge and badge.group(1) == asked.group(1), "and the badge says something else again"
     assert msb_arch.__version__ >= asked.group(1), "the installed msb_arch is older than that"
+
+
+def test_a_legacy_relative_path_is_repaired_rather_than_warned_about_forever(tmp_path, monkeypatch):
+    """A settings file written before the catalogues moved names them relatively, which can
+    never resolve from a per-user directory. Falling back every start and warning every start
+    is a warning nobody can act on:
+
+        WARNING - Catalogue 'catalogs\sources.dat' is not there; using the one shipped at ...
+
+    So a *relative* path -- which is always a leftover -- is corrected in the settings once. An
+    absolute path that is missing keeps warning: that one is a real problem, and it may be a
+    network drive that will come back.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.paths import settings_file, shipped_catalog
+
+    PAstroCoreMainWindow._write_settings({
+        "sources_catalog_path": "catalogs/sources.dat",
+        "telescopes_catalog_path": "catalogs/telescopes.dat"})
+
+    first = PAstroCoreMainWindow.load_settings()
+    assert Path(first["sources_catalog_path"]) == shipped_catalog("sources.dat")
+
+    stored = json.loads(settings_file().read_text(encoding="utf-8"))
+    assert Path(stored["sources_catalog_path"]) == shipped_catalog("sources.dat"), (
+        "the leftover is still in the file, so the next start warns about it again")
+
+
+def test_a_missing_absolute_path_is_kept_and_still_reported(tmp_path, monkeypatch):
+    """The other half. A path the user chose that is not there right now is a problem worth
+    saying, and overwriting it would lose what they chose."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.paths import settings_file
+
+    chosen = str(tmp_path / "network" / "sources.dat")
+    PAstroCoreMainWindow._write_settings({"sources_catalog_path": chosen})
+    PAstroCoreMainWindow.load_settings()
+
+    stored = json.loads(settings_file().read_text(encoding="utf-8"))
+    assert stored["sources_catalog_path"] == chosen, "the user's choice was overwritten"

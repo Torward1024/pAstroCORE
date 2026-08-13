@@ -198,3 +198,73 @@ def test_every_offered_visualization_has_a_widget(project, qt_application):
 
     assert drawable == mapped, (
         f"the visualizer can draw {sorted(drawable - mapped)} but no widget is mapped to them")
+
+
+# --- the run says what it did (M4) -------------------------------------------------------------
+
+def _outcome():
+    """What `compute(method="run")` hands back, in the shape the window renders."""
+    return {
+        "ran": ["OBS1/time_arrays"],
+        "failed": ["OBS1/uv_coverage"],
+        "cancelled": False,
+        "timings": {"OBS1/time_arrays": 0.25},
+        "report": [
+            {"step": "OBS1/time_arrays", "observation": "OBS1", "label": "Time Arrays",
+             "seconds": 0.25, "outcome": "ok"},
+            {"step": "OBS1/uv_coverage", "observation": "OBS1", "label": "UV Coverage",
+             "seconds": 0.0, "outcome": "failed"},
+        ],
+        "summary": {"steps": 1, "failed": 1, "seconds": 0.25, "slowest": "time_arrays",
+                    "slowest_seconds": 0.25},
+    }
+
+
+def test_the_report_shows_every_step_and_names_the_failed_one(qt_application):
+    """A run used to end in one message box saying everything worked, with the detail in
+    `output.log`. A failure has to be visible in the window."""
+    from pastrocore.gui.p_dialog_run_report import RunReportDialog
+
+    dialog = RunReportDialog(_outcome())
+    table = dialog.ui.tableSteps
+
+    assert table.rowCount() == 2
+    shown = {table.item(row, 1).text(): table.item(row, 3).text() for row in range(2)}
+    assert shown == {"Time Arrays": "ok", "UV Coverage": "failed"}
+    assert "1 failed" in dialog.ui.labelSummary.text()
+    assert "0.25" in dialog.ui.labelSummary.text()
+    dialog.close()
+
+
+def test_the_report_can_be_copied_as_text(qt_application):
+    """For a bug report, which is the other reason anybody wants this."""
+    from pastrocore.gui.p_dialog_run_report import RunReportDialog
+
+    dialog = RunReportDialog(_outcome())
+    text = dialog.as_text()
+
+    assert "UV Coverage" in text and "failed" in text
+    assert "Time Arrays" in text
+    dialog.close()
+
+
+def test_the_report_outlives_the_dialog_that_showed_it(qt_application, monkeypatch, tmp_path):
+    """"Reachable after the run rather than only during it" is the criterion. A run that ended
+    twenty minutes ago is exactly when somebody asks which step failed."""
+    from pastrocore.app import PAstroCoreMainWindow
+
+    window = PAstroCoreMainWindow()
+    try:
+        assert window.ui.actionLast_Run_Report.isEnabled() is False, (
+            "nothing has run yet, so there is nothing to show"
+        )
+        window.last_run = _outcome()
+        window.ui.actionLast_Run_Report.setEnabled(True)
+
+        shown = {}
+        monkeypatch.setattr("pastrocore.gui.p_dialog_run_report.RunReportDialog.exec",
+                            lambda self: shown.setdefault("rows", self.ui.tableSteps.rowCount()))
+        window.open_last_run_report()
+        assert shown.get("rows") == 2
+    finally:
+        window.close()

@@ -56,7 +56,10 @@ class PAstroCoreMainWindow(QMainWindow):
         # and logged it twice on every start.
         self.settings = settings if settings is not None else self.load_settings()
         self._dock_was_visible = True
-        self._sync_in_progress = False 
+        self._sync_in_progress = False
+        # What the last calculation run did, so the report outlives the dialog
+        # that showed it.
+        self.last_run = None
     
         # Logging is configured at the entry point, before anything can emit a record;
         # here the level is only re-applied in case the settings differ from the defaults.
@@ -266,6 +269,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionSource_Catalog_Manager: self.open_source_catalog_manager,
             self.ui.actionTelescope_Catalog_Manager: self.open_telescope_catalog_manager,
             self.ui.actionCalculate: self.open_calculation_dialog,
+            self.ui.actionLast_Run_Report: self.open_last_run_report,
             self.ui.actionVisualize: self.open_visualization_dialog,
             self.ui.actionGenerate_Observations: self.handle_generate_observations,
             self.ui.actionExport_Calulcated_Data: self.open_export_dialog
@@ -305,9 +309,26 @@ class PAstroCoreMainWindow(QMainWindow):
             dialog = CalculationDialog(self.manipulator, time_step=self.settings.get("time_step", 600), parent=self)
             dialog.time_step_updated.connect(self.handle_time_step_updated)
             dialog.exec()
+            # Kept so the report can be opened again. A run that ended twenty minutes ago is
+            # exactly when somebody wants to know which step failed, and the answer used to be
+            # in `output.log` or nowhere.
+            self.last_run = getattr(dialog, "outcome", None) or self.last_run
+            self.ui.actionLast_Run_Report.setEnabled(self.last_run is not None)
+            if getattr(dialog, "outcome", None):
+                self.open_last_run_report()
         except Exception as e:
             logger.error("Failed to open calculation dialog: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
+
+    @Slot()
+    def open_last_run_report(self):
+        """Show what the last calculation run did."""
+        if not self.last_run:
+            logger.debug("No run has finished in this session")
+            return
+        from pastrocore.gui.p_dialog_run_report import RunReportDialog
+
+        RunReportDialog(self.last_run, self).exec()
     
     @Slot()
     def open_visualization_dialog(self):
@@ -643,10 +664,19 @@ class PAstroCoreMainWindow(QMainWindow):
 
         # A stored path is absolute and an install that moves invalidates it. Empty catalogues
         # and a line in the log look like data loss rather than like a stale setting.
-        default_settings["sources_catalog_path"] = existing_or_shipped(
-            default_settings["sources_catalog_path"], "sources.dat")
-        default_settings["telescopes_catalog_path"] = existing_or_shipped(
-            default_settings["telescopes_catalog_path"], "telescopes.dat")
+        leftovers = False
+        for setting, shipped in (("sources_catalog_path", "sources.dat"),
+                                 ("telescopes_catalog_path", "telescopes.dat")):
+            was = default_settings[setting]
+            default_settings[setting] = existing_or_shipped(was, shipped)
+            # A relative path is from before the catalogues moved into the package and can
+            # never resolve from a per-user settings file. Corrected once, rather than warned
+            # about on every start about something the user cannot act on.
+            leftovers = leftovers or (bool(was) and not Path(was).is_absolute())
+
+        if leftovers and source is not None:
+            PAstroCoreMainWindow._write_settings(default_settings)
+            logger.info("Repaired the catalogue paths left by an earlier layout")
         return default_settings
 
     @staticmethod

@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>RunReportDialog</class>
+ <widget class="QDialog" name="RunReportDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>620</width>
+    <height>420</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>480</width>
+    <height>320</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Run Report</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../gui/icons/icons.qrc">
+    <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="labelSummary">
+     <property name="styleSheet">
+      <string notr="true">font-size: 10pt; padding: 4px;</string>
+     </property>
+     <property name="text">
+      <string>lblSummary</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="tableSteps">
+     <property name="styleSheet">
+      <string notr="true">QTableWidget {
+    font-size: 9pt;
+    color: #333333;
+    background-color: #f9f9f9;
+    border: 1px solid #d3d3d3;
+    border-radius: 3px;
+    gridline-color: #e6e6e6;
+}
+QHeaderView::section {
+    background-color: #f0f0f0;
+    border: none;
+    border-bottom: 1px solid #d3d3d3;
+    padding: 4px;
+}</string>
+     </property>
+     <property name="alternatingRowColors">
+      <bool>true</bool>
+     </property>
+     <property name="selectionBehavior">
+      <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+     </property>
+     <property name="sortingEnabled">
+      <bool>false</bool>
+     </property>
+     <attribute name="verticalHeaderVisible">
+      <bool>false</bool>
+     </attribute>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="pushButtonCopy">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #f0f0f0;
+    color: #333333;
+    padding: 6px;
+    border-radius: 3px;
+    border: 1px solid #d3d3d3;
+}
+QPushButton:hover {
+    background-color: #e6e6e6;
+}
+QPushButton:pressed {
+    background-color: #d9d9d9;
+}</string>
+       </property>
+       <property name="toolTip">
+        <string>Copy the report as text, for a bug report</string>
+       </property>
+       <property name="text">
+        <string>Copy</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButtonClose">
+       <property name="styleSheet">
+        <string notr="true">QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff;
+}
+QPushButton:pressed {
+    background-color: #005bb5;
+    padding-top: 7px;
+    padding-bottom: 5px;
+}</string>
+       </property>
+       <property name="text">
+        <string>Close</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="../gui/icons/icons.qrc"/>
+ </resources>
+ <connections/>
+</ui>

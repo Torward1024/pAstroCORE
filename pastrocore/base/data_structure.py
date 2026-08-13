@@ -373,6 +373,30 @@ class CalculatedDataStructure:
         return "time_step" in (cls.entry_for(key).get("metadata") or {})
 
     @classmethod
+    def store_key_for(cls, key: str) -> str:
+        """Return the key a calculation's result is filed under.
+
+        Args:
+            key (str): A store key or a handler name -- the catalogue speaks the second.
+
+        Returns:
+            str: The store key. The same string back, for every calculation whose handler is
+                named after its result.
+
+        Notes:
+            - `_calculate_time_arrays` files under `times`, and it is the only one where the
+              two differ. A caller that passed the handler's name as `store_key` stored the
+              result where nothing reads it, and the model said so on every save:
+              `Unknown calculated_data key 'time_arrays'`.
+        """
+        if key in cls.SCHEMAS:
+            return key
+        for name, candidate in cls.SCHEMAS.items():
+            if candidate.get("handler") == key:
+                return name
+        return key
+
+    @classmethod
     def entry_for(cls, key: str) -> dict:
         """Return a result's schema, found by its store key or by its handler's name.
 
