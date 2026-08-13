@@ -1,5 +1,5 @@
 # unit_scheduling/super/schedule_project.py
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 from pastrocore.base.observation import Observation
 from pastrocore.base import freshness
 from pastrocore.base.result_store import ResidencyBudget, ResultStore, json_safe
@@ -165,6 +165,24 @@ class ScheduleProject(Project):
         self._validate_item(item, exclude_name=name, exclude_code=existing_code)
         super().set_item(name, item)
         logger.info("Set observation with name='%s' and code='%s' in project '%s'", name, item.get_observation_code(), self.name)
+
+    def observations(self) -> List[Observation]:
+        """Return the observations this project holds, as a list.
+
+        Returns:
+            List[Observation]: The observations themselves, never their names.
+
+        Notes:
+            - `get_items()` is a dictionary on a project and a list on a container -- the same
+              method name in two shapes -- so every caller guessed which it had. One guessed
+              wrong for eight calculations: iterating a project yields its *keys*, so
+              `o.get_scans()` was called on a string, and the broad handler downstream turned
+              that into an empty frame. Calculating for a whole project produced nothing and
+              said nothing.
+            - So the project says what it holds, once, in the shape a caller wants.
+        """
+        items = self.get_items()
+        return list(items.values()) if isinstance(items, dict) else list(items)
 
     def get_observation(self, name: str) -> Observation:
         """Retrieve an observation by its name.

@@ -188,7 +188,7 @@ def test_every_offered_visualization_has_a_widget(project, qt_application):
     manipulator = ScheduleManipulator(project)
     observation = project.get_observation(next(iter(project.get_items())))
 
-    response = manipulator.export(obj=observation, method="catalogue", raise_on_error=False)
+    response = manipulator.compute(obj=observation, method="catalogue", raise_on_error=False)
     catalogue = (response["result"] if isinstance(response, dict) else response) or []
     drawable = {entry["key"] for entry in catalogue if entry["can_plot"]}
 

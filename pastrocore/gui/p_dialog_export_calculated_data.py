@@ -112,7 +112,7 @@ class ExportCalculatedDataDialog(QDialog):
         # Everything, including the steps other calculations need. Choosing what to *compute*
         # leaves those out because nobody asks for them by name; choosing what to *export*
         # includes them, because the numbers are the numbers and somebody may want them.
-        response = self.manipulator.export(obj=None, method="catalogue", raise_on_error=False)
+        response = self.manipulator.compute(obj=None, method="catalogue", raise_on_error=False)
         catalogue = (response["result"] if isinstance(response, dict) and "status" in response
                      else response) or []
 

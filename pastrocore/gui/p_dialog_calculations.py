@@ -50,7 +50,7 @@ class CalculationThread(QThread):
             for per_calculation in self.params.values():
                 shared.update(per_calculation)
 
-            outcome = self.manipulator.export(
+            outcome = self.manipulator.compute(
                 obj=None, method="run",
                 targets=self.targets, calculations=self.calc_types,
                 progress=lambda percent, message: self.progress.emit(percent, message),
@@ -135,7 +135,7 @@ class CalculationDialog(QDialog):
         # do the work, so a calculation added to the calculator appears here on its own -- and
         # the prerequisites come from the code that states them rather than from a table kept
         # by hand in a dialog.
-        response = self.manipulator.export(obj=self.project, method="catalogue")
+        response = self.manipulator.compute(obj=self.project, method="catalogue")
         catalogue = (response["result"] if isinstance(response, dict) and "status" in response
                      else response) or []
 

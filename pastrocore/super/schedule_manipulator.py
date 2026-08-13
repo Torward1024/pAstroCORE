@@ -41,7 +41,7 @@ class ScheduleManipulator(Manipulator):
             Telescope, SpaceTelescope, Telescopes, Scan, Scans.
             - Registers operations: configure (ScheduleConfigurator), inspect (ScheduleInspector),
             calculate (ScheduleCalculator), visualize (ScheduleVisualizer),
-            export (ScheduleData).
+            export/save/load (ScheduleData), compute (ScheduleRunner).
             - Logs initialization upon completion.
         """
         from pastrocore.super.schedule_project import ScheduleProject
@@ -53,6 +53,7 @@ class ScheduleManipulator(Manipulator):
         from pastrocore.super.schedule_configurator import ScheduleConfigurator
         from pastrocore.super.schedule_inspector import ScheduleInspector
         from pastrocore.super.schedule_data import ScheduleData
+        from pastrocore.super.schedule_runner import ScheduleRunner
 
         base_classes = [
             ScheduleProject, Observation, IF, Frequencies, Source, Sources,
@@ -78,6 +79,13 @@ class ScheduleManipulator(Manipulator):
         self.register_operation(ScheduleData(self), operation="export")
         self.register_operation(ScheduleData(self), operation="save")
         self.register_operation(ScheduleData(self), operation="load")
+
+        # `calculate` does one, `compute` orchestrates many, `export` writes the results
+        # somewhere. Running a set of calculations lived on `export` because that is where the
+        # plumbing already was, and it is not exporting anything. It cannot go on the calculator
+        # either: a Super's handlers *are* its operation's methods, so a `_calculate_run` would
+        # appear in the catalogue as a calculation called "Run".
+        self.register_operation(ScheduleRunner(self), operation="compute")
 
         # Every request that reaches this orchestrator is recorded. It costs one interceptor
         # and answers the question a bug report never can: what was actually asked for.
