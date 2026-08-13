@@ -373,3 +373,54 @@ def test_available_leaves_out_what_holds_nothing(project, tmp_path):
 
     assert "uv_coverage" not in result
     assert "az_el" in result
+
+
+# --- what each plot is given -----------------------------------------------------------------
+
+def test_each_plot_is_given_what_it_accepts_and_nothing_else(project, monkeypatch, tmp_path):
+    """Five lists here decided which arguments each plot got, and they were a copy of what the
+    plot already says by reading it.
+
+    MSB derives that -- `accepts` on the catalogue entry -- so the exporter offers the values it
+    has and each handler takes the ones it uses. One plot had been left out of two of the lists:
+    `mollweide_tracks` reads `telescopes` and `sources` and was given neither.
+    """
+    manipulator = ScheduleManipulator(project)
+    observation = project.get_observation(next(iter(project.get_items())))
+    given = {}
+
+    def capture(obj=None, **attributes):
+        given[attributes["plot_type"]] = attributes
+        pathlib.Path(attributes["output_file"]).write_bytes(b"")
+        return {}
+
+    monkeypatch.setattr(manipulator, "visualize", capture)
+    manipulator.export(obj=observation,
+                       calc_types=["UV Coverage", "Beam Pattern", "Mollweide Tracks"],
+                       export_data=False, export_vis=True, export_path=str(tmp_path),
+                       units="wavelengths", raise_on_error=False)
+
+    accepted = manipulator.describe_operations("visualize")["visualize"]
+    for plot, attributes in given.items():
+        offered = set(attributes) - {"obj", "plot_type", "output_file", "dpi"}
+        assert offered <= set(accepted[plot]["accepts"]), (
+            f"{plot} was given {sorted(offered - set(accepted[plot]['accepts']))}, "
+            f"which it does not read")
+
+    assert set(given["beam_pattern"]) >= {"frequencies", "telescopes"}
+    assert "units" not in given["beam_pattern"], "beam_pattern never read a unit"
+    assert given["mollweide_tracks"]["telescopes"], "the plot reads telescopes and got none"
+    assert given["mollweide_tracks"]["sources"], "and sources, which no list ever gave it"
+    assert given["uv_coverage"]["units"] == "wavelengths"
+
+
+def test_the_exporter_holds_no_list_of_plots():
+    """A ratchet. The moment one comes back, adding a plot means editing this module again."""
+    source = (pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "super"
+              / "schedule_data.py").read_text(encoding="utf-8")
+    export = source[source.index("def _export("):source.index("def _save(")]
+
+    for spelling in ("uv_coverage", "baseline_projections", "beam_pattern", "sun_angles",
+                     "mollweide_tracks", "parallactic_angle", "time_on_source"):
+        assert f'"{spelling}"' not in export, (
+            f"the exporter names {spelling} again; ask the catalogue what the plot accepts")

@@ -82,10 +82,11 @@ class ScheduleData(Super):
         if not export_path:
             raise ValueError("No 'export_path' given; there is nowhere to write")
 
-        # What can be drawn is whatever the visualizer offers a handler for. Asking means a new
-        # plot is exported the moment it exists, without a list here to be updated as well.
-        drawable = set(self._manipulator.describe_operations("visualize").get("visualize", {})) \
-            if export_vis else set()
+        # What can be drawn is whatever the visualizer offers a handler for, and what each plot
+        # takes is what that handler reads. Both are asked rather than listed, so a new plot is
+        # exported the moment it exists and is given what it uses without a line here.
+        drawable = self._manipulator.describe_operations("visualize").get("visualize", {}) \
+            if export_vis else {}
 
         steps_per_target = len(calc_types) * ((1 if export_data else 0) + (1 if export_vis else 0))
         total_steps = len(targets) * steps_per_target if steps_per_target > 0 else 1
@@ -137,21 +138,24 @@ class ScheduleData(Super):
                     # spacecraft is tracked, not observed -- is drawn once.
                     columns = set(CalculatedDataStructure.entry_for(key).get("columns") or [])
                     per_source = sources if "source_name" in columns else [None]
+                    accepts = set(drawable[key].get("accepts") or ())
                     for source_name in per_source:
                         suffix = f"_{source_name}" if source_name else ""
                         png_path = os.path.join(
                             export_path, f"{obs_code}_{file_prefix}{suffix}.png")
+                        # Offered, not assigned: everything this observation can say about
+                        # itself, of which each plot takes what it reads. The five lists this
+                        # replaces were a second copy of that, and one plot was missing from two
+                        # of them.
+                        offered = {"source_name": source_name, "sources": sources,
+                                   "telescopes": telescopes, "scans": scans,
+                                   "frequencies": frequencies, "baselines": baselines,
+                                   "units": units}
                         try:
                             self._manipulator.visualize(
                                 obj=target, plot_type=key, output_file=png_path, dpi=76,
-                                source_name=source_name,
-                                baselines=baselines if key in ("uv_coverage", "baseline_projections") else [],
-                                telescopes=telescopes if key in ("sun_angles", "az_el", "time_on_source",
-                                                                 "beam_pattern", "parallactic_angle") else [],
-                                scans=scans,
-                                frequencies=frequencies if key in ("uv_coverage", "baseline_projections",
-                                                                   "beam_pattern") else [],
-                                units=units if key in ("uv_coverage", "baseline_projections") else None)
+                                **{name: value for name, value in offered.items()
+                                   if name in accepts})
                         except Exception as e:
                             raise ValueError(
                                 f"Visualization export failed for {calc_type} in {obs_code}: {str(e)}")
