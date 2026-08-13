@@ -318,6 +318,10 @@ class PAstroCoreMainWindow(QMainWindow):
             self.last_run = getattr(dialog, "outcome", None) or self.last_run
             self.ui.actionLast_Run_Report.setEnabled(self.last_run is not None)
             if getattr(dialog, "outcome", None):
+                # A run changes what the project holds, and the explorer's staleness labels are
+                # read from it. Without this the label that sent the user here to recompute
+                # survived the recomputation, which is worse than having no label.
+                self.project_updated.emit()
                 self.open_last_run_report()
         except Exception as e:
             logger.error("Failed to open calculation dialog: %s", str(e))
@@ -1071,18 +1075,22 @@ class PAstroCoreMainWindow(QMainWindow):
         if item_type == "project":
             self.open_project_info_tab()
         elif item_type == "observation":
-            obs_code = text
+            # The name the item carries, never the text it shows. A label is for a reader: this
+            # one says how many results have gone stale, and looking the observation up by it
+            # meant that the moment staleness had anything to report, the observation could no
+            # longer be opened -- while the label is what sends a user to open it.
+            obs_name = item.data(Qt.UserRole + 1)
             try:
-                observation = self.manipulator.inspect(self.project, get_observation_by_code=obs_code)
+                observation = self.manipulator.inspect(self.project, get_observation=obs_name)
                 if observation is None:
-                    logger.error("Observation with code '%s' not found", obs_code)
-                    QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': Observation not found")
+                    logger.error("Observation '%s' is not in this project", obs_name)
+                    QMessageBox.critical(self, "Error",
+                                         f"Failed to open observation '{text}': not found")
                     return
-                obs_name = observation.name
-                self.open_observation_tab(obs_name, obs_code)
+                self.open_observation_tab(obs_name, observation.code)
             except Exception as e:
-                logger.error("Failed to get observation with code '%s': %s", obs_code, str(e))
-                QMessageBox.critical(self, "Error", f"Failed to open observation '{obs_code}': {str(e)}")
+                logger.error("Failed to open observation '%s': %s", obs_name, str(e))
+                QMessageBox.critical(self, "Error", f"Failed to open observation '{text}': {str(e)}")
 
     def open_project_info_tab(self):
         """Open or switch to ProjectInfoTab."""
