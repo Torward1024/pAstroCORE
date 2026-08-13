@@ -510,3 +510,39 @@ def test_a_telescope_is_read_back_as_the_kind_the_file_says_still(project, tmp_p
     restored = result["object"] if isinstance(result, dict) else result
 
     assert isinstance(restored, SpaceTelescope)
+
+
+def test_a_result_that_cannot_be_read_is_reported_rather_than_dropped(project, monkeypatch, caplog):
+    """`available` is what the visualize dialog offers, so a result it cannot read is a plot
+    that vanishes from the list. It used to say so at debug, which is indistinguishable from
+    "there is nothing to draw"."""
+    import logging
+
+    from msb_arch.utils.logging_setup import logger as msb_logger
+
+    observation = project.get_observation(next(iter(project.get_items())))
+    manipulator = ScheduleManipulator(project)
+    monkeypatch.setattr(type(observation), "scan_calculated_data",
+                        lambda self, key: (_ for _ in ()).throw(OSError("the file is gone")))
+
+    said = []
+
+    class Listener(logging.Handler):
+        def emit(self, record):
+            said.append(record.getMessage())
+
+    listener = Listener(level=logging.WARNING)
+    previous = msb_logger.level
+    msb_logger.setLevel(logging.WARNING)
+    msb_logger.addHandler(listener)
+    try:
+        response = manipulator.export(obj=observation, method="available",
+                                      keys=["uv_coverage"], raise_on_error=False)
+    finally:
+        msb_logger.removeHandler(listener)
+        msb_logger.setLevel(previous)
+
+    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    assert result == []
+    assert any("Cannot tell whether" in line and "the file is gone" in line for line in said), (
+        f"the failure was not reported: {said}")
