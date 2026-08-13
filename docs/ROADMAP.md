@@ -1,16 +1,34 @@
 # pAstroCORE roadmap
 
-What is done, what is left before 1.0, and what waits until after it.
+**1.0 shipped.** What follows is what comes next, and what was decided against.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy. The failure mode of a project like this is not
 running out of things to do -- it is never running out.
 
-Two rules that earned their place the hard way:
+Three rules that earned their place the hard way:
 
-- **Measure before deciding.** Numbers here were taken, not estimated.
+- **Measure before deciding.** Numbers here were taken, not estimated. Twice a plausible
+  optimisation was measured *slower* and dropped.
 - **Build the check before the change.** Twice a change was made to code nothing exercised, and
   twice it broke something the suite could not see.
+- **Take it from MSB.** If the framework has it, use it; if it is missing there and belongs
+  there, add it there. Three of MSB's releases came out of following that during 1.0.
+
+## Next
+
+Nothing here is scheduled. In rough order of what would help most:
+
+| | Item | Why it is next |
+| --- | --- | --- |
+| **L1** | A command line | Everything it needs exists: the packaging, and operations that already take a request rather than a call. Thin now, and the proof that the window really is one caller among several |
+| **N1--N4** | Analysis | A calculation finishes and that is the end of it. Visibility is a boolean per station per moment, and nobody can ask when, for how long, or where the gaps are |
+| **R6** | A project as one file | How a project reaches a colleague or a bug report |
+| **T4** | Which results a change invalidates | `depends_on` says which *parts* a result reads; MSB's model graph says what reaching a part reaches |
+| **G1** | One stylesheet | Attempted and reverted once. It is authoring, not extraction |
+
+The sections below are the detail of those, plus the formats -- which are a project of their
+own, and which nothing else waits on.
 
 ## Done
 
@@ -21,59 +39,54 @@ Two rules that earned their place the hard way:
 | **0.5.1** | A project holding a space telescope could not be opened |
 | **0.6.0** | The dialogs ask for a folder; the single-file format removed |
 | **0.7.0** | A calculation reaches the disk when it is made, in a per-session scratch directory, with recovery |
+| **0.8.0** | Adding a calculation stops at the calculator: one catalogue, derived. A space telescope can be pointed at. A result says when its inputs moved |
+| **0.9.0** | `pip install .` gives a command. Running calculations is a plan the backend builds. Start-up 4.0 s to 1.4 s |
+| **1.0.0** | Everything below |
 
-| Stage | | Outcome |
+### What 1.0 required, and what each cost
+
+| | Item | Outcome |
 | --- | --- | --- |
-| 0 | Safety net | The saved project *is* the reference: clear its results, recompute, compare. Tolerance 5e-4, measured |
-| 1 | Hygiene | 21 918 duplicated lines removed; missing dependencies declared |
-| 2 | Calculations | Redundant recomputation removed: **730x** (0.4 ms against 292.3 ms) |
-| 3 | Adopt MSB | Three MSB releases came out of it: 1.0.1, 1.1.0, 1.1.1 |
-| 4 | Storage | Model **5.1 KB against 230.5 KB**; opening reads no results; one filtered draw **9.2x faster**; memory over 60 observations **407 MB → 71 MB**; results written when calculated, per-session scratch, recovery offered |
-| 6 | Space telescope as a target | `telescope_az_el` and `telescope_visibility`, chosen by name. Checked against the law of cosines, not against a stored number |
-| 9 | Logic into `Super` classes | `ScheduleData` owns export, save, load and five queries. Export dialog 312 → 210 lines. Twelve GUI modules reached for the model; **two remain and both are decided, not owed** |
-| -- | One catalogue (A5) | Nine hardcoded copies across three dialogs became one request. The manipulator works out what it offers from its own handlers -- MSB 1.2.0 -- so adding a calculation touches the calculator and the schema and nothing in the interface, which a test asserts by adding one |
-| -- | Freshness | A result records what it was computed from and says when its inputs have changed. Three answers: stale, current, unknown |
+| D9 | The frame is the authority | `scan_count`, `start_time` and `end_time` are computed where the frame and its metadata are both in hand, so a caller cannot supply a wrong one. Nothing written contains `NaN` |
+| R4 | Packaging | `pip install .` gives a `pastrocore` command; the version is stated once. It exposed the real defect: every path was relative to the directory the application was started from, so an install found no catalogues and wrote settings wherever the user happened to be |
+| R5 | Stale pull requests | None open |
+| R1 | Release | 0.9.0, tagged, with an upgrading table |
+| M1 | Independent branches run at once | **1.30x** measured (1.885 s against 1.453 s, median of five alternating rounds over a thirteen-step plan) |
+| M2 | Honest timing | Measured on the interceptor, per step. Progress advances when a step *finishes* |
+| M4 | The run says what it did | One report, a row per step with its time and outcome, kept for **Tools → Last Run Report** |
+| M3 | The journal reaches the interface | **Tools → Session**: look at it, write it to a file, replay it against another project. Possible because MSB 1.6.0 stopped holding what it recorded |
+| G3a | Every result was written twice | `times` 10 stores → 1, `telescope_positions` 4 → 1 |
+| R3 | Documentation | Four pages, and **every Python block on them is executed by the suite** |
+| G2/G3 | Profile the interface | Measured: window 136 ms, explorer 0.4 ms, observation tab 4.4 ms warm, dialogs 4--36 ms. 191 `inspect` calls cost 4.1 ms between them. Nothing needs fixing, and now there is evidence rather than an impression |
+
+### What was found on the way
+
+Each of these was silent, and each is now a test:
+
+| | |
+| --- | --- |
+| Closing the window destroyed the day's calculations | The scratch was discarded on every clean close |
+| Every File → New Project and Open orphaned a scratch | Which the next start offered to recover |
+| Calculating for a whole project produced an empty frame | Iterating a project yields its *names* |
+| A source going inactive left `time_arrays` looking current | Found by checking `depends_on` against what MSB derives the handler to touch |
+| A run with a failed step reported complete success | A slot defined twice; PySide drops the arguments the winner does not accept |
+| An observation labelled "12 stale" could not be opened | The explorer looked it up by its label |
+| Exporting pictures failed for every calculation | `self.manipulator` where the attribute is `_manipulator` |
+| Four rules guarded the constructor and nothing else | `set` and `from_dict` walked past them |
 
 Details of any of these are in `CHANGELOG.md` and in the commit that made the change.
 
-## Before 1.0
+### Three MSB releases came out of it
 
-| | Item | Exit criterion | Size |
-| --- | --- | --- | --- |
-| ~~1~~ | ~~**D9**~~ | **Done.** The frame is the authority: `scan_count`, `start_time` and `end_time` are computed where the frame and its metadata are both in hand, so a caller cannot supply a wrong value -- whatever it passes is replaced, on the way into memory and on the way to disk alike. Kept beside the parquet rather than removed, because reading them without reading the result is worth more than having them nowhere. Nothing written contains `NaN`: unrepresentable numbers become `null` and the write uses `allow_nan=False`, checked with a strict parser rather than the lenient one that wrote it | -- |
-| ~~1~~ | ~~**R4**~~ | **Done.** `pyproject.toml` with the version in one place -- `pastrocore/__init__.py`, since MSB tagged a release with one of its two numbers bumped and PyPI refused the build. `pip install .` gives a `pastrocore` command, and `requirements.txt` installs the project rather than repeating its dependencies. The packaging exposed the real defect: every path the application used was relative to the directory it was started from, so an install found no catalogues and wrote settings wherever the user happened to be. The catalogues ship inside the package; the settings live in one per-user file, adopting a `settings.pastro` left in a working directory once so nobody's is lost; a catalogue the user chose is kept, and one that has been deleted falls back to the shipped one with a line in the log rather than an empty application | -- |
-| ~~2~~ | ~~**R5**~~ | **Done.** No pull request is open. The last, #39, merged with 0.4.0; nothing has been left without a decision since | -- |
-| ~~3~~ | ~~**R1**~~ | **Done.** 0.9.0, tagged and released, with a changelog saying what changed and an upgrading table saying what to do about it. The version is stated once and the About dialog and the README are held to it by tests -- 0.8.0 shipped with the form still saying 0.7.0 | -- |
-| ~~4~~ | ~~**M1**~~ **Done.** Run the plan's independent branches at once | **Measured: 1.30x** (1.885 s against 1.453 s, median of five alternating rounds over the fixture project's thirteen-step plan). The ceiling is what the fan costs: three steps must be sequential and nine wait only on those. Taken, because it is one flag on a request rather than a mechanism. Cancellation and the skipping of a failed branch must behave as they do in sequence, which a test asserts. **Both hold: a cancelled concurrent run still stops and says so** | -- |
-| ~~5~~ | ~~**M2**~~ **Done.** Honest timing, on an interceptor | Every calculation's own duration is measured where every request passes, not estimated by the caller. Available afterwards as a table. Progress advances when a step **finishes**, so a bar cannot sit at 80% through the longest step of the run. The run summarises itself -- how many steps, how long, which was slowest -- in the operation rather than in the window, since a command line wants the same three numbers | -- |
-| ~~6~~ | ~~**M4**~~ **Done.** The run says what it did, in one place | A run used to end in one message box saying everything worked, with everything else in `output.log`. **Neither a dialog per event nor silence:** one report, listing every step with its time and its outcome, reachable after the run rather than only during it. A failure is visible in the window without opening a log file. **Done:** one report, a row per step with its time and outcome, shown when the run ends and kept for **Tools -> Last Run Report**. Copyable as text, for a bug report | -- |
-| ~~8~~ | ~~**M3**~~ **Done.** The request journal reaches the interface | **Tools -> Session** lists what has been asked of this project, writes it to a file, and replays a saved one against whatever project is open. Each step names its object and is resolved on replay, so a session recorded against one project runs against another -- and a step naming something this project lacks is reported rather than skipped, since a session that half ran is worse than one that refused. Possible at all because MSB 1.6.0 stopped holding what it recorded: an entry used to keep the live object *and* the response, which pinned every result frame the journal had seen. Recording is a setting, on by default at 10.4 us per request | -- |
-| ~~9~~ | ~~**R3**~~ **Done.** Documentation | Four pages for somebody who has never seen the project: [a first project](guide.md) builds an observation, calculates, reads the numbers back and saves; [the calculations](calculations.md) says what each produces and needs; [installing and running](installing.md) says where its files live. **Every Python block on them is executed by the suite**, in order, in one namespace, so an example that has drifted from the code fails the build rather than the reader -- and where a page states what it produces it is an `assert` rather than a comment. The calculations page checks its own table against the catalogue, so adding a calculation fails it until it is written down | -- |
-| ~~7~~ | ~~**G3a**~~ **Done.** Every result was written to disk twice | `_get_cached_or_calculate` stored the frame and `_store_result` stored it again to carry the freshness stamp, and since 0.7.0 a store reaches the disk. Only the stamp was missing, so only the stamp is written now. Measured on one `source_visibility` request, before and after: `times` 10 -> 1, `telescope_positions` 4 -> 1, `source_visibility` 2 -> 1. The other nine of those ten were a second fault -- every calculation handed `recalculate` down to its own prerequisites | -- |
-| ~~10~~ | ~~**G2**/**G3**~~ **Done.** Profile the interface, then act | Measured with MSB's own `RequestMetrics` beside the wall clock, median of five, offscreen: **building the window 136 ms**, refreshing the project explorer **0.4 ms**, opening an observation tab **79 ms the first time and 4.4 ms after** (the difference is importing its sub-tabs, which is the deferred-import design working), the calculations dialog **3.7 ms**, the export dialog **6.0 ms**, the visualization dialog **14.3 ms**, the session panel **35.6 ms**. Requests are not where the time goes: 191 `inspect` calls cost **4.1 ms** in total. **One number is large and it is already handled**: deriving what the application offers, and building the two deferred operations, costs **2.0 s** -- paid by the first catalogue request if nobody warms it, and **0.5 ms** after the background warm. Nothing else is worth fixing, which is the finding rather than the absence of one | -- |
+| | |
+| --- | --- |
+| **1.5.0** | `accepts` -- the attribute keys a handler reads, derived. It replaced five hand-written lists here and found a plot missing from two of them |
+| **1.6.0** | A journal is a record, not a retainer. An entry held the live object *and* the response, so it pinned every result frame it had seen |
+| **1.7.0** | `plan_for` -- the six lines every application writes to turn "what I want" into "what to run, in order" |
 
-**M1--M4 are one sentence: use what MSB 1.5.0 already has.** The pipeline, the interceptors and
-the journal are built and tested there; here they are reached by one caller each. **Measure
-before deciding** applied to M1 and the number came back modest but real -- parallel
-serialization was measured *slower* twice in this project's history, so the claim was not
-assumed.
+Ten of MSB's releases have come out of this project in total.
 
-**M2 and M4 are the same mechanism seen from two ends.** The interceptor sits where every
-request passes: it already carries progress and cancellation, and timing is the third thing it
-can see without anybody instrumenting a calculation. What M4 shows is what M2 measures.
-
-**A5 is the dependency graph in disguise, and worth saying so.** A result's schema already
-declares `depends_on` -- which *parts of the model* it reads, which is what makes freshness
-granular. A5 adds `requires`: which *other results* a calculation needs. Those are the two edge
-types of one graph, and the second is the one MSB's P1 will schedule on. Declaring it for a
-dialog's benefit is the same declaration that later says what may run in parallel and what a
-change invalidates. So this is not a GUI convenience with a graph hidden in it; it is the node
-table and one edge set, arriving early because a dialog needed them first.
-
-**1.0 is reached when**: all of the above hold, the suite is green on CI, a project saved by 1.0
-opens in 1.0. **Every item above is done.**
-
-## After 1.0
+## The detail
 
 ### Analysis
 

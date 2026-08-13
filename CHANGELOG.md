@@ -8,6 +8,79 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.0.0] - 2026-08-13
+
+The release that says the shape is settled: **a project saved by 1.0 opens in 1.0**, the
+interface is one caller of a backend rather than the place the work happens, and every claim on
+this page was measured or tested rather than felt.
+
+### Added
+
+- **Tools → Session.** What has been asked of this project -- operation, object, method, how
+  long, whether it worked -- written to a file, and a saved session replayed against whatever
+  project is open. Each step names its object and is resolved on replay, so a session recorded
+  against one project runs against another. A step naming something this project lacks is
+  reported rather than skipped: a session that half ran is worse than one that refused.
+- **Tools → Last Run Report.** What a run did, a row per step with its own time and its
+  outcome, kept after the dialog closes and copyable as text for a bug report.
+- **Independent calculations run at once.** Measured 1.30x on a thirteen-step plan (1.885 s
+  against 1.453 s, median of five alternating rounds). Cancellation and the skipping of a
+  failed branch behave as they do in sequence.
+- **Documentation** for somebody who has never seen the project: [a first
+  project](docs/guide.md), [the calculations](docs/calculations.md), [installing and
+  running](docs/installing.md). **Every Python block on those pages is executed by the test
+  suite**, in order, in one namespace, so an example that has drifted fails the build.
+
+### Changed
+
+- **A run recomputes what has gone stale**, which freshness already knew and the run ignored --
+  and then re-stamped the reused result as current, so freshness stopped saying so. Forcing a
+  recomputation of what is *current* is a separate thing to ask for, and the tick box says so:
+  it is "Recompute everything" now, off by default, and it no longer clears every result the
+  observation holds.
+- **The interface reaches the model only through the orchestrator**, checked by a test rather
+  than believed. Six places did not: the calculation dialog walked the telescopes and cleared
+  results itself, two tabs read the frequencies, and the window asked an observation what was
+  stale, saved the project by calling it, and wrote an observation to a file with `json.dump`.
+- **`save` and `load` are MSB's**, inherited rather than written again: atomic writes, an
+  overwrite guard, and the framework's own error types. 59 lines removed.
+- **Every result is calculated and written once.** Measured on one `source_visibility` request:
+  `times` 10 stores → 1, `telescope_positions` 4 → 1, `source_visibility` 2 → 1.
+- Four rules moved from `__init__` onto the annotation, where they hold at every way in: the
+  source coordinates, the observation type, a scan's duration, and a telescope's pointing
+  ranges. Each of them accepted anything through `set` and through `from_dict`.
+- Requires `msb_arch` 1.7.0.
+
+### Fixed
+
+- **Closing the window destroyed the day's calculations.** Results live in a scratch directory
+  until the project is saved, and `closeEvent` discarded it on every clean close. It asks now.
+- **Every File → New Project and Open orphaned a scratch**, which the next start offered to
+  recover from a session that had ended normally with nothing in it.
+- **Calculating for a whole project produced an empty frame and said nothing.** Iterating a
+  project yields its *names*, so thirteen calculations called `get_scans()` on a string.
+- **A source going inactive left the time arrays looking current.** Found by checking each
+  result's declared `depends_on` against what MSB derives the handler to touch.
+- **A run with a failed step reported complete success.** A slot defined twice, and the winner
+  took one argument where the signal carries two; PySide drops what a slot does not accept.
+- **An observation labelled "12 stale" could not be opened** -- the explorer looked it up by
+  its label -- **and the label survived the recomputation that fixed it.**
+- **A step stored its result under the handler's name** rather than the schema's store key, so
+  `time_arrays` landed where nothing reads it.
+- **Comparing two metadata mappings raised instead of answering** when one held numpy arrays,
+  which turned a Mollweide recomputation into a failed calculation.
+- **An installed application found no catalogues and lost its settings**: every path was
+  relative to the directory it was started from.
+
+### Upgrading from 0.9.0
+
+| Symptom | Why | What to do |
+| --- | --- | --- |
+| Closing the window asks about saving | It always should have: those results were being discarded | Save, or discard deliberately |
+| "Recompute everything" is off and no longer clears results | A run recomputes what is stale by itself | Nothing. Tick it after changing a calculation's own code |
+| `manipulator.export(method="catalogue")` raises | Planning and running calculations moved to their own operation | `manipulator.compute(...)`. `plan`, `run`, `catalogue` and `order` moved together |
+| `load` returns the object rather than `{"object": ...}` | MSB's own contract | Read the result directly |
+
 ## [0.9.0] - 2026-08-13
 
 The release that makes pAstroCORE installable, and that moves the last of the running of
