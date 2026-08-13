@@ -39,9 +39,10 @@ def eager_log_calls(path):
     return found
 
 
-# Sixteen calls carry a format spec or a conversion -- `{x:.2f}`, `{x!r}` -- where `%s` would
-# render something different. They are left alone deliberately. The number may only go down.
-ALLOWED_EAGER = 16
+# Fifteen calls carry a format spec or a conversion -- `{x:.2f}`, `{x!r}` -- where `%s` would
+# render something different. They are left alone deliberately. The number may only go down,
+# and it went down by one when the calculator's per-call timing line became lazy.
+ALLOWED_EAGER = 15
 
 
 def test_logging_is_lazy():

@@ -337,3 +337,122 @@ def test_the_chain_is_computed_once_however_much_is_asked_for(bench):
     assert stored["times"] <= 2, (
         f"the base of the chain was stored {stored['times']} times for one request: {dict(stored)}")
     assert stored["telescope_positions"] <= 2, dict(stored)
+
+
+# --- a run recomputes what has gone stale ------------------------------------------------------
+
+def test_a_stale_result_is_recomputed_without_being_asked(bench):
+    """Freshness already knows what has gone stale, and a run that reuses it anyway is the
+    interface showing a number computed from a configuration that no longer exists.
+
+    So the default is "recompute what is stale"; forcing everything is a separate thing to ask
+    for, because the only case it serves is a change freshness cannot see -- the calculation's
+    own code.
+    """
+    from pastrocore.base import freshness
+
+    manipulator, observation = bench
+    manipulator.compute(obj=None, method="run", targets=[observation],
+                        calculations=["time_arrays"], time_step=600.0)
+    assert freshness.is_stale(observation, "times") is False
+
+    scan = observation.get_scans().get_items()[0]
+    scan.duration = scan.duration + 60.0
+    assert freshness.is_stale(observation, "times") is True, "the fixture did not go stale"
+
+    before = observation.get_calculated_data_by_key("times")["data"].height
+    manipulator.compute(obj=None, method="run", targets=[observation],
+                        calculations=["time_arrays"], time_step=600.0)
+    after = observation.get_calculated_data_by_key("times")["data"].height
+
+    assert freshness.is_stale(observation, "times") is False
+    assert after != before, (
+        "the frame is the old one: the run reused a stale result and re-stamped it as current, "
+        "which is worse than reusing it -- freshness then says the number is fine")
+
+
+def test_a_current_result_is_left_alone(bench):
+    """The other half: nothing is recomputed for the sake of it."""
+    from collections import Counter
+
+    from pastrocore.base.observation import Observation
+
+    manipulator, observation = bench
+    manipulator.compute(obj=None, method="run", targets=[observation],
+                        calculations=["time_arrays"], time_step=600.0)
+
+    stored = Counter()
+    original = Observation.set_calculated_data_by_key
+    Observation.set_calculated_data_by_key = (
+        lambda self, key, df, metadata=None, *a, **kw: (
+            stored.update([key]), original(self, key, df, metadata, *a, **kw))[1])
+    try:
+        manipulator.compute(obj=None, method="run", targets=[observation],
+                            calculations=["time_arrays"], time_step=600.0)
+    finally:
+        Observation.set_calculated_data_by_key = original
+
+    assert stored["times"] == 0, "a current result was recomputed anyway"
+
+
+def test_forcing_recomputes_what_is_current(bench):
+    """The one case forcing serves: the calculation changed and the model did not, which
+    freshness cannot see by construction."""
+    from collections import Counter
+
+    from pastrocore.base.observation import Observation
+
+    manipulator, observation = bench
+    manipulator.compute(obj=None, method="run", targets=[observation],
+                        calculations=["time_arrays"], time_step=600.0)
+
+    stored = Counter()
+    original = Observation.set_calculated_data_by_key
+    Observation.set_calculated_data_by_key = (
+        lambda self, key, df, metadata=None, *a, **kw: (
+            stored.update([key]), original(self, key, df, metadata, *a, **kw))[1])
+    try:
+        manipulator.compute(obj=None, method="run", targets=[observation],
+                            calculations=["time_arrays"], time_step=600.0, force=True)
+    finally:
+        Observation.set_calculated_data_by_key = original
+
+    assert stored["times"] == 1, "forcing did not recompute"
+
+
+def test_the_log_says_a_calculation_ran_once_per_calculation(bench, caplog):
+    """Reported from a live session: a forced run of ten calculations wrote
+
+        INFO - Calculation 'time_arrays' for 'OBS_DEFAULT' completed in 0.005 s
+
+    six times over, and it read like six recomputations. It was one, and five cache hits: the
+    line fired on every *call*, and a calculation that reads its prerequisite calls it.
+    """
+    import logging
+
+    from msb_arch.utils.logging_setup import logger as msb_logger
+
+    manipulator, observation = bench
+    said = []
+
+    class Listener(logging.Handler):
+        def emit(self, record):
+            said.append(record.getMessage())
+
+    listener = Listener(level=logging.INFO)
+    previous = msb_logger.level
+    msb_logger.setLevel(logging.INFO)
+    msb_logger.addHandler(listener)
+    try:
+        manipulator.compute(obj=None, method="run", targets=[observation],
+                            calculations=["uv_coverage", "sun_angles", "az_el"],
+                            time_step=600.0, force=True)
+    finally:
+        msb_logger.removeHandler(listener)
+        msb_logger.setLevel(previous)
+
+    ran = [line for line in said if line.startswith("Calculating '")]
+    assert len(ran) == len(set(ran)), (
+        f"the same calculation says it ran more than once:\n  " + "\n  ".join(sorted(ran)))
+    assert not [line for line in said if "completed in" in line], (
+        "the per-call line is at info again, and it fires on cache hits")
