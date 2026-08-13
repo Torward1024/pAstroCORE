@@ -47,11 +47,16 @@ def time_execution(func):
     def wrapper(self, obj, attributes):
         start_time = time.perf_counter()
         result = func(self, obj, attributes)
-        end_time = time.perf_counter()
-        duration = (end_time - start_time)
+        duration = time.perf_counter() - start_time
         calc_type = func.__name__.replace('_calculate_', '')
         obj_name = obj.name if isinstance(obj, ScheduleProject) else obj.get_observation_code()
-        logger.info(f"Calculation '{calc_type}' for '{obj_name}' completed in {duration:.3f} s")
+        # Debug, not info. This fires on every *call*, and a calculation that reads its
+        # prerequisite calls it too -- so a run of ten calculations wrote "Calculation
+        # 'time_arrays' completed" six times over, each of them a cache hit of four
+        # milliseconds, and it read exactly like six recomputations. What a run actually did is
+        # in the report `compute(method="run")` returns, timed on the interceptor; what was
+        # genuinely recomputed still says so at info, once, as "Calculating '...'".
+        logger.debug("Calculation '%s' for '%s' returned in %.3f s", calc_type, obj_name, duration)
         return result
     return wrapper
 

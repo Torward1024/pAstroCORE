@@ -25,6 +25,7 @@ from typing import Any, Dict, List
 from msb_arch.super.super import Super
 from msb_arch.utils.logging_setup import logger
 
+from pastrocore.base import freshness
 from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.base.observation import Observation
 from pastrocore.super.schedule_project import ScheduleProject
@@ -126,7 +127,16 @@ class ScheduleRunner(Super):
         ordered = self._manipulator.order_handlers("calculate", needed)
 
         passed = {name: value for name, value in attributes.items()
-                  if name not in ("calculations", "targets", "method")}
+                  if name not in ("calculations", "targets", "method", "force", "recalculate")}
+
+        # What a run recomputes, by default, is what has gone stale -- freshness already knows,
+        # and a run that reuses a result whose inputs have changed is the interface showing a
+        # number computed from a configuration that no longer exists. Worse, the reused frame
+        # was then re-stamped as current, so freshness stopped saying so.
+        #
+        # Forcing is a separate thing to ask for, because the only case it serves is a change
+        # freshness cannot see by construction: the calculation's own code.
+        force = bool(attributes.get("force") or attributes.get("recalculate"))
 
         plan: Dict[str, Dict[str, Any]] = {}
         for target in targets:
@@ -136,9 +146,14 @@ class ScheduleRunner(Super):
                 # Named by handler, filed under the schema's key. They are the same string for
                 # every calculation but one, and passing the handler's name for that one stored
                 # the result where nothing reads it.
+                store_key = CalculatedDataStructure.store_key_for(key)
                 step = {"operation": "calculate", "obj": target, "method": key,
-                        "store_key": CalculatedDataStructure.store_key_for(key)}
+                        "store_key": store_key}
                 step.update(passed)
+                # None means "cannot be told" -- a result predating the mechanism -- and that
+                # is left alone deliberately: calling it stale would make opening an old
+                # project a recomputation of everything in it.
+                step["recalculate"] = force or freshness.is_stale(target, store_key) is True
                 waits = [previous_by_key[prerequisite]
                          for prerequisite in self._manipulator.requirements_of("calculate", key)
                          if prerequisite in previous_by_key]
