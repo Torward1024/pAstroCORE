@@ -29,6 +29,10 @@ offers, an operation whose cost was paid on every start whether or not it was us
 handler that could not say what arguments it takes, a journal that kept alive everything it
 recorded, and the six lines every application writes to plan an operation.
 
+**Documentation**: [a first project](docs/guide.md) · [the calculations](docs/calculations.md) ·
+[installing and running](docs/installing.md) · [the roadmap](docs/ROADMAP.md). Every example on
+those pages runs as part of the test suite.
+
 ## What it does
 
 Describes radio-astronomical observations -- sources, telescopes, frequencies, scans -- and
