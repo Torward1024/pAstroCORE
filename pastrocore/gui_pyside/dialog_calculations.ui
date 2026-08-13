@@ -502,8 +502,11 @@ QCheckBox:disabled {
     color: #999999;
 }</string>
        </property>
+       <property name="toolTip">
+        <string>A run already recomputes whatever has gone stale. Tick this only to recompute results that are current -- after a change to a calculation itself, which freshness cannot see.</string>
+       </property>
        <property name="text">
-        <string>Recalculate</string>
+        <string>Recompute everything</string>
        </property>
        <property name="checked">
         <bool>true</bool>
