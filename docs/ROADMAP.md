@@ -49,7 +49,7 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 | 3 | **M4** -- the run says what it did, in one place | Today a run ends in one message box saying everything worked, and everything else is in `output.log`. **Neither a dialog per event nor silence:** one report, listing every step with its time and its outcome, reachable after the run rather than only during it. A failure is visible in the window without opening a log file | Days |
 | 4 | **M3** -- the request journal reaches the interface | A session's calculations are recorded and can be replayed against another project. `RequestJournal` exists in MSB and is exercised by one test here; nothing in the application writes to it | Days |
 | 5 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
-| 6 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
+| 6 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing. **The instrument is MSB's, not ours**: `RequestMetrics` counts and times every request per operation and `cache_statistics()` says what the caches are doing, so the measuring costs one interceptor rather than a harness. Two candidates already have a name: whether `fingerprint()` -- one serialisation per freshness check -- shows up at all, and whether `revision` would answer the same question for less | Days |
 
 **M1--M4 are one sentence: use what MSB 1.5.0 already has.** The pipeline, the interceptors and
 the journal are built and tested there; here they are reached by one caller each. **Measure
@@ -137,10 +137,10 @@ Order: VEX, CFX, SKED. Space telescopes out of scope for V2.
 | --- | --- | --- |
 | R6 | Import and export a project as one file | How a project reaches a colleague or a bug report |
 | L1 | A command-line version | R4's packaging. Thin, now that operations exist to request |
-| L2 | Scripts inside the application | L1 and MSB's `RequestJournal`. A journal that replays every calculation and saves nothing is a rehearsal -- which is why save became an operation first |
+| L2 | Scripts inside the application -- **editing** requests, not only replaying them | L1, and M3 first. Viewing, saving, loading and replaying a journal is M3 and belongs before 1.0; *editing* a request in a window is a scripting environment, which is its own product and needs deciding what a half-edited plan may do |
 | L3 | Client-server | L1. The hard parts are storage, identity, and what a long calculation looks like to a caller who is not watching |
-| T4 | Knowing *which* results a change invalidates | MSB's P1 dependency graph -- the same graph that lets independent calculations run at once |
-| M6a | Running independent calculations concurrently | Also P1 |
+| T4 | Knowing *which* results a change invalidates | MSB's `describe_model()` and `dependents_of()` -- which type holds which, read from the annotations. `depends_on` says which *parts* a result reads; the model graph says what reaching a part reaches, and between them a change names the results it invalidates |
+| M6a | ~~Running independent calculations concurrently~~ | **Done before 1.0, as M1.** Measured 1.30x |
 
 ## Considered and rejected
 
