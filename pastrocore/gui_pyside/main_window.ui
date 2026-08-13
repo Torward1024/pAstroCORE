@@ -175,6 +175,7 @@ QMenu::icon {
     <addaction name="actionGenerate_Observations"/>
     <addaction name="separator"/>
     <addaction name="actionLast_Run_Report"/>
+    <addaction name="actionSession"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -381,6 +382,14 @@ QMenu::icon {
    </property>
    <property name="text">
     <string>Visualize</string>
+   </property>
+  </action>
+  <action name="actionSession">
+   <property name="text">
+    <string>Session...</string>
+   </property>
+   <property name="toolTip">
+    <string>What has been asked of this project in this session, and replaying a saved one</string>
    </property>
   </action>
   <action name="actionLast_Run_Report">

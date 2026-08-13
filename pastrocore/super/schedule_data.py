@@ -410,6 +410,7 @@ class ScheduleData(Persistence, Loader):
         keys = attributes.get("keys") or (list(results.keys()) if hasattr(results, "keys") else [])
 
         available = []
+        unreadable = []
         for key in keys:
             try:
                 view = obj.scan_calculated_data(key)
@@ -417,8 +418,16 @@ class ScheduleData(Persistence, Loader):
                     continue
                 if view.select(pl.len()).collect().item() > 0:
                     available.append(key)
-            except Exception as e:
-                logger.debug("Cannot tell whether '%s' holds anything: %s", key, str(e))
+            except Exception as e:                      # noqa: BLE001 - reported below
+                unreadable.append(f"{key}: {e}")
+
+        # Said out loud, at warning, and with the traceback of the first one. This answer is
+        # what the visualize dialog offers a user, so a key that cannot be read is a plot that
+        # silently disappears -- and a debug line nobody reads is how an empty combo box looks
+        # like "there is nothing to draw" rather than "something is wrong".
+        if unreadable:
+            logger.warning("Cannot tell whether %s of %s result(s) hold anything: %s",
+                           len(unreadable), len(keys), "; ".join(unreadable[:5]))
         return sorted(available)
 
     @staticmethod
