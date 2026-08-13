@@ -74,6 +74,25 @@ def saved_results(observation):
     return {key: dict(value) for key, value in observation.calculated_data.items()}
 
 
+@pytest.fixture(autouse=True)
+def scratch_of_its_own(tmp_path, monkeypatch):
+    """Give each test its own per-user data directory, and so its own scratch.
+
+    Notes:
+        - A scratch is named for the *process*, so every window built in one test run shared
+          one directory. Results written by one test then looked unsaved to another test's
+          window, which asked about them on close -- a modal dialog with nobody to answer it,
+          and the suite stopped dead.
+        - It also means a test run never reads or deletes anything of the user's, which was
+          always the intention: `_offer_abandoned_sessions` takes a root for exactly this
+          reason, and everything else reached the real one.
+    """
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+    monkeypatch.setenv("HOME", str(tmp_path / "user"))
+    yield
+
+
 @pytest.fixture(scope="session")
 def qt_application():
     """One QApplication for the session; Qt permits no more."""

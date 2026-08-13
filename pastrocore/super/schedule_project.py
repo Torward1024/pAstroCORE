@@ -166,6 +166,57 @@ class ScheduleProject(Project):
         super().set_item(name, item)
         logger.info("Set observation with name='%s' and code='%s' in project '%s'", name, item.get_observation_code(), self.name)
 
+    def unsaved_results(self) -> int:
+        """Return how many results live in this session's scratch rather than in the project.
+
+        Returns:
+            int: The count. Zero for a project that has been saved since its last calculation,
+                and for one that has calculated nothing.
+
+        Notes:
+            - Results are written to a scratch directory the moment they are calculated and
+              live there until the project is saved, so "in the scratch" means "not in the
+              project". A window that closes without asking about these destroys them, which is
+              what writing them through to disk exists to prevent.
+            - Here rather than in the window: a command line closing a session and a server
+              ending one ask the same question, and neither should be counting files.
+        """
+        try:
+            scratch = self.scratch.path
+            if scratch is None or not scratch.exists():
+                return 0
+            return len(list((scratch / ScratchSpace.RESULTS).rglob("*.parquet")))
+        except Exception as e:                          # noqa: BLE001 - never block a close
+            logger.error("Could not tell what this session still holds: %s", str(e),
+                         exc_info=True)
+            return 0
+
+    def discard_scratch_if_empty(self) -> bool:
+        """Remove this session's scratch directory when nothing in it would be lost.
+
+        Returns:
+            bool: Whether it was removed.
+
+        Notes:
+            - A project that is replaced -- by opening another, or by starting a new one --
+              took its scratch with it and nothing discarded it, so every open and every new
+              project left a directory that the next start offered to recover from a session
+              that had ended normally with nothing in it.
+            - One holding results is left where it is. That offer is the whole reason the
+              directory survives a crash: litter is worth clearing, a day of calculation is not.
+        """
+        if self.unsaved_results():
+            logger.info("Leaving '%s' behind: it holds results nobody has saved",
+                        self.scratch.path)
+            return False
+        try:
+            self.scratch.discard()
+            return True
+        except Exception as e:                          # noqa: BLE001 - never block a switch
+            logger.error("Could not tidy up this session's scratch: %s", str(e),
+                         exc_info=True)
+            return False
+
     def observations(self) -> List[Observation]:
         """Return the observations this project holds, as a list.
 

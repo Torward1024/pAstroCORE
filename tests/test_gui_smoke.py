@@ -237,8 +237,15 @@ def test_the_window_keeps_its_results_where_a_crash_cannot_reach_them(window, tm
     assert list((space.path / "results").rglob("*.parquet")), "not waiting for a save"
 
 
-def test_a_clean_close_takes_the_scratch_with_it(window, tmp_path):
-    """Only on this path: a session that ended normally has nothing worth recovering."""
+def test_a_clean_close_takes_the_scratch_with_it(window, tmp_path, monkeypatch):
+    """Only on this path: a session that ended normally has nothing worth recovering.
+
+    It asks first when the scratch holds results, since those are exactly what a clean close
+    would destroy -- the thing writing them through to disk exists to prevent. Discarding is
+    then the user's decision rather than the window's.
+    """
+    from PySide6.QtWidgets import QMessageBox
+
     from pastrocore.base.scratch import ScratchSpace
     import polars as pl
 
@@ -247,8 +254,14 @@ def test_a_clean_close_takes_the_scratch_with_it(window, tmp_path):
     space.store.write("obs", "a", pl.DataFrame({"x": [1.0]}), {})
     assert space.path.exists()
 
+    asked = {}
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *args, **kwargs: (
+                            asked.update(seen=True), QMessageBox.StandardButton.Discard)[1]))
+
     window.close()
 
+    assert asked, "the results were discarded without a word"
     assert not (tmp_path / "scratch" / "closing").exists()
 
 
@@ -424,3 +437,128 @@ def test_editing_a_telescope_makes_the_label_appear_by_itself(project, qt_applic
     finally:
         window.close()
         window.deleteLater()
+
+
+# --- closing must not throw away what was calculated -------------------------------------------
+
+def _project_with_unsaved_results(tmp_path):
+    """A project whose results live in this session's scratch, which is where they live until
+    it is saved.
+
+    Notes:
+        - The scratch is rooted in `tmp_path`, not where the application puts it. A scratch is
+          named for the process, so every window built in one test run would otherwise share
+          one directory -- and results written by one test would make another test's window ask
+          about them on close, with a modal dialog and no one to answer it.
+    """
+    import json
+
+    import conftest
+    from pastrocore.base.scratch import ScratchSpace
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
+    observation = project.get_observation(next(iter(project.get_items())))
+    observation.clear_calculated_data()
+    project._scratch = ScratchSpace(root=tmp_path / "scratch")
+    project.hold_results_in_scratch()
+    ScheduleManipulator(project).compute(
+        obj=None, method="run", targets=[observation], calculations=["time_arrays"],
+        time_step=600.0)
+    return project
+
+
+def test_closing_with_unsaved_results_asks_before_discarding_them(qt_application, monkeypatch,
+                                                                  tmp_path):
+    """Results are written to a scratch directory the moment they are calculated, and live
+    there until the project is saved. `closeEvent` discarded that directory on every normal
+    close -- so calculating and then closing the window destroyed the results, and the project's
+    own `results/` was empty because it had been saved before the calculation.
+
+    The mechanism that exists to survive a crash was deleting a day of calculation on a tidy
+    exit, without a word.
+    """
+    from PySide6.QtGui import QCloseEvent
+    from PySide6.QtWidgets import QMessageBox
+
+    from pastrocore.app import PAstroCoreMainWindow
+
+    window = PAstroCoreMainWindow()
+    window.project = _project_with_unsaved_results(tmp_path)
+    scratch = window.project.scratch.path
+    assert scratch is not None and scratch.exists()
+
+    asked = {}
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *args, **kwargs: (
+                            asked.update(text=args[2]), QMessageBox.StandardButton.Cancel)[1]))
+
+    event = QCloseEvent()
+    window.closeEvent(event)
+
+    assert asked, "the window closed without asking about results nobody has saved"
+    assert not event.isAccepted(), "cancelling the question still closed the window"
+    assert scratch.exists(), "the results were discarded anyway"
+
+
+def test_closing_a_project_with_nothing_unsaved_asks_nothing(qt_application, monkeypatch):
+    """Nothing calculated, nothing to lose, no question."""
+    from PySide6.QtGui import QCloseEvent
+    from PySide6.QtWidgets import QMessageBox
+
+    from pastrocore.app import PAstroCoreMainWindow
+
+    window = PAstroCoreMainWindow()
+    asked = {}
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *args, **kwargs: (
+                            asked.update(text=args[2]), QMessageBox.StandardButton.Yes)[1]))
+
+    window.closeEvent(QCloseEvent())
+    assert not asked, "a window with nothing calculated asked about saving anyway"
+
+
+def test_starting_a_new_project_does_not_leave_a_scratch_behind(qt_application, monkeypatch):
+    """Reported: two recovery offers on one start, from two different scratch directories.
+
+    A new project is a new `ScheduleProject`, and a project makes its own scratch on first use.
+    Nothing discarded the outgoing one, so every File -> New Project in a session left a
+    directory that the next start offered to recover -- from a session that had ended perfectly
+    normally and had nothing in it.
+    """
+    from pastrocore.app import PAstroCoreMainWindow
+
+    window = PAstroCoreMainWindow()
+    try:
+        window.project.hold_results_in_scratch()
+        first = window.project.scratch.path
+        assert first is not None and first.exists()
+
+        window.new_project()
+
+        assert window.project.scratch.path != first, "a new project reuses the old scratch"
+        assert not first.exists(), (
+            "the scratch of the project that was replaced is still there, and the next start "
+            "will offer to recover it")
+    finally:
+        window.close()
+
+
+def test_a_scratch_holding_results_is_kept_when_the_project_is_replaced(qt_application, monkeypatch,
+                                                                        tmp_path):
+    """The other half. Litter is worth clearing; a day of calculation is not."""
+    from pastrocore.app import PAstroCoreMainWindow
+
+    window = PAstroCoreMainWindow()
+    try:
+        window.project = _project_with_unsaved_results(tmp_path)
+        held = window.project.scratch.path
+        assert held is not None and held.exists()
+
+        window._cleanup_project()
+
+        assert held.exists(), "results nobody has saved were discarded by replacing the project"
+    finally:
+        window.project = None           # or closing asks about them, and blocks the suite
+        window.close()
