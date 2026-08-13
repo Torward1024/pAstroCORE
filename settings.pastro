@@ -2,7 +2,5 @@
     "clear_log_on_start": true,
     "log_level": "INFO",
     "results_memory_share": 0.2,
-    "sources_catalog_path": "catalogs/sources.dat",
-    "telescopes_catalog_path": "catalogs/telescopes.dat",
     "time_step": 300.0
 }

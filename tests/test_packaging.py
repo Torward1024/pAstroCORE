@@ -1,0 +1,198 @@
+"""An installed pAstroCORE finds its own files.
+
+The application read `catalogs/sources.dat` and wrote `settings.pastro` as paths relative to
+wherever it was started. In a checkout that is the repository and everything works; installed
+with `pip install .` and started from anywhere else, the catalogs are empty and the settings go
+into whichever directory the user happened to be in.
+
+That is what R4 means by "gives a working command", so it is what these check -- from a
+different working directory, which is the only way to tell the two apart.
+"""
+import json
+import os
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture
+def elsewhere(tmp_path, monkeypatch):
+    """Run from a directory that is not the checkout."""
+    monkeypatch.chdir(tmp_path)
+    return tmp_path
+
+
+def test_the_catalogs_are_found_from_any_directory(elsewhere):
+    from pastrocore.paths import shipped_catalog
+
+    for name in ("sources.dat", "telescopes.dat"):
+        assert shipped_catalog(name).is_file(), f"{name} is not where an install would find it"
+
+
+def test_the_catalogs_are_inside_the_package():
+    """A file beside the package is not in the wheel. This is what makes them shippable."""
+    from pastrocore.paths import shipped_catalog
+
+    import pastrocore
+    package = Path(pastrocore.__file__).resolve().parent
+    assert package in shipped_catalog("sources.dat").resolve().parents
+
+
+def test_the_defaults_point_at_files_that_exist(elsewhere):
+    """The defaults were relative, so from anywhere else they named nothing and the application
+    started with empty catalogs and said so only in the log."""
+    from pastrocore.app import PAstroCoreMainWindow
+
+    settings = PAstroCoreMainWindow.load_settings()
+    assert Path(settings["sources_catalog_path"]).is_file()
+    assert Path(settings["telescopes_catalog_path"]).is_file()
+
+
+def test_the_settings_live_in_one_place_per_user(elsewhere, monkeypatch):
+    from pastrocore.base.scratch import data_home
+    from pastrocore.paths import settings_file
+
+    assert settings_file() == data_home() / "settings.pastro", (
+        "settings written where the application was started are settings a user loses")
+
+
+def test_settings_left_in_a_working_directory_are_adopted_once(tmp_path, monkeypatch):
+    """Anyone upgrading has a `settings.pastro` beside the checkout. Reading it and then
+    writing somewhere else would look like the settings had been forgotten."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+    (tmp_path / "settings.pastro").write_text(json.dumps({"time_step": 1234}), encoding="utf-8")
+
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.paths import settings_file
+
+    settings = PAstroCoreMainWindow.load_settings()
+    assert settings["time_step"] == 1234, "what the user had was not read"
+    assert settings_file().is_file(), "and was not kept where it will be read next time"
+    assert json.loads(settings_file().read_text(encoding="utf-8"))["time_step"] == 1234
+
+
+def test_a_stored_path_that_no_longer_exists_falls_back(tmp_path, monkeypatch):
+    """A settings file records absolute paths, and an install that moves invalidates them.
+    Starting with empty catalogs and a line in the log is how that used to present."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+    (tmp_path / "settings.pastro").write_text(json.dumps({
+        "sources_catalog_path": str(tmp_path / "gone" / "sources.dat")}), encoding="utf-8")
+
+    from pastrocore.app import PAstroCoreMainWindow
+
+    settings = PAstroCoreMainWindow.load_settings()
+    assert Path(settings["sources_catalog_path"]).is_file(), (
+        "a path that no longer exists must fall back to what was shipped")
+
+
+# --- the package itself ---------------------------------------------------------------------
+
+def test_the_project_declares_how_to_build_itself():
+    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert manifest["project"]["name"] == "pastrocore"
+    assert manifest["project"]["scripts"]["pastrocore"] == "pastrocore.app:main"
+    assert "version" in manifest["project"]["dynamic"], (
+        "the version lives in pastrocore/__init__.py and must not be repeated here")
+
+
+def test_the_version_is_stated_once():
+    """MSB tagged 1.1.2 with one of its two version numbers bumped, built 1.1.1 again and PyPI
+    refused it. Two sources of one number is one too many."""
+    import pastrocore
+
+    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert "version" not in manifest["project"], "declared in two places"
+    assert manifest["tool"]["hatch"]["version"]["path"] == "pastrocore/__init__.py"
+    assert pastrocore.__version__
+
+
+def test_every_dependency_the_code_imports_is_declared():
+    """The dependency list and requirements.txt are two lists of one thing, and the one that
+    goes stale is the one nothing installs from."""
+    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    declared = {name.split("[")[0].split(">")[0].split("=")[0].strip().lower()
+                for name in manifest["project"]["dependencies"]}
+
+    for needed in ("msb_arch", "polars", "astropy", "numpy", "scipy", "matplotlib",
+                   "pyside6", "pyarrow", "psutil"):
+        assert needed in declared, f"{needed} is imported and not declared"
+
+
+def test_the_data_files_are_included_in_the_wheel():
+    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    wheel = manifest["tool"]["hatch"]["build"]["targets"]["wheel"]
+    assert "pastrocore" in wheel["packages"]
+
+
+@pytest.mark.slow
+def test_the_wheel_builds_and_carries_the_catalogs(tmp_path):
+    """The only check that says the packaging works rather than that it is declared."""
+    build = subprocess.run([sys.executable, "-m", "build", "--wheel", "--outdir", str(tmp_path)],
+                           cwd=ROOT, capture_output=True, text=True)
+    if build.returncode != 0 and "No module named build" in (build.stdout + build.stderr):
+        pytest.skip("the build module is not installed here")
+    assert build.returncode == 0, build.stdout + build.stderr
+
+    import zipfile
+
+    wheel = next(tmp_path.glob("*.whl"))
+    names = zipfile.ZipFile(wheel).namelist()
+    assert "pastrocore/catalogs/sources.dat" in names
+    assert "pastrocore/gui/ui_main_window.py" in names
+    assert any(name.endswith("entry_points.txt") for name in names)
+
+
+def test_a_catalogue_the_user_chose_survives_a_restart(tmp_path, monkeypatch):
+    """The point of the fallback is a path that is *gone*, not one the user picked.
+
+    Preferences writes `sources_catalog_path`, so choosing a catalogue has to mean the next
+    start reads that one and not the shipped one.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+
+    from pastrocore.app import PAstroCoreMainWindow
+
+    mine = tmp_path / "mine" / "sources.dat"
+    mine.parent.mkdir()
+    mine.write_text("# my own catalogue\n", encoding="utf-8")
+
+    settings = PAstroCoreMainWindow.load_settings()
+    settings["sources_catalog_path"] = str(mine)
+    PAstroCoreMainWindow._write_settings(settings)
+
+    read_back = PAstroCoreMainWindow.load_settings()
+    assert Path(read_back["sources_catalog_path"]) == mine, (
+        "the catalogue the user chose was replaced by the shipped one")
+    assert Path(read_back["telescopes_catalog_path"]).is_file(), "and the other still resolves"
+
+
+def test_a_catalogue_that_was_deleted_does_not_silently_empty_the_application(tmp_path, monkeypatch):
+    """The other half: the chosen file is honoured until it is not there."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "user"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user"))
+
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.paths import shipped_catalog
+
+    mine = tmp_path / "mine" / "sources.dat"
+    mine.parent.mkdir()
+    mine.write_text("# my own catalogue\n", encoding="utf-8")
+    PAstroCoreMainWindow._write_settings({"sources_catalog_path": str(mine)})
+    assert Path(PAstroCoreMainWindow.load_settings()["sources_catalog_path"]) == mine
+
+    mine.unlink()
+    fallen_back = PAstroCoreMainWindow.load_settings()["sources_catalog_path"]
+    assert Path(fallen_back) == shipped_catalog("sources.dat")
