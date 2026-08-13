@@ -233,6 +233,26 @@ def _rewrite_metadata(results: Any, owner: str, key: str, metadata: Dict[str, An
         return False
 
 
+def record_metadata(observation: Any, key: str, metadata: Dict[str, Any]) -> bool:
+    """Replace a result's metadata, leaving the result itself where it is.
+
+    Args:
+        observation (Observation): The owner.
+        key (str): The store key.
+        metadata (Dict[str, Any]): What to record.
+
+    Returns:
+        bool: Whether it was recorded.
+
+    Notes:
+        - The calculator stores a frame while computing it and then has to correct its
+          metadata with the freshness stamp. Storing the frame a second time to carry the
+          correction wrote the parquet twice for every calculation, which since results reach
+          the disk when they are made is a real cost rather than a tidiness one.
+    """
+    return _rewrite_metadata(observation.calculated_data, observation.name, key, metadata)
+
+
 def stale_results(observation: Any) -> Tuple[str, ...]:
     """Return the keys of every result whose inputs have changed.
 

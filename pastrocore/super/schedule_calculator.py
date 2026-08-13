@@ -260,6 +260,13 @@ class ScheduleCalculator(Super):
         stamped = freshness.stamp(obj, store_key, metadata)
         if stamped == obj.get_calculated_metadata(store_key):
             return
+
+        # The frame is already where it belongs -- `_get_cached_or_calculate` put it there,
+        # with the metadata it had at the time. Only the stamp is missing, so only the stamp is
+        # written. Storing the frame again to carry a corrected sidecar wrote every result's
+        # parquet twice, and since 0.7.0 a store reaches the disk.
+        if freshness.record_metadata(obj, store_key, stamped):
+            return
         obj.set_calculated_data_by_key(store_key, df, stamped)
 
     @time_execution
@@ -395,7 +402,7 @@ class ScheduleCalculator(Super):
                     logger.warning("No active scans in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 if times_df.is_empty():
                     logger.warning("No time arrays available for observation '%s'", obs.get_observation_code())
@@ -708,7 +715,7 @@ class ScheduleCalculator(Super):
                     logger.warning("No active scans in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_positions"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 if times_df.is_empty():
                     logger.error("No time data for '%s'", obs.get_observation_code())
@@ -717,7 +724,7 @@ class ScheduleCalculator(Super):
                 has_orbit_telescopes = any(isinstance(tel, SpaceTelescope) and not tel.get("use_kep") for tel in telescopes)
                 orbit_df = pl.DataFrame()
                 if has_orbit_telescopes:
-                    orbit_attrs = {"time_step": time_step, "store_key": "interpolated_orbits", "recalculate": recalculate}
+                    orbit_attrs = {"time_step": time_step, "store_key": "interpolated_orbits", "recalculate": False}
                     orbit_df = self._calculate_interpolated_orbits(obs, orbit_attrs)
                     logger.debug("Orbit data for '%s': %s", obs.get_observation_code(), not orbit_df.is_empty())
 
@@ -1066,8 +1073,8 @@ class ScheduleCalculator(Super):
                     logger.warning("No active scans in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("source_visibility"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 position_df = self._calculate_telescope_positions(obs, position_attrs)
 
@@ -1282,9 +1289,9 @@ class ScheduleCalculator(Super):
                     logger.warning("No active scans in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": recalculate}
-                visibility_attrs = {"time_step": time_step, "store_key": "source_visibility", "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": False}
+                visibility_attrs = {"time_step": time_step, "store_key": "source_visibility", "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 position_df = self._calculate_telescope_positions(obs, position_attrs)
                 visibility_df = self._calculate_source_visibility(obs, visibility_attrs)
@@ -1551,9 +1558,9 @@ class ScheduleCalculator(Super):
                     logger.warning("No active scans in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("sun_angles"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
-                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": False}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 position_df = self._calculate_telescope_positions(obs, position_attrs)
                 visibility_df = self._calculate_source_visibility(obs, visibility_attrs)
@@ -1792,9 +1799,9 @@ class ScheduleCalculator(Super):
                     logger.debug("No ground telescopes in '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("az_el"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
-                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": False}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 position_df = self._calculate_telescope_positions(obs, position_attrs)
                 visibility_df = self._calculate_source_visibility(obs, visibility_attrs)
@@ -2037,9 +2044,9 @@ class ScheduleCalculator(Super):
                                    target_code, obs.get_observation_code())
                     return empty
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
-                orbit_attrs = {"time_step": time_step, "store_key": orbit_store_key, "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": False}
+                orbit_attrs = {"time_step": time_step, "store_key": orbit_store_key, "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 position_df = self._calculate_telescope_positions(obs, position_attrs)
                 orbit_df = self._calculate_interpolated_orbits(obs, orbit_attrs)
@@ -2297,7 +2304,7 @@ class ScheduleCalculator(Super):
             def calculate_telescope_visibility(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 angles = self._calculate_telescope_az_el(obs, {
                     "time_step": time_step, "store_key": az_el_store_key,
-                    "target_telescope": target_code, "recalculate": recalculate})
+                    "target_telescope": target_code, "recalculate": False})
                 if angles.is_empty():
                     return empty
 
@@ -2371,8 +2378,8 @@ class ScheduleCalculator(Super):
                     logger.warning("No active scans in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("time_on_source"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 visibility_df = self._calculate_source_visibility(obs, visibility_attrs)
 
@@ -2641,9 +2648,9 @@ class ScheduleCalculator(Super):
                     logger.warning("No active scans in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("baseline_projections"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                uv_attrs = {"time_step": time_step, "store_key": "uv_coverage", "recalculate": recalculate}
-                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                uv_attrs = {"time_step": time_step, "store_key": "uv_coverage", "recalculate": False}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 uv_coverage_df = self._calculate_uv_coverage(obs, uv_attrs)
                 visibility_df = self._calculate_source_visibility(obs, visibility_attrs)
@@ -2852,8 +2859,8 @@ class ScheduleCalculator(Super):
                     logger.warning("No active scans in observation '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("mollweide_tracks"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                position_attrs = {"time_step": time_step, "store_key": "telescope_positions", "recalculate": False}
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 position_df = self._calculate_telescope_positions(obs, position_attrs)
 
@@ -3053,9 +3060,9 @@ class ScheduleCalculator(Super):
                     logger.debug("No ground telescopes in '%s' for parallactic angle calculation", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("parallactic_angle"))
 
-                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": recalculate}
-                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": recalculate}
-                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": recalculate}
+                time_attrs = {"time_step": time_step, "store_key": "times", "recalculate": False}
+                position_attrs = {"time_step": time_step, "store_key": position_store_key, "recalculate": False}
+                visibility_attrs = {"time_step": time_step, "store_key": visibility_store_key, "recalculate": False}
 
                 times_df = self._calculate_time_arrays(obs, time_attrs)
                 position_df = self._calculate_telescope_positions(obs, position_attrs)

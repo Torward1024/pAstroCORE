@@ -83,7 +83,14 @@ def existing_or_shipped(path: str, name: str) -> str:
         return resolved
 
     fallback = shipped_catalog(name)
-    if resolved:
+    if resolved and Path(resolved).is_absolute():
+        # Somebody chose this and it is not there now -- a drive not mounted, a file moved.
+        # Worth saying every time, because it is a real problem and it may come back.
         logger.warning("Catalogue '%s' is not there; using the one shipped at '%s'",
                        resolved, fallback)
+    elif resolved:
+        # Relative: a leftover from before the catalogues moved inside the package, which can
+        # never resolve from a per-user settings file. `load_settings` corrects it, so this is
+        # said once rather than on every start.
+        logger.debug("Replacing the leftover relative catalogue path '%s'", resolved)
     return str(fallback)

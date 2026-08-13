@@ -349,7 +349,9 @@ class Scan(BaseEntity):
         data["source"] = self.source.name if self.source else None
         data["telescopes"] = [t.name for t in self.telescopes]
         data["frequencies"] = [f.name for f in self.frequencies]
-        logger.info("Converted scan '%s' with start=%s to dictionary", self.name, self.start.isot)
+        # Debug, not info: freshness fingerprints the scans on every check, so this is emitted
+        # several times per calculation and says nothing a reader of the log wants.
+        logger.debug("Converted scan '%s' with start=%s to dictionary", self.name, self.start.isot)
         return data
 
     @classmethod

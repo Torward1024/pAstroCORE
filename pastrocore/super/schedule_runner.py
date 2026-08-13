@@ -123,8 +123,11 @@ class ScheduleRunner(Super):
             previous_by_key = {}
             for key in ordered:
                 name = f"{target.code}/{key}"
+                # Named by handler, filed under the schema's key. They are the same string for
+                # every calculation but one, and passing the handler's name for that one stored
+                # the result where nothing reads it.
                 step = {"operation": "calculate", "obj": target, "method": key,
-                        "store_key": key}
+                        "store_key": CalculatedDataStructure.store_key_for(key)}
                 step.update(passed)
                 waits = [previous_by_key[prerequisite]
                          for prerequisite in self._manipulator.requirements_of("calculate", key)
@@ -170,6 +173,11 @@ class ScheduleRunner(Super):
         total = len(plan)
         seen = {"done": 0, "stopped": False}
         labels = {name: name.split("/", 1)[-1] for name in plan}
+        # A step is named by its handler and files its result under the schema's key, and for
+        # one calculation the two differ. The interceptor sees the request, which carries the
+        # store key, so this maps back to the step the plan named.
+        step_of = {f"{getattr(step.get('obj'), 'code', '')}/{step.get('store_key')}": name
+                   for name, step in plan.items()}
         measured: Dict[str, float] = {}
         # Steps of one stage run in threads when asked to, so the counter and the table are
         # touched from several at once.
@@ -189,12 +197,13 @@ class ScheduleRunner(Super):
 
             key = request.get("attributes", {}).get("store_key", "")
             code = getattr(request.get("obj"), "code", "")
+            name = step_of.get(f"{code}/{key}", f"{code}/{key}")
             with guard:
                 seen["done"] += 1
                 done = seen["done"]
-                measured[f"{code}/{key}"] = elapsed
+                measured[name] = elapsed
             report(int(done / total * 100) if total else 100,
-                   f"Calculated {labels.get(key, key) or key} in {elapsed:.2f} s")
+                   f"Calculated {labels.get(name, key) or key} in {elapsed:.2f} s")
             return response
 
         self._manipulator.add_interceptor(watch)
@@ -210,10 +219,28 @@ class ScheduleRunner(Super):
         ran = [name for name in outcome if name not in outcome.failed]
         slowest = max(timings, key=timings.get) if timings else None
 
+        # One row per step, in plan order, labelled the way a person reads it. Assembled here
+        # rather than by whatever displays it: a window renders this, a command line prints it
+        # and a server serialises it, and none of the three should be joining three lists to
+        # find out what happened.
+        spelled = {entry["key"]: entry["label"]
+                   for entry in self._compute_catalogue(obj, {})}
+        rows = []
+        for name in plan:
+            if name not in measured and name not in outcome.failed:
+                continue            # never reached: the run stopped above it
+            key = name.split("/", 1)[-1]
+            rows.append({"step": name,
+                         "observation": name.split("/", 1)[0],
+                         "label": spelled.get(key, labels.get(name, key)),
+                         "seconds": measured.get(name, 0.0),
+                         "outcome": "failed" if name in outcome.failed else "ok"})
+
         return {"ran": ran,
                 "failed": list(outcome.failed),
                 "cancelled": seen["stopped"],
                 "timings": timings,
+                "report": rows,
                 # Summarised here rather than by whoever displays it. A window, a command line
                 # and a server all want the same three numbers, and the first of them worked
                 # them out for itself until this line existed.

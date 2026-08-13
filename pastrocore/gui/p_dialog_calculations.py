@@ -69,7 +69,9 @@ class CalculationThread(QThread):
             errors = [f"{name} failed" for name in outcome.get("failed", [])]
             if errors:
                 logger.warning("Completed with %s failed step(s)", len(errors))
-            self.finished.emit(results, errors, outcome.get("summary", {}))
+            # The whole outcome, not a summary of it: the report is assembled by the operation
+            # and the window only renders it.
+            self.finished.emit(results, errors, outcome)
 
         except Exception as error:                       # noqa: BLE001 - shown to the user
             logger.error("Calculation run failed: %s", str(error))
@@ -342,33 +344,34 @@ class CalculationDialog(QDialog):
         if self.ui.timeStepSpin.value() != self.time_step:
             self.time_step_updated.emit(self.ui.timeStepSpin.value())
 
-    def calculation_finished(self, results: dict, errors: list, report: dict = None):
-        """Handle calculation completion — distinguish success from partial failure.
+    def calculation_finished(self, results: dict, errors: list, outcome: dict = None):
+        """Show what the run did, rather than whether it went well.
 
         Args:
             results (dict): The steps that ran.
             errors (list): The steps that did not.
-            report (dict): What the run reports about itself -- how many steps, how long, and
-                which was slowest. Worked out by the operation, not here: a command line and a
-                server want the same three numbers.
+            outcome (dict): What `compute(method="run")` returned, report and summary included.
+
+        Notes:
+            - A message box saying "All calculations completed successfully" is the wrong shape
+              twice over: it says nothing when everything worked, and when a step failed it has
+              nowhere to put the detail, so the detail went to `output.log` and nobody read it.
+              One report instead, which the window keeps so it can be reopened.
         """
         self.progress_dialog.close()
-        report = report or {}
-        summary = (f"{report.get('steps', len(results))} calculation(s) in "
-                   f"{report.get('seconds', 0.0):.1f} s"
-                   + (f"; slowest {report['slowest']} at {report['slowest_seconds']:.1f} s"
-                      if report.get("slowest") else ""))
+        self.outcome = outcome or {}
+        summary = self.outcome.get("summary", {})
 
         if errors:
-            error_text = "Some calculations completed with errors:\n\n" + "\n".join(errors[:10])
-            if len(errors) > 10:
-                error_text += f"\n\n... and {len(errors)-10} more errors."
-            QMessageBox.warning(self, "Partial Success", f"{error_text}\n\n{summary}")
-            logger.warning("Calculations finished with %s errors. %s", len(errors), summary)
+            logger.warning("Calculations finished with %s failed step(s) in %.2f s",
+                           len(errors), summary.get("seconds", 0.0))
         else:
-            QMessageBox.information(self, "Success", f"All calculations completed.\n\n{summary}")
-            logger.info("All calculations completed. %s", summary)
+            logger.info("All %s calculation(s) completed in %.2f s",
+                        summary.get("steps", len(results)), summary.get("seconds", 0.0))
 
+        # Shown by the window once this dialog has closed, not from inside it. A modal dialog
+        # opened from a slot nests one event loop inside another, and the first version of this
+        # blocked the suite exactly as the catalogue's modal warning once did.
         self.accept()
 
     def calculation_error(self, error: str):

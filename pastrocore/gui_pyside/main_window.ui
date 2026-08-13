@@ -173,6 +173,8 @@ QMenu::icon {
     <addaction name="actionVisualize"/>
     <addaction name="separator"/>
     <addaction name="actionGenerate_Observations"/>
+    <addaction name="separator"/>
+    <addaction name="actionLast_Run_Report"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -379,6 +381,17 @@ QMenu::icon {
    </property>
    <property name="text">
     <string>Visualize</string>
+   </property>
+  </action>
+  <action name="actionLast_Run_Report">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Last Run Report</string>
+   </property>
+   <property name="toolTip">
+    <string>What the last calculation run did, step by step</string>
    </property>
   </action>
   <action name="actionGenerate_Observations">
