@@ -268,3 +268,93 @@ def test_the_report_outlives_the_dialog_that_showed_it(qt_application, monkeypat
         assert shown.get("rows") == 2
     finally:
         window.close()
+
+
+# --- the explorer opens what was clicked ------------------------------------------------------
+
+def test_an_observation_with_stale_results_still_opens(qt_application, monkeypatch, tmp_path):
+    """Reported from a live session:
+
+        ERROR - Observation with code 'OBS_DEFAULT  • 12 stale' not found
+
+    The explorer labels an observation with how many of its results have gone stale, and the
+    click handler looked the observation up by the label. So the moment staleness had anything
+    to say, the observation could no longer be opened -- and the label is exactly what tells a
+    user to go and look at it.
+    """
+    import json
+
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QStandardItem, QStandardItemModel
+
+    import conftest
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    window = PAstroCoreMainWindow()
+    try:
+        window.project = ScheduleProject.from_dict(
+            json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
+        from pastrocore.super.schedule_manipulator import ScheduleManipulator
+        window.manipulator = ScheduleManipulator(window.project)
+        observation = window.project.observations()[0]
+
+        model = QStandardItemModel()
+        item = QStandardItem(f"{observation.code}  • 12 stale")
+        item.setData("observation", Qt.UserRole)
+        item.setData(observation.name, Qt.UserRole + 1)
+        model.appendRow(item)
+        window.ui.projectExplorer.setModel(model)
+
+        opened = {}
+        monkeypatch.setattr(window, "open_observation_tab",
+                            lambda name, code: opened.update(name=name, code=code))
+        window.handle_project_explorer_click(model.indexFromItem(item))
+
+        assert opened.get("code") == observation.code, (
+            f"the label was used as the code: {opened!r}")
+        assert opened.get("name") == observation.name
+    finally:
+        window.close()
+
+
+def test_the_explorer_is_refreshed_after_a_run(qt_application, monkeypatch):
+    """"12 stale" stayed on an observation whose results had just been recomputed.
+
+    The explorer is rebuilt when the project changes, and finishing a run is exactly that --
+    but the calculation dialog was the one path that never said so. A label telling a user to
+    recompute, which survives the recomputation, is worse than no label.
+    """
+    from pastrocore import app as application
+    from pastrocore.app import PAstroCoreMainWindow
+
+    window = PAstroCoreMainWindow()
+    try:
+        class FinishedDialog:
+            outcome = {"ran": ["OBS/times"], "failed": [], "cancelled": False,
+                       "timings": {}, "report": [], "summary": {"steps": 1, "failed": 0,
+                                                                "seconds": 0.1}}
+
+            def __init__(self, *args, **kwargs):
+                self.time_step_updated = _Signal()
+
+            def exec(self):
+                return 1
+
+        class _Signal:
+            def connect(self, *args, **kwargs):
+                return None
+
+        monkeypatch.setattr("pastrocore.gui.p_dialog_calculations.CalculationDialog",
+                            FinishedDialog)
+        monkeypatch.setattr(window, "open_last_run_report", lambda: None)
+
+        refreshed = []
+        monkeypatch.setattr(window, "update_project_explorer",
+                            lambda: refreshed.append(True))
+        window.project_updated.connect(window.update_project_explorer)
+
+        window.open_calculation_dialog()
+        assert refreshed, "the explorer still shows what the run has just changed"
+    finally:
+        window.close()

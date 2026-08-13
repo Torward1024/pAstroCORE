@@ -422,7 +422,7 @@ class Ui_CalculationDialog(object):
 "QCheckBox:disabled {\n"
 "    color: #999999;\n"
 "}")
-        self.recalculateCheck.setChecked(True)
+        self.recalculateCheck.setChecked(False)
         self.recalculateCheck.setTristate(False)
 
         self.gridLayout_2.addWidget(self.recalculateCheck, 1, 0, 1, 2)
