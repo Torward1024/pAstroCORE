@@ -36,24 +36,7 @@ from pathlib import Path
 import json
 # GUI resource file
 import pastrocore.gui.rc_icons
-
-def _portable(path: str) -> str:
-    r"""Return a path that resolves on the platform it is read on.
-
-    Args:
-        path (str): A path as stored in the settings file.
-
-    Returns:
-        str: The same path with separators the running platform understands.
-
-    Notes:
-        - Settings are saved with the separator of whichever platform wrote them, and the file
-          the repository ships was written on Windows. On Linux `catalogs\sources.dat` is not
-          a directory and a file: it is one filename containing a backslash, so the catalogs
-          silently failed to load.
-    """
-    return os.path.normpath(path.replace("\\", "/")) if path else path
-
+from pastrocore.paths import SETTINGS, existing_or_shipped, settings_file, shipped_catalog
 
 class PAstroCoreMainWindow(QMainWindow):
     """Main application window for pAstroCORE."""
@@ -214,11 +197,11 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.debug("Error checking dockWidget visibilityChanged signal: %s", str(e))     
     
     def initialize_catalog_manager(self):
-        """Initialize CatalogManager with paths from settings or defaults."""
-        default_sources_path = os.path.join("catalogs", "sources.dat")
-        default_telescopes_path = os.path.join("catalogs", "telescopes.dat")
-        sources_path = _portable(self.settings.get("sources_catalog_path", default_sources_path))
-        telescopes_path = _portable(self.settings.get("telescopes_catalog_path", default_telescopes_path))
+        """Initialize CatalogManager with paths from settings or what was shipped."""
+        sources_path = existing_or_shipped(
+            self.settings.get("sources_catalog_path", ""), "sources.dat")
+        telescopes_path = existing_or_shipped(
+            self.settings.get("telescopes_catalog_path", ""), "telescopes.dat")
 
         try:
             if not os.path.isfile(sources_path):
@@ -617,17 +600,23 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @staticmethod
     def load_settings() -> dict:
-        """Load application settings from settings.pastro file.
+        """Read the settings, from the one place they live.
+
+        Returns:
+            dict: The defaults, with whatever the user has changed on top. Every path in it
+                names a file that exists.
 
         Notes:
             - Static so that the entry point can read the settings before the window
               exists, which is where logging is configured.
+            - A `settings.pastro` in the working directory is what anybody upgrading has, so it
+              is read once and kept in the user's directory. Reading it and then writing
+              somewhere else would look like the settings had been forgotten.
         """
-        settings_file = "settings.pastro"
         default_settings = {
-            "sources_catalog_path": os.path.join("catalogs", "sources.dat"),
-            "telescopes_catalog_path": os.path.join("catalogs", "telescopes.dat"),
-            "log_level": "INFO", 
+            "sources_catalog_path": str(shipped_catalog("sources.dat")),
+            "telescopes_catalog_path": str(shipped_catalog("telescopes.dat")),
+            "log_level": "INFO",
             "time_step": 600,
             "clear_log_on_start": False,
             # What share of available memory the calculated results in hand may occupy before
@@ -635,28 +624,46 @@ class PAstroCoreMainWindow(QMainWindow):
             # project directory, so this costs a read rather than a recalculation.
             "results_memory_share": 0.5
         }
-        if os.path.exists(settings_file):
+
+        stored = settings_file()
+        left_behind = Path.cwd() / SETTINGS
+        source = stored if stored.is_file() else left_behind if left_behind.is_file() else None
+
+        if source is not None:
             try:
-                with open(settings_file, "r") as f:
-                    loaded_settings = json.load(f)
-            
-                default_settings.update(loaded_settings)
-                logger.info("Settings loaded from '%s'", settings_file)
-                return default_settings
-            except Exception as e:
-                logger.error("Failed to load settings from '%s': %s", settings_file, str(e))
-                QMessageBox.warning(self, "Error", f"Failed to load settings: {str(e)}")
-        logger.info("No settings file found, using default settings")
+                default_settings.update(json.loads(source.read_text(encoding="utf-8")))
+                logger.info("Settings loaded from '%s'", source)
+                if source is left_behind:
+                    PAstroCoreMainWindow._write_settings(default_settings)
+            except Exception as e:                      # noqa: BLE001 - degrades to defaults
+                logger.error("Failed to load settings from '%s': %s", source, str(e),
+                             exc_info=True)
+        else:
+            logger.info("No settings file found, using default settings")
+
+        # A stored path is absolute and an install that moves invalidates it. Empty catalogues
+        # and a line in the log look like data loss rather than like a stale setting.
+        default_settings["sources_catalog_path"] = existing_or_shipped(
+            default_settings["sources_catalog_path"], "sources.dat")
+        default_settings["telescopes_catalog_path"] = existing_or_shipped(
+            default_settings["telescopes_catalog_path"], "telescopes.dat")
         return default_settings
 
+    @staticmethod
+    def _write_settings(settings: dict) -> None:
+        """Write the settings where `load_settings` will look for them."""
+        destination = settings_file()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(json.dumps(settings, indent=4), encoding="utf-8")
+        logger.info("Settings saved to '%s'", destination)
+
     def save_settings(self, settings: dict):
-        """Save application settings to settings.pastro file."""
+        """Save application settings to the user's settings file."""
         try:
-            with open("settings.pastro", "w") as f:
-                json.dump(settings, f, indent=4)
-            logger.info("Settings saved to 'settings.pastro'")
+            self._write_settings(settings)
         except Exception as e:
-            logger.error("Failed to save settings to 'settings.pastro': %s", str(e))
+            logger.error("Failed to save settings to '%s': %s", settings_file(), str(e),
+                         exc_info=True)
             QMessageBox.critical(self, "Error", f"Failed to save settings: {str(e)}")
 
     @Slot()
@@ -926,7 +933,8 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.info("Log file clearing setting updated to %s. This will take effect now and on the next application start.", clear_log)
 
         if "sources_catalog_path" in changed_keys:
-            sources_path = self.settings.get("sources_catalog_path", os.path.join("catalogs", "sources.dat"))
+            sources_path = existing_or_shipped(
+            self.settings.get("sources_catalog_path", ""), "sources.dat")
             try:
                 self.catalog_manager.source_catalog.clear()
                 if sources_path:
@@ -938,7 +946,8 @@ class PAstroCoreMainWindow(QMainWindow):
                 QMessageBox.warning(self, "Warning", f"Failed to reload sources catalog: {str(e)}")
 
         if "telescopes_catalog_path" in changed_keys:
-            telescopes_path = self.settings.get("telescopes_catalog_path", os.path.join("catalogs", "telescopes.dat"))
+            telescopes_path = existing_or_shipped(
+            self.settings.get("telescopes_catalog_path", ""), "telescopes.dat")
             try:
                 self.catalog_manager.telescope_catalog.clear()
                 if telescopes_path:
@@ -957,7 +966,8 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def open_telescope_catalog_manager(self):
         """Open the telescopes catalog browser dialog."""
-        telescopes_path = self.settings.get("telescopes_catalog_path", os.path.join("catalogs", "telescopes.dat"))
+        telescopes_path = existing_or_shipped(
+            self.settings.get("telescopes_catalog_path", ""), "telescopes.dat")
         if not os.path.isfile(telescopes_path):
             logger.error("Telescopes catalog file not found: %s", telescopes_path)
             QMessageBox.warning(self, "Warning", "Please set a valid telescopes catalog path in Preferences.")
@@ -977,7 +987,8 @@ class PAstroCoreMainWindow(QMainWindow):
     @Slot()
     def open_source_catalog_manager(self):
         """Open the sources catalog browser dialog."""
-        sources_path = self.settings.get("sources_catalog_path", os.path.join("catalogs", "sources.dat"))
+        sources_path = existing_or_shipped(
+            self.settings.get("sources_catalog_path", ""), "sources.dat")
         if not os.path.isfile(sources_path):
             logger.error("Sources catalog file not found: %s", sources_path)
             QMessageBox.warning(self, "Warning", "Please set a valid sources catalog path in Preferences.")

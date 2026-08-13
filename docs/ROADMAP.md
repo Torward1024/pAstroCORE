@@ -41,11 +41,11 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 | | Item | Exit criterion | Size |
 | --- | --- | --- | --- |
 | ~~1~~ | ~~**D9**~~ | **Done.** The frame is the authority: `scan_count`, `start_time` and `end_time` are computed where the frame and its metadata are both in hand, so a caller cannot supply a wrong value -- whatever it passes is replaced, on the way into memory and on the way to disk alike. Kept beside the parquet rather than removed, because reading them without reading the result is worth more than having them nowhere. Nothing written contains `NaN`: unrepresentable numbers become `null` and the write uses `allow_nan=False`, checked with a strict parser rather than the lenient one that wrote it | -- |
-| 1 | **R4** -- packaging | `pyproject.toml`, an entry point, the version in one place. `pip install .` gives a working command | Hours |
-| 2 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
-| 3 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
-| 4 | **R5** -- stale pull requests | None open without a decision recorded | Hours |
-| 5 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
+| ~~1~~ | ~~**R4**~~ | **Done.** `pyproject.toml` with the version in one place -- `pastrocore/__init__.py`, since MSB tagged a release with one of its two numbers bumped and PyPI refused the build. `pip install .` gives a `pastrocore` command, and `requirements.txt` installs the project rather than repeating its dependencies. The packaging exposed the real defect: every path the application used was relative to the directory it was started from, so an install found no catalogues and wrote settings wherever the user happened to be. The catalogues ship inside the package; the settings live in one per-user file, adopting a `settings.pastro` left in a working directory once so nobody's is lost; a catalogue the user chose is kept, and one that has been deleted falls back to the shipped one with a line in the log rather than an empty application | -- |
+| ~~2~~ | ~~**R5**~~ | **Done.** No pull request is open. The last, #39, merged with 0.4.0; nothing has been left without a decision since | -- |
+| 1 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
+| 2 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
+| 3 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
 
 **A5 is the dependency graph in disguise, and worth saying so.** A result's schema already
 declares `depends_on` -- which *parts of the model* it reads, which is what makes freshness

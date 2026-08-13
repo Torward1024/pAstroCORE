@@ -63,13 +63,18 @@ def test_the_launcher_imports():
     assert "from pastrocore.app import main" in launcher.read_text(encoding="utf-8")
 
 
-def test_the_shipped_settings_use_portable_paths():
-    r"""The settings file the repository ships was written on Windows.
+def test_the_shipped_settings_pin_no_catalogue_path():
+    r"""The settings file the repository ships was written on Windows and named the catalogues
+    by a relative path.
 
     On Linux `catalogs\sources.dat` is not a directory and a file, it is one filename with a
-    backslash in it, so the catalogs failed to load and the application then opened a modal
+    backslash in it, so the catalogues failed to load and the application then opened a modal
     dialog from inside its constructor -- which on a build machine hung for ten minutes and to
-    a user would look like a program that will not start.
+    a user would look like a program that will not start. Relative to what, besides, was
+    whichever directory it was started from.
+
+    Neither key belongs in a shipped file: the catalogues come with the install and are found
+    beside the package. A user pointing at their own still gets one recorded.
     """
     import json
     import pathlib as _pathlib
@@ -77,14 +82,14 @@ def test_the_shipped_settings_use_portable_paths():
     settings = _pathlib.Path(__file__).parent.parent / "settings.pastro"
     data = json.loads(settings.read_text(encoding="utf-8"))
     for key in ("sources_catalog_path", "telescopes_catalog_path"):
-        assert "\\" not in data[key], f"{key} is a Windows-only path: {data[key]!r}"
+        assert key not in data, f"{key} is pinned to one machine: {data.get(key)!r}"
 
 
 def test_a_settings_path_written_on_another_platform_still_resolves():
-    from pastrocore.app import _portable
+    from pastrocore.paths import portable
 
-    assert _portable(r"catalogs\sources.dat").endswith("sources.dat")
-    assert _portable("catalogs/sources.dat").endswith("sources.dat")
+    assert portable(r"catalogs\sources.dat").endswith("sources.dat")
+    assert portable("catalogs/sources.dat").endswith("sources.dat")
 
 
 def test_the_constructor_opens_no_modal_dialog():
