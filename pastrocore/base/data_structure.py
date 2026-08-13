@@ -13,7 +13,11 @@ class CalculatedDataStructure:
             # handler names, can find this entry -- rather than special-cased where it is read.
             "handler": "time_arrays",
             "intermediate": True,
-            "depends_on": ("scans",),
+            # Sampled per *active source* -- one block each, and a `source_name` column to say
+            # which -- so a source going inactive changes the answer. It said `("scans",)`, and
+            # the result stayed "current" while holding rows for a source no longer observed.
+            # Every calculation below it inherits the mistake, since they all start here.
+            "depends_on": ("scans", "sources"),
             "columns": ["source_name", "scan_name", "time"],
             "metadata": {
                 "time_step": float,

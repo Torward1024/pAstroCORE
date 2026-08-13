@@ -302,3 +302,70 @@ def test_asking_serialises_each_part_once(project, tmp_path, monkeypatch):
     observation.stale_results()
     assert calls["scans"] <= 1, (
         f"one refresh converted the scans {calls['scans']} times")
+
+
+# --- the declaration checked against what the handler reaches ---------------------------------
+
+def test_deactivating_a_source_stales_the_time_arrays(observation, manipulator):
+    """`times` is grouped by *active source* -- one block per source, and a `source_name`
+    column to say which. It declared `("scans",)`, so a source going inactive left a result
+    holding rows for it while the interface called that result current.
+
+    Found by comparing the declaration against what MSB derives the handler to touch.
+    """
+    from pastrocore.base import freshness
+
+    manipulator.calculate(obj=observation, method="time_arrays", time_step=600.0,
+                          recalculate=True)
+    assert freshness.is_stale(observation, "times") is False
+
+    source = observation.get_sources().get_items()[0]
+    source.isactive = not source.isactive
+
+    assert freshness.is_stale(observation, "times") is True, (
+        "a source went inactive and the result computed per source stayed 'current'")
+
+
+#: Calculations whose declared `depends_on` is narrower than what MSB derives them to touch.
+#: The derivation is an **upper bound** -- a shared helper is followed for every handler that
+#: calls it -- so a difference is a candidate rather than a defect, and each entry here has
+#: been looked at. The list may shrink and must never grow without a reason written beside it.
+NARROWER_THAN_DERIVED = {
+    # Reached through helpers shared with the calculations that do read them. Orbits are
+    # interpolated over the scan's times and the spacecraft's ephemeris; no source is involved.
+    "interpolated_orbits": {"sources"},
+    "telescope_positions": {"sources"},
+    "telescope_az_el": {"sources"},
+    "telescope_visibility": {"sources"},
+    # Station geometry and the scan window reach it through `_process_object`; the pattern
+    # itself is a function of the dish and the frequency.
+    "beam_pattern": {"scans", "sources"},
+    "time_arrays": {"telescopes"},
+}
+
+
+def test_no_calculation_declares_less_than_it_reads():
+    """MSB derives what a handler touches outside its own operation. It cannot replace the
+    declaration -- it is an upper bound -- but it is exactly what checks one, and it found a
+    real defect: `times` reads sources and said it did not.
+    """
+    from pastrocore.base.data_structure import CalculatedDataStructure
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+    from pastrocore.super.schedule_runner import ScheduleRunner
+
+    manipulator = ScheduleManipulator(ScheduleProject(name="probe"))
+    described = manipulator.describe_operations(
+        "calculate", interpret=ScheduleRunner.MODEL_PARTS.get)["calculate"]
+
+    surprises = {}
+    for key, entry in described.items():
+        declared = set(CalculatedDataStructure.entry_for(key).get("depends_on") or ())
+        missing = set(entry["touches"]) - declared - NARROWER_THAN_DERIVED.get(key, set())
+        if missing:
+            surprises[key] = sorted(missing)
+
+    assert not surprises, (
+        f"{surprises} reach model parts they do not declare, so a change to one leaves the "
+        f"result looking current. Declare it, or record why the derivation over-reports it in "
+        f"NARROWER_THAN_DERIVED.")
