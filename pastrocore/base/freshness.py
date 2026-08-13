@@ -233,6 +233,42 @@ def _rewrite_metadata(results: Any, owner: str, key: str, metadata: Dict[str, An
         return False
 
 
+def same_metadata(one: Any, other: Any) -> bool:
+    """Report whether two metadata mappings say the same thing.
+
+    Args:
+        one: A metadata mapping, or anything inside one.
+        other: The same.
+
+    Returns:
+        bool: True when they are equal all the way down.
+
+    Notes:
+        - `==` is not enough. Mollweide records the source coordinates it draws against and
+          those are numpy arrays, so comparing two such mappings produces an *array* rather
+          than an answer, and asking whether it is true raises:
+
+              The truth value of an array with more than one element is ambiguous
+
+          which the calculator's broad handler turned into a failed calculation. It only bit
+          when the two arrays were distinct objects -- that is, when the result had genuinely
+          been recomputed -- because Python compares a mapping's values by identity first.
+    """
+    if one is other:
+        return True
+    if isinstance(one, dict) and isinstance(other, dict):
+        return one.keys() == other.keys() and all(
+            same_metadata(one[key], other[key]) for key in one)
+    if isinstance(one, (list, tuple)) and isinstance(other, (list, tuple)):
+        return len(one) == len(other) and all(
+            same_metadata(a, b) for a, b in zip(one, other))
+    if hasattr(one, "shape") or hasattr(other, "shape"):
+        import numpy as np
+
+        return bool(np.array_equal(np.asarray(one), np.asarray(other), equal_nan=True))
+    return bool(one == other)
+
+
 def record_metadata(observation: Any, key: str, metadata: Dict[str, Any]) -> bool:
     """Replace a result's metadata, leaving the result itself where it is.
 

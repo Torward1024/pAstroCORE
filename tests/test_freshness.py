@@ -369,3 +369,57 @@ def test_no_calculation_declares_less_than_it_reads():
         f"{surprises} reach model parts they do not declare, so a change to one leaves the "
         f"result looking current. Declare it, or record why the derivation over-reports it in "
         f"NARROWER_THAN_DERIVED.")
+
+
+def test_metadata_holding_arrays_can_be_compared(observation, manipulator):
+    """Reported from a live session:
+
+        ERROR - Failed to calculate Mollweide tracks: The truth value of an array with more
+        than one element is ambiguous. Use a.any() or a.all()
+
+    `_store_result` decides whether to write by comparing the new metadata against the stored
+    one. Mollweide records the source coordinates it draws against, and those are numpy arrays,
+    so comparing two of those mappings with `==` produces an array rather than an answer.
+    """
+    import numpy as np
+    import polars as pl
+
+    from pastrocore.super.schedule_calculator import ScheduleCalculator
+
+    calculator = ScheduleCalculator(manipulator)
+    frame = pl.DataFrame({"time": [1.0], "scan_name": ["s"], "telescope_code": ["T"],
+                          "lon": [0.1], "lat": [0.2]})
+    metadata = {"time_step": 600.0, "scan_count": 1, "start_time": 0.0, "end_time": 1.0,
+                "sources": {"1228+126": np.array([1.0, 2.0, 3.0])}}
+
+    # As the calculator does it: the frame is stored while it is computed, with the metadata
+    # it has at that moment -- arrays and all -- and `_store_result` then compares.
+    observation.set_calculated_data_by_key("mollweide_tracks", frame, metadata)
+
+    # Recomputed, so the arrays are equal and distinct. A shallow copy would compare identical
+    # objects and never reach the comparison that raised.
+    again = {"time_step": 600.0, "scan_count": 1, "start_time": 0.0, "end_time": 1.0,
+             "sources": {"1228+126": np.array([1.0, 2.0, 3.0])}}
+    calculator._store_result(observation, "mollweide_tracks", frame, again)
+
+    stored = observation.get_calculated_metadata("mollweide_tracks")
+    assert stored is not None and "sources" in stored
+
+
+def test_two_metadata_mappings_holding_arrays_compare_without_raising():
+    """The comparison itself, which is where the reported failure came from."""
+    import numpy as np
+
+    from pastrocore.base import freshness
+
+    one = {"time_step": 600.0, "sources": {"1228+126": np.array([1.0, 2.0, 3.0])}}
+    same = {"time_step": 600.0, "sources": {"1228+126": np.array([1.0, 2.0, 3.0])}}
+    other = {"time_step": 600.0, "sources": {"1228+126": np.array([1.0, 2.0, 4.0])}}
+
+    with pytest.raises(ValueError):
+        bool(one == same)               # what the calculator used to do
+
+    assert freshness.same_metadata(one, same) is True
+    assert freshness.same_metadata(one, other) is False
+    assert freshness.same_metadata(one, None) is False
+    assert freshness.same_metadata({"a": [1, 2]}, {"a": [1, 2]}) is True

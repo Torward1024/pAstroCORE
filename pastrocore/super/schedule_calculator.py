@@ -258,7 +258,10 @@ class ScheduleCalculator(Super):
         # must not make a beam pattern stale, or every edit would stale everything and
         # "everything" would be all there is to recompute.
         stamped = freshness.stamp(obj, store_key, metadata)
-        if stamped == obj.get_calculated_metadata(store_key):
+        # Compared all the way down rather than with `==`: a metadata mapping may hold numpy
+        # arrays -- Mollweide records the source coordinates it draws against -- and comparing
+        # two of those gives an array rather than an answer.
+        if freshness.same_metadata(stamped, obj.get_calculated_metadata(store_key)):
             return
 
         # The frame is already where it belongs -- `_get_cached_or_calculate` put it there,
