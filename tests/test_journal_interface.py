@@ -129,3 +129,72 @@ def test_recording_can_be_turned_off(qt_application, monkeypatch, tmp_path):
         assert window.manipulator.journal() is not None
     finally:
         window.close()
+
+
+# --- the panel ---------------------------------------------------------------------------------
+
+def test_the_session_panel_lists_what_was_asked(qt_application, session):
+    """Everything it shows is one request, and the dialog holds the table and the file chooser
+    -- which is the whole of what an interface is for."""
+    from pastrocore.gui.p_dialog_session import SessionDialog
+
+    manipulator, _, observation = session
+    dialog = SessionDialog(manipulator)
+    try:
+        table = dialog.ui.tableRequests
+        assert table.rowCount() > 0, "the session did work and the panel shows none of it"
+
+        operations = {table.item(row, 0).text() for row in range(table.rowCount())}
+        assert "calculate" in operations
+        assert "request(s)" in dialog.ui.labelSummary.text()
+    finally:
+        dialog.close()
+
+
+def test_the_panel_says_so_when_nothing_is_recorded(qt_application):
+    """Recording is a setting. An empty table with no explanation reads as a broken panel."""
+    from pastrocore.gui.p_dialog_session import SessionDialog
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    manipulator = ScheduleManipulator(ScheduleProject(name="Quiet"), journal_limit=None)
+    dialog = SessionDialog(manipulator)
+    try:
+        assert dialog.ui.tableRequests.rowCount() == 0
+        assert "Nothing has been recorded" in dialog.ui.labelSummary.text()
+    finally:
+        dialog.close()
+
+
+def test_the_panel_replays_a_saved_session(qt_application, session, tmp_path, monkeypatch):
+    """The button, end to end: choose a file, run it against the project that is open now."""
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+    from pastrocore.gui.p_dialog_session import SessionDialog
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    manipulator, project, _ = session
+    path = tmp_path / "session.json"
+    manipulator.export(obj=project, method="journal", path=str(path))
+
+    fresh = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
+    elsewhere = fresh.get_observation(next(iter(fresh.get_items())))
+    elsewhere.clear_calculated_data()
+    other = ScheduleManipulator(fresh)
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileName",
+                        staticmethod(lambda *a, **k: (str(path), "")))
+    said = {}
+    for name in ("information", "warning", "critical"):
+        monkeypatch.setattr(QMessageBox, name,
+                            staticmethod(lambda parent, title, text, *rest, _n=name:
+                                         said.setdefault(_n, text)))
+
+    dialog = SessionDialog(other)
+    try:
+        dialog.replay_session()
+        assert "times" in elsewhere.calculated_data, f"nothing was replayed: {said}"
+        assert "replayed" in (said.get("information") or said.get("warning") or "")
+    finally:
+        dialog.close()

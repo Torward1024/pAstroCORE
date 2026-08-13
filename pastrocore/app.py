@@ -273,6 +273,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionTelescope_Catalog_Manager: self.open_telescope_catalog_manager,
             self.ui.actionCalculate: self.open_calculation_dialog,
             self.ui.actionLast_Run_Report: self.open_last_run_report,
+            self.ui.actionSession: self.open_session_dialog,
             self.ui.actionVisualize: self.open_visualization_dialog,
             self.ui.actionGenerate_Observations: self.handle_generate_observations,
             self.ui.actionExport_Calulcated_Data: self.open_export_dialog
@@ -326,6 +327,16 @@ class PAstroCoreMainWindow(QMainWindow):
         except Exception as e:
             logger.error("Failed to open calculation dialog: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to open calculation dialog: {str(e)}")
+
+    @Slot()
+    def open_session_dialog(self):
+        """Show what has been asked of this project, and offer to replay a saved session."""
+        from pastrocore.gui.p_dialog_session import SessionDialog
+
+        SessionDialog(self.manipulator, self).exec()
+        # A replay calculates, so the explorer's staleness labels are out of date by the time
+        # the dialog closes.
+        self.project_updated.emit()
 
     @Slot()
     def open_last_run_report(self):
