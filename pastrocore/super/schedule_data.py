@@ -574,3 +574,35 @@ class ScheduleData(Super):
         except Exception as e:
             logger.error("Failed to export data to %s: %s", path, str(e))
             raise
+
+    def _export_journal(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Write this session's requests to a file.
+
+        Args:
+            obj: Ignored; the session belongs to the orchestrator.
+            attributes: `path`, the file to write; `about`, an object name to narrow it to.
+
+        Returns:
+            Dict[str, Any]: `{"path": str, "steps": int}`.
+
+        Raises:
+            ValueError: If no path was given.
+
+        Notes:
+            - Writable at all only because a journal entry is plain data: what was asked, of
+              which object *by name*, and whether it worked. An entry holding the live object
+              could not leave the process -- and, worse, kept alive everything it recorded.
+            - What comes back is a session a later run can replay against whatever project is
+              open then, which is how a reported problem becomes a reproduction.
+        """
+        path = attributes.get("path")
+        if not path:
+            raise ValueError("No 'path' given; there is nowhere to write the session")
+
+        steps = self._manipulator.history(attributes.get("about"))
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        Path(path).write_text(
+            json.dumps({"steps": json_safe(steps)}, indent=4, allow_nan=False),
+            encoding="utf-8")
+        logger.info("Wrote a session of %s request(s) to '%s'", len(steps), path)
+        return {"path": str(path), "steps": len(steps)}

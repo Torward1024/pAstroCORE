@@ -68,7 +68,10 @@ class PAstroCoreMainWindow(QMainWindow):
         logger.debug("Logging re-applied at window start with level=%s", log_level_str)
     
         self.project = ScheduleProject(name="Untitled Project")
-        self.manipulator = ScheduleManipulator(self.project)
+        self.manipulator = ScheduleManipulator(
+            self.project,
+            journal_limit=(int(self.settings.get("session_limit", 5000))
+                           if self.settings.get("record_session", True) else None))
         self._apply_residency_budget()
         # Calculations reach the disk from the moment they are made, so a session that never
         # gets saved is still recoverable.
@@ -643,7 +646,15 @@ class PAstroCoreMainWindow(QMainWindow):
             # What share of available memory the calculated results in hand may occupy before
             # the least recently used are dropped. They can always be read back from the
             # project directory, so this costs a read rather than a recalculation.
-            "results_memory_share": 0.5
+            "results_memory_share": 0.5,
+            # Recording every request costs 10.4 us each and 75.6 KB per 500 entries, measured
+            # after MSB 1.6.0 stopped holding what it recorded. Worth it by default: it answers
+            # the question a bug report never can -- what was actually asked for -- and it is
+            # what a session is saved and replayed from. Turn it off and none of that exists.
+            "record_session": True,
+            # A sliding window: the oldest go first. Which means an overflowed journal is not a
+            # complete session any more, so this is the number to raise before saving one.
+            "session_limit": 5000
         }
 
         stored = settings_file()
