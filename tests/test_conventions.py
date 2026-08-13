@@ -454,3 +454,68 @@ def test_the_interface_reaches_the_model_only_through_the_orchestrator():
         "the interface reaches the model directly:\n  "
         + "\n  ".join(f"{name}: {'; '.join(calls)}" for name, calls in offenders.items())
         + "\nSend a request instead -- that is what a command line and a server will send.")
+
+
+def test_a_coordinate_cannot_be_set_out_of_range():
+    """`Source._validate_coordinates` ran in `__init__` and nowhere else, so the constructor
+    refused ninety-nine hours of right ascension and `set` accepted it -- and so did
+    `from_dict`, which is how a saved project carries one back.
+
+    The same shape as the checks replaced when constraints first arrived here: a hand-written
+    check guards construction, and an annotation guards every way in.
+    """
+    from msb_arch import errors
+    from pastrocore.base.sources import Source
+
+    source = Source(name="X", ra_h=1.0, de_d=10.0)
+
+    with pytest.raises(errors.ConstraintError):
+        Source(name="Y", ra_h=99.0)
+    with pytest.raises(errors.ConstraintError):
+        source.set({"ra_h": 99.0})
+    with pytest.raises(errors.ConstraintError):
+        source.set({"de_d": -91.0})
+    with pytest.raises(errors.ConstraintError):
+        Source.from_dict({**source.to_dict(), "de_s": 60.5})
+
+    assert source.ra_h == 1.0, "a rejected assignment must leave the object alone"
+
+
+def test_an_observation_type_is_one_of_two():
+    """The other hand-written check of the same shape."""
+    from msb_arch import errors
+    from pastrocore.base.observation import Observation
+
+    observation = Observation(name="obs", code="OBS")
+    with pytest.raises(errors.ConstraintError):
+        observation.set({"observation_type": "SOMETHING_ELSE"})
+
+
+def test_a_scan_cannot_be_given_a_negative_duration():
+    """`set_duration` checked it; `set` went straight past. A scan of minus five seconds makes
+    every calculation that samples it produce nothing, and says nothing about why."""
+    from astropy.time import Time
+    from msb_arch import errors
+    from pastrocore.base.scans import Scan
+
+    scan = Scan(name="s", start=Time("2026-01-01T00:00:00"), duration=60.0)
+    with pytest.raises(errors.ConstraintError):
+        scan.set({"duration": -5.0})
+    assert scan.duration == 60.0
+
+
+def test_a_pointing_range_cannot_be_set_backwards():
+    """Checked in `__init__` and nowhere else, so a range whose minimum is above its maximum
+    could be set later -- and a station that can point nowhere is not visible as an error, only
+    as a result with nothing in it."""
+    from msb_arch import errors
+    from pastrocore.base.telescope import Telescope
+
+    telescope = Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0, diameter=100.0)
+
+    with pytest.raises(errors.ConstraintError):
+        telescope.set({"elevation_range": (90.0, 10.0)})
+    with pytest.raises(errors.ConstraintError):
+        telescope.set({"azimuth_range": (360.0, 0.0)})
+
+    assert telescope.elevation_range == (15.0, 90.0)

@@ -2,7 +2,7 @@
 from copy import deepcopy
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.utils.validation import check_type, check_positive
-from msb_arch import Positive
+from msb_arch import Positive, Predicate
 from msb_arch.utils.logging_setup import logger
 import numpy as np
 from typing import Annotated, Optional, Dict, Tuple, Any
@@ -18,6 +18,12 @@ class MountType(Enum):
     AZIMUTHAL = "AZIM"
     SPACE = "NONE"
 
+def _rises(bounds) -> bool:
+    """Report whether a pair of bounds is the right way round."""
+    return (isinstance(bounds, (tuple, list)) and len(bounds) == 2
+            and bounds[0] <= bounds[1])
+
+
 class Telescope(BaseEntity):
     """Class representing a ground-based telescope with ITRF coordinates, velocities, and SEFD properties."""
     code: str
@@ -31,8 +37,10 @@ class Telescope(BaseEntity):
     vz: float
     diameter: Annotated[float, Positive()]
     sefd_table: Dict[float, float]
-    elevation_range: Tuple[float, float]
-    azimuth_range: Tuple[float, float]
+    # Checked in `__init__` and nowhere else, so a range could be turned back to front later.
+    # A station that can point nowhere is not visible as an error, only as an empty result.
+    elevation_range: Annotated[Tuple[float, float], Predicate(_rises, "a range, low to high")]
+    azimuth_range: Annotated[Tuple[float, float], Predicate(_rises, "a range, low to high")]
     mount_type: MountType
     surface_accuracy: Optional[float]
     surface_efficiency_table: Dict[float, float]
@@ -53,11 +61,6 @@ class Telescope(BaseEntity):
         """Initialize a Telescope with ITRF coordinates, velocities, and optional SEFD properties."""
         if name is None:
             name = f"tlsc_{uuid.uuid4().hex[:32]}"
-        if elevation_range[0] > elevation_range[1]:
-            raise ValueError("elevation_range min must be less than max")
-        
-        if azimuth_range[0] > azimuth_range[1]:
-            raise ValueError("azimuth_range min must be less than max")
         
         
         if isinstance(mount_type, str):
