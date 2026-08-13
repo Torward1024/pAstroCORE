@@ -456,6 +456,9 @@ class Ui_CalculationDialog(object):
         self.calcButton.setText(QCoreApplication.translate("CalculationDialog", u"Calculate", None))
         self.cancelButton.setText(QCoreApplication.translate("CalculationDialog", u"Cancel", None))
         self.labelTimestep.setText(QCoreApplication.translate("CalculationDialog", u"Time step (s):", None))
-        self.recalculateCheck.setText(QCoreApplication.translate("CalculationDialog", u"Recalculate", None))
+#if QT_CONFIG(tooltip)
+        self.recalculateCheck.setToolTip(QCoreApplication.translate("CalculationDialog", u"A run already recomputes whatever has gone stale. Tick this only to recompute results that are current -- after a change to a calculation itself, which freshness cannot see.", None))
+#endif // QT_CONFIG(tooltip)
+        self.recalculateCheck.setText(QCoreApplication.translate("CalculationDialog", u"Recompute everything", None))
     # retranslateUi
 

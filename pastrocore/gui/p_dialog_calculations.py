@@ -298,19 +298,13 @@ class CalculationDialog(QDialog):
             QMessageBox.warning(self, "Warning", "Please select at least one calculation and one target.")
             return
 
-        if self.ui.recalculateCheck.isChecked():
-            for target in selected_targets:
-                try:
-                    target.clear_calculated_data()
-                    logger.info("Cleared cached data for '%s'", target.code)
-                except Exception as e:
-                    logger.error("Failed to clear cache for %s: %s", target.code, e)
-                    QMessageBox.critical(self, "Error", f"Failed to clear cache: {e}")
-                    return
-
+        # Not a clearance any more. Ticking it used to throw away *every* result the selected
+        # observations held -- including calculations nobody had asked for on this run -- and
+        # then let the run recompute what it needed. Now it asks the run to recompute what it
+        # would otherwise have kept, which is the thing the box is for.
         params = {
             "time_step": self.ui.timeStepSpin.value(),
-            "recalculate": False
+            "force": self.ui.recalculateCheck.isChecked()
         }
         calc_params = {calc: params.copy() for calc in selected_calcs}
 
