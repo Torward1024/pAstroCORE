@@ -16,8 +16,10 @@ Nothing here knows about signals, threads or windows. What a caller passes in is
 callables -- one to report progress, one to ask whether to stop -- which is the whole seam a
 window, a command line and a server share.
 """
+import json
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List
 
 from msb_arch.super.super import Super
@@ -101,6 +103,14 @@ class ScheduleRunner(Super):
               command line printing what it is about to do, a test asserting the order.
         """
         targets = attributes.get("targets") or self._targets(obj)
+        # A target may be named rather than handed over. That is what a replayed session
+        # carries, and what a command line or a server would send -- a request is data, and an
+        # observation in a JSON body can only be a name.
+        targets = [self._manipulator.find(target) if isinstance(target, str) else target
+                   for target in targets]
+        missing = [target for target in targets if target is None]
+        if missing:
+            raise ValueError(f"{len(missing)} named target(s) are not in this project")
         wanted = list(attributes.get("calculations") or [])
         if not targets:
             raise ValueError("No 'targets' given; there is nothing to calculate for")
@@ -314,3 +324,81 @@ class ScheduleRunner(Super):
               code states it already.
         """
         return self._manipulator.order_handlers("calculate", attributes.get("keys") or [])
+
+    def _compute_history(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Return what has been asked of this orchestrator in this session.
+
+        Args:
+            obj: Ignored.
+            attributes: `about`, an object name to narrow it to.
+
+        Returns:
+            List[Dict[str, Any]]: One row per request -- `operation`, the `object` it named,
+                the `method`, its `attributes`, whether it worked, and how long it took.
+
+        Notes:
+            - Plain data, all of it. MSB's journal records what was asked rather than the
+              request as it ran, so a session can be written to a file and read anywhere --
+              and, more to the point, so recording a session does not keep alive everything it
+              touched.
+        """
+        return self._manipulator.history(attributes.get("about"))
+
+    def _compute_replay(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Run a recorded session against the project in hand.
+
+        Args:
+            obj: Ignored; the project is whatever this orchestrator manages.
+            attributes: `path`, a session written by `export(method="journal")`, or `steps`,
+                the same rows in memory. `skip_failures` leaves out what failed the first time.
+
+        Returns:
+            Dict[str, Any]: `{"ran": [...], "failed": [...], "unresolved": [...]}` -- the last
+                naming the steps whose object does not exist in this project.
+
+        Raises:
+            ValueError: If neither `path` nor `steps` was given.
+
+        Notes:
+            - A step names its object, so replaying resolves the name here. A session recorded
+              against one project therefore runs against another, which is what makes it a
+              reproduction rather than a souvenir.
+            - Unresolved steps are reported rather than skipped in silence: a session that half
+              ran is worse than one that refused.
+        """
+        steps = attributes.get("steps")
+        path = attributes.get("path")
+        if steps is None and not path:
+            raise ValueError("No 'path' or 'steps' given; there is no session to replay")
+        if steps is None:
+            steps = json.loads(Path(path).read_text(encoding="utf-8")).get("steps") or []
+
+        plan: Dict[str, Dict[str, Any]] = {}
+        unresolved: List[str] = []
+        previous = None
+        for position, step in enumerate(steps, start=1):
+            if attributes.get("skip_failures", True) and step.get("status") is False:
+                continue
+            named = step.get("object")
+            found = self._manipulator.find(named) if isinstance(named, str) else None
+            name = f"{step.get('operation')}_{position}"
+            if named and found is None:
+                unresolved.append(f"{name}: nothing here is called '{named}'")
+                continue
+            entry = {"operation": step.get("operation"), "obj": found,
+                     "attributes": dict(step.get("attributes") or {})}
+            if step.get("method"):
+                entry["method"] = step["method"]
+            if previous:
+                entry["after"] = [previous]
+            plan[name] = entry
+            previous = name
+
+        if not plan:
+            logger.warning("Nothing in this session could be replayed here")
+            return {"ran": [], "failed": [], "unresolved": unresolved}
+
+        outcome = self._manipulator.pipeline(plan, raise_on_error=False)
+        return {"ran": [name for name in outcome if name not in outcome.failed],
+                "failed": list(outcome.failed),
+                "unresolved": unresolved}
