@@ -119,12 +119,9 @@ class ScheduleRunner(Super):
             raise ValueError("No 'calculations' given; there is nothing to run")
 
         # Everything asked for, plus everything those need, in an order that satisfies them.
-        needed = list(wanted)
-        for key in wanted:
-            for prerequisite in self._manipulator.requirements_of("calculate", key):
-                if prerequisite not in needed:
-                    needed.append(prerequisite)
-        ordered = self._manipulator.order_handlers("calculate", needed)
+        # MSB 1.7.0 does the join: these were six lines here, and the same six in anything else
+        # that orchestrates an operation.
+        ordered = self._manipulator.plan_for("calculate", wanted)
 
         passed = {name: value for name, value in attributes.items()
                   if name not in ("calculations", "targets", "method", "force", "recalculate")}
