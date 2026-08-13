@@ -71,6 +71,43 @@ def test_a_module_parses(path):
     ast.parse(path.read_text(encoding="utf-8"))
 
 
+def redefined_methods(path):
+    """Find a class defining the same method twice, where the second silently wins."""
+    found = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        seen = {}
+        for item in node.body:
+            if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            decorators = {d.attr if isinstance(d, ast.Attribute) else getattr(d, "id", None)
+                          for d in item.decorator_list}
+            if decorators & {"setter", "getter", "deleter", "overload"}:
+                continue        # a property's second half, or a typing stub -- both deliberate
+            if item.name in seen:
+                found.append(f"{node.name}.{item.name} at line {item.lineno}, "
+                             f"first defined at {seen[item.name]}")
+            seen[item.name] = item.lineno
+    return found
+
+
+def test_no_class_defines_a_method_twice():
+    """The second definition wins and the first becomes unreachable, with nothing said.
+
+    It found a real one: `CalculationDialog` defined `calculation_finished` twice, and the
+    winner took one argument where the signal carries `(results, errors)`. PySide drops the
+    arguments a slot does not accept, so a run with failed steps was reported to the user as
+    "All calculations completed successfully" -- the same shape of silence as the image export
+    that reported "0 files".
+    """
+    offenders = {path.relative_to(ROOT).as_posix(): duplicates
+                 for path in source_files() if (duplicates := redefined_methods(path))}
+    assert not offenders, (
+        "a method is defined twice, and the first is dead code:\n  "
+        + "\n  ".join(f"{name}: {'; '.join(duplicates)}" for name, duplicates in offenders.items()))
+
+
 def silent_handlers(path):
     """Find `except ...: pass` -- a failure that leaves no trace at all."""
     found = []

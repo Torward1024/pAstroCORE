@@ -111,6 +111,55 @@ def test_asking_for_nothing_is_refused(bench):
         manipulator.export(obj=None, method="plan", targets=[observation], calculations=[])
 
 
+class _FakeProgress:
+    """Stands in for the modal progress dialog, which would block the suite."""
+
+    def update_progress(self, *args, **kwargs):
+        return None
+
+    def close(self):
+        return None
+
+
+def test_a_run_with_a_failed_step_is_not_called_a_success(bench, qt_application, monkeypatch):
+    """What the interface said when a step failed: "All calculations completed successfully".
+
+    `CalculationDialog` defined `calculation_finished` twice, and the later definition took one
+    argument where the signal carries two. PySide drops the arguments a slot does not accept
+    rather than complaining, so the list of failures fell into the gap between the two
+    definitions and the run was reported as clean.
+
+    Driven through the signal rather than by calling the slot, because the silent drop is the
+    whole defect and a direct call would not reproduce it.
+    """
+    from PySide6.QtWidgets import QMessageBox
+
+    from pastrocore.gui.p_dialog_calculations import CalculationDialog, CalculationThread
+
+    manipulator, observation = bench
+    said = {}
+    monkeypatch.setattr(QMessageBox, "information",
+                        staticmethod(lambda parent, title, text, *rest: said.setdefault(
+                            "information", text)))
+    monkeypatch.setattr(QMessageBox, "warning",
+                        staticmethod(lambda parent, title, text, *rest: said.setdefault(
+                            "warning", text)))
+
+    dialog = CalculationDialog(manipulator, time_step=600)
+    dialog.progress_dialog = _FakeProgress()
+
+    thread = CalculationThread(manipulator, [observation], ["uv_coverage"], {})
+    thread.finished.connect(dialog.calculation_finished)
+    thread.finished.emit({f"{observation.code}/time_arrays": True},
+                         [f"{observation.code}/uv_coverage failed"])
+
+    assert "information" not in said, (
+        f"a run with a failed step was reported as a success: {said['information']!r}")
+    assert "uv_coverage" in said.get("warning", ""), (
+        f"the user was not told which step failed: {said!r}")
+    dialog.close()
+
+
 def test_the_interface_thread_only_sends_a_request():
     """A ratchet. The loop, the ordering and the prerequisites belong to the backend, or a CLI
     and a server would each need their own copy."""

@@ -373,29 +373,6 @@ class CalculationDialog(QDialog):
                     "Cancelling after current calculation..."
                 )
 
-    def update_progress(self, value, message):
-        """Update the progress dialog (kept for compatibility, delegates to ProgressDialog)."""
-        self.progress_dialog.update_progress(value, message)
-
-    def cancel_calculation(self):
-        """Handle cancellation of the calculation thread."""
-        logger.debug("Cancellation requested by user")
-        self.thread.cancel()
-        self.progress_dialog.update_progress(self.progress_dialog.ui.progressBar.value(), "Cancelling after current calculation...")
-
-    def calculation_finished(self, results):
-        """Handle calculation completion."""
-        self.progress_dialog.close()
-        QMessageBox.information(self, "Success", "Calculations completed successfully.")
-        self.accept()
-
-    def calculation_error(self, error):
-        """Handle calculation errors."""
-        self.progress_dialog.close()
-        logger.error("Calculation error: %s", error)
-        QMessageBox.critical(self, "Error", f"Calculation failed: {error}")
-        self.reject()
-
     def load_settings(self):
         """Load dialog-specific settings."""
         self.ui.timeStepSpin.setValue(self.time_step)
