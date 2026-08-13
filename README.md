@@ -4,7 +4,6 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.9.0-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
 [![Built on MSB](https://img.shields.io/badge/built%20on-MSB%201.5.0-8a2be2.svg)](https://github.com/Torward1024/MSB)
-[![CI](https://github.com/Torward1024/pAstroCORE/actions/workflows/ci.yml/badge.svg)](https://github.com/Torward1024/pAstroCORE/actions/workflows/ci.yml)
 
 A versatile tool for scheduling radio-astronomical observations.
 

@@ -43,9 +43,23 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 | ~~1~~ | ~~**D9**~~ | **Done.** The frame is the authority: `scan_count`, `start_time` and `end_time` are computed where the frame and its metadata are both in hand, so a caller cannot supply a wrong value -- whatever it passes is replaced, on the way into memory and on the way to disk alike. Kept beside the parquet rather than removed, because reading them without reading the result is worth more than having them nowhere. Nothing written contains `NaN`: unrepresentable numbers become `null` and the write uses `allow_nan=False`, checked with a strict parser rather than the lenient one that wrote it | -- |
 | ~~1~~ | ~~**R4**~~ | **Done.** `pyproject.toml` with the version in one place -- `pastrocore/__init__.py`, since MSB tagged a release with one of its two numbers bumped and PyPI refused the build. `pip install .` gives a `pastrocore` command, and `requirements.txt` installs the project rather than repeating its dependencies. The packaging exposed the real defect: every path the application used was relative to the directory it was started from, so an install found no catalogues and wrote settings wherever the user happened to be. The catalogues ship inside the package; the settings live in one per-user file, adopting a `settings.pastro` left in a working directory once so nobody's is lost; a catalogue the user chose is kept, and one that has been deleted falls back to the shipped one with a line in the log rather than an empty application | -- |
 | ~~2~~ | ~~**R5**~~ | **Done.** No pull request is open. The last, #39, merged with 0.4.0; nothing has been left without a decision since | -- |
-| 1 | **R1** -- release | Tagged, with a changelog saying what changed and what to do about it | Hours |
-| 2 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
-| 3 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
+| ~~3~~ | ~~**R1**~~ | **Done.** 0.9.0, tagged and released, with a changelog saying what changed and an upgrading table saying what to do about it. The version is stated once and the About dialog and the README are held to it by tests -- 0.8.0 shipped with the form still saying 0.7.0 | -- |
+| 1 | **M1** -- run the plan's independent branches at once | **Measured: 1.30x** (1.885 s against 1.453 s, median of five alternating rounds over the fixture project's thirteen-step plan). The ceiling is what the fan costs: three steps must be sequential and nine wait only on those. Taken, because it is one flag on a request rather than a mechanism. Cancellation and the skipping of a failed branch must behave as they do in sequence, which a test asserts | Hours |
+| 2 | **M2** -- honest timing, on an interceptor | Every calculation's own duration is measured where every request passes, not estimated by the caller. Available afterwards as a table. Progress advances when a step **finishes**, so a bar cannot sit at 80% through the longest step of the run | Hours |
+| 3 | **M4** -- the run says what it did, in one place | Today a run ends in one message box saying everything worked, and everything else is in `output.log`. **Neither a dialog per event nor silence:** one report, listing every step with its time and its outcome, reachable after the run rather than only during it. A failure is visible in the window without opening a log file | Days |
+| 4 | **M3** -- the request journal reaches the interface | A session's calculations are recorded and can be replayed against another project. `RequestJournal` exists in MSB and is exercised by one test here; nothing in the application writes to it | Days |
+| 5 | **R3** -- documentation | `docs/` for somebody who has never seen the project: installing, running, adding an observation, reading a result, each with a runnable example | Days |
+| 6 | **G2** then **G3** -- profile the interface, then act | A measured list of what is actually slow, with numbers; each finding fixed or recorded as not worth fixing | Days |
+
+**M1--M4 are one sentence: use what MSB 1.5.0 already has.** The pipeline, the interceptors and
+the journal are built and tested there; here they are reached by one caller each. **Measure
+before deciding** applied to M1 and the number came back modest but real -- parallel
+serialization was measured *slower* twice in this project's history, so the claim was not
+assumed.
+
+**M2 and M4 are the same mechanism seen from two ends.** The interceptor sits where every
+request passes: it already carries progress and cancellation, and timing is the third thing it
+can see without anybody instrumenting a calculation. What M4 shows is what M2 measures.
 
 **A5 is the dependency graph in disguise, and worth saying so.** A result's schema already
 declares `depends_on` -- which *parts of the model* it reads, which is what makes freshness

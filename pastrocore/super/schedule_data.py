@@ -18,6 +18,8 @@ tolerance for "close enough".
 """
 import json
 import os
+import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -544,17 +546,23 @@ class ScheduleData(Super):
                 `cancelled`, called to ask whether to stop.
 
         Returns:
-            Dict[str, Any]: `{"ran": [...], "failed": [...], "cancelled": bool}` -- step names,
-                in plan order.
+            Dict[str, Any]: `{"ran": [...], "failed": [...], "cancelled": bool,
+                "timings": {step: seconds}}` -- step names, in plan order.
 
         Notes:
             - The whole point of doing it here rather than in a dialog: an interface, a command
               line and a server all send one request, and the ordering, the prerequisites and
               the skipping of a branch below a failure are the framework's job.
-            - Progress and cancellation ride on an interceptor, which is what the hook is for.
-              It sees each step as it goes past, so nothing has to be counted twice, and a
-              cancellation is a refused request -- which skips the branch below it exactly as a
-              failure does.
+            - Progress, cancellation and timing ride on an interceptor, which is what the hook
+              is for. It sees each step as it goes past, so nothing has to be counted twice, and
+              a cancellation is a refused request -- which skips the branch below it exactly as
+              a failure does.
+            - Timing belongs here rather than in the caller: with a stage running several steps
+              at once, the wall clock between two progress callbacks is not any one
+              calculation's duration.
+            - Progress is reported when a step **finishes**. A bar advanced on starting sits at
+              80% through the longest step of the run and then jumps, which is the shape of a
+              bar that looks stuck.
         """
         plan = self._export_plan(obj, attributes)
         report = attributes.get("progress") or (lambda percent, message: None)
@@ -563,6 +571,10 @@ class ScheduleData(Super):
         total = len(plan)
         seen = {"done": 0, "stopped": False}
         labels = {name: name.split("/", 1)[-1] for name in plan}
+        measured: Dict[str, float] = {}
+        # Steps of one stage run in threads when asked to, so the counter and the table are
+        # touched from several at once.
+        guard = threading.Lock()
 
         def watch(request, call_next):
             if request.get("operation") != "calculate":
@@ -571,11 +583,19 @@ class ScheduleData(Super):
                 seen["stopped"] = True
                 return {"status": False, "object": None, "method": None, "result": None,
                         "error": "Cancelled", "error_type": "RequestError"}
+
+            started = time.perf_counter()
             response = call_next(request)
-            seen["done"] += 1
-            step = request.get("attributes", {}).get("store_key", "")
-            report(int(seen["done"] / total * 100) if total else 100,
-                   f"Calculated {labels.get(step, step) or step}")
+            elapsed = time.perf_counter() - started
+
+            key = request.get("attributes", {}).get("store_key", "")
+            code = getattr(request.get("obj"), "code", "")
+            with guard:
+                seen["done"] += 1
+                done = seen["done"]
+                measured[f"{code}/{key}"] = elapsed
+            report(int(done / total * 100) if total else 100,
+                   f"Calculated {labels.get(key, key) or key} in {elapsed:.2f} s")
             return response
 
         self._manipulator.add_interceptor(watch)
@@ -585,9 +605,23 @@ class ScheduleData(Super):
         finally:
             self._manipulator.remove_interceptor(watch)
 
-        return {"ran": [name for name in outcome if name not in outcome.failed],
+        # In plan order rather than in the order they finished, which with a concurrent stage
+        # is neither stable nor meaningful.
+        timings = {name: measured[name] for name in plan if name in measured}
+        ran = [name for name in outcome if name not in outcome.failed]
+        slowest = max(timings, key=timings.get) if timings else None
+
+        return {"ran": ran,
                 "failed": list(outcome.failed),
-                "cancelled": seen["stopped"]}
+                "cancelled": seen["stopped"],
+                "timings": timings,
+                # Summarised here rather than by whoever displays it. A window, a command line
+                # and a server all want the same three numbers, and the first of them worked
+                # them out for itself until this line existed.
+                "summary": {"steps": len(ran), "failed": len(outcome.failed),
+                            "seconds": sum(timings.values()),
+                            "slowest": slowest.split("/", 1)[-1] if slowest else None,
+                            "slowest_seconds": timings[slowest] if slowest else 0.0}}
 
     def _export_catalogue(self, obj: Any, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Report what this application can calculate and draw.
