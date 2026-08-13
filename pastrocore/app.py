@@ -596,7 +596,10 @@ class PAstroCoreMainWindow(QMainWindow):
                             # A label, never a dialog. Staleness is a state the user can see
                             # and act on when they choose; announcing it after every edit
                             # would be worse than not detecting it.
-                            stale = obs.stale_results() if hasattr(obs, "stale_results") else ()
+                            answer = self.manipulator.compute(obj=obs, method="stale",
+                                                              raise_on_error=False)
+                            stale = (answer["result"] if isinstance(answer, dict)
+                                     and "status" in answer else answer) or ()
                             label = f"{obs_code}  • {len(stale)} stale" if stale else obs_code
                             obs_item = QStandardItem(label)
                             if stale:
@@ -792,8 +795,9 @@ class PAstroCoreMainWindow(QMainWindow):
             progress.show()
             try:
                 # Saves a directory: the model in one small file and each result in its
-                # own parquet beside it.
-                self.project.save(self.current_project_path)
+                # own parquet beside it. Through the orchestrator, like everything else the
+                # window wants of the model.
+                self.manipulator.save(obj=self.project, path=self.current_project_path)
                 logger.info("Project saved to '%s'", self.current_project_path)
             except Exception as e:
                 logger.error("Failed to save project: %s", str(e))
@@ -869,10 +873,10 @@ class PAstroCoreMainWindow(QMainWindow):
             return
 
         try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-
-            imported_observation = Observation.from_dict(data)
+            # Read through the orchestrator: `load` builds the kind the caller names, refuses a
+            # file that is not there and one that is not JSON, and says which it was.
+            imported_observation = self.manipulator.load(obj=Observation(name="imported"),
+                                                         path=file_path)
             if not hasattr(imported_observation, 'observation_type') or imported_observation.observation_type not in ["VLBI", "SINGLE_DISH"]:
                 imported_observation.observation_type = "VLBI"
 
@@ -900,9 +904,6 @@ class PAstroCoreMainWindow(QMainWindow):
             return
 
         try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-
             existing_observation = self.manipulator.inspect(self.project, get_item=obs_name)
             if existing_observation is None:
                 logger.error("Observation '%s' not found", obs_code)
@@ -912,7 +913,8 @@ class PAstroCoreMainWindow(QMainWindow):
             existing_name = existing_observation.name
             existing_code = existing_observation.code
 
-            imported_observation = Observation.from_dict(data)
+            imported_observation = self.manipulator.load(obj=Observation(name="imported"),
+                                                         path=file_path)
             imported_observation.name = existing_name
             imported_observation.code = existing_code
 
@@ -948,8 +950,10 @@ class PAstroCoreMainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Observation '{obs_code}' not found")
                 return
 
-            with open(file_path, "w") as f:
-                json.dump(observation.to_dict(), f, indent=4)
+            # The built-in `save` writes it: atomically, refusing a directory, and raising
+            # the framework's own errors. Writing the JSON here was a second implementation of
+            # something MSB has had since 1.3.0.
+            self.manipulator.save(obj=observation, path=file_path)
             logger.info("Observation '%s' exported to '%s'", obs_code, file_path)
         except Exception as e:
             logger.error("Failed to export observation '%s': %s", obs_code, str(e))

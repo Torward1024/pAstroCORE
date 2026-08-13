@@ -206,13 +206,12 @@ class CalculationDialog(QDialog):
             - With exactly one spacecraft in the selected observations, that is the answer and
               nothing is asked.
         """
-        from pastrocore.base.telescopes import SpaceTelescope
-
-        codes = []
-        for observation in observations:
-            for telescope in observation.get_telescopes().get_items():
-                if isinstance(telescope, SpaceTelescope) and telescope.get_code() not in codes:
-                    codes.append(telescope.get_code())
+        # Asked, not walked. What can be pointed at is a question about the model, and a
+        # command line running the same calculations asks it the same way.
+        response = self.manipulator.compute(obj=None, method="targets", targets=observations,
+                                            raise_on_error=False)
+        codes = (response["result"] if isinstance(response, dict) and "status" in response
+                 else response) or []
 
         if not codes:
             QMessageBox.warning(
@@ -406,10 +405,11 @@ class CalculationDialog(QDialog):
             return
 
         try:
-            for target in selected_targets:
-                target.clear_calculated_data()
-                logger.info("Cleared calculated data for observation '%s'", target.code)
-            QMessageBox.information(self, "Success", "Calculated data cleared for selected observations.")
+            outcome = self.manipulator.compute(obj=None, method="clear",
+                                               targets=selected_targets)
+            cleared = len(outcome.get("cleared", selected_targets))
+            QMessageBox.information(self, "Success",
+                                    f"Cleared the results of {cleared} observation(s).")
         except Exception as e:
             logger.error("Failed to clear calculated data: %s", str(e))
             QMessageBox.critical(self, "Error", f"Failed to clear calculated data: {str(e)}")

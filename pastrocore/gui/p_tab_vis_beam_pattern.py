@@ -53,7 +53,8 @@ class BeamPatternVisualizationTab(QWidget):
         try:
             frequencies = self.manipulator.inspect(obj=self.observation, get_frequencies=None)
             if frequencies:
-                freqs = frequencies.get_frequencies()
+                freqs = self.manipulator.inspect(frequencies,
+                                                 get_frequencies=None)
                 logger.debug("Retrieved frequencies: %s", frequencies)
             return freqs or []
         except Exception as e:
