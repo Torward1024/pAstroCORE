@@ -372,7 +372,7 @@ def test_adding_a_calculation_needs_no_change_to_any_interface(project):
     # one; registering a second under the same name is refused, and rightly.
     manipulator._operations["calculate"] = CalculatorWithOneMore(manipulator)
 
-    response = manipulator.export(obj=project, method="catalogue", raise_on_error=False)
+    response = manipulator.compute(obj=project, method="catalogue", raise_on_error=False)
     catalogue = (response["result"] if isinstance(response, dict) else response) or []
 
     entry = next((e for e in catalogue if e["key"] == "invented_thing"), None)
@@ -381,7 +381,7 @@ def test_adding_a_calculation_needs_no_change_to_any_interface(project):
     assert entry["offer"] is True, "and be offered, since nothing said it was a step"
     assert entry["requires"] == ["time_arrays"], "and bring the edge it wrote in its own body"
 
-    ordered = manipulator.export(obj=project, method="order",
+    ordered = manipulator.compute(obj=project, method="order",
                                  keys=["invented_thing", "time_arrays"], raise_on_error=False)
     ordered = ordered["result"] if isinstance(ordered, dict) else ordered
     assert ordered == ["time_arrays", "invented_thing"], "and take its place in the order"

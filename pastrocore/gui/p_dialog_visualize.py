@@ -116,7 +116,7 @@ class VisualizationDialog(QDialog):
         try:
             # Asked, not listed. A calculation that can be drawn appears here because the
             # visualizer has a handler for it, not because somebody added it to a table.
-            described = self.manipulator.export(obj=observation, method="catalogue")
+            described = self.manipulator.compute(obj=observation, method="catalogue")
             catalogue = (described["result"] if isinstance(described, dict) and "status" in described
                          else described) or []
             vis_types = {entry["key"]: entry["label"] for entry in catalogue if entry["can_plot"]}
@@ -232,7 +232,7 @@ class VisualizationDialog(QDialog):
             }
             # The user picked a label; the map is keyed by the result. The catalogue holds both
             # spellings, which is the whole reason neither is written down twice.
-            described = self.manipulator.export(obj=observation, method="catalogue")
+            described = self.manipulator.compute(obj=observation, method="catalogue")
             catalogue = (described["result"] if isinstance(described, dict) and "status" in described
                          else described) or []
             vis_key = next((entry["key"] for entry in catalogue
@@ -280,7 +280,7 @@ class VisualizationDialog(QDialog):
                 QMessageBox.critical(self, "Error", f"Observation '{current_obs_name}' not found")
                 return
 
-            described = self.manipulator.export(obj=observation, method="catalogue")
+            described = self.manipulator.compute(obj=observation, method="catalogue")
             catalogue = (described["result"] if isinstance(described, dict) and "status" in described
                          else described) or []
             # The label a user picked and the key a request needs are two spellings of one

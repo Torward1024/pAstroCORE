@@ -24,7 +24,7 @@ def bench():
 
 def test_asking_for_one_plans_everything_it_needs(bench):
     manipulator, observation = bench
-    plan = manipulator.export(obj=None, method="plan", targets=[observation],
+    plan = manipulator.compute(obj=None, method="plan", targets=[observation],
                               calculations=["uv_coverage"], time_step=300.0)
 
     assert [name.split("/")[-1] for name in plan] == [
@@ -35,7 +35,7 @@ def test_asking_for_one_plans_everything_it_needs(bench):
 def test_the_order_comes_from_the_handlers(bench):
     """Nothing here lists it: MSB derives which handler calls which, and the plan uses that."""
     manipulator, observation = bench
-    plan = manipulator.export(obj=None, method="plan", targets=[observation],
+    plan = manipulator.compute(obj=None, method="plan", targets=[observation],
                               calculations=["uv_coverage"], time_step=300.0)
 
     positions = {name.split("/")[-1]: index for index, name in enumerate(plan)}
@@ -47,7 +47,7 @@ def test_the_order_comes_from_the_handlers(bench):
 
 def test_every_step_waits_for_what_it_needs(bench):
     manipulator, observation = bench
-    plan = manipulator.export(obj=None, method="plan", targets=[observation],
+    plan = manipulator.compute(obj=None, method="plan", targets=[observation],
                               calculations=["uv_coverage"], time_step=300.0)
 
     uv = plan[f"{observation.code}/uv_coverage"]
@@ -57,7 +57,7 @@ def test_every_step_waits_for_what_it_needs(bench):
 def test_two_observations_do_not_wait_for_each_other(bench):
     """Their steps are independent, which is what lets a stage run them together."""
     manipulator, observation = bench
-    plan = manipulator.export(obj=None, method="plan", targets=[observation, observation],
+    plan = manipulator.compute(obj=None, method="plan", targets=[observation, observation],
                               calculations=["time_arrays"], time_step=300.0)
 
     assert len(plan) == 1, "the same observation twice is one set of steps"
@@ -65,7 +65,7 @@ def test_two_observations_do_not_wait_for_each_other(bench):
 
 def test_running_it_computes_everything(bench):
     manipulator, observation = bench
-    outcome = manipulator.export(obj=None, method="run", targets=[observation],
+    outcome = manipulator.compute(obj=None, method="run", targets=[observation],
                                  calculations=["uv_coverage"], time_step=300.0,
                                  recalculate=True)
 
@@ -78,7 +78,7 @@ def test_running_it_computes_everything(bench):
 def test_progress_is_reported_step_by_step(bench):
     manipulator, observation = bench
     seen = []
-    manipulator.export(obj=None, method="run", targets=[observation],
+    manipulator.compute(obj=None, method="run", targets=[observation],
                        calculations=["uv_coverage"], time_step=300.0, recalculate=True,
                        progress=lambda percent, message: seen.append((percent, message)))
 
@@ -97,7 +97,7 @@ def test_cancelling_stops_and_says_so(bench):
         asked["times"] += 1
         return asked["times"] > 2
 
-    outcome = manipulator.export(obj=None, method="run", targets=[observation],
+    outcome = manipulator.compute(obj=None, method="run", targets=[observation],
                                  calculations=["uv_coverage"], time_step=300.0,
                                  recalculate=True, cancelled=cancelled)
 
@@ -109,7 +109,7 @@ def test_cancelling_stops_and_says_so(bench):
 def test_asking_for_nothing_is_refused(bench):
     manipulator, observation = bench
     with pytest.raises(Exception):
-        manipulator.export(obj=None, method="plan", targets=[observation], calculations=[])
+        manipulator.compute(obj=None, method="plan", targets=[observation], calculations=[])
 
 
 class _FakeProgress:
@@ -185,7 +185,7 @@ def test_independent_steps_run_together(bench):
     but that asking for it produces the same results as not asking.
     """
     manipulator, observation = bench
-    outcome = manipulator.export(obj=None, method="run", targets=[observation],
+    outcome = manipulator.compute(obj=None, method="run", targets=[observation],
                                  calculations=["uv_coverage", "sun_angles"], time_step=600.0,
                                  recalculate=True, concurrent=True)
 
@@ -204,7 +204,7 @@ def test_cancelling_a_concurrent_run_still_stops_it(bench):
         asked["times"] += 1
         return asked["times"] > 2
 
-    outcome = manipulator.export(obj=None, method="run", targets=[observation],
+    outcome = manipulator.compute(obj=None, method="run", targets=[observation],
                                  calculations=["uv_coverage"], time_step=600.0,
                                  recalculate=True, concurrent=True, cancelled=cancelled)
 
@@ -219,7 +219,7 @@ def test_every_step_reports_its_own_time(bench):
     clock between two progress callbacks is not any one calculation's duration.
     """
     manipulator, observation = bench
-    outcome = manipulator.export(obj=None, method="run", targets=[observation],
+    outcome = manipulator.compute(obj=None, method="run", targets=[observation],
                                  calculations=["uv_coverage"], time_step=600.0,
                                  recalculate=True)
 
@@ -235,7 +235,7 @@ def test_the_progress_percentage_counts_finished_work(bench):
     manipulator, observation = bench
     seen = []
 
-    manipulator.export(obj=None, method="run", targets=[observation],
+    manipulator.compute(obj=None, method="run", targets=[observation],
                        calculations=["uv_coverage"], time_step=600.0, recalculate=True,
                        progress=lambda percent, message: seen.append((percent, message)))
 

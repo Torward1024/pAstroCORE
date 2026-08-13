@@ -424,3 +424,33 @@ def test_the_exporter_holds_no_list_of_plots():
                      "mollweide_tracks", "parallactic_angle", "time_on_source"):
         assert f'"{spelling}"' not in export, (
             f"the exporter names {spelling} again; ask the catalogue what the plot accepts")
+
+
+# --- what a request was made on ---------------------------------------------------------------
+
+def test_a_project_says_what_it_holds_without_anybody_guessing():
+    """`get_items()` is a dict on a project and a list on a container -- the same method name,
+    two shapes -- so every caller guessed, and one guessed wrong."""
+    from pastrocore.base.observation import Observation
+
+    project = ScheduleProject(name="Two")
+    project.create_item(item_code="OBS1")
+    project.create_item(item_code="OBS2")
+
+    held = project.observations()
+    assert [type(item).__name__ for item in held] == ["Observation", "Observation"]
+    assert sorted(item.code for item in held) == ["OBS1", "OBS2"]
+    assert all(isinstance(item, Observation) for item in held)
+
+
+def test_calculating_for_a_whole_project_is_not_silently_empty(project):
+    """Iterating a project yields its keys, so `o.get_scans()` was called on a string and the
+    broad handler turned it into an empty frame. The calculator's own docstrings say a project
+    is accepted, and it was accepted into silence."""
+    manipulator = ScheduleManipulator(project)
+    response = manipulator.calculate(obj=project, method="time_arrays", time_step=600.0,
+                                     recalculate=True, raise_on_error=False)
+    frame = response["result"] if isinstance(response, dict) and "status" in response else response
+
+    assert frame is not None and not frame.is_empty(), (
+        "calculating for a whole project produced nothing and said nothing")
