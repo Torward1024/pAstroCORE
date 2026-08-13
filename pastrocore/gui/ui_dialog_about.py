@@ -116,6 +116,7 @@ class Ui_AboutDialog(object):
 
         self.labelVersion = QLabel(AboutDialog)
         self.labelVersion.setObjectName(u"labelVersion")
+        self.labelVersion.setText(u"Version")
         self.labelVersion.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.gridLayout.addWidget(self.labelVersion, 5, 0, 1, 2)
@@ -154,6 +155,5 @@ class Ui_AboutDialog(object):
         self.closeButton.setText(QCoreApplication.translate("AboutDialog", u"Close", None))
         self.labelDescription.setText(QCoreApplication.translate("AboutDialog", u"A versatile tool for  radio astronomical observations\n"
 " planning and visualization.", None))
-        self.labelVersion.setText(QCoreApplication.translate("AboutDialog", u"Version 0.8.0", None))
     # retranslateUi
 
