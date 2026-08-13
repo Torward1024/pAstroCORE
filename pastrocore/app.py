@@ -1253,6 +1253,14 @@ class PAstroCoreMainWindow(QMainWindow):
     def _cleanup_project(self):
         """Clean up the current project and its dependencies."""
         try:
+            # Before the orchestrator goes: the project being replaced took a scratch directory
+            # with it and nothing discarded it, so every File -> New Project and every Open
+            # left one behind for the next start to offer as an interrupted session. Discarded
+            # only when it holds nothing -- litter is worth clearing, a day of calculation is
+            # not, and the project itself decides which of the two it has.
+            if self.project is not None and self.manipulator is not None:
+                self.manipulator.export(obj=self.project, method="tidy", raise_on_error=False)
+
             self._cleanup_tabs()
             
             try:
@@ -1293,6 +1301,21 @@ class PAstroCoreMainWindow(QMainWindow):
         self.project.hold_results_in_scratch()
         logger.debug("Initialized new project with id: %s, manipulator id=%s", id(self.project), id(self.manipulator))
     
+    def _ask_what_is_unsaved(self) -> int:
+        """Return how many results this session holds that the project does not.
+
+        Notes:
+            - One request, like everything else the window wants of the model. The counting is
+              the project's own business and the asking is the orchestrator's.
+        """
+        if self.project is None or self.manipulator is None:
+            return 0
+        response = self.manipulator.export(obj=self.project, method="unsaved",
+                                           raise_on_error=False)
+        result = (response["result"] if isinstance(response, dict) and "status" in response
+                  else response)
+        return int(result or 0)
+
     def closeEvent(self, event):
         """Close the window, taking this session's scratch directory with it.
 
@@ -1300,7 +1323,32 @@ class PAstroCoreMainWindow(QMainWindow):
             - Only on this path. A session removed here is one that ended normally, which is
               exactly the case where nothing needs recovering. Anything else leaves its
               directory behind on purpose.
+            - **Unless it holds results nobody has saved.** The scratch is where a calculation
+              lives until the project is saved, so discarding it on a tidy exit destroyed the
+              day's work -- the very thing writing results through to disk exists to protect.
+              A crash was survivable and closing the window was not.
         """
+        held = self._ask_what_is_unsaved()
+        if held:
+            answer = QMessageBox.question(
+                self, "Save before closing?",
+                f"This session holds {held} calculated result(s) that are not in the project "
+                "directory.\n\nSaving keeps them; closing without saving discards them.",
+                QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard
+                | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save)
+
+            if answer == QMessageBox.StandardButton.Cancel:
+                event.ignore()
+                return
+            if answer == QMessageBox.StandardButton.Save:
+                self.save_project()
+                if self._ask_what_is_unsaved():
+                    # The save did not happen -- no path chosen, or it failed and said so.
+                    # Closing now would discard them anyway.
+                    event.ignore()
+                    return
+
         self.clear_connections()
         try:
             if self.project is not None:

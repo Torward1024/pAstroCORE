@@ -567,3 +567,39 @@ class ScheduleData(Persistence, Loader):
             encoding="utf-8")
         logger.info("Wrote a session of %s request(s) to '%s'", len(steps), path)
         return {"path": str(path), "steps": len(steps)}
+
+    def _export_unsaved(self, obj: Any, attributes: Dict[str, Any]) -> int:
+        """Return how many results this session holds that the project directory does not.
+
+        Args:
+            obj (ScheduleProject): The project to ask about.
+            attributes: Ignored.
+
+        Returns:
+            int: The count. Zero for a project saved since its last calculation.
+
+        Notes:
+            - A request rather than a method call, because the window is not allowed to reach
+              the model: a command line ending a session and a server closing one ask this the
+              same way, and there is one answer for all three.
+        """
+        return obj.unsaved_results() if hasattr(obj, "unsaved_results") else 0
+
+    def _export_tidy(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Remove this session's scratch directory when nothing in it would be lost.
+
+        Args:
+            obj (ScheduleProject): The project being replaced or closed.
+            attributes: Ignored.
+
+        Returns:
+            Dict[str, Any]: `{"discarded": bool, "held": int}`.
+
+        Notes:
+            - A scratch holding results is left where it is, so the next start offers them
+              back. Litter is worth clearing; a day of calculation is not.
+        """
+        held = self._export_unsaved(obj, attributes)
+        if not hasattr(obj, "discard_scratch_if_empty"):
+            return {"discarded": False, "held": held}
+        return {"discarded": obj.discard_scratch_if_empty(), "held": held}
