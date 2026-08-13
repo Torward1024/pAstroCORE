@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional
 
 import polars as pl
 from astropy.time import Time
+from msb_arch import Loader, Persistence
 from msb_arch.super.super import Super
 from msb_arch.utils.logging_setup import logger
 
@@ -39,8 +40,18 @@ from pastrocore.super.schedule_project import ScheduleProject
 FILE_PREFIXES = {"Beam Pattern": "Beam_Pattern", "Mollweide Tracks": "Mollweide"}
 
 
-class ScheduleData(Super):
+class ScheduleData(Persistence, Loader):
     """Reading results out of a project and writing them somewhere else.
+
+    Notes:
+        - `save` and `load` are **MSB's**, inherited rather than written again: the built-in
+          writes atomically -- a temporary file beside the target, then a rename -- refuses an
+          existing file when told to, and raises the framework's own error types. This module
+          carried its own from before MSB had them, and it did none of those things.
+        - What stays here is the two cases that are about this model rather than about files: a
+          project is a *directory*, and a telescope is read back as the kind the file says.
+          MSB reaches both on its own, since a handler named for the type wins over the general
+          one, so neither had to be wired to anything.
 
     Args:
         manipulator (Manipulator): The orchestrator every operation is reached through.
@@ -177,37 +188,6 @@ class ScheduleData(Super):
         logger.info("Exported %s file(s) to '%s'", len(written), export_path)
         return {"written": written, "cancelled": False}
 
-    def _save(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Write any serialisable object to a file.
-
-        Args:
-            obj (Serializable): Anything the model can turn into a dictionary -- a telescope, a
-                source, a container of scans.
-            attributes: `path`, the file to write.
-
-        Returns:
-            Dict[str, Any]: `{"path": str}`.
-
-        Raises:
-            TypeError: If the object cannot serialise itself.
-            ValueError: If no path was given.
-
-        Notes:
-            - The general case. A project is not one, because a project is a directory rather
-              than a file, and it gets `_save_scheduleproject` -- which MSB reaches on its own,
-              since a handler named for the object's type wins over this one. Nothing here has
-              to know that branch exists.
-        """
-        path = self._destination(attributes)
-        if not hasattr(obj, "to_dict"):
-            raise TypeError(f"{type(obj).__name__} cannot be written to a file: it has no to_dict")
-
-        Path(path).parent.mkdir(parents=True, exist_ok=True)
-        Path(path).write_text(json.dumps(json_safe(obj.to_dict()), indent=4, allow_nan=False),
-                              encoding="utf-8")
-        logger.info("Wrote %s to '%s'", type(obj).__name__, path)
-        return {"path": path}
-
     def _save_scheduleproject(self, obj: 'ScheduleProject', attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Save a project, which is a directory rather than a file.
 
@@ -231,34 +211,6 @@ class ScheduleData(Super):
         obj.save(path)
         return {"path": path}
 
-    def _load(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Read a file back into an object of the same kind as the one asked.
-
-        Args:
-            obj (Serializable): An object of the type to reconstruct. A request operates on
-                something, and here that something says what to build.
-            attributes: `path`, the file to read, and optionally `kind` -- the class to build,
-                for importing something that does not exist yet.
-
-        Returns:
-            Dict[str, Any]: `{"object": ...}`.
-
-        Raises:
-            TypeError: If the type cannot reconstruct itself from a dictionary.
-            ValueError: If no path was given.
-        """
-        path = self._destination(attributes, verb="load")
-        # The object says what to build, unless the caller says otherwise -- which it must
-        # when importing something that does not exist yet and so cannot be operated on.
-        kind = attributes.get("kind") or type(obj)
-        if not hasattr(kind, "from_dict"):
-            raise TypeError(f"{kind.__name__} cannot be read from a file: it has no from_dict")
-
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
-        restored = kind.from_dict(data)
-        logger.info("Read %s from '%s'", kind.__name__, path)
-        return {"object": restored}
-
     def _load_scheduleproject(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Load a project from its directory.
 
@@ -269,13 +221,13 @@ class ScheduleData(Super):
             attributes: `path`, the project directory to read.
 
         Returns:
-            Dict[str, Any]: `{"object": ScheduleProject, "project": ScheduleProject}`. Both
-                names, because "object" is what the general case returns and "project" is what
-                a caller working with projects will look for.
+            ScheduleProject: The project. MSB's own `load` returns the object it read, and
+                a specialisation that returned a wrapper instead would mean a caller had to know
+                which of the two it had reached.
         """
         path = self._destination(attributes, verb="load")
         project = ScheduleProject.open(path)
-        return {"object": project, "project": project}
+        return project
 
     def _load_telescopes(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Read a telescope, choosing its kind from the file rather than from the caller.
@@ -305,12 +257,12 @@ class ScheduleData(Super):
         if "items" in data:
             restored = type(obj).from_dict(data)
             logger.info("Read %s from '%s'", type(restored).__name__, path)
-            return {"object": restored}
+            return restored
 
         kind = SpaceTelescope if data.get("type") == "SpaceTelescope" else Telescope
         restored = kind.from_dict(data)
         logger.info("Read %s '%s' from '%s'", kind.__name__, restored.get_code(), path)
-        return {"object": restored}
+        return restored
 
     @staticmethod
     def _destination(attributes: Dict[str, Any], verb: str = "save") -> str:

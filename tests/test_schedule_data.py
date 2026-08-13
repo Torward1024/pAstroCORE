@@ -160,7 +160,9 @@ def test_loading_is_too(project, tmp_path):
     response = manipulator.load(project, path=str(root), raise_on_error=False)
     result = response["result"] if isinstance(response, dict) and "status" in response else response
 
-    loaded = result["project"]
+    # MSB's own `load` returns the object it read, and a specialisation returning a wrapper
+    # instead would mean a caller had to know which of the two it had reached.
+    loaded = result
     assert isinstance(loaded, ScheduleProject)
     assert loaded.name == project.name
 
@@ -195,7 +197,7 @@ def test_anything_serialisable_can_be_saved_and_read_back(project, tmp_path):
 
         response = manipulator.load(obj, path=str(path), raise_on_error=False)
         result = response["result"] if isinstance(response, dict) and "status" in response else response
-        assert type(result["object"]) is type(obj), f"{name} came back as something else"
+        assert type(result) is type(obj), f"{name} came back as something else"
 
 
 def test_a_telescope_is_read_back_as_the_kind_the_file_says(project, tmp_path):
@@ -215,7 +217,7 @@ def test_a_telescope_is_read_back_as_the_kind_the_file_says(project, tmp_path):
 
         response = manipulator.load(telescopes, path=str(path), raise_on_error=False)
         result = response["result"] if isinstance(response, dict) and "status" in response else response
-        assert type(result["object"]).__name__ == expected
+        assert type(result).__name__ == expected
 
 
 def test_the_tabs_no_longer_read_and_write_files_themselves(project):
@@ -418,7 +420,7 @@ def test_the_exporter_holds_no_list_of_plots():
     """A ratchet. The moment one comes back, adding a plot means editing this module again."""
     source = (pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "super"
               / "schedule_data.py").read_text(encoding="utf-8")
-    export = source[source.index("def _export("):source.index("def _save(")]
+    export = source[source.index("def _export("):source.index("def _save_scheduleproject(")]
 
     for spelling in ("uv_coverage", "baseline_projections", "beam_pattern", "sun_angles",
                      "mollweide_tracks", "parallactic_angle", "time_on_source"):
@@ -454,3 +456,57 @@ def test_calculating_for_a_whole_project_is_not_silently_empty(project):
 
     assert frame is not None and not frame.is_empty(), (
         "calculating for a whole project produced nothing and said nothing")
+
+
+# --- save and load are MSB's, with our two special cases --------------------------------------
+
+def test_saving_refuses_to_overwrite_when_told_not_to(project, tmp_path):
+    """MSB's `save` writes atomically -- a temporary file beside the target, then a rename --
+    and refuses an existing file when `overwrite` is off. Ours did neither: it wrote straight
+    over whatever was there and ignored the attribute.
+
+    Checked on the guard rather than on the atomicity, because a test that cannot tell the two
+    writes apart is not evidence of either. pAstroCORE was written against a much older MSB and
+    grew its own `_save`; this is what that cost.
+    """
+    from pastrocore.base.telescope import Telescope
+
+    manipulator = ScheduleManipulator(project)
+    telescope = Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0, diameter=100.0)
+    path = tmp_path / "telescope.json"
+
+    manipulator.save(obj=telescope, path=str(path))
+    original = path.read_bytes()
+
+    response = manipulator.save(obj=telescope, path=str(path), overwrite=False,
+                                raise_on_error=False)
+    refused = isinstance(response, dict) and response.get("status") is False
+
+    assert refused, "an existing file was overwritten although overwrite was off"
+    assert path.read_bytes() == original
+
+
+def test_a_project_still_saves_as_a_directory(project, tmp_path):
+    """The specialisation that has to stay: a project is a directory rather than a file, and
+    MSB reaches `_save_scheduleproject` on its own because a handler named for the type wins."""
+    destination = tmp_path / "survey.pastro"
+    manipulator = ScheduleManipulator(project)
+
+    manipulator.save(obj=project, path=str(destination))
+
+    assert (destination / "project.json").is_file()
+
+
+def test_a_telescope_is_read_back_as_the_kind_the_file_says_still(project, tmp_path):
+    """The other specialisation: which class to build is in the file, not in the caller."""
+    from pastrocore.base.telescopes import SpaceTelescope, Telescopes
+
+    manipulator = ScheduleManipulator(project)
+    path = tmp_path / "spacecraft.json"
+    manipulator.save(obj=SpaceTelescope(code="RADIO", name="RadioAstron"), path=str(path))
+
+    response = manipulator.load(obj=Telescopes(), path=str(path), raise_on_error=False)
+    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    restored = result["object"] if isinstance(result, dict) else result
+
+    assert isinstance(restored, SpaceTelescope)
