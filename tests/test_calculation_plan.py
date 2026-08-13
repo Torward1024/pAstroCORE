@@ -83,7 +83,8 @@ def test_progress_is_reported_step_by_step(bench):
                        progress=lambda percent, message: seen.append((percent, message)))
 
     assert [percent for percent, _ in seen] == [20, 40, 60, 80, 100]
-    assert seen[-1][1].endswith("uv_coverage")
+    assert "uv_coverage" in seen[-1][1]
+    assert seen[-1][1].endswith(" s"), "each step reports how long it took"
 
 
 def test_cancelling_stops_and_says_so(bench):
@@ -151,7 +152,8 @@ def test_a_run_with_a_failed_step_is_not_called_a_success(bench, qt_application,
     thread = CalculationThread(manipulator, [observation], ["uv_coverage"], {})
     thread.finished.connect(dialog.calculation_finished)
     thread.finished.emit({f"{observation.code}/time_arrays": True},
-                         [f"{observation.code}/uv_coverage failed"])
+                         [f"{observation.code}/uv_coverage failed"],
+                         {f"{observation.code}/time_arrays": 0.1})
 
     assert "information" not in said, (
         f"a run with a failed step was reported as a success: {said['information']!r}")
@@ -171,3 +173,72 @@ def test_the_interface_thread_only_sends_a_request():
 
     assert "for calc_type in" not in thread, "the thread is looping over calculations again"
     assert 'method="run"' in thread, "the thread should send one request"
+
+
+# --- independent branches run at once ---------------------------------------------------------
+
+def test_independent_steps_run_together(bench):
+    """Measured at 1.30x on the fixture project: three steps must be sequential and nine wait
+    only on those, so the ceiling is what that fan costs.
+
+    What this pins is not the speed -- a build machine's noise is larger than the difference --
+    but that asking for it produces the same results as not asking.
+    """
+    manipulator, observation = bench
+    outcome = manipulator.export(obj=None, method="run", targets=[observation],
+                                 calculations=["uv_coverage", "sun_angles"], time_step=600.0,
+                                 recalculate=True, concurrent=True)
+
+    assert outcome["failed"] == []
+    assert "uv_coverage" in observation.calculated_data
+    assert "sun_angles" in observation.calculated_data
+
+
+def test_cancelling_a_concurrent_run_still_stops_it(bench):
+    """Cancellation is a refused request, and a stage running two steps at once must not turn
+    that into a partly-cancelled run that reports success."""
+    manipulator, observation = bench
+    asked = {"times": 0}
+
+    def cancelled():
+        asked["times"] += 1
+        return asked["times"] > 2
+
+    outcome = manipulator.export(obj=None, method="run", targets=[observation],
+                                 calculations=["uv_coverage"], time_step=600.0,
+                                 recalculate=True, concurrent=True, cancelled=cancelled)
+
+    assert outcome["cancelled"] is True
+    assert outcome["failed"], "the steps after the cancellation did not run"
+
+
+def test_every_step_reports_its_own_time(bench):
+    """Measured where every request passes, rather than estimated by whoever called.
+
+    The caller cannot time a step from outside: with a stage running several at once, the wall
+    clock between two progress callbacks is not any one calculation's duration.
+    """
+    manipulator, observation = bench
+    outcome = manipulator.export(obj=None, method="run", targets=[observation],
+                                 calculations=["uv_coverage"], time_step=600.0,
+                                 recalculate=True)
+
+    timings = outcome["timings"]
+    assert [name for name in timings] == outcome["ran"], "one entry per step, in plan order"
+    assert all(seconds >= 0.0 for seconds in timings.values())
+    assert sum(timings.values()) > 0.0, "a whole run of five calculations took no time at all"
+
+
+def test_the_progress_percentage_counts_finished_work(bench):
+    """A bar that advances when a step *starts* sits at 80% through the longest step of the
+    run and then jumps -- which is the shape of a bar that looks stuck."""
+    manipulator, observation = bench
+    seen = []
+
+    manipulator.export(obj=None, method="run", targets=[observation],
+                       calculations=["uv_coverage"], time_step=600.0, recalculate=True,
+                       progress=lambda percent, message: seen.append((percent, message)))
+
+    assert seen[0][0] > 0, "the first report is a step already finished"
+    assert seen[-1][0] == 100
+    assert [percent for percent, _ in seen] == sorted(percent for percent, _ in seen)
