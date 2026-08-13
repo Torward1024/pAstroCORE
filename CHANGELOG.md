@@ -8,6 +8,83 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [0.9.0] - 2026-08-13
+
+The release that makes pAstroCORE installable, and that moves the last of the running of
+calculations out of the dialog that used to do it. Three of the four fixes below are the same
+fault wearing different clothes: **the interface reported success because nothing carried the
+failure to it.**
+
+### Added
+
+- **`pip install .` gives a `pastrocore` command.** `pyproject.toml` declares the build, the
+  dependencies and the entry point, and the version is stated once -- in
+  `pastrocore/__init__.py`. `requirements.txt` installs the project rather than listing what it
+  needs a second time.
+- **Space telescope results can be drawn.** Pointing draws azimuth and elevation per station
+  with range on a right-hand axis, since a range moves over four orders of magnitude more than
+  the angles do. Visibility draws filled bands per station, because the value is a boolean and
+  what a reader wants is when it is true and for how long.
+- **The calculation dialog asks what to point at**, once per run, before starting. One
+  spacecraft in the selection is used without asking; several are offered; none is said so, and
+  the calculation that could not produce anything is not run.
+
+### Changed
+
+- **Running several calculations is a plan the backend builds.** The dialog used to loop over
+  what was ticked, in whatever order the list happened to be in, with prerequisites left to
+  whoever remembered them. `export(method="plan")` now returns a pipeline -- everything asked
+  for plus everything those need, with the edges taken from the handlers themselves -- and
+  `run` executes it. Asking for `telescope_visibility` alone plans five steps in the order that
+  satisfies them. Progress and cancellation ride on an interceptor, so nothing is counted twice
+  and a cancelled step skips the branch below it exactly as a failed one does. **A command line
+  or a server sending the same request gets the same behaviour**, which is the point of putting
+  it there.
+- **Start-up: 4.0 s to 1.4 s.** The calculator and the visualizer, which between them import
+  matplotlib, `astropy.coordinates` and scipy, are registered deferred (`msb_arch` 1.4.0) and
+  built when first needed -- warmed on a background thread once the window is up. Nine dialogs
+  imported at module level are imported where they are opened. The settings file is read once
+  instead of twice.
+- **The exporter asks each plot what it takes.** Five lists decided which arguments each picture
+  was given, and each was a copy of what the plot states by reading it. `accepts` on a catalogue
+  entry (`msb_arch` 1.5.0) derives that. One plot was missing from two of the lists.
+- **The catalogues ship inside the package** and the settings live in one per-user file. See
+  Fixed: the paths were relative to wherever the application was started.
+- Requires `msb_arch` 1.5.0 or later.
+
+### Fixed
+
+- **Exporting pictures failed for every calculation.** The exporter called `self.manipulator` on
+  a `Super` whose attribute is `_manipulator`, so every export with pictures raised
+  `AttributeError` -- which the dialog reported as "0 files written". Text export worked
+  throughout, which is why it read as "pictures are not implemented for this".
+- **A run with a failed step reported complete success.** `CalculationDialog` defined
+  `calculation_finished` twice; the later definition won and took one argument where the signal
+  carries `(results, errors)`. PySide drops arguments a slot does not accept rather than
+  complaining, so the failures fell into the gap between the two definitions.
+- **The space telescope calculations ran with nothing to point at**, finishing in a millisecond
+  having computed nothing, so there was afterwards nothing to export or draw. Which calculations
+  need a target is read from the result's columns; the first fix compared the labels the list
+  shows against the keys the catalogue speaks and matched nothing, which shipped because the
+  tests called the helper directly and never went through the dialog's run.
+- **Ticking a calculation did not tick what it needs**, the same label-against-key comparison, so
+  `telescope_visibility` could run before `telescope_az_el`.
+- **An installed application found no catalogues and lost its settings.** Every path was relative
+  to the directory it was started from. The catalogues are inside the package now; the settings
+  are one per-user file, adopting a `settings.pastro` left in a working directory once. A
+  catalogue chosen in Preferences is kept; one that has been deleted falls back to the shipped
+  one and says so.
+- **`scan_times` narrowed only by `source_name`**, so a result about a tracked spacecraft needed
+  a case of its own. It narrows by whatever column the caller named that the result has.
+
+### Upgrading from 0.8.0
+
+| Symptom | Why | What to do |
+| --- | --- | --- |
+| The application starts with empty catalogues after this upgrade | Your `settings.pastro` records `catalogs/sources.dat`, relative to the old layout | Nothing. The relative path no longer resolves, so the catalogue that ships with the install is used and a line in the log says so. Point Preferences at your own catalogue if you had one |
+| Settings appear to have been forgotten | They moved to a per-user directory | Nothing, once. A `settings.pastro` in the directory you start from is read and kept in the new place |
+| `pip install -r requirements.txt` now installs pAstroCORE itself | It is `-e .`, so the dependencies come from `pyproject.toml` | Nothing. This is what makes one list rather than two |
+
 ## [0.8.0] - 2026-08-11
 
 Adding a calculation now touches the calculator and its schema, and nothing in the interface.

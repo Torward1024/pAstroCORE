@@ -1,6 +1,14 @@
-pAstroCORE -- a versatile tool for scheduling radio-astronomical observations
+# pAstroCORE
 
-Version 0.8.0. Past the MVP, and the parts written under time pressure are being put in order
+[![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.9.0-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
+[![Built on MSB](https://img.shields.io/badge/built%20on-MSB%201.5.0-8a2be2.svg)](https://github.com/Torward1024/MSB)
+[![CI](https://github.com/Torward1024/pAstroCORE/actions/workflows/ci.yml/badge.svg)](https://github.com/Torward1024/pAstroCORE/actions/workflows/ci.yml)
+
+A versatile tool for scheduling radio-astronomical observations.
+
+Version 0.9.0. Past the MVP, and the parts written under time pressure are being put in order
 one measured stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -9,14 +17,17 @@ typed entities, and everything reaches it through one orchestrator by sending a 
 is data rather than a call.
 
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
-Requires `msb_arch` 1.2.0 or later. Six releases of it came out of this project -- mapping
+That gives a `pastrocore` command, which starts the window from any directory.
+
+Requires `msb_arch` 1.5.0 or later. Eight releases of it came out of this project -- mapping
 keys that could not survive JSON, built-in operations that could not reach a member of a
-collection, a schema version that worked everywhere except the class saved to a file, and an
-`int` that was not accepted where a `float` was declared, and a manipulator that
-could not say what it offers.
+collection, a schema version that worked everywhere except the class saved to a file, an `int`
+that was not accepted where a `float` was declared, a manipulator that could not say what it
+offers, an operation whose cost was paid on every start whether or not it was used, and a
+handler that could not say what arguments it takes.
 
 ## What it does
 
@@ -30,6 +41,12 @@ compares the numbers, so a refactoring cannot change a result quietly. The plots
 the same way, by reading the drawn points back out of the figure.
 
 ## Running
+
+```bash
+pastrocore
+```
+
+From a checkout, without installing:
 
 ```bash
 python run.py

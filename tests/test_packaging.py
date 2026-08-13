@@ -196,3 +196,54 @@ def test_a_catalogue_that_was_deleted_does_not_silently_empty_the_application(tm
     mine.unlink()
     fallen_back = PAstroCoreMainWindow.load_settings()["sources_catalog_path"]
     assert Path(fallen_back) == shipped_catalog("sources.dat")
+
+
+def test_the_about_dialog_shows_the_version_the_package_states(qt_application):
+    """It was a literal in the `.ui`, so a release had to remember two places -- and 0.8.0
+    shipped with the form still saying 0.7.0."""
+    import pastrocore
+    from pastrocore.gui.p_dialog_about import AboutDialog
+
+    dialog = AboutDialog()
+    assert dialog.ui.labelVersion.text() == f"Version {pastrocore.__version__}"
+    dialog.close()
+
+
+def test_the_readme_states_the_version_the_package_does():
+    """Including the badge, which is the copy nobody looks at when cutting a release."""
+    import re
+
+    import pastrocore
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    stated = re.search(r"^Version (\d+\.\d+\.\d+)", readme, re.M)
+    assert stated and stated.group(1) == pastrocore.__version__, (
+        f"the README says {stated and stated.group(1)}, the package says "
+        f"{pastrocore.__version__}")
+
+    badge = re.search(r"badge/version-(\d+\.\d+\.\d+)-", readme)
+    assert badge and badge.group(1) == pastrocore.__version__, (
+        f"the version badge says {badge and badge.group(1)}")
+
+
+def test_the_readme_asks_for_the_msb_it_actually_needs():
+    """`accepts` arrived in 1.5.0 and the exporter does not work without it. A README naming an
+    older one is an installation that fails at the first export."""
+    import re
+    import tomllib
+
+    import msb_arch
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    asked = re.search(r"`msb_arch` (\d+\.\d+\.\d+) or later", readme)
+    assert asked, "the README does not say which msb_arch it needs"
+
+    manifest = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    declared = next(name for name in manifest["project"]["dependencies"]
+                    if name.startswith("msb_arch"))
+    assert asked.group(1) == declared.split(">=")[1], (
+        f"the README says {asked.group(1)}, pyproject says {declared}")
+
+    badge = re.search(r"MSB%20(\d+\.\d+\.\d+)", readme)
+    assert badge and badge.group(1) == asked.group(1), "and the badge says something else again"
+    assert msb_arch.__version__ >= asked.group(1), "the installed msb_arch is older than that"
