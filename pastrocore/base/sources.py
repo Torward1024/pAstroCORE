@@ -1,9 +1,10 @@
 # base/sources.py
 from copy import deepcopy
-from typing import Optional, Dict
+from typing import Annotated, Optional, Dict
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
 from msb_arch.utils.logging_setup import logger
+from msb_arch.utils.validation import Range
 import uuid
 
 class Source(BaseEntity):
@@ -23,13 +24,16 @@ class Source(BaseEntity):
         spectral_index (Optional[float]): Spectral index for flux extrapolation.
         isactive (bool): Whether the source is active.
     """
+    # The bounds are on the annotation rather than in a check called from `__init__`. The
+    # check guarded construction and nothing else: `set` accepted ninety-nine hours of right
+    # ascension, and so did `from_dict`, which is how a saved project carries one back.
     name: str
-    ra_h: float
-    ra_m: float
-    ra_s: float
-    de_d: float
-    de_m: float
-    de_s: float
+    ra_h: Annotated[float, Range(0, 23)]
+    ra_m: Annotated[float, Range(0, 59)]
+    ra_s: Annotated[float, Range(0, 59.999)]
+    de_d: Annotated[float, Range(-90, 90)]
+    de_m: Annotated[float, Range(0, 59)]
+    de_s: Annotated[float, Range(0, 59.999)]
     name_J2000: Optional[str]
     alt_name: Optional[str]
     flux_table: Dict[float, float]
@@ -66,24 +70,8 @@ class Source(BaseEntity):
             spectral_index=spectral_index,
             isactive=isactive,
         )
-        self._validate_coordinates()
         self._validate_flux_table()
         logger.debug("Initialized Source '%s' at RA=%sh%sm%ss, DEC=%sd%sm%ss", name, ra_h, ra_m, ra_s, de_d, de_m, de_s)
-
-    def _validate_coordinates(self) -> None:
-        """Validate coordinate ranges."""
-        if not (0 <= self.ra_h <= 23):
-            raise ValueError(f"RA hours must be in range [0, 23], got {self.ra_h}")
-        if not (0 <= self.ra_m <= 59):
-            raise ValueError(f"RA minutes must be in range [0, 59], got {self.ra_m}")
-        if not (0 <= self.ra_s <= 59.999):
-            raise ValueError(f"RA seconds must be in range [0, 59.999], got {self.ra_s}")
-        if not (-90 <= self.de_d <= 90):
-            raise ValueError(f"DEC degrees must be in range [-90, 90], got {self.de_d}")
-        if not (0 <= self.de_m <= 59):
-            raise ValueError(f"DEC minutes must be in range [0, 59], got {self.de_m}")
-        if not (0 <= self.de_s <= 59.999):
-            raise ValueError(f"DEC seconds must be in range [0, 59.999], got {self.de_s}")
 
     def _validate_flux_table(self) -> None:
         """Validate flux table entries."""

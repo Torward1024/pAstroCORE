@@ -2,10 +2,10 @@
 import polars as pl
 import numpy as np
 from astropy.time import Time
-from typing import Any, Optional, Dict
+from typing import Annotated, Any, Optional, Dict
 from msb_arch.base.baseentity import BaseEntity
 from pastrocore.base.result_store import CalculatedData
-from msb_arch.utils.validation import check_type, check_non_empty_string
+from msb_arch.utils.validation import Predicate, check_type, check_non_empty_string
 from msb_arch.utils.logging_setup import logger
 from .sources import Sources
 from .telescopes import Telescopes
@@ -16,6 +16,11 @@ import astropy.units as u
 import uuid
 import base64
 import io
+
+#: What an observation may be. Named once, so the annotation and anything that offers
+#: a choice read the same list.
+OBSERVATION_TYPES = ("VLBI", "SINGLE_DISH")
+
 
 class Observation(BaseEntity):
     """Base class representing an astronomical observation with sources, telescopes, frequencies, and scans.
@@ -38,7 +43,11 @@ class Observation(BaseEntity):
     """
     name: str
     code: str
-    observation_type: str
+    # One of two, on the annotation. The check in `__init__` guarded construction and left
+    # `set` and `from_dict` to accept anything -- and `from_dict` is how a saved project brings
+    # a value back.
+    observation_type: Annotated[str, Predicate(lambda value: value in OBSERVATION_TYPES,
+                                               f"one of {sorted(OBSERVATION_TYPES)}")]
     sources: Sources
     telescopes: Telescopes
     frequencies: Frequencies
@@ -57,9 +66,6 @@ class Observation(BaseEntity):
         if name is None:
             name = f"obs_{uuid.uuid4().hex[:32]}"
         check_non_empty_string(name, "Name")
-        if observation_type not in ("VLBI", "SINGLE_DISH"):
-            logger.error("Observation type must be 'VLBI' or 'SINGLE_DISH', got %s", observation_type)
-            raise ValueError(f"Observation type must be 'VLBI' or 'SINGLE_DISH', got {observation_type}")
         if sources is not None:
             check_type(sources, Sources, "Sources")
         if telescopes is not None:
