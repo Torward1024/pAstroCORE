@@ -229,9 +229,9 @@ class TelescopesTab(QWidget):
 
         try:
             response = self.manipulator.load(self.observation.get_telescopes(), path=file_path)
-            telescope = (response["result"]["object"]
-                         if isinstance(response, dict) and "status" in response
-                         else response["object"])
+            telescope = (response["result"]
+                          if isinstance(response, dict) and "status" in response
+                          else response)
             telescope.code = telescope.code
             telescope.name = telescope.name
             self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
@@ -252,9 +252,9 @@ class TelescopesTab(QWidget):
 
         try:
             response = self.manipulator.load(self.observation.get_telescopes(), path=file_path)
-            telescope = (response["result"]["object"]
-                         if isinstance(response, dict) and "status" in response
-                         else response["object"])
+            telescope = (response["result"]
+                          if isinstance(response, dict) and "status" in response
+                          else response)
             telescope.name = telescope_name
             
             try:

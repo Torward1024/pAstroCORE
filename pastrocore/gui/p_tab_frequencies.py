@@ -186,9 +186,9 @@ class FrequenciesTab(QWidget):
 
             response = self.manipulator.load(self.observation.get_frequencies(),
                                              path=file_path, kind=IF)
-            imported_if = (response["result"]["object"]
-                           if isinstance(response, dict) and "status" in response
-                           else response["object"])
+            imported_if = (response["result"]
+                          if isinstance(response, dict) and "status" in response
+                          else response)
             imported_if.name = freq_name
     
             try:
