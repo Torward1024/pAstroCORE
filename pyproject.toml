@@ -52,6 +52,7 @@ dev = [
 # running from a checkout.
 [project.scripts]
 pastrocore = "pastrocore.app:main"
+pastrocore-cli = "pastrocore.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Torward1024/pAstroCORE"

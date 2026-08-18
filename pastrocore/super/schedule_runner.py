@@ -412,8 +412,17 @@ class ScheduleRunner(Super):
                 where = " / ".join(step["path"]) if step.get("path") else named
                 unresolved.append(f"{name}: nothing here at '{where}'")
                 continue
+            # A journal cannot record a callable, so it records what it was -- `<function>`.
+            # Handing that back would have the handler call a string: a run carries one
+            # callable to report progress and one to ask whether to stop, and both come back
+            # like this. Dropping them is right, since neither can be replayed and their
+            # absence means "report to nobody, stop for nobody".
+            attributes = {name: value
+                          for name, value in (step.get("attributes") or {}).items()
+                          if not (isinstance(value, str) and value.startswith("<")
+                                  and value.endswith(">"))}
             entry = {"operation": step.get("operation"), "obj": found,
-                     "attributes": dict(step.get("attributes") or {})}
+                     "attributes": attributes}
             if step.get("method"):
                 entry["method"] = step["method"]
             if previous:
