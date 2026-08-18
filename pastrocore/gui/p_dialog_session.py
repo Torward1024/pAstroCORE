@@ -111,9 +111,22 @@ class SessionDialog(QDialog):
             QMessageBox.critical(self, "Error", "The session could not be replayed.")
             return
 
+        # Checked whole before anything ran. A session is a file, and a file gets edited: one
+        # bad step among good ones runs none of them, and the refusal is the whole list rather
+        # than whatever broke first.
+        if outcome.get("problems"):
+            listed = "\n  ".join(outcome["problems"][:10])
+            QMessageBox.critical(
+                self, "Not replayed",
+                f"This session does not check out, so nothing was run:\n\n  {listed}")
+            return
+
         # Unresolved steps are named rather than counted: a session that half ran is worse than
         # one that refused, and which step could not be placed is the whole diagnosis.
         summary = f"{len(outcome['ran'])} request(s) replayed"
+        if outcome.get("warnings"):
+            noted = "\n  ".join(outcome["warnings"][:5])
+            summary += f"\n\nWorth a look:\n  {noted}"
         if outcome["failed"]:
             summary += f"\n{len(outcome['failed'])} failed"
         if outcome["unresolved"]:

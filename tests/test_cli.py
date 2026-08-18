@@ -145,3 +145,42 @@ def test_the_window_is_still_what_the_bare_command_does():
 
     assert scripts["pastrocore"] == "pastrocore.app:main"
     assert scripts["pastrocore-cli"] == "pastrocore.cli:main"
+
+
+# --- a session is a document somebody edits ------------------------------------------------
+
+def test_it_checks_a_session_without_running_it(saved, tmp_path, capsys):
+    session = tmp_path / "session.json"
+    run("run", saved, "--only", "uv_coverage", "--force", "--session", session, capsys=capsys)
+
+    code, printed = run("check", saved, session, capsys=capsys)
+    assert code == 0
+    assert "ok" in printed.lower() or "no problem" in printed.lower(), printed
+
+
+def test_a_hand_edited_session_is_refused_with_the_reason(saved, tmp_path, capsys):
+    """The question L2 asks. A file people edit will be wrong sometimes, and it must say how
+    rather than run half of it."""
+    session = tmp_path / "edited.json"
+    session.write_text(json.dumps({"steps": [
+        {"operation": "calculate", "object": "OBS_DEFAULT", "method": "no_such_thing",
+         "attributes": {}}]}), encoding="utf-8")
+
+    code, printed = run("check", saved, session, capsys=capsys)
+    assert code != 0
+    assert "no_such_thing" in printed
+
+    code, printed = run("replay", saved, session, capsys=capsys)
+    assert code != 0
+    assert "no_such_thing" in printed
+
+
+def test_an_attribute_nothing_reads_is_reported_as_a_warning(saved, tmp_path, capsys):
+    session = tmp_path / "warned.json"
+    session.write_text(json.dumps({"steps": [
+        {"operation": "compute", "method": "catalogue", "attributes": {"noo": 1}}]}),
+        encoding="utf-8")
+
+    code, printed = run("check", saved, session, capsys=capsys)
+    assert code == 0, "a warning is not a refusal"
+    assert "noo" in printed

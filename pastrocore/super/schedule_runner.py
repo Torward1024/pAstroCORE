@@ -364,6 +364,99 @@ class ScheduleRunner(Super):
             row["where"] = " / ".join(str(segment) for segment in path)
         return rows
 
+    def _read_session(self, attributes: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Return the steps of a session, from a file or from memory.
+
+        Raises:
+            ValueError: If neither was given, or the file is not a session.
+        """
+        steps = attributes.get("steps")
+        path = attributes.get("path")
+        if steps is None and not path:
+            raise ValueError("No 'path' or 'steps' given; there is no session to work on")
+        if steps is None:
+            document = json.loads(Path(path).read_text(encoding="utf-8"))
+            if not isinstance(document, dict) or "steps" not in document:
+                raise ValueError(f"'{path}' is not a session: it has no 'steps'")
+            steps = document["steps"]
+        if not isinstance(steps, list):
+            raise ValueError("A session's 'steps' must be a list")
+        return steps
+
+    def _resolve(self, step: Dict[str, Any]) -> Any:
+        """Return the object a step names, by path first and by name second.
+
+        Notes:
+            - The path, because a name is unique inside a container rather than across a model
+              and `find` does not descend into an observation at all. The name is the fallback
+              for a session recorded before paths existed, and for one written by hand.
+        """
+        found = self._manipulator.locate(step["path"]) if step.get("path") else None
+        named = step.get("object")
+        if found is None and isinstance(named, str):
+            found = self._manipulator.find(named)
+        return found
+
+    def _compute_check(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Read a session and report what is wrong with it, without running anything.
+
+        Args:
+            obj: Ignored; the project is whatever this orchestrator manages.
+            attributes: `path` or `steps`, as for `replay`.
+
+        Returns:
+            Dict[str, Any]: `{"steps": int, "problems": [...], "warnings": [...]}`. A problem
+                stops a replay; a warning does not.
+
+        Notes:
+            - A session is a file, and the moment a file exists somebody edits it. This is what
+              makes that safe: every step is checked before any step runs, because a session
+              that half ran is worse than one that refused.
+            - Everything it checks against is **derived**. Which operations exist, which methods
+              each has and what each reads are asked of the orchestrator, so an operation added
+              tomorrow is validated by this without a line changing.
+            - An attribute no handler reads is a *warning*. `accepts` is a lower bound by
+              construction -- a key read under a name computed at run time is invisible to it --
+              so refusing on it would refuse valid sessions.
+        """
+        steps = self._read_session(attributes)
+        described = self._manipulator.describe_operations()
+        problems: List[str] = []
+        warnings: List[str] = []
+
+        for position, step in enumerate(steps, start=1):
+            where = f"step {position}"
+            if not isinstance(step, dict):
+                problems.append(f"{where}: not a request")
+                continue
+
+            operation = step.get("operation")
+            if operation not in described:
+                problems.append(
+                    f"{where}: no operation called '{operation}' "
+                    f"(there is {', '.join(sorted(described))})")
+                continue
+
+            handlers = described[operation]
+            method = step.get("method")
+            if method and method not in handlers:
+                problems.append(f"{where}: '{operation}' has no '{method}'")
+                continue
+
+            named = step.get("object")
+            if named and self._resolve(step) is None:
+                looked = " / ".join(step["path"]) if step.get("path") else named
+                problems.append(f"{where}: nothing here at '{looked}'")
+
+            if method:
+                accepts = set(handlers[method].get("accepts") or ())
+                unread = [name for name in (step.get("attributes") or {}) if name not in accepts]
+                if unread and accepts:
+                    warnings.append(
+                        f"{where}: '{method}' does not read {', '.join(sorted(unread))}")
+
+        return {"steps": len(steps), "problems": problems, "warnings": warnings}
+
     def _compute_replay(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Run a recorded session against the project in hand.
 
@@ -386,12 +479,16 @@ class ScheduleRunner(Super):
             - Unresolved steps are reported rather than skipped in silence: a session that half
               ran is worse than one that refused.
         """
-        steps = attributes.get("steps")
-        path = attributes.get("path")
-        if steps is None and not path:
-            raise ValueError("No 'path' or 'steps' given; there is no session to replay")
-        if steps is None:
-            steps = json.loads(Path(path).read_text(encoding="utf-8")).get("steps") or []
+        steps = self._read_session(attributes)
+
+        # Checked whole before anything runs. A session is a file, and a file gets edited: one
+        # bad step among good ones must run none of them, because a session that half ran is
+        # worse than one that refused -- and worse than either, it looks like it worked.
+        report = self._compute_check(obj, {"steps": steps})
+        if report["problems"]:
+            logger.warning("Refusing a session with %s problem(s)", len(report["problems"]))
+            return {"ran": [], "failed": [], "unresolved": [],
+                    "problems": report["problems"], "warnings": report["warnings"]}
 
         plan: Dict[str, Dict[str, Any]] = {}
         unresolved: List[str] = []
@@ -400,13 +497,7 @@ class ScheduleRunner(Super):
             if attributes.get("skip_failures", True) and step.get("status") is False:
                 continue
             named = step.get("object")
-            # By **path** first. A name is unique inside a container rather than across a
-            # model, and `find` does not descend into an observation at all -- so a step that
-            # edited a source, a telescope or a scan could not be resolved by name, ever. Every
-            # entry has carried its path since MSB 1.9.0, and 1.9.2 made it resolvable.
-            found = self._manipulator.locate(step["path"]) if step.get("path") else None
-            if found is None and isinstance(named, str):
-                found = self._manipulator.find(named)
+            found = self._resolve(step)
             name = f"{step.get('operation')}_{position}"
             if named and found is None:
                 where = " / ".join(step["path"]) if step.get("path") else named
@@ -432,12 +523,14 @@ class ScheduleRunner(Super):
 
         if not plan:
             logger.warning("Nothing in this session could be replayed here")
-            return {"ran": [], "failed": [], "unresolved": unresolved}
+            return {"ran": [], "failed": [], "unresolved": unresolved,
+                    "problems": [], "warnings": report["warnings"]}
 
         outcome = self._manipulator.pipeline(plan, raise_on_error=False)
         return {"ran": [name for name in outcome if name not in outcome.failed],
                 "failed": list(outcome.failed),
-                "unresolved": unresolved}
+                "unresolved": unresolved,
+                "problems": [], "warnings": report["warnings"]}
 
     def _compute_targets(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
         """Return what could be pointed at in a set of observations.

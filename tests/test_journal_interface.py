@@ -88,20 +88,25 @@ def test_it_replays_against_another_project(session, tmp_path):
         "the replay ran against the recorded objects rather than against this project")
 
 
-def test_a_step_naming_something_this_project_lacks_is_reported(session, tmp_path):
-    """Not skipped in silence: a session that half ran is worse than one that refused."""
+def test_a_step_naming_something_this_project_lacks_is_refused_before_anything_runs(session,
+                                                                                    tmp_path):
+    """Not skipped in silence, and not skipped mid-run either: the session is checked whole
+    first, so a step naming nothing here stops the replay rather than leaving a hole in it."""
     manipulator, project, _ = session
     path = tmp_path / "session.json"
     manipulator.export(obj=project, method="journal", path=str(path))
 
     session_data = json.loads(path.read_text(encoding="utf-8"))
     session_data["steps"][0]["object"] = "obs_that_does_not_exist"
+    session_data["steps"][0].pop("path", None)
     path.write_text(json.dumps(session_data), encoding="utf-8")
 
     empty = ScheduleProject(name="Empty")
     outcome = ask(ScheduleManipulator(empty), "replay", path=str(path))
 
-    assert outcome["unresolved"], "a step naming nothing here has to be said out loud"
+    assert outcome["problems"], "a step naming nothing here has to be said out loud"
+    assert any("obs_that_does_not_exist" in problem for problem in outcome["problems"])
+    assert outcome["ran"] == [], "nothing may run from a session that does not check out"
 
 
 # --- recording is a setting -------------------------------------------------------------------
@@ -308,3 +313,115 @@ def test_a_replayed_step_drops_what_cannot_be_replayed(session, tmp_path):
 
     outcome = ask(ScheduleManipulator(project), "replay", path=str(path))
     assert outcome["failed"] == [], outcome
+
+
+# --- a session is a document somebody will edit -------------------------------------------------
+
+def _session_file(tmp_path, steps):
+    """Write a session by hand, as somebody editing one would."""
+    path = tmp_path / "edited.json"
+    path.write_text(json.dumps({"steps": steps}, indent=2), encoding="utf-8")
+    return path
+
+
+def test_a_session_that_checks_out_says_so(session, tmp_path):
+    manipulator, project, _ = session
+    path = tmp_path / "recorded.json"
+    manipulator.export(obj=project, method="journal", path=str(path))
+
+    report = ask(manipulator, "check", path=str(path))
+    assert report["problems"] == [], report
+    assert report["steps"] > 0
+
+
+def test_an_operation_nobody_has_is_named_rather_than_attempted(session, tmp_path):
+    """The first thing a hand-edited file gets wrong. Which operations exist is asked of the
+    orchestrator, so a new one needs nothing added here."""
+    manipulator, project, observation = session
+    path = _session_file(tmp_path, [{"operation": "calculat", "object": observation.name,
+                                     "method": "time_arrays", "attributes": {}}])
+
+    report = ask(manipulator, "check", path=str(path))
+    assert any("calculat" in problem for problem in report["problems"]), report
+
+
+def test_a_method_that_operation_does_not_have_is_named(session, tmp_path):
+    manipulator, project, observation = session
+    path = _session_file(tmp_path, [{"operation": "calculate", "object": observation.name,
+                                     "method": "time_arrys", "attributes": {}}])
+
+    report = ask(manipulator, "check", path=str(path))
+    assert any("time_arrys" in problem for problem in report["problems"]), report
+
+
+def test_an_object_that_is_not_here_is_named_with_where_it_looked(session, tmp_path):
+    manipulator, project, _ = session
+    path = _session_file(tmp_path, [{"operation": "calculate", "object": "obs_not_here",
+                                     "path": ["nowhere", "obs_not_here"],
+                                     "method": "time_arrays", "attributes": {}}])
+
+    report = ask(manipulator, "check", path=str(path))
+    assert any("obs_not_here" in problem for problem in report["problems"]), report
+
+
+def test_an_attribute_the_handler_never_reads_is_a_warning_not_a_refusal(session, tmp_path):
+    """`accepts` is what a handler reads, derived -- and MSB documents it as a **lower** bound:
+    a key read under a name computed at run time is invisible to it. So a typo like `time_stp`
+    is worth saying and not worth refusing over."""
+    manipulator, project, observation = session
+    path = _session_file(tmp_path, [{"operation": "calculate", "object": observation.name,
+                                     "method": "time_arrays",
+                                     "attributes": {"time_stp": 600.0}}])
+
+    report = ask(manipulator, "check", path=str(path))
+    assert any("time_stp" in note for note in report["warnings"]), report
+    assert report["problems"] == [], "an unread attribute is not a reason to refuse"
+
+
+def test_a_session_that_does_not_check_out_is_refused_rather_than_half_run(session, tmp_path):
+    """The whole question L2 asks. A file with one bad step and one good one must run neither."""
+    manipulator, project, observation = session
+    observation.clear_calculated_data()
+    path = _session_file(tmp_path, [
+        {"operation": "calculate", "object": observation.name, "method": "time_arrays",
+         "attributes": {"time_step": 600.0, "store_key": "times"}},
+        {"operation": "calculate", "object": observation.name, "method": "not_a_calculation",
+         "attributes": {}}])
+
+    outcome = ask(manipulator, "replay", path=str(path))
+
+    assert outcome["ran"] == [], outcome
+    assert outcome["problems"], "it ran nothing and did not say why"
+    assert "times" not in observation.calculated_data, (
+        "the good step ran, which is exactly what a refusal is meant to prevent")
+
+
+def test_the_panel_refuses_a_session_that_does_not_check_out(qt_application, session, tmp_path,
+                                                             monkeypatch):
+    """The window says the same thing the command line says, because both ask the same
+    operation: nothing ran, and here is why."""
+    from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+    from pastrocore.gui.p_dialog_session import SessionDialog
+
+    manipulator, project, observation = session
+    path = tmp_path / "edited.json"
+    path.write_text(json.dumps({"steps": [
+        {"operation": "calculate", "object": observation.name, "method": "no_such_thing",
+         "attributes": {}}]}), encoding="utf-8")
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileName",
+                        staticmethod(lambda *a, **k: (str(path), "")))
+    said = {}
+    for name in ("information", "warning", "critical"):
+        monkeypatch.setattr(QMessageBox, name,
+                            staticmethod(lambda parent, title, text, *rest, _n=name:
+                                         said.setdefault(_n, text)))
+
+    dialog = SessionDialog(manipulator)
+    try:
+        dialog.replay_session()
+        assert "no_such_thing" in (said.get("critical") or ""), said
+        assert "information" not in said, "a refused session was reported as a success"
+    finally:
+        dialog.close()
