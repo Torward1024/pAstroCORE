@@ -353,7 +353,10 @@ class Telescope(BaseEntity):
     
     def to_dict(self) -> dict:
         """Convert the Telescope object to a dictionary for serialization."""
-        data = super().to_dict()
+        # A copy: on an object that caches, `to_dict` returns the cache itself, and
+        # writing to it corrupts what every later call reports -- which MSB 1.9.0
+        # turned from silent into a refusal.
+        data = dict(super().to_dict())
         data.update({
             "mount_type": self.mount_type.value,
             "elevation_range": list(self.elevation_range),

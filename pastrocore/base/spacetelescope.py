@@ -206,7 +206,10 @@ class SpaceTelescope(Telescope):
     def to_dict(self) -> dict:
         """Convert the SpaceTelescope object to a dictionary for serialization."""
         try:
-            data = super().to_dict()
+            # A copy: on an object that caches, `to_dict` returns the cache itself, and
+            # writing to it corrupts what every later call reports -- which MSB 1.9.0
+            # turned from silent into a refusal.
+            data = dict(super().to_dict())
             # A space telescope has no station geometry and no mount, so the constructor fixes
             # these rather than accepting them. Writing them out would produce a file whose
             # every key is a constructor argument except these -- which is exactly what

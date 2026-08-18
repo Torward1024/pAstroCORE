@@ -546,3 +546,26 @@ def test_no_response_is_unwrapped_by_hand():
         "a response is unwrapped by hand:\n  "
         + "\n  ".join(f"{name}: {lines}" for name, lines in offenders.items())
         + "\nUse `response.value` with `raise_on_error=False`, or nothing at all without it.")
+
+
+def test_a_to_dict_override_copies_before_it_writes():
+    """`to_dict` on an object that caches returns the cache itself, and MSB 1.9.0 made writing
+    to it raise rather than corrupt what every later call reports.
+
+    Three overrides here wrote into what `super().to_dict()` handed back. Nothing constructs
+    with `use_cache=True` today, so it was a rake with a label on it -- turning caching on for a
+    telescope would have raised `SerializationError` on the second serialisation.
+    """
+    from msb_arch import errors
+    from pastrocore.base.scans import Scan
+    from pastrocore.base.spacetelescope import SpaceTelescope
+    from pastrocore.base.telescope import Telescope
+
+    from astropy.time import Time
+
+    for entity in (Telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0, diameter=100.0),
+                   SpaceTelescope(code="RADIO", name="RadioAstron"),
+                   Scan(name="s", start=Time("2026-01-01T00:00:00"), duration=60.0)):
+        entity._use_cache = True
+        entity.to_dict()
+        entity.to_dict()        # the second call is the one that meets the frozen mapping
