@@ -155,6 +155,30 @@ def export(arguments) -> int:
     return 0 if written else 1
 
 
+def check(arguments) -> int:
+    """Read a session and say what is wrong with it, without running anything."""
+    project = _open(arguments.project)
+    manipulator = ScheduleManipulator(project, journal_limit=None)
+
+    report = manipulator.compute(obj=project, method="check", path=arguments.session,
+                                 raise_on_error=False).value or {}
+    for problem in report.get("problems", []):
+        print(f"  problem  {problem}")
+    for note in report.get("warnings", []):
+        print(f"  warning  {note}")
+
+    steps = report.get("steps", 0)
+    problems = report.get("problems") or []
+    warnings = report.get("warnings") or []
+    if problems:
+        print("")
+        print(f"{len(problems)} problem(s) in {steps} step(s); this session will not be replayed")
+        return 1
+    print("")
+    print(f"{steps} step(s), no problems"
+          + (f", {len(warnings)} warning(s)" if warnings else ""))
+    return 0
+
 def replay(arguments) -> int:
     """Run a recorded session again, against this project."""
     project = _open(arguments.project)
@@ -162,6 +186,16 @@ def replay(arguments) -> int:
 
     outcome = manipulator.compute(obj=project, method="replay", path=arguments.session,
                                   raise_on_error=False).value or {}
+    # Checked whole before anything ran, so a refusal is the whole list rather than the first
+    # thing that broke halfway through.
+    if outcome.get("problems"):
+        for problem in outcome["problems"]:
+            print(f"  problem  {problem}")
+        print("")
+        print(f"refused: {len(outcome['problems'])} problem(s), nothing was run")
+        return 1
+    for note in outcome.get("warnings", []):
+        print(f"  warning  {note}")
     print(f"{len(outcome.get('ran', []))} request(s) replayed")
     for name in outcome.get("failed", []):
         print(f"  FAILED {name}")
@@ -211,6 +245,12 @@ def build_parser() -> argparse.ArgumentParser:
     written.add_argument("--only", nargs="+", metavar="KEY")
     written.add_argument("--pictures", action="store_true", help="draw them as well")
     written.set_defaults(run=export)
+
+    checked = commands.add_parser(
+        "check", help="say what is wrong with a session, without running it")
+    checked.add_argument("project")
+    checked.add_argument("session")
+    checked.set_defaults(run=check)
 
     again = commands.add_parser("replay", help="run a recorded session against this project")
     again.add_argument("project")

@@ -21,7 +21,7 @@ Nothing here is scheduled. In rough order of what would help most:
 
 | | Item | Why it is next |
 | --- | --- | --- |
-| **L2** | Editing requests, not only replaying them | The command line makes a session a file people will want to hand-edit. That is the scripting environment, and what it needs deciding is what a half-edited plan may do |
+| ~~**L2**~~ | ~~Editing requests~~ | **Done, in the half that matters.** A session is checked whole before any of it runs, so an edited file with one bad step runs none of them -- `pastrocore-cli check` says what is wrong, and both the command line and the panel refuse with the list rather than the first thing that broke. Everything it checks against is derived: which operations exist, which methods each has, and what each reads. An attribute no handler reads is a **warning**, since `accepts` is a lower bound by construction. What is left is an editor inside the window, and a text editor is a better one |
 | ~~**L1**~~ | ~~A command line~~ | **Done.** `pastrocore-cli` with `info`, `calculations`, `run`, `export` and `replay` -- 230 lines, every command one request. It imports neither `pastrocore.gui` nor Qt, which a test asserts and a second one measures by running it in a process and looking at `sys.modules`. It also earned its keep immediately: replaying a session that contained a *run* called a string, because a journal records a callable as `<function>` and the handler called it back |
 | **N1--N4** | Analysis | A calculation finishes and that is the end of it. Visibility is a boolean per station per moment, and nobody can ask when, for how long, or where the gaps are |
 | **R6** | A project as one file | How a project reaches a colleague or a bug report |
