@@ -346,7 +346,10 @@ class Scan(BaseEntity):
 
     def to_dict(self) -> dict:
         """Convert the Scan object to a dictionary, serializing Time as ISO string."""
-        data = super().to_dict()
+        # A copy: on an object that caches, `to_dict` returns the cache itself, and
+        # writing to it corrupts what every later call reports -- which MSB 1.9.0
+        # turned from silent into a refusal.
+        data = dict(super().to_dict())
         data["start"] = self.start.isot
         data["source"] = self.source.name if self.source else None
         data["telescopes"] = [t.name for t in self.telescopes]
