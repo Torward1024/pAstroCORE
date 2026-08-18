@@ -2,12 +2,12 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
+[![Version](https://img.shields.io/badge/version-1.1.0-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
 [![Built on MSB](https://img.shields.io/badge/built%20on-MSB%201.9.2-8a2be2.svg)](https://github.com/Torward1024/MSB)
 
 A versatile tool for scheduling radio-astronomical observations.
 
-Version 1.0.0. The parts written under time pressure have been put in order, one measured
+Version 1.1.0. The parts written under time pressure have been put in order, one measured
 stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -19,19 +19,21 @@ is data rather than a call.
 pip install .
 ```
 
-That gives a `pastrocore` command, which starts the window from any directory.
+That gives two commands from any directory: `pastrocore` opens the window, `pastrocore-cli`
+does the same work in a terminal.
 
-Requires `msb_arch` 1.9.2 or later. Ten releases of it came out of this project -- mapping
+Requires `msb_arch` 1.9.2 or later. Thirteen releases of it came out of this project -- mapping
 keys that could not survive JSON, built-in operations that could not reach a member of a
 collection, a schema version that worked everywhere except the class saved to a file, an `int`
 that was not accepted where a `float` was declared, a manipulator that could not say what it
 offers, an operation whose cost was paid on every start whether or not it was used, a
 handler that could not say what arguments it takes, a journal that kept alive everything it
-recorded, and the six lines every application writes to plan an operation.
+recorded, the six lines every application writes to plan an operation, and a pair documented as
+inverses that were not -- which is a thing you only find by trying to use them.
 
 **Documentation**: [a first project](docs/guide.md) · [the calculations](docs/calculations.md) ·
-[installing and running](docs/installing.md) · [the roadmap](docs/ROADMAP.md). Every example on
-those pages runs as part of the test suite.
+[from a terminal](docs/command-line.md) · [installing and running](docs/installing.md) ·
+[the roadmap](docs/ROADMAP.md). Every example on those pages runs as part of the test suite.
 
 ## What it does
 
@@ -55,6 +57,17 @@ From a checkout, without installing:
 ```bash
 python run.py
 ```
+
+## Or without a window
+
+```bash
+pastrocore-cli info survey.pastro
+pastrocore-cli run survey.pastro --only uv_coverage
+```
+
+The same work from a terminal, and the same requests: `pastrocore-cli` is about two hundred
+lines and imports neither the interface nor Qt, which two tests hold. What it can do is in
+[from a terminal](docs/command-line.md).
 
 ## Projects on disk
 

@@ -533,7 +533,9 @@ def test_no_response_is_unwrapped_by_hand():
     dead as well -- the call did not ask for the whole response, so the conditional never fired.
     """
     offenders = {}
-    for path in source_files() + sorted((ROOT / "tests").glob("*.py")):
+    everywhere = (source_files() + sorted((ROOT / "tests").glob("*.py"))
+                  + sorted((ROOT / "docs").glob("*.md")) + [ROOT / "README.md"])
+    for path in everywhere:
         if path.name == "test_conventions.py":
             continue        # this file quotes the line it forbids, in the docstring above
         found = [number for number, line in

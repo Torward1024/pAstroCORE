@@ -8,6 +8,74 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.1.0] - 2026-08-18
+
+The release where the backend gets a second caller, which is the claim 1.0 was built on and
+could not yet prove.
+
+### Added
+
+- **`pastrocore-cli`** -- the same work without a window: `info`, `calculations`, `run`,
+  `export`, `check` and `replay`. About two hundred lines, every command one request, and no
+  knowledge about calculations at all: what can be run, what each needs, what order they go in
+  and what a run did are all asked of the orchestrator.
+
+  Two tests are the point rather than the commands. One refuses any mention of `pastrocore.gui`
+  or Qt in its source; the other runs a command in a fresh process and looks at `sys.modules`
+  afterwards, because an import that sneaks in through a chain would pass the first and fail the
+  second. `pastrocore` still opens the window.
+
+- **A session is checked before it is replayed.** The command line turned a session into a file,
+  and a file gets edited. `compute(method="check")` reports every problem without running a
+  step -- an operation nobody has, a method that operation lacks, an object this project does not
+  hold and where it was looked for, an attribute the handler never reads.
+
+  A **problem** stops the replay: one bad step among good ones runs none of them. An unread
+  attribute is a **warning**, because `accepts` is a lower bound by construction and refusing on
+  it would refuse valid sessions. `replay` checks first, the command line has `check`, and
+  **Tools → Session** says the same, since all three ask the same operation.
+
+- **A session row says which object, not just its name.** Two observations may hold a source
+  called `1228+126`; the panel showed the bare name and the two rows were indistinguishable.
+  `where` is the recorded path made readable, and it is a column now.
+
+### Fixed
+
+- **A replayed step reaches the object it ran on.** Replay resolved by name, and `find` does not
+  descend into an observation at all -- so a step that edited a source, a telescope or a scan
+  came back unresolved every time, and only calculations could be replayed. It resolves by
+  **path** now. That works against the same project, reopened; it cannot work against a project
+  built separately, because nothing there shares a name.
+
+- **Replaying a session that contained a run called a string.** A run carries two callables --
+  one to report progress, one to ask whether to stop -- a journal cannot record a callable so it
+  records `<function>`, and replay handed that back for the handler to call. Only a command line
+  writes a session containing its own run, so nothing had met it.
+
+- **Importing a frequency from a file raised** `NotFoundError: Attribute 'object' not found in
+  IF`. It asked `load` for a shape that stopped existing when that contract became MSB's own,
+  and no test covered the path.
+
+- **Three `to_dict` overrides wrote into the mapping they were handed.** On an object that
+  caches, that mapping *is* the cache, and MSB 1.9.0 turned writing to it into a refusal.
+  Nothing constructs with caching on today, so this was a rake with a label on it.
+
+### Changed
+
+- **Nothing unwraps a response by hand.** MSB 1.8.0 gave a request's answer one type, and 53
+  places here carried the line it replaces. That line is *wrong* for a request naming one
+  method, and 26 of the 53 were dead as well -- the call never asked for the whole response. A
+  ratchet forbids its return, in the source, the tests and the documentation.
+
+- Requires `msb_arch` 1.9.2, which came out of this: `address` and `locate` were documented as
+  inverses and were not, for two independent reasons, both found by trying to use them here.
+
+### Upgrading from 1.0.0
+
+Nothing to do. `pastrocore` opens the window as before; `pastrocore-cli` is new. A session
+recorded by 1.0.0 still replays -- it has no paths, so it falls back to names, which is what it
+did before.
+
 ## [1.0.0] - 2026-08-13
 
 The release that says the shape is settled: **a project saved by 1.0 opens in 1.0**, the
