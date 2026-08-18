@@ -238,3 +238,52 @@ def test_a_recorded_edit_replays_after_the_project_is_reopened(tmp_path):
     assert outcome["failed"] == [], outcome
     assert its_source.spectral_index == -0.7, (
         "the edit was replayed somewhere else, or nowhere")
+
+
+def test_the_session_says_which_object_not_just_its_name():
+    """Two observations may hold a source of the same name, and the panel showed the bare name
+    -- so two rows about two different sources were indistinguishable.
+
+    Every entry carries its path, so the row can say where the object is. Read here rather than
+    formatted in the window: a command line printing a session wants the same column.
+    """
+    project = ScheduleProject(name="Two")
+    project.create_item(item_code="OBS_A")
+    project.create_item(item_code="OBS_B")
+    for observation in project.observations():
+        observation.get_sources().create_source(
+            name="1228+126", ra_h=12.0, ra_m=30.0, ra_s=49.4,
+            de_d=12.0, de_m=23.0, de_s=28.0)
+
+    manipulator = ScheduleManipulator(project)
+    first, second = project.observations()
+    manipulator.configure(second.get_sources().get_items()[0],
+                          set={"params": {"spectral_index": -0.7}})
+
+    rows = ask(manipulator, "history")
+    edit = [row for row in rows if row["operation"] == "configure"][-1]
+
+    assert edit["object"] == "1228+126"
+    assert edit["where"].endswith("1228+126"), edit["where"]
+    assert second.name in edit["where"], (
+        f"the row cannot say which of the two sources it was: {edit['where']}")
+    assert first.name not in edit["where"]
+
+
+def test_the_panel_shows_where_as_a_column(qt_application, session):
+    """What the row gained has to reach the reader, or it is a field nobody sees."""
+    from pastrocore.gui.p_dialog_session import SessionDialog
+
+    manipulator, _, _ = session
+    dialog = SessionDialog(manipulator)
+    try:
+        headers = [dialog.ui.tableRequests.horizontalHeaderItem(column).text()
+                   for column in range(dialog.ui.tableRequests.columnCount())]
+        assert "Where" in headers
+
+        column = headers.index("Where")
+        shown = [dialog.ui.tableRequests.item(row, column).text()
+                 for row in range(dialog.ui.tableRequests.rowCount())]
+        assert any(text for text in shown), "the column is there and empty"
+    finally:
+        dialog.close()

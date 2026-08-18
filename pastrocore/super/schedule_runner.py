@@ -354,7 +354,15 @@ class ScheduleRunner(Super):
               and, more to the point, so recording a session does not keep alive everything it
               touched.
         """
-        return self._manipulator.history(attributes.get("about"))
+        rows = self._manipulator.history(attributes.get("about"))
+        # `where` beside `object`: a name is unique inside a container rather than across a
+        # model, so two observations holding a source called `1228+126` gave two rows nothing
+        # could tell apart. The path says which. Read here rather than formatted in a window --
+        # a command line printing a session wants the same column.
+        for row in rows:
+            path = row.get("path") or ([row["object"]] if row.get("object") else [])
+            row["where"] = " / ".join(str(segment) for segment in path)
+        return rows
 
     def _compute_replay(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Run a recorded session against the project in hand.
