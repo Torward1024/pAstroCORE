@@ -198,3 +198,43 @@ def test_the_panel_replays_a_saved_session(qt_application, session, tmp_path, mo
         assert "replayed" in (said.get("information") or said.get("warning") or "")
     finally:
         dialog.close()
+
+
+def test_a_recorded_edit_replays_after_the_project_is_reopened(tmp_path):
+    """A session that *edited* something could not be replayed at all.
+
+    Replay resolved each step by name, and `find` never descends into an observation -- so a
+    source, a telescope or a scan came back as unresolved every time. Every journal entry has
+    carried its **path** since MSB 1.9.0, and 1.9.2 made that path resolvable; this uses it.
+
+    Onto the *same* project, reopened -- which is the case that exists. The parts of this model
+    are named with UUIDs, and those are written into the project file, so a path resolves after
+    a restart. It cannot resolve onto a project built separately, because nothing there shares a
+    name: applying a session to *other* objects would mean mapping by what a person reads -- an
+    observation code, a source name -- and that is a decision nobody has taken yet.
+    """
+    project = ScheduleProject(name="Rec")
+    project.create_item(item_code="OBS_A")
+    observation = project.observations()[0]
+    observation.get_sources().create_source(
+        name="1228+126", ra_h=12.0, ra_m=30.0, ra_s=49.4, de_d=12.0, de_m=23.0, de_s=28.0)
+
+    manipulator = ScheduleManipulator(project)
+    manipulator.configure(observation.get_sources().get_items()[0],
+                          set={"params": {"spectral_index": -0.7}})
+
+    session = tmp_path / "edit.json"
+    manipulator.export(obj=project, method="journal", path=str(session))
+    manipulator.save(obj=project, path=str(tmp_path / "rec.pastro"))
+
+    reopened = ScheduleProject.open(str(tmp_path / "rec.pastro"))
+    its_source = reopened.observations()[0].get_sources().get_items()[0]
+    its_source.set({"spectral_index": None})
+    assert its_source.spectral_index is None
+
+    outcome = ask(ScheduleManipulator(reopened), "replay", path=str(session))
+
+    assert outcome["unresolved"] == [], outcome
+    assert outcome["failed"] == [], outcome
+    assert its_source.spectral_index == -0.7, (
+        "the edit was replayed somewhere else, or nowhere")

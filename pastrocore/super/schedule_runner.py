@@ -392,10 +392,17 @@ class ScheduleRunner(Super):
             if attributes.get("skip_failures", True) and step.get("status") is False:
                 continue
             named = step.get("object")
-            found = self._manipulator.find(named) if isinstance(named, str) else None
+            # By **path** first. A name is unique inside a container rather than across a
+            # model, and `find` does not descend into an observation at all -- so a step that
+            # edited a source, a telescope or a scan could not be resolved by name, ever. Every
+            # entry has carried its path since MSB 1.9.0, and 1.9.2 made it resolvable.
+            found = self._manipulator.locate(step["path"]) if step.get("path") else None
+            if found is None and isinstance(named, str):
+                found = self._manipulator.find(named)
             name = f"{step.get('operation')}_{position}"
             if named and found is None:
-                unresolved.append(f"{name}: nothing here is called '{named}'")
+                where = " / ".join(step["path"]) if step.get("path") else named
+                unresolved.append(f"{name}: nothing here at '{where}'")
                 continue
             entry = {"operation": step.get("operation"), "obj": found,
                      "attributes": dict(step.get("attributes") or {})}
