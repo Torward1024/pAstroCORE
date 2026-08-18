@@ -92,7 +92,7 @@ so a new one appears here the moment somebody writes it.
 
 ```python
 response = manipulator.compute(obj=project, method="catalogue")
-catalogue = response["result"] if isinstance(response, dict) and "status" in response else response
+catalogue = response
 
 offered = {entry["key"] for entry in catalogue if entry["offer"]}
 assert "uv_coverage" in offered and "az_el" in offered
@@ -239,8 +239,25 @@ written = manipulator.export(obj=project, method="journal", path=str(TMP / "sess
 assert written["steps"] == len(history)
 ```
 
+It is plain data — no live objects — so a session can be written to a file and replayed later,
+against this project reopened. A step names its object by **path**, so the replay reaches the
+object it ran on rather than the first thing with a matching name.
+
+And because a file gets edited, a session is checked whole before any of it runs:
+
+```python
+report = manipulator.compute(obj=project, method="check",
+                             steps=[{"operation": "calculate", "object": observation.name,
+                                     "method": "no_such_calculation", "attributes": {}}])
+assert report["problems"], "a session that does not check out has to say so"
+assert "no_such_calculation" in report["problems"][0]
+```
+
+One bad step among good ones runs none of them.
+
 ## Where to go next
 
+- [From a terminal](command-line.md) — the same work without a window.
 - [The calculations](calculations.md) — what each one produces, and what it needs.
 - [Installing and running](installing.md).
 - [The roadmap](ROADMAP.md) — what is done, what is left, and what was decided against.

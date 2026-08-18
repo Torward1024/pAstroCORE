@@ -79,7 +79,7 @@ from the columns, since a result recording a `target_code` is about something be
 
 ```python
 response = manipulator.compute(obj=None, method="catalogue")
-catalogue = response["result"] if isinstance(response, dict) and "status" in response else response
+catalogue = response
 
 needing_a_target = {entry["key"] for entry in catalogue if entry["needs_target"]}
 assert needing_a_target == {"telescope_az_el", "telescope_visibility"}
@@ -112,7 +112,7 @@ import re
 documented = set(re.findall(r"^\| `([a-z_]+)` \|", DOCUMENT, re.M))
 
 response = manipulator.compute(obj=None, method="catalogue")
-catalogue = response["result"] if isinstance(response, dict) and "status" in response else response
+catalogue = response
 existing = {entry["key"] for entry in catalogue}
 
 assert documented == existing, (

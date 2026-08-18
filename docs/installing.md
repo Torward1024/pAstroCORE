@@ -8,8 +8,14 @@ Python 3.12 or later.
 pip install .
 ```
 
-That gives a `pastrocore` command which starts the window from any directory. From a checkout,
-without installing:
+That gives two commands, from any directory:
+
+| | |
+| --- | --- |
+| `pastrocore` | The window |
+| `pastrocore-cli` | The same work from a terminal — see [from a terminal](command-line.md) |
+
+From a checkout, without installing:
 
 ```bash
 python run.py
