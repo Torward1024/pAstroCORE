@@ -29,7 +29,7 @@ class SessionDialog(QDialog):
           every result it had recorded.
     """
 
-    COLUMNS = ["Operation", "Object", "Method", "Seconds", "Outcome"]
+    COLUMNS = ["Operation", "Object", "Where", "Method", "Seconds", "Outcome"]
 
     def __init__(self, manipulator, parent=None):
         super().__init__(parent)
@@ -66,20 +66,21 @@ class SessionDialog(QDialog):
         for index, row in enumerate(rows):
             worked = bool(row.get("status"))
             cells = [row.get("operation") or "", row.get("object") or "",
-                     row.get("method") or "", f"{row.get('seconds') or 0.0:.3f}",
+                     row.get("where") or "", row.get("method") or "",
+                     f"{row.get('seconds') or 0.0:.3f}",
                      "ok" if worked else (row.get("error") or "failed")]
             for column, value in enumerate(cells):
                 item = QTableWidgetItem(str(value))
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-                if column == 3:
-                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 if column == 4:
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                if column == 5:
                     item.setForeground(QBrush(QColor(COLOURS[worked])))
                 self.ui.tableRequests.setItem(index, column, item)
 
         header = self.ui.tableRequests.horizontalHeader()
-        header.setSectionResizeMode(4, QHeaderView.Stretch)
-        for column in (0, 1, 2, 3):
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        for column in (0, 1, 3, 4, 5):
             header.setSectionResizeMode(column, QHeaderView.ResizeToContents)
         logger.debug("Session shown with %s request(s)", len(rows))
 
