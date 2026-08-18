@@ -73,7 +73,9 @@ def test_a_session_can_be_replayed(manipulator, observation):
     observation.activate()
     assert observation.isactive is True
 
-    journal.replay(manipulator)
+    # Through the orchestrator: replaying belongs on the thing that runs requests, and
+    # `RequestJournal.replay` goes in MSB 2.0.
+    manipulator.replay(journal)
     assert observation.isactive is False, "the session ended where it ended"
 
 

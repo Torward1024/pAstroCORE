@@ -57,8 +57,7 @@ class UVVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="distinct",
                 key="uv_coverage", columns=["source_name", "baseline"])
-            values = (response["result"] if isinstance(response, dict) and "status" in response
-                      else response) or {}
+            values = response or {}
             sources = values.get("source_name", [])
             baselines = values.get("baseline", [])
             if not sources:
@@ -274,8 +273,7 @@ class UVVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="scan_times",
                 key="uv_coverage", source_name=source_name)
-            scan_times = (response["result"] if isinstance(response, dict) and "status" in response
-                          else response) or []
+            scan_times = response or []
             if not scan_times:
                 logger.debug("No scans for source '%s' in UV coverage", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))

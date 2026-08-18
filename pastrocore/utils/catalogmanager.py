@@ -248,8 +248,8 @@ class CatalogManager:
         Notes:
             - Resets source_catalog and telescope_catalog to empty collections.
         """
-        self.source_catalog.clear()
-        self.telescope_catalog.clear()
+        self.source_catalog.remove_all()
+        self.telescope_catalog.remove_all()
 
     def __repr__(self) -> str:
         """Return a string representation of the CatalogManager.

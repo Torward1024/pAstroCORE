@@ -101,11 +101,7 @@ def recompute(manipulator, observation, key, metadata):
         attributes["time_step"] = metadata["time_step"]
 
     response = manipulator.calculate(observation, raise_on_error=False, **attributes)
-    if isinstance(response, dict) and "status" in response:
-        if response["status"] is False:
-            return None
-        return response["result"]
-    return response
+    return response.value if response.ok else None
 
 
 # The saved project stores results under these keys. `times` is what the calculator calls

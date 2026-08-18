@@ -52,9 +52,7 @@ def compute(manipulator, observation, method, **extra):
     response = manipulator.calculate(observation, method=method, target_telescope="RADIO",
                                      time_step=300.0, recalculate=True, raise_on_error=False,
                                      **extra)
-    if isinstance(response, dict) and "status" in response:
-        return response["result"] if response["status"] else None
-    return response
+    return response.value if response.ok else None
 
 
 def test_a_station_can_be_pointed_at_a_spacecraft(observation_with_a_spacecraft):
@@ -193,7 +191,7 @@ def test_asking_without_a_target_is_refused_rather_than_guessed(observation_with
     _, observation, manipulator = observation_with_a_spacecraft
     response = manipulator.calculate(observation, method="telescope_az_el", time_step=300.0,
                                      recalculate=True, raise_on_error=False)
-    frame = response["result"] if isinstance(response, dict) and "status" in response else response
+    frame = response.value
     assert frame is None or frame.is_empty()
 
 
@@ -202,7 +200,7 @@ def test_a_target_that_is_not_there_is_refused(observation_with_a_spacecraft):
     response = manipulator.calculate(observation, method="telescope_az_el",
                                      target_telescope="NOT_THERE", time_step=300.0,
                                      recalculate=True, raise_on_error=False)
-    frame = response["result"] if isinstance(response, dict) and "status" in response else response
+    frame = response.value
     assert frame is None or frame.is_empty()
 
 
@@ -215,7 +213,7 @@ def test_an_observation_without_a_spacecraft_pays_nothing():
     response = manipulator.calculate(observation, method="telescope_az_el",
                                      target_telescope="RADIO", time_step=300.0,
                                      recalculate=True, raise_on_error=False)
-    frame = response["result"] if isinstance(response, dict) and "status" in response else response
+    frame = response.value
     assert frame is None or frame.is_empty()
 
     # The shared machinery records that the question was asked and had no answer, which is
@@ -288,7 +286,7 @@ def test_the_calculations_are_offered_in_the_interface(observation_with_a_spacec
     project, observation, manipulator = observation_with_a_spacecraft
 
     response = manipulator.compute(obj=project, method="catalogue", raise_on_error=False)
-    catalogue = response["result"] if isinstance(response, dict) and "status" in response else response
+    catalogue = response.value
 
     offered = {entry["key"] for entry in catalogue if entry["offer"]}
     assert "telescope_az_el" in offered
@@ -304,7 +302,7 @@ def test_a_step_nobody_asks_for_is_not_offered(observation_with_a_spacecraft):
     project, _, manipulator = observation_with_a_spacecraft
 
     response = manipulator.compute(obj=project, method="catalogue", raise_on_error=False)
-    catalogue = response["result"] if isinstance(response, dict) and "status" in response else response
+    catalogue = response.value
 
     steps = {entry["key"] for entry in catalogue if not entry["offer"]}
     assert steps == {"time_arrays", "telescope_positions", "interpolated_orbits",

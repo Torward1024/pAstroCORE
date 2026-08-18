@@ -68,7 +68,7 @@ class ScheduleRunner(Super):
         """
         response = self._manipulator.export(obj=observation, method="available",
                                             raise_on_error=False)
-        result = response["result"] if isinstance(response, dict) and "status" in response else response
+        result = response.value
         return result or []
 
     #: What this model calls its parts, keyed by the accessor that reaches each. MSB reports

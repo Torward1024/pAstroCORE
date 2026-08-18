@@ -358,3 +358,42 @@ def test_the_explorer_is_refreshed_after_a_run(qt_application, monkeypatch):
         assert refreshed, "the explorer still shows what the run has just changed"
     finally:
         window.close()
+
+
+def test_importing_a_frequency_from_a_file_works(qt_application, project, tmp_path):
+    """`load` returns the object it read; this path still asked it for `["object"]`, a shape
+    that stopped existing when the contract became MSB's own.
+
+    No test covered the frequency tab's import, so it raised `NotFoundError: Attribute 'object'
+    not found in IF` in the one place a user would meet it. Found by the ratchet that forbids
+    unwrapping a response by hand.
+    """
+    from pastrocore.base.frequencies import IF
+    from pastrocore.gui.p_tab_frequencies import FrequenciesTab
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    manipulator = ScheduleManipulator(project)
+    observation = project.observations()[0]
+    path = tmp_path / "if.pastrod"
+    # A band that does not overlap what the observation already has: importing a copy of an
+    # existing one is refused, and rightly -- two IFs covering the same range is a mistake.
+    manipulator.save(obj=IF(name="IF_IMPORTED", frequency=43000.0, bandwidth=64.0),
+                     path=str(path))
+
+    before = len(observation.get_frequencies().get_items())
+    tab = FrequenciesTab(observation, manipulator)
+    try:
+        from PySide6.QtWidgets import QFileDialog
+
+        original = QFileDialog.getOpenFileName
+        QFileDialog.getOpenFileName = staticmethod(lambda *a, **k: (str(path), ""))
+        try:
+            tab.import_new_if()
+        finally:
+            QFileDialog.getOpenFileName = original
+
+        after = observation.get_frequencies().get_items()
+        assert len(after) == before + 1, "the imported frequency did not arrive"
+        assert all(isinstance(item, IF) for item in after)
+    finally:
+        tab.close()

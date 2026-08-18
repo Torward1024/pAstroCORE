@@ -27,7 +27,7 @@ classifiers = [
 # interface is stable. `requirements.txt` installs this file, so there is one list rather than
 # two that drift.
 dependencies = [
-    "msb_arch>=1.7.0",
+    "msb_arch>=1.9.1",
     "astropy==7.0.1",
     "astropy-iers-data>=0.2025.3.10.0.29.26",
     "matplotlib==3.10.0",

@@ -45,8 +45,7 @@ class SessionDialog(QDialog):
         """Send one request and hand back what it produced."""
         response = self.manipulator.compute(obj=self.manipulator.get_managing_object(),
                                             method=method, raise_on_error=False, **attributes)
-        return (response["result"] if isinstance(response, dict) and "status" in response
-                else response)
+        return response.value
 
     def _fill(self):
         """Put the session in the table."""
@@ -92,8 +91,7 @@ class SessionDialog(QDialog):
             return
         response = self.manipulator.export(obj=self.manipulator.get_managing_object(),
                                            method="journal", path=path, raise_on_error=False)
-        result = (response["result"] if isinstance(response, dict) and "status" in response
-                  else response)
+        result = response.value
         if not result:
             QMessageBox.critical(self, "Error", "The session could not be written.")
             return

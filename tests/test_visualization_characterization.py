@@ -167,11 +167,8 @@ def render(manipulator, observation, plot_type):
     response = manipulator.visualize(obj=observation, plot_type=plot_type,
                                      return_figure=True, show=False, raise_on_error=False,
                                      **filters_for(observation))
-    if isinstance(response, dict) and "status" in response:
-        response = response.get("result") if response["status"] else None
-    if not response:
-        return None
-    return response.get("figure")
+    drawn = response.value if response.ok else None
+    return drawn.get("figure") if drawn else None
 
 
 @pytest.fixture(scope="module")

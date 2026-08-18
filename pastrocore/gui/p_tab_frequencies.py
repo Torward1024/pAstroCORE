@@ -153,7 +153,10 @@ class FrequenciesTab(QWidget):
         try:
             response = self.manipulator.load(self.observation.get_frequencies(),
                                              path=file_path, kind=IF)
-            imported_if = response["result"]["object"] if isinstance(response, dict) and "status" in response else response["object"]
+            # `load` hands back the object it read. This asked it for `["object"]`, a
+            # shape that stopped existing when the contract became MSB's own -- and
+            # nothing covered this path, so it raised where a user would meet it.
+            imported_if = response
             freq_name = f"freq_{uuid.uuid4().hex[:32]}"
             imported_if.name = freq_name
             self.manipulator.configure(self.observation.get_frequencies(), add=imported_if)
@@ -186,9 +189,7 @@ class FrequenciesTab(QWidget):
 
             response = self.manipulator.load(self.observation.get_frequencies(),
                                              path=file_path, kind=IF)
-            imported_if = (response["result"]
-                          if isinstance(response, dict) and "status" in response
-                          else response)
+            imported_if = response
             imported_if.name = freq_name
     
             try:

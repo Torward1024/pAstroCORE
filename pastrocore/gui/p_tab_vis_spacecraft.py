@@ -64,8 +64,7 @@ class SpacecraftVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="distinct",
                 key=self.STORE_KEY, columns=["target_code", "telescope_code"])
-            values = (response["result"] if isinstance(response, dict) and "status" in response
-                      else response) or {}
+            values = response or {}
             targets = values.get("target_code", [])
             stations = values.get("telescope_code", [])
 
@@ -187,8 +186,7 @@ class SpacecraftVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="scan_times",
                 key=self.STORE_KEY, target_code=target_code)
-            scan_times = (response["result"] if isinstance(response, dict) and "status" in response
-                          else response) or []
+            scan_times = response or []
             if not scan_times:
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return

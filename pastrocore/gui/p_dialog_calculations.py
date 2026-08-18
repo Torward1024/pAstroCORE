@@ -138,8 +138,7 @@ class CalculationDialog(QDialog):
         # the prerequisites come from the code that states them rather than from a table kept
         # by hand in a dialog.
         response = self.manipulator.compute(obj=self.project, method="catalogue")
-        catalogue = (response["result"] if isinstance(response, dict) and "status" in response
-                     else response) or []
+        catalogue = response or []
 
         self.ui.calcList.clear()
         for entry in catalogue:
@@ -210,8 +209,7 @@ class CalculationDialog(QDialog):
         # command line running the same calculations asks it the same way.
         response = self.manipulator.compute(obj=None, method="targets", targets=observations,
                                             raise_on_error=False)
-        codes = (response["result"] if isinstance(response, dict) and "status" in response
-                 else response) or []
+        codes = response.value or []
 
         if not codes:
             QMessageBox.warning(

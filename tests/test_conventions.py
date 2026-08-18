@@ -519,3 +519,30 @@ def test_a_pointing_range_cannot_be_set_backwards():
         telescope.set({"azimuth_range": (360.0, 0.0)})
 
     assert telescope.elevation_range == (15.0, 90.0)
+
+
+def test_no_response_is_unwrapped_by_hand():
+    """MSB 1.8.0 gave a request's answer one type, with `.value` doing the unwrapping. Before
+    that, every caller wanting the whole response wrote this:
+
+        response["result"] if isinstance(response, dict) and "status" in response else response
+
+    Fifty-three of those were here, and the line is **wrong** for a request naming one method:
+    the answer holds `{"get_code": {"status": True, "result": "OBS1"}}` under `result`, the
+    facade unwraps it and the hand-written version does not. Twenty-six of the fifty-three were
+    dead as well -- the call did not ask for the whole response, so the conditional never fired.
+    """
+    offenders = {}
+    for path in source_files() + sorted((ROOT / "tests").glob("*.py")):
+        if path.name == "test_conventions.py":
+            continue        # this file quotes the line it forbids, in the docstring above
+        found = [number for number, line in
+                 enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+                 if '"status" in' in line and "isinstance" in line]
+        if found:
+            offenders[path.relative_to(ROOT).as_posix()] = found
+
+    assert not offenders, (
+        "a response is unwrapped by hand:\n  "
+        + "\n  ".join(f"{name}: {lines}" for name, lines in offenders.items())
+        + "\nUse `response.value` with `raise_on_error=False`, or nothing at all without it.")
