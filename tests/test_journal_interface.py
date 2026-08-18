@@ -32,7 +32,7 @@ def session():
 def ask(manipulator, method, **attributes):
     response = manipulator.compute(obj=manipulator.get_managing_object(), method=method,
                                    raise_on_error=False, **attributes)
-    return response["result"] if isinstance(response, dict) and "status" in response else response
+    return response.value
 
 
 def test_the_session_can_be_read_as_rows(session):

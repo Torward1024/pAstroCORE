@@ -117,8 +117,7 @@ class VisualizationDialog(QDialog):
             # Asked, not listed. A calculation that can be drawn appears here because the
             # visualizer has a handler for it, not because somebody added it to a table.
             described = self.manipulator.compute(obj=observation, method="catalogue")
-            catalogue = (described["result"] if isinstance(described, dict) and "status" in described
-                         else described) or []
+            catalogue = described or []
             vis_types = {entry["key"]: entry["label"] for entry in catalogue if entry["can_plot"]}
 
             # One request, counted from the parquet footers rather than by reading the frames.
@@ -126,8 +125,7 @@ class VisualizationDialog(QDialog):
             # eleven frames held in memory on a small project, to fill one combo box.
             response = self.manipulator.export(
                 obj=observation, method="available", keys=list(vis_types))
-            available = (response["result"] if isinstance(response, dict) and "status" in response
-                         else response) or []
+            available = response or []
             available_types = [vis_types[key] for key in available if key in vis_types]
             self.ui.comboBoxVisualizationType.addItems(sorted(available_types))
             self.ui.comboBoxVisualizationType.setEnabled(bool(available_types))
@@ -233,8 +231,7 @@ class VisualizationDialog(QDialog):
             # The user picked a label; the map is keyed by the result. The catalogue holds both
             # spellings, which is the whole reason neither is written down twice.
             described = self.manipulator.compute(obj=observation, method="catalogue")
-            catalogue = (described["result"] if isinstance(described, dict) and "status" in described
-                         else described) or []
+            catalogue = described or []
             vis_key = next((entry["key"] for entry in catalogue
                             if entry["label"] == vis_type and entry["can_plot"]), None)
 
@@ -281,8 +278,7 @@ class VisualizationDialog(QDialog):
                 return
 
             described = self.manipulator.compute(obj=observation, method="catalogue")
-            catalogue = (described["result"] if isinstance(described, dict) and "status" in described
-                         else described) or []
+            catalogue = described or []
             # The label a user picked and the key a request needs are two spellings of one
             # thing, and the catalogue holds both.
             vis_key = next((entry["key"] for entry in catalogue
@@ -296,8 +292,7 @@ class VisualizationDialog(QDialog):
             # so it checks that there are any without pulling them in first.
             response = self.manipulator.export(obj=observation, method="available",
                                                keys=[vis_key])
-            available = (response["result"] if isinstance(response, dict) and "status" in response
-                         else response) or []
+            available = response or []
             if vis_key not in available:
                 logger.error("No valid data for visualization type '%s'", vis_type)
                 QMessageBox.critical(self, "Error", f"No data available for {vis_type}")

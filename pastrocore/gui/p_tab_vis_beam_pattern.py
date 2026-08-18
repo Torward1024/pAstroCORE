@@ -70,8 +70,7 @@ class BeamPatternVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="distinct",
                 key="beam_pattern", columns=["telescope_code"])
-            values = (response["result"] if isinstance(response, dict) and "status" in response
-                      else response) or {}
+            values = response or {}
             telescopes = values.get("telescope_code", [])
             if not telescopes:
                 logger.error("No valid beam pattern data available for populating filters")

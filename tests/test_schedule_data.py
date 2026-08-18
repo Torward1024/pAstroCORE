@@ -27,9 +27,7 @@ def export(manipulator, target, path, **extra):
     response = manipulator.export(obj=target, calc_types=TYPES, export_data=True,
                                   export_vis=False, export_path=str(path),
                                   units="wavelengths", raise_on_error=False, **extra)
-    if isinstance(response, dict) and "status" in response:
-        return response["result"] if response["status"] else None
-    return response
+    return response.value if response.ok else None
 
 
 def test_exporting_needs_no_interface(project, tmp_path):
@@ -145,7 +143,7 @@ def test_saving_is_a_request_like_any_other(project, tmp_path):
     manipulator = ScheduleManipulator(project)
 
     response = manipulator.save(project, path=str(root), raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
 
     assert result["path"] == str(root)
     assert (root / "project.json").is_file()
@@ -158,7 +156,7 @@ def test_loading_is_too(project, tmp_path):
     manipulator = ScheduleManipulator(project)
 
     response = manipulator.load(project, path=str(root), raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
 
     # MSB's own `load` returns the object it read, and a specialisation returning a wrapper
     # instead would mean a caller had to know which of the two it had reached.
@@ -196,7 +194,7 @@ def test_anything_serialisable_can_be_saved_and_read_back(project, tmp_path):
         assert path.is_file(), f"{name} was not written"
 
         response = manipulator.load(obj, path=str(path), raise_on_error=False)
-        result = response["result"] if isinstance(response, dict) and "status" in response else response
+        result = response.value
         assert type(result) is type(obj), f"{name} came back as something else"
 
 
@@ -216,7 +214,7 @@ def test_a_telescope_is_read_back_as_the_kind_the_file_says(project, tmp_path):
         manipulator.save(telescope, path=str(path), raise_on_error=False)
 
         response = manipulator.load(telescopes, path=str(path), raise_on_error=False)
-        result = response["result"] if isinstance(response, dict) and "status" in response else response
+        result = response.value
         assert type(result).__name__ == expected
 
 
@@ -269,7 +267,7 @@ def test_scan_times_answers_what_ten_tabs_used_to_ask_for_themselves(project):
 
     response = manipulator.export(obj=observation, method="scan_times", key="uv_coverage",
                                   source_name="1228+126", raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
 
     assert result, "the fixture observes one source over one scan"
     assert set(result[0]) == {"scan_name", "start"}
@@ -284,7 +282,7 @@ def test_an_unobserved_source_is_an_answer_rather_than_an_error(project):
 
     response = manipulator.export(obj=observation, method="scan_times", key="uv_coverage",
                                   source_name="not_observed", raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
     assert result == []
 
 
@@ -317,7 +315,7 @@ def test_distinct_lists_what_fills_a_combo_box(project):
 
     response = manipulator.export(obj=observation, method="distinct", key="uv_coverage",
                                   columns=["source_name", "baseline"], raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
 
     assert result["source_name"] == ["1228+126"]
     assert result["baseline"] == ["ALMA-APEX"]
@@ -330,7 +328,7 @@ def test_a_column_that_is_not_there_comes_back_empty(project):
 
     response = manipulator.export(obj=observation, method="distinct", key="uv_coverage",
                                   columns=["source_name", "telescope_code"], raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
 
     assert result["source_name"], "the column that exists still answers"
     assert result["telescope_code"] == []
@@ -349,7 +347,7 @@ def test_available_answers_without_reading_the_results(project, tmp_path):
     assert observation.calculated_data._resident == {}
 
     response = manipulator.export(obj=observation, method="available", raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
 
     assert "uv_coverage" in result
     assert observation.calculated_data._resident == {}, (
@@ -371,7 +369,7 @@ def test_available_leaves_out_what_holds_nothing(project, tmp_path):
 
     response = manipulator.export(obj=observation, method="available",
                                   keys=["uv_coverage", "az_el"], raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
 
     assert "uv_coverage" not in result
     assert "az_el" in result
@@ -452,7 +450,7 @@ def test_calculating_for_a_whole_project_is_not_silently_empty(project):
     manipulator = ScheduleManipulator(project)
     response = manipulator.calculate(obj=project, method="time_arrays", time_step=600.0,
                                      recalculate=True, raise_on_error=False)
-    frame = response["result"] if isinstance(response, dict) and "status" in response else response
+    frame = response.value
 
     assert frame is not None and not frame.is_empty(), (
         "calculating for a whole project produced nothing and said nothing")
@@ -506,7 +504,7 @@ def test_a_telescope_is_read_back_as_the_kind_the_file_says_still(project, tmp_p
     manipulator.save(obj=SpaceTelescope(code="RADIO", name="RadioAstron"), path=str(path))
 
     response = manipulator.load(obj=Telescopes(), path=str(path), raise_on_error=False)
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
     restored = result["object"] if isinstance(result, dict) else result
 
     assert isinstance(restored, SpaceTelescope)
@@ -542,7 +540,7 @@ def test_a_result_that_cannot_be_read_is_reported_rather_than_dropped(project, m
         msb_logger.removeHandler(listener)
         msb_logger.setLevel(previous)
 
-    result = response["result"] if isinstance(response, dict) and "status" in response else response
+    result = response.value
     assert result == []
     assert any("Cannot tell whether" in line and "the file is gone" in line for line in said), (
         f"the failure was not reported: {said}")

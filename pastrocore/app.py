@@ -598,8 +598,7 @@ class PAstroCoreMainWindow(QMainWindow):
                             # would be worse than not detecting it.
                             answer = self.manipulator.compute(obj=obs, method="stale",
                                                               raise_on_error=False)
-                            stale = (answer["result"] if isinstance(answer, dict)
-                                     and "status" in answer else answer) or ()
+                            stale = answer.value or ()
                             label = f"{obs_code}  • {len(stale)} stale" if stale else obs_code
                             obs_item = QStandardItem(label)
                             if stale:
@@ -996,7 +995,7 @@ class PAstroCoreMainWindow(QMainWindow):
             sources_path = existing_or_shipped(
             self.settings.get("sources_catalog_path", ""), "sources.dat")
             try:
-                self.catalog_manager.source_catalog.clear()
+                self.catalog_manager.source_catalog.remove_all()
                 if sources_path:
                     self.catalog_manager.load_source_catalog(sources_path)
                 sources_count = len(self.catalog_manager.source_catalog.get_items())
@@ -1009,7 +1008,7 @@ class PAstroCoreMainWindow(QMainWindow):
             telescopes_path = existing_or_shipped(
             self.settings.get("telescopes_catalog_path", ""), "telescopes.dat")
             try:
-                self.catalog_manager.telescope_catalog.clear()
+                self.catalog_manager.telescope_catalog.remove_all()
                 if telescopes_path:
                     self.catalog_manager.load_telescope_catalog(telescopes_path)
                 telescopes_count = len(self.catalog_manager.telescope_catalog.get_items())
@@ -1294,7 +1293,11 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.manipulator = None
             
             if self.project:
-                self.project.clear()
+                # `clear` meant three different things depending on what it was called on,
+                # and MSB 1.9.0 gave each its own name. This one empties the project -- and
+                # `remove_all` raises where `clear` logged and swallowed, so a project that
+                # failed to empty says so.
+                self.project.remove_all()
                 
                 for obs in self.project.get_items().values():
                     if hasattr(obs, 'cleanup'):
@@ -1327,8 +1330,7 @@ class PAstroCoreMainWindow(QMainWindow):
             return 0
         response = self.manipulator.export(obj=self.project, method="unsaved",
                                            raise_on_error=False)
-        result = (response["result"] if isinstance(response, dict) and "status" in response
-                  else response)
+        result = response.value
         return int(result or 0)
 
     def closeEvent(self, event):

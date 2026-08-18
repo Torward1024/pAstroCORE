@@ -55,8 +55,7 @@ class ParallacticAngleVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="distinct",
                 key="parallactic_angle", columns=["source_name", "telescope_code"])
-            values = (response["result"] if isinstance(response, dict) and "status" in response
-                      else response) or {}
+            values = response or {}
             sources = values.get("source_name", [])
             telescopes = values.get("telescope_code", [])
             if not sources:
@@ -194,8 +193,7 @@ class ParallacticAngleVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="scan_times",
                 key="parallactic_angle", source_name=source_name)
-            scan_times = (response["result"] if isinstance(response, dict) and "status" in response
-                          else response) or []
+            scan_times = response or []
             if not scan_times:
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
                 return

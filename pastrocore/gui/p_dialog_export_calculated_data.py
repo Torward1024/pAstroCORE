@@ -65,7 +65,7 @@ class ExportThread(QThread):
                 progress=lambda percent, message: self.progress.emit(percent, message),
                 cancelled=lambda: self._cancelled,
             )
-            result = response.get("result") if isinstance(response, dict) and "status" in response else response
+            result = response.value
             if result and result.get("cancelled"):
                 self.error.emit("Export cancelled by user")
                 return
@@ -113,8 +113,7 @@ class ExportCalculatedDataDialog(QDialog):
         # leaves those out because nobody asks for them by name; choosing what to *export*
         # includes them, because the numbers are the numbers and somebody may want them.
         response = self.manipulator.compute(obj=None, method="catalogue", raise_on_error=False)
-        catalogue = (response["result"] if isinstance(response, dict) and "status" in response
-                     else response) or []
+        catalogue = response.value or []
 
         self.ui.calcList.clear()
         for entry in catalogue:

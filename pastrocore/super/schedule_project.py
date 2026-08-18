@@ -512,7 +512,7 @@ class ScheduleProject(Project):
                     obs.clear_calculated_data()
                 except Exception as e:
                     logger.debug("Error clearing observation %s: %s", obs.get_observation_code(), str(e))
-            self._items.clear()
+            self._items.remove_all()
             logger.info("Cleared all observations from project '%s'", self.name)
         except Exception as e:
             logger.error("Error clearing project '%s': %s", self.name, str(e), exc_info=True)

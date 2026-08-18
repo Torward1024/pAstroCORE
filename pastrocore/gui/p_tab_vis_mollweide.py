@@ -64,8 +64,7 @@ class MollweideVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="distinct",
                 key="mollweide_tracks", columns=["telescope_code"])
-            values = (response["result"] if isinstance(response, dict) and "status" in response
-                      else response) or {}
+            values = response or {}
             telescopes = values.get("telescope_code", [])
             if not telescopes:
                 logger.error("No valid Mollweide tracks data available for populating filters")
@@ -231,8 +230,7 @@ class MollweideVisualizationTab(QWidget):
             # question is asked without one.
             response = self.manipulator.export(
                 obj=self.observation, method="scan_times", key="mollweide_tracks")
-            scan_times = (response["result"] if isinstance(response, dict) and "status" in response
-                          else response) or []
+            scan_times = response or []
             if not scan_times:
                 logger.debug("No scans found in Mollweide tracks")
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))

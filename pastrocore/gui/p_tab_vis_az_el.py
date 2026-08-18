@@ -55,8 +55,7 @@ class AzElVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="distinct",
                 key="az_el", columns=["source_name", "telescope_code"])
-            values = (response["result"] if isinstance(response, dict) and "status" in response
-                      else response) or {}
+            values = response or {}
             sources = values.get("source_name", [])
             telescopes = values.get("telescope_code", [])
             if not sources:
@@ -200,8 +199,7 @@ class AzElVisualizationTab(QWidget):
             response = self.manipulator.export(
                 obj=self.observation, method="scan_times",
                 key="az_el", source_name=source_name)
-            scan_times = (response["result"] if isinstance(response, dict) and "status" in response
-                          else response) or []
+            scan_times = response or []
             if not scan_times:
                 logger.debug("No scans for source '%s' in Az/El", source_name)
                 self.ui.listScans.addItem(QListWidgetItem("No scans available"))
