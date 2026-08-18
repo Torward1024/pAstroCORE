@@ -287,3 +287,24 @@ def test_the_panel_shows_where_as_a_column(qt_application, session):
         assert any(text for text in shown), "the column is there and empty"
     finally:
         dialog.close()
+
+
+def test_a_replayed_step_drops_what_cannot_be_replayed(session, tmp_path):
+    """A run carries callables -- one to report progress, one to ask whether to stop -- and a
+    journal cannot record a callable, so it records what it was: `<function>`.
+
+    Replaying handed that string back as `progress`, and the handler called it:
+    `'str' object is not callable`. Found by writing the command line, which replays a session
+    that contains a run rather than only calculations.
+    """
+    manipulator, project, _ = session
+    path = tmp_path / "with_a_callback.json"
+
+    manipulator.compute(obj=None, method="run", targets=project.observations(),
+                        calculations=["time_arrays"], time_step=600.0, force=True,
+                        progress=lambda percent, message: None,
+                        cancelled=lambda: False)
+    manipulator.export(obj=project, method="journal", path=str(path))
+
+    outcome = ask(ScheduleManipulator(project), "replay", path=str(path))
+    assert outcome["failed"] == [], outcome

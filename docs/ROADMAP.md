@@ -21,7 +21,8 @@ Nothing here is scheduled. In rough order of what would help most:
 
 | | Item | Why it is next |
 | --- | --- | --- |
-| **L1** | A command line | Everything it needs exists: the packaging, and operations that already take a request rather than a call. Thin now, and the proof that the window really is one caller among several |
+| **L2** | Editing requests, not only replaying them | The command line makes a session a file people will want to hand-edit. That is the scripting environment, and what it needs deciding is what a half-edited plan may do |
+| ~~**L1**~~ | ~~A command line~~ | **Done.** `pastrocore-cli` with `info`, `calculations`, `run`, `export` and `replay` -- 230 lines, every command one request. It imports neither `pastrocore.gui` nor Qt, which a test asserts and a second one measures by running it in a process and looking at `sys.modules`. It also earned its keep immediately: replaying a session that contained a *run* called a string, because a journal records a callable as `<function>` and the handler called it back |
 | **N1--N4** | Analysis | A calculation finishes and that is the end of it. Visibility is a boolean per station per moment, and nobody can ask when, for how long, or where the gaps are |
 | **R6** | A project as one file | How a project reaches a colleague or a bug report |
 | **T4** | Which results a change invalidates | `depends_on` says which *parts* a result reads; MSB's model graph says what reaching a part reaches |
