@@ -157,12 +157,12 @@ class CalculationDialog(QDialog):
     def populate_targets(self):
         """Populate the target list with project observations using observation code."""
         try:
-            observations = self.manipulator.inspect(obj=self.project, get_items=None)
+            observations = self.manipulator.inspect(obj=self.project, observations=None)
             self.ui.targetList.clear()
             if not observations:
                 logger.debug("No observations found in the project.")
                 return
-            for _, obs in observations.items():
+            for obs in observations:
                 item = QListWidgetItem(obs.code)
                 item.setData(Qt.UserRole, obs)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)

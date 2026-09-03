@@ -22,7 +22,7 @@ from pastrocore.super.schedule_project import ScheduleProject
 @pytest.fixture
 def computed(project):
     """The fixture project with one calculation freshly made, so it carries a fingerprint."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     observation.calculated_data.clear()
     ScheduleManipulator(project).calculate(observation, method="uv_coverage", time_step=300.0,
                                            raise_on_error=False)
@@ -69,7 +69,7 @@ def test_an_unrelated_change_leaves_it_alone(computed):
 def test_a_result_from_before_this_existed_is_unknown_rather_than_guessed(project):
     """Reporting "current" would be a claim; reporting "stale" would send a user to recompute
     everything they own the first time they open an old project."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
 
     # The fixture's results were saved long before results carried fingerprints.
     assert freshness.DIGEST_FIELD not in observation.get_calculated_metadata("uv_coverage")
@@ -209,7 +209,7 @@ def test_opening_an_old_project_records_a_baseline(project, tmp_path):
         sidecar.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
 
     assert observation.stale_results() == (), "opening alone must not accuse anything"
     assert observation.is_result_stale("uv_coverage") is False
@@ -232,7 +232,7 @@ def test_an_adopted_baseline_says_it_was_adopted(project, tmp_path):
         sidecar.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
 
     metadata = observation.get_calculated_metadata("uv_coverage")
     assert metadata[freshness.ADOPTED_FIELD] is True
@@ -249,7 +249,7 @@ def test_adopting_reads_no_results(project, tmp_path):
         sidecar.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
     assert observation.calculated_data._resident == {}
 
 
@@ -297,7 +297,7 @@ def test_asking_serialises_each_part_once(project, tmp_path, monkeypatch):
         f"opening converted the scans {calls['scans']} times; once is enough for any number "
         f"of results that depend on them")
 
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
     calls.clear()
     observation.stale_results()
     assert calls["scans"] <= 1, (

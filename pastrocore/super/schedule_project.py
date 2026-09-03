@@ -32,34 +32,11 @@ class ScheduleProject(Project):
         'NewProject'
     """
 
-    # The version of a saved project. Raise it when the shape of what `to_dict` writes
-    # changes -- a renamed field, a field that means something new -- and teach `migrate`
-    # to read the older shape. Stage 4 replaces how results are stored, and this is what
-    # will let a project written before that keep opening.
-    #
-    # Written into the file only once it is no longer 1, so nothing changes until it has to.
-    SCHEMA_VERSION = 1
-
-    @classmethod
-    def migrate(cls, data: dict, from_version: int) -> dict:
-        """Bring a project saved by an older version up to the current shape.
-
-        Args:
-            data (dict): The saved project, with its original field names.
-            from_version (int): The `SCHEMA_VERSION` it was written under.
-
-        Returns:
-            dict: The same project in the shape this version expects.
-
-        Raises:
-            SerializationError: If the version is one this code has no route from.
-
-        Notes:
-            - Migrate forward one version at a time. Each step is easier to reason about than
-              one jump, and the intermediate shapes are the ones already tested.
-            - There is nothing to do yet: version 1 is the only version there has been.
-        """
-        return super().migrate(data, from_version)
+    # `SCHEMA_VERSION` and `migrate` are the base class's, and were reimplemented here to
+    # forward to it. Raise the version when the shape of what `to_dict` writes changes -- a
+    # renamed field, a field that means something new -- and override `migrate` to read the
+    # older shape. Version 1 is the only version there has been, and it is written into the
+    # file only once it is no longer 1, so nothing changes until it has to.
     _item_type = Observation
 
     def __init__(self, name: str = "OBS_DEFAULT_PROJECT", items: Optional[Dict[str, Observation]] = None):
@@ -224,16 +201,18 @@ class ScheduleProject(Project):
             List[Observation]: The observations themselves, never their names.
 
         Notes:
-            - `get_items()` is a dictionary on a project and a list on a container -- the same
+            - `get_items()` was a dictionary on a project and a list on a container -- the same
               method name in two shapes -- so every caller guessed which it had. One guessed
-              wrong for eight calculations: iterating a project yields its *keys*, so
+              wrong for eight calculations: iterating a project yielded its *keys*, so
               `o.get_scans()` was called on a string, and the broad handler downstream turned
               that into an empty frame. Calculating for a whole project produced nothing and
               said nothing.
-            - So the project says what it holds, once, in the shape a caller wants.
+            - msb_arch 2.0.0 settled the shape -- a project answers with a list, exactly as a
+              container does, and `get_all()` is the mapping. This stays because it says
+              *observations* rather than items, which is what every caller here wants, and
+              because a request may name it: `inspect(project, observations=None)`.
         """
-        items = self.get_items()
-        return list(items.values()) if isinstance(items, dict) else list(items)
+        return list(self.get_items())
 
     def get_observation(self, name: str) -> Observation:
         """Retrieve an observation by its name.
@@ -290,19 +269,9 @@ class ScheduleProject(Project):
         super().set_project(name, items)
         logger.info("Set project '%s' with %s observations", name, len(items))
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Serialize the ScheduleProject to a dictionary.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing the project's name and observations.
-        """
-        result = {
-            "name": self.name,
-            "items": {name: observation.to_dict() for name, observation in self._items.get_all().items()}
-        }
-        logger.debug("Serialized ScheduleProject '%s' to dictionary with %s observations", self.name, len(self._items))
-        return result
-    
+    # `to_dict` is the base class's. The override here wrote the same two keys by hand, which
+    # msb_arch 2.0.0 made pure duplication when `Project` became a `Serializable`: the
+    # inherited one writes the schema version when there is one, and caches.
 
     RESULTS_DIRECTORY = "results"
     MODEL_FILE = "project.json"
@@ -504,18 +473,54 @@ class ScheduleProject(Project):
         check_non_empty_string(path, "Project path")
         self.to_directory(str(Path(path)))
 
-    def clear(self):
-        """Clear all observations and their resources."""
-        try:
-            for obs in self._items.get_all().values():
+    def release(self) -> int:
+        """Let go of everything this project holds, so it can be replaced.
+
+        Returns:
+            int: How many observations were released.
+
+        Notes:
+            - A window closing a project, a command line opening the next one and a server
+              ending a session all want this, so it is here rather than in any of them. It was
+              in the window, which is why the window reached into the model to do it.
+            - The back references go before the observations do. An observation still pointing
+              at the project, the orchestrator or its parent keeps all three alive, and the
+              next project then shares a graph with the one that was closed.
+        """
+        released = 0
+        for observation in self.observations():
+            if hasattr(observation, "cleanup"):
                 try:
-                    obs.clear_calculated_data()
-                except Exception as e:
-                    logger.debug("Error clearing observation %s: %s", obs.get_observation_code(), str(e))
-            self._items.remove_all()
-            logger.info("Cleared all observations from project '%s'", self.name)
-        except Exception as e:
-            logger.error("Error clearing project '%s': %s", self.name, str(e), exc_info=True)
+                    observation.cleanup()
+                except Exception as e:                  # noqa: BLE001 - one failure frees the rest
+                    logger.debug("Could not clean up '%s': %s", observation.name, str(e))
+            for reference in ("_project", "_manipulator", "_parent"):
+                if hasattr(observation, reference):
+                    setattr(observation, reference, None)
+            released += 1
+
+        self.remove_all()
+        logger.info("Released project '%s' and the %s observation(s) it held", self.name, released)
+        return released
+
+    def remove_all(self) -> None:
+        """Remove every observation, releasing the results each was holding first.
+
+        Notes:
+            - This was called `clear`, which msb_arch 1.9.0 deprecated and 2.0.0 removed: one
+              name meant three different jobs depending on what it was called on. The name is
+              now the one the framework uses, and it does the same work.
+            - The results are released before the observations go, because an observation that
+              has already left the project cannot be asked to let go of anything.
+        """
+        for observation in self.observations():
+            try:
+                observation.clear_calculated_data()
+            except Exception as e:                      # noqa: BLE001 - one bad result frees the rest
+                logger.debug("Could not release the results of '%s': %s",
+                             observation.get_observation_code(), str(e))
+        super().remove_all()
+        logger.info("Removed every observation from project '%s'", self.name)
 
     def __repr__(self) -> str:
         """String representation of ScheduleProject.

@@ -36,7 +36,7 @@ def observation_with_a_spacecraft():
           not take part in the observation it is being tracked during.
     """
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     first_scan = observation.get_scans().get_active_items()[0]
 
     observation.get_telescopes().add(SpaceTelescope(
@@ -207,7 +207,7 @@ def test_a_target_that_is_not_there_is_refused(observation_with_a_spacecraft):
 def test_an_observation_without_a_spacecraft_pays_nothing():
     """This calculation is chosen, never run as part of an ordinary observation."""
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     manipulator = ScheduleManipulator(project)
 
     response = manipulator.calculate(observation, method="telescope_az_el",
@@ -234,7 +234,7 @@ def test_an_orbit_that_does_not_cover_the_scan_says_so():
     from pastrocore.super.schedule_calculator import ScheduleCalculator
 
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     scan = observation.get_scans().get_active_items()[0]
 
     # An orbit file covering one hour, a decade before the scan it will be asked about.

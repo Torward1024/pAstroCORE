@@ -21,7 +21,7 @@ from pastrocore.super.schedule_project import ScheduleProject
 def session():
     """A manipulator that has done some work, so there is something to look at."""
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     observation.clear_calculated_data()
     manipulator = ScheduleManipulator(project)
     manipulator.compute(obj=None, method="run", targets=[observation],
@@ -76,7 +76,7 @@ def test_it_replays_against_another_project(session, tmp_path):
     manipulator.export(obj=project, method="journal", path=str(path))
 
     fresh = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    elsewhere = fresh.get_observation(next(iter(fresh.get_items())))
+    elsewhere = fresh.observations()[0]
     elsewhere.clear_calculated_data()
     assert "times" not in elsewhere.calculated_data
 
@@ -184,7 +184,7 @@ def test_the_panel_replays_a_saved_session(qt_application, session, tmp_path, mo
     manipulator.export(obj=project, method="journal", path=str(path))
 
     fresh = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    elsewhere = fresh.get_observation(next(iter(fresh.get_items())))
+    elsewhere = fresh.observations()[0]
     elsewhere.clear_calculated_data()
     other = ScheduleManipulator(fresh)
 

@@ -32,7 +32,7 @@ def export(manipulator, target, path, **extra):
 
 def test_exporting_needs_no_interface(project, tmp_path):
     """Reachable from a script, which a QDialog and a QThread were not."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     result = export(ScheduleManipulator(project), observation, tmp_path)
 
     assert result is not None
@@ -44,7 +44,7 @@ def test_exporting_needs_no_interface(project, tmp_path):
 
 def test_it_says_what_it_wrote(project, tmp_path):
     """A caller should not have to go looking on disk to find out what it got."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     result = export(ScheduleManipulator(project), observation, tmp_path)
 
     on_disk = sorted(p.name for p in tmp_path.iterdir())
@@ -54,7 +54,7 @@ def test_it_says_what_it_wrote(project, tmp_path):
 
 def test_progress_is_reported_through_a_plain_callable(project, tmp_path):
     """The seam: no signals, no threads, nothing this module knows about windows."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     seen = []
     export(ScheduleManipulator(project), observation, tmp_path,
            progress=lambda percent, message: seen.append((percent, message)))
@@ -66,7 +66,7 @@ def test_progress_is_reported_through_a_plain_callable(project, tmp_path):
 
 def test_cancelling_stops_it_and_says_so(project, tmp_path):
     """The other half a long operation owes a caller, expressed the same way."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     result = export(ScheduleManipulator(project), observation, tmp_path,
                     cancelled=lambda: True)
 
@@ -83,7 +83,7 @@ def test_a_project_exports_every_observation(project, tmp_path):
 
 def test_writing_nowhere_is_refused_rather_than_guessed(project, tmp_path):
     """There is no sensible default for where a user's files should land."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     data = ScheduleData(ScheduleManipulator(project))
 
     with pytest.raises(ValueError):
@@ -96,7 +96,7 @@ def test_the_export_releases_results_as_it_goes(project, tmp_path):
     root = tmp_path / "saved.pastro"
     project.save(str(root))
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
 
     export(ScheduleManipulator(reopened), reopened, tmp_path / "out")
 
@@ -114,7 +114,7 @@ def test_the_bytes_are_what_the_dialog_used_to_produce(project, tmp_path):
         "OBS_DEFAULT_Sun_Angles.txt": "2f7195b35eaa09d5",
         "OBS_DEFAULT_Mollweide.txt": "4c8e76c65530fc78",
     }
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     export(ScheduleManipulator(project), observation, tmp_path)
 
     produced = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()[:16]
@@ -184,7 +184,7 @@ def test_anything_serialisable_can_be_saved_and_read_back(project, tmp_path):
     which MSB reaches on its own, by the type of the object the request runs on.
     """
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
 
     for name, obj in [("telescopes", observation.get_telescopes()),
                       ("source", observation.get_sources().get_items()[0]),
@@ -204,7 +204,7 @@ def test_a_telescope_is_read_back_as_the_kind_the_file_says(project, tmp_path):
     from pastrocore.base.spacetelescope import SpaceTelescope
 
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     telescopes = observation.get_telescopes()
     telescopes.add(SpaceTelescope(code="RADIO", name="RadioAstron"))
 
@@ -244,7 +244,7 @@ def test_a_session_can_be_expressed_entirely_as_requests(project, tmp_path):
     A journal that replays every calculation and then saves nothing is a rehearsal.
     """
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     root = tmp_path / "pipeline.pastro"
 
     manipulator.calculate(observation, method="uv_coverage", time_step=300.0,
@@ -263,7 +263,7 @@ def test_scan_times_answers_what_ten_tabs_used_to_ask_for_themselves(project):
     copy needing polars and astropy to do it. A command-line version would have written an
     eleventh."""
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
 
     response = manipulator.export(obj=observation, method="scan_times", key="uv_coverage",
                                   source_name="1228+126", raise_on_error=False)
@@ -278,7 +278,7 @@ def test_an_unobserved_source_is_an_answer_rather_than_an_error(project):
     """A source may simply not be observed, and a tab filling a list needs that back as an
     empty list rather than as an exception."""
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
 
     response = manipulator.export(obj=observation, method="scan_times", key="uv_coverage",
                                   source_name="not_observed", raise_on_error=False)
@@ -294,7 +294,7 @@ def test_scan_times_needs_to_be_told_what_to_look_in(project):
     """
     from pastrocore.super.schedule_data import ScheduleData
 
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     data = ScheduleData(ScheduleManipulator(project))
 
     with pytest.raises(ValueError):
@@ -311,7 +311,7 @@ def test_distinct_lists_what_fills_a_combo_box(project):
     """The other question every visualization tab asked for itself: which sources are in this
     result, which baselines. Each copy read the frame, checked the schema and called unique()."""
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
 
     response = manipulator.export(obj=observation, method="distinct", key="uv_coverage",
                                   columns=["source_name", "baseline"], raise_on_error=False)
@@ -324,7 +324,7 @@ def test_distinct_lists_what_fills_a_combo_box(project):
 def test_a_column_that_is_not_there_comes_back_empty(project):
     """Empty rather than missing, so a caller filling a list needs no second check."""
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
 
     response = manipulator.export(obj=observation, method="distinct", key="uv_coverage",
                                   columns=["source_name", "telescope_code"], raise_on_error=False)
@@ -341,7 +341,7 @@ def test_available_answers_without_reading_the_results(project, tmp_path):
     root = tmp_path / "available.pastro"
     project.save(str(root))
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
     manipulator = ScheduleManipulator(reopened)
 
     assert observation.calculated_data._resident == {}
@@ -356,7 +356,7 @@ def test_available_answers_without_reading_the_results(project, tmp_path):
 
 def test_available_leaves_out_what_holds_nothing(project, tmp_path):
     """An empty result is not something to offer a user."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     from pastrocore.base.data_structure import CalculatedDataStructure
 
     empty = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("uv_coverage"))
@@ -386,7 +386,7 @@ def test_each_plot_is_given_what_it_accepts_and_nothing_else(project, monkeypatc
     `mollweide_tracks` reads `telescopes` and `sources` and was given neither.
     """
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     given = {}
 
     def capture(obj=None, **attributes):
@@ -518,7 +518,7 @@ def test_a_result_that_cannot_be_read_is_reported_rather_than_dropped(project, m
 
     from msb_arch.utils.logging_setup import logger as msb_logger
 
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     manipulator = ScheduleManipulator(project)
     monkeypatch.setattr(type(observation), "scan_calculated_data",
                         lambda self, key: (_ for _ in ()).throw(OSError("the file is gone")))

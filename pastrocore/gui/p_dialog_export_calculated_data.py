@@ -127,9 +127,9 @@ class ExportCalculatedDataDialog(QDialog):
     def populate_targets(self):
         """Populate the target list with project observations."""
         try:
-            observations = self.manipulator.inspect(obj=self.project, get_items=None)
+            observations = self.manipulator.inspect(obj=self.project, observations=None)
             self.ui.targetList.clear()
-            for _, obs in observations.items():
+            for obs in observations:
                 item = QListWidgetItem(obs.code)
                 item.setData(Qt.UserRole, obs)
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)

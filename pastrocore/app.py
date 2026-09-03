@@ -587,10 +587,11 @@ class PAstroCoreMainWindow(QMainWindow):
         project_item.appendRow(observations_item)
 
         try:
-            observations = self.manipulator.inspect(self.project, get_items=None)
-            if isinstance(observations, dict):
+            observations = self.manipulator.inspect(self.project, observations=None)
+            if isinstance(observations, list):
                 if observations:
-                    for obs_name, obs in observations.items():
+                    for obs in observations:
+                        obs_name = obs.name
                         try:
                             obs_code = self.manipulator.inspect(obs, get_observation_code=None)
                             # A label, never a dialog. Staleness is a state the user can see
@@ -614,7 +615,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 else:
                     logger.debug("No observations found in project")
             else:
-                logger.error("Expected dict for observations, got %s: %s", type(observations), observations)
+                logger.error("Expected a list of observations, got %s: %s", type(observations), observations)
         except Exception as e:
             logger.error("Failed to inspect observations: %s", str(e))
 
@@ -1284,30 +1285,25 @@ class PAstroCoreMainWindow(QMainWindow):
                 # beforehand, so this is the only way to disconnect idempotently.
                 pass
             
+            # Asked of the project, before the orchestrator that carries the request is taken
+            # down. The window used to do this itself -- walk the observations, call `cleanup`,
+            # null three back references and empty the project -- which is model work in the
+            # interface, and it ran in the wrong order besides: the project was emptied first,
+            # so the loop that followed had nothing left to walk and had never once run.
+            if self.project is not None and self.manipulator is not None:
+                self.manipulator.compute(obj=self.project, method="release",
+                                         raise_on_error=False)
+
             if self.manipulator:
                 self.manipulator.clear_cache()
                 self.manipulator.clear_base_classes()
-                
+
                 if hasattr(self.manipulator, '_project'):
                     self.manipulator._project = None
                 self.manipulator = None
-            
-            if self.project:
-                # `clear` meant three different things depending on what it was called on,
-                # and MSB 1.9.0 gave each its own name. This one empties the project -- and
-                # `remove_all` raises where `clear` logged and swallowed, so a project that
-                # failed to empty says so.
-                self.project.remove_all()
-                
-                for obs in self.project.get_items().values():
-                    if hasattr(obs, 'cleanup'):
-                        obs.cleanup()
-                    for attr in ['_project', '_manipulator', '_parent']:
-                        if hasattr(obs, attr):
-                            setattr(obs, attr, None)
-                
-                self.project = None
-            
+
+            self.project = None
+
         except Exception as e:
             logger.error("Error cleaning up project: %s", str(e))
 

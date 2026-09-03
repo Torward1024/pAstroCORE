@@ -276,7 +276,7 @@ def test_saving_drops_results_of_observations_that_left(project, tmp_path):
     root = tmp_path / "saved.pastro"
     project.save(str(root))
 
-    original = next(iter(project.get_items()))
+    original = next(iter(project.get_all()))
     assert (root / "results" / original).is_dir()
 
     reopened = ScheduleProject.open(str(root))
@@ -327,7 +327,7 @@ def test_drawing_a_plot_leaves_nothing_in_memory(project, tmp_path):
     project.save(str(root))
 
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
     manipulator = ScheduleManipulator(reopened)
     assert observation.calculated_data._resident == {}
 
@@ -348,7 +348,7 @@ def test_metadata_does_not_drag_the_result_in(project, tmp_path):
     project.save(str(root))
 
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
 
     metadata = observation.get_calculated_metadata("uv_coverage")
     assert metadata.get("time_step") is not None
@@ -363,7 +363,7 @@ def test_a_filter_reaches_the_read(project, tmp_path):
     project.save(str(root))
 
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
 
     view = observation.scan_calculated_data("uv_coverage")
     assert isinstance(view, pl.LazyFrame), "reading for a filter must stay lazy"
@@ -378,7 +378,7 @@ def test_a_filter_reaches_the_read(project, tmp_path):
 
 def test_scanning_a_missing_result_says_so_rather_than_raising(project):
     """The plots ask for results that may not have been calculated yet."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     assert observation.scan_calculated_data("never_calculated") is None
     assert observation.get_calculated_metadata("never_calculated") == {}
 
@@ -512,7 +512,7 @@ def test_copying_an_observation_does_not_fork_the_budget(project, tmp_path):
     root = tmp_path / "copied.pastro"
     project.save(str(root))
     reopened = ScheduleProject.open(str(root))
-    observation = reopened.get_observation(next(iter(reopened.get_items())))
+    observation = reopened.observations()[0]
 
     duplicate = copy.deepcopy(observation)
     assert duplicate.calculated_data._budget is observation.calculated_data._budget
@@ -585,7 +585,7 @@ def test_a_result_survives_the_session_that_calculated_it(project, scratch_root)
     space = ScratchSpace(root=scratch_root, session="1234-aaaa")
     project.attach_results_store(space.store)
 
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     observation.set_calculated_data_by_key("fresh", pl.DataFrame({"x": [1.0, 2.0]}), {"note": "kept"})
 
     owner = observation.name
@@ -603,7 +603,7 @@ def test_what_is_calculated_is_on_disk_before_anything_is_saved(project, scratch
 
     space = ScratchSpace(root=scratch_root, session="1234-bbbb")
     project.attach_results_store(space.store)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     observation.set_calculated_data_by_key("fresh", pl.DataFrame({"x": [1.0, 2.0]}), {})
 
     written = list((space.path / "results").rglob("*.parquet"))
@@ -617,7 +617,7 @@ def test_saving_brings_the_scratch_results_into_the_project(project, scratch_roo
 
     space = ScratchSpace(root=scratch_root, session="1234-cccc")
     project.attach_results_store(space.store)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     observation.set_calculated_data_by_key("fresh", pl.DataFrame({"x": [7.0, 8.0]}), {"note": "carried"})
 
     root = tmp_path / "saved.pastro"
@@ -806,7 +806,7 @@ def test_the_metadata_describes_the_frame_beside_it(project, tmp_path):
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
     from pastrocore.super.schedule_project import ScheduleProject
 
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     observation.calculated_data.clear()
     manipulator = ScheduleManipulator(project)
 
@@ -827,7 +827,7 @@ def test_the_metadata_survives_being_saved(project, tmp_path):
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
     from pastrocore.super.schedule_project import ScheduleProject
 
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     observation.calculated_data.clear()
     ScheduleManipulator(project).calculate(observation, method="time_arrays", time_step=300.0,
                                            raise_on_error=False)
@@ -886,7 +886,7 @@ def test_recalculating_does_not_rewrite_an_unchanged_result(project, tmp_path):
 
     root = tmp_path / "rewrite.pastro"
     project.save(str(root))
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     manipulator = ScheduleManipulator(project)
 
     manipulator.calculate(observation, method="time_arrays", time_step=300.0, raise_on_error=False)
@@ -1008,7 +1008,7 @@ def test_the_frame_is_the_authority_on_what_describes_it(tmp_path):
 
 def test_it_is_corrected_before_anything_is_saved(project):
     """A project with nowhere to write yet must describe itself as truthfully as a saved one."""
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     frame = pl.DataFrame({"time": [10.0, 20.0], "scan_name": ["s1", "s1"],
                           "source_name": ["x", "x"]})
 

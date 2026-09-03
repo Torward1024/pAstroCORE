@@ -577,6 +577,24 @@ class ScheduleRunner(Super):
         logger.info("Cleared the results of %s observation(s)", len(cleared))
         return {"cleared": cleared}
 
+    def _compute_release(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Let go of a project, so whatever holds it can replace it.
+
+        Args:
+            obj (ScheduleProject): The project to release.
+            attributes: Ignored.
+
+        Returns:
+            Dict[str, Any]: `{"released": int}` -- how many observations were let go.
+
+        Notes:
+            - A request, because the window is not the only caller: a command line opening one
+              project after another wants the same, and this is how it asks without importing
+              anything of the model.
+        """
+        released = obj.release()
+        return {"released": released}
+
     def _compute_stale(self, obj: Any, attributes: Dict[str, Any]) -> List[str]:
         """Return the results of one observation whose inputs have changed since they were made.
 
