@@ -280,6 +280,14 @@ class PAstroCoreMainWindow(QMainWindow):
         self.ui.menuFile.insertAction(self._package_action, self._open_package_action)
         self.ui.menuFile.insertSeparator(self._open_package_action)
 
+        # Tools opens it, and what it opens is a *tab*. Analysis is not one answer to look at
+        # and dismiss: it is a filter changed and the question asked again, and a modal dialog
+        # would make that a matter of reassembling the choice each time. Visualize already
+        # works this way.
+        self._analysis_action = QAction("Analysis", self)
+        self._analysis_action.setToolTip("Ask something of results that have been calculated")
+        self.ui.menuTools.addAction(self._analysis_action)
+
     def setup_connections(self):
         """Setup UI signal connections."""
         self.clear_connections(is_initial_setup=True)
@@ -303,6 +311,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionExport_Calulcated_Data: self.open_export_dialog,
             self._package_action: self.package_project,
             self._open_package_action: self.open_package,
+            self._analysis_action: self.open_analysis_tab,
         }
 
         for action, slot in self._action_connections.items():
@@ -1243,6 +1252,33 @@ class PAstroCoreMainWindow(QMainWindow):
         project_tab.project_name_changed.connect(self.handle_projectInfoTab_project_name_changed)
         self.project_updated.connect(project_tab.update_tab)
         logger.debug("Created new project info tab")
+
+    @Slot()
+    def open_analysis_tab(self):
+        """Open the analysis tab, or bring it forward and refresh it.
+
+        Notes:
+            - A tab rather than a dialog: analysis is a filter changed and the question asked
+              again, and a modal dialog makes that a matter of reassembling the choice each
+              time. It is closable, unlike Project, because it is a place to work rather than
+              part of the project.
+        """
+        from pastrocore.gui.p_tab_analysis import AnalysisTab
+
+        tabs = self.ui.tabContainer
+        for index in range(tabs.count()):
+            if tabs.widget(index).objectName() == "analysisTab":
+                tabs.setCurrentIndex(index)
+                tabs.widget(index).refresh()
+                return
+
+        tab = AnalysisTab(self.manipulator, self)
+        tab.setObjectName("analysisTab")
+        tabs.addTab(tab, "Analysis")
+        tabs.setCurrentWidget(tab)
+        # Recalculating changes what there is to analyse, so the tab is told.
+        self.project_updated.connect(tab.refresh)
+        logger.info("Opened the analysis tab")
 
     @Slot(str)
     def handle_projectInfoTab_project_name_changed(self, name: str):

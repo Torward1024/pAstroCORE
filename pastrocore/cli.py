@@ -166,6 +166,98 @@ def export(arguments) -> int:
     return 0 if written else 1
 
 
+def _slice(pairs: Optional[List[str]]) -> dict:
+    """Turn `--where telescope_code=ALMA time=61262:61263` into a filter.
+
+    Notes:
+        - `a=b` is a value, `a=b,c` is a set of them, and `a=x:y` is a range with either end
+          allowed to be empty. Nothing here knows which columns exist -- the analyzer refuses
+          one it does not have, and `analyze describe` is what lists them.
+    """
+    where = {}
+    for pair in pairs or []:
+        if "=" not in pair:
+            raise SystemExit(f"'{pair}' is not a filter; write column=value")
+        column, value = pair.split("=", 1)
+        if ":" in value:
+            low, _, high = value.partition(":")
+            where[column] = {"from": float(low) if low else None,
+                             "to": float(high) if high else None}
+        elif "," in value:
+            where[column] = value.split(",")
+        else:
+            where[column] = value
+    return where
+
+
+def analyze(arguments) -> int:
+    """Ask something of results that have already been calculated."""
+    project = _open(arguments.project)
+    manipulator = ScheduleManipulator(project, journal_limit=None)
+
+    asked = {"key": arguments.key, "where": _slice(arguments.where)}
+    if arguments.what == "summary":
+        asked.update(columns=arguments.columns, group_by=arguments.group_by)
+    elif arguments.what == "windows":
+        asked.update(gaps=arguments.gaps)
+    elif arguments.what == "coverage":
+        asked.update(at_least=arguments.at_least)
+    if arguments.what == "describe":
+        asked = {"key": arguments.key}
+
+    answer = manipulator.analyze(obj=project, method=arguments.what, raise_on_error=False,
+                                 **asked)
+    if not answer.ok:
+        print(f"  {answer.error}")
+        return 1
+
+    result = answer.value
+    if arguments.what == "describe":
+        for key, entry in sorted(result.items()):
+            print(f"{key}  ({entry['rows']} row(s))")
+            print(f"  numbers    {', '.join(entry['numeric']) or '-'}")
+            print(f"  categories {', '.join(entry['categorical']) or '-'}")
+            if entry["boolean"]:
+                print(f"  true/false {', '.join(entry['boolean'])}")
+            for column, values in sorted(entry.get("values", {}).items()):
+                shown = ", ".join(values[:6]) + (" ..." if len(values) > 6 else "")
+                print(f"    {column}: {shown}")
+        return 0 if result else 1
+
+    if not result:
+        print("  nothing to report; has it been calculated?")
+        return 1
+
+    if arguments.what == "summary":
+        for row in result:
+            labels = " ".join(f"{value}" for key, value in row.items()
+                              if key not in ("observation", "column") and not _is_statistic(key))
+            print(f"{row['observation']}  {labels}  {row['column']}")
+            print(f"    count {row['count']}   min {row['min']:.6g}   max {row['max']:.6g}")
+            print(f"    mean {row['mean']:.6g}   median {row['median']:.6g}   "
+                  f"std {row['std']:.6g}   range {row['range']:.6g}")
+            if row.get("min_iso"):
+                print(f"    {row['min_iso'][:19]} to {row['max_iso'][:19]}")
+        return 0
+
+    total = sum(row["duration"] for row in result)
+    longest = max(result, key=lambda row: row["duration"])
+    for row in result:
+        labels = " ".join(str(value) for key, value in row.items()
+                          if key in ("source_name", "target_code", "telescope_code", "baseline"))
+        print(f"{row['observation']}  {labels:24} {row['start_iso'][:19]} to "
+              f"{row['end_iso'][:19]}   {row['duration'] / 60:8.1f} min")
+    print("")
+    print(f"{len(result)} interval(s), {total / 60:.1f} min in total, "
+          f"longest {longest['duration'] / 60:.1f} min")
+    return 0
+
+
+def _is_statistic(name: str) -> bool:
+    return name in ("count", "min", "max", "mean", "median", "std", "range",
+                    "min_iso", "max_iso")
+
+
 def package(arguments) -> int:
     """Pack a project into one file, to send or to attach to a bug report."""
     project = _open(arguments.project)
@@ -305,6 +397,26 @@ def build_parser() -> argparse.ArgumentParser:
     written.add_argument("--only", nargs="+", metavar="KEY")
     written.add_argument("--pictures", action="store_true", help="draw them as well")
     written.set_defaults(run=export)
+
+    asked = commands.add_parser(
+        "analyze", help="ask something of results that have already been calculated")
+    asked.add_argument("project")
+    asked.add_argument("what", choices=["describe", "summary", "windows", "coverage"],
+                       help="describe: what can be asked; summary: the numbers; "
+                            "windows: runs of a true/false column; coverage: across stations")
+    asked.add_argument("--key", metavar="CALCULATION",
+                       help="which result; every one for describe")
+    asked.add_argument("--columns", nargs="+", metavar="COLUMN",
+                       help="summary: which numeric columns; all of them by default")
+    asked.add_argument("--group-by", nargs="+", metavar="COLUMN", dest="group_by",
+                       help="summary: break the answer down by these")
+    asked.add_argument("--where", nargs="+", metavar="COLUMN=VALUE",
+                       help="slice: a value, a,b,c for several, or x:y for a range")
+    asked.add_argument("--gaps", action="store_true",
+                       help="windows: the runs of false rather than of true")
+    asked.add_argument("--at-least", type=int, default=1, dest="at_least",
+                       help="coverage: how many stations at once (1)")
+    asked.set_defaults(run=analyze)
 
     packed = commands.add_parser("package", help="pack a project into one file, to send")
     packed.add_argument("project")
