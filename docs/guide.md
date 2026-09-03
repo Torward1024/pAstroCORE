@@ -85,6 +85,41 @@ observation.get_scans().create_scan(
 assert [s.name for s in observation.get_scans().get_items()] == ["scan1"]
 ```
 
+### What the model will not let you build
+
+Three things are refused, wherever you try them — building an object, loading a file, editing
+one field, replacing a whole set. They are rules about a collection rather than about any one
+value, so nothing you can say about a single frequency or a single scan could express them.
+
+| Refused | Why |
+| --- | --- |
+| Two frequency bands covering the same frequency | Bands that touch are fine: 1000–1016 and 1016–1032 share an edge and no width |
+| Two **active** scans covering the same moment | An inactive scan is an alternative being kept, so two of those may overlap freely |
+| Two observations carrying the same code | The code is what an observation is called on paper; duplicating one makes two of them indistinguishable in every exported schedule |
+
+A refusal names both offenders and leaves everything exactly as it was — the half-applied
+change is the thing worth avoiding.
+
+```python
+from msb_arch import InvariantError
+
+frequencies = observation.get_frequencies()
+
+try:
+    frequencies.create_if(name="IF2", frequency=22032.0, bandwidth=64.0)  # 22000–22064 taken
+    raise AssertionError("the overlap should have been refused")
+except InvariantError as refused:
+    assert "IF1" in str(refused) and "IF2" in str(refused)
+
+# Nothing was added, and the band that was already there is untouched.
+assert [f.name for f in frequencies.get_items()] == ["IF1"]
+assert frequencies.get("IF1").frequency == 22000.0
+
+# A band that starts where the last one ends is not an overlap.
+frequencies.create_if(name="IF2", frequency=22064.0, bandwidth=64.0)
+assert [f.name for f in frequencies.get_items()] == ["IF1", "IF2"]
+```
+
 ## What can be calculated
 
 Ask. The list is not written down anywhere — it is worked out from the calculations that exist,
