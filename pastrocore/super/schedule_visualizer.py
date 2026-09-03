@@ -378,8 +378,22 @@ class ScheduleVisualizer(Super):
                 logger.warning("No observations in ScheduleProject '%s'", obj.get_name())
                 return {}
             with ThreadPoolExecutor() as executor:
-                futures = {executor.submit(self._visualize, obs, attributes, None): obs.get_observation_code() for obs in observations}
-                results = {code: future.result() for future, code in futures.items() if future.result() is not None}
+                futures = {executor.submit(self._visualize, obs, attributes, None):
+                           obs.get_observation_code() for obs in observations}
+                results = {}
+                for future, code in futures.items():
+                    # One observation that cannot be drawn used to take the whole project with
+                    # it -- `future.result()` re-raised here, and the message named nothing, so
+                    # a project of twenty plots produced none and said only what went wrong,
+                    # never where. Each is reported and the rest are drawn.
+                    try:
+                        drawn = future.result()
+                    except Exception as e:              # noqa: BLE001 - one plot frees the rest
+                        logger.error("Could not draw observation '%s': %s", code, str(e),
+                                     exc_info=True)
+                        continue
+                    if drawn is not None:
+                        results[code] = drawn
             return results
         
         plot_func = self._plot_types.get(plot_type)

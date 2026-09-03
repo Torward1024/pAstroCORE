@@ -996,7 +996,7 @@ class PAstroCoreMainWindow(QMainWindow):
             sources_path = existing_or_shipped(
             self.settings.get("sources_catalog_path", ""), "sources.dat")
             try:
-                self.catalog_manager.source_catalog.remove_all()
+                self.catalog_manager.clear_source_catalog()
                 if sources_path:
                     self.catalog_manager.load_source_catalog(sources_path)
                 sources_count = len(self.catalog_manager.source_catalog.get_items())
@@ -1009,7 +1009,7 @@ class PAstroCoreMainWindow(QMainWindow):
             telescopes_path = existing_or_shipped(
             self.settings.get("telescopes_catalog_path", ""), "telescopes.dat")
             try:
-                self.catalog_manager.telescope_catalog.remove_all()
+                self.catalog_manager.clear_telescope_catalog()
                 if telescopes_path:
                     self.catalog_manager.load_telescope_catalog(telescopes_path)
                 telescopes_count = len(self.catalog_manager.telescope_catalog.get_items())

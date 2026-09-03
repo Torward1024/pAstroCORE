@@ -1,6 +1,6 @@
 # utils/catalogmanager.py
 from pastrocore.base.sources import Source, Sources
-from pastrocore.base.telescopes import Telescope, Telescopes
+from pastrocore.base.telescopes import SpaceTelescope, Telescope, Telescopes
 
 from msb_arch.utils.logging_setup import logger
 from typing import Optional, List
@@ -239,17 +239,36 @@ class CatalogManager:
         Returns:
             List[Telescope]: List of Telescope objects matching the specified type.
         """
-        return [t for t in self.telescope_catalog.get_all_telescopes() 
-                if (telescope_type == "Telescope" and isinstance(t, Telescope))]
+        # `SpaceTelescope` is a `Telescope`, so asking by class alone cannot tell them apart:
+        # this read `telescope_type == "Telescope" and isinstance(t, Telescope)`, which returned
+        # every telescope including the spacecraft for one spelling and an empty list for every
+        # other -- so the one type the caller would actually want to single out was the one it
+        # could never return.
+        wanted = {"Telescope": lambda t: not isinstance(t, SpaceTelescope),
+                  "SpaceTelescope": lambda t: isinstance(t, SpaceTelescope)}.get(telescope_type)
+        if wanted is None:
+            logger.warning("No telescope type called '%s'; there is Telescope and SpaceTelescope",
+                           telescope_type)
+            return []
+        return [t for t in self.telescope_catalog.get_all_telescopes() if wanted(t)]
 
-    def clear_catalogs(self) -> None:
-        """Clear both the source and telescope catalogs.
+    def clear_source_catalog(self) -> None:
+        """Empty the source catalogue, keeping the telescopes.
 
         Notes:
-            - Resets source_catalog and telescope_catalog to empty collections.
+            - One catalogue is reloaded on its own when its path changes in Preferences, and
+              the window emptied it by reaching into `source_catalog` to do so.
         """
         self.source_catalog.remove_all()
+
+    def clear_telescope_catalog(self) -> None:
+        """Empty the telescope catalogue, keeping the sources."""
         self.telescope_catalog.remove_all()
+
+    def clear_catalogs(self) -> None:
+        """Empty both catalogues."""
+        self.clear_source_catalog()
+        self.clear_telescope_catalog()
 
     def __repr__(self) -> str:
         """Return a string representation of the CatalogManager.
@@ -259,9 +278,9 @@ class CatalogManager:
         """
         return (f"CatalogManager(sources={len(self.source_catalog)}, "
                 f"telescopes={len(self.telescope_catalog)})")
-    
-    def clear(self):
-        """Clear all catalog data."""
-        self._sources = None
-        self._telescopes = None
+
+    # `clear()` was here and did nothing: it set `_sources` and `_telescopes`, while the
+    # catalogues are held in `source_catalog` and `telescope_catalog` -- so it created two
+    # attributes nobody reads and left both catalogues full. Nothing called it. `clear_catalogs`
+    # is the method that does the job, and `clear` is the name msb_arch 2.0.0 removed anyway.
         logger.debug("Cleared CatalogManager data")
