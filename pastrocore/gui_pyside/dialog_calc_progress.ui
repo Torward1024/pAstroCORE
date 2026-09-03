@@ -38,9 +38,6 @@
    <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
   </property>
-  <property name="styleSheet">
-   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <property name="modal">
    <bool>true</bool>
   </property>
@@ -60,23 +57,6 @@
          <width>450</width>
          <height>35</height>
         </size>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">/* Стилизация QProgressBar */
-QProgressBar {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    background-color: #f9f9f9; /* Фон неактивных элементов */
-    border: 1px solid #d3d3d3; /* Граница неактивного состояния */
-    border-radius: 3px; /* Скругленные углы */
-    text-align: center; /* Выравнивание текста по центру */
-}
-/* Стилизация заполненной части прогресс-бара */
-QProgressBar::chunk {
-    background-color: #0078d7; /* Основной акцентный цвет */
-    border-radius: 2px; /* Скругление внутри, чтобы учитывать границу */
-}</string>
        </property>
        <property name="value">
         <number>25</number>
@@ -121,23 +101,6 @@ QProgressBar::chunk {
      </item>
      <item>
       <widget class="QPushButton" name="pushButtonCancel">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-       </property>
        <property name="text">
         <string>Cancel</string>
        </property>
@@ -148,7 +111,7 @@ QPushButton:pressed {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
- <connections/>
+ <connections />
 </ui>

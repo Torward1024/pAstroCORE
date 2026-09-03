@@ -26,9 +26,6 @@
    <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/visualize.svg</normaloff>:/icons/visualize.svg</iconset>
   </property>
-  <property name="styleSheet">
-   <string>background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <property name="sizeGripEnabled">
    <bool>true</bool>
   </property>
@@ -51,88 +48,7 @@
          </item>
          <item row="0" column="1">
           <widget class="QComboBox" name="comboBoxObservation">
-           <property name="styleSheet">
-            <string notr="true">QComboBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
-    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
-}
-
-QComboBox:editable {
-    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
-    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
-}
-
-QComboBox:editable:hover {
-    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
-}
-
-QComboBox:editable:focus {
-    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
-    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
-}
-
-QComboBox:!editable {
-    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
-    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
-}
-
-QComboBox:!editable:hover {
-    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
-}
-
-QComboBox:!editable:focus {
-    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
-    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
-}
-
-/* Стилизация кнопки со стрелкой */
-QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: right;
-    width: 20px;
-    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
-    border-top-right-radius: 3px;
-    border-bottom-right-radius: 3px;
-    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
-}
-
-QComboBox::drop-down:hover {
-    background-color: #0078d7; /* Лёгкое выделение при наведении */
-}
-
-QComboBox::down-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/down_arrow_icon.svg);
-}
-
-/* Стилизация выпадающего списка */
-QComboBox QAbstractItemView {
-    font-family: Arial;
-    font-size: 12pt;
-    color: #333333;
-    background-color: #ffffff;
-    border: 1px solid #d3d3d3;
-    selection-background-color: #0078d7;
-    selection-color: #ffffff;
-    padding: 1px;
-}
-
-QComboBox QAbstractItemView::item {
-    padding: 4px;
-    min-height: 20px;
-}
-
-QComboBox QAbstractItemView::item:hover {
-    background-color: #0078d7;
-}</string>
-           </property>
-          </widget>
+           </widget>
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="labelVisualizationType">
@@ -154,87 +70,6 @@ QComboBox QAbstractItemView::item:hover {
              <family>Arial</family>
              <pointsize>9</pointsize>
             </font>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">QComboBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
-    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
-}
-
-QComboBox:editable {
-    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
-    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
-}
-
-QComboBox:editable:hover {
-    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
-}
-
-QComboBox:editable:focus {
-    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
-    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
-}
-
-QComboBox:!editable {
-    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
-    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
-}
-
-QComboBox:!editable:hover {
-    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
-}
-
-QComboBox:!editable:focus {
-    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
-    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
-}
-
-/* Стилизация кнопки со стрелкой */
-QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: right;
-    width: 20px;
-    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
-    border-top-right-radius: 3px;
-    border-bottom-right-radius: 3px;
-    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
-}
-
-QComboBox::drop-down:hover {
-    background-color: #0078d7; /* Лёгкое выделение при наведении */
-}
-
-QComboBox::down-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/down_arrow_icon.svg);
-}
-
-/* Стилизация выпадающего списка */
-QComboBox QAbstractItemView {
-    font-family: Arial;
-    font-size: 12pt;
-    color: #333333;
-    background-color: #ffffff;
-    border: 1px solid #d3d3d3;
-    selection-background-color: #0078d7;
-    selection-color: #ffffff;
-    padding: 1px;
-}
-
-QComboBox QAbstractItemView::item {
-    padding: 4px;
-    min-height: 20px;
-}
-
-QComboBox QAbstractItemView::item:hover {
-    background-color: #0078d7;
-}</string>
            </property>
            <item>
             <property name="text">
@@ -293,23 +128,6 @@ QComboBox QAbstractItemView::item:hover {
            <pointsize>9</pointsize>
           </font>
          </property>
-         <property name="styleSheet">
-          <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-         </property>
          <property name="text">
           <string>View</string>
          </property>
@@ -330,23 +148,6 @@ QPushButton:pressed {
        </item>
        <item row="0" column="2">
         <widget class="QPushButton" name="pushButton">
-         <property name="styleSheet">
-          <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-         </property>
          <property name="text">
           <string>Export</string>
          </property>
@@ -358,11 +159,6 @@ QPushButton:pressed {
    </item>
    <item row="2" column="0">
     <widget class="QTabWidget" name="tabWidget">
-     <property name="styleSheet">
-      <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
-               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}
-               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
-     </property>
      <property name="currentIndex">
       <number>-1</number>
      </property>
@@ -388,23 +184,6 @@ QPushButton:pressed {
      </item>
      <item>
       <widget class="QPushButton" name="closeButton">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-       </property>
        <property name="text">
         <string>Close</string>
        </property>
@@ -429,7 +208,7 @@ QPushButton:pressed {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
- <connections/>
+ <connections />
 </ui>

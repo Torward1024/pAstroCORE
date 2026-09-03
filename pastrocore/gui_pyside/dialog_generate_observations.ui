@@ -17,9 +17,6 @@
    <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
   </property>
-  <property name="styleSheet">
-   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <property name="modal">
    <bool>true</bool>
   </property>
@@ -45,23 +42,6 @@
          </item>
          <item>
           <widget class="QLineEdit" name="namingMaskEdit">
-           <property name="styleSheet">
-            <string notr="true">
-             QLineEdit {
-              background-color: #f0f6ff;
-              border: 1px solid #0078d7;
-              padding: 4px;
-              border-radius: 3px;
-             }
-             QLineEdit:hover {
-              border: 1px solid #1a8cff;
-             }
-             QLineEdit:focus {
-              border: 1px solid #005bb5;
-              background-color: #ffffff;
-             }
-            </string>
-           </property>
            <property name="placeholderText">
             <string>Observation_{i}_{s}_{dt}_{t}_{d}</string>
            </property>
@@ -74,9 +54,6 @@
          <property name="contextMenuPolicy">
           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
          </property>
-         <property name="styleSheet">
-          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
-         </property>
          <property name="selectionMode">
           <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
          </property>
@@ -86,9 +63,6 @@
         <widget class="QListWidget" name="sourceList">
          <property name="contextMenuPolicy">
           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
          </property>
          <property name="selectionMode">
           <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
@@ -106,9 +80,6 @@
         <widget class="QListWidget" name="telescopeList">
          <property name="contextMenuPolicy">
           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true">border: 1px solid #d3d3d3; background-color: #ffffff;</string>
          </property>
          <property name="selectionMode">
           <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
@@ -139,25 +110,6 @@
              <height>20</height>
             </size>
            </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
            <property name="text">
             <string>Select All</string>
            </property>
@@ -170,25 +122,6 @@
              <width>40</width>
              <height>20</height>
             </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
            </property>
            <property name="text">
             <string>Up</string>
@@ -203,25 +136,6 @@
              <height>20</height>
             </size>
            </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
            <property name="text">
             <string>Clear</string>
            </property>
@@ -234,25 +148,6 @@
              <width>40</width>
              <height>20</height>
             </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
            </property>
            <property name="text">
             <string>Down</string>
@@ -271,25 +166,6 @@
              <height>20</height>
             </size>
            </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
            <property name="text">
             <string>Clear</string>
            </property>
@@ -302,25 +178,6 @@
              <width>40</width>
              <height>20</height>
             </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
            </property>
            <property name="text">
             <string>Select All</string>
@@ -339,25 +196,6 @@
              <height>20</height>
             </size>
            </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
            <property name="text">
             <string>Clear</string>
            </property>
@@ -370,25 +208,6 @@
              <width>40</width>
              <height>20</height>
             </size>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
            </property>
            <property name="text">
             <string>Select All</string>
@@ -411,25 +230,6 @@
            <property name="enabled">
             <bool>false</bool>
            </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
            <property name="text">
             <string>Save Preset</string>
            </property>
@@ -440,25 +240,6 @@
            <property name="enabled">
             <bool>false</bool>
            </property>
-           <property name="styleSheet">
-            <string notr="true">
-             QPushButton {
-              background-color: #0078d7;
-              color: #ffffff;
-              padding: 6px;
-              border-radius: 3px;
-              border: none;
-             }
-             QPushButton:hover {
-              background-color: #1a8cff;
-             }
-             QPushButton:pressed {
-              background-color: #005bb5;
-              padding-top: 7px;
-              padding-bottom: 5px;
-             }
-            </string>
-           </property>
            <property name="text">
             <string>Load Preset</string>
            </property>
@@ -468,85 +249,6 @@
        </item>
        <item row="2" column="0">
         <widget class="QCheckBox" name="randomizeOrderCheck">
-         <property name="styleSheet">
-          <string notr="true">/* Основной стиль QCheckBox */
-QCheckBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    spacing: 6px;
-    padding: 2px;
-    outline: none;
-}
-
-QCheckBox::item {
-    padding: 2px;
-}
-
-/* Индикатор чекбокса */
-QCheckBox::indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-
-/* Unchecked состояние */
-QCheckBox::indicator:unchecked {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:hover {
-    border: 1px solid #1a8cff;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:focus {
-    border: 1px solid #005bb5;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
-QCheckBox::indicator:checked {
-    border: 1px solid #0078d7;
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-QCheckBox::indicator:checked:hover {
-    border: 1px solid #1a8cff; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon_hover.svg);
-}
-
-QCheckBox::indicator:checked:focus {
-    border: 1px solid #005bb5; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-/* Disabled состояния */
-QCheckBox::indicator:unchecked:disabled {
-    border: 1px solid #e0e0e0;
-    background-color: #f5f5f5;
-    image: none;
-}
-
-QCheckBox::indicator:checked:disabled {
-    border: 1px solid #cccccc;
-    background-color: #f0f0f0; /* Светло-серый фон */
-    image: url(:/icons/check_icon_disabled.svg);
-}
-
-QCheckBox:disabled {
-    color: #999999;
-}</string>
-         </property>
          <property name="text">
           <string>Randomize Scan Order</string>
          </property>
@@ -557,85 +259,6 @@ QCheckBox:disabled {
        </item>
        <item row="1" column="0">
         <widget class="QCheckBox" name="addOffSourceCheck">
-         <property name="styleSheet">
-          <string notr="true">/* Основной стиль QCheckBox */
-QCheckBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    spacing: 6px;
-    padding: 2px;
-    outline: none;
-}
-
-QCheckBox::item {
-    padding: 2px;
-}
-
-/* Индикатор чекбокса */
-QCheckBox::indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-
-/* Unchecked состояние */
-QCheckBox::indicator:unchecked {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:hover {
-    border: 1px solid #1a8cff;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:focus {
-    border: 1px solid #005bb5;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
-QCheckBox::indicator:checked {
-    border: 1px solid #0078d7;
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-QCheckBox::indicator:checked:hover {
-    border: 1px solid #1a8cff; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon_hover.svg);
-}
-
-QCheckBox::indicator:checked:focus {
-    border: 1px solid #005bb5; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-/* Disabled состояния */
-QCheckBox::indicator:unchecked:disabled {
-    border: 1px solid #e0e0e0;
-    background-color: #f5f5f5;
-    image: none;
-}
-
-QCheckBox::indicator:checked:disabled {
-    border: 1px solid #cccccc;
-    background-color: #f0f0f0; /* Светло-серый фон */
-    image: url(:/icons/check_icon_disabled.svg);
-}
-
-QCheckBox:disabled {
-    color: #999999;
-}</string>
-         </property>
          <property name="text">
           <string>Add Off-Source Scans</string>
          </property>
@@ -656,75 +279,6 @@ QCheckBox:disabled {
        </item>
        <item row="5" column="0">
         <widget class="QComboBox" name="presetCombo">
-         <property name="styleSheet">
-          <string notr="true">
-           QComboBox {
-            font-family: Arial;
-            font-size: 9pt;
-            color: #333333;
-            padding: 1px;
-            border-radius: 3px;
-            background-color: #f9f9f9;
-            border: 1px solid #d3d3d3;
-           }
-           QComboBox:editable {
-            background-color: #f0f6ff;
-            border: 1px solid #0078d7;
-           }
-           QComboBox:editable:hover {
-            border: 1px solid #1a8cff;
-           }
-           QComboBox:editable:focus {
-            border: 1px solid #005bb5;
-            background-color: #ffffff;
-           }
-           QComboBox:!editable {
-            background-color: #f0f6ff;
-            border: 1px solid #0078d7;
-           }
-           QComboBox:!editable:hover {
-            border: 1px solid #1a8cff;
-           }
-           QComboBox:!editable:focus {
-            border: 1px solid #005bb5;
-            background-color: #ffffff;
-           }
-           QComboBox::drop-down {
-            subcontrol-origin: padding;
-            subcontrol-position: right;
-            width: 20px;
-            border-left: 1px solid #d3d3d3;
-            border-top-right-radius: 3px;
-            border-bottom-right-radius: 3px;
-            background-color: #f9f9f9;
-           }
-           QComboBox::drop-down:hover {
-            background-color: #0078d7;
-           }
-           QComboBox::down-arrow {
-            width: 12px;
-            height: 12px;
-            image: url(:/icons/down_arrow_icon.svg);
-           }
-           QComboBox QAbstractItemView {
-            font-family: Arial;
-            font-size: 12pt;
-            color: #333333;
-            background-color: #ffffff;
-            border: 1px solid #d3d3d3;
-            selection-background-color: #0078d7;
-            selection-color: #ffffff;
-            padding: 1px;
-           }
-           QComboBox QAbstractItemView::item {
-            padding: 4px;
-            min-height: 20px;
-           }
-           QComboBox QAbstractItemView::item:hover {
-            background-color: #0078d7;
-           }
-          </string>
-         </property>
          <item>
           <property name="text">
            <string>Standard VLBI</string>
@@ -748,44 +302,6 @@ QCheckBox:disabled {
          </item>
          <item>
           <widget class="QDoubleSpinBox" name="intervalSpinBox">
-           <property name="styleSheet">
-            <string notr="true">         QDoubleSpinBox {
-          font-family: Arial;
-          font-size: 9pt;
-          color: #333333;
-          padding: 1px;
-          padding-right: 20px;
-          border-radius: 3px;
-          background-color: #f0f6ff;
-          border: 1px solid #0078d7;
-         }
-         QDoubleSpinBox:hover {
-          border: 1px solid #1a8cff;
-         }
-         QDoubleSpinBox:focus {
-          border: 1px solid #005bb5;
-          background-color: #ffffff;
-         }
-         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-          width: 20px;
-          border-left: 1px solid #d3d3d3;
-          background-color: #f9f9f9;
-         }
-         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-          background-color: #0078d7;
-         }
-         QDoubleSpinBox::up-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/up_arrow_icon.svg);
-         }
-         QDoubleSpinBox::down-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/down_arrow_icon.svg);
-         }
-        </string>
-           </property>
            <property name="maximum">
             <double>100000000000.000000000000000</double>
            </property>
@@ -822,75 +338,6 @@ QCheckBox:disabled {
    </item>
    <item>
     <widget class="QComboBox" name="observationTypeCombo">
-     <property name="styleSheet">
-      <string notr="true">
-       QComboBox {
-        font-family: Arial;
-        font-size: 9pt;
-        color: #333333;
-        padding: 1px;
-        border-radius: 3px;
-        background-color: #f9f9f9;
-        border: 1px solid #d3d3d3;
-       }
-       QComboBox:editable {
-        background-color: #f0f6ff;
-        border: 1px solid #0078d7;
-       }
-       QComboBox:editable:hover {
-        border: 1px solid #1a8cff;
-       }
-       QComboBox:editable:focus {
-        border: 1px solid #005bb5;
-        background-color: #ffffff;
-       }
-       QComboBox:!editable {
-        background-color: #f0f6ff;
-        border: 1px solid #0078d7;
-       }
-       QComboBox:!editable:hover {
-        border: 1px solid #1a8cff;
-       }
-       QComboBox:!editable:focus {
-        border: 1px solid #005bb5;
-        background-color: #ffffff;
-       }
-       QComboBox::drop-down {
-        subcontrol-origin: padding;
-        subcontrol-position: right;
-        width: 20px;
-        border-left: 1px solid #d3d3d3;
-        border-top-right-radius: 3px;
-        border-bottom-right-radius: 3px;
-        background-color: #f9f9f9;
-       }
-       QComboBox::drop-down:hover {
-        background-color: #0078d7;
-       }
-       QComboBox::down-arrow {
-        width: 12px;
-        height: 12px;
-        image: url(:/icons/down_arrow_icon.svg);
-       }
-       QComboBox QAbstractItemView {
-        font-family: Arial;
-        font-size: 12pt;
-        color: #333333;
-        background-color: #ffffff;
-        border: 1px solid #d3d3d3;
-        selection-background-color: #0078d7;
-        selection-color: #ffffff;
-        padding: 1px;
-       }
-       QComboBox QAbstractItemView::item {
-        padding: 4px;
-        min-height: 20px;
-       }
-       QComboBox QAbstractItemView::item:hover {
-        background-color: #0078d7;
-       }
-      </string>
-     </property>
      <item>
       <property name="text">
        <string>VLBI</string>
@@ -923,35 +370,6 @@ QCheckBox:disabled {
        </item>
        <item>
         <widget class="QDateTimeEdit" name="startTimeEdit">
-         <property name="styleSheet">
-          <string notr="true">           QDateTimeEdit {
-            background-color: #f0f6ff;
-            border: 1px solid #0078d7;
-            padding: 4px;
-            border-radius: 3px;
-           }
-           QDateTimeEdit:hover {
-            border: 1px solid #1a8cff;
-           }
-           QDateTimeEdit:focus {
-            border: 1px solid #005bb5;
-            background-color: #ffffff;
-           }
-           QDateTimeEdit::drop-down {
-            width: 20px;
-            border-left: 1px solid #d3d3d3;
-            background-color: #f9f9f9;
-           }
-           QDateTimeEdit::drop-down:hover {
-            background-color: #0078d7;
-           }
-           QDateTimeEdit::down-arrow {
-            image: url(:/icons/down_arrow_icon.svg);
-            width: 12px;
-            height: 12px;
-           }
-          </string>
-         </property>
          <property name="displayFormat">
           <string>yyyy-MM-dd HH:mm:ss</string>
          </property>
@@ -973,35 +391,6 @@ QCheckBox:disabled {
        </item>
        <item>
         <widget class="QDateTimeEdit" name="endTimeEdit">
-         <property name="styleSheet">
-          <string notr="true">           QDateTimeEdit {
-            background-color: #f0f6ff;
-            border: 1px solid #0078d7;
-            padding: 4px;
-            border-radius: 3px;
-           }
-           QDateTimeEdit:hover {
-            border: 1px solid #1a8cff;
-           }
-           QDateTimeEdit:focus {
-            border: 1px solid #005bb5;
-            background-color: #ffffff;
-           }
-           QDateTimeEdit::drop-down {
-            width: 20px;
-            border-left: 1px solid #d3d3d3;
-            background-color: #f9f9f9;
-           }
-           QDateTimeEdit::drop-down:hover {
-            background-color: #0078d7;
-           }
-           QDateTimeEdit::down-arrow {
-            image: url(:/icons/down_arrow_icon.svg);
-            width: 12px;
-            height: 12px;
-           }
-          </string>
-         </property>
          <property name="displayFormat">
           <string>yyyy-MM-dd HH:mm:ss</string>
          </property>
@@ -1025,44 +414,6 @@ QCheckBox:disabled {
      </item>
      <item>
       <widget class="QDoubleSpinBox" name="scanDurationSpinBox">
-       <property name="styleSheet">
-        <string notr="true">         QDoubleSpinBox {
-          font-family: Arial;
-          font-size: 9pt;
-          color: #333333;
-          padding: 1px;
-          padding-right: 20px;
-          border-radius: 3px;
-          background-color: #f0f6ff;
-          border: 1px solid #0078d7;
-         }
-         QDoubleSpinBox:hover {
-          border: 1px solid #1a8cff;
-         }
-         QDoubleSpinBox:focus {
-          border: 1px solid #005bb5;
-          background-color: #ffffff;
-         }
-         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-          width: 20px;
-          border-left: 1px solid #d3d3d3;
-          background-color: #f9f9f9;
-         }
-         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-          background-color: #0078d7;
-         }
-         QDoubleSpinBox::up-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/up_arrow_icon.svg);
-         }
-         QDoubleSpinBox::down-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/down_arrow_icon.svg);
-         }
-        </string>
-       </property>
        <property name="minimum">
         <double>1.000000000000000</double>
        </property>
@@ -1087,44 +438,6 @@ QCheckBox:disabled {
      </item>
      <item>
       <widget class="QSpinBox" name="numScansSpinBox">
-       <property name="styleSheet">
-        <string notr="true">         QSpinBox {
-          font-family: Arial;
-          font-size: 9pt;
-          color: #333333;
-          padding: 1px;
-          padding-right: 20px;
-          border-radius: 3px;
-          background-color: #f0f6ff;
-          border: 1px solid #0078d7;
-         }
-         QSpinBox:hover {
-          border: 1px solid #1a8cff;
-         }
-         QSpinBox:focus {
-          border: 1px solid #005bb5;
-          background-color: #ffffff;
-         }
-         QSpinBox::up-button, QSpinBox::down-button {
-          width: 20px;
-          border-left: 1px solid #d3d3d3;
-          background-color: #f9f9f9;
-         }
-         QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-          background-color: #0078d7;
-         }
-         QSpinBox::up-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/up_arrow_icon.svg);
-         }
-         QSpinBox::down-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/down_arrow_icon.svg);
-         }
-        </string>
-       </property>
        <property name="minimum">
         <number>1</number>
        </property>
@@ -1153,85 +466,6 @@ QCheckBox:disabled {
    </item>
    <item>
     <widget class="QCheckBox" name="chkParallel">
-     <property name="styleSheet">
-      <string notr="true">/* Основной стиль QCheckBox */
-QCheckBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    spacing: 6px;
-    padding: 2px;
-    outline: none;
-}
-
-QCheckBox::item {
-    padding: 2px;
-}
-
-/* Индикатор чекбокса */
-QCheckBox::indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-
-/* Unchecked состояние */
-QCheckBox::indicator:unchecked {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:hover {
-    border: 1px solid #1a8cff;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:focus {
-    border: 1px solid #005bb5;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
-QCheckBox::indicator:checked {
-    border: 1px solid #0078d7;
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-QCheckBox::indicator:checked:hover {
-    border: 1px solid #1a8cff; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon_hover.svg);
-}
-
-QCheckBox::indicator:checked:focus {
-    border: 1px solid #005bb5; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-/* Disabled состояния */
-QCheckBox::indicator:unchecked:disabled {
-    border: 1px solid #e0e0e0;
-    background-color: #f5f5f5;
-    image: none;
-}
-
-QCheckBox::indicator:checked:disabled {
-    border: 1px solid #cccccc;
-    background-color: #f0f0f0; /* Светло-серый фон */
-    image: url(:/icons/check_icon_disabled.svg);
-}
-
-QCheckBox:disabled {
-    color: #999999;
-}</string>
-     </property>
      <property name="text">
       <string>Observations Parallel in Time</string>
      </property>
@@ -1241,25 +475,6 @@ QCheckBox:disabled {
     <layout class="QHBoxLayout" name="horizontalLayoutButtons">
      <item>
       <widget class="QPushButton" name="generateButton">
-       <property name="styleSheet">
-        <string notr="true">
-         QPushButton {
-          background-color: #0078d7;
-          color: #ffffff;
-          padding: 6px;
-          border-radius: 3px;
-          border: none;
-         }
-         QPushButton:hover {
-          background-color: #1a8cff;
-         }
-         QPushButton:pressed {
-          background-color: #005bb5;
-          padding-top: 7px;
-          padding-bottom: 5px;
-         }
-        </string>
-       </property>
        <property name="text">
         <string>Generate</string>
        </property>
@@ -1270,25 +485,6 @@ QCheckBox:disabled {
      </item>
      <item>
       <widget class="QPushButton" name="cancelButton">
-       <property name="styleSheet">
-        <string notr="true">
-         QPushButton {
-          background-color: #0078d7;
-          color: #ffffff;
-          padding: 6px;
-          border-radius: 3px;
-          border: none;
-         }
-         QPushButton:hover {
-          background-color: #1a8cff;
-         }
-         QPushButton:pressed {
-          background-color: #005bb5;
-          padding-top: 7px;
-          padding-bottom: 5px;
-         }
-        </string>
-       </property>
        <property name="text">
         <string>Cancel</string>
        </property>
@@ -1299,7 +495,7 @@ QCheckBox:disabled {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
  <connections>
   <connection>

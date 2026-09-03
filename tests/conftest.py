@@ -100,3 +100,41 @@ def qt_application():
 
     application = QApplication.instance() or QApplication([])
     yield application
+
+
+def pytest_addoption(parser):
+    """Options a run may be given.
+
+    Notes:
+        - `--regenerate-form-pixels` rewrites the reference the form harness compares against.
+          Deliberate and separate, because a reference that regenerates itself on a mismatch
+          records whatever happened rather than what was meant.
+    """
+    parser.addoption("--regenerate-form-pixels", action="store_true", default=False,
+                     help="rewrite tests/fixtures/form_pixels.json from what the forms render now")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Write the form reference, when asked for it."""
+    if not session.config.getoption("--regenerate-form-pixels", default=False):
+        return
+
+    import json
+
+    from PySide6.QtWidgets import QApplication
+
+    from test_form_pixels import REFERENCE, form_classes, platform_key, render
+
+    QApplication.instance() or QApplication([])
+    # Kept per platform: pixels are not portable, and rewriting the file would throw away the
+    # reference recorded on whatever machine is not this one.
+    everything = {}
+    if REFERENCE.is_file():
+        everything = json.loads(REFERENCE.read_text(encoding="utf-8"))
+    everything[platform_key()] = {f"{stem}.{name}": render(stem, name)
+                                  for stem, name in form_classes()}
+    REFERENCE.parent.mkdir(parents=True, exist_ok=True)
+    REFERENCE.write_text(json.dumps(everything, indent=2, sort_keys=True) + "\n",
+                         encoding="utf-8")
+    print(f"\nwrote {REFERENCE} for {platform_key()}: "
+          f"{len(everything[platform_key()])} form(s)")

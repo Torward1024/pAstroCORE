@@ -19,6 +19,7 @@ from pastrocore.utils.catalogmanager import CatalogManager
 # UI files. The dialogs are imported where they are opened rather than here: between them
 # they pull in matplotlib and every visualization tab, which is 570 ms of a start-up that
 # happens whether or not anyone opens a dialog.
+from pastrocore.gui.styling import load_stylesheet
 from pastrocore.gui.ui_main_window import Ui_MainWindow
 from pastrocore.gui.p_tab_project import ProjectInfoTab
 from pastrocore.gui.p_tab_observation import ObservationTab
@@ -1535,139 +1536,11 @@ def main() -> None:
     _warm_coordinate_tables()
 
     app = QApplication(sys.argv)
-    app.setStyleSheet("""
-        QMainWindow {
-            background-color: #f5f5f5;
-            font-family: Arial, sans-serif;
-        }
-        QMenuBar {
-            background-color: #ffffff;
-            color: #333333;
-            padding: 4px;
-        }
-        QMenuBar::item {
-            background: #ffffff;
-            padding: 4px 8px;
-            color: #333333;
-        }
-        QMenuBar::item:selected {
-            background: #0078d7;
-            color: #ffffff;
-        }
-        QMenu {
-            background-color: #ffffff;
-            border: 1px solid #d3d3d3;
-            color: #333333;
-        }
-        QMenu::item {
-            padding: 4px 24px 4px 8px;
-            background: #ffffff;
-            color: #333333;
-        }
-        QMenu::item:selected {
-            background: #0078d7;
-            color: #ffffff;
-        }
-        QTableView {
-            background-color: #ffffff;
-            border: 1px solid #d3d3d3;
-            gridline-color: #e0e0e0;
-            selection-background-color: #0078d7;
-            selection-color: #ffffff;
-            font-size: 12px;
-        }
-        QTableView::item {
-            padding: 4px;
-        }
-        QHeaderView::section {
-            background-color: #f0f0f0;
-            padding: 4px;
-            border: 1px solid #d3d3d3;
-        }
-        QLineEdit {
-            background-color: #ffffff;
-            border: 1px solid #d3d3d3;
-            padding: 4px;
-            border-radius: 4px;
-            color: #333333;
-        }
-        QLineEdit:focus {
-            border: 1px solid #0078d7;
-        }
-        QLineEdit[readOnly="true"] {
-            background-color: #f0f0f0;
-            border: 1px solid #e0e0e0;
-        }
-        QWidget {
-            color: #333333;
-        }
-        /* Vertical ScrollBar */
-        QScrollBar:vertical {
-            background-color: #f0f0f0;
-            width: 12px;
-            margin: 0px 0px 0px 0px;
-            border: 1px solid #d3d3d3;
-            border-radius: 4px;
-        }
-        QScrollBar::handle:vertical {
-            background-color: #ffffff;
-            min-height: 20px;
-            border: 1px solid #d3d3d3;
-            border-radius: 4px;
-        }
-        QScrollBar::handle:vertical:hover {
-            background-color: #0078d7;
-            border: 1px solid #0078d7;
-        }
-        QScrollBar::add-line:vertical {
-            background-color: #f0f0f0;
-            height: 0px;
-            subcontrol-position: bottom;
-            subcontrol-origin: margin;
-        }
-        QScrollBar::sub-line:vertical {
-            background-color: #f0f0f0;
-            height: 0px;
-            subcontrol-position: top;
-            subcontrol-origin: margin;
-        }
-        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-            background-color: #f5f5f5;
-        }
-        /* Horizontal ScrollBar */
-        QScrollBar:horizontal {
-            background-color: #f0f0f0;
-            height: 12px;
-            margin: 0px 0px 0px 0px;
-            border: 1px solid #d3d3d3;
-            border-radius: 4px;
-        }
-        QScrollBar::handle:horizontal {
-            background-color: #ffffff;
-            min-width: 20px;
-            border: 1px solid #d3d3d3;
-            border-radius: 4px;
-        }
-        QScrollBar::handle:horizontal:hover {
-            background-color: #0078d7;
-            border: 1px solid #0078d7;
-        }
-        QScrollBar::add-line:horizontal {
-            background-color: #f0f0f0;
-            width: 0px;
-            subcontrol-position: right;
-            subcontrol-origin: margin;
-        }
-        QScrollBar::sub-line:horizontal {
-            background-color: #f0f0f0;
-            width: 0px;
-            subcontrol-position: left;
-            subcontrol-origin: margin;
-        }
-        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-            background-color: #f5f5f5;
-        }
-    """)
+    # One stylesheet, read from a file. 224 `styleSheet` properties across 24
+    # forms and 131 lines inline here made "what does this application look
+    # like" a question with no answer; `pastrocore.qss` is the answer, and it
+    # is editable without regenerating a form or touching this module.
+    app.setStyleSheet(load_stylesheet())
     window = PAstroCoreMainWindow(_startup_settings)
     window.show()
     # Build the deferred operations, and then read the catalogue once, while the user is

@@ -1,0 +1,701 @@
+/* pAstroCORE -- one stylesheet, loaded onto the QApplication at startup.
+ *
+ * Collected out of 24 .ui forms, where 224 separate `styleSheet` properties made "what does
+ * this application look like" a question with no answer, and where copying a form was how a
+ * second variant of a rule came to exist.
+ *
+ * Every rule is written against a **type**, so it reaches every widget of that type: that is
+ * what makes the application consistent, and it is the difference between this and 224
+ * properties. To style one widget differently, give it an object name and add a `#name` rule
+ * at the end of this file -- after the type rules, so it wins.
+ *
+ * Edit this file to change the appearance. Nothing needs regenerating.
+ *
+ * Generated once by tools/extract_stylesheets.py; maintained by hand from here.
+ */
+
+
+/* the window itself: 24 form(s) carried this. First on purpose --
+ * a later rule of equal specificity wins, and this one matches
+ * everything. */
+QDialog, QMainWindow {
+    background-color: #ffffff; font-family: Arial;
+}
+
+/* QCheckBox: 14 of 14 carried this */
+/* Основной стиль QCheckBox */
+QCheckBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    spacing: 6px;
+    padding: 2px;
+    outline: none;
+}
+
+QCheckBox::item {
+    padding: 2px;
+}
+
+/* Индикатор чекбокса */
+QCheckBox::indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+
+/* Unchecked состояние */
+QCheckBox::indicator:unchecked {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+    image: none;
+}
+
+QCheckBox::indicator:unchecked:hover {
+    border: 1px solid #1a8cff;
+    background-color: #f0f6ff;
+    image: none;
+}
+
+QCheckBox::indicator:unchecked:focus {
+    border: 1px solid #005bb5;
+    background-color: #f0f6ff;
+    image: none;
+}
+
+/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
+QCheckBox::indicator:checked {
+    border: 1px solid #0078d7;
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon.svg);
+}
+
+QCheckBox::indicator:checked:hover {
+    border: 1px solid #1a8cff; /* Стандартная толщина */
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon_hover.svg);
+}
+
+QCheckBox::indicator:checked:focus {
+    border: 1px solid #005bb5; /* Стандартная толщина */
+    background-color: #ffffff; /* Белый фон */
+    image: url(:/icons/check_icon.svg);
+}
+
+/* Disabled состояния */
+QCheckBox::indicator:unchecked:disabled {
+    border: 1px solid #e0e0e0;
+    background-color: #f5f5f5;
+    image: none;
+}
+
+QCheckBox::indicator:checked:disabled {
+    border: 1px solid #cccccc;
+    background-color: #f0f0f0; /* Светло-серый фон */
+    image: url(:/icons/check_icon_disabled.svg);
+}
+
+QCheckBox:disabled {
+    color: #999999;
+}
+
+/* QComboBox: 10 of 14 carried this; 4 carried something else */
+QComboBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
+    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
+}
+
+QComboBox:editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly="false" */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly="false":hover */
+}
+
+QComboBox:editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly="false":focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly="false":focus */
+}
+
+QComboBox:!editable {
+    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly="false" */
+    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
+}
+
+QComboBox:!editable:hover {
+    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly="false":hover */
+}
+
+QComboBox:!editable:focus {
+    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly="false":focus */
+    background-color: #ffffff; /* Фон при фокусе, как у readOnly="false":focus */
+}
+
+/* Стилизация кнопки со стрелкой */
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: right;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
+}
+
+QComboBox::drop-down:hover {
+    background-color: #0078d7; /* Лёгкое выделение при наведении */
+}
+
+QComboBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg);
+}
+
+/* Стилизация выпадающего списка */
+QComboBox QAbstractItemView {
+    font-family: Arial;
+    font-size: 12pt;
+    color: #333333;
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    selection-background-color: #0078d7;
+    selection-color: #ffffff;
+    padding: 1px;
+}
+
+QComboBox QAbstractItemView::item {
+    padding: 4px;
+    min-height: 20px;
+}
+
+QComboBox QAbstractItemView::item:hover {
+    background-color: #0078d7;
+}
+
+/* QDateTimeEdit: 2 of 5 carried this; 3 carried something else */
+/* Base style for QDateTimeEdit */
+QDateTimeEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    padding-right: 20px; /* Space for up/down buttons */
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
+    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
+}
+
+/* Editable state */
+QDateTimeEdit:editable {
+    background-color: #f0f6ff; /* Matches editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches editable QComboBox border */
+}
+
+/* Editable hover state */
+QDateTimeEdit:editable:hover {
+    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
+}
+
+/* Editable focus state */
+QDateTimeEdit:editable:focus {
+    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches editable QComboBox:focus background */
+}
+
+/* Non-editable state */
+QDateTimeEdit:!editable {
+    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
+}
+
+/* Non-editable hover state */
+QDateTimeEdit:!editable:hover {
+    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
+}
+
+/* Non-editable focus state */
+QDateTimeEdit:!editable:focus {
+    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
+}
+
+/* Styling for up/down buttons */
+QDateTimeEdit::up-button, QDateTimeEdit::down-button {
+    subcontrol-origin: padding;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
+    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
+}
+
+/* Hover state for up/down buttons */
+QDateTimeEdit::up-button:hover, QDateTimeEdit::down-button:hover {
+    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
+}
+
+/* Up arrow styling */
+QDateTimeEdit::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
+}
+
+/* Down arrow styling */
+QDateTimeEdit::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
+}
+
+/* QDockWidget: 1 of 1 carried this */
+QDockWidget {
+    background-color: #ffffff; font-family: Arial;
+}
+
+/* QDoubleSpinBox: 34 of 38 carried this; 4 carried something else */
+/* Base style for QDoubleSpinBox */
+QDoubleSpinBox {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    padding-right: 20px;
+    border-radius: 3px;
+    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
+    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
+}
+
+/* Editable state */
+QDoubleSpinBox:editable {
+    background-color: #f0f6ff; /* Matches editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches editable QComboBox border */
+}
+
+/* Editable hover state */
+QDoubleSpinBox:editable:hover {
+    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
+}
+
+/* Editable focus state */
+QDoubleSpinBox:editable:focus {
+    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches editable QComboBox:focus background */
+}
+
+/* Non-editable state */
+QDoubleSpinBox:!editable {
+    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
+    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
+}
+
+/* Non-editable hover state */
+QDoubleSpinBox:!editable:hover {
+    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
+}
+
+/* Non-editable focus state */
+QDoubleSpinBox:!editable:focus {
+    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
+    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
+}
+
+/* Styling for up/down buttons */
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: padding;
+    width: 20px;
+    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
+    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
+}
+/* Hover state for up/down buttons */
+QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
+}
+
+/* Up arrow styling */
+QDoubleSpinBox::up-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
+}
+/* Down arrow styling */
+QDoubleSpinBox::down-arrow {
+    width: 12px;
+    height: 12px;
+    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
+}
+
+/* QLabel: 2 of 121 carried this; 1 carried something else */
+QLabel {
+    font-size: 10pt; padding: 4px;
+}
+
+/* QLineEdit: 18 of 19 carried this; 1 carried something else */
+QLineEdit {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    padding: 1px;
+    border-radius: 3px;
+}
+QLineEdit[readOnly="true"] {
+    border: 1px solid #d3d3d3;
+    background-color: #f9f9f9;
+}
+QLineEdit[readOnly="false"] {
+    border: 1px solid #0078d7;
+    background-color: #f0f6ff;
+}
+QLineEdit[readOnly="false"]:hover {
+    border: 1px solid #1a8cff;
+}
+QLineEdit[readOnly="false"]:focus {
+    border: 1px solid #005bb5;
+    background-color: #ffffff;
+}
+
+/* QListWidget: 3 of 18 carried this; 1 carried something else */
+QListWidget {
+    border: 1px solid #d3d3d3; background-color: #ffffff;
+}
+
+/* QMenuBar: 1 of 1 carried this */
+QMenuBar {
+    background-color: #ffffff;
+    font-family: Arial;
+    color: #000000;
+}
+
+QMenuBar::item {
+    background: #ffffff;
+    padding: 4px 8px;
+    color: #000000;
+    spacing: 4px; /* Расстояние между иконкой и текстом */
+}
+
+QMenuBar::item:selected {
+    background: #0078d7;
+    color: #ffffff;
+}
+
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    font-family: Arial;
+}
+
+QMenu::item {
+    padding: 4px 24px 4px 8px; /* Левый отступ уменьшен, правый увеличен для баланса */
+    background: #ffffff;
+    color: #000000;
+    icon-size: 24px; /* Фиксированный размер иконок */
+}
+
+QMenu::item:selected {
+    background: #0078d7;
+    color: #ffffff;
+}
+
+QMenu::item:hover {
+    background: #e0e0e0;
+    color: #000000;
+}
+
+QMenu::icon {
+    padding-left: 4px; /* Уменьшаем отступ слева для иконки */
+}
+
+/* QProgressBar: 1 of 2 carried this */
+/* Стилизация QProgressBar */
+QProgressBar {
+    font-family: Arial;
+    font-size: 9pt;
+    color: #333333;
+    background-color: #f9f9f9; /* Фон неактивных элементов */
+    border: 1px solid #d3d3d3; /* Граница неактивного состояния */
+    border-radius: 3px; /* Скругленные углы */
+    text-align: center; /* Выравнивание текста по центру */
+}
+/* Стилизация заполненной части прогресс-бара */
+QProgressBar::chunk {
+    background-color: #0078d7; /* Основной акцентный цвет */
+    border-radius: 2px; /* Скругление внутри, чтобы учитывать границу */
+}
+
+/* QPushButton: 54 of 86 carried this; 32 carried something else */
+QPushButton {
+    background-color: #0078d7;
+    color: #ffffff;
+    padding: 6px;
+    border-radius: 3px;
+    border: none;
+}
+QPushButton:hover {
+    background-color: #1a8cff; /* Светлее при наведении */
+}
+QPushButton:pressed {
+    background-color: #005bb5; /* Темнее при нажатии */
+    padding-top: 7px; /* Легкое смещение вниз для эффекта "продавливания" */
+    padding-bottom: 5px;
+}
+
+/* QSpinBox: 1 of 2 carried this */
+QSpinBox {
+          font-family: Arial;
+          font-size: 9pt;
+          color: #333333;
+          padding: 1px;
+          padding-right: 20px;
+          border-radius: 3px;
+          background-color: #f0f6ff;
+          border: 1px solid #0078d7;
+         }
+         QSpinBox:hover {
+          border: 1px solid #1a8cff;
+         }
+         QSpinBox:focus {
+          border: 1px solid #005bb5;
+          background-color: #ffffff;
+         }
+         QSpinBox::up-button, QSpinBox::down-button {
+          width: 20px;
+          border-left: 1px solid #d3d3d3;
+          background-color: #f9f9f9;
+         }
+         QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+          background-color: #0078d7;
+         }
+         QSpinBox::up-arrow {
+          width: 12px;
+          height: 12px;
+          image: url(:/icons/up_arrow_icon.svg);
+         }
+         QSpinBox::down-arrow {
+          width: 12px;
+          height: 12px;
+          image: url(:/icons/down_arrow_icon.svg);
+         }
+
+/* QTabWidget: 3 of 7 carried this */
+QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
+               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}
+               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }
+
+/* QTableView: 13 of 14 carried this; 1 carried something else */
+/* QTableView and QHeaderView styles for pAstroCORE */
+
+/* Table View */
+QTableView, QTableWidget {
+    background-color: #ffffff;
+    gridline-color: #d3d3d3;
+    color: #333333;
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+    border: 1px solid #d3d3d3; /* External border for table */
+}
+
+QTableView::item:selected, QTableWidget::item:selected {
+    background-color: #0078d7;
+    color: #ffffff;
+}
+
+QTableView::item:hover, QTableWidget::item:hover {
+    background-color: #1a8cff;
+    color: #ffffff;
+}
+
+/* Header View */
+QHeaderView {
+    background-color: #f9f9f9;
+    border: none; /* No external border to avoid doubling with QTableView */
+    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */
+}
+
+QHeaderView::section {
+    background-color: #f9f9f9;
+    color: #333333;
+    border-bottom: none; /* No bottom border, handled by QHeaderView */
+    border-right: none; /* Avoid doubling with adjacent sections */
+    border-left: none; /* Clean look */
+    border-top: none; /* Clean look */
+    padding: 4px;
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+}
+
+QHeaderView::section:horizontal {
+    border-right: 1px solid #d3d3d3; /* Separator between columns */
+}
+
+QHeaderView::section:vertical {
+    border-bottom: 1px solid #d3d3d3; /* Separator between rows */
+}
+
+QHeaderView::section:hover {
+    background-color: #1a8cff;
+    color: #ffffff;
+}
+
+/* QTableWidget: 2 of 2 carried this */
+QTableWidget {
+    font-size: 9pt;
+    color: #333333;
+    background-color: #f9f9f9;
+    border: 1px solid #d3d3d3;
+    border-radius: 3px;
+    gridline-color: #e6e6e6;
+}
+QHeaderView::section {
+    background-color: #f0f0f0;
+    border: none;
+    border-bottom: 1px solid #d3d3d3;
+    padding: 4px;
+}
+
+/* QTreeView: 1 of 1 carried this */
+QTreeView {
+    border: 1px solid #d3d3d3; background-color: #ffffff;
+}
+
+/* The window chrome: menu bar, menus, status bar and the window itself.
+ * These were written inline in `app.main`, which is the one place a stylesheet was
+ * already central -- and still the wrong place, because it is code. */
+QMainWindow {
+    background-color: #f5f5f5;
+    font-family: Arial, sans-serif;
+}
+QMenuBar {
+    background-color: #ffffff;
+    color: #333333;
+    padding: 4px;
+}
+QMenuBar::item {
+    background: #ffffff;
+    padding: 4px 8px;
+    color: #333333;
+}
+QMenuBar::item:selected {
+    background: #0078d7;
+    color: #ffffff;
+}
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    color: #333333;
+}
+QMenu::item {
+    padding: 4px 24px 4px 8px;
+    background: #ffffff;
+    color: #333333;
+}
+QMenu::item:selected {
+    background: #0078d7;
+    color: #ffffff;
+}
+QTableView {
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    gridline-color: #e0e0e0;
+    selection-background-color: #0078d7;
+    selection-color: #ffffff;
+    font-size: 12px;
+}
+QTableView::item {
+    padding: 4px;
+}
+QHeaderView::section {
+    background-color: #f0f0f0;
+    padding: 4px;
+    border: 1px solid #d3d3d3;
+}
+QLineEdit {
+    background-color: #ffffff;
+    border: 1px solid #d3d3d3;
+    padding: 4px;
+    border-radius: 4px;
+    color: #333333;
+}
+QLineEdit:focus {
+    border: 1px solid #0078d7;
+}
+QLineEdit[readOnly="true"] {
+    background-color: #f0f0f0;
+    border: 1px solid #e0e0e0;
+}
+QWidget {
+    color: #333333;
+}
+/* Vertical ScrollBar */
+QScrollBar:vertical {
+    background-color: #f0f0f0;
+    width: 12px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #d3d3d3;
+    border-radius: 4px;
+}
+QScrollBar::handle:vertical {
+    background-color: #ffffff;
+    min-height: 20px;
+    border: 1px solid #d3d3d3;
+    border-radius: 4px;
+}
+QScrollBar::handle:vertical:hover {
+    background-color: #0078d7;
+    border: 1px solid #0078d7;
+}
+QScrollBar::add-line:vertical {
+    background-color: #f0f0f0;
+    height: 0px;
+    subcontrol-position: bottom;
+    subcontrol-origin: margin;
+}
+QScrollBar::sub-line:vertical {
+    background-color: #f0f0f0;
+    height: 0px;
+    subcontrol-position: top;
+    subcontrol-origin: margin;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background-color: #f5f5f5;
+}
+/* Horizontal ScrollBar */
+QScrollBar:horizontal {
+    background-color: #f0f0f0;
+    height: 12px;
+    margin: 0px 0px 0px 0px;
+    border: 1px solid #d3d3d3;
+    border-radius: 4px;
+}
+QScrollBar::handle:horizontal {
+    background-color: #ffffff;
+    min-width: 20px;
+    border: 1px solid #d3d3d3;
+    border-radius: 4px;
+}
+QScrollBar::handle:horizontal:hover {
+    background-color: #0078d7;
+    border: 1px solid #0078d7;
+}
+QScrollBar::add-line:horizontal {
+    background-color: #f0f0f0;
+    width: 0px;
+    subcontrol-position: right;
+    subcontrol-origin: margin;
+}
+QScrollBar::sub-line:horizontal {
+    background-color: #f0f0f0;
+    width: 0px;
+    subcontrol-position: left;
+    subcontrol-origin: margin;
+}
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background-color: #f5f5f5;
+}

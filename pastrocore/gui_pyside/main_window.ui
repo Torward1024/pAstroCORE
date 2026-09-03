@@ -17,18 +17,10 @@
    <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/pAstroCORE_icon.png</normaloff>:/icons/pAstroCORE_icon.png</iconset>
   </property>
-  <property name="styleSheet">
-   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <widget class="QWidget" name="mainCentralWidget">
    <layout class="QHBoxLayout" name="mainLayout">
     <item>
      <widget class="QTabWidget" name="tabContainer">
-      <property name="styleSheet">
-       <string notr="true">QTabWidget::pane { border: 1px solid #d3d3d3; background: #ffffff; }
-               QTabBar::tab { background: #e0e0e0; padding: 8px;  border: 1px solid #d3d3d3;}
-               QTabBar::tab:selected { background: #ffffff; border-bottom: 2px solid #0078d7; }</string>
-      </property>
       <property name="tabShape">
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
@@ -71,52 +63,6 @@
      <height>23</height>
     </rect>
    </property>
-   <property name="styleSheet">
-    <string notr="true">QMenuBar {
-    background-color: #ffffff;
-    font-family: Arial;
-    color: #000000;
-}
-
-QMenuBar::item {
-    background: #ffffff;
-    padding: 4px 8px;
-    color: #000000;
-    spacing: 4px; /* Расстояние между иконкой и текстом */
-}
-
-QMenuBar::item:selected {
-    background: #0078d7;
-    color: #ffffff;
-}
-
-QMenu {
-    background-color: #ffffff;
-    border: 1px solid #d3d3d3;
-    font-family: Arial;
-}
-
-QMenu::item {
-    padding: 4px 24px 4px 8px; /* Левый отступ уменьшен, правый увеличен для баланса */
-    background: #ffffff;
-    color: #000000;
-    icon-size: 24px; /* Фиксированный размер иконок */
-}
-
-QMenu::item:selected {
-    background: #0078d7;
-    color: #ffffff;
-}
-
-QMenu::item:hover {
-    background: #e0e0e0;
-    color: #000000;
-}
-
-QMenu::icon {
-    padding-left: 4px; /* Уменьшаем отступ слева для иконки */
-}</string>
-   </property>
    <property name="nativeMenuBar">
     <bool>false</bool>
    </property>
@@ -127,25 +73,25 @@ QMenu::icon {
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionNewProject"/>
-    <addaction name="separator"/>
-    <addaction name="actionOpenProject"/>
-    <addaction name="separator"/>
-    <addaction name="actionSaveProject"/>
-    <addaction name="actionSave_Project_As"/>
-    <addaction name="separator"/>
-    <addaction name="actionExport_Calulcated_Data"/>
-    <addaction name="separator"/>
-    <addaction name="actionExit"/>
+    <addaction name="actionNewProject" />
+    <addaction name="separator" />
+    <addaction name="actionOpenProject" />
+    <addaction name="separator" />
+    <addaction name="actionSaveProject" />
+    <addaction name="actionSave_Project_As" />
+    <addaction name="separator" />
+    <addaction name="actionExport_Calulcated_Data" />
+    <addaction name="separator" />
+    <addaction name="actionExit" />
    </widget>
    <widget class="QMenu" name="menuOptions">
     <property name="title">
      <string>Options</string>
     </property>
-    <addaction name="actionPreferences"/>
-    <addaction name="separator"/>
-    <addaction name="actionSource_Catalog_Manager"/>
-    <addaction name="actionTelescope_Catalog_Manager"/>
+    <addaction name="actionPreferences" />
+    <addaction name="separator" />
+    <addaction name="actionSource_Catalog_Manager" />
+    <addaction name="actionTelescope_Catalog_Manager" />
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="mouseTracking">
@@ -157,31 +103,31 @@ QMenu::icon {
     <property name="title">
      <string>Help</string>
     </property>
-    <addaction name="actionAbout"/>
+    <addaction name="actionAbout" />
    </widget>
    <widget class="QMenu" name="menuWindow">
     <property name="title">
      <string>Window</string>
     </property>
-    <addaction name="actionProject_Explorer"/>
+    <addaction name="actionProject_Explorer" />
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="actionCalculate"/>
-    <addaction name="actionVisualize"/>
-    <addaction name="separator"/>
-    <addaction name="actionGenerate_Observations"/>
-    <addaction name="separator"/>
-    <addaction name="actionLast_Run_Report"/>
-    <addaction name="actionSession"/>
+    <addaction name="actionCalculate" />
+    <addaction name="actionVisualize" />
+    <addaction name="separator" />
+    <addaction name="actionGenerate_Observations" />
+    <addaction name="separator" />
+    <addaction name="actionLast_Run_Report" />
+    <addaction name="actionSession" />
    </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuTools"/>
-   <addaction name="menuOptions"/>
-   <addaction name="menuWindow"/>
-   <addaction name="menuHelp"/>
+   <addaction name="menuFile" />
+   <addaction name="menuTools" />
+   <addaction name="menuOptions" />
+   <addaction name="menuWindow" />
+   <addaction name="menuHelp" />
   </widget>
   <widget class="QStatusBar" name="mainStatusBar">
    <property name="autoFillBackground">
@@ -214,9 +160,6 @@ QMenu::icon {
    <property name="contextMenuPolicy">
     <enum>Qt::ContextMenuPolicy::PreventContextMenu</enum>
    </property>
-   <property name="styleSheet">
-    <string notr="true">background-color: #ffffff; font-family: Arial;</string>
-   </property>
    <property name="floating">
     <bool>false</bool>
    </property>
@@ -235,9 +178,6 @@ QMenu::icon {
          <width>300</width>
          <height>0</height>
         </size>
-       </property>
-       <property name="styleSheet">
-        <string>border: 1px solid #d3d3d3; background-color: #ffffff;</string>
        </property>
        <property name="editTriggers">
         <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
@@ -422,7 +362,7 @@ QMenu::icon {
   <tabstop>projectExplorer</tabstop>
  </tabstops>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
  <connections>
   <connection>
