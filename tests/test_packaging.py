@@ -250,7 +250,7 @@ def test_the_readme_asks_for_the_msb_it_actually_needs():
 
 
 def test_a_legacy_relative_path_is_repaired_rather_than_warned_about_forever(tmp_path, monkeypatch):
-    """A settings file written before the catalogues moved names them relatively, which can
+    r"""A settings file written before the catalogues moved names them relatively, which can
     never resolve from a per-user directory. Falling back every start and warning every start
     is a warning nobody can act on:
 

@@ -55,6 +55,10 @@ class ExportThread(QThread):
               a question the operation can ask.
         """
         try:
+            # `raise_on_error=False` is what makes this a `Response` rather than the bare
+            # answer. Without it the call returns the value itself, `.value` raised
+            # AttributeError on a plain dict, and the export -- which had already written every
+            # file -- was reported to the user as a failure.
             response = self.manipulator.export(
                 obj=self.targets,
                 calc_types=self.calc_types,
@@ -64,7 +68,11 @@ class ExportThread(QThread):
                 units=self.units,
                 progress=lambda percent, message: self.progress.emit(percent, message),
                 cancelled=lambda: self._cancelled,
+                raise_on_error=False,
             )
+            if not response.ok:
+                self.error.emit(str(response.error))
+                return
             result = response.value
             if result and result.get("cancelled"):
                 self.error.emit("Export cancelled by user")
