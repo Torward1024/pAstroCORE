@@ -38,9 +38,6 @@
    <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
   </property>
-  <property name="styleSheet">
-   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <property name="modal">
    <bool>true</bool>
   </property>
@@ -72,23 +69,6 @@
          </item>
          <item row="0" column="2">
           <widget class="QPushButton" name="openSourcesCatalogButton">
-           <property name="styleSheet">
-            <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-           </property>
            <property name="text">
             <string>Open...</string>
            </property>
@@ -102,31 +82,7 @@ QPushButton:pressed {
          </item>
          <item row="0" column="1">
           <widget class="QLineEdit" name="sourcesCatalogPath">
-           <property name="styleSheet">
-            <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
-           </property>
-          </widget>
+           </widget>
          </item>
          <item row="0" column="0">
           <widget class="QLabel" name="lbl_sources_catalog_path">
@@ -143,23 +99,6 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
          </item>
          <item row="1" column="2">
           <widget class="QPushButton" name="openTelescopesCatalogButton">
-           <property name="styleSheet">
-            <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-           </property>
            <property name="text">
             <string>Open...</string>
            </property>
@@ -173,118 +112,11 @@ QPushButton:pressed {
          </item>
          <item row="2" column="1">
           <widget class="QComboBox" name="comboLogging">
-           <property name="styleSheet">
-            <string notr="true">QComboBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Базовый фон, как у readOnly QLineEdit */
-    border: 1px solid #d3d3d3; /* Базовая граница, как у readOnly QLineEdit */
-}
-
-QComboBox:editable {
-    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
-    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
-}
-
-QComboBox:editable:hover {
-    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
-}
-
-QComboBox:editable:focus {
-    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
-    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
-}
-
-QComboBox:!editable {
-    background-color: #f0f6ff; /* Фон для редактируемого состояния, как у readOnly=&quot;false&quot; */
-    border: 1px solid #0078d7; /* Граница для редактируемого состояния */
-}
-
-QComboBox:!editable:hover {
-    border: 1px solid #1a8cff; /* Граница при наведении, как у readOnly=&quot;false&quot;:hover */
-}
-
-QComboBox:!editable:focus {
-    border: 1px solid #005bb5; /* Граница при фокусе, как у readOnly=&quot;false&quot;:focus */
-    background-color: #ffffff; /* Фон при фокусе, как у readOnly=&quot;false&quot;:focus */
-}
-
-/* Стилизация кнопки со стрелкой */
-QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: right;
-    width: 20px;
-    border-left: 1px solid #d3d3d3; /* Добавлена граница для визуального разделения */
-    border-top-right-radius: 3px;
-    border-bottom-right-radius: 3px;
-    background-color: #f9f9f9; /* Фон кнопки, совпадающий с основным */
-}
-
-QComboBox::drop-down:hover {
-    background-color: #0078d7; /* Лёгкое выделение при наведении */
-}
-
-QComboBox::down-arrow {
-    width: 12px;
-    height: 12px;
-    /* Стандартная стрелка Qt, если нет иконки */
-    /* Если есть иконка, раскомментируйте: */
-    image: url(:/icons/down_arrow_icon.svg);
-}
-
-/* Стилизация выпадающего списка */
-QComboBox QAbstractItemView {
-    font-family: Arial;
-    font-size: 12pt;
-    color: #333333;
-    background-color: #ffffff;
-    border: 1px solid #d3d3d3;
-    selection-background-color: #0078d7;
-    selection-color: #ffffff;
-    padding: 1px;
-}
-
-QComboBox QAbstractItemView::item {
-    padding: 4px;
-    min-height: 20px;
-}
-
-QComboBox QAbstractItemView::item:hover {
-    background-color: #0078d7;
-}</string>
-           </property>
-          </widget>
+           </widget>
          </item>
          <item row="1" column="1">
           <widget class="QLineEdit" name="telescopesCatalogPath">
-           <property name="styleSheet">
-            <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
-           </property>
-          </widget>
+           </widget>
          </item>
          <item row="2" column="0">
           <widget class="QLabel" name="labelLogging">
@@ -295,85 +127,6 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
          </item>
          <item row="3" column="0" colspan="3">
           <widget class="QCheckBox" name="chkClearLog">
-           <property name="styleSheet">
-            <string notr="true">/* Основной стиль QCheckBox */
-QCheckBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    spacing: 6px;
-    padding: 2px;
-    outline: none;
-}
-
-QCheckBox::item {
-    padding: 2px;
-}
-
-/* Индикатор чекбокса */
-QCheckBox::indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-
-/* Unchecked состояние */
-QCheckBox::indicator:unchecked {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:hover {
-    border: 1px solid #1a8cff;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:focus {
-    border: 1px solid #005bb5;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
-QCheckBox::indicator:checked {
-    border: 1px solid #0078d7;
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-QCheckBox::indicator:checked:hover {
-    border: 1px solid #1a8cff; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon_hover.svg);
-}
-
-QCheckBox::indicator:checked:focus {
-    border: 1px solid #005bb5; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-/* Disabled состояния */
-QCheckBox::indicator:unchecked:disabled {
-    border: 1px solid #e0e0e0;
-    background-color: #f5f5f5;
-    image: none;
-}
-
-QCheckBox::indicator:checked:disabled {
-    border: 1px solid #cccccc;
-    background-color: #f0f0f0; /* Светло-серый фон */
-    image: url(:/icons/check_icon_disabled.svg);
-}
-
-QCheckBox:disabled {
-    color: #999999;
-}</string>
-           </property>
            <property name="text">
             <string>Clear log-file on start</string>
            </property>
@@ -399,78 +152,6 @@ QCheckBox:disabled {
          </item>
          <item>
           <widget class="QDoubleSpinBox" name="timeStepSpin">
-           <property name="styleSheet">
-            <string notr="true">/* Base style for QDoubleSpinBox */
-QDoubleSpinBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    padding-right: 20px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
-    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
-}
-
-/* Editable state */
-QDoubleSpinBox:editable {
-    background-color: #f0f6ff; /* Matches editable QComboBox background */
-    border: 1px solid #0078d7; /* Matches editable QComboBox border */
-}
-
-/* Editable hover state */
-QDoubleSpinBox:editable:hover {
-    border: 1px solid #1a8cff; /* Matches editable QComboBox:hover border */
-}
-
-/* Editable focus state */
-QDoubleSpinBox:editable:focus {
-    border: 1px solid #005bb5; /* Matches editable QComboBox:focus border */
-    background-color: #ffffff; /* Matches editable QComboBox:focus background */
-}
-
-/* Non-editable state */
-QDoubleSpinBox:!editable {
-    background-color: #f0f6ff; /* Matches non-editable QComboBox background */
-    border: 1px solid #0078d7; /* Matches non-editable QComboBox border */
-}
-
-/* Non-editable hover state */
-QDoubleSpinBox:!editable:hover {
-    border: 1px solid #1a8cff; /* Matches non-editable QComboBox:hover border */
-}
-
-/* Non-editable focus state */
-QDoubleSpinBox:!editable:focus {
-    border: 1px solid #005bb5; /* Matches non-editable QComboBox:focus border */
-    background-color: #ffffff; /* Matches non-editable QComboBox:focus background */
-}
-
-/* Styling for up/down buttons */
-QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-    subcontrol-origin: padding;
-    width: 20px;
-    border-left: 1px solid #d3d3d3; /* Visual separation like QComboBox drop-down */
-    background-color: #f9f9f9; /* Matches QComboBox drop-down background */
-}
-/* Hover state for up/down buttons */
-QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-    background-color: #0078d7; /* Matches QComboBox drop-down:hover */
-}
-
-/* Up arrow styling */
-QDoubleSpinBox::up-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/up_arrow_icon.svg); /* Ensure this icon exists */
-}
-/* Down arrow styling */
-QDoubleSpinBox::down-arrow {
-    width: 12px;
-    height: 12px;
-    image: url(:/icons/down_arrow_icon.svg); /* Matches QComboBox down-arrow */
-}</string>
-           </property>
            <property name="minimum">
             <double>1.000000000000000</double>
            </property>
@@ -520,23 +201,6 @@ QDoubleSpinBox::down-arrow {
    </item>
    <item row="5" column="4">
     <widget class="QPushButton" name="cancelButton">
-     <property name="styleSheet">
-      <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-     </property>
      <property name="text">
       <string>Cancel</string>
      </property>
@@ -550,23 +214,6 @@ QPushButton:pressed {
    </item>
    <item row="5" column="3">
     <widget class="QPushButton" name="okButton">
-     <property name="styleSheet">
-      <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-     </property>
      <property name="text">
       <string>OK</string>
      </property>
@@ -581,7 +228,7 @@ QPushButton:pressed {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
- <connections/>
+ <connections />
 </ui>

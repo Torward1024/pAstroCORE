@@ -41,9 +41,6 @@
   <property name="layoutDirection">
    <enum>Qt::LayoutDirection::LeftToRight</enum>
   </property>
-  <property name="styleSheet">
-   <string>background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <property name="modal">
    <bool>true</bool>
   </property>
@@ -83,7 +80,7 @@
       </size>
      </property>
      <property name="text">
-      <string/>
+      <string />
      </property>
      <property name="pixmap">
       <pixmap resource="../gui/icons/icons.qrc">:/icons/pAstroCORE_icon.png</pixmap>
@@ -135,23 +132,6 @@
      </item>
      <item row="12" column="1">
       <widget class="QPushButton" name="closeButton">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-       </property>
        <property name="text">
         <string>Close</string>
        </property>
@@ -203,7 +183,7 @@ QPushButton:pressed {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
  <connections>
   <connection>

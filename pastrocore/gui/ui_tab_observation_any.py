@@ -24,7 +24,6 @@ class Ui_observation_tab(object):
         if not observation_tab.objectName():
             observation_tab.setObjectName(u"observation_tab")
         observation_tab.resize(479, 355)
-        observation_tab.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.gridLayout = QGridLayout(observation_tab)
         self.gridLayout.setObjectName(u"gridLayout")
         self.horizontalSpacer = QSpacerItem(194, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -42,60 +41,6 @@ class Ui_observation_tab(object):
 
         self.table = QTableView(observation_tab)
         self.table.setObjectName(u"table")
-        self.table.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
-"\n"
-"/* Table View */\n"
-"QTableView, QTableWidget {\n"
-"    background-color: #ffffff;\n"
-"    gridline-color: #d3d3d3;\n"
-"    color: #333333;\n"
-"    font-family: Arial, sans-serif;\n"
-"    font-size: 9pt;\n"
-"    border: 1px solid #d3d3d3; /* External border for table */\n"
-"}\n"
-"\n"
-"QTableView::item:selected, QTableWidget::item:selected {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"}\n"
-"\n"
-"QTableView::item:hover, QTableWidget::item:hover {\n"
-"    background-color: #1a8cff;\n"
-"    color: #ffffff;\n"
-"}\n"
-"\n"
-"/* Header View */\n"
-"QHeaderView {\n"
-"    background-color: #f9f9f9;\n"
-"    border: none; /* No external border to avoid doubling with QTableView */\n"
-"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
-"}\n"
-"\n"
-"QHeaderView::section {\n"
-"    background-color: #f9f9f9;\n"
-"    color: #333333;\n"
-"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
-"   "
-                        " border-right: none; /* Avoid doubling with adjacent sections */\n"
-"    border-left: none; /* Clean look */\n"
-"    border-top: none; /* Clean look */\n"
-"    padding: 4px;\n"
-"    font-family: Arial, sans-serif;\n"
-"    font-size: 9pt;\n"
-"}\n"
-"\n"
-"QHeaderView::section:horizontal {\n"
-"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
-"}\n"
-"\n"
-"QHeaderView::section:vertical {\n"
-"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
-"}\n"
-"\n"
-"QHeaderView::section:hover {\n"
-"    background-color: #1a8cff;\n"
-"    color: #ffffff;\n"
-"}")
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -106,28 +51,6 @@ class Ui_observation_tab(object):
         self.search = QLineEdit(observation_tab)
         self.search.setObjectName(u"search")
         self.search.setFont(font)
-        self.search.setStyleSheet(u"QLineEdit {\n"
-"    font-family: Arial;\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    padding: 1px;\n"
-"    border-radius: 3px;\n"
-"}\n"
-"QLineEdit[readOnly=\"true\"] {\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"] {\n"
-"    border: 1px solid #0078d7;\n"
-"    background-color: #f0f6ff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:hover {\n"
-"    border: 1px solid #1a8cff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:focus {\n"
-"    border: 1px solid #005bb5;\n"
-"    background-color: #ffffff;\n"
-"}")
 
         self.gridLayout.addWidget(self.search, 2, 1, 1, 1)
 

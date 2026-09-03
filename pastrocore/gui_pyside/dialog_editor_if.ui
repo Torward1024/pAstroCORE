@@ -38,9 +38,6 @@
    <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/edit_icon.svg</normaloff>:/icons/edit_icon.svg</iconset>
   </property>
-  <property name="styleSheet">
-   <string>background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <property name="modal">
    <bool>true</bool>
   </property>
@@ -56,44 +53,6 @@
      </item>
      <item row="0" column="1">
       <widget class="QDoubleSpinBox" name="frequencyEdit">
-       <property name="styleSheet">
-        <string notr="true">         QDoubleSpinBox {
-          font-family: Arial;
-          font-size: 9pt;
-          color: #333333;
-          padding: 1px;
-          padding-right: 20px;
-          border-radius: 3px;
-          background-color: #f0f6ff;
-          border: 1px solid #0078d7;
-         }
-         QDoubleSpinBox:hover {
-          border: 1px solid #1a8cff;
-         }
-         QDoubleSpinBox:focus {
-          border: 1px solid #005bb5;
-          background-color: #ffffff;
-         }
-         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-          width: 20px;
-          border-left: 1px solid #d3d3d3;
-          background-color: #f9f9f9;
-         }
-         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-          background-color: #0078d7;
-         }
-         QDoubleSpinBox::up-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/up_arrow_icon.svg);
-         }
-         QDoubleSpinBox::down-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/down_arrow_icon.svg);
-         }
-        </string>
-       </property>
        <property name="decimals">
         <number>3</number>
        </property>
@@ -117,17 +76,6 @@
      </item>
      <item row="1" column="1">
       <widget class="QLabel" name="wavelengthDisplay">
-       <property name="styleSheet">
-        <string notr="true">QLabel {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-    background-color: #f9f9f9; /* Matches readOnly QLineEdit background */
-    border: 1px solid #d3d3d3; /* Matches readOnly QLineEdit border */
-}</string>
-       </property>
        <property name="frameShape">
         <enum>QFrame::Shape::Panel</enum>
        </property>
@@ -151,44 +99,6 @@
      </item>
      <item row="2" column="1">
       <widget class="QDoubleSpinBox" name="bandwidthEdit">
-       <property name="styleSheet">
-        <string notr="true">         QDoubleSpinBox {
-          font-family: Arial;
-          font-size: 9pt;
-          color: #333333;
-          padding: 1px;
-          padding-right: 20px;
-          border-radius: 3px;
-          background-color: #f0f6ff;
-          border: 1px solid #0078d7;
-         }
-         QDoubleSpinBox:hover {
-          border: 1px solid #1a8cff;
-         }
-         QDoubleSpinBox:focus {
-          border: 1px solid #005bb5;
-          background-color: #ffffff;
-         }
-         QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-          width: 20px;
-          border-left: 1px solid #d3d3d3;
-          background-color: #f9f9f9;
-         }
-         QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
-          background-color: #0078d7;
-         }
-         QDoubleSpinBox::up-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/up_arrow_icon.svg);
-         }
-         QDoubleSpinBox::down-arrow {
-          width: 12px;
-          height: 12px;
-          image: url(:/icons/down_arrow_icon.svg);
-         }
-        </string>
-       </property>
        <property name="decimals">
         <number>3</number>
        </property>
@@ -212,85 +122,6 @@
      </item>
      <item row="3" column="1">
       <widget class="QCheckBox" name="isActiveCheckBox">
-       <property name="styleSheet">
-        <string notr="true">/* Основной стиль QCheckBox */
-QCheckBox {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    spacing: 6px;
-    padding: 2px;
-    outline: none;
-}
-
-QCheckBox::item {
-    padding: 2px;
-}
-
-/* Индикатор чекбокса */
-QCheckBox::indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-
-/* Unchecked состояние */
-QCheckBox::indicator:unchecked {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:hover {
-    border: 1px solid #1a8cff;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-QCheckBox::indicator:unchecked:focus {
-    border: 1px solid #005bb5;
-    background-color: #f0f6ff;
-    image: none;
-}
-
-/* Checked состояние - БЕЛЫЙ ФОН, стандартная граница */
-QCheckBox::indicator:checked {
-    border: 1px solid #0078d7;
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-QCheckBox::indicator:checked:hover {
-    border: 1px solid #1a8cff; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon_hover.svg);
-}
-
-QCheckBox::indicator:checked:focus {
-    border: 1px solid #005bb5; /* Стандартная толщина */
-    background-color: #ffffff; /* Белый фон */
-    image: url(:/icons/check_icon.svg);
-}
-
-/* Disabled состояния */
-QCheckBox::indicator:unchecked:disabled {
-    border: 1px solid #e0e0e0;
-    background-color: #f5f5f5;
-    image: none;
-}
-
-QCheckBox::indicator:checked:disabled {
-    border: 1px solid #cccccc;
-    background-color: #f0f0f0; /* Светло-серый фон */
-    image: url(:/icons/check_icon_disabled.svg);
-}
-
-QCheckBox:disabled {
-    color: #999999;
-}</string>
-       </property>
        <property name="checked">
         <bool>true</bool>
        </property>
@@ -323,9 +154,6 @@ QCheckBox:disabled {
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <widget class="QListWidget" name="polarizationsList">
-       <property name="styleSheet">
-        <string>border: 1px solid #d3d3d3;</string>
-       </property>
        <property name="selectionMode">
         <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
        </property>
@@ -377,23 +205,6 @@ QCheckBox:disabled {
     <layout class="QHBoxLayout" name="polarizationsButtonLayout">
      <item>
       <widget class="QPushButton" name="clearPolarizationsButton">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-       </property>
        <property name="text">
         <string>Clear</string>
        </property>
@@ -414,23 +225,6 @@ QPushButton:pressed {
      </item>
      <item>
       <widget class="QPushButton" name="saveButton">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-       </property>
        <property name="text">
         <string>Save</string>
        </property>
@@ -438,23 +232,6 @@ QPushButton:pressed {
      </item>
      <item>
       <widget class="QPushButton" name="cancelButton">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-       </property>
        <property name="text">
         <string>Cancel</string>
        </property>
@@ -465,7 +242,7 @@ QPushButton:pressed {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
  <connections>
   <connection>

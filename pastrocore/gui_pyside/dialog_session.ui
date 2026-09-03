@@ -23,15 +23,9 @@
    <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/preferences.svg</normaloff>:/icons/preferences.svg</iconset>
   </property>
-  <property name="styleSheet">
-   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <widget class="QLabel" name="labelSummary">
-     <property name="styleSheet">
-      <string notr="true">font-size: 10pt; padding: 4px;</string>
-     </property>
      <property name="text">
       <string>lblSummary</string>
      </property>
@@ -42,22 +36,6 @@
    </item>
    <item>
     <widget class="QTableWidget" name="tableRequests">
-     <property name="styleSheet">
-      <string notr="true">QTableWidget {
-    font-size: 9pt;
-    color: #333333;
-    background-color: #f9f9f9;
-    border: 1px solid #d3d3d3;
-    border-radius: 3px;
-    gridline-color: #e6e6e6;
-}
-QHeaderView::section {
-    background-color: #f0f0f0;
-    border: none;
-    border-bottom: 1px solid #d3d3d3;
-    padding: 4px;
-}</string>
-     </property>
      <property name="alternatingRowColors">
       <bool>true</bool>
      </property>
@@ -73,21 +51,6 @@ QHeaderView::section {
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <widget class="QPushButton" name="pushButtonSave">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #f0f0f0;
-    color: #333333;
-    padding: 6px;
-    border-radius: 3px;
-    border: 1px solid #d3d3d3;
-}
-QPushButton:hover {
-    background-color: #e6e6e6;
-}
-QPushButton:pressed {
-    background-color: #d9d9d9;
-}</string>
-       </property>
        <property name="toolTip">
         <string>Write this session to a file, so it can be replayed later or attached to a bug report</string>
        </property>
@@ -98,21 +61,6 @@ QPushButton:pressed {
      </item>
      <item>
       <widget class="QPushButton" name="pushButtonReplay">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #f0f0f0;
-    color: #333333;
-    padding: 6px;
-    border-radius: 3px;
-    border: 1px solid #d3d3d3;
-}
-QPushButton:hover {
-    background-color: #e6e6e6;
-}
-QPushButton:pressed {
-    background-color: #d9d9d9;
-}</string>
-       </property>
        <property name="toolTip">
         <string>Read a saved session and run it against the project that is open now. Each step names the object it ran on, and one this project does not have is reported rather than skipped.</string>
        </property>
@@ -136,23 +84,6 @@ QPushButton:pressed {
      </item>
      <item>
       <widget class="QPushButton" name="pushButtonClose">
-       <property name="styleSheet">
-        <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff;
-}
-QPushButton:pressed {
-    background-color: #005bb5;
-    padding-top: 7px;
-    padding-bottom: 5px;
-}</string>
-       </property>
        <property name="text">
         <string>Close</string>
        </property>
@@ -163,7 +94,7 @@ QPushButton:pressed {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
- <connections/>
+ <connections />
 </ui>

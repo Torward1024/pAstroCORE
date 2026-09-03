@@ -1,0 +1,28 @@
+{
+  "win32-pyside6": {
+    "ui_dialog_about.Ui_AboutDialog": "992e4d419e1e647eb96b5eb23747a81f",
+    "ui_dialog_add_observation.Ui_AddObservationDialog": "e8e92c81a6f56a852970f74b01c70b15",
+    "ui_dialog_calc_progress.Ui_ProgressDialog": "16c323e720cc8439c285874c25052218",
+    "ui_dialog_calculations.Ui_CalculationDialog": "a600bfbd14dff3bce5ecfa9c7c952bbd",
+    "ui_dialog_catalog.Ui_CatalogDialog": "d75fa97f6be7f7f2adcdfaaf4aa85747",
+    "ui_dialog_edit_if.Ui_IFEditorDialog": "f8a42a1ef01f45fdc00d6a57a1e709d6",
+    "ui_dialog_edit_scan.Ui_ScanEditorDialog": "86072167b9d83bec6664d85dd98d9d4b",
+    "ui_dialog_edit_source.Ui_SourceEditorDialog": "63051d7f1ccdf5067c6979bc74c7bb8b",
+    "ui_dialog_edit_space_telescope.Ui_SpaceTelescopeEditorDialog": "f991386ed8d76229ad1af6c49d029fd9",
+    "ui_dialog_edit_telescope.Ui_TelescopeEditorDialog": "67c5718ec5554907b9bde4a5bdd85fd0",
+    "ui_dialog_export_calculated_data.Ui_ExportCalculatedDataDialog": "609378999023d61b9d9627909f9c1344",
+    "ui_dialog_generate_observations.Ui_GenerateObservationsDialog": "7bb276aefe50dc1652d0dd7f48296072",
+    "ui_dialog_preferences.Ui_PreferencesDialog": "6e17fd2f6309badbc0c814d63c6146bc",
+    "ui_dialog_run_report.Ui_RunReportDialog": "475bbb7aae1fa70e983400c11753c90f",
+    "ui_dialog_session.Ui_SessionDialog": "843fe477b3a7164f8720ba9d8ea94603",
+    "ui_dialog_visualize.Ui_VisualizationDialog": "b65e6a4132a834e33db17b2774eaac18",
+    "ui_main_window.Ui_MainWindow": "512271d7ba4b6362121b233b5baddf08",
+    "ui_tab_observation.Ui_ObservationInfoTab": "f827fb44a36abf0b0e6d72bed154f1c6",
+    "ui_tab_observation_any.Ui_observation_tab": "8c0a7de362ca3d963ffba8e8dc943a4f",
+    "ui_tab_project.Ui_ProjectInfoTab": "daa55489d6e0601428d7656710a60293",
+    "ui_tab_vis_beam_pattern.Ui_VisBeamPatternTab": "3f3f95abda07ac7595ea40d8e5650c3d",
+    "ui_tab_vis_default.Ui_VisDefaultTab": "544aa3ac19dd96795c4e176a6a779c5b",
+    "ui_tab_vis_mollweide.Ui_MollweideVisTab": "d6a8a30bb12b3516e0caed65c7cf04f2",
+    "ui_tab_vis_uv_coverage.Ui_UVCoverageVisTab": "391a3f7a94c3c226d221f4058966e7eb"
+  }
+}

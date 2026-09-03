@@ -58,68 +58,6 @@ class Ui_ProjectInfoTab(object):
 
         self.projectInfoTable = QTableView(ProjectInfoTab)
         self.projectInfoTable.setObjectName(u"projectInfoTable")
-        self.projectInfoTable.setStyleSheet(u"/* QTableView and QHeaderView styles for pAstroCORE */\n"
-"\n"
-"/* Table View */\n"
-"QTableView, QTableWidget {\n"
-"    background-color: #ffffff;\n"
-"    gridline-color: #d3d3d3;\n"
-"    color: #333333;\n"
-"    font-family: Arial, sans-serif;\n"
-"    font-size: 9pt;\n"
-"    border: 1px solid #d3d3d3; /* External border for table */\n"
-"    padding: 0; /* Ensure no default padding */\n"
-"}\n"
-"\n"
-"QTableView::item, QTableWidget::item {\n"
-"    padding: 4px; /* Consistent padding for normal state */\n"
-"}\n"
-"\n"
-"QTableView::item:selected, QTableWidget::item:selected {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 4px; /* Consistent padding for selected state */\n"
-"}\n"
-"\n"
-"QTableView::item:hover, QTableWidget::item:hover {\n"
-"    background-color: #1a8cff;\n"
-"    color: #ffffff;\n"
-"    padding: 4px; /* Explicitly set same padding to avoid shift */\n"
-"}\n"
-"\n"
-"/* Header View */\n"
-"QHeaderView {\n"
-"    background-color: #f9f9f9;\n"
-"    border: none; /* No external bord"
-                        "er to avoid doubling with QTableView */\n"
-"    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */\n"
-"}\n"
-"\n"
-"QHeaderView::section {\n"
-"    background-color: #f9f9f9;\n"
-"    color: #333333;\n"
-"    border-bottom: none; /* No bottom border, handled by QHeaderView */\n"
-"    border-right: none; /* Avoid doubling with adjacent sections */\n"
-"    border-left: none; /* Clean look */\n"
-"    border-top: none; /* Clean look */\n"
-"    padding: 4px;\n"
-"    font-family: Arial, sans-serif;\n"
-"    font-size: 9pt;\n"
-"}\n"
-"\n"
-"QHeaderView::section:horizontal {\n"
-"    border-right: 1px solid #d3d3d3; /* Separator between columns */\n"
-"}\n"
-"\n"
-"QHeaderView::section:vertical {\n"
-"    border-bottom: 1px solid #d3d3d3; /* Separator between rows */\n"
-"}\n"
-"\n"
-"QHeaderView::section:hover {\n"
-"    background-color: #1a8cff;\n"
-"    color: #ffffff;\n"
-"    padding: 4px; /* Explicitly set same padding to avoid shift */\n"
-"}")
         self.projectInfoTable.setFrameShadow(QFrame.Shadow.Sunken)
         self.projectInfoTable.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.projectInfoTable.setAlternatingRowColors(True)
@@ -133,56 +71,12 @@ class Ui_ProjectInfoTab(object):
         self.lineEdit = QLineEdit(ProjectInfoTab)
         self.lineEdit.setObjectName(u"lineEdit")
         self.lineEdit.setFont(font)
-        self.lineEdit.setStyleSheet(u"QLineEdit {\n"
-"    font-family: Arial;\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    padding: 1px;\n"
-"    border-radius: 3px;\n"
-"}\n"
-"QLineEdit[readOnly=\"true\"] {\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"] {\n"
-"    border: 1px solid #0078d7;\n"
-"    background-color: #f0f6ff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:hover {\n"
-"    border: 1px solid #1a8cff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:focus {\n"
-"    border: 1px solid #005bb5;\n"
-"    background-color: #ffffff;\n"
-"}")
         self.lineEdit.setReadOnly(True)
 
         self.gridLayout.addWidget(self.lineEdit, 0, 1, 1, 1)
 
         self.search = QLineEdit(ProjectInfoTab)
         self.search.setObjectName(u"search")
-        self.search.setStyleSheet(u"QLineEdit {\n"
-"    font-family: Arial;\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    padding: 1px;\n"
-"    border-radius: 3px;\n"
-"}\n"
-"QLineEdit[readOnly=\"true\"] {\n"
-"    border: 1px solid #d3d3d3;\n"
-"    background-color: #f9f9f9;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"] {\n"
-"    border: 1px solid #0078d7;\n"
-"    background-color: #f0f6ff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:hover {\n"
-"    border: 1px solid #1a8cff;\n"
-"}\n"
-"QLineEdit[readOnly=\"false\"]:focus {\n"
-"    border: 1px solid #005bb5;\n"
-"    background-color: #ffffff;\n"
-"}")
 
         self.gridLayout.addWidget(self.search, 4, 1, 1, 1)
 
@@ -200,8 +94,8 @@ class Ui_ProjectInfoTab(object):
     # setupUi
 
     def retranslateUi(self, ProjectInfoTab):
-        ProjectInfoTab.setStyleSheet(QCoreApplication.translate("ProjectInfoTab", u"background-color: #ffffff; font-family: Arial;", None))
         self.label_2.setText(QCoreApplication.translate("ProjectInfoTab", u"Search:", None))
         self.label.setText(QCoreApplication.translate("ProjectInfoTab", u"Name:", None))
+        pass
     # retranslateUi
 

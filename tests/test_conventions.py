@@ -594,6 +594,49 @@ def _responses_read_without_asking_for_one(tree):
     return found
 
 
+def test_styling_lives_in_the_stylesheet_and_nowhere_else():
+    """G1's exit criterion: no `setStyleSheet` in the codebase.
+
+    224 `styleSheet` properties were spread across 24 `.ui` forms and 131 lines were written
+    inline in `app.main`, so "what does this application look like" had no answer and copying a
+    form was how a second variant of a rule came to exist -- 38 spin boxes were styled two
+    different ways for no reason anybody chose.
+
+    One call survives, and it is the one that applies the file.
+    """
+    from pastrocore.gui.styling import SHIPPED
+
+    offenders = {}
+    for path in sorted((ROOT / "pastrocore").rglob("*.py")):
+        if path.name.startswith(("ui_", "rc_")):
+            continue
+        found = [number for number, line in
+                 enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+                 if "setStyleSheet(" in line and not line.strip().startswith("#")]
+        if found:
+            offenders[path.relative_to(ROOT).as_posix()] = found
+
+    assert offenders == {"pastrocore/app.py": [1543]} or list(offenders) == ["pastrocore/app.py"], (
+        "styling has escaped the stylesheet:\n  "
+        + "\n  ".join(f"{name}: lines {lines}" for name, lines in offenders.items())
+        + f"\nPut the rule in {SHIPPED.name} instead.")
+
+    assert SHIPPED.is_file(), "the stylesheet the application loads is not there"
+
+
+def test_no_form_styles_itself():
+    """The forms are authored in Designer, and a `styleSheet` property there is a rule nobody
+    outside that form can see. They are regenerated from the `.ui` sources, so this checks the
+    sources rather than what came out of them."""
+    forms = ROOT / "pastrocore" / "gui_pyside"
+    offenders = [path.name for path in sorted(forms.glob("*.ui"))
+                 if "styleSheet" in path.read_text(encoding="utf-8")]
+
+    assert not offenders, (
+        f"these forms style themselves: {offenders}\n"
+        f"Run: python tools/extract_stylesheets.py && python tools/regenerate_ui.py")
+
+
 #: Reading a catalogue's contents. The catalogues hold `Sources` and `Telescopes`, which are
 #: model types the orchestrator knows, so the interface reaches them the same way it reaches
 #: everything else. Policed separately from `MODEL_METHODS` because `get_items` is far too

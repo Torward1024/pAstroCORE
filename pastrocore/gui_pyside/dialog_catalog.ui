@@ -38,32 +38,12 @@
    <iconset resource="../gui/icons/icons.qrc">
     <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
   </property>
-  <property name="styleSheet">
-   <string notr="true">background-color: #ffffff; font-family: Arial;</string>
-  </property>
   <property name="modal">
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="2" column="3">
     <widget class="QPushButton" name="closeButton">
-     <property name="styleSheet">
-      <string notr="true">QPushButton {
-    background-color: #0078d7;
-    color: #ffffff;
-    padding: 6px;
-    border-radius: 3px;
-    border: none;
-}
-QPushButton:hover {
-    background-color: #1a8cff; /* Светлее при наведении */
-}
-QPushButton:pressed {
-    background-color: #005bb5; /* Темнее при нажатии */
-    padding-top: 7px; /* Легкое смещение вниз для эффекта &quot;продавливания&quot; */
-    padding-bottom: 5px;
-}</string>
-     </property>
      <property name="text">
       <string>Close</string>
      </property>
@@ -74,61 +54,6 @@ QPushButton:pressed {
    </item>
    <item row="0" column="0" colspan="4">
     <widget class="QTableView" name="catalogTable">
-     <property name="styleSheet">
-      <string notr="true">/* QTableView and QHeaderView styles for pAstroCORE */
-
-/* Table View */
-QTableView, QTableWidget {
-    background-color: #ffffff;
-    gridline-color: #d3d3d3;
-    color: #333333;
-    font-family: Arial, sans-serif;
-    font-size: 9pt;
-    border: 1px solid #d3d3d3; /* External border for table */
-}
-
-QTableView::item:selected, QTableWidget::item:selected {
-    background-color: #0078d7;
-    color: #ffffff;
-}
-
-QTableView::item:hover, QTableWidget::item:hover {
-    background-color: #1a8cff;
-    color: #ffffff;
-}
-
-/* Header View */
-QHeaderView {
-    background-color: #f9f9f9;
-    border: none; /* No external border to avoid doubling with QTableView */
-    border-bottom: 1px solid #d3d3d3; /* Bottom border to separate from content */
-}
-
-QHeaderView::section {
-    background-color: #f9f9f9;
-    color: #333333;
-    border-bottom: none; /* No bottom border, handled by QHeaderView */
-    border-right: none; /* Avoid doubling with adjacent sections */
-    border-left: none; /* Clean look */
-    border-top: none; /* Clean look */
-    padding: 4px;
-    font-family: Arial, sans-serif;
-    font-size: 9pt;
-}
-
-QHeaderView::section:horizontal {
-    border-right: 1px solid #d3d3d3; /* Separator between columns */
-}
-
-QHeaderView::section:vertical {
-    border-bottom: 1px solid #d3d3d3; /* Separator between rows */
-}
-
-QHeaderView::section:hover {
-    background-color: #1a8cff;
-    color: #ffffff;
-}</string>
-     </property>
      <property name="editTriggers">
       <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
      </property>
@@ -142,31 +67,7 @@ QHeaderView::section:hover {
    </item>
    <item row="2" column="1">
     <widget class="QLineEdit" name="search">
-     <property name="styleSheet">
-      <string notr="true">QLineEdit {
-    font-family: Arial;
-    font-size: 9pt;
-    color: #333333;
-    padding: 1px;
-    border-radius: 3px;
-}
-QLineEdit[readOnly=&quot;true&quot;] {
-    border: 1px solid #d3d3d3;
-    background-color: #f9f9f9;
-}
-QLineEdit[readOnly=&quot;false&quot;] {
-    border: 1px solid #0078d7;
-    background-color: #f0f6ff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:hover {
-    border: 1px solid #1a8cff;
-}
-QLineEdit[readOnly=&quot;false&quot;]:focus {
-    border: 1px solid #005bb5;
-    background-color: #ffffff;
-}</string>
-     </property>
-    </widget>
+     </widget>
    </item>
    <item row="2" column="2">
     <spacer name="horizontalSpacer">
@@ -197,7 +98,7 @@ QLineEdit[readOnly=&quot;false&quot;]:focus {
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc"/>
+  <include location="../gui/icons/icons.qrc" />
  </resources>
- <connections/>
+ <connections />
 </ui>

@@ -29,32 +29,16 @@ class Ui_RunReportDialog(object):
         icon = QIcon()
         icon.addFile(u":/icons/preferences.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         RunReportDialog.setWindowIcon(icon)
-        RunReportDialog.setStyleSheet(u"background-color: #ffffff; font-family: Arial;")
         self.verticalLayout = QVBoxLayout(RunReportDialog)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.labelSummary = QLabel(RunReportDialog)
         self.labelSummary.setObjectName(u"labelSummary")
-        self.labelSummary.setStyleSheet(u"font-size: 10pt; padding: 4px;")
         self.labelSummary.setWordWrap(True)
 
         self.verticalLayout.addWidget(self.labelSummary)
 
         self.tableSteps = QTableWidget(RunReportDialog)
         self.tableSteps.setObjectName(u"tableSteps")
-        self.tableSteps.setStyleSheet(u"QTableWidget {\n"
-"    font-size: 9pt;\n"
-"    color: #333333;\n"
-"    background-color: #f9f9f9;\n"
-"    border: 1px solid #d3d3d3;\n"
-"    border-radius: 3px;\n"
-"    gridline-color: #e6e6e6;\n"
-"}\n"
-"QHeaderView::section {\n"
-"    background-color: #f0f0f0;\n"
-"    border: none;\n"
-"    border-bottom: 1px solid #d3d3d3;\n"
-"    padding: 4px;\n"
-"}")
         self.tableSteps.setAlternatingRowColors(True)
         self.tableSteps.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.tableSteps.setSortingEnabled(False)
@@ -66,19 +50,6 @@ class Ui_RunReportDialog(object):
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.pushButtonCopy = QPushButton(RunReportDialog)
         self.pushButtonCopy.setObjectName(u"pushButtonCopy")
-        self.pushButtonCopy.setStyleSheet(u"QPushButton {\n"
-"    background-color: #f0f0f0;\n"
-"    color: #333333;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: 1px solid #d3d3d3;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #e6e6e6;\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #d9d9d9;\n"
-"}")
 
         self.horizontalLayout.addWidget(self.pushButtonCopy)
 
@@ -88,21 +59,6 @@ class Ui_RunReportDialog(object):
 
         self.pushButtonClose = QPushButton(RunReportDialog)
         self.pushButtonClose.setObjectName(u"pushButtonClose")
-        self.pushButtonClose.setStyleSheet(u"QPushButton {\n"
-"    background-color: #0078d7;\n"
-"    color: #ffffff;\n"
-"    padding: 6px;\n"
-"    border-radius: 3px;\n"
-"    border: none;\n"
-"}\n"
-"QPushButton:hover {\n"
-"    background-color: #1a8cff;\n"
-"}\n"
-"QPushButton:pressed {\n"
-"    background-color: #005bb5;\n"
-"    padding-top: 7px;\n"
-"    padding-bottom: 5px;\n"
-"}")
 
         self.horizontalLayout.addWidget(self.pushButtonClose)
 

@@ -39,23 +39,8 @@ class SourcesCatalogDialog(QDialog):
             self.ui.catalogTable.setSelectionMode(QAbstractItemView.MultiSelection)
             self.ui.catalogTable.setSelectionBehavior(QAbstractItemView.SelectRows)
             self.add_button = QPushButton("Add Selected", self)
-            self.add_button.setStyleSheet("""
-                QPushButton {
-                    background-color: #0078d7;
-                    color: #ffffff;
-                    padding: 6px;
-                    border-radius: 3px;
-                    border: none;
-                }
-                QPushButton:hover {
-                    background-color: #1a8cff;
-                }
-                QPushButton:pressed {
-                    background-color: #005bb5;
-                    padding-top: 7px;
-                    padding-bottom: 5px;
-                }
-            """)
+            # No sheet of its own: `QPushButton` in pastrocore.qss is this
+            # rule, and it reached every other button already.
             self.ui.gridLayout.removeItem(self.ui.horizontalSpacer)
             self.ui.gridLayout.addWidget(self.add_button, 1, 2, 1, 1)
             self.ui.gridLayout.addWidget(self.ui.closeButton, 1, 3, 1, 1)
