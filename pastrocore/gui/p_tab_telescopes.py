@@ -230,9 +230,11 @@ class TelescopesTab(QWidget):
         try:
             response = self.manipulator.load(self.observation.get_telescopes(), path=file_path)
             telescope = response
-            telescope.code = telescope.code
-            telescope.name = telescope.name
-            self.manipulator.configure(self.observation.get_telescopes(), add=telescope)
+            # `add_as_new`, not `add`: a file written from an observation carries the name and
+            # the code it had, and both are unique here, so importing one back was refused
+            # outright. What stood here -- `telescope.code = telescope.code` and the same for
+            # the name -- was two lines that did nothing.
+            self.manipulator.configure(self.observation.get_telescopes(), add_as_new=telescope)
             self.update()
             self.data_updated.emit(telescope.name, None, "add")
             logger.info("New telescope '%s' imported successfully to observation '%s'", telescope.name, self.observation.code)
