@@ -118,10 +118,11 @@ class ScheduleManipulator(Manipulator):
         Notes:
             - Read backwards it answers what produced a result: `journal.touching(name)` gives
               everything that ever touched an object, in order.
-            - Read forwards it replays: `journal.replay(manipulator)` runs the same session
+            - Read forwards it replays: `manipulator.replay(journal)` runs the same session
               again, which is how a reported problem becomes a reproduction.
-            - Entries hold the live object the request named, so a journal cannot be written
-              to a file as it stands. That is the persistence question, and it belongs to
-              stage 4.
+            - **A session is portable.** `journal.entries` is plain data -- each step names its
+              object by the path it sat at -- so it writes to a file and comes back:
+              `RequestJournal.from_entries(...)`, or `replay` given the entries themselves.
+              That is what `export(method="journal")` and `compute(method="replay")` are.
         """
         return self._journal

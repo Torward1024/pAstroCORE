@@ -1,6 +1,7 @@
 # base/scans.py
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
+from msb_arch import InvariantError, invariant
 from msb_arch.utils.validation import Positive, check_type, check_positive
 from msb_arch.utils.logging_setup import logger
 from .frequencies import IF, Frequencies
@@ -443,6 +444,39 @@ class Scans(BaseContainer[Scan]):
         self._key_cache = list(self._items.keys()) if items else []
         logger.info("Initialized Scans with name=%s, %s scans", name, len(self._items))
 
+    @invariant("active scans must not overlap in time")
+    def _active_scans_do_not_overlap(self) -> bool:
+        """No two active scans may cover the same moment.
+
+        Raises:
+            InvariantError: Naming both scans and the window each covers.
+
+        Notes:
+            - A rule about the contents rather than about any one scan, which is what an
+              invariant is for. It was a `_check_overlap` helper called by hand from `add` and
+              `set_scan` only, so a scan arriving through `set_item`, a whole set through
+              `set_items`, and a container built from a file were never checked at all -- and
+              a saved schedule is exactly where a conflicting pair would come from.
+            - **Active scans only.** An inactive scan is a alternative being kept, not a
+              commitment, and two of those may well cover the same hour. Activating one is not
+              checked here, because a container is not told when an item it holds is activated.
+            - Sorted by start rather than compared pairwise, so checking the whole container
+              costs one sort instead of a square.
+        """
+        windows = []
+        for name, scan in self._items.items():
+            if not scan.isactive:
+                continue
+            windows.append((scan.get_start(), scan.get_end(), name))
+
+        windows.sort(key=lambda window: window[0].jd)
+        for (start, end, name), (next_start, next_end, next_name) in zip(windows, windows[1:]):
+            if next_start < end:
+                raise InvariantError(
+                    f"scan '{name}' runs {start.isot} to {end.isot} and '{next_name}' runs "
+                    f"{next_start.isot} to {next_end.isot}; active scans must not overlap")
+        return True
+
     def add(self, scan: Scan, observation: 'Observation' = None) -> None:
         """Add a Scan object to the collection with overlap checking."""
         from pastrocore.base.observation import Observation
@@ -456,10 +490,6 @@ class Scans(BaseContainer[Scan]):
             if should_be_active != scan.isactive:
                 scan.set({"isactive": should_be_active})
                 logger.debug("Set scan '%s' isactive=%s during add", scan.name, should_be_active)
-        overlap, reason = self._check_overlap(scan)
-        if overlap:
-            logger.error("Scan '%s' with start=%s, duration=%s %s", scan.name, scan.get_start().isot, scan.get_duration(), reason)
-            raise ValueError(f"Scan conflicts: {reason}")
         super().add(scan)
         self._key_cache.append(scan.name)
         logger.info("Added scan '%s' with start=%s to Scans", scan.name, scan.get_start().isot)
@@ -533,10 +563,6 @@ class Scans(BaseContainer[Scan]):
             isactive=temp_isactive,
             observation=observation
         )
-        overlap, reason = self._check_overlap(temp_scan, exclude_name=name)
-        if overlap:
-            logger.error("Updated scan '%s' %s", name, reason)
-            raise ValueError(f"Scan update conflicts: {reason}")
         if observation:
             check_type(observation, Observation, "Observation")
             if not temp_scan.validate_with_observation(observation):
@@ -557,7 +583,17 @@ class Scans(BaseContainer[Scan]):
         if isactive is not None:
             params["isactive"] = isactive
         if params:
+            # A scan is edited in place, so the container is never told and cannot check its
+            # own rule. Written, checked, and put back when the rule refuses -- the same shape
+            # msb_arch uses for a field, and for the same reason: a refused change must leave
+            # the scan exactly as it was.
+            was = {key: getattr(scan, key) for key in params}
             scan.set(params)
+            try:
+                self.check_invariants()
+            except InvariantError:
+                scan.set(was)
+                raise
             logger.info("Updated scan '%s' in Scans with params: %s", name, params)
             if observation and isactive is None:
                 should_be_active = scan._check_activity_status(observation)
@@ -639,24 +675,6 @@ class Scans(BaseContainer[Scan]):
             use_cache=self._use_cache
         )
 
-    def _check_overlap(self, scan: Scan, exclude_name: str = None) -> tuple[bool, str]:
-        """Check if a scan overlaps with existing active scans by time."""
-        for name, existing in self._items.items():
-            if name == exclude_name or not existing.isactive or not scan.isactive:
-                continue
-            scan_start = scan.get_start()
-            scan_end = scan.get_end()
-            existing_start = existing.get_start()
-            existing_end = existing.get_end()
-            time_overlap = (existing_start < scan_end and scan_start < existing_end)
-            if time_overlap:
-                reason = (f"overlaps with scan '{name}' (start={existing_start.isot}, "
-                          f"duration={existing.get_duration()})")
-                logger.debug("Overlap detected: %s", reason)
-                return True, reason
-        logger.debug("No overlap detected for scan '%s' with start=%s", scan.name, scan.get_start().isot)
-        return False, ""
-    
     @classmethod
     def from_dict(cls, data: dict, observation: 'Observation' = None) -> 'Scans':
         """Create a Scans object from a dictionary."""

@@ -2,7 +2,7 @@
 from typing import Annotated, List, Optional, Union, Dict
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
-from msb_arch import Positive
+from msb_arch import InvariantError, Positive, invariant
 from msb_arch.utils.logging_setup import logger
 import uuid
 
@@ -144,8 +144,42 @@ class Frequencies(BaseContainer[IF]):
         if name is None:
             name = f"fqs_{uuid.uuid4().hex[:32]}"
         super().__init__(name=name, items=items or {}, isactive=isactive, use_cache=use_cache)
-        for if_name, if_obj in (items or {}).items():
-            self._check_overlap(if_obj, exclude_name=if_name)
+
+    @invariant("frequency ranges must not overlap")
+    def _bands_do_not_overlap(self) -> bool:
+        """No two IFs may cover the same frequency.
+
+        Raises:
+            InvariantError: Naming both bands and what each covers.
+
+        Notes:
+            - A rule about the contents rather than about any one IF, which is what an
+              invariant is for. It was a `_check_overlap` helper called by hand from six
+              places -- the constructor, `add`, `create_if`, `set_if`, `set_item` and
+              `set_items` -- so it held exactly where somebody had remembered it. msb_arch
+              1.10.0 checks a container's rule after `add`, `remove`, `set_item`, `set_items`
+              and `remove_all`, and puts the items back when it refuses.
+            - Sorted rather than compared pairwise: the hand-written version asked one new band
+              against every existing one, which is the same work per call and quadratic when
+              the whole container is checked.
+            - Raises its own error so the message still names the two bands. A rule that only
+              answers False would say "frequency ranges must not overlap" and leave the user to
+              find which two.
+        """
+        bands = []
+        for name, if_obj in self.get_all().items():
+            if if_obj.bandwidth <= 0:
+                raise InvariantError(
+                    f"IF '{name}' has a bandwidth of {if_obj.bandwidth}; it must be positive")
+            bands.append((if_obj.frequency, if_obj.frequency + if_obj.bandwidth, name))
+
+        bands.sort()
+        for (start, end, name), (next_start, next_end, next_name) in zip(bands, bands[1:]):
+            if next_start < end:
+                raise InvariantError(
+                    f"'{name}' covers [{start}, {end}] and '{next_name}' covers "
+                    f"[{next_start}, {next_end}]; frequency ranges must not overlap")
+        return True
 
     def add(self, if_obj: IF) -> None:
         """Add an IF object to the collection.
@@ -154,11 +188,11 @@ class Frequencies(BaseContainer[IF]):
             if_obj (IF): The IF object to add.
 
         Raises:
-            ValueError: If frequency range overlaps with existing IFs.
+            InvariantError: If the frequency range overlaps an IF already here.
         """
-        self._check_overlap(if_obj, exclude_name=None)
         super().add(if_obj)
-    
+
+
     def create_if(
         self,
         name: str = None,
@@ -240,8 +274,6 @@ class Frequencies(BaseContainer[IF]):
             isactive=temp_isactive,
         )
 
-        self._check_overlap(temp_if, exclude_name=name)
-
         params = {}
         if frequency is not None:
             params["frequency"] = frequency
@@ -253,7 +285,17 @@ class Frequencies(BaseContainer[IF]):
             params["isactive"] = isactive
 
         if params:
+            # An IF is edited in place, so the container is never told and cannot check its
+            # own rule. Written, checked, and put back when the rule refuses -- which is what
+            # msb_arch does for a field, and the same reason: a refused change must leave the
+            # object exactly as it was.
+            was = {key: getattr(if_obj, key) for key in params}
             if_obj.set(params)
+            try:
+                self.check_invariants()
+            except InvariantError:
+                if_obj.set(was)
+                raise
             logger.info("Updated IF '%s' in Frequencies with params: %s", name, params)
         else:
             logger.debug("No parameters to update for IF '%s' in Frequencies", name)
@@ -273,9 +315,10 @@ class Frequencies(BaseContainer[IF]):
             raise ValueError(f"IF name '{item.name}' does not match key '{name}'")
         if not isinstance(item, IF):
             raise TypeError(f"Item must be of type IF, got {type(item).__name__}")
-        self._check_overlap(item, exclude_name=name)
-        self._items[name] = item
-        self._invalidate_cache()
+        # Through the container rather than into `_items`: writing the mapping directly is what
+        # made this the one path where the overlap rule could be skipped, and it is also what
+        # the container checks its rule after.
+        super().set_item(name, item)
         logger.debug("Set IF with name '%s' in Frequencies", name)
 
     def set_items(self, items: Dict[str, IF]) -> None:
@@ -285,10 +328,8 @@ class Frequencies(BaseContainer[IF]):
             items: Dictionary of IF objects with names as keys.
 
         Raises:
-            ValueError: If any frequency range overlaps with another.
+            InvariantError: If any frequency range overlaps with another.
         """
-        for if_name, if_obj in items.items():
-            self._check_overlap(if_obj, exclude_name=None)
         super().set_items(items)
 
     def get_frequencies(self) -> List[float]:
@@ -330,36 +371,6 @@ class Frequencies(BaseContainer[IF]):
             isactive=self.isactive,
             use_cache=self._use_cache
         )
-
-    def _check_overlap(self, if_obj: IF, exclude_name: Optional[str]) -> None:
-        """Check if an IF's frequency range overlaps with existing IFs.
-
-        Args:
-            if_obj: IF object to check.
-            exclude_name: Name of IF to exclude from overlap check (for updates).
-
-        Raises:
-            ValueError: If frequency range overlaps with an existing IF or bandwidth is zero.
-        """
-        new_freq = if_obj.frequency
-        new_bw = if_obj.bandwidth
-        if new_bw <= 0:
-            logger.error("Bandwidth must be positive for overlap check")
-            raise ValueError("Bandwidth must be positive")
-        new_end = new_freq + new_bw
-
-        for name, existing_if in self.get_all().items():
-            if name == exclude_name:
-                continue
-            ex_freq = existing_if.frequency
-            ex_bw = existing_if.bandwidth
-            if ex_bw <= 0:
-                logger.error("Existing IF %s has non-positive bandwidth", name)
-                raise ValueError(f"Existing IF {name} has non-positive bandwidth")
-            ex_end = ex_freq + ex_bw
-            if new_freq < ex_end and new_end > ex_freq:
-                logger.error("Frequency range [%s, %s] overlaps with [%s, %s]", new_freq, new_end, ex_freq, ex_end)
-                raise ValueError(f"Frequency range [{new_freq}, {new_end}] overlaps with [{ex_freq}, {ex_end}]")
 
     def __repr__(self) -> str:
         """Return a string representation of the Frequencies object."""

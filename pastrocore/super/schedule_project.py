@@ -4,6 +4,7 @@ from pastrocore.base.observation import Observation
 from pastrocore.base import freshness
 from pastrocore.base.result_store import ResidencyBudget, ResultStore, json_safe
 from pastrocore.base.scratch import ScratchSpace
+from msb_arch import InvariantError, invariant
 from msb_arch.super.project import Project
 from msb_arch.utils.validation import check_type, check_non_empty_string
 from msb_arch.utils.logging_setup import logger
@@ -53,42 +54,39 @@ class ScheduleProject(Project):
         """
         check_non_empty_string(name, "Project name")
         if items:
-            logger.debug("Validating %s items for project '%s'", len(items), name)
             for obs in items.values():
                 check_type(obs, Observation, "Observation in items")
-            codes = set()
-            for key, item in items.items():
-                item_code = item.get_observation_code()
-                if item_code in codes:
-                    logger.error("Duplicate observation code '%s' found for observation '%s'", item_code, key)
-                    raise ValueError(f"Observation code '{item_code}' already exists for another observation")
-                codes.add(item_code)
-                logger.debug("Validated observation '%s' with code '%s'", key, item_code)
-        
+
         super().__init__(name, items or {})
         logger.debug("Initialized ScheduleProject '%s' with %s observations", name, len(self._items))
 
-    def _validate_item(self, item: Observation, exclude_name: Optional[str] = None, exclude_code: Optional[str] = None) -> None:
-        """Validate an observation item, ensuring its code is unique within the project.
-
-        Args:
-            item (Observation): The observation to validate.
-            exclude_name (str, optional): Name of the item to exclude from validation (used when updating existing items).
-            exclude_code (str, optional): Code of the item to exclude from validation (used when updating items with the same code).
+    @invariant("two observations must not share an observation code")
+    def _codes_are_unique(self) -> bool:
+        """No two observations in a project may carry the same code.
 
         Raises:
-            TypeError: If the item is not an Observation object.
-            ValueError: If the observation code is not unique (unless excluded by name or code).
+            InvariantError: Naming the code and both observations that carry it.
+
+        Notes:
+            - A rule about the project rather than about any one observation, which is what an
+              invariant is for. It was a `_validate_item` helper called by hand from four
+              places, each passing a different pair of exclusions to work out which item was
+              being replaced -- and `remove_item` and `set_project` could still leave a project
+              nobody had checked. msb_arch 1.10.0 checks the rule after anything that changes
+              what a project holds, and puts the items back when it refuses, so the exclusions
+              are not needed: the rule reads the project as it would be.
+            - The code, not the name. Names are unique because the container makes them so; the
+              code is what an observation is called on paper, and duplicating one makes two
+              observations indistinguishable everywhere a schedule is written out.
         """
-        check_type(item, Observation, "Observation")
-        item_code = item.get_observation_code()
-        for name, existing_item in self._items.get_all().items():
-            existing_code = existing_item.get_observation_code()
-            if (name != exclude_name and item_code == existing_code and
-                    (exclude_code is None or existing_code != exclude_code)):
-                logger.error("Observation code '%s' already exists for observation '%s'", item_code, name)
-                raise ValueError(f"Observation code '{item_code}' already exists for another observation")
-        logger.debug("Validated observation with code '%s' (name='%s') for project '%s'", item_code, item.name, self.name)
+        seen = {}
+        for name, observation in self._items.get_all().items():
+            code = observation.get_observation_code()
+            if code in seen:
+                raise InvariantError(
+                    f"observations '{seen[code]}' and '{name}' both carry the code '{code}'")
+            seen[code] = name
+        return True
 
     def add_item(self, item: Observation) -> None:
         """Add an observation to the project.
@@ -98,9 +96,9 @@ class ScheduleProject(Project):
 
         Raises:
             TypeError: If the item is not an Observation object.
-            ValueError: If the observation code is not unique.
+            InvariantError: If the observation code is not unique.
         """
-        self._validate_item(item)
+        check_type(item, Observation, "Observation")
         super().add_item(item)
         logger.info("Added observation '%s' (name='%s') to project '%s'", item.get_observation_code(), item.name, self.name)
 
@@ -133,13 +131,9 @@ class ScheduleProject(Project):
 
         Raises:
             TypeError: If the item is not an Observation object.
-            ValueError: If the observation code is not unique (excluding the item being replaced).
+            InvariantError: If the observation code is not unique.
         """
         check_type(item, Observation, "Observation")
-        existing_code = None
-        if name in self._items:
-            existing_code = self._items[name].get_observation_code()
-        self._validate_item(item, exclude_name=name, exclude_code=existing_code)
         super().set_item(name, item)
         logger.info("Set observation with name='%s' and code='%s' in project '%s'", name, item.get_observation_code(), self.name)
 
@@ -259,13 +253,11 @@ class ScheduleProject(Project):
 
         Raises:
             TypeError: If any item in the items dict is not an Observation object.
-            ValueError: If any observation codes are not unique or other validation fails.
+            InvariantError: If any two observations share a code.
         """
         if items:
             for obs in items.values():
                 check_type(obs, Observation, "Observation in items")
-            for key, item in items.items():
-                self._validate_item(item, exclude_name=key)
         super().set_project(name, items)
         logger.info("Set project '%s' with %s observations", name, len(items))
 

@@ -413,7 +413,7 @@ MODEL_METHODS = re.compile(
     r"get_observation_by_code|observations|create_telescope|create_source|create_scan|"
     r"create_if|create_item|add_item|set_item|clear_calculated_data|"
     r"set_calculated_data_by_key|stale_results|unsaved_results|discard_scratch_if_empty|"
-    r"to_dict|from_dict)\(")
+    r"release|to_dict|from_dict)\(")
 
 #: Where reaching the model is decided rather than owed, with the reason.
 REACHING_IS_ALLOWED = {
