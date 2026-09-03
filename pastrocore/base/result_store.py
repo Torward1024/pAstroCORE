@@ -679,6 +679,30 @@ class CalculatedData:
         self._unwritten.clear()
         return written
 
+    def __eq__(self, other: Any) -> bool:
+        """Two sets of results are equal when they hold the same results, however they hold them.
+
+        Args:
+            other (Any): The object to compare with.
+
+        Returns:
+            bool: True when both are `CalculatedData` and answer to the same keys.
+
+        Notes:
+            - Compared on the keys rather than on the frames. A key is a result that exists,
+              whether it is in memory or on disk, which is the same rule `keys()` and `in`
+              already use -- and reading every frame off disk to answer `==` would make
+              comparing two projects load both of them.
+            - Without this, results compared by identity, so an observation restored from a
+              file was never equal to the one it was written from and neither was the project
+              holding it. msb_arch 2.0.0 made a `Project` compare by its contents precisely so
+              that `load(...) == project` holds; this is the half of that promise which lives
+              here.
+        """
+        if not isinstance(other, CalculatedData):
+            return NotImplemented
+        return sorted(self.keys()) == sorted(other.keys())
+
     def __repr__(self) -> str:
         return (f"CalculatedData(owner={self._owner!r}, resident={len(self._resident)}, "
                 f"stored={len(self._stored_keys())})")

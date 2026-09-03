@@ -429,8 +429,9 @@ def test_the_exporter_holds_no_list_of_plots():
 # --- what a request was made on ---------------------------------------------------------------
 
 def test_a_project_says_what_it_holds_without_anybody_guessing():
-    """`get_items()` is a dict on a project and a list on a container -- the same method name,
-    two shapes -- so every caller guessed, and one guessed wrong."""
+    """`get_items()` was a dict on a project and a list on a container -- the same method name,
+    two shapes -- so every caller guessed, and one guessed wrong. msb_arch 2.0.0 settled the
+    shape; this stays because a caller wants observations, not items."""
     from pastrocore.base.observation import Observation
 
     project = ScheduleProject(name="Two")

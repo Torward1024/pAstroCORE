@@ -508,12 +508,17 @@ class ScheduleRunner(Super):
             # callable to report progress and one to ask whether to stop, and both come back
             # like this. Dropping them is right, since neither can be replayed and their
             # absence means "report to nobody, stop for nobody".
-            attributes = {name: value
-                          for name, value in (step.get("attributes") or {}).items()
-                          if not (isinstance(value, str) and value.startswith("<")
-                                  and value.endswith(">"))}
+            #
+            # Named apart from this method's own `attributes`, which it used to overwrite:
+            # from the second step onwards `skip_failures` was then read out of the *step's*
+            # attributes rather than the request's, so asking to replay failures too was
+            # honoured for one step and silently dropped for the rest.
+            asked = {key: value
+                     for key, value in (step.get("attributes") or {}).items()
+                     if not (isinstance(value, str) and value.startswith("<")
+                             and value.endswith(">"))}
             entry = {"operation": step.get("operation"), "obj": found,
-                     "attributes": attributes}
+                     "attributes": asked}
             if step.get("method"):
                 entry["method"] = step["method"]
             if previous:
