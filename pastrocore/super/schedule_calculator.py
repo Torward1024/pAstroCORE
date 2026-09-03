@@ -85,6 +85,32 @@ class ScheduleCalculator(Super):
         self._orbit_cache_lock = threading.Lock()
         logger.debug("Initialized Scheduling Calculator")
     
+    @staticmethod
+    def _active_scan_count(obj: Observation | ScheduleProject) -> int:
+        """Return how many active scans an observation or a whole project holds.
+
+        Args:
+            obj: An Observation, or a ScheduleProject of them.
+
+        Returns:
+            int: The count, summed across observations for a project.
+
+        Notes:
+            - Written out eleven times, identically, in the metadata of eleven calculations.
+              It is one line each time and it is the same line, which is how the *other* count
+              in this file came to be spelled differently from all of them.
+        """
+        if isinstance(obj, Observation):
+            return len(obj.get_scans().get_active_items())
+        return sum(len(o.get_scans().get_active_items()) for o in obj.observations())
+
+    @staticmethod
+    def _active_telescope_count(obj: Observation | ScheduleProject) -> int:
+        """Return how many active telescopes an observation or a whole project holds."""
+        if isinstance(obj, Observation):
+            return len(obj.get_telescopes().get_active_items())
+        return sum(len(o.get_telescopes().get_active_items()) for o in obj.observations())
+
     def _get_active_components(
         self,
         obj: Observation,
@@ -508,7 +534,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations())
+                "scan_count": self._active_scan_count(obj)
             }
             df = self._process_object(obj, attributes, calculate_orbits, store_key, metadata)
 
@@ -872,7 +898,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations())
+                "scan_count": self._active_scan_count(obj)
             }
             df = self._process_object(obj, attributes, calculate_positions, store_key, metadata)
 
@@ -1215,7 +1241,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "position_store_key": position_store_key
             }
             df = self._process_object(obj, attributes, calculate_visibility, store_key, metadata)
@@ -1440,7 +1466,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations())
+                "scan_count": self._active_scan_count(obj)
             }
             df = self._process_object(obj, attributes, calculate_uv, store_key, metadata)
 
@@ -1703,7 +1729,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "position_store_key": position_store_key,
                 "visibility_store_key": visibility_store_key
             }
@@ -1947,7 +1973,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "position_store_key": position_store_key,
                 "visibility_store_key": visibility_store_key
             }
@@ -2183,7 +2209,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "target_code": target_code,
                 "position_store_key": position_store_key,
                 "orbit_store_key": orbit_store_key
@@ -2424,7 +2450,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "target_code": target_code,
                 "az_el_store_key": az_el_store_key
             }
@@ -2523,7 +2549,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "visibility_store_key": visibility_store_key
             }
             df = self._process_object(obj, attributes, calculate_time_on_source, store_key, metadata)
@@ -2692,7 +2718,7 @@ class ScheduleCalculator(Super):
                 return df
 
             metadata = {
-                "telescope_count": len(obj.get_telescopes().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_telescopes().get_active_items()) for o in obj.observations()),
+                "telescope_count": self._active_telescope_count(obj),
                 "scale_instruction": "Multiply pattern by wavelength during visualization"
             }
             df = self._process_object(obj, attributes, calculate_beam_pattern, store_key, metadata)
@@ -2793,7 +2819,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "visibility_store_key": visibility_store_key
             }
             df = self._process_object(obj, attributes, calculate_baseline_projections, store_key, metadata)
@@ -3009,7 +3035,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "sources": sources_metadata
             }
             df = self._process_object(obj, attributes, calculate_mollweide, store_key, metadata)
@@ -3207,8 +3233,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "time_step": time_step,
-                "scan_count": len(obj.get_scans().get_active_items()) if isinstance(obj, Observation) 
-                             else sum(len(o.get_scans().get_active_items()) for o in obj.observations()),
+                "scan_count": self._active_scan_count(obj),
                 "position_store_key": position_store_key,
                 "visibility_store_key": visibility_store_key
             }

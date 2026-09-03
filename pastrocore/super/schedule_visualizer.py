@@ -308,11 +308,15 @@ class ScheduleVisualizer(Super):
             plt.show()
 
         if not return_figure:
-            logger.debug("Closing figure %s", id(fig))
-            plt.close(fig)
-            if len(plt.get_fignums()) > 10:  # Check for excessive open figures
-                logger.warning("Excessive open figures detected: %s", len(plt.get_fignums()))
-                plt.close('all')
+            # `Figure(...)` rather than `plt.figure(...)`, so pyplot never registered it: it is
+            # released when the last reference goes, and `plt.close(fig)` on one is a no-op.
+            #
+            # What was here counted `plt.get_fignums()` and called `plt.close('all')` above ten
+            # -- a count this class contributes nothing to, of figures belonging to whoever did
+            # use pyplot. It could only ever have closed *someone else's* figures, and the
+            # figures a visualization tab holds are exactly what it would have found.
+            logger.debug("Releasing figure %s", id(fig))
+            fig.clf()
 
         result["figure"] = fig if return_figure else None
         return result
