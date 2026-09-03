@@ -594,6 +594,43 @@ def _responses_read_without_asking_for_one(tree):
     return found
 
 
+#: Reading a catalogue's contents. The catalogues hold `Sources` and `Telescopes`, which are
+#: model types the orchestrator knows, so the interface reaches them the same way it reaches
+#: everything else. Policed separately from `MODEL_METHODS` because `get_items` is far too
+#: common a name to forbid outright.
+CATALOGUE_READ = re.compile(r"catalog_manager\.(source_catalog|telescope_catalog)\.get_\w+\(")
+
+
+def test_the_interface_reads_a_catalogue_through_the_orchestrator_too():
+    """The catalogue layer was the one place left reaching past the orchestrator.
+
+    `CatalogManager` is backend -- the parsing lives there, not in a dialog -- so this was never
+    logic in the interface. It was the interface holding a model object and calling it, which is
+    the half of the rule that makes a command line and a server possible: they have no
+    `catalog_manager` attribute to reach through.
+    """
+    offenders = {}
+    modules = [module for module in sorted((ROOT / "pastrocore" / "gui").glob("*.py"))
+               if not module.name.startswith(("ui_", "rc_"))]
+    modules.append(ROOT / "pastrocore" / "app.py")
+
+    for module in modules:
+        found = []
+        for number, line in enumerate(module.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#") or "manipulator.inspect(" in stripped:
+                continue
+            if CATALOGUE_READ.search(line):
+                found.append(number)
+        if found:
+            offenders[module.relative_to(ROOT).as_posix()] = found
+
+    assert not offenders, (
+        "a catalogue is read directly:\n  "
+        + "\n  ".join(f"{name}: lines {lines}" for name, lines in offenders.items())
+        + "\nAsk the orchestrator: inspect(catalog, get_items=None).")
+
+
 def test_a_response_is_only_read_where_one_was_asked_for():
     """`.value` exists on a `Response`, and a request returns one only when it is told not to
     raise. Without `raise_on_error=False` the answer is the value itself.
