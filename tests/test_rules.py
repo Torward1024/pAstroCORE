@@ -197,3 +197,50 @@ def test_two_different_projects_are_not_equal():
     project = ScheduleProject.from_dict(data)
 
     assert project != ScheduleProject(name="Empty")
+
+
+# --- importing a telescope that is already here ------------------------------------------
+
+def test_importing_a_telescope_that_is_already_here_adds_a_second_one(tmp_path):
+    """A telescope's name and its code are each unique within an observation, and a file
+    written from one carries both -- so importing it back, or importing the same station from a
+    colleague's project, was refused outright.
+
+    The tab had two lines meant to handle this: `telescope.code = telescope.code` and
+    `telescope.name = telescope.name`. Both do nothing, so nothing is what happened.
+    """
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    data = json.loads(conftest.FIXTURE.read_text(encoding="utf-8"))
+    project = ScheduleProject.from_dict(data)
+    manipulator = ScheduleManipulator(project)
+    telescopes = project.observations()[0].get_telescopes()
+
+    written = tmp_path / "telescope.pastrod"
+    manipulator.save(obj=telescopes.get_items()[0], path=str(written))
+    before = [t.name for t in telescopes.get_items()]
+
+    manipulator.configure(telescopes, add_as_new=manipulator.load(telescopes, path=str(written)))
+    manipulator.configure(telescopes, add_as_new=manipulator.load(telescopes, path=str(written)))
+
+    names = [t.name for t in telescopes.get_items()]
+    codes = [t.get_code() for t in telescopes.get_items()]
+    assert names[:len(before)] == before, "the telescopes already here were disturbed"
+    assert len(names) == len(before) + 2
+    assert len(set(names)) == len(names) and len(set(codes)) == len(codes)
+    assert names[-2:] == ["EHT_ALMA_2", "EHT_ALMA_3"], (
+        "a number says which station it is; a UUID would not")
+
+
+def test_a_telescope_with_a_free_name_keeps_it(tmp_path):
+    """The suffix is for a collision, not for every import."""
+    from pastrocore.base.telescopes import Telescope, Telescopes
+
+    telescopes = Telescopes(name="tels")
+    telescopes.create_telescope(code="EF", name="Effelsberg", x=1.0, y=2.0, z=3.0, diameter=100.0)
+
+    held = [t.name for t in telescopes.get_items()]
+    telescopes.add_as_new(Telescope(code="ON", name="Onsala", x=4.0, y=5.0, z=6.0, diameter=25.0))
+
+    assert [t.name for t in telescopes.get_items()] == held + ["Onsala"], (
+        "a name nothing was using was changed anyway")

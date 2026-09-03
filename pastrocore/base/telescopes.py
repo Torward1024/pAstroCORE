@@ -87,6 +87,46 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
                 
         logger.debug("Validated telescope with name='%s', code='%s'", name, code)
 
+    def _free(self, taken, wanted: str) -> str:
+        """Return `wanted`, or the first of `wanted_2`, `wanted_3`, ... that is not taken."""
+        if wanted not in taken:
+            return wanted
+        suffix = 2
+        while f"{wanted}_{suffix}" in taken:
+            suffix += 1
+        return f"{wanted}_{suffix}"
+
+    def add_as_new(self, item: Union[Telescope, SpaceTelescope]) -> str:
+        """Add a telescope under a name and code nothing here is using yet.
+
+        Args:
+            item (Telescope | SpaceTelescope): The telescope to add. Renamed in place when its
+                name or code is already taken.
+
+        Returns:
+            str: The name it was added under.
+
+        Notes:
+            - **Importing a telescope from a file could not add a second copy of one.** A name
+              and a code are each unique here, and a file written from an observation carries
+              both -- so importing it back, or importing the same station from a colleague's
+              project, was refused outright. The interface had two lines meant to deal with
+              this that read `telescope.code = telescope.code` and `telescope.name =
+              telescope.name`, which do nothing at all.
+            - A number is appended rather than a UUID: `EHT_ALMA_2` still says which station it
+              is, and the name is constrained to letters, digits, `_` and `-` anyway.
+            - Here rather than in the window, because importing is not something only a window
+              does -- and because the rule about what is taken belongs with the collection that
+              enforces it.
+        """
+        check_type(item, (Telescope, SpaceTelescope), "Telescope")
+        item.name = self._free(self._items, item.name)
+        item.code = self._free({held.get_code() for held in self._items.values()},
+                               item.get_code())
+        self.add(item)
+        logger.info("Added telescope '%s' (code '%s') as a new entry", item.name, item.get_code())
+        return item.name
+
     def set_item(self, name: str, item: Union[Telescope, SpaceTelescope]) -> None:
         """Set or replace a telescope in the collection by its name.
 
