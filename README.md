@@ -2,12 +2,12 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.1-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
+[![Version](https://img.shields.io/badge/version-1.2.2-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
 [![Built on MSB](https://img.shields.io/badge/built%20on-MSB%202.0.1-8a2be2.svg)](https://github.com/Torward1024/MSB)
 
 A versatile tool for scheduling radio-astronomical observations.
 
-Version 1.2.1. The parts written under time pressure have been put in order, one measured
+Version 1.2.2. The parts written under time pressure have been put in order, one measured
 stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -50,6 +50,12 @@ parallactic angle. Eleven calculations in all, each drawn as well as computed.
 Every one of them is defended by a test that recomputes it against a saved project and
 compares the numbers, so a refactoring cannot change a result quietly. The plots are defended
 the same way, by reading the drawn points back out of the figure.
+
+What that kind of test cannot do is tell you the numbers were wrong to begin with -- it compares
+against what the code used to produce. The orbit interpolation was out by kilometres for as long
+as it existed, and the suite was green throughout. Where an answer can be known independently it
+is now checked against that instead: the orbit tests measure against a Kepler orbit solved to
+machine precision.
 
 ## Running
 
@@ -136,7 +142,7 @@ pip install -r requirements.txt pytest
 python -m pytest tests/
 ```
 
-509 tests. The characterization suites recompute every calculation in
+522 tests. The characterization suites recompute every calculation in
 `tests/fixtures/test_project.pastro` and redraw every plot, comparing against what the project
 was saved with, so a change to any formula or any filter fails the build. Qt runs offscreen,
 so the GUI smoke tests need no display.
