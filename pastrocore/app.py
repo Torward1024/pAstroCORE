@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
                                 )
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal, Slot, QPoint, QObject
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
+from PySide6.QtGui import QAction, QStandardItemModel, QStandardItem, QIcon
 # Core files
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.scratch import ScratchSpace
@@ -257,10 +257,33 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.error("Project explorer widget not found during setup_ui")
         self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
 
+    def _build_packaging_actions(self):
+        """Add the two File entries for sending a project, once.
+
+        Notes:
+            - Built here rather than in the form. The forms are authored in Qt Designer and
+              regenerated, and adding an action to one means opening Designer -- which is right
+              for anything with a layout and heavy for two menu entries with no widgets. They
+              are ordinary `QAction`s, connected the same way as the generated ones.
+        """
+        if getattr(self, "_package_action", None) is not None:
+            return
+
+        self._package_action = QAction("Package Project...", self)
+        self._package_action.setToolTip("Pack this project into one file, to send or to attach "
+                                        "to a bug report")
+        self._open_package_action = QAction("Open Package...", self)
+        self._open_package_action.setToolTip("Open a project someone sent as one file")
+
+        self.ui.menuFile.insertAction(self.ui.actionExit, self._package_action)
+        self.ui.menuFile.insertAction(self._package_action, self._open_package_action)
+        self.ui.menuFile.insertSeparator(self._open_package_action)
+
     def setup_connections(self):
         """Setup UI signal connections."""
         self.clear_connections(is_initial_setup=True)
-        
+        self._build_packaging_actions()
+
         self._action_connections = {
             self.ui.actionNewProject: self.new_project,
             self.ui.actionOpenProject: self.open_project,
@@ -276,7 +299,9 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionSession: self.open_session_dialog,
             self.ui.actionVisualize: self.open_visualization_dialog,
             self.ui.actionGenerate_Observations: self.handle_generate_observations,
-            self.ui.actionExport_Calulcated_Data: self.open_export_dialog
+            self.ui.actionExport_Calulcated_Data: self.open_export_dialog,
+            self._package_action: self.package_project,
+            self._open_package_action: self.open_package,
         }
 
         for action, slot in self._action_connections.items():
@@ -831,6 +856,96 @@ class PAstroCoreMainWindow(QMainWindow):
 
         self.current_project_path = directory
         self.save_project()
+
+    def package_project(self):
+        """Pack the project into one file, which is what travels.
+
+        Notes:
+            - A project is a directory, which is right for working in and wrong for sending: a
+              colleague gets a folder tree and a bug report gets nothing at all.
+            - Asks whether to include the results. A bug report wants the model alone -- a few
+              kilobytes that reproduce the configuration without a gigabyte of frames.
+        """
+        if not self.project or not self.manipulator:
+            return
+
+        destination, _ = QFileDialog.getSaveFileName(
+            self, "Package Project", "", "pAstroCORE package (*.pastroz)")
+        if not destination:
+            logger.debug("Packaging cancelled")
+            return
+
+        wanted = QMessageBox.question(
+            self, "Package Project",
+            "Include the calculated results?\n\n"
+            "Yes -- everything, so it opens exactly as it is here.\n"
+            "No -- the model alone, which is what a bug report needs.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            | QMessageBox.StandardButton.Cancel)
+        if wanted == QMessageBox.StandardButton.Cancel:
+            return
+
+        answer = self.manipulator.export(
+            obj=self.project, method="package", path=destination,
+            results=wanted == QMessageBox.StandardButton.Yes, overwrite=True,
+            raise_on_error=False)
+        if not answer.ok:
+            QMessageBox.critical(self, "Error", f"Could not package the project: {answer.error}")
+            return
+
+        report = answer.value
+        QMessageBox.information(
+            self, "Packaged",
+            f"{report['path']}\n\n{report['files']} file(s), "
+            f"{report['bytes'] / 1024:,.1f} KB"
+            + ("" if report["results"] else "\nModel only -- no results included."))
+
+    def open_package(self):
+        """Open a project someone sent as one file."""
+        source, _ = QFileDialog.getOpenFileName(
+            self, "Open Package", "", "pAstroCORE package (*.pastroz)")
+        if not source:
+            logger.debug("Opening a package cancelled")
+            return
+
+        if not self._confirm_discarding_unsaved():
+            return
+
+        opening = ScheduleProject(name="opening")
+        answer = ScheduleManipulator(opening, journal_limit=None).load(
+            obj=opening, method="package", path=source, raise_on_error=False)
+        if not answer.ok:
+            QMessageBox.critical(self, "Error", f"Could not open the package: {answer.error}")
+            return
+
+        self._cleanup_project()
+        self.project = answer.value
+        self.manipulator = ScheduleManipulator(self.project)
+        self._apply_residency_budget()
+        # No path: a package is unpacked into a temporary directory, and saving there would
+        # put the work somewhere the operating system may clear. Save prompts for a folder.
+        self.current_project_path = None
+        self.clear_connections(is_initial_setup=False)
+        self.setup_connections()
+        self.open_project_info_tab()
+        self.update_project_explorer()
+        self.project_updated.emit()
+        logger.info("Opened package '%s' as project '%s'", source, self.project.name)
+
+    def _confirm_discarding_unsaved(self) -> bool:
+        """Ask before replacing a project that holds results nobody has saved."""
+        if not self.project or not self.manipulator:
+            return True
+        held = self.manipulator.export(obj=self.project, method="unsaved",
+                                       raise_on_error=False).value or 0
+        if not held:
+            return True
+        answer = QMessageBox.question(
+            self, "Unsaved results",
+            f"This session holds {held} result(s) that have not been saved.\n\n"
+            f"Opening another project discards them. Continue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        return answer == QMessageBox.StandardButton.Yes
 
     def _directory_is_free_for_a_project(self, directory: str) -> bool:
         """Report whether a project may be written into a directory, asking if it is unclear.

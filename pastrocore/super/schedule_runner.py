@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
+from msb_arch.base.basecontainer import BaseContainer
 from msb_arch.super.super import Super
 from msb_arch.utils.logging_setup import logger
 
@@ -581,6 +582,92 @@ class ScheduleRunner(Super):
             cleared.append(observation.code)
         logger.info("Cleared the results of %s observation(s)", len(cleared))
         return {"cleared": cleared}
+
+    @staticmethod
+    def _parts_by_type() -> Dict[str, str]:
+        """Return which part of an observation each type is held in, read from the model.
+
+        Returns:
+            Dict[str, str]: Type name to part name -- `{"Telescopes": "telescopes", ...}`.
+
+        Notes:
+            - Derived from `Observation`'s own annotations rather than written out here. The
+              names a result declares in `depends_on` are the names of those fields, so the
+              two halves of this answer are already the same vocabulary; a table here would be
+              a second place to update when the model grows a part.
+        """
+        # Containers only. `calculated_data` is annotated `Any`, which on this Python answers
+        # True to `isinstance(hint, type)` and would otherwise appear here as a part of the
+        # model that a change could reach.
+        parts = {}
+        for field, hint in Observation._fields.items():
+            if (not field.startswith("_") and isinstance(hint, type)
+                    and issubclass(hint, BaseContainer)):
+                parts[hint.__name__] = field
+        return parts
+
+    def _compute_affected(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Return the results that editing something of a given type would make wrong.
+
+        Args:
+            obj: An observation or a project, to say which of the affected results actually
+                exist. Optional -- with none, the answer is about the calculations rather than
+                about any stored result.
+            attributes: `type`, the name of what is about to be edited (`"Telescope"`,
+                `"Scan"`, ...), or `subject`, an object to take that name from.
+
+        Returns:
+            Dict[str, Any]: `{"type": str, "parts": [...], "calculations": [...],
+                "stored": [...]}` -- the parts of an observation a change reaches, every
+                calculation that reads one of them, and which of those have actually been
+                calculated and would therefore go stale.
+
+        Raises:
+            ValueError: If neither `type` nor `subject` was given, or the type is not in the
+                model.
+
+        Notes:
+            - **`stale` answers afterwards; this answers before.** Staleness compares a stored
+              fingerprint against the configuration in hand, so it can only speak about a change
+              that has already happened. A user about to move a telescope wants to know what it
+              will cost first.
+            - Both halves are derived and neither is written down here. MSB's model graph says
+              what reaching a type reaches -- a `Telescope` is held by `Telescopes` and named by
+              `Scan`, so editing one reaches scans too, which is the part nobody remembers. Each
+              calculation's schema says which parts it reads. The intersection is the answer.
+        """
+        subject = attributes.get("subject")
+        name = attributes.get("type") or (type(subject).__name__ if subject is not None else None)
+        if not name:
+            raise ValueError("No 'type' or 'subject' given; there is nothing to ask about")
+
+        parts_by_type = self._parts_by_type()
+        known = set(parts_by_type) | {"Observation"}
+        reached = set(self._manipulator.dependents_of(name)) | {name}
+        if not reached & known and name not in known:
+            raise ValueError(
+                f"Nothing in the model is called '{name}'; there is "
+                f"{', '.join(sorted(known))} and what they hold")
+
+        # A change to a part itself, or to anything the part holds, reaches that part.
+        parts = sorted({part for held, part in parts_by_type.items() if held in reached})
+
+        affected = sorted(
+            key for key in CalculatedDataStructure.SCHEMAS
+            if set(CalculatedDataStructure.get_dependencies(key)) & set(parts))
+
+        stored = []
+        for observation in self._targets(obj) if obj is not None else []:
+            results = observation.calculated_data
+            held = set(results.keys()) if hasattr(results, "keys") else set()
+            for key in affected:
+                if key in held:
+                    stored.append(f"{observation.code}/{key}")
+
+        logger.info("A change to '%s' reaches %s part(s) and %s calculation(s)",
+                    name, len(parts), len(affected))
+        return {"type": name, "parts": parts, "calculations": affected,
+                "stored": sorted(stored)}
 
     def _compute_release(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Let go of a project, so whatever holds it can replace it.

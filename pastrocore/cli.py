@@ -19,12 +19,14 @@ in and what a run did are all asked of the orchestrator, exactly as the dialogs 
 import argparse
 import logging
 import sys
+import zipfile
 from pathlib import Path
 from typing import List, Optional
 
 from msb_arch.utils.logging_setup import logger
 
 from pastrocore import __version__
+from pastrocore.super.schedule_data import ScheduleData
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 
@@ -36,8 +38,17 @@ def _open(path: str) -> ScheduleProject:
         SystemExit: With a message rather than a traceback -- a mistyped path is a mistake, not
             a crash.
     """
+    # A package is a project too, as far as reading it goes. Accepting one here means every
+    # command works on what a colleague sent without unpacking it first.
+    if Path(path).is_file() and zipfile.is_zipfile(path):
+        # An empty project to send the request against: a package carries its own, and a
+        # request needs something to be about even when the handler ignores it.
+        opening = ScheduleProject(name="opening")
+        return ScheduleManipulator(opening, journal_limit=None).load(
+            obj=opening, method="package", path=path)
     if not ScheduleProject.is_directory_project(path):
-        raise SystemExit(f"'{path}' is not a pAstroCORE project (a folder holding project.json)")
+        raise SystemExit(f"'{path}' is not a pAstroCORE project (a folder holding project.json, "
+                         f"or a {ScheduleData.ARCHIVE_SUFFIX} package)")
     return ScheduleProject.open(path)
 
 
@@ -155,6 +166,55 @@ def export(arguments) -> int:
     return 0 if written else 1
 
 
+def package(arguments) -> int:
+    """Pack a project into one file, to send or to attach to a bug report."""
+    project = _open(arguments.project)
+    manipulator = ScheduleManipulator(project, journal_limit=None)
+
+    answer = manipulator.export(obj=project, method="package", path=arguments.destination,
+                                results=not arguments.model_only,
+                                overwrite=arguments.force, raise_on_error=False)
+    if not answer.ok:
+        print(f"  {answer.error}")
+        return 1
+
+    report = answer.value
+    kilobytes = report["bytes"] / 1024
+    print(f"{report['path']}")
+    print(f"  {report['files']} file(s), {kilobytes:,.1f} KB"
+          + ("" if report["results"] else ", model only"))
+    return 0
+
+
+def affected(arguments) -> int:
+    """Say which results editing something of a given type would make wrong."""
+    project = _open(arguments.project)
+    manipulator = ScheduleManipulator(project, journal_limit=None)
+
+    answer = manipulator.compute(obj=project, method="affected", type=arguments.type,
+                                 raise_on_error=False)
+    if not answer.ok:
+        print(f"  {answer.error}")
+        return 1
+
+    report = answer.value or {}
+    print(f"Editing a {report['type']} reaches: {', '.join(report['parts']) or 'nothing'}")
+    print("")
+    print(f"{len(report['calculations'])} calculation(s) read those parts:")
+    for key in report["calculations"]:
+        print(f"  {key}")
+
+    stored = report.get("stored") or []
+    print("")
+    if not stored:
+        print("None of them has been calculated, so nothing would go stale.")
+        return 0
+    print(f"{len(stored)} of them have been calculated and would go stale:")
+    for key in stored:
+        print(f"  {key}")
+    return 0
+
+
 def check(arguments) -> int:
     """Read a session and say what is wrong with it, without running anything."""
     project = _open(arguments.project)
@@ -245,6 +305,20 @@ def build_parser() -> argparse.ArgumentParser:
     written.add_argument("--only", nargs="+", metavar="KEY")
     written.add_argument("--pictures", action="store_true", help="draw them as well")
     written.set_defaults(run=export)
+
+    packed = commands.add_parser("package", help="pack a project into one file, to send")
+    packed.add_argument("project")
+    packed.add_argument("destination")
+    packed.add_argument("--model-only", action="store_true", dest="model_only",
+                        help="leave the results out; a few KB that reproduce the configuration")
+    packed.add_argument("--force", action="store_true", help="replace a file that is there")
+    packed.set_defaults(run=package)
+
+    spoiled = commands.add_parser(
+        "affected", help="which results editing something of a type would make wrong")
+    spoiled.add_argument("project")
+    spoiled.add_argument("type", help="Telescope, SpaceTelescope, Source, Scan, IF, ...")
+    spoiled.set_defaults(run=affected)
 
     checked = commands.add_parser(
         "check", help="say what is wrong with a session, without running it")

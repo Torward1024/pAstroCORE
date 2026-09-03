@@ -18,8 +18,11 @@ tolerance for "close enough".
 """
 import json
 import os
+import shutil
+import tempfile
 import threading
 import time
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -603,3 +606,120 @@ class ScheduleData(Persistence, Loader):
         if not hasattr(obj, "discard_scratch_if_empty"):
             return {"discarded": False, "held": held}
         return {"discarded": obj.discard_scratch_if_empty(), "held": held}
+
+    #: What a packed project is called, and the name of the model inside it.
+    ARCHIVE_SUFFIX = ".pastroz"
+
+    def _export_package(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Pack a project into one file, to send to a colleague or attach to a bug report.
+
+        Args:
+            obj (ScheduleProject): The project to pack.
+            attributes: `path`, the file to write. `results` (default True) packs the calculated
+                results as well as the model; `overwrite` (default False) permits replacing a
+                file that is already there.
+
+        Returns:
+            Dict[str, Any]: `{"path": str, "files": int, "bytes": int, "results": bool}`.
+
+        Raises:
+            ValueError: If no `path` was given.
+            FileExistsError: If the file exists and `overwrite` is off.
+
+        Notes:
+            - **A project is a directory**, which is right for working in and wrong for sending:
+              a colleague gets a folder tree, and a bug report gets nothing at all. This is the
+              other half -- one file, which is what travels.
+            - Zip **as an exchange format, not as storage**. Packing the working project was
+              measured and rejected: parquet is already compressed so it saves 0.6%, and opening
+              becomes 46x slower. Neither cost applies to a file that is written once and
+              unpacked once.
+            - `results=False` writes the model alone, which is what a bug report wants: a few
+              kilobytes that reproduce the configuration without a gigabyte of frames.
+            - The project is saved first, so what is packed is the project as it is now rather
+              than as it was when it was last written to disk.
+        """
+        path = attributes.get("path")
+        if not path:
+            raise ValueError("No 'path' given; there is nowhere to write the package")
+
+        target = Path(path)
+        if target.suffix != self.ARCHIVE_SUFFIX:
+            target = target.with_suffix(self.ARCHIVE_SUFFIX)
+        if target.exists() and not attributes.get("overwrite", False):
+            raise FileExistsError(f"'{target}' is already there; pass overwrite=True to replace it")
+
+        with_results = attributes.get("results", True)
+        source = Path(tempfile.mkdtemp(prefix="pastrocore_package_")) / "project.pastro"
+        obj.save(str(source))
+
+        target.parent.mkdir(parents=True, exist_ok=True)
+        written = 0
+        try:
+            with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as package:
+                for item in sorted(source.rglob("*")):
+                    if not item.is_file():
+                        continue
+                    inside = item.relative_to(source)
+                    if not with_results and inside.parts[0] == obj.RESULTS_DIRECTORY:
+                        continue
+                    package.write(item, str(inside))
+                    written += 1
+        finally:
+            shutil.rmtree(source.parent, ignore_errors=True)
+
+        size = target.stat().st_size
+        logger.info("Packed project '%s' into '%s': %s file(s), %s bytes%s",
+                    obj.name, target, written, size, "" if with_results else ", model only")
+        return {"path": str(target), "files": written, "bytes": size, "results": bool(with_results)}
+
+    def _load_package(self, obj: Any, attributes: Dict[str, Any]) -> Any:
+        """Unpack a project written by `export(method="package")`.
+
+        Args:
+            obj: Ignored; a package carries its own project.
+            attributes: `path`, the package to read. `into`, the directory to unpack it to --
+                a temporary one when not given, which is enough to open it and look.
+
+        Returns:
+            ScheduleProject: The project, with its results where it left them.
+
+        Raises:
+            IOError: If the file is not a package -- which is said plainly, because the other
+                way to find out is a project that opens with everything missing.
+
+        Notes:
+            - Refuses anything whose entries would land outside the directory being unpacked
+              into. A zip is a file from somewhere else, and an entry named `../../...` is the
+              oldest trick there is against a program that unpacks one.
+        """
+        path = attributes.get("path")
+        if not path:
+            raise ValueError("No 'path' given; there is no package to read")
+
+        source = Path(path)
+        if not source.is_file():
+            raise IOError(f"'{source}' is not a file")
+        if not zipfile.is_zipfile(source):
+            raise IOError(f"'{source}' is not a pAstroCORE package")
+
+        into = Path(attributes["into"]) if attributes.get("into") else Path(
+            tempfile.mkdtemp(prefix="pastrocore_opened_"))
+        into.mkdir(parents=True, exist_ok=True)
+        root = into.resolve()
+
+        with zipfile.ZipFile(source) as package:
+            names = package.namelist()
+            if ScheduleProject.MODEL_FILE not in names:
+                raise IOError(f"'{source}' holds no {ScheduleProject.MODEL_FILE}; "
+                              f"it is a zip, but not a project")
+            for name in names:
+                landing = (root / name).resolve()
+                if not landing.is_relative_to(root):
+                    raise IOError(f"'{source}' holds an entry that would be written outside "
+                                  f"the directory it is unpacked into: '{name}'")
+            package.extractall(root)
+
+        project = ScheduleProject.open(str(root))
+        logger.info("Opened package '%s' as project '%s' in '%s'", source, project.name, root)
+        return project
