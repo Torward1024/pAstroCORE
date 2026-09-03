@@ -562,3 +562,37 @@ def test_a_scratch_holding_results_is_kept_when_the_project_is_replaced(qt_appli
     finally:
         window.project = None           # or closing asks about them, and blocks the suite
         window.close()
+
+
+def test_a_successful_export_is_reported_as_success(qt_application, project, tmp_path):
+    """The export thread read `.value` off an answer that was not a `Response`.
+
+    `raise_on_error=False` is what turns a request's answer into a `Response`; without it the
+    call returns the value itself. So every file was written, the operation succeeded, and the
+    thread then raised `AttributeError: 'dict' object has no attribute 'value'`, caught it, and
+    emitted `error`. The user was told the export failed after it had finished.
+
+    Nothing caught it because the thread logs and emits rather than raising, so a suite that
+    watches for exceptions sees a clean run. This watches the signals instead.
+    """
+    from pastrocore.gui.p_dialog_export_calculated_data import ExportThread
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    manipulator = ScheduleManipulator(project)
+    observation = project.observations()[0]
+    manipulator.compute(obj=observation, method="run", calculations=["uv_coverage"],
+                        time_step=600.0, raise_on_error=False)
+
+    destination = tmp_path / "exported"
+    destination.mkdir()
+    thread = ExportThread(manipulator, [observation], ["uv_coverage"],
+                          True, False, str(destination), "SI")
+
+    seen = {}
+    thread.finished.connect(lambda: seen.setdefault("finished", True))
+    thread.error.connect(lambda message: seen.setdefault("error", message))
+    thread.run()            # the body under test; a real thread would need an event loop
+
+    assert "error" not in seen, f"a finished export reported: {seen.get('error')}"
+    assert seen.get("finished"), "the export finished and said nothing"
+    assert list(destination.iterdir()), "reported success without writing anything"

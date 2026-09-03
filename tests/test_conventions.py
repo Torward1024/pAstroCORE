@@ -550,6 +550,77 @@ def test_no_response_is_unwrapped_by_hand():
         + "\nUse `response.value` with `raise_on_error=False`, or nothing at all without it.")
 
 
+#: The facade methods a request goes through. Each returns a `Response` only when the call
+#: passes `raise_on_error=False`, and the bare answer otherwise.
+REQUEST_METHODS = {"export", "inspect", "configure", "calculate", "compute", "visualize",
+                   "save", "load", "pipeline", "replay"}
+
+
+def _responses_read_without_asking_for_one(tree):
+    """Return every `.value` / `.ok` / `.error` read off a request that returns no `Response`.
+
+    Notes:
+        - Scoped per function, because the same variable name is reused across a module and a
+          match found in another function is not a match at all.
+        - A variable reassigned *with* `raise_on_error` stops being an offender, which is the
+          usual shape: ask plainly, then ask again tolerantly.
+    """
+    found = []
+    for scope in ast.walk(tree):
+        if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+
+        bare = {}
+        for node in ast.walk(scope):
+            if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)
+                    and isinstance(node.value, ast.Call)
+                    and isinstance(node.value.func, ast.Attribute)
+                    and node.value.func.attr in REQUEST_METHODS):
+                continue
+            asked = {keyword.arg for keyword in node.value.keywords if keyword.arg}
+            name = node.targets[0].id
+            if "raise_on_error" in asked:
+                bare.pop(name, None)
+            else:
+                bare[name] = (node.lineno, node.value.func.attr)
+
+        for node in ast.walk(scope):
+            if (isinstance(node, ast.Attribute) and node.attr in ("value", "ok", "error")
+                    and isinstance(node.value, ast.Name) and node.value.id in bare):
+                line, operation = bare[node.value.id]
+                found.append(f"line {node.lineno}: .{node.attr} on the answer of "
+                             f"{operation}() at line {line}")
+    return found
+
+
+def test_a_response_is_only_read_where_one_was_asked_for():
+    """`.value` exists on a `Response`, and a request returns one only when it is told not to
+    raise. Without `raise_on_error=False` the answer is the value itself.
+
+    The export dialog read `.value` off a plain dict. Every file had already been written, the
+    operation had already succeeded, and the user was shown "'dict' object has no attribute
+    'value'" -- a failure reported for work that was done. Nothing caught it because the thread
+    logs and emits rather than raising, so the suite saw a signal it was not watching.
+
+    Twenty-six calls of exactly this shape were fixed when 1.8.0 was adopted; this is what stops
+    the twenty-seventh.
+    """
+    offenders = {}
+    for path in source_files() + sorted((ROOT / "tests").glob("*.py")):
+        if path.name == "test_conventions.py":
+            continue
+        found = _responses_read_without_asking_for_one(
+            ast.parse(path.read_text(encoding="utf-8")))
+        if found:
+            offenders[path.relative_to(ROOT).as_posix()] = found
+
+    assert not offenders, (
+        "a response is read where the request returns no response:\n  "
+        + "\n  ".join(f"{name}: {'; '.join(lines)}" for name, lines in offenders.items())
+        + "\nPass `raise_on_error=False` to get a Response, or read the answer directly.")
+
+
 def test_a_to_dict_override_copies_before_it_writes():
     """`to_dict` on an object that caches returns the cache itself, and MSB 1.9.0 made writing
     to it raise rather than corrupt what every later call reports.
