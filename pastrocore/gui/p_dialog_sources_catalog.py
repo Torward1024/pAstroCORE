@@ -70,7 +70,7 @@ class SourcesCatalogDialog(QDialog):
     def populate_table(self):
         """Populate the table with sources from the catalog manager."""
         self.model.removeRows(0, self.model.rowCount())
-        sources = self.catalog_manager.source_catalog.get_items()
+        sources = self.manipulator.inspect(self.catalog_manager.source_catalog, get_items=None)
 
         if not sources:
             logger.warning("Sources catalog is empty")
@@ -104,7 +104,7 @@ class SourcesCatalogDialog(QDialog):
         """
         text = text.lower().strip()
         self.model.removeRows(0, self.model.rowCount())
-        sources = self.catalog_manager.source_catalog.get_items()
+        sources = self.manipulator.inspect(self.catalog_manager.source_catalog, get_items=None)
 
         for source in sources:
             if (text in (source.name or "").lower() or

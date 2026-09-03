@@ -216,8 +216,8 @@ class PAstroCoreMainWindow(QMainWindow):
                 logger.warning("Telescopes catalog file not found: %s. Initializing empty telescope catalog.", telescopes_path)
                 
             catalog_manager = CatalogManager(source_file=sources_path, telescope_file=telescopes_path)
-            sources_count = len(catalog_manager.source_catalog.get_items())
-            telescopes_count = len(catalog_manager.telescope_catalog.get_items())
+            sources_count = len(self.manipulator.inspect(catalog_manager.source_catalog, get_items=None))
+            telescopes_count = len(self.manipulator.inspect(catalog_manager.telescope_catalog, get_items=None))
             logger.info("Catalog initialized with %s sources and %s telescopes", sources_count, telescopes_count)
             return catalog_manager
         except Exception as e:
@@ -1114,7 +1114,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.catalog_manager.clear_source_catalog()
                 if sources_path:
                     self.catalog_manager.load_source_catalog(sources_path)
-                sources_count = len(self.catalog_manager.source_catalog.get_items())
+                sources_count = len(self.manipulator.inspect(self.catalog_manager.source_catalog, get_items=None))
                 logger.info("Sources catalog reloaded with %s sources from %s", sources_count, sources_path)
             except Exception as e:
                 logger.error("Failed to reload sources catalog from '%s': %s", sources_path, str(e))
@@ -1127,7 +1127,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.catalog_manager.clear_telescope_catalog()
                 if telescopes_path:
                     self.catalog_manager.load_telescope_catalog(telescopes_path)
-                telescopes_count = len(self.catalog_manager.telescope_catalog.get_items())
+                telescopes_count = len(self.manipulator.inspect(self.catalog_manager.telescope_catalog, get_items=None))
                 logger.info("Telescopes catalog reloaded with %s telescopes from %s", telescopes_count, telescopes_path)
             except Exception as e:
                 logger.error("Failed to reload telescopes catalog from '%s': %s", telescopes_path, str(e))
@@ -1148,7 +1148,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please set a valid telescopes catalog path in Preferences.")
             return
 
-        telescopes = self.catalog_manager.telescope_catalog.get_items()
+        telescopes = self.manipulator.inspect(self.catalog_manager.telescope_catalog, get_items=None)
         if not telescopes:
             logger.warning("Telescopes catalog is empty")
             QMessageBox.warning(self, "Warning", "Telescopes catalog is empty. Check the catalog file or reload in Preferences.")
@@ -1169,7 +1169,7 @@ class PAstroCoreMainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please set a valid sources catalog path in Preferences.")
             return
 
-        sources = self.catalog_manager.source_catalog.get_items()
+        sources = self.manipulator.inspect(self.catalog_manager.source_catalog, get_items=None)
         if not sources:
             logger.warning("Sources catalog is empty")
             QMessageBox.warning(self, "Warning", "Sources catalog is empty. Check the catalog file or reload in Preferences.")

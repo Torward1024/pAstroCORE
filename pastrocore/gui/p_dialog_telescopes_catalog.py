@@ -70,7 +70,7 @@ class TelescopesCatalogDialog(QDialog):
     def populate_table(self):
         """Populate the table with telescopes from the catalog manager."""
         self.model.removeRows(0, self.model.rowCount())
-        telescopes = self.catalog_manager.telescope_catalog.get_items()
+        telescopes = self.manipulator.inspect(self.catalog_manager.telescope_catalog, get_items=None)
 
         if not telescopes:
             logger.warning("Telescopes catalog is empty")
@@ -108,7 +108,7 @@ class TelescopesCatalogDialog(QDialog):
         """
         text = text.lower().strip()
         self.model.removeRows(0, self.model.rowCount())
-        telescopes = self.catalog_manager.telescope_catalog.get_items()
+        telescopes = self.manipulator.inspect(self.catalog_manager.telescope_catalog, get_items=None)
 
         for telescope in telescopes:
             if (text in (telescope.code or "").lower() or
