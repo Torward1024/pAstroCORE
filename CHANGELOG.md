@@ -8,6 +8,36 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.2.1] - 2026-09-03
+
+### Fixed
+
+- **An export that had written every file reported that it had failed.** `raise_on_error=False`
+  is what turns a request's answer into a `Response`; the export thread did not pass it, so
+  `export(...)` returned the value itself and `.value` raised `AttributeError: 'dict' object has
+  no attribute 'value'` -- after the operation had succeeded and every file was on disk. The
+  thread caught it and emitted `error`, so the export was reported as a failure once it was done:
+
+  ```
+  INFO  - Exported 16 file(s) to 'E:/temp'
+  ERROR - Export error in thread: 'dict' object has no attribute 'value'
+  ```
+
+  Nothing caught it because the thread logs and emits rather than raising, so a suite watching
+  for exceptions sees a clean run -- and there were no tests for `ExportThread` at all. There is
+  one now, and it watches the signals.
+
+### Added
+
+- **A ratchet on reading a response.** `.value`, `.ok` and `.error` may only be read off a
+  request that asked for a `Response`. Twenty-six calls of exactly this shape were fixed when
+  msb_arch 1.8.0 was adopted; this was the twenty-seventh, and the check is what stops the
+  twenty-eighth. Scoped per function over the AST, so the same variable name in another function
+  is not a false match, and a variable reassigned with `raise_on_error` stops counting.
+
+  It found one thing while parsing: a packaging test's docstring held `catalogs\sources.dat` in
+  a non-raw string, which Python warns about.
+
 ## [1.2.0] - 2026-09-03
 
 The move to `msb_arch` 2.0.1. Three of its changes were breaking, and each broke something here
