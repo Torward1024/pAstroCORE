@@ -17,6 +17,7 @@
     "ui_dialog_session.Ui_SessionDialog": "a56e64af110322de56fb50113efea145",
     "ui_dialog_visualize.Ui_VisualizationDialog": "c68d67ff7079746ebc4b94777c5563aa",
     "ui_main_window.Ui_MainWindow": "bbc3348288ff56c35f2e309cd8aa3c8f",
+    "ui_tab_analysis.Ui_AnalysisTab": "86d06544955f26a689ddf01a0fb913f8",
     "ui_tab_observation.Ui_ObservationInfoTab": "f827fb44a36abf0b0e6d72bed154f1c6",
     "ui_tab_observation_any.Ui_observation_tab": "8c0a7de362ca3d963ffba8e8dc943a4f",
     "ui_tab_project.Ui_ProjectInfoTab": "daa55489d6e0601428d7656710a60293",

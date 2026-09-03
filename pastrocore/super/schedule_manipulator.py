@@ -87,6 +87,12 @@ class ScheduleManipulator(Manipulator):
         # appear in the catalogue as a calculation called "Run".
         self.register_operation(ScheduleRunner(self), operation="compute")
 
+        # `analyze` reads results rather than producing them, which is why it is neither
+        # `calculate` nor `compute`: a `_calculate_windows` would appear in the catalogue as a
+        # calculation called "Windows", offered in the dialog beside UV Coverage. Deferred like
+        # the calculator, since summarising is not what a session that only edits a model does.
+        self.register_deferred("analyze", self._make_analyzer)
+
         # Every request that reaches this orchestrator is recorded. It costs one interceptor
         # and answers the question a bug report never can: what was actually asked for.
         # Bounded, because a session that runs for a day should not accumulate without end.
@@ -107,6 +113,12 @@ class ScheduleManipulator(Manipulator):
         from pastrocore.super.schedule_visualizer import ScheduleVisualizer
 
         return ScheduleVisualizer(self)
+
+    def _make_analyzer(self):
+        """Build the analyzer. Called once, by MSB, when `analyze` is first needed."""
+        from pastrocore.super.schedule_analyzer import ScheduleAnalyzer
+
+        return ScheduleAnalyzer(self)
 
     def get_journal(self) -> Optional[RequestJournal]:
         """Return the record of every request this orchestrator has processed.
