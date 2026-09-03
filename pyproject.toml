@@ -19,7 +19,7 @@ keywords = ["vlbi", "astronomy", "scheduling", "radio interferometry"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
-    "License :: Other/Proprietary License",
+    "License :: OSI Approved :: MIT License",
     "Topic :: Scientific/Engineering :: Astronomy",
 ]
 

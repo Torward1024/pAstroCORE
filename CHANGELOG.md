@@ -8,6 +8,78 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.2.0] - 2026-09-03
+
+The move to `msb_arch` 2.0.1. Three of its changes were breaking, and each broke something here
+that had been wrong for longer than the framework had -- which is the usual way a breaking change
+earns its keep.
+
+### Fixed
+
+- **The interface stopped guessing what shape a project answers with.** 2.0.0 made
+  `Project.get_items()` return a list, exactly as a container does, with `get_all()` for the
+  mapping. Six places called `.items()` on the answer:
+
+  - The calculation dialog, the export dialog and the visualize dialog each raised, caught it,
+    and opened a modal error. In the suite nothing mocked `QMessageBox.critical`, so the tests
+    **stopped** instead of failing -- a hang is what a missing mock looks like.
+  - The project table and its context menu asked `isinstance(observations, dict)` and quietly
+    returned. A project full of observations looked empty, and said nothing about it.
+
+  Each asks for `observations` now -- the method that exists precisely so no caller has to know
+  which shape the framework returns.
+
+- **Plotting a whole project raised on its first line.** It called `get_observations()`, which
+  has never existed on a project.
+
+- **The window released its observations after emptying the project**, so the loop that was
+  meant to release them walked an empty list. It had never once had a body to run. Releasing a
+  project is a request now -- `compute(method="release")` -- which is model work leaving the
+  interface, and it is what a command line opening one project after another needs anyway.
+
+- **A restored project never equalled the one it was written from.** 2.0.0 gave `Project` an
+  `__eq__` so that `load(...) == project` holds; here it still did not, because
+  `CalculatedData` had none and every observation therefore compared by identity. It compares
+  on the keys a result set answers to, which is the same rule `in` and `len` already use --
+  comparing frames would mean loading both projects to answer `==`.
+
+- **`_compute_replay` overwrote its own `attributes` parameter inside its loop**, so from the
+  second step onwards `skip_failures` was read out of that step's attributes rather than out of
+  the request.
+
+### Changed
+
+- **Three rules moved from helpers called by hand to `@invariant`**, which 1.10.0 added: a rule
+  about a whole object, checked when it is built, when it is restored, and after anything that
+  changes what it holds, with the change undone when it refuses.
+
+  | Rule | Was called from | Was not checked when |
+  | --- | --- | --- |
+  | Frequency bands must not overlap | six places | `set_item` wrote into `_items` directly |
+  | Active scans must not overlap | `add`, `set_scan` | `set_item`, `set_items`, or the object was built from a file -- which is where a conflicting pair comes from |
+  | Observation codes must be unique | four places | `remove_item` and `set_project` |
+
+  Each rule names both offenders rather than stating the rule, which a method that only answers
+  False cannot do. Both containers sort by start rather than comparing pairwise, so checking the
+  whole costs one sort instead of a square. `set_if` and `set_scan` edit an item in place, where
+  a container is never told -- so they write, check, and put the old values back on a refusal,
+  which is what msb_arch does for a field and for the same reason.
+
+  A refusal is now an `InvariantError`. It is a `ValueError`, so anything catching that still
+  catches this.
+
+- `SCHEMA_VERSION`, `migrate`, `to_dict` and `clear` came off `ScheduleProject`. The first three
+  were reimplementations of what `Project` provides once it is a `Serializable`; `clear` was the
+  name 2.0.0 removed, and its work is in `remove_all`.
+
+### Upgrading from 1.1.0
+
+Install `msb_arch` 2.0.1. A project written by 1.1.0 opens unchanged.
+
+Two things are refused that were previously accepted only because nothing checked: a saved
+project whose active scans overlap, and one holding two observations with the same code. Both
+are schedules that could not be run; if a file of yours does not open, that is what it is saying.
+
 ## [1.1.0] - 2026-08-18
 
 The release where the backend gets a second caller, which is the claim 1.0 was built on and
