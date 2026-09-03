@@ -25,7 +25,7 @@ class SpaceTelescope(Telescope):
                  sefd_table: Optional[Dict[float, float]] = None,
                  pitch_range: Tuple[float, float] = (-90.0, 90.0),
                  yaw_range: Tuple[float, float] = (-180.0, 180.0),
-                 isactive: bool = True, use_kep: bool = True,
+                 isactive: bool = True, use_kep: bool = False,
                  kepler_elements: dict = None,
                  interpolation_method: str = "chebyshev",
                  surface_accuracy: Optional[float] = None,
