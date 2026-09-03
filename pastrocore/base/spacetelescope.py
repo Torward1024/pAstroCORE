@@ -27,7 +27,7 @@ class SpaceTelescope(Telescope):
                  yaw_range: Tuple[float, float] = (-180.0, 180.0),
                  isactive: bool = True, use_kep: bool = False,
                  kepler_elements: dict = None,
-                 interpolation_method: str = "chebyshev",
+                 interpolation_method: str = "linear",
                  surface_accuracy: Optional[float] = None,
                  surface_efficiency_table: Optional[Dict[float, float]] = None,
                  effective_area_table: Optional[Dict[float, float]] = None,
