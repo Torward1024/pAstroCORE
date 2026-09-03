@@ -94,13 +94,13 @@ class ProjectInfoTab(QWidget):
             project_name = project_name if isinstance(project_name, str) else "Untitled Project"
             self.ui.lineEdit.setText(project_name)
 
-            observations = self.manipulator.inspect(self.project, get_items=None)
-            if not isinstance(observations, dict):
-                logger.error("Expected dict for observations, got %s: %s", type(observations), observations)
+            observations = self.manipulator.inspect(self.project, observations=None)
+            if not isinstance(observations, list):
+                logger.error("Expected a list of observations, got %s: %s", type(observations), observations)
                 return
 
             current_codes = set()
-            for obs in observations.values():
+            for obs in observations:
                 try:
                     code = self.manipulator.inspect(obs, get_observation_code=None)
                     if code:
@@ -115,7 +115,8 @@ class ProjectInfoTab(QWidget):
                     self.model.removeRow(i)
 
             idx = 1
-            for obs_name, obs in observations.items():
+            for obs in observations:
+                obs_name = obs.name
                 if not isinstance(obs, Observation):
                     logger.error("Invalid observation type for name '%s': %s", obs_name, type(obs))
                     continue
@@ -216,8 +217,8 @@ class ProjectInfoTab(QWidget):
         import_new_action.triggered.connect(self.import_new_observation)
         
         try:
-            observations = self.manipulator.inspect(self.project, get_items=None)
-            has_observations = isinstance(observations, dict) and len(observations) > 0
+            observations = self.manipulator.inspect(self.project, observations=None)
+            has_observations = bool(observations)
         except Exception as e:
             logger.error("Exception while inspecting observations: %s", str(e))
             has_observations = False

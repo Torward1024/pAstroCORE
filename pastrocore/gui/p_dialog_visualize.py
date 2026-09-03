@@ -59,9 +59,10 @@ class VisualizationDialog(QDialog):
         self.ui.pushButtonVisualize.setEnabled(False)
 
         try:
-            observations = self.manipulator.inspect(obj=self.project, get_items=None)
+            observations = self.manipulator.inspect(obj=self.project, observations=None)
             if observations:
-                for obs_name, obs in observations.items():
+                for obs in observations:
+                    obs_name = obs.name
                     self.cached_observations[obs_name] = obs
                     try:
                         obs_code = self.manipulator.inspect(obj=obs, get_observation_code=None)

@@ -1,6 +1,6 @@
 {
     "clear_log_on_start": true,
     "log_level": "INFO",
-    "results_memory_share": 0.2,
+    "results_memory_share": 0.5,
     "time_step": 300.0
 }

@@ -46,7 +46,7 @@ def tab_class(module_name):
 
 @pytest.fixture
 def observation(project):
-    return project.get_observation(next(iter(project.get_items())))
+    return project.observations()[0]
 
 
 @pytest.mark.parametrize("module_name", sorted(TABS))
@@ -186,7 +186,7 @@ def test_every_offered_visualization_has_a_widget(project, qt_application):
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
     manipulator = ScheduleManipulator(project)
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
 
     response = manipulator.compute(obj=observation, method="catalogue", raise_on_error=False)
     catalogue = (response["result"] if isinstance(response, dict) else response) or []

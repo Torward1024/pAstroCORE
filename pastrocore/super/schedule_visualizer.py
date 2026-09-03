@@ -371,7 +371,9 @@ class ScheduleVisualizer(Super):
         logger.debug("Using dpi=%s for visualization of plot_type=%s", dpi, plot_type)
 
         if isinstance(obj, ScheduleProject):
-            observations = obj.get_observations()
+            # `get_observations` never existed on a project, so plotting a whole project raised
+            # AttributeError on its first line for as long as this branch has been here.
+            observations = obj.observations()
             if not observations:
                 logger.warning("No observations in ScheduleProject '%s'", obj.get_name())
                 return {}

@@ -17,7 +17,7 @@ import conftest
 @pytest.fixture
 def bench():
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     observation.clear_calculated_data()
     return ScheduleManipulator(project), observation
 

@@ -22,7 +22,7 @@ import conftest
 def tracked():
     """The fixture observation with a spacecraft, and both spacecraft results computed."""
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     scan = observation.get_scans().get_active_items()[0]
     observation.get_telescopes().add(SpaceTelescope(
         code="RADIO", name="RadioAstron", use_kep=True,
@@ -195,7 +195,7 @@ def test_no_spacecraft_refuses_rather_than_computing_nothing(qt_application, mon
     from pastrocore.gui.p_dialog_calculations import CalculationDialog
 
     project = ScheduleProject.from_dict(json.loads(conftest.FIXTURE.read_text(encoding="utf-8")))
-    observation = project.get_observation(next(iter(project.get_items())))
+    observation = project.observations()[0]
     manipulator = ScheduleManipulator(project)
 
     warned = {}
