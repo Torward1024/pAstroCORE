@@ -8,6 +8,106 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.2.2] - 2026-09-03
+
+A pass over the whole project after the move to 2.0.1, and the orbit path turned out to be
+where everything was hiding. The fixture project holds two ground telescopes, no spacecraft and
+no orbit file, so none of it had coverage -- and a characterization suite could not have helped
+anyway, since it compares against what the code used to produce.
+
+### Fixed
+
+- **Chebyshev interpolation put a space telescope kilometres from where it was.** One polynomial
+  of degree 30 was fitted over everything the orbit file covered. A Molniya-type orbit is fast
+  through perigee and slow at apogee, and no single polynomial describes both -- so the method
+  offered as the accurate one was two orders of magnitude worse than linear interpolation of the
+  same samples.
+
+  Measured against a Kepler orbit of eccentricity 0.94 sampled every 600 s, at times deliberately
+  off the sample grid:
+
+  | method | worst | mean |
+  | --- | --- | --- |
+  | chebyshev, before | 846.5 km | 44.75 km |
+  | linear | 171.0 km | 1.03 km |
+  | cubic_spline | 14.9 km | 0.016 km |
+  | **chebyshev, after** | **19.5 km** | **0.063 km** |
+
+  A telescope 40 km from where it is said to be puts that error into every baseline, which is
+  why `linear` agreed with an independent tool and this did not.
+
+  It is fitted per arc now, degree 12, with arcs cut along the **samples** rather than along the
+  requested span -- so an arc is a fixed number of samples wherever it sits, and therefore short
+  in time through perigee where the orbit turns fastest. Cutting the requested span into equal
+  pieces of time instead still left 43 km there. Each arc is fitted on its own samples plus half
+  a degree either side, so joins are informed from both directions rather than extrapolated to.
+  What remains is at perigee and belongs to the sampling: no method recovers a turn the file did
+  not record.
+
+- **An orbit was cut to the scan exactly.** Every method here interpolates *between* samples, so
+  the first and last moments of a scan had nothing beyond them to lean on and were extrapolated
+  to -- the worst place for it, and the hardest to notice because the numbers still come out.
+  Eight samples are kept either side.
+
+- **The orbit cache did nothing and its lock did too much.** `_orbit_cache` was created in the
+  constructor and never written to or read from, while the lock named after it was held across
+  the whole interpolation loop -- every file read and every fit -- serialising exactly the work
+  the pipeline runs in parallel. Ten scans against one spacecraft re-read and re-parsed the same
+  file ten times. The parse is cached now, keyed by path, mtime and size so an orbit edited on
+  disk is read again; the lock guards the dictionary access alone. Measured 23x on the second
+  read.
+
+- **Three of the four length-mismatch guards were wrong**, in two ways. Two read
+  `positions[:k] = positions[:k]` *after* rebinding `positions` to all-NaN, so they copied NaN
+  onto NaN and discarded every position that had been computed. The third assigned a full-length
+  slice from however many rows there really were, which is a shape mismatch whenever the branch
+  is reached.
+
+- **Importing a telescope could not add one that was already here.** A name and a code are each
+  unique within an observation and a file written from one carries both, so Import New Telescope
+  refused every file written from this observation and every file of a station a colleague's
+  project also holds. The tab had two lines meant to deal with it -- `telescope.code =
+  telescope.code` and the same for the name -- which do nothing. `Telescopes.add_as_new` gives it
+  the first free name and code, `EHT_ALMA_2` rather than a UUID.
+
+- **One observation that could not be drawn took the whole project with it.** `future.result()`
+  was called twice per future and re-raised into the caller, so a project of twenty plots
+  produced none, with a message naming what went wrong but never where.
+
+- **`CatalogManager.clear()` did nothing.** It set `_sources` and `_telescopes`, while the
+  catalogues are held in `source_catalog` and `telescope_catalog`. Nothing called it, and `clear`
+  is the name msb_arch 2.0.0 removed, so it is gone.
+
+- **`get_telescopes_by_type` could not return a space telescope.** It read `telescope_type ==
+  "Telescope" and isinstance(t, Telescope)`; a `SpaceTelescope` is a `Telescope`, so that gave
+  every telescope for one spelling and an empty list for every other.
+
+### Changed
+
+- A figure "cleanup" that could only have tidied someone else's desk: `_finalize_plot` counted
+  `plt.get_fignums()` and called `plt.close('all')` above ten, while building its figures with
+  `Figure(...)`, which pyplot never registers. The only figures it could have closed belong to
+  whoever did use pyplot -- and a visualization tab's figures are exactly what it would have
+  found.
+- The count of active scans was written out identically in the metadata of eleven calculations,
+  which is how the twelfth count in the same file came to be spelled differently from all of
+  them. Both are methods now; every number is unchanged.
+- The window emptied one catalogue at a time by reaching into `source_catalog` itself.
+  `clear_source_catalog` and `clear_telescope_catalog` are what it asks for now.
+
+### Added
+
+- **Tests for the orbit path**, measured against a Kepler orbit solved to machine precision
+  rather than against what the code used to produce -- which is the only kind of test that could
+  have caught the defect above. Plus tests for reading an orbit file: the margin either side of a
+  scan, the parse being kept, and a file edited on disk being read again.
+
+### Upgrading from 1.2.1
+
+Nothing to do. **Recalculate anything computed with `interpolation_method="chebyshev"`**: those
+results were wrong by kilometres, and staleness cannot know it, because the inputs did not change
+-- the code did.
+
 ## [1.2.1] - 2026-09-03
 
 ### Fixed
