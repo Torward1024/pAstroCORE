@@ -10,6 +10,7 @@ against the position the telescope was actually at.
 """
 import numpy as np
 import pytest
+from astropy.time import Time, TimeDelta
 
 from pastrocore.super.schedule_calculator import ScheduleCalculator
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
@@ -141,3 +142,70 @@ def test_too_few_samples_to_fill_a_degree_still_answers(calculator):
 
     assert got.shape == (len(wanted), 3)
     assert not np.isnan(got).any()
+
+
+# --- reading the file --------------------------------------------------------------------
+
+@pytest.fixture
+def orbit_file(tmp_path):
+    """A CCSDS OEM-styled file: a circular orbit sampled every 60 s for six hours."""
+    epoch = Time("2026-01-01T00:00:00", format="isot", scale="utc")
+    seconds = np.arange(360) * 60.0
+    turn = 2 * np.pi / (9 * 3600.0)
+    radius = 25_000.0                       # km, as an OEM file carries them
+
+    lines = ["CCSDS_OEM_VERS = 2.0", "META_START", "OBJECT_NAME = TEST", "META_STOP"]
+    for second in seconds:
+        when = (epoch + TimeDelta(second, format="sec")).isot
+        lines.append(f"{when} {radius * np.cos(turn * second):.6f} "
+                     f"{radius * np.sin(turn * second):.6f} 0.0 0.0 0.0 0.0")
+
+    path = tmp_path / "orbit.oem"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path, epoch
+
+
+def test_a_scan_keeps_samples_beyond_both_of_its_ends(calculator, orbit_file):
+    """Every method interpolates *between* samples, and this was cut to the scan exactly -- so
+    the first and last moments of a scan had nothing beyond them and were extrapolated to."""
+    path, epoch = orbit_file
+    start = (epoch + TimeDelta(3600.0, format="sec")).mjd   # an hour in, room either side
+    end = (epoch + TimeDelta(7200.0, format="sec")).mjd
+
+    held = calculator._load_orbit_data(str(path), start, end)
+
+    assert held["times"][0] < start, "the scan begins at the first sample it has"
+    assert held["times"][-1] > end, "the scan ends at the last sample it has"
+
+
+def test_a_file_is_parsed_once_however_many_scans_ask_for_it(calculator, orbit_file):
+    """`_orbit_cache` was created and never written to or read from, while the lock named after
+    it was held across every read and every interpolation -- so the cache did nothing and the
+    lock serialised the work the pipeline runs in parallel."""
+    path, epoch = orbit_file
+    start, end = epoch.mjd, (epoch + TimeDelta(3600.0, format="sec")).mjd
+
+    def entries_for_this_file():
+        return [key for key in calculator._orbit_cache if key[0] == str(path.resolve())]
+
+    calculator._load_orbit_data(str(path), start, end)
+    after_one = entries_for_this_file()
+    for _ in range(5):
+        calculator._load_orbit_data(str(path), start, end)
+
+    assert len(after_one) == 1, "the parse was not kept"
+    assert len(entries_for_this_file()) == 1, "one file, one parse"
+
+
+def test_an_orbit_edited_on_disk_is_read_again(calculator, orbit_file):
+    """A cache keyed by path alone would answer from a parse of a file that no longer exists."""
+    path, epoch = orbit_file
+    start, end = epoch.mjd, (epoch + TimeDelta(3600.0, format="sec")).mjd
+
+    first = calculator._load_orbit_data(str(path), start, end)
+    kept = "\n".join(path.read_text(encoding="utf-8").splitlines()[:20])
+    path.write_text(kept, encoding="utf-8")
+
+    again = calculator._load_orbit_data(str(path), start, end)
+
+    assert len(again["times"]) < len(first["times"]), "answered from the parse of the old file"

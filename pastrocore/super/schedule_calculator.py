@@ -81,7 +81,12 @@ class ScheduleCalculator(Super):
         """
         super().__init__(manipulator)
         self._lock = threading.Lock()
-        self._orbit_cache = {} 
+        # An orbit file parsed once, keyed by path and what the file looked like when it was
+        # read. `_orbit_cache` was here before and nothing ever wrote to or read from it, while
+        # the lock named after it was held across the whole interpolation -- so the cache did
+        # nothing and the lock serialised work the pipeline runs in parallel. One scan of ten
+        # against one spacecraft re-read and re-parsed the same file ten times.
+        self._orbit_cache: Dict[tuple, Dict[str, np.ndarray]] = {}
         self._orbit_cache_lock = threading.Lock()
         logger.debug("Initialized Scheduling Calculator")
     
@@ -458,60 +463,69 @@ class ScheduleCalculator(Super):
                 z_list = []
                 excluded_telescopes = []
 
-                with self._orbit_cache_lock:
-                    for scan in scans:
-                        scan_name = scan.name
-                        source = scan.get_source(obs)
-                        if not source or not source.isactive:
-                            logger.debug("Skipping scan '%s' due to inactive or missing source", scan_name)
+                # No lock around this. It held `_orbit_cache_lock` for the whole loop -- every
+                # file read and every interpolation -- to guard a cache nothing used, which
+                # serialised exactly the work the pipeline runs in parallel. The cache guards
+                # itself now, around the dictionary access and nothing else.
+                for scan in scans:
+                    scan_name = scan.name
+                    source = scan.get_source(obs)
+                    if not source or not source.isactive:
+                        logger.debug("Skipping scan '%s' due to inactive or missing source", scan_name)
+                        continue
+
+                    scan_times_df = times_df.filter(pl.col("scan_name") == scan_name)
+                    if scan_times_df.is_empty():
+                        logger.debug("No valid times for scan '%s' in source '%s'", scan_name, source.name)
+                        continue
+
+                    scan_times_mjd = scan_times_df["time"].to_numpy()
+                    scan_telescopes = scan.get_telescopes(obs).get_active_items()
+                    scan_space_telescopes = [
+                        tel for tel in scan_telescopes
+                        if isinstance(tel, SpaceTelescope) and not tel.get("use_kep")
+                    ]
+                    if not scan_space_telescopes:
+                        logger.debug("No active SpaceTelescopes in scan '%s'", scan_name)
+                        continue
+
+                    start_time = scan.get_start().mjd
+                    end_time = start_time + scan.get_duration() / 86400.0
+
+                    for tel in scan_space_telescopes:
+                        tel_code = tel.get_code()
+                        orbit_file = tel.get_orbit()
+                        if not orbit_file:
+                            logger.warning("No orbit file for telescope '%s' in scan '%s'; excluding", tel_code, scan_name)
+                            excluded_telescopes.append(tel_code)
                             continue
 
-                        scan_times_df = times_df.filter(pl.col("scan_name") == scan_name)
-                        if scan_times_df.is_empty():
-                            logger.debug("No valid times for scan '%s' in source '%s'", scan_name, source.name)
-                            continue
+                        try:
+                            positions = self._interpolate_orbit(tel, scan_times_mjd, start_time, end_time)
+                            if positions.shape[0] != len(scan_times_mjd):
+                                logger.warning("Position data length mismatch for '%s' in scan '%s': got %s, expected %s", tel_code, scan_name, positions.shape[0], len(scan_times_mjd))
+                                # Keep what was computed and pad the rest. This read
+                                # `positions[:k] = positions[:k]` *after* rebinding `positions`
+                                # to all-NaN, so it copied NaN onto NaN and threw away every
+                                # position the interpolation had produced.
+                                computed = positions
+                                positions = np.full((len(scan_times_mjd), 3), np.nan)
+                                keep = min(computed.shape[0], len(scan_times_mjd))
+                                positions[:keep] = computed[:keep]
 
-                        scan_times_mjd = scan_times_df["time"].to_numpy()
-                        scan_telescopes = scan.get_telescopes(obs).get_active_items()
-                        scan_space_telescopes = [
-                            tel for tel in scan_telescopes
-                            if isinstance(tel, SpaceTelescope) and not tel.get("use_kep")
-                        ]
-                        if not scan_space_telescopes:
-                            logger.debug("No active SpaceTelescopes in scan '%s'", scan_name)
-                            continue
+                            if np.any(np.isnan(positions)):
+                                logger.warning("Orbit data for '%s' in scan '%s' contains NaN values", tel_code, scan_name)
 
-                        start_time = scan.get_start().mjd
-                        end_time = start_time + scan.get_duration() / 86400.0
-
-                        for tel in scan_space_telescopes:
-                            tel_code = tel.get_code()
-                            orbit_file = tel.get_orbit()
-                            if not orbit_file:
-                                logger.warning("No orbit file for telescope '%s' in scan '%s'; excluding", tel_code, scan_name)
-                                excluded_telescopes.append(tel_code)
-                                continue
-
-                            try:
-                                positions = self._interpolate_orbit(tel, scan_times_mjd, start_time, end_time)
-                                if positions.shape[0] != len(scan_times_mjd):
-                                    logger.warning("Position data length mismatch for '%s' in scan '%s': got %s, expected %s", tel_code, scan_name, positions.shape[0], len(scan_times_mjd))
-                                    positions = np.full((len(scan_times_mjd), 3), np.nan)
-                                    positions[:min(positions.shape[0], len(scan_times_mjd))] = positions[:len(scan_times_mjd)]
-
-                                if np.any(np.isnan(positions)):
-                                    logger.warning("Orbit data for '%s' in scan '%s' contains NaN values", tel_code, scan_name)
-
-                                n_times = len(scan_times_mjd)
-                                times_list.append(scan_times_mjd)
-                                scan_names.append(np.full(n_times, scan_name, dtype=object))
-                                telescope_codes.append(np.full(n_times, tel_code, dtype=object))
-                                x_list.append(positions[:, 0])
-                                y_list.append(positions[:, 1])
-                                z_list.append(positions[:, 2])
-                            except ValueError as e:
-                                logger.warning("Excluding telescope '%s' in scan '%s' due to interpolation error: %s", tel_code, scan_name, str(e))
-                                excluded_telescopes.append(tel_code)
+                            n_times = len(scan_times_mjd)
+                            times_list.append(scan_times_mjd)
+                            scan_names.append(np.full(n_times, scan_name, dtype=object))
+                            telescope_codes.append(np.full(n_times, tel_code, dtype=object))
+                            x_list.append(positions[:, 0])
+                            y_list.append(positions[:, 1])
+                            z_list.append(positions[:, 2])
+                        except ValueError as e:
+                            logger.warning("Excluding telescope '%s' in scan '%s' due to interpolation error: %s", tel_code, scan_name, str(e))
+                            excluded_telescopes.append(tel_code)
 
                 if excluded_telescopes:
                     logger.info("Excluded %s telescopes: %s", len(set(excluded_telescopes)), ', '.join(set(excluded_telescopes)))
@@ -640,6 +654,10 @@ class ScheduleCalculator(Super):
             logger.error("Failed to interpolate orbit for '%s': %s", telescope.get_code(), str(e), exc_info=True)
             return np.full((len(times_mjd), 3), np.nan)
 
+    #: How many orbit samples to keep either side of a scan when a file is read for one. Every
+    #: method interpolates between samples, so the ends of a scan need samples beyond them.
+    ORBIT_SAMPLE_MARGIN = 8
+
     #: Degree of each Chebyshev arc, and how many samples one arc spans. Twelve is what
     #: ephemeris systems use per segment; the orbit is smooth over a short arc, and raising the
     #: degree buys nothing while costing conditioning.
@@ -720,6 +738,47 @@ class ScheduleCalculator(Super):
 
         return positions
 
+    def _orbit_within(self, orbit_data: Dict[str, np.ndarray], orbit_file: str,
+                      start_time_mjd: Optional[float],
+                      end_time_mjd: Optional[float]) -> Dict[str, np.ndarray]:
+        """Return the part of a parsed orbit that covers a span, with samples either side.
+
+        Args:
+            orbit_data (Dict[str, np.ndarray]): The whole file, parsed.
+            orbit_file (str): Its path, for the message when nothing covers the span.
+            start_time_mjd (Optional[float]): Start of the span, or None for everything.
+            end_time_mjd (Optional[float]): End of the span.
+
+        Returns:
+            Dict[str, np.ndarray]: `times`, `positions` and `velocities`, cut to the span plus
+                `ORBIT_SAMPLE_MARGIN` samples on each side. Empty when the file covers none of it.
+
+        Notes:
+            - **The margin is the point.** Every method here interpolates *between* samples, and
+              this used to cut the file to the scan exactly -- so the first and last moments of
+              a scan had nothing beyond them to lean on and every method extrapolated there.
+              That is the worst place to extrapolate and the hardest to notice, because the
+              numbers still come out.
+            - Separate from parsing so the parse can be cached: the file does not change between
+              one scan and the next, only the span asked of it does.
+        """
+        times_mjd = orbit_data["times"]
+        if start_time_mjd is None or end_time_mjd is None:
+            return orbit_data
+
+        mask = (times_mjd >= start_time_mjd) & (times_mjd <= end_time_mjd)
+        if not np.any(mask):
+            logger.warning("No orbit data within time range %s to %s for file '%s'",
+                           start_time_mjd, end_time_mjd, orbit_file)
+            return {}
+
+        inside = np.flatnonzero(mask)
+        first = max(int(inside[0]) - self.ORBIT_SAMPLE_MARGIN, 0)
+        last = min(int(inside[-1]) + self.ORBIT_SAMPLE_MARGIN + 1, len(times_mjd))
+        return {"times": orbit_data["times"][first:last],
+                "positions": orbit_data["positions"][first:last],
+                "velocities": orbit_data["velocities"][first:last]}
+
     def _load_orbit_data(self, orbit_file: str, start_time_mjd: Optional[float] = None, end_time_mjd: Optional[float] = None) -> Dict[str, np.ndarray]:
         """Load orbit data from a CCSDS OEM 2.0 styled file, optionally filtering by time range.
 
@@ -733,6 +792,15 @@ class ScheduleCalculator(Super):
         """
         if not os.path.isfile(orbit_file):
             raise FileNotFoundError(f"Orbit file '{orbit_file}' not found")
+
+        # Keyed by what the file looked like, so an orbit edited on disk is re-read rather than
+        # answered from a stale parse.
+        stamp = os.stat(orbit_file)
+        key = (os.path.abspath(orbit_file), stamp.st_mtime_ns, stamp.st_size)
+        with self._orbit_cache_lock:
+            cached = self._orbit_cache.get(key)
+        if cached is not None:
+            return self._orbit_within(cached, orbit_file, start_time_mjd, end_time_mjd)
 
         try:
             with open(orbit_file, 'r') as f:
@@ -780,19 +848,10 @@ class ScheduleCalculator(Super):
                 "velocities": velocities
             }
 
-            if start_time_mjd is not None and end_time_mjd is not None:
-                mask = (times_mjd >= start_time_mjd) & (times_mjd <= end_time_mjd)
-                if not np.any(mask):
-                    logger.warning("No orbit data within time range %s to %s for file '%s'", start_time_mjd, end_time_mjd, orbit_file)
-                    return {}
-                orbit_data = {
-                    "times": orbit_data["times"][mask],
-                    "positions": orbit_data["positions"][mask],
-                    "velocities": orbit_data["velocities"][mask]
-                }
-
+            with self._orbit_cache_lock:
+                self._orbit_cache[key] = orbit_data
             logger.info("Loaded orbit data from '%s' with %s points", orbit_file, len(orbit_data['times']))
-            return orbit_data
+            return self._orbit_within(orbit_data, orbit_file, start_time_mjd, end_time_mjd)
 
         except FileNotFoundError:
             logger.error("Orbit file '%s' not found", orbit_file)
@@ -966,8 +1025,12 @@ class ScheduleCalculator(Super):
                 positions = self._compute_telescope_position(tel, times_mjd, obstime=obstime)
                 if positions.shape[0] != n_times:
                     logger.warning("Position data length mismatch for '%s' in scan '%s': got %s, expected %s", tel_code, scan_name, positions.shape[0], n_times)
+                    # As above: rebinding first meant this copied NaN onto NaN and lost
+                    # every position that had been computed.
+                    computed = positions
                     positions = np.full((n_times, 3), np.nan)
-                    positions[:min(positions.shape[0], n_times)] = positions[:n_times]
+                    keep = min(computed.shape[0], n_times)
+                    positions[:keep] = computed[:keep]
 
             if np.all(np.isnan(positions)):
                 logger.warning("All positions are NaN for telescope '%s' in scan '%s'", tel_code, scan_name)
@@ -1305,8 +1368,14 @@ class ScheduleCalculator(Super):
             positions = tel_positions.select(["x", "y", "z"]).to_numpy()
             if len(positions) != n_times:
                 logger.warning("Position data length mismatch for '%s' in scan '%s': got %s, expected %s", tel_code, scan_name, len(positions), n_times)
+                # `positions` is all-NaN of length n_times by the time the slice is taken, so
+                # the left-hand side was always the full length while the right-hand side was
+                # however many rows there really were -- a shape mismatch whenever this branch
+                # was reached with fewer.
+                found = positions
                 positions = np.full((n_times, 3), np.nan)
-                positions[:min(len(positions), n_times)] = tel_positions.select(["x", "y", "z"]).to_numpy()[:n_times]
+                keep = min(len(found), n_times)
+                positions[:keep] = found[:keep]
 
             nan_positions = np.any(np.isnan(positions), axis=1)
             is_visible = np.full(n_times, False, dtype=bool)
