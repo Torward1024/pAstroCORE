@@ -695,6 +695,19 @@ def test_a_response_is_only_read_where_one_was_asked_for():
         if found:
             offenders[path.relative_to(ROOT).as_posix()] = found
 
+    # The documentation too. Teaching the line is worse than containing it, and a page that
+    # showed `.value` on a plain answer was found by the suite running the page rather than by
+    # this check -- which only looked at Python files.
+    blocks = re.compile(r"```python\n(.*?)```", re.DOTALL)
+    for page in sorted((ROOT / "docs").glob("*.md")) + [ROOT / "README.md"]:
+        for number, block in enumerate(blocks.findall(page.read_text(encoding="utf-8")), 1):
+            try:
+                found = _responses_read_without_asking_for_one(ast.parse(block))
+            except SyntaxError:
+                continue
+            if found:
+                offenders[f"{page.relative_to(ROOT).as_posix()} block {number}"] = found
+
     assert not offenders, (
         "a response is read where the request returns no response:\n  "
         + "\n  ".join(f"{name}: {'; '.join(lines)}" for name, lines in offenders.items())

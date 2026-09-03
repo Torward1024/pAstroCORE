@@ -1,19 +1,23 @@
 # pAstroCORE roadmap
 
-**1.0 shipped.** What follows is what comes next, and what was decided against.
+**1.3 shipped.** What follows is what comes next, and what was decided against.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy. The failure mode of a project like this is not
 running out of things to do -- it is never running out.
 
-Three rules that earned their place the hard way:
+Four rules that earned their place the hard way:
 
 - **Measure before deciding.** Numbers here were taken, not estimated. Twice a plausible
   optimisation was measured *slower* and dropped.
 - **Build the check before the change.** Twice a change was made to code nothing exercised, and
-  twice it broke something the suite could not see.
+  twice it broke something the suite could not see. G1 was only possible the second time because
+  the pixel harness was written first -- and it caught a real mistake within the hour.
+- **A characterization test cannot tell you the answer was always wrong.** It compares against
+  what the code used to produce. Where an answer can be known independently, check against
+  *that*: the orbit interpolation was out by up to 846 km with a green suite throughout.
 - **Take it from MSB.** If the framework has it, use it; if it is missing there and belongs
-  there, add it there. Three of MSB's releases came out of following that during 1.0.
+  there, add it there. Sixteen of MSB's releases have come out of following that.
 
 ## Next
 
@@ -21,15 +25,11 @@ Nothing here is scheduled. In rough order of what would help most:
 
 | | Item | Why it is next |
 | --- | --- | --- |
-| ~~**L2**~~ | ~~Editing requests~~ | **Done, in the half that matters.** A session is checked whole before any of it runs, so an edited file with one bad step runs none of them -- `pastrocore-cli check` says what is wrong, and both the command line and the panel refuse with the list rather than the first thing that broke. Everything it checks against is derived: which operations exist, which methods each has, and what each reads. An attribute no handler reads is a **warning**, since `accepts` is a lower bound by construction. What is left is an editor inside the window, and a text editor is a better one |
-| ~~**L1**~~ | ~~A command line~~ | **Done.** `pastrocore-cli` with `info`, `calculations`, `run`, `export` and `replay` -- 230 lines, every command one request. It imports neither `pastrocore.gui` nor Qt, which a test asserts and a second one measures by running it in a process and looking at `sys.modules`. It also earned its keep immediately: replaying a session that contained a *run* called a string, because a journal records a callable as `<function>` and the handler called it back |
-| **N1--N4** | Analysis | A calculation finishes and that is the end of it. Visibility is a boolean per station per moment, and nobody can ask when, for how long, or where the gaps are |
-| **R6** | A project as one file | How a project reaches a colleague or a bug report |
-| **T4** | Which results a change invalidates | `depends_on` says which *parts* a result reads; MSB's model graph says what reaching a part reaches |
-| **G1** | One stylesheet | Attempted and reverted once. It is authoring, not extraction |
-
-The sections below are the detail of those, plus the formats -- which are a project of their
-own, and which nothing else waits on.
+| **N1--N4** | Analysis | A calculation finishes and that is the end of it. Visibility is a boolean per station per moment, and nobody can ask when, for how long, or where the gaps are. It is also the input a scheduling optimiser needs |
+| **G1a** | The stylesheet editable from Preferences | The file exists and is loaded; changing it still means restarting |
+| **G6** | The nine visualization tabs share a base | ~2500 lines over nine files with the same nine methods each -- but no method is byte-identical, so they are parallel variations rather than copies. It needs parameterising, not lifting |
+| **L3** | Client-server | The last caller. Storage, identity, and what a long calculation looks like to a caller who is not watching |
+| **Formats** | VEX, CFX, SKED | A project of their own; nothing else waits on them |
 
 ## Done
 
@@ -37,28 +37,25 @@ own, and which nothing else waits on.
 | --- | --- |
 | **0.4.0** | A test suite where there was none, CI, hygiene, the calculations, MSB 1.1.1. Over 500 lines removed |
 | **0.5.0** | A project became a directory; results are parquet, read lazily and capped |
-| **0.5.1** | A project holding a space telescope could not be opened |
 | **0.6.0** | The dialogs ask for a folder; the single-file format removed |
 | **0.7.0** | A calculation reaches the disk when it is made, in a per-session scratch directory, with recovery |
 | **0.8.0** | Adding a calculation stops at the calculator: one catalogue, derived. A space telescope can be pointed at. A result says when its inputs moved |
 | **0.9.0** | `pip install .` gives a command. Running calculations is a plan the backend builds. Start-up 4.0 s to 1.4 s |
-| **1.0.0** | Everything below |
+| **1.0.0** | The parts written under time pressure put in order, one measured stage at a time |
+| **1.1.0** | **L1, L2.** `pastrocore-cli` -- the backend's second caller, which is the claim 1.0 was built on. A session is checked whole before any of it runs |
+| **1.2.0** | The move to `msb_arch` 2.0.1. Three rules became `@invariant` |
+| **1.2.2** | An audit. The orbit path was where everything was hiding |
+| **1.3.0** | **R6, T4, G1.** A project as one file; which results a change would spoil; one stylesheet |
 
-### What 1.0 required, and what each cost
+### What each of the recent ones cost
 
 | | Item | Outcome |
 | --- | --- | --- |
-| D9 | The frame is the authority | `scan_count`, `start_time` and `end_time` are computed where the frame and its metadata are both in hand, so a caller cannot supply a wrong one. Nothing written contains `NaN` |
-| R4 | Packaging | `pip install .` gives a `pastrocore` command; the version is stated once. It exposed the real defect: every path was relative to the directory the application was started from, so an install found no catalogues and wrote settings wherever the user happened to be |
-| R5 | Stale pull requests | None open |
-| R1 | Release | 0.9.0, tagged, with an upgrading table |
-| M1 | Independent branches run at once | **1.30x** measured (1.885 s against 1.453 s, median of five alternating rounds over a thirteen-step plan) |
-| M2 | Honest timing | Measured on the interceptor, per step. Progress advances when a step *finishes* |
-| M4 | The run says what it did | One report, a row per step with its time and outcome, kept for **Tools → Last Run Report** |
-| M3 | The journal reaches the interface | **Tools → Session**: look at it, write it to a file, replay it against another project. Possible because MSB 1.6.0 stopped holding what it recorded |
-| G3a | Every result was written twice | `times` 10 stores → 1, `telescope_positions` 4 → 1 |
-| R3 | Documentation | Four pages, and **every Python block on them is executed by the suite** |
-| G2/G3 | Profile the interface | Measured: window 136 ms, explorer 0.4 ms, observation tab 4.4 ms warm, dialogs 4--36 ms. 191 `inspect` calls cost 4.1 ms between them. Nothing needs fixing, and now there is evidence rather than an impression |
+| L1 | A command line | 230 lines, every command one request, importing neither `pastrocore.gui` nor Qt -- which one test asserts and a second measures by running a command in a fresh process and reading `sys.modules` |
+| L2 | Editing requests, in the half that matters | A session is checked whole before any of it runs, so an edited file with one bad step runs none of them. Everything it checks against is derived. **What is left is an editor inside the window, and a text editor is a better one** |
+| R6 | A project as one file | `export(method="package")`. 150 KB with results; **1 KB** with `results=False`, which is what a bug report wants. The command line takes a package anywhere it takes a project |
+| T4 | Which results a change invalidates | `compute(method="affected")`, asked *before* the change. Both halves derived: MSB's model graph says a `Telescope` is reached through `Scan` too, and each calculation's schema says what it reads |
+| G1 | One stylesheet | 235 places became one 700-line `.qss` applied to the `QApplication`. Rules are by **type**, so every button looks like every other button -- which is the point, and why some forms changed |
 
 ### What was found on the way
 
@@ -66,26 +63,19 @@ Each of these was silent, and each is now a test:
 
 | | |
 | --- | --- |
+| Chebyshev put a space telescope up to **846 km** from where it was | One polynomial of degree 30 over the whole orbit file. Linear was two orders of magnitude better, which is how it was noticed |
+| An orbit was cut to the scan exactly | So the first and last moments of every scan were extrapolated to |
+| An export that had written every file reported failure | `.value` read off an answer that was not a `Response` |
+| Six interface sites called `.items()` on a list | One opened a modal nothing mocked, so the suite *hung* rather than failed; two others quietly showed an empty project |
+| `get_observations()` never existed | Plotting a whole project raised on its first line |
+| The window released its observations *after* emptying the project | The loop had never once had a body to run |
+| A cache created and never used, guarded by a lock held over everything | Ten scans re-read the same orbit file ten times |
+| Importing a telescope could not add one already here | The two lines meant to handle it assigned two fields to themselves |
 | Closing the window destroyed the day's calculations | The scratch was discarded on every clean close |
-| Every File → New Project and Open orphaned a scratch | Which the next start offered to recover |
 | Calculating for a whole project produced an empty frame | Iterating a project yields its *names* |
-| A source going inactive left `time_arrays` looking current | Found by checking `depends_on` against what MSB derives the handler to touch |
 | A run with a failed step reported complete success | A slot defined twice; PySide drops the arguments the winner does not accept |
-| An observation labelled "12 stale" could not be opened | The explorer looked it up by its label |
-| Exporting pictures failed for every calculation | `self.manipulator` where the attribute is `_manipulator` |
-| Four rules guarded the constructor and nothing else | `set` and `from_dict` walked past them |
 
 Details of any of these are in `CHANGELOG.md` and in the commit that made the change.
-
-### Three MSB releases came out of it
-
-| | |
-| --- | --- |
-| **1.5.0** | `accepts` -- the attribute keys a handler reads, derived. It replaced five hand-written lists here and found a plot missing from two of them |
-| **1.6.0** | A journal is a record, not a retainer. An entry held the live object *and* the response, so it pinned every result frame it had seen |
-| **1.7.0** | `plan_for` -- the six lines every application writes to turn "what I want" into "what to run, in order" |
-
-Ten of MSB's releases have come out of this project in total.
 
 ## The detail
 
@@ -114,20 +104,14 @@ Out of scope: fitting, forecasting, anything that recommends a schedule.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| G1 | One stylesheet, in a file | No `setStyleSheet` in the codebase; all 22 forms render identically, checked by pixels |
-| G1a | The stylesheet editable from Preferences | Applied to the `QApplication`, so dialogs created later see it; changes without a restart |
+| G1a | The stylesheet editable from Preferences | Changes apply without a restart. A user file beside the settings already **replaces** the shipped one at start-up; what is missing is editing it from inside and re-applying |
 | G4 | A most-recently-used list | Survives a restart; a missing entry is removed when clicked |
 | G5 | The visualizer configured from a file, with its own tab | Plot appearance changes without a restart; the file is editable by hand |
-
-G1 was attempted and reverted. 209 styled widgets collapse to 25 distinct sheets, but all 22
-forms carry a sheet on their *top-level* widget, which reaches every child -- moving that to
-application level changes which rule wins, and not one form matched what it replaced. **It is
-authoring, not extraction**, and the pixel harness is the acceptance test.
+| G6 | One base class for the visualization tabs | Nine tabs, ~2500 lines, the same nine methods each -- and **no method byte-identical across them**, so this is parameterising nine variations rather than lifting a copy. The GUI smoke tests are the check |
 
 ### Formats
 
-A project of its own. Three contracts with software nobody here controls. Nothing before 1.0
-depends on any of it.
+A project of its own. Three contracts with software nobody here controls.
 
 A schedule in VEX is an observation rather than a study. **CFX** is what the ASC correlator
 reads. **SKED** is what much geodetic VLBI is scheduled in.
@@ -150,24 +134,20 @@ Order: VEX, CFX, SKED. Space telescopes out of scope for V2.
 
 | # | Item | Needs |
 | --- | --- | --- |
-| R6 | Import and export a project as one file | How a project reaches a colleague or a bug report |
-| L1 | A command-line version | R4's packaging. Thin, now that operations exist to request |
-| L2 | Scripts inside the application -- **editing** requests, not only replaying them | L1, and M3 first. Viewing, saving, loading and replaying a journal is M3 and belongs before 1.0; *editing* a request in a window is a scripting environment, which is its own product and needs deciding what a half-edited plan may do |
-| L3 | Client-server | L1. The hard parts are storage, identity, and what a long calculation looks like to a caller who is not watching |
-| T4 | Knowing *which* results a change invalidates | MSB's `describe_model()` and `dependents_of()` -- which type holds which, read from the annotations. `depends_on` says which *parts* a result reads; the model graph says what reaching a part reaches, and between them a change names the results it invalidates |
-| M6a | ~~Running independent calculations concurrently~~ | **Done before 1.0, as M1.** Measured 1.30x |
+| L3 | Client-server | The hard parts are storage, identity, and what a long calculation looks like to a caller who is not watching. Everything else is in place: a request is data, a session is a file, and a project is now one file too |
 
 ## Considered and rejected
 
 | | Decision |
 | --- | --- |
-| Packing a saved project into one file | **No.** Zip saves 0.6% -- parquet is already compressed -- and opening becomes 46x slower. The real want is an export: R6 |
+| Packing the *working* project into one file | **No.** Zip saves 0.6% -- parquet is already compressed -- and opening becomes 46x slower. As an **exchange** format neither cost applies, which is what R6 is: written once, unpacked once |
 | A time window that is not a scan | **No.** A scan already means "these telescopes, this window". A second way to say *when* spreads to every calculation, tab and exporter |
 | An asynchronous surface for long calculations | **Not needed.** `CalculationThread` already runs off the GUI thread with cancellation and progress; asyncio would need a bridge to Qt's loop and lose the cancellation |
 | Parallel serialization | Measured slower: 1.69x with `asyncio.gather`, 1.11x with threads |
-| Moving save and load into MSB now | Right eventually, recorded there as **P18**, shipping with P1. Half a mechanism before P1 is designed leaves the graph built around the wrong shape |
+| An editor for sessions inside the window | A text editor is better, and both the command line and the panel check a session before running it |
+| Moving save and load into MSB now | Right eventually, recorded there as **P18**. Half a mechanism before P1 is designed leaves the graph built around the wrong shape |
 
 ## Not in scope
 
 Scheduling *optimisation* -- deciding what to observe. This describes and checks schedules; it
-does not propose them.
+does not propose them. N1--N4 are the input such a thing would need, which is a different claim.

@@ -8,6 +8,82 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.3.0] - 2026-09-03
+
+Three roadmap items, and the last place the interface reached past the orchestrator.
+
+### Added
+
+- **A project as one file (R6).** A project is a directory, which is right for working in and
+  wrong for sending: a colleague gets a folder tree and a bug report gets nothing at all.
+  `export(method="package")` writes one file and `load(method="package")` reads it.
+
+  Zip as an **exchange** format, not as storage. Packing the working project was measured and
+  rejected -- parquet is already compressed so it saves 0.6%, and opening becomes 46x slower --
+  and neither cost applies to a file written once and unpacked once.
+
+  `results=False` writes the model alone: about a kilobyte that reproduces the configuration,
+  against 150 KB with the frames. Unpacking refuses any entry that would land outside the
+  directory it unpacks into, because a package is a file from somewhere else.
+
+  `pastrocore-cli package`, and every other command takes a package anywhere it takes a
+  project -- so `info` and `affected` work on what a colleague sent without unpacking it.
+  **File → Package Project** and **Open Package** in the window.
+
+- **Which results a change would spoil (T4).** `compute(method="affected")`, asked *before* the
+  change. `stale` compares a stored fingerprint against the configuration in hand, so it can
+  only speak about a change that already happened; a user about to move a telescope wants to
+  know what it will cost first.
+
+  Both halves are derived and neither is written down. MSB's model graph says what reaching a
+  type reaches -- a `Telescope` is held by `Telescopes` and *named by* `Scan`, so editing one
+  reaches scans too, which is the part nobody remembers. Each calculation's schema says which
+  parts it reads. Which parts exist comes from `Observation`'s own annotations.
+
+  `pastrocore-cli affected <project> Telescope`.
+
+- **One stylesheet (G1).** 224 `styleSheet` properties across 24 forms and 131 lines written
+  inline in `app.main` became `pastrocore/gui/pastrocore.qss` -- 700 lines, applied to the
+  `QApplication` so a dialog built later sees it, and replaceable by a user file kept beside
+  their settings.
+
+  **Rules are written against types on purpose.** A sheet set on one widget applied to that
+  widget; the same rule at application level applies to every widget of that type -- a `QLabel`
+  rule that reached 3 labels out of 121 now reaches all of them. That is what "one stylesheet"
+  means, and it is why some forms changed appearance. Every button looks like every other
+  button now, which they did not before.
+
+- **A pixel harness for the forms.** G1 was attempted and reverted once, and the reason is that
+  it is a cascade and nothing tells you it has moved except the pixels. This renders all 24
+  forms offscreen and compares digests, per platform -- pixels are not portable, and the build
+  runs on Ubuntu while this is authored on Windows, so a platform with no reference skips.
+
+  It earned its keep immediately: a `QWidget` rule emitted after `QPushButton` won over it,
+  because Qt takes the later of two rules of equal specificity and `QWidget` matches every
+  widget there is. Every button in the application went flat and nothing else would have said
+  so.
+
+### Fixed
+
+- **The window came out grey and every button's label black.** Both from rules that arrived
+  with the window chrome and landed after the surface rules: `QMainWindow { background-color:
+  #f5f5f5 }` beat the white it was supposed to have, and `QWidget { color: #333333 }` painted
+  the labels of the blue buttons. Surface rules go first now.
+
+### Changed
+
+- **The catalogue layer reaches the model through the orchestrator**, which was the one place
+  left that did not. `CatalogManager` is backend -- the parsing lives there, not in a dialog --
+  so this was never logic in the interface; it was the interface holding a model object and
+  calling it, which a command line and a server cannot do.
+
+### Upgrading from 1.2.2
+
+Nothing to do. **The application looks different**, deliberately: controls that were styled
+inconsistently now share one appearance. To change it, edit `pastrocore/gui/pastrocore.qss`, or
+keep your own `pastrocore.qss` beside your settings -- a user file replaces the shipped one
+rather than adding to it.
+
 ## [1.2.2] - 2026-09-03
 
 A pass over the whole project after the move to 2.0.1, and the orbit path turned out to be

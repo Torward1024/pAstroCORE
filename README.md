@@ -2,12 +2,12 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.2-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
+[![Version](https://img.shields.io/badge/version-1.3.0-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
 [![Built on MSB](https://img.shields.io/badge/built%20on-MSB%202.0.1-8a2be2.svg)](https://github.com/Torward1024/MSB)
 
 A versatile tool for scheduling radio-astronomical observations.
 
-Version 1.2.2. The parts written under time pressure have been put in order, one measured
+Version 1.3.0. The parts written under time pressure have been put in order, one measured
 stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -74,11 +74,41 @@ python run.py
 ```bash
 pastrocore-cli info survey.pastro
 pastrocore-cli run survey.pastro --only uv_coverage
+pastrocore-cli affected survey.pastro Telescope
+pastrocore-cli package survey.pastro to_send
 ```
 
 The same work from a terminal, and the same requests: `pastrocore-cli` is about two hundred
 lines and imports neither the interface nor Qt, which two tests hold. What it can do is in
 [from a terminal](docs/command-line.md).
+
+## Sending a project
+
+A project is a directory, which is right for working in and wrong for sending. **File → Package
+Project** writes one file, and every command takes one anywhere it takes a project, so what a
+colleague sends can be read without unpacking it.
+
+```bash
+pastrocore-cli package survey.pastro to_send              # 150 KB, results included
+pastrocore-cli package survey.pastro bug --model-only     # 1 KB, the configuration alone
+pastrocore-cli info to_send.pastroz                       # read it where it is
+```
+
+`--model-only` is what a bug report wants: the few kilobytes that reproduce the configuration,
+without a gigabyte of frames nobody reading the report needs.
+
+## What a change would cost
+
+Before moving a telescope, ask what it will invalidate:
+
+```bash
+pastrocore-cli affected survey.pastro Telescope
+```
+
+Nothing about this is written down anywhere. MSB's model graph knows a `Telescope` is reached
+through `Scan` as well as through `Telescopes`, and each calculation's schema declares which
+parts of the model it reads; the answer is where the two meet. Staleness answers the same
+question afterwards; this answers it first.
 
 ## Projects on disk
 
@@ -135,6 +165,23 @@ cannot be forgotten quietly. Do not run `pyside6-uic` directly: it emits `import
 bare module name that only resolves if `pastrocore/gui` is on `sys.path`, and the icons then
 fail at the first use. The script rewrites it.
 
+**Appearance is not in the forms.** It is in `pastrocore/gui/pastrocore.qss`, one file applied
+to the `QApplication`, and a test refuses a `styleSheet` property in any form or a
+`setStyleSheet` anywhere in the code. Rules are written against types -- `QPushButton { ... }`
+-- so every button looks like every other button; that consistency is the whole point of having
+one file rather than the 235 places this used to live in.
+
+To change how the application looks, edit that file. To change it only for yourself, put your
+own `pastrocore.qss` beside your settings: it replaces the shipped one rather than adding to it.
+
+A styling change is judged by `tests/test_form_pixels.py`, which renders all 24 forms offscreen
+and compares them against a stored reference. It is per platform, because pixels are not
+portable. Regenerate it deliberately, after looking at what moved:
+
+```bash
+python -m pytest tests/test_form_pixels.py --regenerate-form-pixels
+```
+
 ## Tests
 
 ```bash
@@ -142,7 +189,7 @@ pip install -r requirements.txt pytest
 python -m pytest tests/
 ```
 
-522 tests. The characterization suites recompute every calculation in
+584 tests. The characterization suites recompute every calculation in
 `tests/fixtures/test_project.pastro` and redraw every plot, comparing against what the project
 was saved with, so a change to any formula or any filter fails the build. Qt runs offscreen,
 so the GUI smoke tests need no display.

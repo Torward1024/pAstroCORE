@@ -79,6 +79,77 @@ pastrocore-cli export survey.pastro out/ --only uv_coverage --pictures
 Text always; `--pictures` draws them as well. Each plot is given exactly the filters it reads,
 which the visualizer itself says.
 
+## Sending a project
+
+A project is a directory, which is right for working in and wrong for sending. `package` writes
+one file:
+
+```bash
+pastrocore-cli package survey.pastro to_send            # everything, results included
+pastrocore-cli package survey.pastro bug --model-only   # the configuration alone
+```
+
+`--model-only` is what a bug report wants — about a kilobyte that reproduces the configuration,
+against 150 KB with the frames. Neither replaces an existing file unless you pass `--force`.
+
+**A package is a project as far as reading it goes.** Every command takes one, so what a
+colleague sent can be read where it is:
+
+```bash
+pastrocore-cli info to_send.pastroz
+```
+
+```python
+from pastrocore.super.schedule_manipulator import ScheduleManipulator
+from pastrocore.super.schedule_project import ScheduleProject
+
+project = ScheduleProject(name="Survey")
+project.create_item(item_code="OBS1")
+core = ScheduleManipulator(project)
+
+packed = core.export(obj=project, method="package", path=str(TMP / "to_send"))
+assert packed["path"].endswith(".pastroz")
+
+opening = ScheduleProject(name="opening")
+reopened = ScheduleManipulator(opening).load(
+    obj=opening, method="package", path=packed["path"])
+
+# It comes back as the project it was, which is the whole claim.
+assert reopened == project
+```
+
+## What a change would cost
+
+`stale` says which results *have* gone out of date. This says which ones *would*, before the
+change is made:
+
+```bash
+pastrocore-cli affected survey.pastro Telescope
+```
+
+```
+Editing a Telescope reaches: scans, telescopes
+
+14 calculation(s) read those parts:
+  az_el
+  ...
+```
+
+Nothing about that answer is written down. MSB's model graph knows a `Telescope` is reached
+through `Scan` as well as through `Telescopes` — which is the part nobody remembers — and each
+calculation declares in its schema which parts of the model it reads.
+
+```python
+report = core.compute(obj=project, method="affected", type="Telescope")
+
+assert report["parts"] == ["scans", "telescopes"]
+assert "uv_coverage" in report["calculations"]
+
+# A scan cannot spoil a beam pattern: that reads telescopes and frequencies.
+scans = core.compute(obj=project, method="affected", type="Scan")
+assert "beam_pattern" not in scans["calculations"]
+```
+
 ## Sessions
 
 Every request is recorded. `--session` writes that record out, and it is plain data — no live
