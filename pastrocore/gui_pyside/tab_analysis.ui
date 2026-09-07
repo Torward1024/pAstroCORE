@@ -23,7 +23,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="questionLabel">
         <property name="text">
-         <string>Question</string>
+         <string>Analysis type</string>
         </property>
        </widget>
       </item>
@@ -153,7 +153,7 @@
      <item>
       <widget class="QPushButton" name="askButton">
        <property name="text">
-        <string>Ask</string>
+        <string>Show</string>
        </property>
       </widget>
      </item>

@@ -150,7 +150,7 @@ class Ui_AnalysisTab(object):
     def retranslateUi(self, AnalysisTab):
         AnalysisTab.setWindowTitle(QCoreApplication.translate("AnalysisTab", u"Analysis", None))
         self.questionBox.setTitle(QCoreApplication.translate("AnalysisTab", u"What to ask", None))
-        self.questionLabel.setText(QCoreApplication.translate("AnalysisTab", u"Question", None))
+        self.questionLabel.setText(QCoreApplication.translate("AnalysisTab", u"Analysis type", None))
         self.resultLabel.setText(QCoreApplication.translate("AnalysisTab", u"Result", None))
         self.columnsLabel.setText(QCoreApplication.translate("AnalysisTab", u"Columns", None))
         self.groupByLabel.setText(QCoreApplication.translate("AnalysisTab", u"Group by", None))
@@ -159,7 +159,7 @@ class Ui_AnalysisTab(object):
         self.filtersBox.setTitle(QCoreApplication.translate("AnalysisTab", u"Only these", None))
         self.exportButton.setText(QCoreApplication.translate("AnalysisTab", u"Export...", None))
         self.refreshButton.setText(QCoreApplication.translate("AnalysisTab", u"Refresh", None))
-        self.askButton.setText(QCoreApplication.translate("AnalysisTab", u"Ask", None))
+        self.askButton.setText(QCoreApplication.translate("AnalysisTab", u"Show", None))
         self.statusLabel.setText("")
     # retranslateUi
 

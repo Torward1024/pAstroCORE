@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
                                 )
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Signal, Slot, QPoint, QObject
-from PySide6.QtGui import QAction, QStandardItemModel, QStandardItem, QIcon
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QIcon
 # Core files
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.base.scratch import ScratchSpace
@@ -258,40 +258,9 @@ class PAstroCoreMainWindow(QMainWindow):
             logger.error("Project explorer widget not found during setup_ui")
         self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
 
-    def _build_packaging_actions(self):
-        """Add the two File entries for sending a project, once.
-
-        Notes:
-            - Built here rather than in the form. The forms are authored in Qt Designer and
-              regenerated, and adding an action to one means opening Designer -- which is right
-              for anything with a layout and heavy for two menu entries with no widgets. They
-              are ordinary `QAction`s, connected the same way as the generated ones.
-        """
-        if getattr(self, "_package_action", None) is not None:
-            return
-
-        self._package_action = QAction("Package Project...", self)
-        self._package_action.setToolTip("Pack this project into one file, to send or to attach "
-                                        "to a bug report")
-        self._open_package_action = QAction("Open Package...", self)
-        self._open_package_action.setToolTip("Open a project someone sent as one file")
-
-        self.ui.menuFile.insertAction(self.ui.actionExit, self._package_action)
-        self.ui.menuFile.insertAction(self._package_action, self._open_package_action)
-        self.ui.menuFile.insertSeparator(self._open_package_action)
-
-        # Tools opens it, and what it opens is a *tab*. Analysis is not one answer to look at
-        # and dismiss: it is a filter changed and the question asked again, and a modal dialog
-        # would make that a matter of reassembling the choice each time. Visualize already
-        # works this way.
-        self._analysis_action = QAction("Analysis", self)
-        self._analysis_action.setToolTip("Ask something of results that have been calculated")
-        self.ui.menuTools.addAction(self._analysis_action)
-
     def setup_connections(self):
         """Setup UI signal connections."""
         self.clear_connections(is_initial_setup=True)
-        self._build_packaging_actions()
 
         self._action_connections = {
             self.ui.actionNewProject: self.new_project,
@@ -309,9 +278,9 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionVisualize: self.open_visualization_dialog,
             self.ui.actionGenerate_Observations: self.handle_generate_observations,
             self.ui.actionExport_Calulcated_Data: self.open_export_dialog,
-            self._package_action: self.package_project,
-            self._open_package_action: self.open_package,
-            self._analysis_action: self.open_analysis_tab,
+            self.ui.actionPackage_Project: self.package_project,
+            self.ui.actionOpen_Package: self.open_package,
+            self.ui.actionAnalysis: self.open_analysis_tab,
         }
 
         for action, slot in self._action_connections.items():

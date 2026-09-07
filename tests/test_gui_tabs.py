@@ -37,6 +37,15 @@ def tab_class(module_name):
     module = importlib.import_module(f"pastrocore.gui.{module_name}")
     from PySide6.QtWidgets import QWidget
 
+    # Named in TABS where a module defines more than one -- `p_tab_vis_uv_coverage` holds the
+    # base the two baseline plots share as well as the tab itself, and taking the first class
+    # found would test the base.
+    named = TABS.get(module_name)
+    if named:
+        widget_class = getattr(module, named, None)
+        assert widget_class is not None, f"{module_name} defines no {named}"
+        return widget_class
+
     classes = [value for name, value in vars(module).items()
                if inspect.isclass(value) and issubclass(value, QWidget)
                and value.__module__ == module.__name__]
@@ -397,3 +406,42 @@ def test_importing_a_frequency_from_a_file_works(qt_application, project, tmp_pa
         assert all(isinstance(item, IF) for item in after)
     finally:
         tab.close()
+
+
+@pytest.mark.parametrize("module_name", sorted(TABS))
+def test_a_tab_actually_draws(module_name, project, observation, qt_application):
+    """Building is the floor; this is the point of the tab.
+
+    Every one of them shared nine methods and no two were byte-identical, so folding them onto
+    one base was a rewrite rather than a lift. Constructing proves nothing about that: a tab
+    that silently draws a blank canvas builds perfectly well.
+    """
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    manipulator = ScheduleManipulator(project)
+    manipulator.compute(obj=observation, method="run", time_step=600.0, recalculate=True,
+                        raise_on_error=False,
+                        calculations=["uv_coverage", "az_el", "sun_angles", "time_on_source",
+                                      "parallactic_angle", "beam_pattern",
+                                      "baseline_projections", "mollweide_tracks"])
+
+    widget = tab_class(module_name)(manipulator, observation)
+    try:
+        assert widget.canvas is not None, f"{module_name} built but drew nothing"
+        assert widget.figure is not None
+    finally:
+        widget.close()
+        widget.deleteLater()
+
+
+@pytest.mark.parametrize("module_name", sorted(TABS))
+def test_a_tab_declares_what_it_draws_rather_than_implementing_it(module_name):
+    """What varies between the tabs is a declaration now: which form, which result, which
+    filters. A tab that reimplements the shared machinery has drifted back."""
+    from pastrocore.gui.p_tab_vis_base import VisualizationTab
+
+    widget_class = tab_class(module_name)
+
+    assert issubclass(widget_class, VisualizationTab), f"{module_name} is not on the base"
+    assert widget_class.FORM is not None, f"{module_name} declares no form"
+    assert widget_class.STORE_KEY, f"{module_name} declares no result to read"

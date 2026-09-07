@@ -50,6 +50,8 @@ class ScheduleAnalyzer(Super):
 
     def __init__(self, manipulator):
         super().__init__(manipulator)
+        #: Result key to the words it is called by, read from the catalogue on first use.
+        self._labels: Dict[str, str] = {}
         logger.debug("Initialized Schedule Analyzer")
 
     # --- what there is to ask about ------------------------------------------------------
@@ -68,6 +70,28 @@ class ScheduleAnalyzer(Super):
             elif name == "String":
                 categorical.append(column)
         return {"numeric": numeric, "categorical": categorical, "boolean": boolean}
+
+    def label_for(self, key: str) -> str:
+        """Return what a result is called in words: `telescope_visibility` is Telescope Visibility.
+
+        Notes:
+            - Asked of the catalogue, which is where the calculation dialog gets the same
+                labels. A table here would be a second set of names to keep in step, and the
+                two would disagree the first time one was reworded.
+            - `times` is the only key with no calculation of its own -- its handler is called
+              `time_arrays` -- so it falls through to being title-cased, like anything else the
+              catalogue has not heard of.
+        """
+        if not self._labels:
+            try:
+                catalogue = self._manipulator.compute(
+                    obj=self._manipulator.get_managing_object(), method="catalogue") or []
+                self._labels = {entry["key"]: entry["label"] for entry in catalogue
+                                if entry.get("key") and entry.get("label")}
+            except Exception as e:                      # noqa: BLE001 - a label, not a result
+                logger.debug("Could not read the catalogue for labels: %s", str(e))
+                self._labels = {}
+        return self._labels.get(key) or key.replace("_", " ").title()
 
     def _targets(self, obj: Any) -> List[Observation]:
         """Return the observations a request is about."""
@@ -103,10 +127,11 @@ class ScheduleAnalyzer(Super):
                 # neither True nor False reliably. "Elevation above 20" means the moments
                 # where there *is* an elevation and it is above 20.
                 view = view.filter(pl.col(column).is_not_nan())
-                if wanted.get("from") is not None:
-                    view = view.filter(pl.col(column) >= wanted["from"])
-                if wanted.get("to") is not None:
-                    view = view.filter(pl.col(column) <= wanted["to"])
+                low, high = self._bound(wanted.get("from")), self._bound(wanted.get("to"))
+                if low is not None:
+                    view = view.filter(pl.col(column) >= low)
+                if high is not None:
+                    view = view.filter(pl.col(column) <= high)
             else:
                 view = view.filter(pl.col(column) == wanted)
 
@@ -150,19 +175,57 @@ class ScheduleAnalyzer(Super):
                     continue
                 entry = described.setdefault(key, {
                     **self._columns_of(key), "rows": 0, "observations": [],
-                    "label": CalculatedDataStructure.label_for(key)
-                    if hasattr(CalculatedDataStructure, "label_for") else key})
-                frame = self._frame(observation, key, None)
-                if frame is None:
+                    "label": self.label_for(key)})
+                view = observation.scan_calculated_data(key)
+                if view is None:
                     continue
-                entry["rows"] += frame.height
-                entry["observations"].append(observation.code)
-                if with_values:
-                    values = entry.setdefault("values", {})
-                    for column in entry["categorical"]:
-                        if column in frame.columns:
-                            seen = values.setdefault(column, set())
-                            seen.update(frame[column].unique().to_list())
+
+                # **Counted and sampled lazily.** This used to `collect()` every result of
+                # every observation just to describe them, which reads the whole project into
+                # memory -- the one thing the parquet store exists to avoid. A count is
+                # answered from the file's own metadata, and the distinct values of one column
+                # read that column and no other.
+                try:
+                    entry["rows"] += int(view.select(pl.len()).collect().item())
+                    entry["observations"].append(observation.code)
+                    if with_values and entry["categorical"]:
+                        seen = entry.setdefault("values", {})
+                        distinct = view.select(
+                            [pl.col(column).unique().implode().alias(column)
+                             for column in entry["categorical"]]).collect()
+                        for column in entry["categorical"]:
+                            found = seen.setdefault(column, set())
+                            found.update(distinct[column].explode().to_list())
+
+                    # The span of each number, so a filter can offer the range that exists
+                    # rather than an empty box the user has to guess at. NaN is excluded, or
+                    # every column with a gap in it would report a bound of NaN.
+                    if with_values and entry["numeric"]:
+                        spans = entry.setdefault("ranges", {})
+                        bounds = view.select(
+                            [expression
+                             for column in entry["numeric"]
+                             for expression in (
+                                 pl.col(column).min().alias(f"{column}__min"),
+                                 pl.col(column).max().alias(f"{column}__max"))]).collect()
+                        for column in entry["numeric"]:
+                            low, high = (bounds[f"{column}__min"][0],
+                                         bounds[f"{column}__max"][0])
+                            if low is None or high is None or low != low or high != high:
+                                continue
+                            known = spans.setdefault(column, {})
+                            known["min"] = min(float(low), known.get("min", float(low)))
+                            known["max"] = max(float(high), known.get("max", float(high)))
+                            # Written out as well, for a time. The interface shows a calendar
+                            # and hands the dates straight back as filter bounds, so it never
+                            # has to know what an MJD is.
+                            if column in self.TIME_COLUMNS:
+                                known["min_iso"] = self._iso(known["min"])
+                                known["max_iso"] = self._iso(known["max"])
+                except Exception as e:                  # noqa: BLE001 - one result frees the rest
+                    logger.error("Could not describe '%s' of '%s': %s", key, observation.code,
+                                 str(e), exc_info=True)
+                    continue
 
         if with_values:
             for entry in described.values():
@@ -277,6 +340,26 @@ class ScheduleAnalyzer(Super):
             answer["min_iso"] = self._iso(lowest)
             answer["max_iso"] = self._iso(highest)
         return answer
+
+    @staticmethod
+    def _bound(value: Any) -> Optional[float]:
+        """Return a filter bound as a number, accepting a written date as well as an MJD.
+
+        Notes:
+            - A moment is stored as an MJD, which is the right thing to compute with and the
+              wrong thing to type or to put in a file. Accepting `2026-08-10 15:20:00` here is
+              what lets the interface hand over what the user picked in a calendar without
+              converting it -- and converting a date is model work, not interface work.
+        """
+        if value is None or isinstance(value, (int, float)):
+            return None if value is None else float(value)
+        try:
+            return float(Time(str(value).replace(" ", "T"), format="isot", scale="utc").mjd)
+        except (ValueError, TypeError):
+            # Narrow on purpose: an unparseable date is the only failure expected here, and
+            # its message says everything a traceback would.
+            logger.warning("'%s' is neither a number nor a date; ignoring that bound", value)
+            return None
 
     @staticmethod
     def _iso(mjd: float) -> Optional[str]:
