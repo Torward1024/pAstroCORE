@@ -445,3 +445,73 @@ def test_a_tab_declares_what_it_draws_rather_than_implementing_it(module_name):
     assert issubclass(widget_class, VisualizationTab), f"{module_name} is not on the base"
     assert widget_class.FORM is not None, f"{module_name} declares no form"
     assert widget_class.STORE_KEY, f"{module_name} declares no result to read"
+
+
+def test_redrawing_reuses_the_canvas_instead_of_rebuilding_it(project, observation,
+                                                              qt_application):
+    """A tab redraws whenever a filter moves, so anything it leaves behind is left behind
+    hundreds of times in a session.
+
+    Rebuilding the canvas per redraw built a `NavigationToolbar` per redraw, which is ten
+    `QAction`s each -- 400 of them over 40 redraws, because a widget's `deleteLater` is
+    scheduled rather than done. Measured: 60 redraws went from 14.60 s and +89.7 MB to 5.80 s
+    and +10.2 MB.
+
+    Checked on identity rather than on a count of objects, because a count is a fact about the
+    whole process and the suite has other windows in it.
+    """
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    manipulator = ScheduleManipulator(project)
+    manipulator.compute(obj=observation, method="run", time_step=600.0, recalculate=True,
+                        raise_on_error=False, calculations=["uv_coverage"])
+
+    widget = tab_class("p_tab_vis_uv_coverage")(manipulator, observation)
+    try:
+        widget.update_visualization()
+        canvas, toolbar = widget.canvas, widget.toolbar
+        assert canvas is not None, "nothing was drawn, so there is nothing to check"
+
+        for _ in range(5):
+            widget.update_visualization()
+            qt_application.processEvents()
+
+        assert widget.canvas is canvas, "the canvas was rebuilt"
+        assert widget.toolbar is toolbar, "the toolbar was rebuilt, and it is ten QActions"
+    finally:
+        widget.close()
+        widget.deleteLater()
+
+
+def test_a_replaced_figure_is_let_go_of(project, observation, qt_application):
+    """A figure holds its canvas and the canvas holds it back. Each has a C++ half whose
+    deletion is only scheduled, so the ring outlived the collector and one figure stayed per
+    redraw -- about 1.5 MB each. The canvas is unhooked from the outgoing figure by hand.
+
+    The collector is run here on purpose: what is claimed is that the figure is *collectable*,
+    not that it goes the instant it is replaced. Before the fix it was neither -- a full
+    `gc.collect(2)` left it exactly where it was, which is what made this worth finding.
+    """
+    import gc
+    import weakref
+
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    manipulator = ScheduleManipulator(project)
+    manipulator.compute(obj=observation, method="run", time_step=600.0, recalculate=True,
+                        raise_on_error=False, calculations=["uv_coverage"])
+
+    widget = tab_class("p_tab_vis_uv_coverage")(manipulator, observation)
+    try:
+        widget.update_visualization()
+        watched = weakref.ref(widget.figure)
+
+        widget.update_visualization()
+        qt_application.processEvents()
+        gc.collect(2)
+
+        assert watched() is None or watched() is widget.figure, (
+            "the figure that was replaced is still alive after a full collection")
+    finally:
+        widget.close()
+        widget.deleteLater()
