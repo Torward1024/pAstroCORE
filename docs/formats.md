@@ -86,11 +86,21 @@ writing a file that looks right and is not:
 | `axis_offset`, `antenna_motion` | axis offset in metres; slew rates and settling time |
 | `site_position_epoch` | when the coordinates were measured |
 
-**Where they come from is a decision, not a lookup**, and the honest options are: a per-station
-file the user maintains, or a station catalogue in the same spirit as `catalogs/telescopes.dat`.
-The second is better — it is one place, shared between experiments, and it is how `sched` and
-`sked` have always worked. Either way an exporter **refuses** rather than guesses: a missing
-`$DAS` is a file the correlator cannot use, and saying so at export time costs a minute.
+**Nobody here can know these, and that is not a gap to be filled.** Which backend is installed
+at a given station *today* is not published anywhere central, changes without notice, and is
+known to the station and to whoever is running the session. A scheduling tool that wrote a
+`$DAS` block would be stating something it cannot check, and a plausible wrong answer is worse
+than an absent one — the correlator would take it.
+
+So **pAstroCORE writes the VEX it knows and says what it left out.** The file carries the
+schedule, the sites, the antennas, the sources and the frequency setup; the blocks above are
+absent, and the exporter reports them by name so that whoever completes the file knows exactly
+what to add. That is a normal way to work — `sched` writes complete files because it is given a
+station catalogue that someone maintains; we are not that, and pretending otherwise is how a
+file that looks right reaches a correlator.
+
+A user who *does* have that information for their stations can supply it, and then it is
+written. What is not acceptable is inventing it.
 
 Two of these are close to things the model has and are worth taking properly:
 `antenna_motion` is a slew rate, which a scheduler wants anyway for slew time between scans;
@@ -127,8 +137,8 @@ first for this lab even though VEX is the wider format.
 
 1. **`IF` gains a sideband.** One field, with a migration, because every existing project has
    bands that do not say which half of the spectrum they are.
-2. **Station hardware comes from a catalogue**, and an exporter refuses when it is missing
-   rather than inventing it.
+2. **A VEX file is written as far as we can honestly write it**, with the hardware blocks absent
+   and named in the report rather than guessed at.
 3. **CFX first or VEX first is a real choice.** CFX is smaller, its consumer is down the
    corridor, and the space telescope is already modelled. VEX is the one that reaches everyone
    else, and its `$FREQ`/`$IF`/`$BBC` chain is where the difficulty lives.
