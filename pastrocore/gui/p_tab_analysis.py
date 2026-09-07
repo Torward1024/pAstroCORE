@@ -15,8 +15,8 @@ from typing import Any, Dict, List
 
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QDoubleValidator
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QHeaderView, QLineEdit, QListWidgetItem,
-                               QTableWidgetItem, QWidget)
+from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QHeaderView, QLineEdit,
+                               QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget)
 from msb_arch.utils.logging_setup import logger
 
 from pastrocore.gui.ui_tab_analysis import Ui_AnalysisTab
@@ -54,6 +54,11 @@ class AnalysisTab(QWidget):
         self.ui.resultCombo.currentIndexChanged.connect(self._result_changed)
         self.ui.askButton.clicked.connect(self.ask)
         self.ui.refreshButton.clicked.connect(self.refresh)
+        self.ui.exportButton.clicked.connect(self.export)
+
+        #: The answer on screen. Exporting writes *this* rather than asking again, so the file
+        #: and the table cannot disagree about what was filtered.
+        self._answer: List[Dict[str, Any]] = []
 
         self.refresh()
 
@@ -214,9 +219,43 @@ class AnalysisTab(QWidget):
             logger.error("Analysis refused: %s", answer.error)
             self.ui.statusLabel.setText(str(answer.error))
             self.ui.resultTable.setRowCount(0)
+            self._answer = []
+            self.ui.exportButton.setEnabled(False)
             return
 
-        self._show(answer.value or [], question)
+        self._answer = answer.value or []
+        self.ui.exportButton.setEnabled(bool(self._answer))
+        self._show(self._answer, question)
+
+    @Slot()
+    def export(self):
+        """Write what is on screen to a tab-separated file.
+
+        Notes:
+            - The rows already in hand are what is written, rather than the question being
+              asked again: a file that does not match the table it was exported from is worse
+              than no file.
+        """
+        if not self._answer:
+            return
+
+        question = self.ui.questionCombo.currentData()
+        suggested = f"{self.ui.resultCombo.currentData()}_{question}.txt"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export Analysis", suggested, "Tab-separated text (*.txt);;All files (*)")
+        if not path:
+            return
+
+        written = self.manipulator.export(
+            obj=self.manipulator.get_managing_object(), method="analysis",
+            path=path, rows=self._answer, raise_on_error=False)
+        if not written.ok:
+            logger.error("Could not export the analysis: %s", written.error)
+            QMessageBox.critical(self, "Error", f"Could not write the file: {written.error}")
+            return
+
+        self.ui.statusLabel.setText(
+            f"Wrote {written.value['rows']} row(s) to {written.value['path']}")
 
     def _show(self, rows: List[Dict[str, Any]], question: str):
         """Put a list of mappings in the table, with the columns they actually carry."""

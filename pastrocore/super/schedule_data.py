@@ -607,6 +607,63 @@ class ScheduleData(Persistence, Loader):
             return {"discarded": False, "held": held}
         return {"discarded": obj.discard_scratch_if_empty(), "held": held}
 
+    def _export_analysis(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
+        """Write the answer to an analysis question as a tab-separated file.
+
+        Args:
+            obj: The project or observation the question is about.
+            attributes: `path`, where to write (required). Either `rows` -- an answer already
+                in hand, which is what the tab passes so the file matches what is on screen --
+                or `question` plus whatever that question needs (`key`, `columns`, `group_by`,
+                `where`, `gaps`, `at_least`), which is what a command line passes.
+                `overwrite` (default True).
+
+        Returns:
+            Dict[str, Any]: `{"path": str, "rows": int, "columns": [...]}`.
+
+        Raises:
+            ValueError: If no `path` was given, or neither `rows` nor `question`.
+            FileExistsError: If the file is there and `overwrite` is off.
+
+        Notes:
+            - **The columns are whatever the answer carries**, in the order it gives them. A
+              handler that grows a field writes it here without this method being told, which
+              is the same reason the table in the interface holds no column list either.
+            - Tab-separated with a BOM and `NaN` for what is missing, exactly as a calculated
+              result is written: a person opens both in the same spreadsheet.
+            - Asking the question here rather than making the caller do it means a command
+              line is one command, and that the file and the screen cannot disagree.
+        """
+        path = attributes.get("path")
+        if not path:
+            raise ValueError("No 'path' given; there is nowhere to write the analysis")
+
+        rows = attributes.get("rows")
+        if rows is None:
+            question = attributes.get("question")
+            if not question:
+                raise ValueError("No 'rows' and no 'question'; there is nothing to write")
+            asked = {name: value for name, value in attributes.items()
+                     if name not in ("path", "question", "rows", "overwrite")}
+            rows = self._manipulator.analyze(obj=obj, method=question, **asked)
+
+        if not rows:
+            raise ValueError("The analysis produced nothing; there is nothing to write")
+
+        target = Path(path)
+        if target.exists() and not attributes.get("overwrite", True):
+            raise FileExistsError(f"'{target}' is already there")
+        target.parent.mkdir(parents=True, exist_ok=True)
+
+        columns = list(rows[0])
+        frame = pl.DataFrame(
+            [{column: row.get(column) for column in columns} for row in rows],
+            infer_schema_length=None)
+        frame.write_csv(str(target), separator="\t", include_bom=True, null_value="NaN")
+
+        logger.info("Exported %s analysis row(s) to '%s'", frame.height, target)
+        return {"path": str(target), "rows": frame.height, "columns": columns}
+
     #: What a packed project is called, and the name of the model inside it.
     ARCHIVE_SUFFIX = ".pastroz"
 
