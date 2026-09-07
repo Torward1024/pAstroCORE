@@ -1,6 +1,6 @@
 # pAstroCORE roadmap
 
-**1.3 shipped.** What follows is what comes next, and what was decided against.
+**1.4 shipped.** What follows is what comes next, and what was decided against.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy. The failure mode of a project like this is not
@@ -25,11 +25,14 @@ Nothing here is scheduled. In rough order of what would help most:
 
 | | Item | Why it is next |
 | --- | --- | --- |
-| **N1--N4** | Analysis | A calculation finishes and that is the end of it. Visibility is a boolean per station per moment, and nobody can ask when, for how long, or where the gaps are. It is also the input a scheduling optimiser needs |
-| **G1a** | The stylesheet editable from Preferences | The file exists and is loaded; changing it still means restarting |
-| **G6** | The nine visualization tabs share a base | ~2500 lines over nine files with the same nine methods each -- but no method is byte-identical, so they are parallel variations rather than copies. It needs parameterising, not lifting |
-| **L3** | Client-server | The last caller. Storage, identity, and what a long calculation looks like to a caller who is not watching |
-| **Formats** | VEX, CFX, SKED | A project of their own; nothing else waits on them |
+| **Formats** | VEX, CFX, SKED | The last thing anyone is blocked on: a schedule has to reach a correlator, and that is a contract with software nobody here controls |
+| **G4** | A most-recently-used list | Small, and asked for by anyone who opens the same project twice a day |
+| **G5** | The visualizer configured from a file | The plots are the one thing still styled in code |
+
+**L3, client-server, is deliberately parked.** Everything it needs is in place -- a request is
+data, a session is a file, a project is a file -- and none of that goes stale while it waits.
+What it needs decided is storage, identity, and what a long calculation looks like to a caller
+who is not watching, and those are answered by knowing who the callers are.
 
 ## Done
 
@@ -46,6 +49,7 @@ Nothing here is scheduled. In rough order of what would help most:
 | **1.2.0** | The move to `msb_arch` 2.0.1. Three rules became `@invariant` |
 | **1.2.2** | An audit. The orbit path was where everything was hiding |
 | **1.3.0** | **R6, T4, G1.** A project as one file; which results a change would spoil; one stylesheet |
+| **1.4.0** | **N1--N4, G6.** Asking something of the numbers, and nine tabs folded onto one base |
 
 ### What each of the recent ones cost
 
@@ -56,6 +60,8 @@ Nothing here is scheduled. In rough order of what would help most:
 | R6 | A project as one file | `export(method="package")`. 150 KB with results; **1 KB** with `results=False`, which is what a bug report wants. The command line takes a package anywhere it takes a project |
 | T4 | Which results a change invalidates | `compute(method="affected")`, asked *before* the change. Both halves derived: MSB's model graph says a `Telescope` is reached through `Scan` too, and each calculation's schema says what it reads |
 | G1 | One stylesheet | 235 places became one 700-line `.qss` applied to the `QApplication`. Rules are by **type**, so every button looks like every other button -- which is the point, and why some forms changed |
+| N1--N4 | Analysis | `analyze`: windows and gaps, coverage across stations, statistics with `range`, any of them over a whole project. Nothing names a column -- it is read from the schemas the calculations declare |
+| G6 | One base for the visualization tabs | 2562 lines to 832. What varies is four declarations; a tab needing more overrides one method |
 
 ### What was found on the way
 
@@ -79,35 +85,25 @@ Details of any of these are in `CHANGELOG.md` and in the commit that made the ch
 
 ## The detail
 
-### Analysis
+### Analysis -- done in 1.4.0
 
-A calculation finishes and that is the end of it. Visibility of a space telescope is a boolean
-per station per moment, and the questions anyone has of it -- when, for how long, where are the
-gaps, which station covers another's -- cannot be asked.
+Shipped as `analyze`, with its own page: [asking something of the numbers](analysis.md).
 
-**Scope rule, because "analysis" has no natural end:** an operation earns its place when it
-answers a question asked *while scheduling*. Not by being a statistic that exists.
+**The scope rule it was built under, because "analysis" has no natural end:** an operation earns
+its place when it answers a question asked *while scheduling*. Not by being a statistic that
+exists. Four earned it -- `describe`, `summary`, `windows`, `coverage` -- and that is where it
+stops. Histograms, correlations and fits are a different tool, and fitting and forecasting are
+out of scope by the line below.
 
-Most of these are one primitive: runs of consecutive `True` in a boolean column, grouped by
-station.
-
-| # | Item | Exit criterion |
-| --- | --- | --- |
-| N1 | **`ScheduleAnalyzer`** -- runs of a boolean | Windows, gaps, longest run and total, as a frame of intervals |
-| N2 | Coverage across stations | Visible from any, from all, from at least two -- without joining frames by hand |
-| N3 | Summaries a scheduler reads | Time on source per station, fraction of the scan usable, the worst gap |
-| N4 | The same over a whole project | "Which nights are usable" without a loop in the interface |
-
-Out of scope: fitting, forecasting, anything that recommends a schedule.
+The primitive underneath all of it is one thing: runs of consecutive `True` in a boolean column,
+grouped by station.
 
 ### Interface
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| G1a | The stylesheet editable from Preferences | Changes apply without a restart. A user file beside the settings already **replaces** the shipped one at start-up; what is missing is editing it from inside and re-applying |
 | G4 | A most-recently-used list | Survives a restart; a missing entry is removed when clicked |
 | G5 | The visualizer configured from a file, with its own tab | Plot appearance changes without a restart; the file is editable by hand |
-| G6 | One base class for the visualization tabs | Nine tabs, ~2500 lines, the same nine methods each -- and **no method byte-identical across them**, so this is parameterising nine variations rather than lifting a copy. The GUI smoke tests are the check |
 
 ### Formats
 
@@ -134,7 +130,7 @@ Order: VEX, CFX, SKED. Space telescopes out of scope for V2.
 
 | # | Item | Needs |
 | --- | --- | --- |
-| L3 | Client-server | The hard parts are storage, identity, and what a long calculation looks like to a caller who is not watching. Everything else is in place: a request is data, a session is a file, and a project is now one file too |
+| L3 | Client-server | **Parked, not dropped.** Storage, identity, and what a long calculation looks like to a caller who is not watching -- none of which can be decided without knowing who the callers are. Everything it would be built on is already there and does not go stale: a request is data, a session is a file, a project is a file |
 
 ## Considered and rejected
 

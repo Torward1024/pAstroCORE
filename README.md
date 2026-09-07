@@ -2,12 +2,12 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.0-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
+[![Version](https://img.shields.io/badge/version-1.4.0-brightgreen.svg)](https://github.com/Torward1024/pAstroCORE)
 [![Built on MSB](https://img.shields.io/badge/built%20on-MSB%202.0.1-8a2be2.svg)](https://github.com/Torward1024/MSB)
 
 A versatile tool for scheduling radio-astronomical observations.
 
-Version 1.3.0. The parts written under time pressure have been put in order, one measured
+Version 1.4.0. The parts written under time pressure have been put in order, one measured
 stage at a time. What has changed and why is in
 [the changelog](CHANGELOG.md); what is next is in [the roadmap](docs/ROADMAP.md).
 
@@ -37,8 +37,9 @@ identity, and `@invariant` -- a rule about a whole object, which is where the ru
 overlapping frequency bands, overlapping scans and duplicate observation codes now live.
 
 **Documentation**: [a first project](docs/guide.md) · [the calculations](docs/calculations.md) ·
-[from a terminal](docs/command-line.md) · [installing and running](docs/installing.md) ·
-[the roadmap](docs/ROADMAP.md). Every example on those pages runs as part of the test suite.
+[asking something of the numbers](docs/analysis.md) · [from a terminal](docs/command-line.md) ·
+[installing and running](docs/installing.md) · [the roadmap](docs/ROADMAP.md). Every example on
+those pages runs as part of the test suite.
 
 ## What it does
 
@@ -76,11 +77,32 @@ pastrocore-cli info survey.pastro
 pastrocore-cli run survey.pastro --only uv_coverage
 pastrocore-cli affected survey.pastro Telescope
 pastrocore-cli package survey.pastro to_send
+pastrocore-cli analyze survey.pastro windows --key source_visibility
 ```
 
 The same work from a terminal, and the same requests: `pastrocore-cli` is about two hundred
 lines and imports neither the interface nor Qt, which two tests hold. What it can do is in
 [from a terminal](docs/command-line.md).
+
+## Asking something of the numbers
+
+A calculation finishes and the numbers sit on disk. **Tools → Analysis** is what you ask of them
+afterwards -- when the source is up, for how long, where the gaps are, what the baselines reach:
+
+```bash
+pastrocore-cli analyze survey.pastro windows --key source_visibility
+pastrocore-cli analyze survey.pastro coverage --at-least 2
+pastrocore-cli analyze survey.pastro summary --key uv_coverage --group-by baseline
+```
+
+```text
+OBS_DEFAULT  1228+126 ALMA   2026-08-10T15:20:00 to 2026-08-11T00:15:00   540.0 min
+```
+
+Nothing in it names a column or a calculation: what can be asked of a result is read from the
+schema that result already declares, so one added tomorrow is analysable without a line
+changing -- and the tab offers exactly what the backend reports. The whole of it is in
+[asking something of the numbers](docs/analysis.md).
 
 ## Sending a project
 
@@ -189,7 +211,7 @@ pip install -r requirements.txt pytest
 python -m pytest tests/
 ```
 
-584 tests. The characterization suites recompute every calculation in
+635 tests. The characterization suites recompute every calculation in
 `tests/fixtures/test_project.pastro` and redraw every plot, comparing against what the project
 was saved with, so a change to any formula or any filter fails the build. Qt runs offscreen,
 so the GUI smoke tests need no display.
