@@ -1,8 +1,8 @@
 # base/frequencies.py
-from typing import Annotated, List, Optional, Union, Dict
+from typing import Annotated, Any, Dict, List, Optional, Union
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
-from msb_arch import InvariantError, Positive, invariant
+from msb_arch import InvariantError, Positive, Predicate, invariant
 from msb_arch.utils.logging_setup import logger
 import uuid
 
@@ -24,21 +24,111 @@ class IF(BaseEntity):
     Notes:
         - Polarizations must belong to a single group: circular, paired linear, or single linear.
         - Wavelength is calculated as C_MHZ_CM / frequency.
+        - **`frequency` is the sky frequency at the edge of the band**, and `sidebands` says
+          which way the band runs from it: `U` covers `[frequency, frequency + bandwidth]`,
+          `L` covers `[frequency - bandwidth, frequency]`. Both are real and different pieces
+          of spectrum, and a receiver commonly records both from one local oscillator.
     """
+
+    #: Which way a band runs from its sky frequency. The letters are VEX's and CFX's.
+    VALID_SIDEBANDS = ("U", "L")
+
     name: str
     frequency: Annotated[float, Positive()]
     bandwidth: Annotated[float, Positive()]
     polarizations: List[str]
+    sidebands: List[str]
     isactive: bool
 
     def __init__(self, *, name: str = None, frequency: float = 1000.0, bandwidth: float = 16.0,
-                 polarizations: Optional[Union[str, List[str]]] = None, isactive: bool = True):
-        """Initialize an IF object with frequency, bandwidth, polarizations, and active status."""
+                 polarizations: Optional[Union[str, List[str]]] = None,
+                 sidebands: Optional[Union[str, List[str]]] = None, isactive: bool = True):
+        """Initialize an IF object with frequency, bandwidth, polarizations, and active status.
+
+        Notes:
+            - **`sidebands` is a list, like `polarizations`, and for the same reason.** One
+              receiver setting at one sky frequency records what it records: a band with both
+              sidebands and both circular polarizations is four channels, and it is still one
+              setting. Making the sideband a property *of* the band would mean two `IF`s
+              carrying the same frequency, kept in step by hand.
+            - Defaults to `["U"]`, which is what every band written before this field existed
+              was implicitly taken to be: the overlap rule read a band as
+              `[frequency, frequency + bandwidth]`, and that is upper sideband.
+        """
         polarizations = self._validate_polarizations(polarizations)
         super().__init__(name=name, frequency=frequency, bandwidth=bandwidth,
-                         polarizations=polarizations, isactive=isactive)
+                         polarizations=polarizations,
+                         sidebands=self._validate_sidebands(sidebands), isactive=isactive)
         if name is None:
             name = f"if_{uuid.uuid4().hex[:32]}"
+
+    @staticmethod
+    def _validate_sidebands(sidebands: Any) -> List[str]:
+        """Return the sidebands as a list of `U` and `L`, accepting the words people write.
+
+        Raises:
+            ValueError: If any of them is neither.
+            TypeError: If a list holds something that is not a string.
+        """
+        if sidebands is None:
+            return ["U"]
+        if isinstance(sidebands, str):
+            sidebands = [sidebands]
+        if not all(isinstance(one, str) for one in sidebands):
+            raise TypeError("Sidebands must be a string or a list of strings")
+
+        spelled = {"USB": "U", "UPPER": "U", "LSB": "L", "LOWER": "L"}
+        found = []
+        for one in sidebands:
+            letter = spelled.get(one.strip().upper(), one.strip().upper())
+            if letter not in IF.VALID_SIDEBANDS:
+                raise ValueError(f"Sideband must be 'U' or 'L', got {one!r}")
+            if letter not in found:
+                found.append(letter)
+        return found or ["U"]
+
+    def get_sidebands(self) -> List[str]:
+        """Which sidebands this band records: `U`, `L`, or both."""
+        return self.sidebands
+
+    def set_sidebands(self, sidebands: Union[str, List[str]]) -> None:
+        """Set which sidebands are recorded. Takes `U`/`USB`/`upper`, `L`/`LSB`/`lower`."""
+        self.sidebands = self._validate_sidebands(sidebands)
+
+    def get_band(self) -> tuple:
+        """Return the spectrum this band actually covers, as `(low, high)` in MHz.
+
+        Notes:
+            - The one place a sideband is turned into numbers. Everything that needs to know
+              what a band covers -- the overlap rule, an exporter, a person asking what was
+              recorded -- asks here rather than adding or subtracting a bandwidth itself.
+            - With both sidebands it spans `[frequency - bandwidth, frequency + bandwidth]`:
+              one setting recording either side of its sky frequency covers both.
+        """
+        low = self.frequency - self.bandwidth if "L" in self.sidebands else self.frequency
+        high = self.frequency + self.bandwidth if "U" in self.sidebands else self.frequency
+        return (low, high)
+
+    def get_channel_count(self) -> int:
+        """How many channels this one setting records: a polarization times a sideband.
+
+        Notes:
+            - What VEX writes as `chan_def` and CFX as `IF =`. One band at 4828 MHz with two
+              circular polarizations and both sidebands is four of them, which is exactly what
+              the RadioAstron example records.
+        """
+        return max(len(self.polarizations), 1) * len(self.sidebands)
+
+    def get_center_frequency(self) -> float:
+        """The middle of what this band covers, in MHz.
+
+        Notes:
+            - `frequency` is an edge, unless both sidebands are recorded, in which case it is
+              already the middle. For anything wanting one representative frequency -- a
+              wavelength to scale a baseline by -- this is the honest answer.
+        """
+        low, high = self.get_band()
+        return (low + high) / 2.0
 
     def get_frequency_wavelength(self) -> float:
         """Calculate the wavelength corresponding to the IF frequency.
@@ -78,6 +168,7 @@ class IF(BaseEntity):
             frequency=self.frequency,
             bandwidth=self.bandwidth,
             polarizations=self.polarizations.copy(),
+            sidebands=list(self.sidebands),
             isactive=self.isactive
         )
 
@@ -171,7 +262,10 @@ class Frequencies(BaseContainer[IF]):
             if if_obj.bandwidth <= 0:
                 raise InvariantError(
                     f"IF '{name}' has a bandwidth of {if_obj.bandwidth}; it must be positive")
-            bands.append((if_obj.frequency, if_obj.frequency + if_obj.bandwidth, name))
+            # Asked of the band rather than added here: a lower sideband runs *down* from its
+            # sky frequency, so 4828 U and 4828 L are adjacent rather than the same band twice.
+            low, high = if_obj.get_band()
+            bands.append((low, high, name))
 
         bands.sort()
         for (start, end, name), (next_start, next_end, next_name) in zip(bands, bands[1:]):
@@ -199,6 +293,7 @@ class Frequencies(BaseContainer[IF]):
         frequency: float = 1000.0,
         bandwidth: float = 16.0,
         polarizations: Optional[Union[str, List[str]]] = None,
+        sidebands: Optional[Union[str, List[str]]] = None,
         isactive: bool = True,
     ) -> None:
         """Create and add a new IF object to the collection.
@@ -208,6 +303,7 @@ class Frequencies(BaseContainer[IF]):
             frequency (float): The IF frequency in MHz. Default is 1000.0 MHz.
             bandwidth (float): The bandwidth in MHz. Default is 16.0 MHz.
             polarizations (Optional[Union[str, List[str]]]): Polarization codes. Default is None (empty list).
+            sidebands (str | List[str]): Which sidebands are recorded -- `U`, `L`, or both.
             isactive (bool): Whether the IF is active. Default is True.
 
         Raises:
@@ -220,6 +316,7 @@ class Frequencies(BaseContainer[IF]):
             frequency=frequency,
             bandwidth=bandwidth,
             polarizations=polarizations,
+            sidebands=sidebands,
             isactive=isactive,
         )
         self.add(new_if)
@@ -231,6 +328,7 @@ class Frequencies(BaseContainer[IF]):
         frequency: Optional[float] = None,
         bandwidth: Optional[float] = None,
         polarizations: Optional[Union[str, List[str]]] = None,
+        sidebands: Optional[Union[str, List[str]]] = None,
         isactive: Optional[bool] = None,
     ) -> None:
         """Update an existing IF object in the collection with new parameters.
@@ -257,6 +355,7 @@ class Frequencies(BaseContainer[IF]):
         temp_frequency = frequency if frequency is not None else if_obj.frequency
         temp_bandwidth = bandwidth if bandwidth is not None else if_obj.bandwidth
         temp_polarizations = polarizations if polarizations is not None else if_obj.polarizations
+        temp_sidebands = sidebands if sidebands is not None else if_obj.sidebands
         temp_isactive = isactive if isactive is not None else if_obj.isactive
 
         if temp_frequency <= 0:
@@ -271,6 +370,7 @@ class Frequencies(BaseContainer[IF]):
             frequency=temp_frequency,
             bandwidth=temp_bandwidth,
             polarizations=temp_polarizations,
+            sidebands=temp_sidebands,
             isactive=temp_isactive,
         )
 
@@ -281,6 +381,8 @@ class Frequencies(BaseContainer[IF]):
             params["bandwidth"] = bandwidth
         if polarizations is not None:
             params["polarizations"] = temp_if.polarizations
+        if sidebands is not None:
+            params["sidebands"] = temp_if.sidebands
         if isactive is not None:
             params["isactive"] = isactive
 
