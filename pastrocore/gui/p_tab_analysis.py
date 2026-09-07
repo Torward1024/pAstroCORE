@@ -11,12 +11,13 @@ The layout is `tab_analysis.ui`, like every other form. What the form cannot hol
 *contents* of those boxes -- they exist only once a project has been calculated -- and the
 filter row, which is one combo per categorical column of whichever result is chosen.
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import QDateTime, Qt, Slot
 from PySide6.QtGui import QDoubleValidator
-from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QHeaderView, QLineEdit,
-                               QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget)
+from PySide6.QtWidgets import (QComboBox, QDateTimeEdit, QFileDialog, QHBoxLayout, QHeaderView,
+                               QLineEdit, QListWidgetItem, QMessageBox, QTableWidgetItem,
+                               QWidget)
 from msb_arch.utils.logging_setup import logger
 
 from pastrocore.gui.ui_tab_analysis import Ui_AnalysisTab
@@ -32,12 +33,16 @@ class AnalysisTab(QWidget):
 
     #: What can be asked. The labels are this module's; every *choice* inside them comes from
     #: `describe`, which is the difference between a tab that lists things and one that asks.
-    QUESTIONS = (("summary", "The numbers -- min, max, mean, range"),
-                 ("windows", "Windows -- runs of a true/false column"),
-                 ("coverage", "Coverage -- across stations, at once"))
+    QUESTIONS = (("summary", "Statistics (min, max, mean, range)"),
+                 ("windows", "Time windows (and gaps)"),
+                 ("coverage", "Coverage across stations"))
 
     #: Columns of an answer that name what a row is about, for the interval summary line.
     SUBJECTS = ("source_name", "target_code", "telescope_code", "baseline")
+
+    #: Columns that are a moment rather than a plain number, and get a calendar instead of
+    #: a text box. The same three the analyzer reports in ISO.
+    TIME_COLUMNS = ("time", "start", "end")
 
     def __init__(self, manipulator, parent=None):
         super().__init__(parent)
@@ -46,6 +51,8 @@ class AnalysisTab(QWidget):
         self.manipulator = manipulator
         self.described: Dict[str, Any] = {}
         self._filter_widgets: Dict[str, QComboBox] = {}
+        self._range_widgets: Dict[str, Any] = {}
+        self._time_widgets: Dict[str, Any] = {}
 
         for name, label in self.QUESTIONS:
             self.ui.questionCombo.addItem(label, name)
@@ -83,7 +90,11 @@ class AnalysisTab(QWidget):
         self.ui.resultCombo.blockSignals(True)
         self.ui.resultCombo.clear()
         for key in sorted(self.described):
-            self.ui.resultCombo.addItem(f"{key}  ({self.described[key]['rows']} rows)", key)
+            entry = self.described[key]
+            # The words the calculation dialog uses, not the store key: "Telescope
+            # Visibility" rather than telescope_visibility.
+            self.ui.resultCombo.addItem(
+                f"{entry.get('label') or key}  ({entry['rows']:,} rows)", key)
         self.ui.resultCombo.blockSignals(False)
 
         if chosen:
@@ -118,6 +129,7 @@ class AnalysisTab(QWidget):
             self.ui.filtersForm.removeRow(0)
         self._filter_widgets = {}
         self._range_widgets = {}
+        self._time_widgets = {}
 
         for column, values in sorted((entry.get("values") or {}).items()):
             box = QComboBox()
@@ -127,23 +139,65 @@ class AnalysisTab(QWidget):
             self.ui.filtersForm.addRow(column, box)
             self._filter_widgets[column] = box
 
-        # A range per numeric column: "baselines longer than 5000", "elevation above 20".
-        # Left blank means unbounded at that end, which is why these are line edits rather
-        # than spin boxes -- a spin box has no way to mean "no limit".
+        # A range per number, filled with the range that is actually there. An empty pair of
+        # boxes makes a user guess what the numbers even look like; showing the span they
+        # already have turns the filter into narrowing rather than searching.
+        spans = entry.get("ranges") or {}
         for column in entry.get("numeric", []):
-            row = QWidget()
-            layout = QHBoxLayout(row)
-            layout.setContentsMargins(0, 0, 0, 0)
-            low, high = QLineEdit(), QLineEdit()
-            low.setPlaceholderText("from")
-            high.setPlaceholderText("to")
-            for edit in (low, high):
-                edit.setValidator(QDoubleValidator())
-                layout.addWidget(edit)
-            self.ui.filtersForm.addRow(column, row)
-            self._range_widgets[column] = (low, high)
+            span = spans.get(column)
+            if column in self.TIME_COLUMNS:
+                self._add_time_range(column, span)
+            else:
+                self._add_number_range(column, span)
 
         self._show_what_this_question_needs()
+
+    def _add_number_range(self, column: str, span: Optional[Dict[str, float]]):
+        """Two boxes, filled with the column's own span."""
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        low, high = QLineEdit(), QLineEdit()
+        low.setPlaceholderText("from")
+        high.setPlaceholderText("to")
+        if span:
+            low.setText(f"{span['min']:.6g}")
+            high.setText(f"{span['max']:.6g}")
+        for edit in (low, high):
+            edit.setValidator(QDoubleValidator())
+            layout.addWidget(edit)
+        self.ui.filtersForm.addRow(column, row)
+        self._range_widgets[column] = (low, high)
+
+    def _add_time_range(self, column: str, span: Optional[Dict[str, float]]):
+        """A pair of date-and-time pickers, spelled as the rest of the application spells time.
+
+        Notes:
+            - A moment is stored as an MJD, which is the right thing to compute with and the
+              wrong thing to type: nobody knows what 61262.2083 is. These read
+              `yyyy-MM-dd HH:mm:ss` with a calendar, the same as the scan editor, and convert.
+        """
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        first, last = QDateTimeEdit(), QDateTimeEdit()
+        for picker in (first, last):
+            picker.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+            picker.setCalendarPopup(True)
+            layout.addWidget(picker)
+        # The dates come written out by `describe`, and go back the same way: converting a
+        # moment is model work, and the analyzer accepts a written date as a filter bound
+        # precisely so that this does not have to know what an MJD is.
+        if span and span.get("min_iso") and span.get("max_iso"):
+            first.setDateTime(self._parse(span["min_iso"]))
+            last.setDateTime(self._parse(span["max_iso"]))
+        self.ui.filtersForm.addRow(column, row)
+        self._time_widgets[column] = (first, last)
+
+    @staticmethod
+    def _parse(written: str) -> QDateTime:
+        """An ISO moment as a Qt date and time."""
+        return QDateTime.fromString(written.split(".")[0], "yyyy-MM-ddTHH:mm:ss")
 
     def _show_what_this_question_needs(self):
         """Show only the controls the chosen question uses, and say when it cannot be asked."""
@@ -192,6 +246,10 @@ class AnalysisTab(QWidget):
                         logger.debug("Ignoring '%s' as a bound for %s", text, column)
             if bounds:
                 where[column] = bounds
+
+        for column, (first, last) in getattr(self, "_time_widgets", {}).items():
+            where[column] = {"from": first.dateTime().toString("yyyy-MM-dd HH:mm:ss"),
+                             "to": last.dateTime().toString("yyyy-MM-dd HH:mm:ss")}
         return where
 
     @Slot()
