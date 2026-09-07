@@ -1,6 +1,6 @@
 # pAstroCORE documentation
 
-Six pages, and every Python example on them runs as part of the test suite.
+Seven pages, and every Python example on them runs as part of the test suite.
 
 | | |
 | --- | --- |
@@ -9,6 +9,7 @@ Six pages, and every Python example on them runs as part of the test suite.
 | [**Asking something of the numbers**](analysis.md) | Windows, gaps, coverage and statistics over results that already exist |
 | [**From a terminal**](command-line.md) | `pastrocore-cli`: what a project holds, calculating, exporting, and sessions |
 | [**Installing and running**](installing.md) | The command, where its files live, the settings worth knowing |
+| [**Getting a schedule to a correlator**](formats.md) | The map of VEX and CFX: what the model answers, what a station must supply, what is none of our business |
 | [**The roadmap**](ROADMAP.md) | What is done, what comes next, and what was decided against |
 
 ## The shape of it in one paragraph

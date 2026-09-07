@@ -25,7 +25,7 @@ Nothing here is scheduled. In rough order of what would help most:
 
 | | Item | Why it is next |
 | --- | --- | --- |
-| **Formats** | VEX, CFX, SKED | The last thing anyone is blocked on: a schedule has to reach a correlator, and that is a contract with software nobody here controls |
+| **Formats** | CFX, then VEX | The last thing anyone is blocked on: a schedule has to reach a correlator. [The map is done](formats.md); the first code is a sideband on `IF` |
 | **G4** | A most-recently-used list | Small, and asked for by anyone who opens the same project twice a day |
 | **G5** | The visualizer configured from a file | The plots are the one thing still styled in code |
 
@@ -114,17 +114,26 @@ reads. **SKED** is what much geodetic VLBI is scheduled in.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| V1 | Map the model onto the VEX blocks | Every required block, where its content comes from, what must be asked of the user. **The shared reading of the model is decided here**, since it is most of what CFX and SKED need |
+| ~~V1~~ | ~~Map the model onto the VEX blocks~~ | **Done.** [The map](formats.md), written against `re03fr.vex` and the CFX of the same experiment. It found the one thing the model is missing -- a **sideband** on `IF`, which is physics rather than paperwork -- and drew the line the rest of the work follows: a schedule pAstroCORE owns, station hardware it must be given, and session facts that are none of its business |
 | V2 | Export ground-telescope schedules | A file a VEX parser accepts, for a project the lab ran |
 | V3 | Validate against a parser we did not write | Not optional. A file that looks right to its author is how you learn months later at a correlator that it was not |
 | V4 | Characterization tests | A change that alters the file fails the build |
 | V6 | Decide what happens to what the model cannot represent -- **before V5** | An importer that drops what it does not model, feeding an exporter that writes only what the model knows, is a lossy round trip that looks lossless. Keep unrecognised blocks verbatim, or refuse to export a lossily imported file |
 | V5 | Import VEX | A real file from an experiment this lab did not schedule loads and can be analysed. Export-then-import does **not** replace V3: a round trip passes when reader and writer are wrong the same way |
 | X1 | **`ScheduleCFX`** | A file the ASC correlator accepts, checked against a real one |
-| K1 | **`ScheduleSKED`** | A SKED file a parser accepts, and a real one read back |
+| ~~K1~~ | ~~**`ScheduleSKED`**~~ | **Dropped.** No file that is certainly sked output to check against, and an exporter written against a guess is the failure V3 exists to prevent. It waits for a real one |
 | A2 | One `Super` per format | Nothing about any format appears in `ScheduleData` |
 
-Order: VEX, CFX, SKED. Space telescopes out of scope for V2.
+Order: **CFX, then VEX** -- reversed after the map. CFX is smaller, its consumer is down the
+corridor at the ASC, and it models the spacecraft as an ordinary station with an orbit file,
+which is the one thing this model already does and `sched` does not. VEX reaches everyone else,
+and its `$FREQ`/`$IF`/`$BBC` chain is where the difficulty is.
+
+Space telescopes out of scope for V2, which is a VEX limitation rather than ours.
+
+**Before either: `IF` gains a sideband.** An `IF` is a frequency and a bandwidth, so 4828 MHz
+upper and 4828 MHz lower are the same object to this model and different halves of the spectrum
+in fact -- the example experiment records four channels where this model sees one band.
 
 ### Reaching it from somewhere other than the window
 
