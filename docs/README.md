@@ -1,11 +1,12 @@
 # pAstroCORE documentation
 
-Five pages, and every Python example on them runs as part of the test suite.
+Six pages, and every Python example on them runs as part of the test suite.
 
 | | |
 | --- | --- |
 | [**A first project**](guide.md) | Start here. Build an observation, calculate something, read the numbers back, save it |
 | [**The calculations**](calculations.md) | What each one produces, what it needs, and what makes a result go stale |
+| [**Asking something of the numbers**](analysis.md) | Windows, gaps, coverage and statistics over results that already exist |
 | [**From a terminal**](command-line.md) | `pastrocore-cli`: what a project holds, calculating, exporting, and sessions |
 | [**Installing and running**](installing.md) | The command, where its files live, the settings worth knowing |
 | [**The roadmap**](ROADMAP.md) | What is done, what comes next, and what was decided against |

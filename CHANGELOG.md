@@ -8,6 +8,86 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.4.0] - 2026-09-07
+
+The numbers stopped being something you could only look at a plot of, and nine tabs became one.
+
+### Added
+
+- **`analyze`: asking something of results that already exist (N1--N4).** A calculation
+  finished and that was the end of it. Visibility is a boolean per station per moment, and
+  "when is it up, for how long, where are the gaps" could not be asked at all -- nor could
+  "what does this baseline reach", which is a `max` over one column.
+
+  A fifth operation, because it *reads* results rather than producing them. Not `calculate`: a
+  `_calculate_windows` would appear in the catalogue as a calculation called "Windows", offered
+  in the dialog beside UV Coverage.
+
+  | Method | Answers |
+  | --- | --- |
+  | `describe` | what can be asked of each result, and what values its categories take |
+  | `summary` | count, missing, min, max, mean, median, std and **range**, grouped and sliced |
+  | `windows` | runs of a boolean as intervals -- or the gaps between them |
+  | `coverage` | how many stations see it at the same moment; two is the least that makes a baseline |
+
+  Any of them over a whole project, each row naming its observation. **Nothing here names a
+  column or a calculation** -- all of it is read from the schemas the calculations already
+  declare, so one added tomorrow is analysable without a line changing.
+
+  A new page describes it: [asking something of the numbers](docs/analysis.md).
+
+- **Tools → Analysis**, a tab rather than a dialog: analysis is a filter changed and the
+  question asked again, which a modal turns into reassembling the choice each time. It holds no
+  list of its own -- every choice on it is filled from `describe`.
+
+- **Exporting an answer.** `export(method="analysis")`, tab-separated with a BOM exactly as a
+  calculated result is written, so both open in the same spreadsheet. The command line passes
+  the question and gets it asked and written in one request; the tab passes the rows it already
+  has, so the file cannot disagree with the table it came from.
+
+- **`pastrocore-cli analyze`**, with `--where`, `--group-by`, `--gaps`, `--at-least` and `--to`.
+
+### Changed
+
+- **The nine visualization tabs share a base (G6).** 2562 lines became 832. They had the same
+  nine methods each and **no two were byte-identical** -- parallel variations, with the
+  differences that mattered buried among the ones that did not. What varies is four
+  declarations: which form, which result, which filters, which field of the answer counts what
+  was drawn. A tab needing more overrides one method.
+
+  Two tests came with it, because building a tab proved nothing: one draws every tab against a
+  calculated project and fails on a blank canvas, one refuses a tab that reimplements the shared
+  machinery instead of declaring.
+
+- **The analysis tab, tidied** after being used: results are listed as *Telescope Visibility*
+  rather than `telescope_visibility` -- from the same catalogue the calculation dialog uses --
+  a moment is a calendar reading `yyyy-MM-dd HH:mm:ss` like the scan editor rather than a box
+  wanting an MJD, every numeric filter opens filled with the span that is actually there, and
+  the button says **Show** rather than "Ask".
+
+- **Package Project, Open Package and Analysis are in `main_window.ui`**, where Designer can see
+  them. They had been `QAction`s built in code.
+
+### Fixed
+
+- **`describe` read the whole project into memory.** It called `collect()` on every result of
+  every observation just to describe them -- the one thing the parquet store exists to avoid. A
+  row count now comes from the file's own metadata, and the distinct values of a column read
+  that column and nothing else.
+
+- **A window was short by a few sampling steps.** The step was measured across a frame holding
+  one row per station per moment -- the same instant repeated -- so it came out wrong. Windows
+  and gaps now add up to the span exactly, which is the arithmetic that says both are right.
+
+- **NaN was being averaged.** A calculation writes NaN for a moment it has no answer for, and
+  360 of 576 elevations in the fixture project are exactly that; including them made the median
+  come out NaN. They are excluded and reported as `missing`, since how many moments have no
+  answer is itself worth knowing.
+
+### Upgrading from 1.3.0
+
+Nothing to do.
+
 ## [1.3.0] - 2026-09-03
 
 Three roadmap items, and the last place the interface reached past the orchestrator.
