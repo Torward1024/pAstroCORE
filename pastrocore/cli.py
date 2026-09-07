@@ -205,6 +205,19 @@ def analyze(arguments) -> int:
     if arguments.what == "describe":
         asked = {"key": arguments.key}
 
+    if arguments.to and arguments.what != "describe":
+        # Asked and written in one request, so the file and what would have been printed
+        # cannot disagree.
+        written = manipulator.export(obj=project, method="analysis", path=arguments.to,
+                                     question=arguments.what, raise_on_error=False, **asked)
+        if not written.ok:
+            print(f"  {written.error}")
+            return 1
+        print(f"{written.value['path']}")
+        print(f"  {written.value['rows']} row(s), "
+              f"{len(written.value['columns'])} column(s)")
+        return 0
+
     answer = manipulator.analyze(obj=project, method=arguments.what, raise_on_error=False,
                                  **asked)
     if not answer.ok:
@@ -416,6 +429,8 @@ def build_parser() -> argparse.ArgumentParser:
                        help="windows: the runs of false rather than of true")
     asked.add_argument("--at-least", type=int, default=1, dest="at_least",
                        help="coverage: how many stations at once (1)")
+    asked.add_argument("--to", metavar="FILE",
+                       help="write the answer to a tab-separated file instead of printing it")
     asked.set_defaults(run=analyze)
 
     packed = commands.add_parser("package", help="pack a project into one file, to send")

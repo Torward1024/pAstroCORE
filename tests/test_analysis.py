@@ -332,3 +332,94 @@ def test_the_tab_refuses_windows_on_a_result_with_no_boolean(analysed, qt_applic
     tab.ui.resultCombo.setCurrentIndex(tab.ui.resultCombo.findData("source_visibility"))
     assert tab.ui.askButton.isEnabled()
     tab.deleteLater()
+
+
+# --- exporting an answer ---------------------------------------------------------------------
+
+def test_an_analysis_is_written_as_the_results_are(analysed, tmp_path):
+    """Tab-separated with a BOM, exactly as a calculated result is written: a person opens both
+    in the same spreadsheet."""
+    core, project, _ = analysed
+    destination = tmp_path / "summary.txt"
+
+    written = core.export(obj=project, method="analysis", path=str(destination),
+                          question="summary", key="uv_coverage", columns=["u"],
+                          raise_on_error=False)
+
+    assert written.ok, written.error
+    lines = destination.read_text(encoding="utf-8-sig").splitlines()
+    assert lines[0].split("\t")[:3] == ["observation", "column", "count"]
+    assert len(lines) - 1 == written.value["rows"]
+
+
+def test_the_columns_written_are_the_ones_the_answer_carries(analysed, tmp_path):
+    """No column list here either: a handler that grows a field writes it without being told."""
+    core, project, _ = analysed
+    destination = tmp_path / "windows.txt"
+
+    rows = core.analyze(obj=project, method="windows", key="source_visibility")
+    written = core.export(obj=project, method="analysis", path=str(destination), rows=rows)
+
+    assert written["columns"] == list(rows[0])
+    assert destination.read_text(encoding="utf-8-sig").splitlines()[0].split("\t") == list(rows[0])
+
+
+def test_exporting_an_empty_answer_is_refused(analysed, tmp_path):
+    """Rather than writing a file with a header and nothing under it, which reads as "there is
+    nothing there" instead of "that question does not apply"."""
+    core, project, _ = analysed
+
+    written = core.export(obj=project, method="analysis", path=str(tmp_path / "nothing.txt"),
+                          rows=[], raise_on_error=False)
+
+    assert not written.ok
+    assert not (tmp_path / "nothing.txt").exists()
+
+
+def test_exporting_without_a_question_or_rows_is_refused(analysed, tmp_path):
+    core, project, _ = analysed
+
+    written = core.export(obj=project, method="analysis", path=str(tmp_path / "x.txt"),
+                          raise_on_error=False)
+
+    assert not written.ok
+
+
+def test_the_command_line_writes_the_answer_to_a_file(analysed, tmp_path, capsys):
+    from pastrocore import cli
+
+    core, project, _ = analysed
+    root = tmp_path / "proj.pastro"
+    project.save(str(root))
+    destination = tmp_path / "windows.txt"
+
+    assert cli.main(["analyze", str(root), "windows", "--key", "source_visibility",
+                     "--to", str(destination)]) == 0
+    assert destination.is_file()
+    assert "row(s)" in capsys.readouterr().out
+    assert "duration" in destination.read_text(encoding="utf-8-sig").splitlines()[0]
+
+
+def test_the_tab_exports_what_is_on_screen(analysed, tmp_path, qt_application, monkeypatch):
+    """The rows in hand are written, not the question asked again: a file that does not match
+    the table it came from is worse than no file."""
+    from PySide6.QtWidgets import QFileDialog
+
+    from pastrocore.gui.p_tab_analysis import AnalysisTab
+
+    core, _, _ = analysed
+    tab = AnalysisTab(core)
+    assert not tab.ui.exportButton.isEnabled(), "nothing has been asked yet"
+
+    tab.ui.resultCombo.setCurrentIndex(tab.ui.resultCombo.findData("uv_coverage"))
+    tab.ask()
+    assert tab.ui.exportButton.isEnabled()
+
+    destination = tmp_path / "from_the_tab.txt"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName",
+                        staticmethod(lambda *args, **kwargs: (str(destination), "")))
+    tab.export()
+
+    written = destination.read_text(encoding="utf-8-sig").splitlines()
+    assert len(written) - 1 == tab.ui.resultTable.rowCount()
+    tab.deleteLater()

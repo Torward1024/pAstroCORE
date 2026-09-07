@@ -110,6 +110,12 @@ class Ui_AnalysisTab(object):
 
         self.buttonRow.addItem(self.buttonSpacer)
 
+        self.exportButton = QPushButton(AnalysisTab)
+        self.exportButton.setObjectName(u"exportButton")
+        self.exportButton.setEnabled(False)
+
+        self.buttonRow.addWidget(self.exportButton)
+
         self.refreshButton = QPushButton(AnalysisTab)
         self.refreshButton.setObjectName(u"refreshButton")
 
@@ -151,6 +157,7 @@ class Ui_AnalysisTab(object):
         self.gapsCheck.setText(QCoreApplication.translate("AnalysisTab", u"Gaps instead of windows", None))
         self.atLeastLabel.setText(QCoreApplication.translate("AnalysisTab", u"Stations at once", None))
         self.filtersBox.setTitle(QCoreApplication.translate("AnalysisTab", u"Only these", None))
+        self.exportButton.setText(QCoreApplication.translate("AnalysisTab", u"Export...", None))
         self.refreshButton.setText(QCoreApplication.translate("AnalysisTab", u"Refresh", None))
         self.askButton.setText(QCoreApplication.translate("AnalysisTab", u"Ask", None))
         self.statusLabel.setText("")

@@ -134,6 +134,16 @@
       </spacer>
      </item>
      <item>
+      <widget class="QPushButton" name="exportButton">
+       <property name="text">
+        <string>Export...</string>
+       </property>
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="refreshButton">
        <property name="text">
         <string>Refresh</string>
