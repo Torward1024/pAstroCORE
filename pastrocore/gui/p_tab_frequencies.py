@@ -29,8 +29,12 @@ class FrequenciesTab(QWidget):
         self.ui.search.setPlaceholderText("Search frequencies...")
 
         self.model = CustomStandardItemModel()
+        # "Covers" is here because `IF (MHz)` is an edge rather than a middle: 4828 upper and
+        # 4844 lower are the same 16 MHz, and the column that shows it is the one that makes
+        # two rows recognisable as the same spectrum.
         self.model.setHorizontalHeaderLabels([
-            "#", " ", "IF ID", "IF (MHz)", "λ (cm)", "Bandwidth (MHz)", "Polarizations"
+            "#", " ", "IF ID", "IF (MHz)", "λ (cm)", "Bandwidth (MHz)", "Sidebands",
+            "Covers (MHz)", "Polarizations"
         ])
         self.proxy_model = CustomSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
@@ -388,6 +392,15 @@ class FrequenciesTab(QWidget):
                     polarizations = self.manipulator.inspect(if_obj, get="polarizations")
                     polarizations = ", ".join(polarizations) if polarizations else "N/A"
 
+                    sidebands = self.manipulator.inspect(if_obj, get_sidebands=None)
+                    sidebands = "+".join(sidebands) if sidebands else "N/A"
+
+                    # Asked of the band rather than added up here: it is the model that knows
+                    # which way a sideband runs from a sky frequency.
+                    band = self.manipulator.inspect(if_obj, get_band=None)
+                    covers = (f"{band[0]:.0f} - {band[1]:.0f}"
+                              if isinstance(band, (tuple, list)) and len(band) == 2 else "N/A")
+
                     row = [
                         QStandardItem(str(idx)),
                         active_item,
@@ -395,6 +408,8 @@ class FrequenciesTab(QWidget):
                         QStandardItem(f"{frequency:.0f}" if isinstance(frequency, (int, float)) else str(frequency)),
                         QStandardItem(f"{wavelength:.2f}" if isinstance(wavelength, (int, float)) else str(wavelength)),
                         QStandardItem(f"{bandwidth:.0f}" if isinstance(bandwidth, (int, float)) else str(bandwidth)),
+                        QStandardItem(sidebands),
+                        QStandardItem(covers),
                         QStandardItem(polarizations)
                     ]
                     for item in row:

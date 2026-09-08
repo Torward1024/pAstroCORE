@@ -483,17 +483,19 @@ def test_redrawing_reuses_the_canvas_instead_of_rebuilding_it(project, observati
         widget.deleteLater()
 
 
-def test_a_replaced_figure_is_let_go_of(project, observation, qt_application):
-    """A figure holds its canvas and the canvas holds it back. Each has a C++ half whose
-    deletion is only scheduled, so the ring outlived the collector and one figure stayed per
-    redraw -- about 1.5 MB each. The canvas is unhooked from the outgoing figure by hand.
+def test_no_figure_is_replaced_at_all(project, observation, qt_application):
+    """The tab owns one figure and asks the visualizer to draw *into* it, so a redraw creates
+    nothing to let go of.
 
-    The collector is run here on purpose: what is claimed is that the figure is *collectable*,
-    not that it goes the instant it is replaced. Before the fix it was neither -- a full
-    `gc.collect(2)` left it exactly where it was, which is what made this worth finding.
+    Swapping a new `Figure` into an existing canvas was the first attempt at this. It stopped
+    the figures accumulating -- a figure holds its canvas and the canvas holds it back, and
+    each has a C++ half whose deletion is only scheduled, so the ring outlived the collector at
+    about 1.5 MB a redraw -- but it is not something matplotlib supports: the navigation
+    toolbar's view stack went on referring to axes that had been cleared, and a full run of the
+    suite ended in an access violation inside Qt. Owning the figure removes the swap, and with
+    it both problems.
     """
     import gc
-    import weakref
 
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
@@ -504,14 +506,122 @@ def test_a_replaced_figure_is_let_go_of(project, observation, qt_application):
     widget = tab_class("p_tab_vis_uv_coverage")(manipulator, observation)
     try:
         widget.update_visualization()
-        watched = weakref.ref(widget.figure)
-
-        widget.update_visualization()
-        qt_application.processEvents()
+        figure = widget.figure
         gc.collect(2)
+        before = _live_figures()
 
-        assert watched() is None or watched() is widget.figure, (
-            "the figure that was replaced is still alive after a full collection")
+        for _ in range(5):
+            widget.update_visualization()
+            qt_application.processEvents()
+
+        assert widget.figure is figure, "the tab's figure was replaced"
+        assert widget.canvas.figure is figure, "the canvas is showing something else"
+        gc.collect(2)
+        assert _live_figures() <= before, (
+            f"redrawing left figures behind: {before} -> {_live_figures()}")
     finally:
         widget.close()
         widget.deleteLater()
+
+
+def _live_figures() -> int:
+    """How many matplotlib figures the process is holding."""
+    import gc
+
+    from matplotlib.figure import Figure
+
+    return sum(1 for obj in gc.get_objects() if type(obj) is Figure)
+
+
+# --- the frequency editor ---------------------------------------------------------------
+
+def test_the_editor_offers_the_sidebands_the_model_knows(qt_application):
+    """A band that does not say which way it runs from its sky frequency cannot be exported,
+    drawn against a baseline, or checked against another band -- so the editor has to be able
+    to say it. It could not until this: `sidebands` existed on the model and nowhere on screen.
+
+    The choices are read from the model rather than listed here, so a list in the form and a
+    list in the model cannot disagree.
+    """
+    from pastrocore.base.frequencies import IF, VALID_POLARIZATIONS
+    from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
+
+    dialog = IFEditorDialog()
+    try:
+        offered = {dialog.ui.sidebandsList.item(i).text()
+                   for i in range(dialog.ui.sidebandsList.count())}
+        polarizations = {dialog.ui.polarizationsList.item(i).text()
+                         for i in range(dialog.ui.polarizationsList.count())}
+
+        assert offered == set(IF.VALID_SIDEBANDS)
+        assert polarizations == set(VALID_POLARIZATIONS)
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+
+
+def test_the_editor_shows_what_the_band_would_cover(qt_application):
+    """`frequency` is an edge, not a middle. 4828 upper and 4844 lower are the same 16 MHz, and
+    a project holding both is refused with a message about a rule rather than about the two
+    numbers on screen -- so the span is shown while the band is being edited, before Save."""
+    from pastrocore.base.frequencies import IF
+    from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
+
+    band = IF(name="C", frequency=4828.0, bandwidth=16.0, sidebands=["U"])
+    dialog = IFEditorDialog(band)
+    try:
+        assert dialog.ui.coverageDisplay.text() == "4828.000 - 4844.000"
+
+        # Tick the lower sideband as well: one setting, either side of its sky frequency.
+        for index in range(dialog.ui.sidebandsList.count()):
+            dialog.ui.sidebandsList.item(index).setSelected(True)
+
+        assert dialog.ui.coverageDisplay.text() == "4812.000 - 4844.000"
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+
+
+def test_the_editor_writes_the_sidebands_back(qt_application):
+    """Showing them and not saving them would be worse than not showing them."""
+    from pastrocore.base.frequencies import IF
+    from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
+
+    band = IF(name="C", frequency=4828.0, bandwidth=16.0, polarizations=["RCP"],
+              sidebands=["U"])
+    dialog = IFEditorDialog(band)
+    try:
+        for index in range(dialog.ui.sidebandsList.count()):
+            dialog.ui.sidebandsList.item(index).setSelected(True)
+        saved = dialog.get_if_object()
+
+        assert set(saved.get_sidebands()) == {"U", "L"}
+        assert saved.get_band() == (4812.0, 4844.0)
+        assert saved.get_channel_count() == 2      # one polarization, two sidebands
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+
+
+def test_a_band_with_no_sideband_cannot_be_saved(qt_application, monkeypatch):
+    """The one thing the dialog refuses itself, because there is no sensible default to fall
+    back to: a band that says nothing about which way it runs is not a band."""
+    from PySide6.QtWidgets import QMessageBox
+
+    from pastrocore.base.frequencies import IF
+    from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
+
+    complaints = []
+    monkeypatch.setattr(QMessageBox, "critical",
+                        lambda *args, **kwargs: complaints.append(args[2]))
+
+    dialog = IFEditorDialog(IF(name="C", frequency=4828.0, bandwidth=16.0))
+    try:
+        dialog.clear_selections()
+        dialog.accept()
+
+        assert complaints, "it was saved without a sideband"
+        assert dialog.result() != dialog.DialogCode.Accepted
+    finally:
+        dialog.close()
+        dialog.deleteLater()

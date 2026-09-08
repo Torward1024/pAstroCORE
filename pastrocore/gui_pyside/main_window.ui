@@ -81,6 +81,7 @@
       <string>Write the schedule in a format a station or a correlator reads</string>
      </property>
      <addaction name="actionExport_VEX" />
+     <addaction name="actionExport_CFX" />
     </widget>
     <addaction name="actionNewProject" />
     <addaction name="separator" />
@@ -256,6 +257,14 @@
    </property>
    <property name="toolTip">
     <string>Write this observation as a VEX file. Blocks describing station hardware are written empty, and named afterwards</string>
+   </property>
+  </action>
+  <action name="actionExport_CFX">
+   <property name="text">
+    <string>CFX...</string>
+   </property>
+   <property name="toolTip">
+    <string>Write this observation as a CFX file for the ASC correlator. A space telescope is an ordinary station here. One file per frequency setup</string>
    </property>
   </action>
   <action name="actionAnalysis">

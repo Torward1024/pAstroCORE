@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>430</width>
-    <height>244</height>
+    <height>296</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,13 +22,13 @@
   <property name="minimumSize">
    <size>
     <width>430</width>
-    <height>244</height>
+    <height>296</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>430</width>
-    <height>244</height>
+    <height>296</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -114,13 +114,39 @@
       </widget>
      </item>
      <item row="3" column="0">
+      <widget class="QLabel" name="labelCoverage">
+       <property name="text">
+        <string>Covers (MHz):</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLabel" name="coverageDisplay">
+       <property name="toolTip">
+        <string>The spectrum this setting actually records. Two bands that cover the same span are the same spectrum written two ways, and the project will refuse the second</string>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Shape::Panel</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Shadow::Sunken</enum>
+       </property>
+       <property name="text">
+        <string>1000.000 - 1016.000</string>
+       </property>
+       <property name="indent">
+        <number>1</number>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
       <widget class="QLabel" name="labelIsActive">
        <property name="text">
         <string>Active:</string>
        </property>
       </widget>
      </item>
-     <item row="3" column="1">
+     <item row="4" column="1">
       <widget class="QCheckBox" name="isActiveCheckBox">
        <property name="checked">
         <bool>true</bool>
@@ -137,47 +163,92 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="labelPolarizations">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Polarizations:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QListWidget" name="polarizationsList">
-       <property name="selectionMode">
-        <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
-       </property>
+      <layout class="QVBoxLayout" name="polarizationsColumn">
        <item>
-        <property name="text">
-         <string>RCP</string>
-        </property>
+        <widget class="QLabel" name="labelPolarizations">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>10</pointsize>
+           <bold>false</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Polarizations:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
        </item>
        <item>
-        <property name="text">
-         <string>LCP</string>
-        </property>
+        <widget class="QListWidget" name="polarizationsList">
+         <property name="toolTip">
+          <string>Circular or linear, not both. Each one recorded in each sideband is a channel</string>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+         </property>
+         <item>
+          <property name="text">
+           <string>RCP</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>LCP</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>H</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>V</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="sidebandsColumn">
+       <item>
+        <widget class="QLabel" name="labelSidebands">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>10</pointsize>
+           <bold>false</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sidebands:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+        </widget>
        </item>
        <item>
-        <property name="text">
-         <string>H</string>
-        </property>
+        <widget class="QListWidget" name="sidebandsList">
+         <property name="toolTip">
+          <string>Which way the band runs from its sky frequency: U upwards, L downwards, both for a receiver that records either side</string>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::MultiSelection</enum>
+         </property>
+         <item>
+          <property name="text">
+           <string>U</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>L</string>
+          </property>
+         </item>
+        </widget>
        </item>
-       <item>
-        <property name="text">
-         <string>V</string>
-        </property>
-       </item>
-      </widget>
+      </layout>
      </item>
      <item>
       <spacer name="horizontalSpacer">
@@ -205,6 +276,9 @@
     <layout class="QHBoxLayout" name="polarizationsButtonLayout">
      <item>
       <widget class="QPushButton" name="clearPolarizationsButton">
+       <property name="toolTip">
+        <string>Unselect every polarization and sideband</string>
+       </property>
        <property name="text">
         <string>Clear</string>
        </property>

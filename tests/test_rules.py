@@ -88,6 +88,78 @@ def test_the_refusal_names_both_bands():
     assert "'a'" in str(refused.value) and "'c'" in str(refused.value)
 
 
+# --- polarizations -------------------------------------------------------------------------
+
+@pytest.mark.parametrize("path", ["build", "set", "set_if", "from_dict"])
+def test_mixed_polarizations_are_refused_on_every_path(path):
+    """A band is recorded circular or linear, never in a mixture -- which is a fact about a
+    receiver, not a preference.
+
+    It was checked in `_validate_polarizations`, which runs from `__init__` and nowhere else,
+    so `set` accepted `["RCP", "H"]` and so did a saved project carrying one back. The same
+    shape as the coordinate range and the scan duration before it.
+    """
+    mixed = ["RCP", "H"]
+    frequencies = Frequencies(name="fq")
+    frequencies.create_if(name="a", frequency=1000.0, bandwidth=16.0, polarizations=["RCP"])
+
+    attempts = {
+        "build": lambda: IF(name="bad", frequency=1.0, bandwidth=1.0, polarizations=mixed),
+        "set": lambda: frequencies.get("a").set({"polarizations": mixed}),
+        "set_if": lambda: frequencies.set_if("a", polarizations=mixed),
+        "from_dict": lambda: IF.from_dict({
+            "name": "bad", "frequency": 1.0, "bandwidth": 1.0, "polarizations": mixed,
+            "sidebands": ["U"], "isactive": True}),
+    }
+
+    with pytest.raises((InvariantError, ValueError)):
+        attempts[path]()
+
+
+def test_a_band_with_no_polarization_is_not_a_mixture():
+    """Nothing entered means nothing was said, and the exporter writes it as "not stated".
+    Refusing it would refuse every band in every project written before the field mattered."""
+    band = IF(name="quiet", frequency=1000.0, bandwidth=16.0, polarizations=[])
+
+    assert band.polarizations == []
+    assert band.get_channel_count() == 1
+
+
+def test_a_refused_polarization_leaves_the_band_as_it_was():
+    """A rule that refuses half a change is worse than one that does not refuse at all."""
+    frequencies = Frequencies(name="fq")
+    frequencies.create_if(name="a", frequency=1000.0, bandwidth=16.0,
+                          polarizations=["RCP", "LCP"])
+
+    with pytest.raises((InvariantError, ValueError)):
+        frequencies.set_if("a", polarizations=["RCP", "V"])
+
+    assert frequencies.get("a").polarizations == ["RCP", "LCP"]
+
+
+# --- what a band covers ---------------------------------------------------------------------
+
+def test_the_span_is_asked_of_the_model_rather_than_worked_out():
+    """`band_of` takes loose values so that an editor can show what the fields on screen would
+    cover before anything is saved. It has to agree with the band's own answer, or there are
+    two rules about which way a sideband runs."""
+    band = IF(name="a", frequency=4828.0, bandwidth=16.0, sidebands=["U", "L"])
+
+    assert IF.band_of(4828.0, 16.0, ["U", "L"]) == band.get_band() == (4812.0, 4844.0)
+    assert IF.band_of(4828.0, 16.0, ["U"]) == (4828.0, 4844.0)
+    assert IF.band_of(4844.0, 16.0, ["L"]) == (4828.0, 4844.0)
+
+
+def test_the_same_spectrum_written_two_ways_is_still_refused():
+    """4828 upper and 4844 lower are one 16 MHz band. This is the confusion the sideband field
+    exists for, and the overlap rule is what catches it."""
+    frequencies = Frequencies(name="fq")
+    frequencies.create_if(name="a", frequency=4828.0, bandwidth=16.0, sidebands=["U"])
+
+    with pytest.raises(InvariantError):
+        frequencies.create_if(name="c", frequency=4844.0, bandwidth=16.0, sidebands=["L"])
+
+
 # --- scan times --------------------------------------------------------------------------
 
 def test_scans_that_abut_are_not_overlapping():

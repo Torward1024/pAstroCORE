@@ -98,6 +98,7 @@ class ScheduleManipulator(Manipulator):
         # `vex(method="export")` keeps them together. `export` stays what it is -- writing what
         # a person wants to look at -- and knows nothing about any format.
         self.register_deferred("vex", self._make_vex)
+        self.register_deferred("cfx", self._make_cfx)
 
         # Every request that reaches this orchestrator is recorded. It costs one interceptor
         # and answers the question a bug report never can: what was actually asked for.
@@ -131,6 +132,12 @@ class ScheduleManipulator(Manipulator):
         from pastrocore.super.schedule_vex import ScheduleVEX
 
         return ScheduleVEX(self)
+
+    def _make_cfx(self):
+        """Build the CFX writer. Called once, by MSB, when `cfx` is first needed."""
+        from pastrocore.super.schedule_cfx import ScheduleCFX
+
+        return ScheduleCFX(self)
 
     def get_journal(self) -> Optional[RequestJournal]:
         """Return the record of every request this orchestrator has processed.

@@ -64,7 +64,7 @@ class BeamPatternVisualizationTab(VisualizationTab):
         if not telescopes or not frequencies:
             return None
         return {"plot_type": self.plot_type(), "show": False, "return_figure": True,
-                "telescopes": telescopes, "frequencies": frequencies,
+                "figure": self.figure, "telescopes": telescopes, "frequencies": frequencies,
                 "clear_previous": True}
 
     def update_visualization(self):
@@ -88,8 +88,7 @@ class BeamPatternVisualizationTab(VisualizationTab):
             return
 
         drawn = bool(result) and (result.get("telescopes", 0) or result.get("frequencies", 0))
-        figure = result.get("figure") if result else None
-        if not drawn or figure is None:
+        if not drawn or result.get("figure") is None:
             self._clear_canvas()
             return
-        self.embed_figure(figure)
+        self._show()

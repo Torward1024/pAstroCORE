@@ -250,7 +250,8 @@ A space telescope is excluded rather than dropped, because VEX 1.5 has no orbiti
 and the report says so by name:
 
 ```python
-observation.get_telescopes().create_space_telescope(code="RA", use_kep=False)
+observation.get_telescopes().create_space_telescope(
+    code="RA", use_kep=False, orbit_file="RA121118_1100_v02.scf")
 scan = observation.get_scans().get_items()[0]
 scan.set_telescopes(list(observation.get_telescopes().get_items()), observation=observation)
 
@@ -259,6 +260,41 @@ report = core.vex(obj=observation, method="export", path=str(TMP / "again.vex"))
 assert [entry["telescope"] for entry in report["excluded"]] == ["RA"]
 assert "RA" not in report["stations"]
 ```
+
+## Writing the other one
+
+```bash
+pastrocore-cli cfx myproject schedule.cfx
+```
+
+or **File → Export Schedule → CFX...**. The same request shape, and the same report:
+
+```python
+report = core.cfx(obj=observation, method="export", path=str(TMP / "re03fr.cfx"))
+
+# The spacecraft is a station here, which is the whole reason this format is worth having.
+assert report["spacecraft"] == ["RA"]
+assert "RA" in report["stations"]
+
+written = (TMP / "re03fr.cfx").read_text(encoding="utf-8")
+
+assert "ORB_FILE = RA121118_1100_v02.scf" in written
+assert "IF = 4828.00, R, U" in written        # four channels, flattened
+assert "TIMEOFS00" in written                 # shown, commented, not claimed
+```
+
+`[$OUTPAR]` names the sub-bands the correlator will produce, which is the same fact as the
+sideband written another way: one 16 MHz band at 4828 MHz recording both sidebands covers
+4812–4844, and that is two pieces.
+
+```python
+assert "IF = 4812.00" in written and "IF = 4828.00" in written
+```
+
+A CFX file is **one frequency setup**, not one experiment — the two examples this was written
+against are the same experiment in C band and in K band, as two files. An observation whose
+scans use two setups therefore writes two files, and asks for a directory rather than a
+filename.
 
 SKED is not mapped here. The example files available are not certainly sked output, and writing
 an exporter against a guess is what this page exists to prevent.

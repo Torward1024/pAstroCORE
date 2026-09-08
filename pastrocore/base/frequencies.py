@@ -7,9 +7,11 @@ from msb_arch.utils.logging_setup import logger
 import uuid
 
 C_MHZ_CM = 29979.2458
-CIRCULAR_POLARIZATIONS = {"RCP", "LCP"}
-SINGLE_LINEAR_POLARIZATIONS = {"H", "V"}
-VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS.union(SINGLE_LINEAR_POLARIZATIONS)
+#: Ordered rather than sets, so that anything offering them -- an editor, a report -- offers
+#: them in one order without keeping a second list of its own to do it.
+CIRCULAR_POLARIZATIONS = ("RCP", "LCP")
+SINGLE_LINEAR_POLARIZATIONS = ("H", "V")
+VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS + SINGLE_LINEAR_POLARIZATIONS
 
 class IF(BaseEntity):
     """Base class representing an Intermediate Frequency (IF) with frequency, bandwidth, and polarization properties.
@@ -95,19 +97,36 @@ class IF(BaseEntity):
         """Set which sidebands are recorded. Takes `U`/`USB`/`upper`, `L`/`LSB`/`lower`."""
         self.sidebands = self._validate_sidebands(sidebands)
 
+    @staticmethod
+    def band_of(frequency: float, bandwidth: float, sidebands: List[str]) -> tuple:
+        """Return the spectrum a setting would cover, as `(low, high)` in MHz.
+
+        Args:
+            frequency (float): The sky frequency, at the edge of the band.
+            bandwidth (float): The bandwidth in MHz.
+            sidebands (List[str]): `U`, `L`, or both.
+
+        Notes:
+            - **The one place a sideband is turned into numbers.** It takes loose values rather
+              than an `IF` so that an editor can show what the fields on screen *would* cover
+              before anything is saved -- which is the moment the answer is useful -- without
+              subtracting a bandwidth itself and getting it wrong differently.
+        """
+        low = frequency - bandwidth if "L" in sidebands else frequency
+        high = frequency + bandwidth if "U" in sidebands else frequency
+        return (low, high)
+
     def get_band(self) -> tuple:
         """Return the spectrum this band actually covers, as `(low, high)` in MHz.
 
         Notes:
-            - The one place a sideband is turned into numbers. Everything that needs to know
-              what a band covers -- the overlap rule, an exporter, a person asking what was
-              recorded -- asks here rather than adding or subtracting a bandwidth itself.
+            - Everything that needs to know what a band covers -- the overlap rule, an
+              exporter, a person asking what was recorded -- asks this or `band_of` rather
+              than adding or subtracting a bandwidth itself.
             - With both sidebands it spans `[frequency - bandwidth, frequency + bandwidth]`:
               one setting recording either side of its sky frequency covers both.
         """
-        low = self.frequency - self.bandwidth if "L" in self.sidebands else self.frequency
-        high = self.frequency + self.bandwidth if "U" in self.sidebands else self.frequency
-        return (low, high)
+        return self.band_of(self.frequency, self.bandwidth, self.sidebands)
 
     def get_channel_count(self) -> int:
         """How many channels this one setting records: a polarization times a sideband.
@@ -198,16 +217,26 @@ class IF(BaseEntity):
                 logger.error("Invalid polarization value: %s", p)
                 raise ValueError(f"Polarization must be one of {VALID_POLARIZATIONS}, got {p}")
 
-        if polarizations:
-            if all(p in CIRCULAR_POLARIZATIONS for p in polarizations):
-                group = "circular (RCP, LCP)"
-            elif all(p in SINGLE_LINEAR_POLARIZATIONS for p in polarizations):
-                group = "single linear (H, V)"
-            else:
-                logger.error("Polarizations %s mix different groups", polarizations)
-                raise ValueError(f"Polarizations must belong to a single group: {VALID_POLARIZATIONS}")
-            logger.debug("Validated polarizations %s as %s", polarizations, group)
+        # The group rule is an `@invariant` rather than a check here, so that it also holds for
+        # `set` and for a project being read back. This normalizes; the rule below refuses.
         return polarizations
+
+    @invariant("polarizations must all be circular or all be linear")
+    def _polarizations_are_one_group(self) -> bool:
+        """A band is recorded in circular polarization or in linear, never in a mixture.
+
+        Notes:
+            - It was checked in `_validate_polarizations`, which runs from `__init__` and
+              nowhere else: `set({"polarizations": ["RCP", "H"]})` was accepted, and so was a
+              saved project carrying one back. The same shape as the coordinate range and the
+              scan duration before them.
+            - An empty list is not a mixture. A band with no polarization entered means nothing
+              was said, and the exporter writes that as "not stated" rather than as an answer.
+        """
+        if not self.polarizations:
+            return True
+        return (all(p in CIRCULAR_POLARIZATIONS for p in self.polarizations)
+                or all(p in SINGLE_LINEAR_POLARIZATIONS for p in self.polarizations))
 
     def __repr__(self) -> str:
         """Return a string representation of the IF object."""
