@@ -528,3 +528,30 @@ def test_an_orbit_file_is_a_path_or_nothing():
 
     spacecraft.set({"orbit_file": None})          # not yet positioned, which is allowed
     assert spacecraft.orbit_file is None
+
+
+def test_the_pointing_rule_does_not_build_a_time_object_per_pair(monkeypatch):
+    """The rule runs on every add, so what it costs per scan is paid n times over.
+
+    It used to ask each scan for `get_end()`, which builds a `TimeDelta` and adds it to a
+    `Time`. Checked on every add that is quadratic in astropy arithmetic: 2415 of them for a
+    69-scan file, 1.6 s to read one in, and minutes for a real schedule of several hundred.
+    Comparing Julian days instead took it to 0.09 s.
+
+    Counted rather than timed, because a stopwatch in a test suite is a flake waiting to
+    happen. What is asserted is that the hot path does not touch it at all.
+    """
+    from pastrocore.base.scans import Scan
+
+    scans = Scans(name="sc")
+    for number in range(30):
+        scans.add(pointed(f"s{number}", f"2026-01-01 {number // 4:02d}:{15 * (number % 4):02d}:00",
+                          duration=600.0))
+
+    calls = []
+    original = Scan.get_end
+    monkeypatch.setattr(Scan, "get_end", lambda self: calls.append(self.name) or original(self))
+
+    scans.add(pointed("one_more", "2026-01-02 05:00:00"))
+
+    assert not calls, f"the rule built a Time for {len(calls)} scan(s) it only had to order"
