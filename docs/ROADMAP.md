@@ -25,7 +25,7 @@ Nothing here is scheduled. In rough order of what would help most:
 
 | | Item | Why it is next |
 | --- | --- | --- |
-| **Formats** | CFX (X1), then validating VEX against a real parser (V3) | The last thing anyone is blocked on: a schedule has to reach a correlator. [The map](formats.md) and [the VEX exporter](formats.md#writing-one) are done; CFX is smaller and its consumer is down the corridor |
+| **Formats** | V3: a parser nobody here wrote | [The map](formats.md), the VEX exporter and the CFX exporter are done. What is left is the thing that actually settles it -- a real reader accepting a real file. The ASC correlator is down the corridor |
 | **G4** | A most-recently-used list | Small, and asked for by anyone who opens the same project twice a day |
 | **G5** | The visualizer configured from a file | The plots are the one thing still styled in code |
 
@@ -120,17 +120,19 @@ reads. **SKED** is what much geodetic VLBI is scheduled in.
 | ~~V4~~ | ~~Characterization tests~~ | **Done.** `tests/fixtures/reference.vex` is the whole file rather than a digest, so a change shows as a diff. Regenerate deliberately: `--regenerate-vex` |
 | V6 | Decide what happens to what the model cannot represent -- **before V5** | An importer that drops what it does not model, feeding an exporter that writes only what the model knows, is a lossy round trip that looks lossless. Keep unrecognised blocks verbatim, or refuse to export a lossily imported file |
 | V5 | Import VEX | A real file from an experiment this lab did not schedule loads and can be analysed. Export-then-import does **not** replace V3: a round trip passes when reader and writer are wrong the same way |
-| X1 | **`ScheduleCFX`** | A file the ASC correlator accepts, checked against a real one |
+| ~~X1~~ | ~~**`ScheduleCFX`**~~ | **Done.** `cfx(method="export")`, `pastrocore-cli cfx`, **File → Export Schedule → CFX...**. Same rule as VEX: every section present, what correlation fills in -- the recorded data, the `TIMEOFS` figures out of the delay model, the clock, the correlator settings -- commented in place and named in the report. **The space telescope is an ordinary station with an `ORB_FILE`**, which is why this format was worth doing here. One file per frequency setup, as the two example files are. Still wants a real check: the ASC correlator is the parser we did not write, and V3 covers both formats |
 | ~~K1~~ | ~~**`ScheduleSKED`**~~ | **Dropped.** No file that is certainly sked output to check against, and an exporter written against a guess is the failure V3 exists to prevent. It waits for a real one |
 | ~~A2~~ | ~~One `Super` per format~~ | **Done.** `ScheduleVEX`, reached as its own operation: `vex(method="export")`. The operation is the format and the method is what is done to it, so writing, reading and checking one contract stay together. Nothing about any format appears in `ScheduleData`, and the writing itself is in `pastrocore/formats/vex.py`, which knows no request |
 
-Next: **X1, the CFX exporter**, which is smaller, whose consumer is down the corridor at the
-ASC, and which models the spacecraft as an ordinary station with an orbit file -- the one thing
-this model already does and `sched` does not.
+Both exporters are written. **What is left is V3: a parser nobody here wrote.** For CFX that is
+the ASC correlator, which is down the corridor; for VEX it is whatever a station runs. Until
+then each suite reads its own output by the format's punctuation and runs the same reading
+against the real files first -- `re03fr.vex`, `s16tj07a.vex`, and the two CFX files of the same
+experiment. That is calibration against somebody else's output, and it is not the same thing.
 
-Space telescopes were out of scope for V2 and are excluded by name in its report, which is a
-VEX limitation rather than ours: 1.5 describes a station as a place on the Earth. CFX is where
-they belong.
+Space telescopes were out of scope for V2 and are excluded **by name in its report**, which is
+a VEX limitation rather than ours: 1.5 describes a station as a place on the Earth. CFX is
+where they belong, and there they are written.
 
 ~~**Before either: `IF` gains a sideband.**~~ **Done**, as `sidebands` -- a list, like
 `polarizations`, because one receiver setting records both sidebands in both polarizations and

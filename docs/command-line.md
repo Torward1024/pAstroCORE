@@ -79,6 +79,22 @@ pastrocore-cli export survey.pastro out/ --only uv_coverage --pictures
 Text always; `--pictures` draws them as well. Each plot is given exactly the filters it reads,
 which the visualizer itself says.
 
+## Getting a schedule to a correlator
+
+```bash
+pastrocore-cli vex survey.pastro re03fr.vex     # for a station, or most correlators
+pastrocore-cli cfx survey.pastro re03fr.cfx     # for the ASC correlator
+```
+
+Both print what was written and, every time, **what the file leaves open** — the blocks a
+station has to complete for VEX, the sections correlation fills in for CFX. That is not a
+warning to be silenced: a file in either format is complete in shape and partial in content on
+purpose, and the outstanding list is the half that matters. [How and why](formats.md).
+
+A destination that is a directory takes as many files as the project makes: a VEX file is one
+experiment and a CFX file is one frequency setup, so a project of three observations, or an
+observation in two bands, is three files or two. `--force` replaces a file that is there.
+
 ## Sending a project
 
 A project is a directory, which is right for working in and wrong for sending. `package` writes

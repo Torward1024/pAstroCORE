@@ -324,6 +324,33 @@ def vex(arguments) -> int:
     return 0
 
 
+def cfx(arguments) -> int:
+    """Write a schedule as CFX, and print what correlation still has to add."""
+    project = _open(arguments.project)
+    manipulator = ScheduleManipulator(project, journal_limit=None)
+
+    answer = manipulator.cfx(obj=project, method="export", path=arguments.destination,
+                             overwrite=arguments.force, raise_on_error=False)
+    if not answer.ok:
+        print(f"  {answer.error}")
+        return 1
+
+    report = answer.value
+    for one in report.get("files", [report]):
+        print(f"{one['path']}")
+        print(f"  {one['scans']} scan(s), {len(one['stations'])} station(s)"
+              + (f" ({', '.join(one['spacecraft'])} in orbit)" if one["spacecraft"] else "")
+              + f", {one['channels']} channel(s)")
+
+    for entry in report["excluded"]:
+        print(f"  left out: {entry.get('scan')} -- {entry['reason']}")
+
+    print("\nTo be completed during correlation:")
+    for entry in report["to_complete"]:
+        print(f"  {entry['block']:<20} {entry['needs']}")
+    return 0
+
+
 def affected(arguments) -> int:
     """Say which results editing something of a given type would make wrong."""
     project = _open(arguments.project)
@@ -482,6 +509,16 @@ def build_parser() -> argparse.ArgumentParser:
                                "observations -- a VEX file is one experiment")
     schedule.add_argument("--force", action="store_true", help="replace a file that is there")
     schedule.set_defaults(run=vex)
+
+    correlator = commands.add_parser(
+        "cfx", help="write the schedule as CFX, for the ASC correlator")
+    correlator.add_argument("project")
+    correlator.add_argument("destination",
+                            help="the file to write, or a directory -- a CFX file is one "
+                                 "frequency setup, so several bands are several files")
+    correlator.add_argument("--force", action="store_true",
+                            help="replace a file that is there")
+    correlator.set_defaults(run=cfx)
 
     spoiled = commands.add_parser(
         "affected", help="which results editing something of a type would make wrong")

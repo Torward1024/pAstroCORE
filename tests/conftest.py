@@ -102,6 +102,49 @@ def qt_application():
     yield application
 
 
+@pytest.fixture(autouse=True)
+def deletions_happen_between_tests():
+    """Destroy what a test left behind before the next one starts.
+
+    Notes:
+        - **A widget's deletion is scheduled, not done.** A test that closes a window leaves
+          its C++ half alive until somebody runs the event loop -- and the next test to call
+          `processEvents` is the one that runs it, in the middle of its own work. Two windows'
+          worth of teardown inside another test's redraw is how a green suite ended in
+          `Windows fatal exception: access violation`, in `processEvents`, in whichever test
+          happened to be there. It took three windows and eight drawn tabs to show, which is
+          why it looked random.
+        - The collector is run first because PySide6 schedules the C++ deletion when the Python
+          wrapper is collected, and a test that lets a window go out of scope without deleting
+          it has not scheduled anything yet.
+        - This is harness hygiene rather than a fix to the application: nothing in a session
+          creates and abandons windows this way. What it buys is that a crash caused by real
+          teardown lands in the test that caused it.
+        - **After every test, not only the ones that build widgets.** That was measured rather
+          than assumed, and it costs: a full collection after each of 684 tests takes the suite
+          from 85 s to about 190 s. Two cheaper versions were tried and both ended in
+          `0xc0000374`, heap corruption, three runs out of three -- collecting only after Qt
+          tests, and draining after every test while collecting only after Qt tests. What the
+          collection has to do is happen *here*, at a point where nothing is inside Qt's event
+          loop; left to its own timing it runs during some later `processEvents`, and a Qt
+          object destroyed from inside the loop that is dispatching to it is the crash. Three
+          minutes is worth that.
+    """
+    yield
+
+    import gc
+
+    from PySide6.QtCore import QEvent
+    from PySide6.QtWidgets import QApplication
+
+    application = QApplication.instance()
+    if application is None:
+        return
+    gc.collect()
+    application.sendPostedEvents(None, QEvent.DeferredDelete)
+    application.processEvents()
+
+
 def pytest_addoption(parser):
     """Options a run may be given.
 

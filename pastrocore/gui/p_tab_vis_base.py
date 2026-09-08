@@ -64,12 +64,19 @@ class VisualizationTab(QWidget):
         self.ui.setupUi(self)
         self.manipulator = manipulator
         self.observation = observation
-        self.canvas = None
-        self.toolbar = None
-        self.figure = None
         self.is_processing = False
 
         self.layout = QVBoxLayout(self.ui.widget)
+        # **One figure, one canvas, one toolbar, for the life of the tab.** They are built here
+        # rather than at the first draw because the figure is what the tab asks the visualizer
+        # to draw *into*: nothing is ever swapped, so there is no ring of three to break and no
+        # toolbar left holding axes that were cleared underneath it.
+        self.figure = Figure()
+        self.canvas = FigureCanvas(self.figure)
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.layout.addWidget(self.toolbar)
+        self.layout.addWidget(self.canvas)
+
         self._populate_filters()
 
         for widget, signal in self._filter_signals():
@@ -271,8 +278,11 @@ class VisualizationTab(QWidget):
         if self._has(self.ui, "listTelescopes") and not telescopes:
             return None
 
-        attributes: Dict[str, Any] = {"plot_type": self.plot_type(),
-                                      "show": False, "return_figure": True}
+        # The tab's own figure goes with the request: the visualizer clears it and draws into
+        # it, and hands the same object back. MSB records a request's objects by name, so this
+        # is not something the journal holds on to.
+        attributes: Dict[str, Any] = {"plot_type": self.plot_type(), "show": False,
+                                      "return_figure": True, "figure": self.figure}
         if source:
             attributes["source_name"] = source
         if scans:
@@ -305,94 +315,49 @@ class VisualizationTab(QWidget):
             self._clear_canvas()
             return
 
-        figure = result.get("figure")
-        if figure is None:
+        if result.get("figure") is None:
             logger.error("The visualizer returned no figure for '%s'", self.plot_type())
             self._clear_canvas()
             return
-        self.embed_figure(figure)
+        self._show()
 
     # --- the canvas ---------------------------------------------------------------------------
 
-    def embed_figure(self, figure: Figure):
-        """Put a figure on screen, reusing the canvas and toolbar that are already there.
+    def _show(self):
+        """Put what the visualizer drew on screen.
 
         Notes:
-            - **The canvas is built once.** Rebuilding it per redraw meant a new
-              `NavigationToolbar` each time, and a toolbar is ten `QAction`s -- 400 of them
-              accumulated over 40 redraws, because a widget's `deleteLater` is scheduled rather
-              than done. Swapping the figure into the canvas that exists leaves nothing behind.
-            - The figure that was on screen is unhooked from the canvas as it goes, or it keeps
-              the canvas alive and the ring closes again.
+            - There is nothing to attach: the visualizer drew into this tab's own figure, and
+              the canvas has held it since the tab was built. What used to be here built a
+              canvas per redraw -- a `NavigationToolbar` is ten `QAction`s, 400 of them over 40
+              redraws -- and then swapped a new `Figure` into the canvas instead, which
+              matplotlib does not support: the toolbar's view stack went on referring to axes
+              that had been cleared, and a full run of the suite ended in an access violation.
+            - The toolbar is told the axes changed. Its home/back/forward stack is about the
+              plot that was there, and keeping it would be keeping references to axes that no
+              longer exist -- which is the crash, again, by a shorter route.
         """
-        previous = self.figure
-        self.figure = figure
-
-        if self.canvas is None:
-            self.canvas = FigureCanvas(figure)
-            self.toolbar = NavigationToolbar(self.canvas, self)
-            self.layout.addWidget(self.toolbar)
-            self.layout.addWidget(self.canvas)
-        else:
-            self.canvas.figure = figure
-            figure.set_canvas(self.canvas)
-
-        if previous is not None and previous is not figure:
-            try:
-                previous.clf()
-                previous.canvas = None
-            except Exception as e:                      # noqa: BLE001 - teardown never raises
-                logger.warning("Could not release the previous figure: %s", str(e))
-
+        self.toolbar.update()
         self.canvas.draw()
 
     def _clear_canvas(self):
-        """Take the canvas, toolbar and figure down, releasing what they hold.
+        """Empty the plot, leaving the canvas and toolbar where they are.
 
         Notes:
-            - The figure is built by the visualizer with `Figure(...)` rather than
-              `plt.figure(...)`, so pyplot never registered it and there is nothing to close --
-              it goes when the last reference does. Clearing its axes first is what actually
-              frees the arrays a plot of a day's sampling holds.
+            - They are the tab, not a decoration of it: taking them down and building them
+              again is what cost 400 `QAction`s a session, and a widget's `deleteLater` is
+              scheduled rather than done, so they did not go when they were dropped.
+            - Clearing the figure is what actually frees the arrays a plot of a day's sampling
+              holds. **No `gc.collect(2)`**: every one of the nine tabs called one on every
+              redraw to stop figures accumulating, and measured over 60 redraws it saved 1.4 MB
+              of 90 -- noise -- and cost 14.60 s against 6.92 s.
         """
-        canvas_was = self.canvas
-        for name in ("canvas", "toolbar"):
-            widget = getattr(self, name, None)
-            if widget is None:
-                continue
-            try:
-                self.layout.removeWidget(widget)
-                widget.setParent(None)
-                widget.deleteLater()
-            except Exception as e:                      # noqa: BLE001 - teardown never raises
-                logger.warning("Could not remove the %s: %s", name, str(e))
-            finally:
-                setattr(self, name, None)
-
-        if self.figure is not None:
-            try:
-                for axes in list(self.figure.axes):
-                    axes.clear()
-                    axes.remove()
-                self.figure.clf()
-                # **The cycle, broken by hand.** A figure holds its canvas, the canvas holds
-                # the figure back, and the toolbar holds the canvas -- so dropping our three
-                # references leaves the three of them holding each other. Ordinarily the
-                # collector takes such a ring, and here it does not: each has a C++ half whose
-                # deletion is only scheduled, so a figure survived every redraw and a session
-                # of them grew by about 1.5 MB a time.
-                if canvas_was is not None:
-                    canvas_was.figure = None
-                self.figure.canvas = None
-            except Exception as e:                      # noqa: BLE001 - teardown never raises
-                logger.warning("Could not clear the figure: %s", str(e))
-            finally:
-                self.figure = None
-
-        # **No `gc.collect(2)` here.** Every one of the nine tabs called one on every redraw,
-        # to stop the figures accumulating. Measured over 60 redraws of one tab, both ways in
-        # separate processes: it saved 1.4 MB of 90 -- which is noise -- and cost 14.60 s
-        # against 6.92 s. It was not preventing the growth, it was paying for it twice.
+        try:
+            self.figure.clf()
+            self.toolbar.update()
+            self.canvas.draw()
+        except Exception as e:                          # noqa: BLE001 - teardown never raises
+            logger.warning("Could not clear the figure: %s", str(e))
 
     def _lock_ui(self):
         """Stop the filters being moved while a plot is being drawn."""
@@ -407,6 +372,22 @@ class VisualizationTab(QWidget):
             widget.setEnabled(True)
 
     def closeEvent(self, event):
-        """Release the figure when the tab goes."""
-        self._clear_canvas()
+        """Release what the plot holds when the tab goes.
+
+        Notes:
+            - The canvas and toolbar go with the widget, as children do. What has to be let go
+              of by hand is the arrays inside the figure, which a day's sampling makes large.
+            - **The figure is unhooked from the canvas before it is cleared, and the order is
+              the point.** `clf()` marks a figure stale, and a stale figure asks its canvas to
+              repaint -- so clearing one that still points at a canvas being destroyed queues a
+              paint on a widget whose C++ half is going, and Qt runs it at whatever
+              `processEvents` comes next. That is somebody else's redraw, and it is an access
+              violation rather than an exception.
+        """
+        try:
+            self.figure.canvas = None
+            self.figure.stale_callback = None
+            self.figure.clf()
+        except Exception as e:                          # noqa: BLE001 - teardown never raises
+            logger.warning("Could not clear the figure on close: %s", str(e))
         super().closeEvent(event)
