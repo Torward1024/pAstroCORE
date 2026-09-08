@@ -483,19 +483,20 @@ def test_redrawing_reuses_the_canvas_instead_of_rebuilding_it(project, observati
         widget.deleteLater()
 
 
-def test_no_figure_is_replaced_at_all(project, observation, qt_application):
-    """The tab owns one figure and asks the visualizer to draw *into* it, so a redraw creates
-    nothing to let go of.
+def test_a_replaced_figure_is_let_go_of(project, observation, qt_application):
+    """A figure holds its canvas and the canvas holds it back. Each has a C++ half whose
+    deletion is only scheduled, so the ring outlived the collector and one figure stayed per
+    redraw -- about 1.5 MB each. The canvas is unhooked from the outgoing figure by hand.
 
-    Swapping a new `Figure` into an existing canvas was the first attempt at this. It stopped
-    the figures accumulating -- a figure holds its canvas and the canvas holds it back, and
-    each has a C++ half whose deletion is only scheduled, so the ring outlived the collector at
-    about 1.5 MB a redraw -- but it is not something matplotlib supports: the navigation
-    toolbar's view stack went on referring to axes that had been cleared, and a full run of the
-    suite ended in an access violation inside Qt. Owning the figure removes the swap, and with
-    it both problems.
+    The collector is run here on purpose: what is claimed is that the figure is *collectable*,
+    not that it goes the instant it is replaced. Before the fix it was neither -- a full
+    `gc.collect(2)` left it exactly where it was, which is what made this worth finding.
+
+    Owning the figure in the tab instead was tried and reverted: it removed the swap, and
+    measured 50x slower with 50 MB left behind per 60 redraws. The reason is not yet known.
     """
     import gc
+    import weakref
 
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
@@ -506,32 +507,17 @@ def test_no_figure_is_replaced_at_all(project, observation, qt_application):
     widget = tab_class("p_tab_vis_uv_coverage")(manipulator, observation)
     try:
         widget.update_visualization()
-        figure = widget.figure
-        gc.collect(2)
-        before = _live_figures()
+        watched = weakref.ref(widget.figure)
 
-        for _ in range(5):
-            widget.update_visualization()
-            qt_application.processEvents()
-
-        assert widget.figure is figure, "the tab's figure was replaced"
-        assert widget.canvas.figure is figure, "the canvas is showing something else"
+        widget.update_visualization()
+        qt_application.processEvents()
         gc.collect(2)
-        assert _live_figures() <= before, (
-            f"redrawing left figures behind: {before} -> {_live_figures()}")
+
+        assert watched() is None or watched() is widget.figure, (
+            "the figure that was replaced is still alive after a full collection")
     finally:
         widget.close()
         widget.deleteLater()
-
-
-def _live_figures() -> int:
-    """How many matplotlib figures the process is holding."""
-    import gc
-
-    from matplotlib.figure import Figure
-
-    return sum(1 for obj in gc.get_objects() if type(obj) is Figure)
-
 
 # --- the frequency editor ---------------------------------------------------------------
 

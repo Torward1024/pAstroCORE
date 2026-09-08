@@ -1,6 +1,6 @@
 # pAstroCORE roadmap
 
-**1.4 shipped.** What follows is what comes next, and what was decided against.
+**1.5 shipped.** What follows is what comes next, and what was decided against.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy. The failure mode of a project like this is not
@@ -50,6 +50,7 @@ who is not watching, and those are answered by knowing who the callers are.
 | **1.2.2** | An audit. The orbit path was where everything was hiding |
 | **1.3.0** | **R6, T4, G1.** A project as one file; which results a change would spoil; one stylesheet |
 | **1.4.0** | **N1--N4, G6.** Asking something of the numbers, and nine tabs folded onto one base |
+| **1.5.0** | **V1--V4, X1, A2.** A schedule leaves: VEX and CFX, written whole and claiming only what is known |
 
 ### What each of the recent ones cost
 
@@ -62,6 +63,7 @@ who is not watching, and those are answered by knowing who the callers are.
 | G1 | One stylesheet | 235 places became one 700-line `.qss` applied to the `QApplication`. Rules are by **type**, so every button looks like every other button -- which is the point, and why some forms changed |
 | N1--N4 | Analysis | `analyze`: windows and gaps, coverage across stations, statistics with `range`, any of them over a whole project. Nothing names a column -- it is read from the schemas the calculations declare |
 | G6 | One base for the visualization tabs | 2562 lines to 832. What varies is four declarations; a tab needing more overrides one method |
+| V1--V4, X1 | A schedule that leaves | Both files written **whole**: every block present, and what cannot be known left blank or commented rather than invented. The report names what is outstanding, from the same declaration the file is written from. A space telescope is a station in CFX and excluded by name in VEX |
 
 ### What was found on the way
 
