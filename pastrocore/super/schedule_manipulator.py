@@ -93,6 +93,12 @@ class ScheduleManipulator(Manipulator):
         # the calculator, since summarising is not what a session that only edits a model does.
         self.register_deferred("analyze", self._make_analyzer)
 
+        # One operation per format, named after the format rather than after a verb: writing a
+        # VEX file, reading one back and checking one are three things done to one contract, and
+        # `vex(method="export")` keeps them together. `export` stays what it is -- writing what
+        # a person wants to look at -- and knows nothing about any format.
+        self.register_deferred("vex", self._make_vex)
+
         # Every request that reaches this orchestrator is recorded. It costs one interceptor
         # and answers the question a bug report never can: what was actually asked for.
         # Bounded, because a session that runs for a day should not accumulate without end.
@@ -119,6 +125,12 @@ class ScheduleManipulator(Manipulator):
         from pastrocore.super.schedule_analyzer import ScheduleAnalyzer
 
         return ScheduleAnalyzer(self)
+
+    def _make_vex(self):
+        """Build the VEX writer. Called once, by MSB, when `vex` is first needed."""
+        from pastrocore.super.schedule_vex import ScheduleVEX
+
+        return ScheduleVEX(self)
 
     def get_journal(self) -> Optional[RequestJournal]:
         """Return the record of every request this orchestrator has processed.

@@ -45,9 +45,9 @@ third out.**
 | `$STATION` | one `def` per telescope, referring to its `$SITE`, `$ANTENNA` and `$DAS` |
 | `$MODE` | the distinct combinations of frequency setup across the scans |
 
-### What the model does not know and should
+### What the model was missing, and now has
 
-One thing, and it is physics rather than paperwork:
+One thing, and it was physics rather than paperwork:
 
 **Sideband.** A `chan_def` names a net sideband, `U` or `L`:
 
@@ -57,19 +57,26 @@ chan_def = :  4828.00 MHz : U :  16.00 MHz : &CH03 : &BBC01 : &L_Cal;
 ```
 
 Those are different pieces of spectrum — 4812–4828 MHz and 4828–4844 MHz — and pAstroCORE
-cannot presently tell them apart: an `IF` is a frequency and a bandwidth, which describes one
-of them and not the other. The example experiment records **four** channels from what this
-model would call one band: two polarizations by two sidebands.
+could not tell them apart: an `IF` was a frequency and a bandwidth, which describes one of them
+and not the other. The example experiment records **four** channels from what that model saw as
+one band: two polarizations by two sidebands.
 
-CFX says the same thing in its own words, which is what settles it:
+CFX says the same thing in its own words, which is what settled it:
 
 ```
 IF = 4828.00, L, U        sky frequency, polarization, sideband
 IF = 4828.00, L, L
 ```
 
-So `IF` gains a sideband. It is not a format detail: it says which 16 MHz of sky was recorded,
-and the answer changes what a baseline actually measures.
+So `IF` gained `sidebands` — **a list, exactly like `polarizations`**, and for the same reason:
+one receiver setting at one sky frequency records what it records, and a band with both
+sidebands and both circular polarizations is four channels while remaining one setting. The
+alternative, a sideband *per* `IF`, would have meant two objects carrying one frequency and kept
+in step by hand.
+
+`get_band()` is the one place a sideband becomes numbers, and the overlap rule asks it rather
+than adding a bandwidth itself. That is what catches the confusion this field exists for: 4828 U
+and 4844 L are the same 16 MHz written two ways, and the rule now says so by name.
 
 ### What must be supplied, and cannot be derived
 
@@ -92,12 +99,34 @@ known to the station and to whoever is running the session. A scheduling tool th
 `$DAS` block would be stating something it cannot check, and a plausible wrong answer is worse
 than an absent one — the correlator would take it.
 
-So **pAstroCORE writes the VEX it knows and says what it left out.** The file carries the
-schedule, the sites, the antennas, the sources and the frequency setup; the blocks above are
-absent, and the exporter reports them by name so that whoever completes the file knows exactly
-what to add. That is a normal way to work — `sched` writes complete files because it is given a
-station catalogue that someone maintains; we are not that, and pretending otherwise is how a
-file that looks right reaches a correlator.
+#### The shape stays; the claims do not
+
+Absent is not the same as missing, and this is the difference the exporter turns on:
+
+> **The file has every block the format calls for. What we cannot state is left as an empty
+> field or a commented template — never as a value.**
+
+A VEX file that simply omits `$DAS` is a file whose structure the next tool has to invent. A
+VEX file that *has* `$DAS`, with a `def` per station and its statements commented out, is a form
+waiting to be filled — and filling it is what `drudg`, `vex2` and the people at the stations do
+anyway, because they are the only ones who know what is in the rack this week.
+
+Both halves of that are the format's own idiom, not an invention:
+
+| | |
+| --- | --- |
+| **An empty field** | `chan_def = :  4828.00 MHz : U : ...` — the example's own band-ID field is empty in every line `sched` wrote |
+| **A commented statement** | `*    ref $HEAD_POS = DiskVoid <= obsolete definition` — `sched` comments out a whole `ref` rather than dropping it |
+| **An empty `def`** | `def DiskVoid; * ... irrelevant for Disk: empty def` `enddef;` — a `def` holding only comments is legal and `sched` writes them |
+
+So **pAstroCORE writes a structurally complete VEX file and states only what it knows.** The
+schedule, the sites, the antennas, the sources and the frequency setup carry real values; the
+hardware blocks are present, empty, and annotated with what belongs in them. The exporter also
+reports them by name, so nobody has to read the file to find out what is outstanding.
+
+That is a normal way to work — `sched` writes complete files because it is given a station
+catalogue that someone maintains; we are not that, and pretending otherwise is how a file that
+looks right reaches a correlator.
 
 A user who *does* have that information for their stations can supply it, and then it is
 written. What is not acceptable is inventing it.
@@ -109,8 +138,10 @@ VEX file, and both are worth adding when there is a reason beyond the file forma
 
 ### What is left out on purpose
 
-`$HEAD_POS`, `$PASS_ORDER` and `$ROLL` are marked obsolete in the example file itself, written
-by `sched` as `<= obsolete definition`. They are not written.
+`$HEAD_POS` and `$PASS_ORDER` are marked obsolete in the example file itself — `sched` writes
+the blocks and comments out the `ref` lines as `<= obsolete definition`. They are not written at
+all. `$ROLL` is tape-era too but is still referred to live, so it is written like the other
+station blocks: present, empty, and annotated.
 
 ## CFX, and why it is nearly free after VEX
 
@@ -135,15 +166,99 @@ first for this lab even though VEX is the wider format.
 
 ## What this means for the work
 
-1. **`IF` gains a sideband.** One field, with a migration, because every existing project has
-   bands that do not say which half of the spectrum they are.
-2. **A VEX file is written as far as we can honestly write it**, with the hardware blocks absent
-   and named in the report rather than guessed at.
-3. **CFX first or VEX first is a real choice.** CFX is smaller, its consumer is down the
-   corridor, and the space telescope is already modelled. VEX is the one that reaches everyone
-   else, and its `$FREQ`/`$IF`/`$BBC` chain is where the difficulty lives.
+1. ~~**`IF` gains a sideband.**~~ **Done** — `sidebands`, a list, defaulting to `["U"]`, which
+   is what every band written before the field existed was implicitly taken to be.
+2. **A VEX file is written whole and claims only what we know**, with the hardware blocks
+   present but empty, annotated in place, and named in the report rather than guessed at.
+3. **VEX went first.** CFX is smaller and its consumer is down the corridor, but the sideband
+   work was VEX's, and the `$FREQ`/`$IF`/`$BBC` chain is where the difficulty is: doing it
+   first meant doing the hard part while the map was still in mind. CFX is next.
 4. **Neither is finished until a parser nobody here wrote accepts the file.** That is the
-   exit criterion in the roadmap, and it is the whole point.
+   exit criterion in the roadmap, and it is the whole point. It is not met yet: no third-party
+   VEX parser is installable here, so what the suite does instead is read the file by VEX's
+   punctuation and check the same reading against `re03fr.vex` and `s16tj07a.vex` — files
+   written by `sched` and by people this project has never met. A checker calibrated on someone
+   else's output is worth more than a round trip through our own reader and less than a real
+   parser. The item stays open.
+
+## Writing one
+
+```bash
+pastrocore-cli vex myproject schedule.vex
+```
+
+or **File → Export Schedule → VEX...**, which asks for a filename for one observation and a
+directory for a project of several — a VEX file is one experiment, so several observations are
+several files. Both print, or show, the same thing: what was written, what was left out, and
+every block waiting for a station's answer.
+
+In a program it is one request, like everything else:
+
+```python
+from astropy.time import Time
+
+from pastrocore.super.schedule_manipulator import ScheduleManipulator
+from pastrocore.super.schedule_project import ScheduleProject
+
+project = ScheduleProject(name="Survey")
+project.create_item(item_code="RE03FR", observation_type="VLBI")
+observation = project.get_observation_by_code("RE03FR")
+
+observation.get_telescopes().create_telescope(
+    code="Sv", name="SVETLOE", x=2730173.7626, y=1562442.7288, z=5529969.1054)
+observation.get_telescopes().create_telescope(
+    code="Bd", name="BADARY", x=-838200.9324, y=3865751.5664, z=4987670.908)
+observation.get_sources().create_source(
+    name="2230+114", ra_h=22.0, ra_m=32.0, ra_s=36.41, de_d=11.0, de_m=43.0, de_s=50.9)
+
+# One receiver setting, both sidebands, both circular polarizations: four channels.
+observation.get_frequencies().create_if(
+    name="C", frequency=4828.0, bandwidth=16.0,
+    polarizations=["RCP", "LCP"], sidebands=["U", "L"])
+
+observation.get_scans().create_scan(
+    name="scan1", start=Time("2012-11-18T13:50:00"), duration=570.0,
+    source=observation.get_sources().get_items()[0],
+    telescopes=list(observation.get_telescopes().get_items()),
+    frequencies=list(observation.get_frequencies().get_items()),
+    observation=observation)
+
+core = ScheduleManipulator(project)
+report = core.vex(obj=observation, method="export", path=str(TMP / "re03fr.vex"))
+
+assert report["scans"] == 1
+assert report["stations"] == ["Bd", "Sv"]
+assert report["channels"] == 4          # 2 sidebands x 2 polarizations, from one IF
+```
+
+The report is not a courtesy. It names every block the file leaves open, so nobody has to read
+the file to find out what is outstanding:
+
+```python
+outstanding = {entry["block"] for entry in report["to_complete"]}
+
+assert "$DAS" in outstanding             # which recorder is in the rack this week
+assert "$BBC" in outstanding             # which converter each channel goes through
+
+written = (TMP / "re03fr.vex").read_text(encoding="utf-8")
+
+assert "$DAS;" in written                # the block is there, and empty
+assert "record_transport_type" in written    # with what belongs in it, commented out
+```
+
+A space telescope is excluded rather than dropped, because VEX 1.5 has no orbiting station —
+and the report says so by name:
+
+```python
+observation.get_telescopes().create_space_telescope(code="RA", use_kep=False)
+scan = observation.get_scans().get_items()[0]
+scan.set_telescopes(list(observation.get_telescopes().get_items()), observation=observation)
+
+report = core.vex(obj=observation, method="export", path=str(TMP / "again.vex"))
+
+assert [entry["telescope"] for entry in report["excluded"]] == ["RA"]
+assert "RA" not in report["stations"]
+```
 
 SKED is not mapped here. The example files available are not certainly sked output, and writing
 an exporter against a guess is what this page exists to prevent.

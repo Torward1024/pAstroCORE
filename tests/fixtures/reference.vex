@@ -1,0 +1,196 @@
+VEX_rev = 1.5;
+*    Written by pAstroCORE
+*    Experiment OBS_DEFAULT
+*    Blocks describing station hardware are present and empty: what belongs in each is written in it, commented out.
+*------------------------------------------------------------------------------
+$GLOBAL;
+*
+     ref $EXPER = OBS_DEFAULT;
+*------------------------------------------------------------------------------
+$EXPER;
+*
+def OBS_DEFAULT;
+     exper_name = OBS_DEFAULT;
+     exper_description = "obs_5fb241a798904ecc9c63c4cc0aa172ea";
+     exper_nominal_start = 2026y222d05h00m00s;
+     exper_nominal_stop = 2026y223d05h00m00s;
+*     Not stated: who is to correlate this, and who to contact about it.
+*     target_correlator = <correlator>;
+*     PI_name = "<name>";
+enddef;
+*------------------------------------------------------------------------------
+$MODE;
+*
+def MODE01;
+*     1 channel: 1000 MHz U x 16 MHz, covering 1000-1016
+     ref $PROCEDURES = MODE01;
+     ref $FREQ = MODE01;
+     ref $IF = MODE01;
+     ref $BBC = MODE01;
+     ref $TRACKS = MODE01;
+     ref $PHASE_CAL_DETECT = MODE01;
+     ref $ROLL = MODE01;
+enddef;
+*------------------------------------------------------------------------------
+$STATION;
+*
+def ALMA;
+     ref $SITE = EHT_ALMA;
+     ref $ANTENNA = EHT_ALMA;
+     ref $DAS = ALMA;
+enddef;
+*
+def APEX;
+     ref $SITE = EHT_APEX;
+     ref $ANTENNA = EHT_APEX;
+     ref $DAS = APEX;
+enddef;
+*------------------------------------------------------------------------------
+$SOURCE;
+*
+def 1228+126;
+     source_name = 1228+126;
+*     alternate source name: 3C274
+     ra = 12h30m49.4235840s; dec = +12d23'28.044010"; ref_coord_frame = J2000;
+enddef;
+*------------------------------------------------------------------------------
+$SITE;
+*
+def EHT_ALMA;
+     site_type = fixed;
+     site_name = EHT_ALMA;
+     site_ID = ALMA;
+     site_position =   2225061.16400 m:  -5440057.37000 m:  -2481681.15000 m;
+*     This project carries no plate motion for this station; zero would be a claim, not a blank.
+*     site_velocity = <vx> m/yr: <vy> m/yr: <vz> m/yr;
+*     site_position_epoch = <MJD>;
+enddef;
+*
+def EHT_APEX;
+     site_type = fixed;
+     site_name = EHT_APEX;
+     site_ID = APEX;
+     site_position =   2225039.53000 m:  -5441197.63000 m:  -2479303.36000 m;
+*     This project carries no plate motion for this station; zero would be a claim, not a blank.
+*     site_velocity = <vx> m/yr: <vy> m/yr: <vz> m/yr;
+*     site_position_epoch = <MJD>;
+enddef;
+*------------------------------------------------------------------------------
+$ANTENNA;
+*
+def EHT_ALMA;
+     axis_type = az : el;
+*     The elevation limit this schedule was calculated against, not a survey of the skyline.
+     horizon_map_az = 0.0 deg: 360.0;
+     horizon_map_el = 15.0 deg: 15.0;
+*     axis_offset = <metres> m;
+*     antenna_motion = <axis> : <deg/min> deg/min : <settling> sec;
+enddef;
+*
+def EHT_APEX;
+     axis_type = az : el;
+*     The elevation limit this schedule was calculated against, not a survey of the skyline.
+     horizon_map_az = 0.0 deg: 360.0;
+     horizon_map_el = 15.0 deg: 15.0;
+*     axis_offset = <metres> m;
+*     antenna_motion = <axis> : <deg/min> deg/min : <settling> sec;
+enddef;
+*------------------------------------------------------------------------------
+$FREQ;
+*
+*    Not stated: the BBC and phase-cal links each channel is assigned to, which are the trailing fields of a chan_def.
+*
+def MODE01;
+*     1 channel: 1000 MHz U x 16 MHz, covering 1000-1016
+     sample_rate = 32.000 Ms/sec;  * Nyquist for 16 MHz
+     chan_def = :   1000.00 MHz : U :  16.00 MHz : &CH01;
+enddef;
+*------------------------------------------------------------------------------
+$IF;
+*
+*    Not stated: which physical IF and local oscillator each polarization comes through.
+*    The polarizations below are this schedule's; everything else in the line is the station's.
+*
+def MODE01;
+*     if_def = &IF_1 : <physical IF> : <not stated> : <LO> MHz : <U|L> : <pcal spacing> MHz;
+enddef;
+*------------------------------------------------------------------------------
+$BBC;
+*
+*    Not stated: which baseband converter each channel is taken through.
+*    It is a fact about the station rather than about this schedule.
+*
+def MODE01;
+*     BBC_assign = &BBC01 : <physical BBC number> : &IF_A;
+enddef;
+*------------------------------------------------------------------------------
+$TRACKS;
+*
+*    Not stated: the recording format and its fan-out.
+*    It is a fact about the station rather than about this schedule.
+*
+def MODE01;
+*     track_frame_format = <MARK5B | VDIF | Mark4>;
+*     fanout_def = : &CH01 : sign : 1 : <track>;
+*     fanout_def = : &CH01 :  mag : 1 : <track>;
+enddef;
+*------------------------------------------------------------------------------
+$PHASE_CAL_DETECT;
+*
+*    Not stated: the phase-cal tone spacing and which tones are detected.
+*    It is a fact about the station rather than about this schedule.
+*
+def MODE01;
+*     phase_cal_detect = &PCAL : <tone> : <tone> : <tone>;
+enddef;
+*------------------------------------------------------------------------------
+$PROCEDURES;
+*
+*    Not stated: the setup a station runs around a scan.
+*    It is a fact about the station rather than about this schedule.
+*
+def MODE01;
+*     procedure_name_prefix = "<nn>";
+*     setup_always = on : <seconds> sec;
+*     preob_cal  = on : <seconds> sec : preob;
+*     midob_cal  = on : <seconds> sec : midob;
+*     postob_cal = on : <seconds> sec : postob;
+enddef;
+*------------------------------------------------------------------------------
+$ROLL;
+*
+*    Not stated: whether the recording is barrel-rolled, which is a tape-era question.
+*    It is a fact about the station rather than about this schedule.
+*
+def MODE01;
+*     roll = off;
+enddef;
+*------------------------------------------------------------------------------
+$DAS;
+*
+*    Not stated: the recorder and electronics rack in use at the station.
+*    It is a fact about the station rather than about this schedule.
+*
+def ALMA;
+*     record_transport_type = <Mark5B | Mark6 | Flexbuff | ...>;
+*     electronics_rack_type = <Mark4 | VLBA4 | DBBC | ...>;
+*     number_drives = <count>;
+enddef;
+*
+def APEX;
+*     record_transport_type = <Mark5B | Mark6 | Flexbuff | ...>;
+*     electronics_rack_type = <Mark4 | VLBA4 | DBBC | ...>;
+*     number_drives = <count>;
+enddef;
+*------------------------------------------------------------------------------
+$SCHED;
+*
+*    Schedule for experiment OBS_DEFAULT
+*    Station lines give data_good and data_stop. The recorder's own fields -- start position, pass, sector, drive -- are left off.
+scan No0001;
+*     scan_9167c64358014a2da61b9070687d1173
+     start = 2026y222d05h00m00s; mode = MODE01; source = 1228+126;
+     station = ALMA : 0 sec : 86400 sec;
+     station = APEX : 0 sec : 86400 sec;
+endscan;
+*------------------------------------------------------------------------------

@@ -279,6 +279,7 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionGenerate_Observations: self.handle_generate_observations,
             self.ui.actionExport_Calulcated_Data: self.open_export_dialog,
             self.ui.actionPackage_Project: self.package_project,
+            self.ui.actionExport_VEX: self.export_vex,
             self.ui.actionOpen_Package: self.open_package,
             self.ui.actionAnalysis: self.open_analysis_tab,
         }
@@ -878,6 +879,49 @@ class PAstroCoreMainWindow(QMainWindow):
             f"{report['path']}\n\n{report['files']} file(s), "
             f"{report['bytes'] / 1024:,.1f} KB"
             + ("" if report["results"] else "\nModel only -- no results included."))
+
+    def export_vex(self):
+        """Write the schedule as VEX, and say what the file leaves for a station to finish.
+
+        Notes:
+            - **A VEX file is one experiment**: `$EXPER` names one and `$SCHED` holds its scans.
+              A project with several observations therefore writes several files, so it asks
+              for a directory; a project with one asks for a filename. Nothing is chosen for
+              the user by guessing which observation was meant.
+            - The report is shown rather than a "written successfully" box. The file is
+              deliberately incomplete, and which blocks are waiting is the useful part.
+        """
+        if not self.project or not self.manipulator:
+            return
+
+        observations = self.manipulator.inspect(self.project, observations=None) or []
+        if not observations:
+            QMessageBox.information(self, "Export VEX", "The project has no observations.")
+            return
+
+        if len(observations) == 1:
+            code = observations[0].get("code") or observations[0].get("name") or "schedule"
+            destination, _ = QFileDialog.getSaveFileName(
+                self, "Export VEX", f"{code}.vex", "VEX schedule (*.vex)")
+        else:
+            destination = QFileDialog.getExistingDirectory(
+                self, f"Export VEX -- one file per observation ({len(observations)})")
+        if not destination:
+            logger.debug("VEX export cancelled")
+            return
+
+        # The project, whether there is one observation or twenty: the operation writes one
+        # file per observation and takes a filename or a directory accordingly. Picking the
+        # observation here would mean reaching into the model to find it.
+        answer = self.manipulator.vex(obj=self.project, method="export", path=destination,
+                                      overwrite=True, raise_on_error=False)
+        if not answer.ok:
+            QMessageBox.critical(self, "Error", f"Could not write the VEX file: {answer.error}")
+            return
+
+        from pastrocore.gui.p_dialog_vex_report import VEXReportDialog
+
+        VEXReportDialog(answer.value, self).exec()
 
     def open_package(self):
         """Open a project someone sent as one file."""

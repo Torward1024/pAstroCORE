@@ -109,13 +109,19 @@ def pytest_addoption(parser):
         - `--regenerate-form-pixels` rewrites the reference the form harness compares against.
           Deliberate and separate, because a reference that regenerates itself on a mismatch
           records whatever happened rather than what was meant.
+        - `--regenerate-vex` does the same for the VEX file the exporter is held to, and for
+          the same reason.
     """
     parser.addoption("--regenerate-form-pixels", action="store_true", default=False,
                      help="rewrite tests/fixtures/form_pixels.json from what the forms render now")
+    parser.addoption("--regenerate-vex", action="store_true", default=False,
+                     help="rewrite tests/fixtures/reference.vex from what the exporter writes now")
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Write the form reference, when asked for it."""
+    """Write the references, when asked for them."""
+    if session.config.getoption("--regenerate-vex", default=False):
+        _write_vex_reference()
     if not session.config.getoption("--regenerate-form-pixels", default=False):
         return
 
@@ -138,3 +144,16 @@ def pytest_sessionfinish(session, exitstatus):
                          encoding="utf-8")
     print(f"\nwrote {REFERENCE} for {platform_key()}: "
           f"{len(everything[platform_key()])} form(s)")
+
+
+def _write_vex_reference():
+    """Rewrite the VEX the exporter is held to, from the same project the suite runs on."""
+    from pastrocore.formats.vex import write_vex
+    from test_vex import REFERENCE
+
+    project = ScheduleProject.from_dict(copy.deepcopy(json.loads(
+        FIXTURE.read_text(encoding="utf-8"))))
+    text, _ = write_vex(project.observations()[0])
+    REFERENCE.parent.mkdir(parents=True, exist_ok=True)
+    REFERENCE.write_text(text, encoding="utf-8", newline="\n")
+    print(f"\nwrote {REFERENCE}: {len(text.splitlines())} line(s)")
