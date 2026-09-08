@@ -8,6 +8,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.6.1] - 2026-09-08
+
+### Fixed
+
+- **Recent Projects never appeared.** The submenu was declared in the form, the setting was
+  written, the entries were built -- and one `<addaction>` line was missing, so File held no
+  Recent Projects at all. It was dropped because a string replacement did not match and nothing
+  checked that it had; the test drove `rebuild_recent_menu` directly and passed against a menu
+  nobody could open.
+
+  Two tests now: the G4 one asks the File menu for it, and a convention test fails on **any**
+  `QMenu` a form declares and never adds to anything. Qt does not complain about one, which is
+  why it went out in a release.
+
 ## [1.6.0] - 2026-09-08
 
 Schedules come back in, and a rule that had been refusing real experiments is gone.

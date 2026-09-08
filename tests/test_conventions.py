@@ -768,3 +768,32 @@ def test_no_form_sets_a_font_the_stylesheet_already_sets():
         "these forms set a font the stylesheet already sets, and a widget font wins over it:\n  "
         + "\n  ".join(offenders)
         + "\nRemove the property; pastrocore.qss gives every QWidget Arial 9pt.")
+
+
+def test_every_menu_a_form_declares_is_reachable():
+    """A `QMenu` in a form that no `addaction` names is built, titled, filled at runtime -- and
+    never appears. Qt does not complain, and neither did anything else.
+
+    It happened to **Recent Projects**: the submenu was declared, the settings were written, the
+    entries were added, and a test drove `rebuild_recent_menu` directly and passed. The menu was
+    unreachable for a release. What was missing was one `<addaction>` line, dropped because a
+    string replacement did not match and nothing checked that it had.
+    """
+    import re
+
+    forms = ROOT / "pastrocore" / "gui_pyside"
+    offenders = []
+    for form in sorted(forms.glob("*.ui")):
+        text = form.read_text(encoding="utf-8")
+        declared = set(re.findall(r'<widget class="QMenu" name="(\w+)"', text))
+        if not declared:
+            continue
+        added = set(re.findall(r'<addaction name="(\w+)"\s*/?>', text))
+        # A menu bar's top-level menus are added to it, and every submenu to its parent menu.
+        unreachable = sorted(declared - added)
+        if unreachable:
+            offenders.append(f"{form.name}: {unreachable}")
+
+    assert not offenders, (
+        "these menus are declared and never added to anything, so they do not appear:\n  "
+        + "\n  ".join(offenders))
