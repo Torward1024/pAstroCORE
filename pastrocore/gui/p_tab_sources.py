@@ -10,7 +10,6 @@ from pastrocore.base.observation import Observation
 from pastrocore.utils.catalogmanager import CatalogManager
 from msb_arch.utils.logging_setup import logger
 from msb_arch import ValidationError
-import uuid
 
 class SourcesTab(QWidget):
     data_updated = Signal(str, bool, str)

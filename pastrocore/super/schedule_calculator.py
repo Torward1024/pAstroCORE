@@ -9,7 +9,7 @@ from pastrocore.base import freshness
 from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.super.schedule_project import ScheduleProject
 
-from typing import Dict, Any, Optional, Tuple, List, Callable, Union
+from typing import Dict, Any, Optional, Tuple, List, Callable
 from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
 from functools import wraps

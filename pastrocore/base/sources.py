@@ -3,9 +3,30 @@ from copy import deepcopy
 from typing import Annotated, Optional, Dict
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
+from msb_arch import InvariantError, invariant
 from msb_arch.utils.logging_setup import logger
 from msb_arch.utils.validation import Range
+import math
 import uuid
+
+def _sexagesimal(value: float) -> tuple:
+    """Split a positive decimal into whole units, whole minutes and seconds.
+
+    Notes:
+        - One place, because right ascension and declination were each doing it and each got it
+          wrong the same way. Rounded to microseconds first, so 11.7308066500 does not come back
+          as 43 minutes and 59.999999 seconds.
+    """
+    units = int(value)
+    minutes_over = round((value - units) * 60, 9)
+    minutes = int(minutes_over)
+    seconds = round((minutes_over - minutes) * 60, 6)
+    if seconds >= 60.0:
+        seconds, minutes = 0.0, minutes + 1
+    if minutes >= 60:
+        minutes, units = 0, units + 1
+    return float(units), float(minutes), seconds
+
 
 class Source(BaseEntity):
     """Base class representing an astronomical source with coordinates, names, and optional flux properties.
@@ -70,16 +91,30 @@ class Source(BaseEntity):
             spectral_index=spectral_index,
             isactive=isactive,
         )
-        self._validate_flux_table()
         logger.debug("Initialized Source '%s' at RA=%sh%sm%ss, DEC=%sd%sm%ss", name, ra_h, ra_m, ra_s, de_d, de_m, de_s)
 
-    def _validate_flux_table(self) -> None:
-        """Validate flux table entries."""
-        for freq, flux in self.flux_table.items():
-            if not isinstance(freq, (int, float)):
-                raise TypeError(f"Flux frequency must be a number, got {type(freq)}")
+    @invariant("a flux must be positive")
+    def _fluxes_are_positive(self) -> bool:
+        """A source radiates or it is not there, and a negative flux is neither.
+
+        Raises:
+            InvariantError: Naming the frequency and the value.
+
+        Notes:
+            - It was `_validate_flux_table`, called from `__init__` and nowhere else, so
+              `set({"flux_table": {1000.0: -5.0}})` was accepted and `get_flux` handed the
+              minus five straight to whatever asked -- a sensitivity, an integration time.
+              The third of these found: the coordinate range and the polarization group were
+              the same shape.
+            - The *types* are MSB's, from the annotation, and it already refuses a key that is
+              not a number. What an annotation cannot say is that the value must be above zero.
+        """
+        for frequency, flux in (self.flux_table or {}).items():
             if not isinstance(flux, (int, float)) or flux <= 0:
-                raise ValueError(f"Flux at {freq} MHz must be positive, got {flux}")
+                raise InvariantError(
+                    f"Source '{self.name}': flux at {frequency} MHz is {flux!r}; "
+                    f"a flux must be positive")
+        return True
 
     def get_flux(self, frequency: float) -> Optional[float]:
         """Retrieve the flux for a given frequency, with interpolation or extrapolation."""
@@ -118,31 +153,47 @@ class Source(BaseEntity):
 
     @property
     def dec_degrees(self) -> float:
-        """Declination in decimal degrees."""
-        sign = 1 if self.de_d >= 0 else -1
+        """Declination in decimal degrees.
+
+        Notes:
+            - The sign is taken with `copysign` rather than by comparing against zero, so that
+              a source between -1 and 0 degrees comes back south of the equator. `de_d` is the
+              only field that can carry the sign, and for those sources it is `-0.0`, which
+              `>= 0` reads as positive.
+        """
+        sign = math.copysign(1.0, self.de_d)
         return sign * (abs(self.de_d) + self.de_m / 60 + self.de_s / 3600)
 
     def set_ra_degrees(self, ra_deg: float) -> None:
-        """Set Right Ascension from decimal degrees."""
+        """Set Right Ascension from decimal degrees.
+
+        Notes:
+            - **The hours field takes the whole hours and nothing else.** It used to take the
+              whole value -- `338.1517` degrees became 22.543 hours, 32.6 minutes and 36.1
+              seconds, and the fraction was then counted three times: reading it back gave
+              346.455, eight degrees away. `ra_degrees` is what every calculation asks, so the
+              source was simply somewhere else.
+        """
         if not (0 <= ra_deg <= 360):
             raise ValueError(f"RA degrees must be in range [0, 360], got {ra_deg}")
-        ra_hours = ra_deg / 15
-        self.set({"ra_h": ra_hours, "ra_m": ((ra_hours % 1) * 60), "ra_s": ((ra_hours % 1) * 60 % 1) * 60})
+        hours, minutes, seconds = _sexagesimal(ra_deg / 15)
+        self.set({"ra_h": hours, "ra_m": minutes, "ra_s": seconds})
         logger.debug("Set RA=%s deg for source '%s'", ra_deg, self.name)
 
     def set_dec_degrees(self, dec_deg: float) -> None:
-        """Set Declination from decimal degrees."""
+        """Set Declination from decimal degrees.
+
+        Notes:
+            - The same fault as `set_ra_degrees` had, and the same fix: the degrees field takes
+              whole degrees, and the fraction goes to the minutes and seconds once.
+            - The sign is carried by `de_d`, which is the only field that can: minutes and
+              seconds are constrained to 0-59. For a source between -1 and 0 degrees that means
+              **negative zero**, which is why `dec_degrees` reads the sign with `copysign`.
+        """
         if not (-90 <= dec_deg <= 90):
             raise ValueError(f"DEC degrees must be in range [-90, 90], got {dec_deg}")
-        sign = 1 if dec_deg >= 0 else -1
-        dec_abs = abs(dec_deg)
-        self.set(
-            {
-                "de_d": sign * (dec_abs),
-                "de_m": ((dec_abs % 1) * 60),
-                "de_s": ((dec_abs % 1) * 60 % 1) * 60,
-            }
-        )
+        degrees, minutes, seconds = _sexagesimal(abs(dec_deg))
+        self.set({"de_d": math.copysign(degrees, dec_deg), "de_m": minutes, "de_s": seconds})
         logger.debug("Set DEC=%s deg for source '%s'", dec_deg, self.name)
 
     def add_flux(self, frequency: float, flux: float) -> None:

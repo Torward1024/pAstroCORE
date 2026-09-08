@@ -20,16 +20,14 @@ import json
 import os
 import shutil
 import tempfile
-import threading
 import time
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import polars as pl
 from astropy.time import Time
 from msb_arch import Loader, Persistence
-from msb_arch.super.super import Super
 from msb_arch.utils.logging_setup import logger
 
 from pastrocore.base.data_structure import CalculatedDataStructure

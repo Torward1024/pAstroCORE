@@ -7,7 +7,6 @@ from msb_arch.utils.logging_setup import logger
 from .frequencies import IF, Frequencies
 from .sources import Source
 from .telescopes import Telescope, SpaceTelescope, Telescopes
-import numpy as np
 from typing import Annotated, Optional, List, Dict, Union
 from astropy.time import Time
 import astropy.units as u

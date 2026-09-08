@@ -5,9 +5,9 @@ from .ui_dialog_generate_observations import Ui_GenerateObservationsDialog
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
 from pastrocore.utils.catalogmanager import CatalogManager
-from pastrocore.base.frequencies import IF, Frequencies
-from pastrocore.base.sources import Source, Sources
-from pastrocore.base.telescopes import Telescope, SpaceTelescope, Telescopes
+from pastrocore.base.frequencies import Frequencies
+from pastrocore.base.sources import Sources
+from pastrocore.base.telescopes import Telescopes
 from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
 from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
 from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
@@ -16,7 +16,6 @@ from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
 from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
 from .ui_dialog_calc_progress import Ui_ProgressDialog
 from msb_arch.utils.logging_setup import logger
-import uuid
 import json
 from datetime import datetime, timedelta
 

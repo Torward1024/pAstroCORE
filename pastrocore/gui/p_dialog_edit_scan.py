@@ -1,6 +1,6 @@
 # pastrocore/gui/p_dialog_edit_scan.py
 from PySide6.QtWidgets import QDialog, QMessageBox, QHeaderView
-from PySide6.QtCore import Slot, Qt, QDateTime
+from PySide6.QtCore import Slot, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QDoubleValidator, QIcon
 from .ui_dialog_edit_scan import Ui_ScanEditorDialog
 from pastrocore.base.observation import Observation

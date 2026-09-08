@@ -36,7 +36,6 @@ import os
 from pathlib import Path
 import json
 # GUI resource file
-import pastrocore.gui.rc_icons
 from pastrocore.paths import SETTINGS, existing_or_shipped, settings_file, shipped_catalog
 
 class PAstroCoreMainWindow(QMainWindow):

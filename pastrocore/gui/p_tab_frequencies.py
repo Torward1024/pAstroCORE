@@ -10,7 +10,6 @@ from pastrocore.base.frequencies import IF
 from msb_arch.utils.logging_setup import logger
 from msb_arch import ValidationError
 import uuid
-import json
 
 class FrequenciesTab(QWidget):
     """Widget for displaying and managing frequencies in an observation."""

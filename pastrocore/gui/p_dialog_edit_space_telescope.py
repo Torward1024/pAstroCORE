@@ -1,11 +1,10 @@
 # pastrocore/gui/p_dialog_edit_space_telescope.py
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex, QDateTime
+from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from pastrocore.gui.ui_dialog_edit_space_telescope import Ui_SpaceTelescopeEditorDialog
 from pastrocore.base.spacetelescope import SpaceTelescope
 from astropy.time import Time
 from msb_arch.utils.logging_setup import logger
-import uuid
 import re
 
 class SEFDTableModel(QAbstractTableModel):

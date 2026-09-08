@@ -1,5 +1,5 @@
 # unit_scheduling/super/schedule_project.py
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, List, Optional
 from pastrocore.base.observation import Observation
 from pastrocore.base import freshness
 from pastrocore.base.result_store import ResidencyBudget, ResultStore, json_safe
