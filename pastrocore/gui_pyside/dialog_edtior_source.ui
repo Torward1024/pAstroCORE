@@ -293,13 +293,6 @@
      </item>
      <item row="0" column="0">
       <widget class="QLabel" name="labelFluxTable">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-         <pointsize>9</pointsize>
-         <bold>false</bold>
-        </font>
-       </property>
        <property name="text">
         <string>Flux Table (MHz, Jy):</string>
        </property>

@@ -113,10 +113,6 @@ class Ui_CalculationDialog(object):
 
         self.labelParameters = QLabel(CalculationDialog)
         self.labelParameters.setObjectName(u"labelParameters")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setBold(False)
-        self.labelParameters.setFont(font)
 
         self.gridLayout_3.addWidget(self.labelParameters, 2, 0, 1, 1)
 

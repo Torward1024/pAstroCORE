@@ -32,10 +32,6 @@ class Ui_observation_tab(object):
 
         self.lbl_search = QLabel(observation_tab)
         self.lbl_search.setObjectName(u"lbl_search")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.lbl_search.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_search, 2, 0, 1, 1)
 
@@ -50,7 +46,6 @@ class Ui_observation_tab(object):
 
         self.search = QLineEdit(observation_tab)
         self.search.setObjectName(u"search")
-        self.search.setFont(font)
 
         self.gridLayout.addWidget(self.search, 2, 1, 1, 1)
 

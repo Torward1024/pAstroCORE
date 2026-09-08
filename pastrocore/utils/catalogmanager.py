@@ -47,7 +47,7 @@ class CatalogManager:
             raise TypeError("telescope_file must be a string or None!")
         self.source_catalog = Sources()
         self.telescope_catalog = Telescopes()
-        
+
         if source_file:
             self.load_source_catalog(source_file)
         if telescope_file:

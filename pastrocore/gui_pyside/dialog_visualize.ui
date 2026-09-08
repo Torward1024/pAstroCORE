@@ -52,12 +52,6 @@
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="labelVisualizationType">
-           <property name="font">
-            <font>
-             <family>Arial</family>
-             <pointsize>9</pointsize>
-            </font>
-           </property>
            <property name="text">
             <string>Visualization Type:</string>
            </property>
@@ -65,12 +59,6 @@
          </item>
          <item row="1" column="1">
           <widget class="QComboBox" name="comboBoxVisualizationType">
-           <property name="font">
-            <font>
-             <family>Arial</family>
-             <pointsize>9</pointsize>
-            </font>
-           </property>
            <item>
             <property name="text">
              <string>UV Coverage</string>
@@ -122,12 +110,6 @@
        </item>
        <item row="0" column="3">
         <widget class="QPushButton" name="pushButtonVisualize">
-         <property name="font">
-          <font>
-           <family>Arial</family>
-           <pointsize>9</pointsize>
-          </font>
-         </property>
          <property name="text">
           <string>View</string>
          </property>

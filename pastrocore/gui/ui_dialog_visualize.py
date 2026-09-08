@@ -56,10 +56,6 @@ class Ui_VisualizationDialog(object):
 
         self.labelVisualizationType = QLabel(VisualizationDialog)
         self.labelVisualizationType.setObjectName(u"labelVisualizationType")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.labelVisualizationType.setFont(font)
 
         self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelVisualizationType)
 
@@ -74,7 +70,6 @@ class Ui_VisualizationDialog(object):
         self.comboBoxVisualizationType.addItem("")
         self.comboBoxVisualizationType.addItem("")
         self.comboBoxVisualizationType.setObjectName(u"comboBoxVisualizationType")
-        self.comboBoxVisualizationType.setFont(font)
 
         self.formLayout.setWidget(1, QFormLayout.FieldRole, self.comboBoxVisualizationType)
 
@@ -83,7 +78,6 @@ class Ui_VisualizationDialog(object):
 
         self.pushButtonVisualize = QPushButton(VisualizationDialog)
         self.pushButtonVisualize.setObjectName(u"pushButtonVisualize")
-        self.pushButtonVisualize.setFont(font)
 
         self.gridLayout.addWidget(self.pushButtonVisualize, 0, 3, 1, 1)
 

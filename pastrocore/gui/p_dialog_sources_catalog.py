@@ -9,11 +9,15 @@ class SourcesCatalogDialog(QDialog):
     """Dialog for browsing and selecting sources from the catalog."""
     sources_selected = Signal(list)  # Signal to emit list of selected sources
 
-    def __init__(self, catalog_manager: CatalogManager, parent=None, allow_selection: bool = False):
+    def __init__(self, catalog_manager: CatalogManager, manipulator, parent=None,
+                 allow_selection: bool = False):
         """Initialize the sources catalog dialog.
 
         Args:
             catalog_manager (CatalogManager): The catalog manager containing source data.
+            manipulator (ScheduleManipulator): The one entry point every request goes
+                through. Passed in rather than built here: a second orchestrator in a
+                process is exactly what MSB exists to avoid.
             parent (QWidget, optional): Parent widget. Defaults to None.
             allow_selection (bool, optional): If True, enables source selection mode with 'Add' button.
         """
@@ -21,6 +25,7 @@ class SourcesCatalogDialog(QDialog):
         self.ui = Ui_CatalogDialog()
         self.ui.setupUi(self)
         self.catalog_manager = catalog_manager
+        self.manipulator = manipulator
         self.model = QStandardItemModel(self)
         self.allow_selection = allow_selection
         self.setWindowTitle("Sources Catalog Browser")

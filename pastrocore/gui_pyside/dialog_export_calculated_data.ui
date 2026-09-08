@@ -255,12 +255,6 @@
      </item>
      <item row="1" column="0" colspan="3">
       <widget class="QLabel" name="labelParameters">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-         <bold>false</bold>
-        </font>
-       </property>
        <property name="text">
         <string>Parameters:</string>
        </property>

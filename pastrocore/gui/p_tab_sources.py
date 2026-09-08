@@ -142,7 +142,8 @@ class SourcesTab(QWidget):
     @Slot()
     def add_source_from_catalog(self):
         """Add multiple sources from the catalog to the observation."""
-        dialog = SourcesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
+        dialog = SourcesCatalogDialog(self.catalog_manager, self.manipulator, parent=self,
+                                       allow_selection=True)
         dialog.sources_selected.connect(self.handle_sources_selected)
         dialog.exec()
 

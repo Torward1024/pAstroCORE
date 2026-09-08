@@ -611,3 +611,63 @@ def test_a_band_with_no_sideband_cannot_be_saved(qt_application, monkeypatch):
     finally:
         dialog.close()
         dialog.deleteLater()
+
+
+# --- the catalog browsers -------------------------------------------------------------------
+
+@pytest.mark.parametrize("module_name,class_name,rows", [
+    ("p_dialog_sources_catalog", "SourcesCatalogDialog", "source_catalog"),
+    ("p_dialog_telescopes_catalog", "TelescopesCatalogDialog", "telescope_catalog"),
+])
+@pytest.mark.parametrize("allow_selection", [False, True])
+def test_a_catalog_browser_opens_and_fills(module_name, class_name, rows, allow_selection,
+                                           project, qt_application):
+    """Reported from a live session, both of them:
+
+        AttributeError: 'SourcesCatalogDialog' object has no attribute 'manipulator'
+
+    The lookup was moved onto the orchestrator and the dialog was never given one, so **every
+    way of opening either catalog raised** -- from the Options menu, from the sources tab, from
+    the telescopes tab, and from Generate Observations. Nothing constructed these dialogs, so
+    nothing noticed.
+
+    Both selection modes, because `allow_selection` builds a different set of buttons and is
+    the mode three of the four callers use.
+    """
+    import importlib
+
+    from pastrocore.paths import existing_or_shipped
+    from pastrocore.utils.catalogmanager import CatalogManager
+
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    catalogs = CatalogManager(existing_or_shipped("", "sources.dat"),
+                              existing_or_shipped("", "telescopes.dat"))
+    dialog_class = getattr(importlib.import_module(f"pastrocore.gui.{module_name}"), class_name)
+
+    dialog = dialog_class(catalogs, ScheduleManipulator(project),
+                          allow_selection=allow_selection)
+    try:
+        assert dialog.model.rowCount() > 0, "the shipped catalogue is not empty"
+        assert dialog.model.rowCount() == len(getattr(catalogs, rows).get_items())
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+
+
+def test_a_catalog_browser_is_given_the_orchestrator_rather_than_making_one(project):
+    """One entry point is the whole point of the framework, so a dialog that cannot reach the
+    orchestrator is given it -- it does not build a second one. Checked on the signature
+    because building one would work, and quietly."""
+    import inspect as inspection
+
+    from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
+    from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
+
+    for dialog_class in (SourcesCatalogDialog, TelescopesCatalogDialog):
+        parameters = inspection.signature(dialog_class.__init__).parameters
+        assert "manipulator" in parameters, f"{dialog_class.__name__} takes no orchestrator"
+
+        source = inspection.getsource(dialog_class)
+        assert "ScheduleManipulator(" not in source, (
+            f"{dialog_class.__name__} builds an orchestrator of its own")

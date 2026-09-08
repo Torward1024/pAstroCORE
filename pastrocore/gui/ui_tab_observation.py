@@ -40,19 +40,11 @@ class Ui_ObservationInfoTab(object):
 
         self.lbl_obs_info = QLabel(ObservationInfoTab)
         self.lbl_obs_info.setObjectName(u"lbl_obs_info")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.lbl_obs_info.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_obs_info, 2, 0, 1, 5)
 
         self.label_2 = QLabel(ObservationInfoTab)
         self.label_2.setObjectName(u"label_2")
-        font1 = QFont()
-        font1.setFamilies([u"Arial"])
-        font1.setBold(False)
-        self.label_2.setFont(font1)
 
         self.gridLayout.addWidget(self.label_2, 0, 0, 1, 1)
 

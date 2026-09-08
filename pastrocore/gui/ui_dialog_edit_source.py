@@ -206,11 +206,6 @@ class Ui_SourceEditorDialog(object):
 
         self.labelFluxTable = QLabel(SourceEditorDialog)
         self.labelFluxTable.setObjectName(u"labelFluxTable")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        font.setBold(False)
-        self.labelFluxTable.setFont(font)
 
         self.gridLayout.addWidget(self.labelFluxTable, 0, 0, 1, 1)
 
