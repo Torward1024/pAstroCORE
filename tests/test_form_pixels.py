@@ -11,12 +11,20 @@ compares the pixels against a stored reference. It is not a test of whether the 
 *good* -- it is a test of whether they look the same as they did, which is the only question a
 refactoring of styling can be judged by.
 
-The reference is regenerated deliberately:
+The reference is regenerated deliberately, **from a whole run**:
 
-    python -m pytest tests/test_form_pixels.py --regenerate-form-pixels
+    python -m pytest --regenerate-form-pixels
 
 Do that only when a form was *meant* to change, and look at what changed first: the failure
 names the form and how many pixels moved.
+
+**Regenerate from a whole run, not from this file.** Measured: `pytest tests/test_form_pixels.py
+--regenerate-form-pixels` rewrites 25 of the 26 digests, and running any GUI test before it --
+`tests/test_gui_smoke.py` will do -- makes every one of them match again. So something the rest
+of the suite does first changes how a form renders here. What, exactly, is not established: it
+is not the stylesheet (`render` applies it itself) and not the platform plugin. Until it is,
+the reference is calibrated to a whole run, and regenerating from a partial one silently
+records a different condition under the same name.
 """
 import hashlib
 import importlib
@@ -138,8 +146,8 @@ def test_a_form_renders_as_it_did(qt_application, stem, class_name, request):
 
     assert render(stem, class_name) == reference[key], (
         f"{key} does not render as it did.\n"
-        f"If that was intended, regenerate the reference:\n"
-        f"    python -m pytest tests/test_form_pixels.py --regenerate-form-pixels")
+        f"If that was intended, regenerate the reference from a whole run:\n"
+        f"    python -m pytest --regenerate-form-pixels")
 
 
 def test_the_harness_would_notice_a_change(qt_application):
