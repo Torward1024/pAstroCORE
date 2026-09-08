@@ -114,6 +114,7 @@
     <addaction name="actionNewProject"/>
     <addaction name="separator"/>
     <addaction name="actionOpenProject"/>
+    <addaction name="menuRecent_Projects"/>
     <addaction name="separator"/>
     <addaction name="actionSaveProject"/>
     <addaction name="actionSave_Project_As"/>

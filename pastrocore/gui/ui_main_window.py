@@ -218,6 +218,7 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionNewProject)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionOpenProject)
+        self.menuFile.addAction(self.menuRecent_Projects.menuAction())
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionSaveProject)
         self.menuFile.addAction(self.actionSave_Project_As)

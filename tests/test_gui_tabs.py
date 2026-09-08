@@ -673,6 +673,11 @@ def test_a_project_opened_is_remembered_and_survives_a_restart(qt_application, m
 
     window = PAstroCoreMainWindow()
     try:
+        # Reachable, not merely built: the submenu was declared and never added to File, so it
+        # was filled correctly and never appeared. Driving  on its own is
+        # what let that through.
+        assert "Recent Projects" in [a.text() for a in window.ui.menuFile.actions()]
+
         window.open_recent(str(where))
         assert window.settings["recent_projects"][0] == str(where)
         assert [a.text() for a in window.ui.menuRecent_Projects.actions()] == [str(where)]
