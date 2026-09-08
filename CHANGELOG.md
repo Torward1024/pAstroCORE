@@ -8,6 +8,53 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.7.0] - 2026-09-08
+
+An audit: four bugs, the duplication the format work left behind, and a rule that was
+costing minutes.
+
+### Fixed
+
+- **A position set in degrees did not read back.** `set_ra_degrees(338.1517)` put the whole
+  value in the hours field *and* the fraction in minutes and seconds, so the fraction was
+  counted three times: back came 346.455, eight degrees away. Declination the same.
+  `ra_degrees` is what every calculation asks of a source, and CFX states a position in degrees,
+  so reading a CFX file in went straight through it.
+
+  A source between -1 and 0 degrees now stays south, too: the sign lives in a negative zero,
+  and `-0.0 >= 0` is True, so it is read with `copysign`.
+
+- **Five more rules that guarded the constructor and nothing else** -- the shape that has now
+  been found six times. Each is an `@invariant`, so it holds on build, on `set` and on a saved
+  project coming back:
+
+  | What | What `set` used to take |
+  | --- | --- |
+  | a source's flux | `-5.0` Jy, handed to a sensitivity by `get_flux` |
+  | four telescope tables | negative SEFDs, temperatures and areas; an aperture efficiency of 1.4 |
+  | `sidebands` | `["X"]`, after which `get_band()` returned a band of zero width, quietly |
+  | `surface_accuracy` | `-0.5` m, which reaches Ruze's formula squared, so the result looks reasonable |
+  | `orbit_file` | a blank string, failing later inside a calculation as an empty path |
+
+### Changed
+
+- **Reading a schedule is 17x faster.** The pointing rule asked every scan for `get_end()`,
+  which builds a `TimeDelta` and adds it to a `Time` -- 2415 of them for a 69-scan file. It
+  compares Julian days now: 1.62 s to 0.09 s for that file, and a real schedule of several
+  hundred scans no longer takes minutes. An invariant is a check; it decides on every write, so
+  it does no expensive work to decide -- which is a convention test now.
+
+- **One `ScheduleFormat`.** The two format `Super`s shared a 57-line `_read_one` byte for byte,
+  plus `_observations`, `_put` and `_combined`: 209 and 197 lines became 91 and 90 over a
+  shared 161. The two writers each had `channels_of`, `collect_modes`, `Channel`, `Mode`, the
+  polarization letters, the name sanitiser and `Skeleton`; one copy each in
+  `pastrocore/formats/`. CFX's report named its blocks in string literals a third time; both
+  formats declare one `OUTSTANDING` tuple that the file and the report are made from.
+
+- 26 unused imports, among them `matplotlib.pyplot` in a visualization tab -- which pulled in
+  pyplot's backend machinery for a module that has not used it since the tab began owning its
+  figure.
+
 ## [1.6.1] - 2026-09-08
 
 ### Fixed

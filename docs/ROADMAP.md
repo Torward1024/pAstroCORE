@@ -1,6 +1,6 @@
 # pAstroCORE roadmap
 
-**1.6 shipped.** What is left, what was decided against, and why.
+**1.7 shipped.** What is left, what was decided against, and why.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy.
@@ -43,6 +43,7 @@ that happens when one is sent.
 | **1.4.0** | **N1--N4, G6.** Asking something of the numbers; nine tabs folded onto one base |
 | **1.5.0** | **V1--V4, X1, A2.** A schedule leaves: VEX and CFX, written whole and claiming only what is known |
 | **1.6.0** | **V5, V6, G4.** A schedule comes back in; a rule that refused real experiments is gone |
+| **1.7.0** | An audit: a position in degrees did not read back, five rules guarded only the constructor, and reading a schedule is 17x faster |
 
 What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two formats map onto
 the model, and what an exported file leaves for somebody else to fill in, is in
@@ -61,3 +62,6 @@ the model, and what an exported file leaves for somebody else to fill in, is in
 - **A rule the model cannot justify will refuse something real.** "Active scans must not
   overlap" threw half of `re03fr.vex` away: two sub-arrays on one source at two frequencies is
   an ordinary way to run an array, and one antenna recording two bands at once is ordinary too.
+- **A check in the constructor is a check nowhere.** Six of them were found: `set` and a saved
+  project reach neither. An `@invariant` holds on every path -- and, being a check that runs on
+  every write, it does no expensive work to decide.

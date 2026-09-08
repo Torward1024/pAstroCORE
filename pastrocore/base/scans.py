@@ -433,6 +433,10 @@ class Scan(BaseEntity):
         logger.info("Created scan '%s' with start=%s, source=%s, telescopes=%s, frequencies=%s", scan.name, scan.start.isot, 'OFF SOURCE' if is_off_source else source_name or 'None', [t.name for t in telescopes] if telescopes else [], [f.name for f in frequencies] if frequencies else [])
         return scan
 
+#: What a duration in seconds is divided by to become a fraction of a Julian day.
+_SECONDS_IN_A_DAY = 86400.0
+
+
 class Scans(BaseContainer[Scan]):
     """Base class representing a collection of Scan objects."""
     def __init__(self, items: Dict[str, Scan] = None, name: str = None, isactive: bool = True, use_cache: bool = False):
@@ -465,7 +469,8 @@ class Scans(BaseContainer[Scan]):
             - **Active scans only.** An inactive scan is an alternative being kept rather than
               a commitment, and two of those may well cover the same hour.
             - Sorted by start and compared only against the scans still running, so the usual
-              case costs a sort rather than a square.
+              case costs a sort rather than a square -- and compared as **Julian days**, since
+              turning each end into a  was what made reading a real schedule slow.
         """
         windows = []
         for name, scan in self._items.items():
@@ -473,20 +478,30 @@ class Scans(BaseContainer[Scan]):
                 continue
             on_it = {telescope.get_code() for telescope in scan.telescopes}
             looking_at = scan.source.name if scan.source is not None else None
-            windows.append((scan.get_start(), scan.get_end(), name, on_it, looking_at))
+            # **Julian days rather than `Time` objects.** The rule only ever compares moments,
+            # and `get_end()` builds a `TimeDelta` and adds it to a `Time` -- which is a
+            # millisecond each. Checked on every add, that is 2415 of them for a 69-scan file
+            # and 1.6 s to read one in; a real schedule of several hundred scans made it
+            # minutes. A day is a number, and `start.jd` is already computed.
+            start = scan.get_start().jd
+            windows.append((start, start + scan.duration / _SECONDS_IN_A_DAY, name, on_it,
+                            looking_at, scan))
 
-        windows.sort(key=lambda window: window[0].jd)
+        windows.sort(key=lambda window: window[0])
         running: List[tuple] = []
-        for start, end, name, on_it, looking_at in windows:
+        for start, end, name, on_it, looking_at, scan in windows:
             running = [held for held in running if held[1] > start]
-            for other_start, other_end, other_name, other_on_it, other_source in running:
+            for _other_start, _other_end, other_name, other_on_it, other_source, other in running:
                 shared = on_it & other_on_it
                 if shared and looking_at != other_source:
+                    # Only here is a moment turned back into something a person reads. It costs
+                    # what it costs, and it happens once, on the way to raising.
                     raise InvariantError(
-                        f"scan '{other_name}' runs {other_start.isot} to {other_end.isot} on "
-                        f"'{other_source}' and '{name}' runs {start.isot} to {end.isot} on "
-                        f"'{looking_at}'; {', '.join(sorted(shared))} cannot point at both")
-            running.append((start, end, name, on_it, looking_at))
+                        f"scan '{other_name}' runs {other.get_start().isot} to "
+                        f"{other.get_end().isot} on '{other_source}' and '{name}' runs "
+                        f"{scan.get_start().isot} to {scan.get_end().isot} on '{looking_at}'; "
+                        f"{', '.join(sorted(shared))} cannot point at both")
+            running.append((start, end, name, on_it, looking_at, scan))
         return True
 
     def add(self, scan: Scan, observation: 'Observation' = None) -> None:

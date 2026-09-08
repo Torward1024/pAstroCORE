@@ -797,3 +797,47 @@ def test_every_menu_a_form_declares_is_reachable():
     assert not offenders, (
         "these menus are declared and never added to anything, so they do not appear:\n  "
         + "\n  ".join(offenders))
+
+
+def test_an_invariant_does_no_expensive_work_to_decide():
+    """An invariant is a *check*, and it runs on every build, every write and every read-back --
+    so what it costs per item is paid n times over, and inside a container n times again.
+
+    The pointing rule asked each scan for `get_end()`, which builds a `TimeDelta` and adds it
+    to a `Time`. Reading a 69-scan VEX file took 1.6 s and a real schedule of several hundred
+    scans would have taken minutes; comparing Julian days instead took it to 0.09 s.
+
+    Building a `Time` to put in the *message* is fine and is why this looks at what is called
+    to decide rather than at what is called at all: the expensive half then happens once, on
+    the way to raising.
+    """
+    import ast
+
+    #: Calls that construct or convert rather than read. Not a list of slow functions -- a list
+    #: of the ones a rule has been caught reaching for.
+    EXPENSIVE = {"get_end", "get_MJD_starttime", "get_MJD_endtime", "Time", "TimeDelta",
+                 "to_dict", "from_dict", "deepcopy", "get_flux", "get_sefd"}
+
+    offenders = []
+    for path in sorted((ROOT / "pastrocore").rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            if not any(isinstance(d, ast.Call) and getattr(d.func, "id", "") == "invariant"
+                       for d in node.decorator_list):
+                continue
+            raising = {id(inner) for statement in ast.walk(node)
+                       if isinstance(statement, ast.Raise)
+                       for inner in ast.walk(statement)}
+            for call in ast.walk(node):
+                if not isinstance(call, ast.Call) or id(call) in raising:
+                    continue
+                name = getattr(call.func, "attr", None) or getattr(call.func, "id", None)
+                if name in EXPENSIVE:
+                    offenders.append(f"{path.name}:{node.name} calls {name}()")
+
+    assert not offenders, (
+        "an invariant is doing expensive work to decide, and it decides on every write:\n  "
+        + "\n  ".join(offenders))
