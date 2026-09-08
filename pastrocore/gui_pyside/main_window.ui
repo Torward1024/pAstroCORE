@@ -60,7 +60,7 @@
      <x>0</x>
      <y>0</y>
      <width>1119</width>
-     <height>23</height>
+     <height>22</height>
     </rect>
    </property>
    <property name="nativeMenuBar">
@@ -74,38 +74,48 @@
      <string>File</string>
     </property>
     <widget class="QMenu" name="menuExport_Schedule">
-     <property name="title">
-      <string>Export Schedule</string>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
      </property>
      <property name="toolTip">
-      <string>Write the schedule in a format a station or a correlator reads</string>
+      <string/>
      </property>
-     <addaction name="actionExport_VEX" />
-     <addaction name="actionExport_CFX" />
+     <property name="title">
+      <string>Export Observations</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../gui/icons/icons.qrc">
+       <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
+     </property>
+     <addaction name="actionExport_VEX"/>
+     <addaction name="actionExport_CFX"/>
     </widget>
-    <addaction name="actionNewProject" />
-    <addaction name="separator" />
-    <addaction name="actionOpenProject" />
-    <addaction name="separator" />
-    <addaction name="actionSaveProject" />
-    <addaction name="actionSave_Project_As" />
-    <addaction name="separator" />
-    <addaction name="actionExport_Calulcated_Data" />
-    <addaction name="menuExport_Schedule" />
-    <addaction name="separator" />
-    <addaction name="actionOpen_Package" />
-    <addaction name="actionPackage_Project" />
-    <addaction name="separator" />
-    <addaction name="actionExit" />
+    <addaction name="actionNewProject"/>
+    <addaction name="separator"/>
+    <addaction name="actionOpenProject"/>
+    <addaction name="separator"/>
+    <addaction name="actionSaveProject"/>
+    <addaction name="actionSave_Project_As"/>
+    <addaction name="separator"/>
+    <addaction name="actionExport_Calulcated_Data"/>
+    <addaction name="menuExport_Schedule"/>
+    <addaction name="separator"/>
+    <addaction name="actionOpen_Package"/>
+    <addaction name="actionPackage_Project"/>
+    <addaction name="separator"/>
+    <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuOptions">
     <property name="title">
      <string>Options</string>
     </property>
-    <addaction name="actionPreferences" />
-    <addaction name="separator" />
-    <addaction name="actionSource_Catalog_Manager" />
-    <addaction name="actionTelescope_Catalog_Manager" />
+    <addaction name="actionPreferences"/>
+    <addaction name="separator"/>
+    <addaction name="actionSource_Catalog_Manager"/>
+    <addaction name="actionTelescope_Catalog_Manager"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="mouseTracking">
@@ -117,32 +127,33 @@
     <property name="title">
      <string>Help</string>
     </property>
-    <addaction name="actionAbout" />
+    <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
     <property name="title">
      <string>Window</string>
     </property>
-    <addaction name="actionProject_Explorer" />
+    <addaction name="actionProject_Explorer"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="actionCalculate" />
-    <addaction name="actionVisualize" />
-    <addaction name="separator" />
-    <addaction name="actionGenerate_Observations" />
-    <addaction name="separator" />
-    <addaction name="actionLast_Run_Report" />
-    <addaction name="actionSession" />
-    <addaction name="actionAnalysis" />
+    <addaction name="actionCalculate"/>
+    <addaction name="actionLast_Run_Report"/>
+    <addaction name="separator"/>
+    <addaction name="actionVisualize"/>
+    <addaction name="actionAnalysis"/>
+    <addaction name="separator"/>
+    <addaction name="actionGenerate_Observations"/>
+    <addaction name="separator"/>
+    <addaction name="actionSession"/>
    </widget>
-   <addaction name="menuFile" />
-   <addaction name="menuTools" />
-   <addaction name="menuOptions" />
-   <addaction name="menuWindow" />
-   <addaction name="menuHelp" />
+   <addaction name="menuFile"/>
+   <addaction name="menuTools"/>
+   <addaction name="menuOptions"/>
+   <addaction name="menuWindow"/>
+   <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="mainStatusBar">
    <property name="autoFillBackground">
@@ -236,16 +247,24 @@
    </property>
   </action>
   <action name="actionOpen_Package">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/import_icon.svg</normaloff>:/icons/import_icon.svg</iconset>
+   </property>
    <property name="text">
-    <string>Open Package...</string>
+    <string>Import Project</string>
    </property>
    <property name="toolTip">
     <string>Open a project someone sent as one file</string>
    </property>
   </action>
   <action name="actionPackage_Project">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/export_icon.svg</normaloff>:/icons/export_icon.svg</iconset>
+   </property>
    <property name="text">
-    <string>Package Project...</string>
+    <string>Export Project</string>
    </property>
    <property name="toolTip">
     <string>Pack this project into one file, to send or to attach to a bug report</string>
@@ -268,11 +287,15 @@
    </property>
   </action>
   <action name="actionAnalysis">
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/catalog.svg</normaloff>:/icons/catalog.svg</iconset>
+   </property>
    <property name="text">
-    <string>Analysis</string>
+    <string>Analyze</string>
    </property>
    <property name="toolTip">
-    <string>Ask something of results that have been calculated</string>
+    <string>Analyze</string>
    </property>
   </action>
   <action name="actionExit">
@@ -381,21 +404,25 @@
   </action>
   <action name="actionSession">
    <property name="text">
-    <string>Session...</string>
+    <string>Session Viewer</string>
    </property>
    <property name="toolTip">
-    <string>What has been asked of this project in this session, and replaying a saved one</string>
+    <string>Session Viewer</string>
    </property>
   </action>
   <action name="actionLast_Run_Report">
    <property name="enabled">
     <bool>false</bool>
    </property>
+   <property name="icon">
+    <iconset resource="../gui/icons/icons.qrc">
+     <normaloff>:/icons/about_icon.svg</normaloff>:/icons/about_icon.svg</iconset>
+   </property>
    <property name="text">
-    <string>Last Run Report</string>
+    <string>Calculations Report</string>
    </property>
    <property name="toolTip">
-    <string>What the last calculation run did, step by step</string>
+    <string>Calculations Report</string>
    </property>
   </action>
   <action name="actionGenerate_Observations">
@@ -417,7 +444,7 @@
   <tabstop>projectExplorer</tabstop>
  </tabstops>
  <resources>
-  <include location="../gui/icons/icons.qrc" />
+  <include location="../gui/icons/icons.qrc"/>
  </resources>
  <connections>
   <connection>

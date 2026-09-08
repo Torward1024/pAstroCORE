@@ -173,7 +173,7 @@ QComboBox::down-arrow {
 /* Стилизация выпадающего списка */
 QComboBox QAbstractItemView {
     font-family: Arial;
-    font-size: 12pt;
+    font-size: 9pt;
     color: #333333;
     background-color: #ffffff;
     border: 1px solid #d3d3d3;
@@ -344,7 +344,7 @@ QDoubleSpinBox::down-arrow {
 
 /* QLabel: 2 of 121 carried this; 1 carried something else */
 QLabel {
-    font-size: 10pt; padding: 4px;
+    font-size: 9pt; padding: 4px;
 }
 
 /* QLineEdit: 18 of 19 carried this; 1 carried something else */
@@ -506,7 +506,7 @@ QTableView, QTableWidget {
     background-color: #ffffff;
     gridline-color: #d3d3d3;
     color: #333333;
-    font-family: Arial, sans-serif;
+    font-family: Arial;
     font-size: 9pt;
     border: 1px solid #d3d3d3; /* External border for table */
 }
@@ -536,7 +536,7 @@ QHeaderView::section {
     border-left: none; /* Clean look */
     border-top: none; /* Clean look */
     padding: 4px;
-    font-family: Arial, sans-serif;
+    font-family: Arial;
     font-size: 9pt;
 }
 
@@ -614,7 +614,7 @@ QTableView {
     gridline-color: #e0e0e0;
     selection-background-color: #0078d7;
     selection-color: #ffffff;
-    font-size: 12px;
+    font-size: 9pt;
 }
 QTableView::item {
     padding: 4px;

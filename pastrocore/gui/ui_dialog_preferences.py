@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_preferences.ui'
+## Form generated from reading UI file 'dialog_preferencesrrHxmd.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog,
     QLineEdit, QPushButton, QSizePolicy, QSpinBox,
     QTabWidget, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
+
 class Ui_PreferencesDialog(object):
     def setupUi(self, PreferencesDialog):
         if not PreferencesDialog.objectName():
@@ -41,6 +42,9 @@ class Ui_PreferencesDialog(object):
         self.gridLayout.setObjectName(u"gridLayout")
         self.tabWidget = QTabWidget(PreferencesDialog)
         self.tabWidget.setObjectName(u"tabWidget")
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        self.tabWidget.setFont(font)
         self.tab = QWidget()
         self.tab.setObjectName(u"tab")
         self.gridLayout_3 = QGridLayout(self.tab)
@@ -49,15 +53,16 @@ class Ui_PreferencesDialog(object):
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.lbl_telescopes_catalog_path = QLabel(self.tab)
         self.lbl_telescopes_catalog_path.setObjectName(u"lbl_telescopes_catalog_path")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.lbl_telescopes_catalog_path.setFont(font)
+        font1 = QFont()
+        font1.setFamilies([u"Arial"])
+        font1.setPointSize(9)
+        self.lbl_telescopes_catalog_path.setFont(font1)
 
         self.gridLayout_2.addWidget(self.lbl_telescopes_catalog_path, 1, 0, 1, 1)
 
         self.openSourcesCatalogButton = QPushButton(self.tab)
         self.openSourcesCatalogButton.setObjectName(u"openSourcesCatalogButton")
+        self.openSourcesCatalogButton.setFont(font)
         self.openSourcesCatalogButton.setAutoDefault(False)
         self.openSourcesCatalogButton.setFlat(True)
 
@@ -65,17 +70,19 @@ class Ui_PreferencesDialog(object):
 
         self.sourcesCatalogPath = QLineEdit(self.tab)
         self.sourcesCatalogPath.setObjectName(u"sourcesCatalogPath")
+        self.sourcesCatalogPath.setFont(font)
 
         self.gridLayout_2.addWidget(self.sourcesCatalogPath, 0, 1, 1, 1)
 
         self.lbl_sources_catalog_path = QLabel(self.tab)
         self.lbl_sources_catalog_path.setObjectName(u"lbl_sources_catalog_path")
-        self.lbl_sources_catalog_path.setFont(font)
+        self.lbl_sources_catalog_path.setFont(font1)
 
         self.gridLayout_2.addWidget(self.lbl_sources_catalog_path, 0, 0, 1, 1)
 
         self.openTelescopesCatalogButton = QPushButton(self.tab)
         self.openTelescopesCatalogButton.setObjectName(u"openTelescopesCatalogButton")
+        self.openTelescopesCatalogButton.setFont(font)
         self.openTelescopesCatalogButton.setAutoDefault(False)
         self.openTelescopesCatalogButton.setFlat(True)
 
@@ -83,21 +90,25 @@ class Ui_PreferencesDialog(object):
 
         self.comboLogging = QComboBox(self.tab)
         self.comboLogging.setObjectName(u"comboLogging")
+        self.comboLogging.setFont(font)
 
         self.gridLayout_2.addWidget(self.comboLogging, 2, 1, 1, 1)
 
         self.telescopesCatalogPath = QLineEdit(self.tab)
         self.telescopesCatalogPath.setObjectName(u"telescopesCatalogPath")
+        self.telescopesCatalogPath.setFont(font)
 
         self.gridLayout_2.addWidget(self.telescopesCatalogPath, 1, 1, 1, 1)
 
         self.labelLogging = QLabel(self.tab)
         self.labelLogging.setObjectName(u"labelLogging")
+        self.labelLogging.setFont(font)
 
         self.gridLayout_2.addWidget(self.labelLogging, 2, 0, 1, 1)
 
         self.chkClearLog = QCheckBox(self.tab)
         self.chkClearLog.setObjectName(u"chkClearLog")
+        self.chkClearLog.setFont(font)
 
         self.gridLayout_2.addWidget(self.chkClearLog, 3, 0, 1, 3)
 
@@ -151,6 +162,7 @@ class Ui_PreferencesDialog(object):
 
         self.cancelButton = QPushButton(PreferencesDialog)
         self.cancelButton.setObjectName(u"cancelButton")
+        self.cancelButton.setFont(font)
         self.cancelButton.setAutoDefault(False)
         self.cancelButton.setFlat(True)
 
@@ -158,6 +170,7 @@ class Ui_PreferencesDialog(object):
 
         self.okButton = QPushButton(PreferencesDialog)
         self.okButton.setObjectName(u"okButton")
+        self.okButton.setFont(font)
         self.okButton.setAutoDefault(True)
         self.okButton.setFlat(True)
 
@@ -191,4 +204,3 @@ class Ui_PreferencesDialog(object):
         self.cancelButton.setText(QCoreApplication.translate("PreferencesDialog", u"Cancel", None))
         self.okButton.setText(QCoreApplication.translate("PreferencesDialog", u"OK", None))
     # retranslateUi
-

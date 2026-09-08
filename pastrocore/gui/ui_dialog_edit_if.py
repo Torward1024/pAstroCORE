@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_if.ui'
+## Form generated from reading UI file 'dialog_editor_ifpdkxif.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDial
     QLabel, QListWidget, QListWidgetItem, QPushButton,
     QSizePolicy, QSpacerItem, QVBoxLayout, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
+
 class Ui_IFEditorDialog(object):
     def setupUi(self, IFEditorDialog):
         if not IFEditorDialog.objectName():
@@ -43,11 +44,15 @@ class Ui_IFEditorDialog(object):
         self.formLayout.setObjectName(u"formLayout")
         self.labelFrequency = QLabel(IFEditorDialog)
         self.labelFrequency.setObjectName(u"labelFrequency")
+        font = QFont()
+        font.setFamilies([u"Arial"])
+        self.labelFrequency.setFont(font)
 
         self.formLayout.setWidget(0, QFormLayout.LabelRole, self.labelFrequency)
 
         self.frequencyEdit = QDoubleSpinBox(IFEditorDialog)
         self.frequencyEdit.setObjectName(u"frequencyEdit")
+        self.frequencyEdit.setFont(font)
         self.frequencyEdit.setDecimals(3)
         self.frequencyEdit.setMinimum(1.000000000000000)
         self.frequencyEdit.setMaximum(1000000.000000000000000)
@@ -57,11 +62,13 @@ class Ui_IFEditorDialog(object):
 
         self.labelWavelength = QLabel(IFEditorDialog)
         self.labelWavelength.setObjectName(u"labelWavelength")
+        self.labelWavelength.setFont(font)
 
         self.formLayout.setWidget(1, QFormLayout.LabelRole, self.labelWavelength)
 
         self.wavelengthDisplay = QLabel(IFEditorDialog)
         self.wavelengthDisplay.setObjectName(u"wavelengthDisplay")
+        self.wavelengthDisplay.setFont(font)
         self.wavelengthDisplay.setFrameShape(QFrame.Shape.Panel)
         self.wavelengthDisplay.setFrameShadow(QFrame.Shadow.Sunken)
         self.wavelengthDisplay.setIndent(1)
@@ -70,11 +77,13 @@ class Ui_IFEditorDialog(object):
 
         self.labelBandwidth = QLabel(IFEditorDialog)
         self.labelBandwidth.setObjectName(u"labelBandwidth")
+        self.labelBandwidth.setFont(font)
 
         self.formLayout.setWidget(2, QFormLayout.LabelRole, self.labelBandwidth)
 
         self.bandwidthEdit = QDoubleSpinBox(IFEditorDialog)
         self.bandwidthEdit.setObjectName(u"bandwidthEdit")
+        self.bandwidthEdit.setFont(font)
         self.bandwidthEdit.setDecimals(3)
         self.bandwidthEdit.setMinimum(1.000000000000000)
         self.bandwidthEdit.setMaximum(128000.000000000000000)
@@ -84,11 +93,13 @@ class Ui_IFEditorDialog(object):
 
         self.labelCoverage = QLabel(IFEditorDialog)
         self.labelCoverage.setObjectName(u"labelCoverage")
+        self.labelCoverage.setFont(font)
 
         self.formLayout.setWidget(3, QFormLayout.LabelRole, self.labelCoverage)
 
         self.coverageDisplay = QLabel(IFEditorDialog)
         self.coverageDisplay.setObjectName(u"coverageDisplay")
+        self.coverageDisplay.setFont(font)
         self.coverageDisplay.setFrameShape(QFrame.Shape.Panel)
         self.coverageDisplay.setFrameShadow(QFrame.Shadow.Sunken)
         self.coverageDisplay.setIndent(1)
@@ -97,11 +108,13 @@ class Ui_IFEditorDialog(object):
 
         self.labelIsActive = QLabel(IFEditorDialog)
         self.labelIsActive.setObjectName(u"labelIsActive")
+        self.labelIsActive.setFont(font)
 
         self.formLayout.setWidget(4, QFormLayout.LabelRole, self.labelIsActive)
 
         self.isActiveCheckBox = QCheckBox(IFEditorDialog)
         self.isActiveCheckBox.setObjectName(u"isActiveCheckBox")
+        self.isActiveCheckBox.setFont(font)
         self.isActiveCheckBox.setChecked(True)
 
         self.formLayout.setWidget(4, QFormLayout.FieldRole, self.isActiveCheckBox)
@@ -111,6 +124,7 @@ class Ui_IFEditorDialog(object):
 
         self.line = QFrame(IFEditorDialog)
         self.line.setObjectName(u"line")
+        self.line.setFont(font)
         self.line.setFrameShape(QFrame.Shape.HLine)
         self.line.setFrameShadow(QFrame.Shadow.Sunken)
 
@@ -122,11 +136,11 @@ class Ui_IFEditorDialog(object):
         self.polarizationsColumn.setObjectName(u"polarizationsColumn")
         self.labelPolarizations = QLabel(IFEditorDialog)
         self.labelPolarizations.setObjectName(u"labelPolarizations")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(10)
-        font.setBold(False)
-        self.labelPolarizations.setFont(font)
+        font1 = QFont()
+        font1.setFamilies([u"Arial"])
+        font1.setPointSize(10)
+        font1.setBold(False)
+        self.labelPolarizations.setFont(font1)
 
         self.polarizationsColumn.addWidget(self.labelPolarizations)
 
@@ -136,6 +150,7 @@ class Ui_IFEditorDialog(object):
         QListWidgetItem(self.polarizationsList)
         QListWidgetItem(self.polarizationsList)
         self.polarizationsList.setObjectName(u"polarizationsList")
+        self.polarizationsList.setFont(font)
         self.polarizationsList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
 
         self.polarizationsColumn.addWidget(self.polarizationsList)
@@ -147,7 +162,7 @@ class Ui_IFEditorDialog(object):
         self.sidebandsColumn.setObjectName(u"sidebandsColumn")
         self.labelSidebands = QLabel(IFEditorDialog)
         self.labelSidebands.setObjectName(u"labelSidebands")
-        self.labelSidebands.setFont(font)
+        self.labelSidebands.setFont(font1)
 
         self.sidebandsColumn.addWidget(self.labelSidebands)
 
@@ -155,6 +170,7 @@ class Ui_IFEditorDialog(object):
         QListWidgetItem(self.sidebandsList)
         QListWidgetItem(self.sidebandsList)
         self.sidebandsList.setObjectName(u"sidebandsList")
+        self.sidebandsList.setFont(font)
         self.sidebandsList.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
 
         self.sidebandsColumn.addWidget(self.sidebandsList)
@@ -171,6 +187,7 @@ class Ui_IFEditorDialog(object):
 
         self.line_2 = QFrame(IFEditorDialog)
         self.line_2.setObjectName(u"line_2")
+        self.line_2.setFont(font)
         self.line_2.setFrameShape(QFrame.Shape.HLine)
         self.line_2.setFrameShadow(QFrame.Shadow.Sunken)
 
@@ -180,6 +197,7 @@ class Ui_IFEditorDialog(object):
         self.polarizationsButtonLayout.setObjectName(u"polarizationsButtonLayout")
         self.clearPolarizationsButton = QPushButton(IFEditorDialog)
         self.clearPolarizationsButton.setObjectName(u"clearPolarizationsButton")
+        self.clearPolarizationsButton.setFont(font)
 
         self.polarizationsButtonLayout.addWidget(self.clearPolarizationsButton)
 
@@ -189,11 +207,13 @@ class Ui_IFEditorDialog(object):
 
         self.saveButton = QPushButton(IFEditorDialog)
         self.saveButton.setObjectName(u"saveButton")
+        self.saveButton.setFont(font)
 
         self.polarizationsButtonLayout.addWidget(self.saveButton)
 
         self.cancelButton = QPushButton(IFEditorDialog)
         self.cancelButton.setObjectName(u"cancelButton")
+        self.cancelButton.setFont(font)
 
         self.polarizationsButtonLayout.addWidget(self.cancelButton)
 
@@ -257,4 +277,3 @@ class Ui_IFEditorDialog(object):
         self.saveButton.setText(QCoreApplication.translate("IFEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("IFEditorDialog", u"Cancel", None))
     # retranslateUi
-
