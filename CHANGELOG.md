@@ -8,6 +8,76 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.5.0] - 2026-09-08
+
+A schedule leaves pAstroCORE. Two formats, written whole and claiming only what is known.
+
+### Added
+
+- **VEX and CFX exporters (V1--V4, X1, A2).** `vex(method="export")` and
+  `cfx(method="export")` -- one operation per format, named after the format, because writing a
+  file, reading one back and checking one are three things done to one contract. The writing
+  lives in `pastrocore/formats/`, which knows a format and nothing about requests;
+  `ScheduleData` still knows nothing about any format.
+
+  Reached from `pastrocore-cli vex`, `pastrocore-cli cfx`, and **File -> Export Schedule**.
+
+- **The decision both exporters turn on: absent is not the same as missing.** Every block the
+  format calls for is written. What the model knows carries real values; what it cannot know --
+  which recorder is in the rack this week, which BBC a channel goes through, the clock offsets
+  measured during correlation -- is an empty field or a `def` whose statements are commented
+  out, annotated in place. The file is a form to finish at the station or at the correlator,
+  not a file with holes. Both halves of that idiom are `sched`'s own.
+
+  The report names every outstanding block, from the same declaration the file is written
+  from, so the two cannot drift apart.
+
+- Three things are refused rather than guessed at, each a plausible wrong answer a correlator
+  would have taken: a `site_velocity` of zero, which the model defaults to; a BBC link pointing
+  at a `&BBC01` nothing defines; a polarization written as an empty field.
+
+- **A space telescope is a station in CFX**, with an `ORB_FILE` and no fixed position -- the
+  shape this model has always had, and the reason the format is worth having here. VEX 1.5 has
+  nowhere to put an orbit, so it excludes one **by name in the report**.
+
+- **`IF.sidebands`** -- a list, like `polarizations`, because one receiver setting records both
+  sidebands in both polarizations and is still one setting. `get_band()` is the one place a
+  sideband becomes numbers, and the overlap rule asks it: 4828 upper and 4844 lower are the
+  same 16 MHz written two ways, and the second is refused with both spans named.
+
+  The frequency editor says which sidebands a band records and **shows what it covers while it
+  is being edited**; the frequencies tab gains Sidebands and Covers. Both lists in the editor
+  are filled from the model, so the form cannot offer what the model would refuse.
+
+- [`docs/formats.md`](docs/formats.md) -- the map from the model onto both formats, written
+  before either exporter, and the reasoning the exporters follow.
+
+### Changed
+
+- Drawing a whole project draws the observations **one at a time**. They went through a
+  `ThreadPoolExecutor`, and matplotlib is not thread-safe -- invisible, because the call passed
+  three arguments to a two-argument method, so every observation raised `TypeError` and a whole
+  project drew nothing at all.
+
+### Fixed
+
+- **The polarization group rule holds everywhere.** It lived in `_validate_polarizations`,
+  which runs from `__init__` and nowhere else, so `set({"polarizations": ["RCP", "H"]})` was
+  accepted and so was a saved project carrying one back. It is an `@invariant` now.
+
+- The suite's intermittent `access violation` inside `processEvents`. Deletions happen between
+  tests, at a point where nothing is inside Qt's event loop, rather than in the middle of some
+  later test's redraw. Measured: seven clean runs against one crash in three before, and the
+  suite goes from 85 s to about 190 s. Two cheaper versions were tried and both ended in heap
+  corruption, three runs out of three.
+
+### Known
+
+- **A visualization tab still swaps figures into its canvas.** Having the tab own one figure
+  and asking the visualizer to draw into it removes the swap, which matplotlib does not
+  support -- and it was written, measured and **reverted the same day**: 60 redraws went from
+  6 s to over 280 s and left 50 MB behind. Why is not yet known. The swap is what ships.
+
 ## [1.4.0] - 2026-09-07
 
 The numbers stopped being something you could only look at a plot of, and nine tabs became one.
