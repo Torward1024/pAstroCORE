@@ -377,11 +377,6 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.labelSefdTable = QLabel(self.tab_4)
         self.labelSefdTable.setObjectName(u"labelSefdTable")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        font.setBold(False)
-        self.labelSefdTable.setFont(font)
 
         self.gridLayout_6.addWidget(self.labelSefdTable, 0, 0, 1, 2)
 
@@ -445,7 +440,6 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.labelSurfaceEfficiencyTable = QLabel(self.tab_4)
         self.labelSurfaceEfficiencyTable.setObjectName(u"labelSurfaceEfficiencyTable")
-        self.labelSurfaceEfficiencyTable.setFont(font)
 
         self.gridLayout_6.addWidget(self.labelSurfaceEfficiencyTable, 4, 0, 1, 2)
 
@@ -484,13 +478,11 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.labelEffectiveAreaTable = QLabel(self.tab_4)
         self.labelEffectiveAreaTable.setObjectName(u"labelEffectiveAreaTable")
-        self.labelEffectiveAreaTable.setFont(font)
 
         self.gridLayout_6.addWidget(self.labelEffectiveAreaTable, 8, 0, 1, 2)
 
         self.labelSystemTemperatureTable = QLabel(self.tab_4)
         self.labelSystemTemperatureTable.setObjectName(u"labelSystemTemperatureTable")
-        self.labelSystemTemperatureTable.setFont(font)
 
         self.gridLayout_6.addWidget(self.labelSystemTemperatureTable, 12, 0, 1, 2)
 

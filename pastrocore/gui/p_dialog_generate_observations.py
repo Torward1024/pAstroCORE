@@ -302,7 +302,8 @@ class GenerateObservationsDialog(QDialog):
     @Slot()
     def add_sources_from_catalog(self):
         """Add sources from catalog."""
-        dialog = SourcesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
+        dialog = SourcesCatalogDialog(self.catalog_manager, self.manipulator, parent=self,
+                                       allow_selection=True)
         dialog.sources_selected.connect(self.handle_sources_selected)
         dialog.exec()
 
@@ -391,7 +392,8 @@ class GenerateObservationsDialog(QDialog):
     @Slot()
     def add_telescopes_from_catalog(self):
         """Add telescopes from catalog."""
-        dialog = TelescopesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
+        dialog = TelescopesCatalogDialog(self.catalog_manager, self.manipulator, parent=self,
+                                          allow_selection=True)
         dialog.telescopes_selected.connect(self.handle_telescopes_selected)
         dialog.exec()
 

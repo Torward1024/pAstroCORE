@@ -25,7 +25,6 @@ Nothing here is scheduled. In rough order of what would help most:
 
 | | Item | Why it is next |
 | --- | --- | --- |
-| **Formats** | V3: a parser nobody here wrote | [The map](formats.md), the VEX exporter and the CFX exporter are done. What is left is the thing that actually settles it -- a real reader accepting a real file. The ASC correlator is down the corridor |
 | **G4** | A most-recently-used list | Small, and asked for by anyone who opens the same project twice a day |
 | **G5** | The visualizer configured from a file | The plots are the one thing still styled in code |
 
@@ -118,19 +117,18 @@ reads. **SKED** is what much geodetic VLBI is scheduled in.
 | --- | --- | --- |
 | ~~V1~~ | ~~Map the model onto the VEX blocks~~ | **Done.** [The map](formats.md), written against `re03fr.vex` and the CFX of the same experiment. It found the one thing the model is missing -- a **sideband** on `IF`, which is physics rather than paperwork -- and drew the line the rest of the work follows: a schedule pAstroCORE owns, station hardware it must be given, and session facts that are none of its business |
 | ~~V2~~ | ~~Export ground-telescope schedules~~ | **Done.** `vex(method="export")`, `pastrocore-cli vex`, **File → Export Schedule → VEX...**. The file is **structurally whole**: every block the format calls for is present, what the model knows carries real values, and what it cannot know is an empty field or a `def` whose statements are commented out — a form for `drudg` or a person at the station, rather than a file with holes. The exporter names the outstanding blocks, from the same declaration it writes them from |
-| V3 | Validate against a parser we did not write | Not optional. A file that looks right to its author is how you learn months later at a correlator that it was not. **Open**: no third-party VEX parser is installable here. In the meantime `tests/test_vex.py` reads the file by VEX's punctuation and runs the same reading against `re03fr.vex` and `s16tj07a.vex` first -- a checker calibrated on `sched`'s output rather than on its own author's expectations. Worth more than a round trip through our own reader; less than a real parser |
+| ~~V3~~ | ~~Validate against a parser we did not write~~ | **Dropped.** No VEX parser is installable here, and standing an item up against a tool nobody has is a roadmap entry that can only ever be open. What the files get instead is a reading of the format's own punctuation, run against `re03fr.vex`, `s16tj07a.vex` and the two CFX files *first* -- calibration on somebody else's output rather than on their author's expectations. **The real check is a correlator accepting a real file**, and that happens when one is sent, not when a test says so |
 | ~~V4~~ | ~~Characterization tests~~ | **Done.** `tests/fixtures/reference.vex` is the whole file rather than a digest, so a change shows as a diff. Regenerate deliberately: `--regenerate-vex` |
 | V6 | Decide what happens to what the model cannot represent -- **before V5** | An importer that drops what it does not model, feeding an exporter that writes only what the model knows, is a lossy round trip that looks lossless. Keep unrecognised blocks verbatim, or refuse to export a lossily imported file |
-| V5 | Import VEX | A real file from an experiment this lab did not schedule loads and can be analysed. Export-then-import does **not** replace V3: a round trip passes when reader and writer are wrong the same way |
-| ~~X1~~ | ~~**`ScheduleCFX`**~~ | **Done.** `cfx(method="export")`, `pastrocore-cli cfx`, **File → Export Schedule → CFX...**. Same rule as VEX: every section present, what correlation fills in -- the recorded data, the `TIMEOFS` figures out of the delay model, the clock, the correlator settings -- commented in place and named in the report. **The space telescope is an ordinary station with an `ORB_FILE`**, which is why this format was worth doing here. One file per frequency setup, as the two example files are. Still wants a real check: the ASC correlator is the parser we did not write, and V3 covers both formats |
-| ~~K1~~ | ~~**`ScheduleSKED`**~~ | **Dropped.** No file that is certainly sked output to check against, and an exporter written against a guess is the failure V3 exists to prevent. It waits for a real one |
+| V5 | Import VEX | A real file from an experiment this lab did not schedule loads and can be analysed. A round trip is **not** a check: it passes when reader and writer are wrong the same way |
+| ~~X1~~ | ~~**`ScheduleCFX`**~~ | **Done.** `cfx(method="export")`, `pastrocore-cli cfx`, **File → Export Schedule → CFX...**. Same rule as VEX: every section present, what correlation fills in -- the recorded data, the `TIMEOFS` figures out of the delay model, the clock, the correlator settings -- commented in place and named in the report. **The space telescope is an ordinary station with an `ORB_FILE`**, which is why this format was worth doing here. One file per frequency setup, as the two example files are. The real check is the ASC correlator accepting one, which happens when a file is sent |
+| ~~K1~~ | ~~**`ScheduleSKED`**~~ | **Dropped.** No file that is certainly sked output to check against, and an exporter written against a guess is a file that looks right and is not. It waits for a real one |
 | ~~A2~~ | ~~One `Super` per format~~ | **Done.** `ScheduleVEX`, reached as its own operation: `vex(method="export")`. The operation is the format and the method is what is done to it, so writing, reading and checking one contract stay together. Nothing about any format appears in `ScheduleData`, and the writing itself is in `pastrocore/formats/vex.py`, which knows no request |
 
-Both exporters are written. **What is left is V3: a parser nobody here wrote.** For CFX that is
-the ASC correlator, which is down the corridor; for VEX it is whatever a station runs. Until
-then each suite reads its own output by the format's punctuation and runs the same reading
-against the real files first -- `re03fr.vex`, `s16tj07a.vex`, and the two CFX files of the same
-experiment. That is calibration against somebody else's output, and it is not the same thing.
+Both exporters are written, and **the formats are done as a piece of work**. What remains is
+not an item: send a file to a correlator and find out. Each suite reads its own output by the
+format's punctuation and runs the same reading against the real files first, which is
+calibration on somebody else's output -- worth having, and not the same as a real reader.
 
 Space telescopes were out of scope for V2 and are excluded **by name in its report**, which is
 a VEX limitation rather than ours: 1.5 describes a station as a place on the Earth. CFX is

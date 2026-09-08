@@ -30,12 +30,6 @@
    </item>
    <item row="2" column="0" colspan="5">
     <widget class="QLabel" name="lbl_obs_info">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>9</pointsize>
-      </font>
-     </property>
      <property name="text">
       <string>Start Time/Date: [get_start_time_date]; Duration: [DURATION] sec.</string>
      </property>
@@ -43,12 +37,6 @@
    </item>
    <item row="0" column="0">
     <widget class="QLabel" name="label_2">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <bold>false</bold>
-      </font>
-     </property>
      <property name="text">
       <string>Observation code:</string>
      </property>

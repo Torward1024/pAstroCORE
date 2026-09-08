@@ -63,10 +63,6 @@ class Ui_CatalogDialog(object):
 
         self.lbl_search = QLabel(CatalogDialog)
         self.lbl_search.setObjectName(u"lbl_search")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.lbl_search.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_search, 2, 0, 1, 1)
 

@@ -46,11 +46,6 @@
     <layout class="QFormLayout" name="formLayout">
      <item row="0" column="0">
       <widget class="QLabel" name="labelFrequency">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="text">
         <string>Frequency (MHz):</string>
        </property>
@@ -58,11 +53,6 @@
      </item>
      <item row="0" column="1">
       <widget class="QDoubleSpinBox" name="frequencyEdit">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="decimals">
         <number>3</number>
        </property>
@@ -79,11 +69,6 @@
      </item>
      <item row="1" column="0">
       <widget class="QLabel" name="labelWavelength">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="text">
         <string>Wavelength (cm):</string>
        </property>
@@ -91,11 +76,6 @@
      </item>
      <item row="1" column="1">
       <widget class="QLabel" name="wavelengthDisplay">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="frameShape">
         <enum>QFrame::Shape::Panel</enum>
        </property>
@@ -112,11 +92,6 @@
      </item>
      <item row="2" column="0">
       <widget class="QLabel" name="labelBandwidth">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="text">
         <string>Bandwidth (MHz):</string>
        </property>
@@ -124,11 +99,6 @@
      </item>
      <item row="2" column="1">
       <widget class="QDoubleSpinBox" name="bandwidthEdit">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="decimals">
         <number>3</number>
        </property>
@@ -145,11 +115,6 @@
      </item>
      <item row="3" column="0">
       <widget class="QLabel" name="labelCoverage">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="text">
         <string>Covers (MHz):</string>
        </property>
@@ -157,11 +122,6 @@
      </item>
      <item row="3" column="1">
       <widget class="QLabel" name="coverageDisplay">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="toolTip">
         <string>The spectrum this setting actually records. Two bands that cover the same span are the same spectrum written two ways, and the project will refuse the second</string>
        </property>
@@ -181,11 +141,6 @@
      </item>
      <item row="4" column="0">
       <widget class="QLabel" name="labelIsActive">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="text">
         <string>Active:</string>
        </property>
@@ -193,11 +148,6 @@
      </item>
      <item row="4" column="1">
       <widget class="QCheckBox" name="isActiveCheckBox">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="checked">
         <bool>true</bool>
        </property>
@@ -207,11 +157,6 @@
    </item>
    <item>
     <widget class="Line" name="line">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-      </font>
-     </property>
      <property name="orientation">
       <enum>Qt::Orientation::Horizontal</enum>
      </property>
@@ -223,13 +168,6 @@
       <layout class="QVBoxLayout" name="polarizationsColumn">
        <item>
         <widget class="QLabel" name="labelPolarizations">
-         <property name="font">
-          <font>
-           <family>Arial</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
          <property name="text">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Polarizations:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
@@ -237,11 +175,6 @@
        </item>
        <item>
         <widget class="QListWidget" name="polarizationsList">
-         <property name="font">
-          <font>
-           <family>Arial</family>
-          </font>
-         </property>
          <property name="toolTip">
           <string>Circular or linear, not both. Each one recorded in each sideband is a channel</string>
          </property>
@@ -276,13 +209,6 @@
       <layout class="QVBoxLayout" name="sidebandsColumn">
        <item>
         <widget class="QLabel" name="labelSidebands">
-         <property name="font">
-          <font>
-           <family>Arial</family>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-          </font>
-         </property>
          <property name="text">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sidebands:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
@@ -290,11 +216,6 @@
        </item>
        <item>
         <widget class="QListWidget" name="sidebandsList">
-         <property name="font">
-          <font>
-           <family>Arial</family>
-          </font>
-         </property>
          <property name="toolTip">
           <string>Which way the band runs from its sky frequency: U upwards, L downwards, both for a receiver that records either side</string>
          </property>
@@ -317,11 +238,6 @@
      </item>
      <item>
       <spacer name="horizontalSpacer">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="orientation">
         <enum>Qt::Orientation::Horizontal</enum>
        </property>
@@ -337,11 +253,6 @@
    </item>
    <item>
     <widget class="Line" name="line_2">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-      </font>
-     </property>
      <property name="orientation">
       <enum>Qt::Orientation::Horizontal</enum>
      </property>
@@ -351,11 +262,6 @@
     <layout class="QHBoxLayout" name="polarizationsButtonLayout">
      <item>
       <widget class="QPushButton" name="clearPolarizationsButton">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="toolTip">
         <string>Unselect every polarization and sideband</string>
        </property>
@@ -366,11 +272,6 @@
      </item>
      <item>
       <spacer name="horizontalSpacerPolarizations">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="orientation">
         <enum>Qt::Orientation::Horizontal</enum>
        </property>
@@ -384,11 +285,6 @@
      </item>
      <item>
       <widget class="QPushButton" name="saveButton">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="text">
         <string>Save</string>
        </property>
@@ -396,11 +292,6 @@
      </item>
      <item>
       <widget class="QPushButton" name="cancelButton">
-       <property name="font">
-        <font>
-         <family>Arial</family>
-        </font>
-       </property>
        <property name="text">
         <string>Cancel</string>
        </property>

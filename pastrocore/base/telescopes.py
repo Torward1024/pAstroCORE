@@ -27,7 +27,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
     Examples:
         >>> tels = Telescopes()
-        >>> tels.create_telescope(code="RT32", name="Radio Telescope 32m", diameter=32.0)
+        >>> tels.create_telescope(code="RT32", name="Zelenchukskaya_RT32", diameter=32.0)
         >>> print(tels)
         Telescopes(count=1, active=1, inactive=0)
         >>> tels.add(Telescope(code="RT32", name="Duplicate"))
@@ -146,7 +146,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         self._invalidate_cache()
         logger.debug("Set telescope with name '%s' in Telescopes", name)
 
-    def create_telescope(self, code: str = "TEMP", name: str = "Temporary Telescope",
+    def create_telescope(self, code: str = "TEMP", name: Optional[str] = None,
                         x: float = 0.0, y: float = 0.0, z: float = 0.0,
                         vx: float = 0.0, vy: float = 0.0, vz: float = 0.0,
                         diameter: float = 1.0, sefd_table: Optional[Dict[float, float]] = None,
@@ -177,8 +177,12 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         """
         if not re.match(r'^[a-zA-Z0-9_-]+$', code):
             raise ValueError(f"Invalid telescope code '{code}' (use alphanumeric, underscore, or hyphen)")
+        # **The name is used.** It was documented as "set to code for consistency" and the
+        # argument was thrown away, so a telescope called Svetloe came back as `Sv` -- and both
+        # exporters write a `name` where the model had only ever kept a code. Falling back to
+        # the code keeps every caller that passes none, which is what the old behaviour was for.
         new_telescope = Telescope(
-            code=code, name=code, x=x, y=y, z=z, vx=vx, vy=vy, vz=vz,
+            code=code, name=name or code, x=x, y=y, z=z, vx=vx, vy=vy, vz=vz,
             diameter=diameter, sefd_table=sefd_table,
             elevation_range=elevation_range, azimuth_range=azimuth_range,
             mount_type=mount_type, isactive=isactive
@@ -186,7 +190,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         self.add(new_telescope)
         logger.debug("Created and added telescope '%s'", code)
 
-    def create_space_telescope(self, code: str = "TS", name: str = "Temporary Space Telescope",
+    def create_space_telescope(self, code: str = "TS", name: Optional[str] = None,
                           orbit_file: str = "dummy_orbit.oem", diameter: float = 1.0,
                           sefd_table: Optional[Dict[float, float]] = None,
                           pitch_range: Tuple[float, float] = (-90.0, 90.0),
@@ -202,7 +206,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
 
         Args:
             code (str): Unique short name. Defaults to "TS".
-            name (str): Full name (set to code for consistency). Defaults to "Temporary Space Telescope".
+            name (Optional[str]): Full name. Defaults to the code.
             orbit_file (str): Path to the orbit file. Defaults to "dummy_orbit.oem".
             diameter (float): Antenna diameter in meters. Defaults to 1.0.
             sefd_table (Optional[Dict[float, float]]): SEFD table (MHz: Jy). Defaults to None.
@@ -224,7 +228,7 @@ class Telescopes(BaseContainer[Union[Telescope, SpaceTelescope]]):
         if not re.match(r'^[a-zA-Z0-9_-]+$', code):
             raise ValueError(f"Invalid space telescope code '{code}' (use alphanumeric, underscore, or hyphen)")
         new_telescope = SpaceTelescope(
-            code=code, name=code, orbit_file=orbit_file, diameter=diameter, sefd_table=sefd_table,
+            code=code, name=name or code, orbit_file=orbit_file, diameter=diameter, sefd_table=sefd_table,
             pitch_range=pitch_range, yaw_range=yaw_range, isactive=isactive, use_kep=use_kep,
             kepler_elements=kepler_elements, interpolation_method=interpolation_method,
             surface_accuracy=surface_accuracy, surface_efficiency_table=surface_efficiency_table,

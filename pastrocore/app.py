@@ -1198,7 +1198,7 @@ class PAstroCoreMainWindow(QMainWindow):
             return
 
         from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
-        dialog = TelescopesCatalogDialog(self.catalog_manager, self)
+        dialog = TelescopesCatalogDialog(self.catalog_manager, self.manipulator, self)
         dialog.exec()
         logger.debug("Telescopes catalog browser dialog opened")
 
@@ -1219,7 +1219,7 @@ class PAstroCoreMainWindow(QMainWindow):
             return
 
         from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
-        dialog = SourcesCatalogDialog(self.catalog_manager, self)
+        dialog = SourcesCatalogDialog(self.catalog_manager, self.manipulator, self)
         dialog.exec()
         logger.debug("Sources catalog browser dialog opened")
 

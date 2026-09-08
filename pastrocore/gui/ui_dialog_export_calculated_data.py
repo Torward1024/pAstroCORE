@@ -188,10 +188,6 @@ class Ui_ExportCalculatedDataDialog(object):
 
         self.labelParameters = QLabel(ExportCalculatedDataDialog)
         self.labelParameters.setObjectName(u"labelParameters")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setBold(False)
-        self.labelParameters.setFont(font)
 
         self.gridLayout_2.addWidget(self.labelParameters, 1, 0, 1, 3)
 

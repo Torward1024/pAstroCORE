@@ -165,7 +165,8 @@ class TelescopesTab(QWidget):
     @Slot()
     def add_telescope_from_catalog(self):
         """Add multiple telescopes from the catalog to the observation."""
-        dialog = TelescopesCatalogDialog(self.catalog_manager, parent=self, allow_selection=True)
+        dialog = TelescopesCatalogDialog(self.catalog_manager, self.manipulator, parent=self,
+                                          allow_selection=True)
         dialog.telescopes_selected.connect(self.handle_telescopes_selected)
         dialog.exec()
 

@@ -735,3 +735,36 @@ def test_a_to_dict_override_copies_before_it_writes():
         entity._use_cache = True
         entity.to_dict()
         entity.to_dict()        # the second call is the one that meets the frozen mapping
+
+
+def test_no_form_sets_a_font_the_stylesheet_already_sets():
+    """G1 again, for the property the first pass missed.
+
+    A `font` property on a widget **beats the stylesheet** -- and a form that sets only the
+    family gets Arial at whatever size the platform defaults to, sitting next to a widget the
+    stylesheet gave Arial 9pt. That is what "the fonts are a mishmash" looks like from the
+    outside, and 60 of these were removed at once.
+
+    A font that says something the stylesheet does not -- a heading's size, a bold label -- is
+    allowed and is why this checks the contents rather than the presence.
+    """
+    import re
+
+    forms = ROOT / "pastrocore" / "gui_pyside"
+    block = re.compile(r"<property name=\"font\">\s*<font>(.*?)</font>\s*</property>", re.S)
+    #: What the stylesheet already says, so a form repeating it is a second place to change.
+    SAYS_NOTHING = {("family", "Arial"), ("pointsize", "9"), ("bold", "false"),
+                    ("italic", "false"), ("underline", "false"), ("strikeout", "false")}
+
+    offenders = []
+    for form in sorted(forms.glob("*.ui")):
+        for body in block.findall(form.read_text(encoding="utf-8")):
+            stated = {(tag, value.strip())
+                      for tag, value in re.findall(r"<(\w+)>([^<]*)</\1>", body)}
+            if stated and stated <= SAYS_NOTHING:
+                offenders.append(f"{form.name}: {sorted(stated)}")
+
+    assert not offenders, (
+        "these forms set a font the stylesheet already sets, and a widget font wins over it:\n  "
+        + "\n  ".join(offenders)
+        + "\nRemove the property; pastrocore.qss gives every QWidget Arial 9pt.")

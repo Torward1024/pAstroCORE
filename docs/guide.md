@@ -42,16 +42,21 @@ Two stations, given where they are on the Earth in metres (ITRF), and how far th
 
 ```python
 observation.get_telescopes().create_telescope(
-    code="ALMA", name="Atacama Large Millimeter Array",
+    code="ALMA", name="ALMA_Atacama",
     x=2225061.164, y=-5440057.37, z=-2481681.15,
     diameter=12.0, elevation_range=(10.0, 90.0))
 
 observation.get_telescopes().create_telescope(
-    code="APEX", name="Atacama Pathfinder Experiment",
+    code="APEX", name="APEX_Atacama",
     x=2225039.53, y=-5441197.63, z=-2479303.36,
     diameter=12.0, elevation_range=(10.0, 90.0))
 
 assert [t.get_code() for t in observation.get_telescopes().get_items()] == ["ALMA", "APEX"]
+
+# The name is kept, not replaced by the code -- and a name is a bare word here, like a code:
+# letters, digits, `_` and `-`. Anything else is refused rather than quietly discarded.
+assert [t.name for t in observation.get_telescopes().get_items()] == ["ALMA_Atacama",
+                                                                     "APEX_Atacama"]
 ```
 
 A source, in B1950 hours and degrees, and one intermediate frequency in MHz:

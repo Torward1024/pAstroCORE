@@ -18,11 +18,19 @@
 /* The surfaces, first on purpose: Qt takes the later of two rules of equal specificity, and
  * these match nearly everything. A control rule further down is meant to win over them. */
 
-/* The default text colour. `QWidget` matches every widget there is, which is exactly why it
- * has to come before QPushButton rather than after -- it painted every button's label
- * #333333 when it sat at the end of this file. */
+/* The default text colour **and the font**. `QWidget` matches every widget there is, which is
+ * exactly why it has to come before QPushButton rather than after -- it painted every button's
+ * label #333333 when it sat at the end of this file.
+ *
+ * The font is here because it was on a dozen type rules and nowhere else, so anything no rule
+ * happened to name -- a menu, a tooltip, a header, a widget added later -- fell back to the
+ * platform's own font and sat next to Arial looking wrong. Stated once, it reaches everything;
+ * the repeats further down are harmless and say the same thing. A heading that means to be
+ * larger says so after this. */
 QWidget {
     color: #333333;
+    font-family: Arial;
+    font-size: 9pt;
 }
 
 /* the window itself: 24 form(s) carried this */

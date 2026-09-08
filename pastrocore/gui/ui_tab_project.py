@@ -28,10 +28,6 @@ class Ui_ProjectInfoTab(object):
         self.gridLayout.setObjectName(u"gridLayout")
         self.label_2 = QLabel(ProjectInfoTab)
         self.label_2.setObjectName(u"label_2")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.label_2.setFont(font)
 
         self.gridLayout.addWidget(self.label_2, 4, 0, 1, 1)
 
@@ -44,11 +40,6 @@ class Ui_ProjectInfoTab(object):
 
         self.label = QLabel(ProjectInfoTab)
         self.label.setObjectName(u"label")
-        font1 = QFont()
-        font1.setFamilies([u"Arial"])
-        font1.setPointSize(9)
-        font1.setBold(False)
-        self.label.setFont(font1)
 
         self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
 
@@ -70,7 +61,6 @@ class Ui_ProjectInfoTab(object):
 
         self.lineEdit = QLineEdit(ProjectInfoTab)
         self.lineEdit.setObjectName(u"lineEdit")
-        self.lineEdit.setFont(font)
         self.lineEdit.setReadOnly(True)
 
         self.gridLayout.addWidget(self.lineEdit, 0, 1, 1, 1)

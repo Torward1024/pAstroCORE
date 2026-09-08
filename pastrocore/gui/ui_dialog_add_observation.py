@@ -47,10 +47,6 @@ class Ui_AddObservationDialog(object):
         sizePolicy1.setHeightForWidth(self.combo_obs_type.sizePolicy().hasHeightForWidth())
         self.combo_obs_type.setSizePolicy(sizePolicy1)
         self.combo_obs_type.setMinimumSize(QSize(150, 0))
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.combo_obs_type.setFont(font)
 
         self.gridLayout.addWidget(self.combo_obs_type, 2, 1, 1, 2)
 
@@ -62,19 +58,16 @@ class Ui_AddObservationDialog(object):
 
         self.label = QLabel(AddObservationDialog)
         self.label.setObjectName(u"label")
-        self.label.setFont(font)
 
         self.gridLayout.addWidget(self.label, 2, 0, 1, 1)
 
         self.obs_code = QLineEdit(AddObservationDialog)
         self.obs_code.setObjectName(u"obs_code")
-        self.obs_code.setFont(font)
 
         self.gridLayout.addWidget(self.obs_code, 0, 1, 1, 2)
 
         self.lbl_obs_code = QLabel(AddObservationDialog)
         self.lbl_obs_code.setObjectName(u"lbl_obs_code")
-        self.lbl_obs_code.setFont(font)
 
         self.gridLayout.addWidget(self.lbl_obs_code, 0, 0, 1, 1)
 

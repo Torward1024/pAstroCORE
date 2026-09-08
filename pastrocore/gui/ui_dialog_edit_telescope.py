@@ -238,10 +238,6 @@ class Ui_TelescopeEditorDialog(object):
         self.mountTypeCombo.addItem("")
         self.mountTypeCombo.addItem("")
         self.mountTypeCombo.setObjectName(u"mountTypeCombo")
-        font = QFont()
-        font.setFamilies([u"Arial"])
-        font.setPointSize(9)
-        self.mountTypeCombo.setFont(font)
 
         self.formLayout.setWidget(12, QFormLayout.FieldRole, self.mountTypeCombo)
 
@@ -279,11 +275,6 @@ class Ui_TelescopeEditorDialog(object):
 
         self.labelSurfaceEfficiencyTable = QLabel(self.tab_2)
         self.labelSurfaceEfficiencyTable.setObjectName(u"labelSurfaceEfficiencyTable")
-        font1 = QFont()
-        font1.setFamilies([u"Arial"])
-        font1.setPointSize(9)
-        font1.setBold(False)
-        self.labelSurfaceEfficiencyTable.setFont(font1)
 
         self.gridLayout_3.addWidget(self.labelSurfaceEfficiencyTable, 4, 0, 1, 1)
 
@@ -298,7 +289,6 @@ class Ui_TelescopeEditorDialog(object):
 
         self.labelSefdTable = QLabel(self.tab_2)
         self.labelSefdTable.setObjectName(u"labelSefdTable")
-        self.labelSefdTable.setFont(font1)
 
         self.gridLayout_3.addWidget(self.labelSefdTable, 0, 0, 1, 1)
 
@@ -387,7 +377,6 @@ class Ui_TelescopeEditorDialog(object):
 
         self.labelSystemTemperatureTable = QLabel(self.tab_2)
         self.labelSystemTemperatureTable.setObjectName(u"labelSystemTemperatureTable")
-        self.labelSystemTemperatureTable.setFont(font1)
 
         self.gridLayout_3.addWidget(self.labelSystemTemperatureTable, 12, 0, 1, 2)
 
@@ -417,7 +406,6 @@ class Ui_TelescopeEditorDialog(object):
 
         self.labelEffectiveAreaTable = QLabel(self.tab_2)
         self.labelEffectiveAreaTable.setObjectName(u"labelEffectiveAreaTable")
-        self.labelEffectiveAreaTable.setFont(font1)
 
         self.gridLayout_3.addWidget(self.labelEffectiveAreaTable, 8, 0, 1, 2)
 
