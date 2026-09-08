@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'main_windowjDoezF.ui'
+## Form generated from reading UI file 'main_window.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QDockWidget, QHB
     QMenuBar, QProgressBar, QSizePolicy, QStatusBar,
     QTabWidget, QTreeView, QVBoxLayout, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
-
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
@@ -306,3 +305,4 @@ class Ui_MainWindow(object):
         self.menuTools.setTitle(QCoreApplication.translate("MainWindow", u"Tools", None))
         self.dockWidget.setWindowTitle(QCoreApplication.translate("MainWindow", u"Project Explorer", None))
     # retranslateUi
+

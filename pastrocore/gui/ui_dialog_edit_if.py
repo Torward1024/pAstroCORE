@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'dialog_editor_ifpdkxif.ui'
+## Form generated from reading UI file 'dialog_editor_if.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.8.2
 ##
@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDial
     QLabel, QListWidget, QListWidgetItem, QPushButton,
     QSizePolicy, QSpacerItem, QVBoxLayout, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
-
 class Ui_IFEditorDialog(object):
     def setupUi(self, IFEditorDialog):
         if not IFEditorDialog.objectName():
@@ -277,3 +276,4 @@ class Ui_IFEditorDialog(object):
         self.saveButton.setText(QCoreApplication.translate("IFEditorDialog", u"Save", None))
         self.cancelButton.setText(QCoreApplication.translate("IFEditorDialog", u"Cancel", None))
     # retranslateUi
+
