@@ -60,7 +60,7 @@ class Observation(BaseEntity):
     def __init__(self, name: str = None, code: str = "OBS_DEFAULT", sources: Sources = None,
                  telescopes: Telescopes = None, frequencies: Frequencies = None,
                  scans: Scans = None, observation_type: str = "VLBI", 
-                 calculated_data: Dict[str, Dict] = None, 
+                 calculated_data: Dict[str, Dict] = None,
                  isactive: bool = True, use_cache: bool = False):
         """Initialize an Observation with code, entities, type, calculated data, and active status."""
         if name is None:

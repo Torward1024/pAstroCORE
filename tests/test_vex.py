@@ -283,3 +283,78 @@ def test_the_file_is_the_one_that_was_agreed(written):
     pytest.fail(f"the VEX written has changed:\n{diff}\n\n"
                 f"If that was intended:\n"
                 f"    python -m pytest tests/test_vex.py --regenerate-vex")
+
+
+@pytest.fixture(params=["re03fr.vex", "s16tj07a.vex"])
+def example_file(request):
+    """Each real VEX file in turn: one from the ASC, one from somewhere else entirely."""
+    return request.param
+
+
+# --- reading one back (V5, V6) ------------------------------------------------------------
+
+def imported(path, project=None):
+    """Read one of the real files into a project, through the orchestrator."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    if not (EXAMPLES / path).exists():
+        pytest.skip(f"{path} is not here")
+    project = project or ScheduleProject(name="Imported")
+    core = ScheduleManipulator(project)
+    operation = "cfx" if path.lower().endswith(".cfx") else "vex"
+    report = getattr(core, operation)(obj=project, method="import",
+                                      path=str(EXAMPLES / path))
+    return project, report
+
+
+def test_a_real_file_this_lab_did_not_schedule_loads(example_file):
+    """V5's exit criterion. The file was written by somebody else, for an experiment nobody
+    here scheduled, and what comes back is an observation like any other."""
+    project, report = imported(example_file)
+    observation = project.observations()[0]
+
+    assert report["scans"] > 0
+    assert len(report["stations"]) > 1, "an interferometer needs more than one station"
+    assert observation.get_sources().get_items(), "no source came back"
+    assert observation.get_frequencies().get_items(), "no band came back"
+    assert observation.get_scans().get_items(), "no scan came back"
+
+
+def test_what_was_read_can_be_analysed(example_file):
+    """The rest of V5's criterion: it is not enough for it to load. `analyze` reads results, so
+    what is checked here is that a calculation runs over it and produces rows."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    project, _ = imported(example_file)
+    core = ScheduleManipulator(project)
+    observation = project.observations()[0]
+
+    core.compute(obj=observation, method="run", calculations=["az_el"], time_step=600.0,
+                 recalculate=True, raise_on_error=False)
+    described = core.analyze(obj=observation, method="describe", key="az_el",
+                             raise_on_error=False)
+
+    assert described.ok, described.error
+    assert described.value, "nothing to analyse came out of an imported schedule"
+
+
+def test_what_the_model_cannot_hold_is_named_rather_than_carried(example_file):
+    """V6, decided and then tested. The hardware and the session belong to the station and the
+    correlator: an export leaves those blocks empty for them to fill, so importing them would
+    be keeping something nothing here can use or check. What was passed over is *named*, so a
+    round trip is never mistaken for a lossless one."""
+    _project, report = imported(example_file)
+
+    assert report["passed_over"], "a real file always says more than this model holds"
+    for name in report["passed_over"]:
+        assert isinstance(name, str) and name
+
+
+def test_a_scan_the_model_refuses_is_named_rather_than_forced_in(example_file):
+    """Whatever the model will not take is reported instead of being bent to fit. Nothing in
+    these two files is refused any more -- the rule that used to throw half of `re03fr.vex`
+    away was the one about overlapping scans, and it was wrong."""
+    _project, report = imported(example_file)
+
+    assert report["refused"] == [], f"scans were refused: {report['refused']}"

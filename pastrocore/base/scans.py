@@ -444,37 +444,50 @@ class Scans(BaseContainer[Scan]):
         self._key_cache = list(self._items.keys()) if items else []
         logger.info("Initialized Scans with name=%s, %s scans", name, len(self._items))
 
-    @invariant("active scans must not overlap in time")
-    def _active_scans_do_not_overlap(self) -> bool:
-        """No two active scans may cover the same moment.
+    @invariant("a telescope must not be pointed at two sources at once")
+    def _no_telescope_is_pointed_two_ways_at_once(self) -> bool:
+        """One antenna points one way at a time, and that is the whole rule.
 
         Raises:
-            InvariantError: Naming both scans and the window each covers.
+            InvariantError: Naming both scans, the window they share, and the station that
+                cannot be in both.
 
         Notes:
-            - A rule about the contents rather than about any one scan, which is what an
-              invariant is for. It was a `_check_overlap` helper called by hand from `add` and
-              `set_scan` only, so a scan arriving through `set_item`, a whole set through
-              `set_items`, and a container built from a file were never checked at all -- and
-              a saved schedule is exactly where a conflicting pair would come from.
-            - **Active scans only.** An inactive scan is a alternative being kept, not a
-              commitment, and two of those may well cover the same hour. Activating one is not
-              checked here, because a container is not told when an item it holds is activated.
-            - Sorted by start rather than compared pairwise, so checking the whole container
-              costs one sort instead of a square.
+            - **It used to refuse any two active scans that overlapped in time**, and that is
+              wrong twice over. `re03fr.vex` observes 2230+114 from 13:50 with Wb, Sv and Bd at
+              4828 MHz *and* with Ev, Nt and Zc at 22228 MHz: two sub-arrays on one source at
+              two frequencies, which is an ordinary way to run an array and the basis of
+              multi-frequency synthesis. The old rule threw half of a real experiment away on
+              import. Nor is one station in two overlapping scans wrong -- a dual-band receiver
+              records two bands at once, and that is two scans of one source.
+            - What cannot happen is one antenna pointed at **two different sources** at the
+              same moment: it has one mount. That is the rule, and it is the only one the model
+              can actually justify.
+            - **Active scans only.** An inactive scan is an alternative being kept rather than
+              a commitment, and two of those may well cover the same hour.
+            - Sorted by start and compared only against the scans still running, so the usual
+              case costs a sort rather than a square.
         """
         windows = []
         for name, scan in self._items.items():
             if not scan.isactive:
                 continue
-            windows.append((scan.get_start(), scan.get_end(), name))
+            on_it = {telescope.get_code() for telescope in scan.telescopes}
+            looking_at = scan.source.name if scan.source is not None else None
+            windows.append((scan.get_start(), scan.get_end(), name, on_it, looking_at))
 
         windows.sort(key=lambda window: window[0].jd)
-        for (start, end, name), (next_start, next_end, next_name) in zip(windows, windows[1:]):
-            if next_start < end:
-                raise InvariantError(
-                    f"scan '{name}' runs {start.isot} to {end.isot} and '{next_name}' runs "
-                    f"{next_start.isot} to {next_end.isot}; active scans must not overlap")
+        running: List[tuple] = []
+        for start, end, name, on_it, looking_at in windows:
+            running = [held for held in running if held[1] > start]
+            for other_start, other_end, other_name, other_on_it, other_source in running:
+                shared = on_it & other_on_it
+                if shared and looking_at != other_source:
+                    raise InvariantError(
+                        f"scan '{other_name}' runs {other_start.isot} to {other_end.isot} on "
+                        f"'{other_source}' and '{name}' runs {start.isot} to {end.isot} on "
+                        f"'{looking_at}'; {', '.join(sorted(shared))} cannot point at both")
+            running.append((start, end, name, on_it, looking_at))
         return True
 
     def add(self, scan: Scan, observation: 'Observation' = None) -> None:
