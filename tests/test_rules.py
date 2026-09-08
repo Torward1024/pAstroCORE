@@ -359,3 +359,117 @@ def test_a_telescope_with_a_free_name_keeps_it(tmp_path):
 
     assert [t.name for t in telescopes.get_items()] == held + ["Onsala"], (
         "a name nothing was using was changed anyway")
+
+
+# --- a position in degrees ---------------------------------------------------------------
+
+@pytest.mark.parametrize("ra,dec", [
+    (338.1517037708, 11.7308066500),      # 2230+114, from the example experiment
+    (0.0, -9.4847806),                    # a southern source, from s16tj07a.vex
+    (359.99, -0.4841),                    # between -1 and 0: the sign lives in a negative zero
+    (12.5, 89.9999),                      # near the pole, where minutes and seconds carry it
+    (180.0, 0.0),
+])
+def test_a_position_set_in_degrees_reads_back_as_it_was(ra, dec):
+    """It did not. `set_ra_degrees(338.1517)` put the *whole* value in the hours field and then
+    the fraction in minutes and seconds as well, so the fraction was counted three times and
+    reading it back gave 346.455 -- eight degrees away. `ra_degrees` is what every calculation
+    asks of a source, so the source was simply somewhere else.
+
+    CFX states a position in degrees, so reading one in went straight through this.
+    """
+    source = Source(name="X")
+    source.set_ra_degrees(ra)
+    source.set_dec_degrees(dec)
+
+    assert source.ra_degrees == pytest.approx(ra, abs=1e-9)
+    assert source.dec_degrees == pytest.approx(dec, abs=1e-9)
+
+
+def test_a_source_just_south_of_the_equator_stays_south():
+    """`de_d` is the only field that can carry the sign -- minutes and seconds are 0 to 59 --
+    so for a source between -1 and 0 degrees it is negative zero, and `-0.0 >= 0` is True. The
+    sign is read with `copysign` for exactly that band."""
+    source = Source(name="X")
+    source.set_dec_degrees(-0.5)
+
+    assert source.de_d == 0.0 and str(source.de_d) == "-0.0"
+    assert source.dec_degrees < 0
+
+
+def test_a_position_survives_being_written_and_read_back():
+    """A negative zero has to reach the file and come back, or the sign is lost on save."""
+    source = Source(name="X")
+    source.set_dec_degrees(-0.4841)
+
+    again = Source.from_dict(source.to_dict())
+
+    assert again.dec_degrees == pytest.approx(-0.4841, abs=1e-9)
+
+
+@pytest.mark.parametrize("path", ["build", "set", "from_dict"])
+def test_a_flux_must_be_positive_on_every_path(path):
+    """A source radiates or it is not there. It was `_validate_flux_table`, called from
+    `__init__` and nowhere else, so `set({"flux_table": {1000.0: -5.0}})` was accepted and
+    `get_flux` handed the minus five to whatever asked -- a sensitivity, an integration time.
+
+    The third of this shape: the coordinate range and the polarization group were the same.
+    """
+    attempts = {
+        "build": lambda: Source(name="Y", flux_table={1000.0: -5.0}),
+        "set": lambda: Source(name="X").set({"flux_table": {1000.0: -5.0}}),
+        "from_dict": lambda: Source.from_dict(
+            {**Source(name="Z").to_dict(), "flux_table": {1000.0: -5.0}}),
+    }
+
+    with pytest.raises((InvariantError, ValueError)):
+        attempts[path]()
+
+
+def test_a_flux_that_is_positive_is_still_accepted():
+    """The rule refuses what is wrong and nothing else."""
+    source = Source(name="W", flux_table={1000.0: 5.0, 2000.0: 7.5})
+
+    assert source.get_flux(1000.0) == 5.0
+    assert source.get_flux(1500.0) == pytest.approx(6.25)
+
+
+# --- a telescope's tables -------------------------------------------------------------------
+
+@pytest.mark.parametrize("table,bad", [
+    ("sefd_table", -1.0),
+    ("system_temperature_table", 0.0),
+    ("effective_area_table", -2.0),
+    ("surface_efficiency_table", 1.4),
+])
+@pytest.mark.parametrize("path", ["build", "set", "from_dict"])
+def test_a_telescope_table_holds_no_impossible_value(table, bad, path):
+    """`add_sefd` checked what it was given and `set` did not, so a negative SEFD went in and
+    `get_sefd` handed it to whatever asked -- a sensitivity, an integration time, a beam. Four
+    tables had the same hole, and so did a saved project carrying one back.
+
+    Surface efficiency is bounded above as well: an aperture cannot return more than it
+    collects, so 1.4 is a typo for 0.4 rather than a very good dish.
+    """
+    from pastrocore.base.telescope import Telescope
+
+    attempts = {
+        "build": lambda: Telescope(code="T", name="T", **{table: {1000.0: bad}}),
+        "set": lambda: Telescope(code="T", name="T").set({table: {1000.0: bad}}),
+        "from_dict": lambda: Telescope.from_dict(
+            {**Telescope(code="T", name="T").to_dict(), table: {1000.0: bad}}),
+    }
+
+    with pytest.raises((InvariantError, ValueError)):
+        attempts[path]()
+
+
+def test_a_telescope_with_sensible_tables_is_accepted():
+    """The rule refuses what is wrong and nothing else."""
+    from pastrocore.base.telescope import Telescope
+
+    telescope = Telescope(code="G", name="G", sefd_table={1000.0: 500.0},
+                          surface_efficiency_table={1000.0: 0.6})
+
+    assert telescope.get_sefd(1000.0) == 500.0
+    assert telescope.get_surface_efficiency(1000.0) == 0.6

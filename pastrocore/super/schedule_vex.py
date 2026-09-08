@@ -17,17 +17,14 @@ requests. This is the door: it takes a request, finds what it names, writes the 
 says, and hands back what the file does not state.
 """
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from msb_arch.super.super import Super
-from msb_arch.utils.logging_setup import logger
 
-from pastrocore.base.observation import Observation
 from pastrocore.formats.vex import read_vex, write_vex
-from pastrocore.super.schedule_project import ScheduleProject
+from pastrocore.super.schedule_format import ScheduleFormat
 
 
-class ScheduleVEX(Super):
+class ScheduleVEX(ScheduleFormat):
     """Writing a schedule as VEX, and saying what a station still has to add.
 
     Args:
@@ -36,30 +33,11 @@ class ScheduleVEX(Super):
 
     OPERATION = "vex"
 
-    #: What a written file is called when the request does not say.
     SUFFIX = ".vex"
+    LABEL = "VEX"
 
-    def __init__(self, manipulator):
-        super().__init__(manipulator)
-        logger.debug("Initialized ScheduleVEX")
-
-    def _observations(self, obj: Any) -> List[Observation]:
-        """Return the observations a request names, whether it named one or a whole project.
-
-        Raises:
-            TypeError: If the request names something that is neither.
-
-        Notes:
-            - A project writes one file per observation, because a VEX file *is* an experiment:
-              `$EXPER` names one and `$SCHED` holds its scans. Putting two in a file would be
-              writing something no reader expects.
-        """
-        if isinstance(obj, Observation):
-            return [obj]
-        if isinstance(obj, ScheduleProject):
-            return [item for item in obj.get_items() if item.isactive]
-        raise TypeError(f"A VEX file is written for an observation or a project, not "
-                        f"{type(obj).__name__}")
+    #: Added to what every format's report carries.
+    COMBINED_NAMES = ScheduleFormat.COMBINED_NAMES + ("modes",)
 
     def _vex_export(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
         """Write a schedule as VEX 1.5.
@@ -96,114 +74,18 @@ class ScheduleVEX(Super):
         observations = self._observations(obj)
         target = Path(path)
 
-        if len(observations) == 1 and not target.is_dir():
-            return self._write_one(observations[0], target, overwrite)
+        alone = len(observations) == 1 and not target.is_dir()
+        if not alone:
+            target.mkdir(parents=True, exist_ok=True)
 
-        target.mkdir(parents=True, exist_ok=True)
         written = []
         for observation in observations:
             code = observation.get_observation_code() or observation.name
-            written.append(self._write_one(
-                observation, target / f"{code}{self.SUFFIX}", overwrite))
-        return self._combined(written, target)
-
-    @staticmethod
-    def _combined(written: List[Dict[str, Any]], target: Path) -> Dict[str, Any]:
-        """Return one report over several files, in the shape a single file's report has.
-
-        Notes:
-            - Adding up several reports is arithmetic about this operation's own output, so it
-              belongs here: a caller showing the answer -- a dialog, a command line, anything
-              later -- would otherwise each work it out, and differently.
-            - `to_complete` is the same list for every file, because it comes from what the
-              format needs rather than from what any one observation contains.
-        """
-        excluded: List[Dict[str, str]] = []
-        stations, modes, sources = [], [], []
-        for report in written:
-            excluded.extend(report["excluded"])
-            for name, into in (("stations", stations), ("modes", modes), ("sources", sources)):
-                into.extend(one for one in report[name] if one not in into)
-        return {"path": str(target), "files": written,
-                "experiment": f"{len(written)} experiment(s)",
-                "scans": sum(report["scans"] for report in written),
-                "channels": sum(report["channels"] for report in written),
-                "stations": sorted(stations), "modes": sorted(modes),
-                "sources": sorted(sources), "excluded": excluded,
-                "to_complete": written[0]["to_complete"] if written else []}
-
-    def _write_one(self, observation: Observation, target: Path,
-                   overwrite: bool) -> Dict[str, Any]:
-        """Write one observation to one file, and return its report with the path in it."""
-        if target.exists() and not overwrite:
-            raise FileExistsError(f"'{target}' is already there")
-
-        text, report = write_vex(observation)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text, encoding="utf-8", newline="\n")
-
-        report["path"] = str(target)
-        logger.info("Wrote '%s' for observation '%s'", target, observation.name)
-        return report
+            text, report = write_vex(observation)
+            written.append(self._put(
+                text, report, target if alone else target / f"{code}{self.SUFFIX}", overwrite))
+        return written[0] if alone else self._combined(written, target)
 
     def _vex_import(self, obj, attributes):
         """Read a VEX file into the project (V5)."""
         return self._read_one(obj, attributes, read_vex, "VEX")
-
-    def _read_one(self, obj, attributes, reader, label):
-        """Read a schedule file into the project, and say what was left behind.
-
-        Args:
-            obj (ScheduleProject): The project the observation is added to.
-            attributes: `path`, the file to read. `code` names the observation, the file's own
-                experiment code by default.
-            reader: The format's reader.
-            label (str): The format, for the messages.
-
-        Returns:
-            Dict[str, Any]: What came in -- `code`, `stations`, `sources`, `scans`, `channels`
-                -- and what did not: `passed_over` names the blocks this model has no way to
-                hold, `refused` the scans it would not accept.
-
-        Raises:
-            ValueError: If no `path` was given, or nothing usable was in the file.
-            TypeError: If `obj` is not a project.
-
-        Notes:
-            - **What this model does not hold is read past, not carried** (V6). The hardware
-              and the session are the station's and the correlator's; an export leaves those
-              blocks empty for them to fill, so importing them would be keeping something
-              nothing here can use or check.
-            - A scan the model refuses is named rather than forced in. Two sub-arrays observing
-              at once in different bands is an ordinary thing to do and something the rule
-              about overlapping active scans cannot say, so `re03fr.vex` loses half its scans
-              and says so.
-        """
-        from pastrocore.formats import build_observation
-
-        path = attributes.get("path")
-        if not path:
-            raise ValueError(f"No 'path' given; there is no {label} file to read")
-        if not isinstance(obj, ScheduleProject):
-            raise TypeError(f"A {label} file is read into a project, not into "
-                            f"{type(obj).__name__}")
-
-        source = Path(path)
-        read = reader(source.read_text(encoding="utf-8", errors="replace"), source=str(source))
-        observation, refused = build_observation(read, code=attributes.get("code"))
-        obj.add_item(observation)
-
-        report = {
-            "path": str(source), "format": label.lower(), "code": observation.code,
-            "stations": [t.get_code() for t in observation.get_telescopes().get_items()],
-            "sources": [s.name for s in observation.get_sources().get_items()],
-            "scans": len(observation.get_scans().get_items()),
-            "channels": sum(band.get_channel_count()
-                            for band in observation.get_frequencies().get_items()),
-            "passed_over": read.get("passed_over", []),
-            "refused": refused,
-        }
-        logger.info("Read '%s' into observation '%s': %s scan(s), %s refused, %s passed over",
-                    source, observation.code, report["scans"], len(refused),
-                    len(report["passed_over"]))
-        return report

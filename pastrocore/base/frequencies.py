@@ -2,7 +2,7 @@
 from typing import Annotated, Any, Dict, List, Optional, Union
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
-from msb_arch import InvariantError, Positive, Predicate, invariant
+from msb_arch import InvariantError, Positive, invariant
 from msb_arch.utils.logging_setup import logger
 import uuid
 

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from .telescope import Telescope, MountType
+from .telescope import Telescope
 from msb_arch.utils.logging_setup import logger
 from typing import Optional, Dict, Tuple, Any
 from astropy.time import Time

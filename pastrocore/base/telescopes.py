@@ -2,7 +2,7 @@
 from msb_arch.base.basecontainer import BaseContainer
 from msb_arch.utils.validation import check_type
 from msb_arch.utils.logging_setup import logger
-from typing import Optional, Dict, Tuple, Union, Any
+from typing import Optional, Dict, Tuple, Union
 from .telescope import Telescope
 from .spacetelescope import SpaceTelescope
 import re

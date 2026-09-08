@@ -30,6 +30,7 @@ from pastrocore.base.frequencies import IF
 from pastrocore.base.observation import Observation
 from pastrocore.base.sources import Source
 from pastrocore.base.telescope import MountType, Telescope
+from pastrocore.formats import Mode as _Mode, bands_of, bare_name as vex_name, collect_modes, letter_for
 
 #: The revision this writes. VEX 2 exists; the stations and correlators this file is for read 1.5.
 VEX_REV = "1.5"
@@ -44,14 +45,6 @@ RULE = "*" + "-" * 78
 #: Written where a polarization, a local oscillator or anything else is not known. It is a
 #: placeholder on purpose: an empty field reads as an answer, and this does not.
 UNKNOWN = "<not stated>"
-
-#: Our polarizations in VEX's letters. `if_def` names one of these per intermediate frequency,
-#: and a `chan_def` carries it only as the trailing comment `sched` writes.
-POLARIZATION_LETTERS = {"RCP": "R", "LCP": "L", "H": "H", "V": "V"}
-
-#: Sideband order within a band. `L` first, as `sched` writes it, so a diff against a file
-#: from anywhere else lines up.
-SIDEBAND_ORDER = ("L", "U")
 
 
 class Skeleton(NamedTuple):
@@ -127,38 +120,7 @@ OPEN_LINES: Dict[str, Skeleton] = {
 }
 
 
-class _Channel(NamedTuple):
-    """One recorded channel: a band, one of its sidebands, one of its polarizations."""
-
-    link: str
-    band: IF
-    sideband: str
-    polarization: str
-
-
-class _Mode(NamedTuple):
-    """A distinct frequency setup, and every channel it records."""
-
-    name: str
-    bands: Tuple[IF, ...]
-    channels: Tuple[_Channel, ...]
-
-
 # --- turning model values into VEX's spelling --------------------------------------------
-
-_NOT_IN_A_NAME = re.compile(r"[^A-Za-z0-9_.+-]")
-
-
-def vex_name(text: str) -> str:
-    """Return a name VEX will accept, from whatever the model was given.
-
-    Notes:
-        - A VEX name is a bare word: no spaces, no colons, no semicolons, since all three end
-          a statement or separate a field. A project may call an observation anything at all.
-    """
-    cleaned = _NOT_IN_A_NAME.sub("_", str(text).strip())
-    return cleaned or "unnamed"
-
 
 def vex_epoch(moment: Time) -> str:
     """Return a moment as VEX writes one: `2012y323d13h50m00s`.
@@ -185,18 +147,6 @@ def _declination(source: Source) -> str:
           list of sources should not have to work out whether one is north or south.
     """
     return f"{int(source.de_d):+03d}d{int(source.de_m):02d}'{source.de_s:09.6f}\""
-
-
-def _letter(polarization: str) -> str:
-    """Return a polarization in VEX's letter, or the placeholder if the model does not say.
-
-    Notes:
-        - A band with no polarization at all is legal in this model and means nothing was
-          entered. Writing an empty field there would read as an answer.
-    """
-    if not polarization:
-        return UNKNOWN
-    return POLARIZATION_LETTERS.get(polarization, polarization)
 
 
 def _axis_type(telescope: Telescope) -> Optional[str]:
@@ -449,7 +399,7 @@ def _freq_block(modes: Sequence[_Mode]) -> List[str]:
                          f"{channel.sideband} : {channel.band.bandwidth:6.2f} MHz : "
                          f"{channel.link};")
             if channel.polarization:
-                statement += f"  *{_letter(channel.polarization)}"
+                statement += f"  *{letter_for(channel.polarization, UNKNOWN)}"
             lines.append(statement)
         lines.append("enddef;")
         lines.append("*")
@@ -480,7 +430,7 @@ def _if_block(modes: Sequence[_Mode]) -> List[str]:
         for index, polarization in enumerate(polarizations):
             for statement in skeleton.lines:
                 lines.append(_comment(statement.format(index=index + 1,
-                                                       letter=_letter(polarization))))
+                                                       letter=letter_for(polarization, UNKNOWN))))
         lines.append("enddef;")
         lines.append("*")
     return lines[:-1]
@@ -529,52 +479,6 @@ def _station_keys(telescopes: Sequence[Telescope]) -> Dict[str, str]:
     return {telescope.name: vex_name(telescope.get_code() if seen[telescope.get_code()] == 1
                                      else telescope.name)
             for telescope in telescopes}
-
-
-def _channels_of(bands: Sequence[IF]) -> Tuple[_Channel, ...]:
-    """Return every channel a set of bands records, numbered in the order VEX lists them.
-
-    Notes:
-        - Sideband outermost then polarization, which is the order `sched` writes and therefore
-          the order anyone comparing two files expects. The count is
-          `sum(band.get_channel_count())` by construction, and that method is the model's own
-          answer to the same question.
-    """
-    channels: List[_Channel] = []
-    for band in bands:
-        for sideband in SIDEBAND_ORDER:
-            if sideband not in band.get_sidebands():
-                continue
-            for polarization in (band.polarizations or [""]):
-                channels.append(_Channel(link=f"&CH{len(channels) + 1:02d}", band=band,
-                                         sideband=sideband, polarization=polarization))
-    return tuple(channels)
-
-
-def _collect_modes(scans: Sequence) -> Tuple[List[_Mode], Dict[Tuple[str, ...], _Mode]]:
-    """Return the distinct frequency setups the scans use, and the map from a setup to its mode.
-
-    Notes:
-        - A mode is identified by *which bands*, not by the order a scan happens to list them
-          in, so two scans with the same setup written differently are one mode. Within a mode
-          the bands are ordered by frequency, which is both deterministic and the order a
-          person reads them in.
-    """
-    modes: List[_Mode] = []
-    by_bands: Dict[Tuple[str, ...], _Mode] = {}
-    for scan in scans:
-        bands = tuple(sorted((band for band in scan.frequencies if band.isactive),
-                             key=lambda band: (band.frequency, band.name)))
-        if not bands:
-            continue
-        identity = tuple(band.name for band in bands)
-        if identity in by_bands:
-            continue
-        mode = _Mode(name=f"MODE{len(modes) + 1:02d}", bands=bands,
-                     channels=_channels_of(bands))
-        modes.append(mode)
-        by_bands[identity] = mode
-    return modes, by_bands
 
 
 def write_vex(observation: Observation, *, generator: str = "pAstroCORE") -> Tuple[str, Dict[str, Any]]:
@@ -626,7 +530,8 @@ def write_vex(observation: Observation, *, generator: str = "pAstroCORE") -> Tup
     keys = _station_keys(telescopes)
     stations = [(keys[telescope.name], telescope) for telescope in telescopes]
 
-    modes, by_bands = _collect_modes(scans)
+    modes = collect_modes(scans)
+    by_bands = {mode.identity(): mode for mode in modes}
     if not modes:
         raise ValueError("No active scan names an active frequency band, so no mode can be "
                          "written")
@@ -634,9 +539,7 @@ def write_vex(observation: Observation, *, generator: str = "pAstroCORE") -> Tup
     entries: List[Dict[str, Any]] = []
     sources: Dict[str, Source] = {}
     for scan in scans:
-        bands = tuple(sorted((band for band in scan.frequencies if band.isactive),
-                             key=lambda band: (band.frequency, band.name)))
-        mode = by_bands.get(tuple(band.name for band in bands))
+        mode = by_bands.get(tuple(band.name for band in bands_of(scan)))
         on_it = [keys[t.name] for t in scan.telescopes if t.name in keys and t.isactive]
         if mode is None or not on_it or scan.source is None:
             excluded.append({"scan": scan.name,
@@ -857,6 +760,11 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
             "vx": speeds[0], "vy": speeds[1], "vz": speeds[2],
             "mount_type": "EQUA" if "ha" in axis else "AZIM"}
 
+    # A `$SCHED` line names the *station key*; the model keys a telescope on its code, and the
+    # two need not be the same word. Translated here, or a scan whose station key differs from
+    # its `site_ID` would come back with no stations at all and be dropped without a sound.
+    codes = {key: entry["code"] for key, entry in telescopes.items()}
+
     sources = {}
     for name, described_as in blocks.get("$SOURCE", {}).items():
         # `ra = ...; dec = ...; ref_coord_frame = J2000` is written on one line and is three
@@ -938,7 +846,8 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
                 except ValueError:
                     pass
         scans.append({"name": vex_name(name), "start": start, "duration": seconds or 1.0,
-                      "source": named_source, "telescopes": on_it,
+                      "source": named_source,
+                      "telescopes": [codes.get(key, key) for key in on_it],
                       "bands": modes.get(mode or "", [])})
 
     logger.info("Read VEX '%s': %s station(s), %s source(s), %s scan(s), %s block(s) passed "

@@ -28,7 +28,7 @@ from pastrocore.base.observation import Observation
 from pastrocore.base.sources import Source
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.base.telescope import MountType, Telescope
-from pastrocore.formats.vex import vex_name
+from pastrocore.formats import SIDEBAND_ORDER, Mode as _Mode, bare_name as vex_name, collect_modes, letter_for
 
 #: CFX's comment character, and how a line says "not stated". `#` at the start of a line, as
 #: the examples use it for the commented-out `IF` lines of a swapped-polarization receiver.
@@ -36,13 +36,6 @@ HASH = "#"
 
 #: What the examples indent a key by: one tab.
 INDENT = "\t"
-
-#: Our polarizations in CFX's letters, which are VEX's.
-POLARIZATION_LETTERS = {"RCP": "R", "LCP": "L", "H": "H", "V": "V"}
-
-#: Sideband order within a band. Matching the VEX writer, so the two files of one experiment
-#: list their channels the same way round.
-SIDEBAND_ORDER = ("L", "U")
 
 #: Our mounts in CFX's words, read off `TLSC_PAR`'s last field in the examples.
 MOUNTS = {MountType.AZIMUTHAL: "AZEL", MountType.EQUATORIAL: "EQUA"}
@@ -100,22 +93,6 @@ TLSC_PAR_BLANKS = Skeleton(
     "a station's axis offset and the epoch its coordinates were measured at", ())
 
 
-class _Channel(NamedTuple):
-    """One recorded channel: a band, one of its sidebands, one of its polarizations."""
-
-    band: IF
-    sideband: str
-    polarization: str
-
-
-class _Mode(NamedTuple):
-    """A distinct frequency setup, which is what one CFX file describes."""
-
-    name: str
-    bands: Tuple[IF, ...]
-    channels: Tuple[_Channel, ...]
-
-
 # --- CFX's spelling --------------------------------------------------------------------------
 
 def cfx_epoch(moment: Time) -> str:
@@ -133,23 +110,6 @@ def _comment(text: str) -> str:
 def _note(text: str) -> str:
     """Return a line of prose about a section."""
     return f"{HASH} {text}"
-
-
-def _channels_of(bands: Sequence[IF]) -> Tuple[_Channel, ...]:
-    """Return every channel a set of bands records, in the order the file lists them.
-
-    Notes:
-        - Sideband outermost then polarization, as in the VEX writer, so that the two files of
-          one experiment can be read side by side.
-    """
-    channels: List[_Channel] = []
-    for band in bands:
-        for sideband in SIDEBAND_ORDER:
-            if sideband not in band.get_sidebands():
-                continue
-            for polarization in (band.polarizations or [""]):
-                channels.append(_Channel(band, sideband, polarization))
-    return tuple(channels)
 
 
 def _sub_bands(bands: Sequence[IF]) -> List[float]:
@@ -213,8 +173,8 @@ def _station_section(telescope: Telescope, mode: _Mode) -> List[str]:
         lines.append(_comment(statement))
 
     for channel in mode.channels:
-        letter = POLARIZATION_LETTERS.get(channel.polarization)
-        if letter is None:
+        letter = letter_for(channel.polarization)
+        if not letter:
             lines.append(_comment(f"IF = {channel.band.frequency:.2f}, <polarization>, "
                                   f"{channel.sideband}"))
         else:
@@ -271,28 +231,6 @@ def _output_section(experiment: str, bands: Sequence[IF]) -> List[str]:
 
 
 # --- putting it together -----------------------------------------------------------------------
-
-def collect_modes(scans: Sequence) -> List[_Mode]:
-    """Return the distinct frequency setups the scans use, in a stable order.
-
-    Notes:
-        - A mode is identified by *which bands*, not by the order a scan lists them in. Within
-          a mode the bands are ordered by frequency, which is deterministic and is the order a
-          person reads them in.
-    """
-    modes: List[_Mode] = []
-    seen = set()
-    for scan in scans:
-        bands = tuple(sorted((band for band in scan.frequencies if band.isactive),
-                             key=lambda band: (band.frequency, band.name)))
-        identity = tuple(band.name for band in bands)
-        if not bands or identity in seen:
-            continue
-        seen.add(identity)
-        modes.append(_Mode(name=f"MODE{len(modes) + 1:02d}", bands=bands,
-                           channels=_channels_of(bands)))
-    return modes
-
 
 def write_cfx(observation: Observation,
               *, generator: str = "pAstroCORE") -> List[Tuple[_Mode, str, Dict[str, Any]]]:
@@ -496,12 +434,25 @@ def read_cfx(text: str, *, source: str = "") -> Dict[str, Any]:
     if not any(name == "SKAN" for name, _ in sections):
         raise ValueError("The file holds no [$skan], so there is no schedule in it")
 
-    edges = sorted(float(value) for pairs in sections if pairs[0] == "OUTPAR"
-                   for value in _every(pairs[1], "IF"))
+    edges = []
+    for name, pairs in sections:
+        if name != "OUTPAR":
+            continue
+        for value in _every(pairs, "IF"):
+            try:
+                edges.append(float(value))
+            except ValueError:
+                continue
+    edges.sort()
     spacing = min((second - first for first, second in zip(edges, edges[1:])
                    if second > first), default=None)
 
     telescopes, sources, bands, scans, seen = {}, {}, {}, [], set()
+    if spacing is None:
+        # **A bandwidth CFX never states.** `[$OUTPAR]` gives the sub-band edges and the gap
+        # between two of them is the width; with one edge there is no gap, and the model's
+        # default is a guess rather than a reading. Named, so it is not mistaken for a fact.
+        seen.add("[$outpar] bandwidth: not stated, and no sub-band gap to take it from")
     experiment = ""
     for name, pairs in sections:
         if name == "TLSC":

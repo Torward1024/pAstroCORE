@@ -11,6 +11,128 @@ the only thing that knows both this and the request. That is deliberate: `Schedu
 what a person wants to look at, and these write a contract with a correlator. Mixing them would
 give one this module's vocabulary and give the other that module's tolerance for close enough.
 """
+import re
+from typing import Any, List, NamedTuple, Sequence, Tuple
+
+#: Our polarizations in the letter both formats use. `if_def` names one per intermediate
+#: frequency in VEX and an `IF =` line carries one in CFX, and they are the same letters.
+POLARIZATION_LETTERS = {"RCP": "R", "LCP": "L", "H": "H", "V": "V"}
+
+#: Sideband order within a band. `L` first, as `sched` writes it, so the two files of one
+#: experiment list their channels the same way round and a diff against anyone else's lines up.
+SIDEBAND_ORDER = ("L", "U")
+
+#: Characters a name in either format may hold. Both want a bare word: a space, a colon or a
+#: semicolon ends a statement or separates a field in one syntax or the other.
+_NOT_IN_A_NAME = re.compile(r"[^A-Za-z0-9_.+-]")
+
+
+def bare_name(text: str) -> str:
+    """Return a name either format will accept, from whatever the model was given.
+
+    Notes:
+        - A project may call an observation anything at all, and a file may not.
+    """
+    cleaned = _NOT_IN_A_NAME.sub("_", str(text).strip())
+    return cleaned or "unnamed"
+
+
+class Channel(NamedTuple):
+    """One recorded channel: a band, one of its sidebands, one of its polarizations.
+
+    Attributes:
+        link (str): What VEX calls it in a `chan_def`. CFX has no link and ignores it.
+        band (IF): The setting it came from.
+        sideband (str): `U` or `L`.
+        polarization (str): One of the model's, or empty where the model does not say.
+    """
+
+    link: str
+    band: Any
+    sideband: str
+    polarization: str
+
+
+class Mode(NamedTuple):
+    """A distinct frequency setup, and every channel it records.
+
+    Notes:
+        - One VEX file holds several of these and one CFX file is one of them, which is the
+          only place the two formats disagree about what a mode *is* -- not about what it holds.
+    """
+
+    name: str
+    bands: Tuple[Any, ...]
+    channels: Tuple[Channel, ...]
+
+    def identity(self) -> Tuple[str, ...]:
+        """What makes this setup the one it is: which bands, not the order a scan listed them."""
+        return tuple(band.name for band in self.bands)
+
+
+def bands_of(scan) -> Tuple[Any, ...]:
+    """Return a scan's active bands, ordered by frequency.
+
+    Notes:
+        - Ordered rather than as the scan happens to hold them, so two scans with the same
+          setup written differently are one mode, and so a file written twice is the same file.
+    """
+    return tuple(sorted((band for band in scan.frequencies if band.isactive),
+                        key=lambda band: (band.frequency, band.name)))
+
+
+def channels_of(bands: Sequence) -> Tuple[Channel, ...]:
+    """Return every channel a set of bands records, in the order both formats list them.
+
+    Notes:
+        - Sideband outermost then polarization, which is the order `sched` writes and therefore
+          the order anyone comparing two files expects.
+        - The count is `sum(band.get_channel_count())` by construction, and that method is the
+          model's own answer to the same question.
+    """
+    channels: List[Channel] = []
+    for band in bands:
+        for sideband in SIDEBAND_ORDER:
+            if sideband not in band.get_sidebands():
+                continue
+            for polarization in (band.polarizations or [""]):
+                channels.append(Channel(link=f"&CH{len(channels) + 1:02d}", band=band,
+                                        sideband=sideband, polarization=polarization))
+    return tuple(channels)
+
+
+def collect_modes(scans: Sequence) -> List[Mode]:
+    """Return the distinct frequency setups a set of scans uses, in a stable order.
+
+    Notes:
+        - Numbered `MODE01` upwards. A generated name rather than a derived one: a setup of
+          four bands has no short name that is both readable and unique, and the comment above
+          each `def` says what it holds.
+    """
+    modes: List[Mode] = []
+    seen = set()
+    for scan in scans:
+        bands = bands_of(scan)
+        identity = tuple(band.name for band in bands)
+        if not bands or identity in seen:
+            continue
+        seen.add(identity)
+        modes.append(Mode(name=f"MODE{len(modes) + 1:02d}", bands=bands,
+                          channels=channels_of(bands)))
+    return modes
+
+
+def letter_for(polarization: str, unknown: str = "") -> str:
+    """Return a polarization in the letter both formats use, or `unknown` if the model is silent.
+
+    Notes:
+        - A band with no polarization at all is legal in this model and means nothing was
+          entered. Writing an empty field would read as an answer.
+    """
+    if not polarization:
+        return unknown
+    return POLARIZATION_LETTERS.get(polarization, polarization)
+
 
 
 def build_observation(read: dict, *, code: str = None):
@@ -38,8 +160,6 @@ def build_observation(read: dict, *, code: str = None):
           ordinary thing to do and something the rule about overlapping active scans has no
           way to say. The ones that fit are imported and the rest are reported.
     """
-    from astropy.time import Time
-
     from pastrocore.base.observation import Observation
 
     observation = Observation(code=code or read.get("code") or "IMPORTED")
@@ -82,6 +202,7 @@ def build_observation(read: dict, *, code: str = None):
     from msb_arch import InvariantError
 
     scans, refused = observation.get_scans(), []
+
     by_code = {telescope.get_code(): telescope for telescope in telescopes.get_items()}
     for entry in read.get("scans", []):
         source = sources.get(entry["source"]) if entry.get("source") else None
@@ -89,6 +210,8 @@ def build_observation(read: dict, *, code: str = None):
         bands = [frequencies.get(name) for name in entry.get("bands", [])
                  if frequencies.get(name) is not None]
         if not on_it:
+            refused.append(f"{entry['name']}: none of {entry.get('telescopes', [])} is a "
+                           f"station this file defines")
             continue
         try:
             scans.create_scan(name=entry["name"], start=entry["start"],

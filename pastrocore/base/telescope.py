@@ -2,7 +2,7 @@
 from copy import deepcopy
 from msb_arch.base.baseentity import BaseEntity
 from msb_arch.utils.validation import check_type, check_positive
-from msb_arch import Positive, Predicate
+from msb_arch import InvariantError, Positive, Predicate, invariant
 from msb_arch.utils.logging_setup import logger
 import numpy as np
 from typing import Annotated, Optional, Dict, Tuple, Any
@@ -85,6 +85,44 @@ class Telescope(BaseEntity):
                          effective_area_table=effective_area_table,
                          system_temperature_table=system_temperature_table)
         logger.debug("Initialized Telescope '%s' at (%s, %s, %s) m, diameter=%s m", code, x, y, z, diameter)
+
+    #: The tables of numbers a telescope carries, and what is true of every value in each. A
+    #: table added later is guarded by adding it here, which is the point of naming them once.
+    POSITIVE_TABLES = {
+        "sefd_table": "an SEFD, in janskys",
+        "system_temperature_table": "a system temperature, in kelvin",
+        "effective_area_table": "an effective area, in square metres",
+    }
+
+    @invariant("every value in a telescope's tables must be positive")
+    def _tables_hold_positive_values(self) -> bool:
+        """A dish with a negative SEFD is not a worse dish, it is a wrong answer.
+
+        Raises:
+            InvariantError: Naming the table, the frequency and the value.
+
+        Notes:
+            - `add_sefd` checked what it was given and `set` did not, so
+              `set({"sefd_table": {1000.0: -1.0}})` was taken and `get_sefd` handed the minus
+              one to whatever asked -- a sensitivity, an integration time, a beam. Four tables
+              had the same hole, and so did a saved project carrying one back.
+            - **Surface efficiency is a fraction**, so it is bounded above as well: an aperture
+              cannot return more than it collects, and 1.4 there is a typo for 0.4 rather than
+              a very good dish.
+        """
+        for table, what in self.POSITIVE_TABLES.items():
+            for frequency, value in (getattr(self, table, None) or {}).items():
+                if not isinstance(value, (int, float)) or value <= 0:
+                    raise InvariantError(
+                        f"Telescope '{self.code}': {table} at {frequency} MHz is {value!r}; "
+                        f"{what} must be positive")
+
+        for frequency, value in (self.surface_efficiency_table or {}).items():
+            if not isinstance(value, (int, float)) or not 0 < value <= 1:
+                raise InvariantError(
+                    f"Telescope '{self.code}': surface efficiency at {frequency} MHz is "
+                    f"{value!r}; it is a fraction, so it lies between 0 and 1")
+        return True
 
     def set(self, params: Dict[str, Any]) -> None:
         """Set entity attributes from a dictionary with type validation, handling mount_type."""
