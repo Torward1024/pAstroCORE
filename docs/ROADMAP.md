@@ -49,7 +49,7 @@ What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two f
 the model, and what an exported file leaves for somebody else to fill in, is in
 [`formats.md`](formats.md).
 
-## Four rules that earned their place
+## Five rules that earned their place
 
 - **Measure before deciding, on a machine that is not busy.** Twice a plausible optimisation
   measured slower and was dropped; once a correct change was reverted on a measurement taken
