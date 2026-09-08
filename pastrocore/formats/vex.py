@@ -21,7 +21,7 @@ Nothing here knows about a manipulator, a request or a window. It is a function 
 characterization test over this is worth anything.
 """
 import re
-from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from astropy.time import Time
 from msb_arch.utils.logging_setup import logger
@@ -30,7 +30,8 @@ from pastrocore.base.frequencies import IF
 from pastrocore.base.observation import Observation
 from pastrocore.base.sources import Source
 from pastrocore.base.telescope import MountType, Telescope
-from pastrocore.formats import Mode as _Mode, bands_of, bare_name as vex_name, collect_modes, letter_for
+from pastrocore.formats import (Mode as _Mode, Skeleton, bands_of,
+                                bare_name as vex_name, collect_modes, letter_for)
 
 #: The revision this writes. VEX 2 exists; the stations and correlators this file is for read 1.5.
 VEX_REV = "1.5"
@@ -45,21 +46,6 @@ RULE = "*" + "-" * 78
 #: Written where a polarization, a local oscillator or anything else is not known. It is a
 #: placeholder on purpose: an empty field reads as an answer, and this does not.
 UNKNOWN = "<not stated>"
-
-
-class Skeleton(NamedTuple):
-    """A block written empty because its content is a fact about a station's hardware.
-
-    Attributes:
-        block (str): The VEX block, with its dollar.
-        needs (str): What has to be put in it, in words, for the report and for the file.
-        lines (Tuple[str, ...]): The statements, written commented out so that whoever
-            completes the file has the shape in front of them.
-    """
-
-    block: str
-    needs: str
-    lines: Tuple[str, ...]
 
 
 #: Blocks that describe one station's hardware. One `def` per station, referred to from
@@ -118,6 +104,12 @@ OPEN_LINES: Dict[str, Skeleton] = {
     "$FREQ": Skeleton("$FREQ", "the BBC and phase-cal links each channel is assigned to, which "
                                "are the trailing fields of a chan_def", ()),
 }
+
+
+#: Everything a VEX file leaves for a station to complete, in the order a reader meets it.
+#: **The report is made of this**, so a block cannot be written empty and go unreported, or
+#: reported and not written.
+OUTSTANDING = PER_MODE_BLOCKS + PER_STATION_BLOCKS + tuple(OPEN_LINES.values())
 
 
 # --- turning model values into VEX's spelling --------------------------------------------
@@ -583,9 +575,7 @@ def write_vex(observation: Observation, *, generator: str = "pAstroCORE") -> Tup
         "sources": sorted(sources),
         "channels": sum(len(mode.channels) for mode in modes),
         "excluded": excluded,
-        "to_complete": [{"block": skeleton.block, "needs": skeleton.needs}
-                        for skeleton in (PER_MODE_BLOCKS + PER_STATION_BLOCKS
-                                         + tuple(OPEN_LINES.values()))],
+        "to_complete": [skeleton.as_reported() for skeleton in OUTSTANDING],
     }
     logger.info("Wrote VEX for '%s': %s scans, %s stations, %s modes", experiment,
                 len(entries), len(stations), len(modes))

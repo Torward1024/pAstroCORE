@@ -1,5 +1,6 @@
 from copy import deepcopy
 from .telescope import Telescope
+from msb_arch import InvariantError, invariant
 from msb_arch.utils.logging_setup import logger
 from typing import Optional, Dict, Tuple, Any
 from astropy.time import Time
@@ -60,6 +61,27 @@ class SpaceTelescope(Telescope):
         else:
             logger.warning("Initialized SpaceTelescope '%s' without orbit data or Keplerian elements", code)
     
+    @invariant("an orbit file is a path or nothing, never a blank")
+    def _the_orbit_file_is_a_path_or_nothing(self) -> bool:
+        """A blank string is not a file, and it is not "not set" either.
+
+        Raises:
+            InvariantError: When the path is a string with nothing in it.
+
+        Notes:
+            - `set_orbit` refuses a blank and `set` reached neither it nor the check in
+              `__init__`, so `set({"orbit_file": ""})` was taken and the failure arrived later,
+              inside a calculation, as an empty path being opened.
+            - **It does not insist that a spacecraft be positioned.** Making one and giving it
+              an orbit afterwards is how the editor works, and `None` is what "not yet" looks
+              like. A rule the model cannot justify refuses something real -- which is how the
+              rule about overlapping scans threw half of a real experiment away.
+        """
+        if isinstance(self.orbit_file, str) and not self.orbit_file.strip():
+            raise InvariantError(
+                f"SpaceTelescope '{self.code}': the orbit file is blank; a path or nothing")
+        return True
+
     def copy(self) -> 'SpaceTelescope':
         """Create a deep copy of the SpaceTelescope object, preserving all attributes."""
         return SpaceTelescope(
