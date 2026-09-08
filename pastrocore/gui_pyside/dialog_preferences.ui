@@ -44,6 +44,11 @@
   <layout class="QGridLayout" name="gridLayout">
    <item row="3" column="0" colspan="5">
     <widget class="QTabWidget" name="tabWidget">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+      </font>
+     </property>
      <property name="currentIndex">
       <number>0</number>
      </property>
@@ -69,6 +74,11 @@
          </item>
          <item row="0" column="2">
           <widget class="QPushButton" name="openSourcesCatalogButton">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+            </font>
+           </property>
            <property name="text">
             <string>Open...</string>
            </property>
@@ -82,7 +92,12 @@
          </item>
          <item row="0" column="1">
           <widget class="QLineEdit" name="sourcesCatalogPath">
-           </widget>
+           <property name="font">
+            <font>
+             <family>Arial</family>
+            </font>
+           </property>
+          </widget>
          </item>
          <item row="0" column="0">
           <widget class="QLabel" name="lbl_sources_catalog_path">
@@ -99,6 +114,11 @@
          </item>
          <item row="1" column="2">
           <widget class="QPushButton" name="openTelescopesCatalogButton">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+            </font>
+           </property>
            <property name="text">
             <string>Open...</string>
            </property>
@@ -112,14 +132,29 @@
          </item>
          <item row="2" column="1">
           <widget class="QComboBox" name="comboLogging">
-           </widget>
+           <property name="font">
+            <font>
+             <family>Arial</family>
+            </font>
+           </property>
+          </widget>
          </item>
          <item row="1" column="1">
           <widget class="QLineEdit" name="telescopesCatalogPath">
-           </widget>
+           <property name="font">
+            <font>
+             <family>Arial</family>
+            </font>
+           </property>
+          </widget>
          </item>
          <item row="2" column="0">
           <widget class="QLabel" name="labelLogging">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+            </font>
+           </property>
            <property name="text">
             <string>Logging level:</string>
            </property>
@@ -127,6 +162,11 @@
          </item>
          <item row="3" column="0" colspan="3">
           <widget class="QCheckBox" name="chkClearLog">
+           <property name="font">
+            <font>
+             <family>Arial</family>
+            </font>
+           </property>
            <property name="text">
             <string>Clear log-file on start</string>
            </property>
@@ -165,7 +205,7 @@
          </item>
         </layout>
        </item>
-      <item row="1" column="0">
+       <item row="1" column="0">
         <layout class="QHBoxLayout" name="horizontalLayoutResultsMemory">
          <item>
           <widget class="QLabel" name="labelResultsMemory">
@@ -201,6 +241,11 @@
    </item>
    <item row="5" column="4">
     <widget class="QPushButton" name="cancelButton">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+      </font>
+     </property>
      <property name="text">
       <string>Cancel</string>
      </property>
@@ -214,6 +259,11 @@
    </item>
    <item row="5" column="3">
     <widget class="QPushButton" name="okButton">
+     <property name="font">
+      <font>
+       <family>Arial</family>
+      </font>
+     </property>
      <property name="text">
       <string>OK</string>
      </property>
@@ -228,7 +278,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../gui/icons/icons.qrc" />
+  <include location="../gui/icons/icons.qrc"/>
  </resources>
- <connections />
+ <connections/>
 </ui>
