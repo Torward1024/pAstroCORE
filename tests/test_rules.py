@@ -19,6 +19,7 @@ from msb_arch import InvariantError
 from pastrocore.base.frequencies import Frequencies, IF
 from pastrocore.base.observation import Observation
 from pastrocore.base.scans import Scan, Scans
+from pastrocore.base.sources import Source
 from pastrocore.super.schedule_project import ScheduleProject
 
 import conftest
@@ -26,6 +27,23 @@ import conftest
 
 def a_scan(name, start, duration=600.0, isactive=True):
     return Scan(name=name, start=Time(start, format="iso"), duration=duration, isactive=isactive)
+
+
+#: A source to point somewhere else at, for the rule that says one antenna cannot do both.
+SOMEWHERE_ELSE = Source(name="OTHER", ra_h=1.0, de_d=10.0)
+
+
+def pointed(name, start, duration=600.0, isactive=True, stations=("Sv",), source="HERE"):
+    """A scan with stations and a target, which is what the pointing rule is about."""
+    from pastrocore.base.telescopes import Telescopes
+
+    held = Telescopes()
+    for code in stations:
+        held.create_telescope(code=code)
+    return Scan(name=name, start=Time(start, format="iso"), duration=duration,
+                isactive=isactive, telescopes=list(held.get_items()),
+                source=Source(name=source, ra_h=1.0, de_d=10.0))
+
 
 
 # --- frequency bands ---------------------------------------------------------------------
@@ -165,50 +183,75 @@ def test_the_same_spectrum_written_two_ways_is_still_refused():
 def test_scans_that_abut_are_not_overlapping():
     """One scan ending as the next begins is a schedule, not a conflict."""
     scans = Scans(name="sc")
-    scans.add(a_scan("a", "2026-01-01 10:00:00"))
-    scans.add(a_scan("b", "2026-01-01 10:10:00"))
+    scans.add(pointed("a", "2026-01-01 10:00:00"))
+    scans.add(pointed("b", "2026-01-01 10:10:00"))
 
     assert [item.name for item in scans.get_items()] == ["a", "b"]
 
 
 @pytest.mark.parametrize("path", ["add", "set_scan", "set_item", "build"])
-def test_overlapping_scans_are_refused_on_every_path(path):
+def test_one_antenna_may_not_be_pointed_at_two_sources_at_once(path):
     """`set_item` and the constructor were unchecked, and a saved schedule arrives through the
     constructor -- which is exactly where a conflicting pair would come from."""
     scans = Scans(name="sc")
-    scans.add(a_scan("a", "2026-01-01 10:00:00"))
-    scans.add(a_scan("b", "2026-01-01 10:10:00"))
+    scans.add(pointed("a", "2026-01-01 10:00:00"))
+    scans.add(pointed("b", "2026-01-01 10:10:00"))
 
     attempts = {
-        "add": lambda: scans.add(a_scan("c", "2026-01-01 10:05:00")),
-        "set_scan": lambda: scans.set_scan("a", start=Time("2026-01-01 10:15:00", format="iso")),
-        "set_item": lambda: scans.set_item("a", a_scan("a", "2026-01-01 10:12:00")),
+        "add": lambda: scans.add(pointed("c", "2026-01-01 10:05:00", source="OTHER")),
+        "set_scan": lambda: scans.set_scan(
+            "a", start=Time("2026-01-01 10:15:00", format="iso"), source=SOMEWHERE_ELSE),
+        "set_item": lambda: scans.set_item(
+            "a", pointed("a", "2026-01-01 10:12:00", source="OTHER")),
         "build": lambda: Scans(name="bad", items={
-            "p": a_scan("p", "2026-01-01 09:00:00", 3600.0),
-            "q": a_scan("q", "2026-01-01 09:30:00", 3600.0)}),
+            "p": pointed("p", "2026-01-01 09:00:00", 3600.0),
+            "q": pointed("q", "2026-01-01 09:30:00", 3600.0, source="OTHER")}),
     }
 
     with pytest.raises(InvariantError):
         attempts[path]()
 
 
+def test_two_sub_arrays_may_observe_one_source_at_once():
+    """`re03fr.vex` does exactly this: 2230+114 from 13:50 with Wb, Sv and Bd at 4828 MHz and
+    with Ev, Nt and Zc at 22228 MHz. It is an ordinary way to run an array and the basis of
+    multi-frequency synthesis, and the rule that refused any overlap threw half of a real
+    experiment away when it was imported."""
+    scans = Scans(name="sc")
+    scans.add(pointed("c_band", "2026-01-01 10:00:00", stations=("Wb", "Sv")))
+    scans.add(pointed("k_band", "2026-01-01 10:00:00", stations=("Ev", "Nt")))
+
+    assert len(scans.get_items()) == 2
+
+
+def test_one_antenna_may_record_two_bands_at_once():
+    """A dual-band receiver is two scans of one source sharing a station, at the same moment.
+    Nothing about one mount forbids it: it is pointed one way and recording twice."""
+    scans = Scans(name="sc")
+    scans.add(pointed("lower", "2026-01-01 10:00:00", stations=("Sv",)))
+    scans.add(pointed("upper", "2026-01-01 10:00:00", stations=("Sv",)))
+
+    assert len(scans.get_items()) == 2
+
+
 def test_inactive_scans_may_cover_the_same_hour():
     """An inactive scan is an alternative being kept, not a commitment. Refusing these would
     make it impossible to hold two candidates for one slot, which is how a schedule is planned."""
     scans = Scans(name="sc")
-    scans.add(a_scan("a", "2026-01-01 10:00:00"))
-    scans.add(a_scan("shadow", "2026-01-01 10:05:00", isactive=False))
+    scans.add(pointed("a", "2026-01-01 10:00:00"))
+    scans.add(pointed("shadow", "2026-01-01 10:05:00", source="OTHER", isactive=False))
 
     assert len(scans.get_items()) == 2
 
 
 def test_a_refused_scan_leaves_the_scan_as_it_was():
     scans = Scans(name="sc")
-    scans.add(a_scan("a", "2026-01-01 10:00:00"))
-    scans.add(a_scan("b", "2026-01-01 10:10:00"))
+    scans.add(pointed("a", "2026-01-01 10:00:00"))
+    scans.add(pointed("b", "2026-01-01 10:10:00"))
 
     with pytest.raises(InvariantError):
-        scans.set_scan("a", start=Time("2026-01-01 10:15:00", format="iso"))
+        scans.set_scan("a", start=Time("2026-01-01 10:15:00", format="iso"),
+                       source=SOMEWHERE_ELSE)
 
     assert scans.get("a").get_start().isot.startswith("2026-01-01T10:00:00")
 

@@ -483,20 +483,23 @@ def test_redrawing_reuses_the_canvas_instead_of_rebuilding_it(project, observati
         widget.deleteLater()
 
 
-def test_a_replaced_figure_is_let_go_of(project, observation, qt_application):
-    """A figure holds its canvas and the canvas holds it back. Each has a C++ half whose
-    deletion is only scheduled, so the ring outlived the collector and one figure stayed per
-    redraw -- about 1.5 MB each. The canvas is unhooked from the outgoing figure by hand.
+def test_no_figure_is_replaced_at_all(project, observation, qt_application):
+    """The tab owns one figure and asks the visualizer to draw *into* it, so a redraw creates
+    nothing to let go of.
 
-    The collector is run here on purpose: what is claimed is that the figure is *collectable*,
-    not that it goes the instant it is replaced. Before the fix it was neither -- a full
-    `gc.collect(2)` left it exactly where it was, which is what made this worth finding.
+    Swapping a new `Figure` into an existing canvas was the first attempt. It stopped the
+    figures accumulating -- a figure holds its canvas and the canvas holds it back, and each
+    has a C++ half whose deletion is only scheduled, so the ring outlived the collector at
+    about 1.5 MB a redraw -- but `canvas.figure = ...` is not something matplotlib supports,
+    and the navigation toolbar went on referring to axes that had been cleared.
 
-    Owning the figure in the tab instead was tried and reverted: it removed the swap, and
-    measured 50x slower with 50 MB left behind per 60 redraws. The reason is not yet known.
+    This was written, measured *wrongly*, reverted, and put back. The measurement that
+    condemned it ran while three copies of this suite were on the same machine: 60 redraws
+    "took 280 s". Measured alone, back to back in one process, the two designs are 5.04 s and
+    5.31 s for 60 redraws and both grow by 0.1 MB. **A number taken on a busy machine is not a
+    number.**
     """
     import gc
-    import weakref
 
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
@@ -507,43 +510,22 @@ def test_a_replaced_figure_is_let_go_of(project, observation, qt_application):
     widget = tab_class("p_tab_vis_uv_coverage")(manipulator, observation)
     try:
         widget.update_visualization()
-        watched = weakref.ref(widget.figure)
-
-        widget.update_visualization()
-        qt_application.processEvents()
+        figure = widget.figure
         gc.collect(2)
+        before = sum(1 for o in gc.get_objects() if type(o).__name__ == "Figure")
 
-        assert watched() is None or watched() is widget.figure, (
-            "the figure that was replaced is still alive after a full collection")
+        for _ in range(5):
+            widget.update_visualization()
+            qt_application.processEvents()
+
+        assert widget.figure is figure, "the tab's figure was replaced"
+        assert widget.canvas.figure is figure, "the canvas is showing something else"
+        gc.collect(2)
+        after = sum(1 for o in gc.get_objects() if type(o).__name__ == "Figure")
+        assert after <= before, f"redrawing left figures behind: {before} -> {after}"
     finally:
         widget.close()
         widget.deleteLater()
-
-# --- the frequency editor ---------------------------------------------------------------
-
-def test_the_editor_offers_the_sidebands_the_model_knows(qt_application):
-    """A band that does not say which way it runs from its sky frequency cannot be exported,
-    drawn against a baseline, or checked against another band -- so the editor has to be able
-    to say it. It could not until this: `sidebands` existed on the model and nowhere on screen.
-
-    The choices are read from the model rather than listed here, so a list in the form and a
-    list in the model cannot disagree.
-    """
-    from pastrocore.base.frequencies import IF, VALID_POLARIZATIONS
-    from pastrocore.gui.p_dialog_edit_if import IFEditorDialog
-
-    dialog = IFEditorDialog()
-    try:
-        offered = {dialog.ui.sidebandsList.item(i).text()
-                   for i in range(dialog.ui.sidebandsList.count())}
-        polarizations = {dialog.ui.polarizationsList.item(i).text()
-                         for i in range(dialog.ui.polarizationsList.count())}
-
-        assert offered == set(IF.VALID_SIDEBANDS)
-        assert polarizations == set(VALID_POLARIZATIONS)
-    finally:
-        dialog.close()
-        dialog.deleteLater()
 
 
 def test_the_editor_shows_what_the_band_would_cover(qt_application):
@@ -671,3 +653,64 @@ def test_a_catalog_browser_is_given_the_orchestrator_rather_than_making_one(proj
         source = inspection.getsource(dialog_class)
         assert "ScheduleManipulator(" not in source, (
             f"{dialog_class.__name__} builds an orchestrator of its own")
+
+
+# --- the recently-opened list (G4) -----------------------------------------------------------
+
+def test_a_project_opened_is_remembered_and_survives_a_restart(qt_application, monkeypatch,
+                                                               tmp_path, project):
+    """G4's exit criterion, both halves. The list is a *setting*, so surviving a restart is
+    surviving being written and read back rather than something the window holds."""
+    from pastrocore.app import PAstroCoreMainWindow
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    settings = tmp_path / "settings.json"
+    monkeypatch.setattr("pastrocore.app.settings_file", lambda: settings)
+
+    where = tmp_path / "a_project"
+    project.save(str(where))
+    assert ScheduleProject.is_directory_project(str(where))
+
+    window = PAstroCoreMainWindow()
+    try:
+        window.open_recent(str(where))
+        assert window.settings["recent_projects"][0] == str(where)
+        assert [a.text() for a in window.ui.menuRecent_Projects.actions()] == [str(where)]
+    finally:
+        window.close()
+
+    # The restart: a second window reads the settings the first one wrote.
+    again = PAstroCoreMainWindow()
+    try:
+        assert str(where) in again.settings.get("recent_projects", [])
+        assert [a.text() for a in again.ui.menuRecent_Projects.actions()] == [str(where)]
+    finally:
+        again.close()
+
+
+def test_a_project_that_has_gone_is_removed_when_it_is_clicked(qt_application, monkeypatch,
+                                                               tmp_path):
+    """The other half of the criterion. Checked when clicked rather than when the menu opens:
+    ten paths on a network share is a pause with no cause a user can see."""
+    from PySide6.QtWidgets import QMessageBox
+
+    from pastrocore.app import PAstroCoreMainWindow
+
+    settings = tmp_path / "settings.json"
+    monkeypatch.setattr("pastrocore.app.settings_file", lambda: settings)
+    monkeypatch.setattr(QMessageBox, "information", lambda *args, **kwargs: None)
+
+    window = PAstroCoreMainWindow()
+    try:
+        gone = str(tmp_path / "was_a_project")
+        window.settings["recent_projects"] = [gone]
+        window.rebuild_recent_menu()
+        assert [a.text() for a in window.ui.menuRecent_Projects.actions()] == [gone]
+
+        window.open_recent(gone)
+
+        assert gone not in window.settings["recent_projects"]
+        assert [a.text() for a in window.ui.menuRecent_Projects.actions()] == \
+            ["Nothing opened yet"]
+    finally:
+        window.close()

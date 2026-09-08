@@ -85,6 +85,7 @@ class PAstroCoreMainWindow(QMainWindow):
         self._action_connections = {}
         self.setup_ui()
         self.setup_connections()
+        self.rebuild_recent_menu()
 
     def _offer_abandoned_sessions(self, root=None):
         """Offer back results left by a session that did not close normally.
@@ -281,6 +282,8 @@ class PAstroCoreMainWindow(QMainWindow):
             self.ui.actionPackage_Project: self.package_project,
             self.ui.actionExport_VEX: self.export_vex,
             self.ui.actionExport_CFX: self.export_cfx,
+            self.ui.actionImport_VEX: self.import_vex,
+            self.ui.actionImport_CFX: self.import_cfx,
             self.ui.actionOpen_Package: self.open_package,
             self.ui.actionAnalysis: self.open_analysis_tab,
         }
@@ -667,6 +670,10 @@ class PAstroCoreMainWindow(QMainWindow):
             "log_level": "INFO",
             "time_step": 600,
             "clear_log_on_start": False,
+            # The projects opened before, most recent first. Written when one is opened and
+            # read when the menu is built, so it survives a restart by being a setting rather
+            # than something the window remembers.
+            "recent_projects": [],
             # What share of available memory the calculated results in hand may occupy before
             # the least recently used are dropped. They can always be read back from the
             # project directory, so this costs a read rather than a recalculation.
@@ -770,25 +777,94 @@ class PAstroCoreMainWindow(QMainWindow):
                     f"A project is a folder containing {ScheduleProject.MODEL_FILE}.")
                 return
 
-            new_project = ScheduleProject.open(file_name)
+            self._open_project_at(file_name)
 
-            self._cleanup_project()
-
-            self.project = new_project
-            self.manipulator = ScheduleManipulator(self.project)
-            self._apply_residency_budget()
-            self.current_project_path = file_name
-            
-            self.clear_connections(is_initial_setup=False)
-            self.setup_connections()
-            
-            self.open_project_info_tab()
-            self.update_project_explorer()
-            self.project_updated.emit()
-            logger.info("Opened project from %s", file_name)
-            
         except Exception as e:
             logger.error("Error opening project: %s", str(e))
+            QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
+
+    def _open_project_at(self, path: str):
+        """Open the project at a path, wherever the path came from.
+
+        Notes:
+            - The chooser and the recent list both end here, so a project opened from the menu
+              and a project opened from the list cannot come up differently.
+        """
+        new_project = ScheduleProject.open(path)
+
+        self._cleanup_project()
+
+        self.project = new_project
+        self.manipulator = ScheduleManipulator(self.project)
+        self._apply_residency_budget()
+        self.current_project_path = path
+
+        self.clear_connections(is_initial_setup=False)
+        self.setup_connections()
+
+        self.open_project_info_tab()
+        self.update_project_explorer()
+        self.project_updated.emit()
+        self.remember_project(path)
+        logger.info("Opened project from %s", path)
+
+    #: How many projects the recent list keeps. Long enough to hold a working set, short
+    #: enough that the menu stays a menu.
+    RECENT_LIMIT = 10
+
+    def remember_project(self, path: str):
+        """Put a project at the top of the recent list and write it to the settings (G4)."""
+        recent = [str(one) for one in self.settings.get("recent_projects", [])
+                  if str(one) != str(path)]
+        recent.insert(0, str(path))
+        self.settings["recent_projects"] = recent[:self.RECENT_LIMIT]
+        self.save_settings(self.settings)
+        self.rebuild_recent_menu()
+
+    def forget_project(self, path: str):
+        """Take a project off the recent list, for one that is no longer where it was."""
+        self.settings["recent_projects"] = [
+            str(one) for one in self.settings.get("recent_projects", []) if str(one) != str(path)]
+        self.save_settings(self.settings)
+        self.rebuild_recent_menu()
+
+    def rebuild_recent_menu(self):
+        """Fill the Recent Projects menu from the settings.
+
+        Notes:
+            - Built from the list rather than kept in step with it: the menu is a view of the
+              setting, and there is one place the setting is written.
+            - An entry naming a folder that is no longer a project is **removed when it is
+              clicked**, with a word about why. Checking every entry when the menu is built
+              would touch the disk for ten paths on every open, and a network share makes that
+              a pause with no cause a user can see.
+        """
+        menu = self.ui.menuRecent_Projects
+        menu.clear()
+        recent = [str(one) for one in self.settings.get("recent_projects", [])]
+        if not recent:
+            empty = menu.addAction("Nothing opened yet")
+            empty.setEnabled(False)
+            return
+        for path in recent:
+            action = menu.addAction(path)
+            action.setToolTip(path)
+            action.triggered.connect(lambda checked=False, where=path: self.open_recent(where))
+
+    def open_recent(self, path: str):
+        """Open a project from the recent list, or drop the entry if it has gone."""
+        if not ScheduleProject.is_directory_project(path):
+            logger.info("'%s' is on the recent list and is not a project any more", path)
+            self.forget_project(path)
+            QMessageBox.information(
+                self, "Not there any more",
+                f"'{path}' is no longer a pAstroCORE project, so it has been taken off the "
+                f"list.")
+            return
+        try:
+            self._open_project_at(path)
+        except Exception as e:                          # noqa: BLE001 - a message, not a crash
+            logger.error("Error opening '%s': %s", path, str(e), exc_info=True)
             QMessageBox.critical(self, "Error", f"Failed to open project: {str(e)}")
 
     @Slot()
@@ -880,6 +956,58 @@ class PAstroCoreMainWindow(QMainWindow):
             f"{report['path']}\n\n{report['files']} file(s), "
             f"{report['bytes'] / 1024:,.1f} KB"
             + ("" if report["results"] else "\nModel only -- no results included."))
+
+    def import_vex(self):
+        """Read a VEX file into this project as a new observation."""
+        self._import_schedule("vex", "VEX")
+
+    def import_cfx(self):
+        """Read a CFX file into this project as a new observation."""
+        self._import_schedule("cfx", "CFX")
+
+    def _import_schedule(self, operation: str, label: str):
+        """Read a schedule somebody else wrote, and say what did not survive the reading.
+
+        Args:
+            operation (str): The manipulator operation, which is the format's own name.
+            label (str): What to call it in the window and the file filter.
+
+        Notes:
+            - **What this model cannot hold is named, not carried** (V6). A station's rack and
+              the correlator's settings belong to the station and the correlator; an export
+              leaves those blocks empty for them to fill, so importing them would be keeping
+              something nothing here can use or check. The list is shown rather than logged,
+              because "this file said more than came in" is the one thing a reader has to know.
+        """
+        if not self.project or not self.manipulator:
+            return
+
+        source, _ = QFileDialog.getOpenFileName(
+            self, f"Import {label}", "", f"{label} schedule (*.{operation});;All files (*)")
+        if not source:
+            logger.debug("%s import cancelled", label)
+            return
+
+        answer = getattr(self.manipulator, operation)(
+            obj=self.project, method="import", path=source, raise_on_error=False)
+        if not answer.ok:
+            QMessageBox.critical(self, "Error",
+                                 f"Could not read the {label} file: {answer.error}")
+            return
+
+        report = answer.value
+        told = (f"{report['code']}: {report['scans']} scan(s), "
+                f"{len(report['stations'])} station(s), {len(report['sources'])} source(s), "
+                f"{report['channels']} channel(s).")
+        if report.get("passed_over"):
+            told += ("\n\nRead past, because this model has no way to hold them:\n  "
+                     + "\n  ".join(report["passed_over"]))
+        if report.get("refused"):
+            told += "\n\nRefused:\n  " + "\n  ".join(report["refused"])
+        QMessageBox.information(self, f"Imported {label}", told)
+
+        self.update_project_explorer()
+        self.project_updated.emit()
 
     def export_vex(self):
         """Write the schedule as VEX, for a station or a correlator."""

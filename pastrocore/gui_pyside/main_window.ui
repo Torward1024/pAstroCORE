@@ -73,6 +73,24 @@
     <property name="title">
      <string>File</string>
     </property>
+    <widget class="QMenu" name="menuRecent_Projects">
+     <property name="title">
+      <string>Recent Projects</string>
+     </property>
+     <property name="toolTip">
+      <string>Projects opened before, most recent first</string>
+     </property>
+    </widget>
+    <widget class="QMenu" name="menuImport_Schedule">
+     <property name="title">
+      <string>Import Schedule</string>
+     </property>
+     <property name="toolTip">
+      <string>Read a schedule somebody else wrote. What this model cannot hold is named rather than carried</string>
+     </property>
+     <addaction name="actionImport_VEX"/>
+     <addaction name="actionImport_CFX"/>
+    </widget>
     <widget class="QMenu" name="menuExport_Schedule">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
@@ -102,6 +120,7 @@
     <addaction name="separator"/>
     <addaction name="actionExport_Calulcated_Data"/>
     <addaction name="menuExport_Schedule"/>
+    <addaction name="menuImport_Schedule"/>
     <addaction name="separator"/>
     <addaction name="actionOpen_Package"/>
     <addaction name="actionPackage_Project"/>
@@ -276,6 +295,22 @@
    </property>
    <property name="toolTip">
     <string>Write this observation as a VEX file. Blocks describing station hardware are written empty, and named afterwards</string>
+   </property>
+  </action>
+  <action name="actionImport_VEX">
+   <property name="text">
+    <string>VEX...</string>
+   </property>
+   <property name="toolTip">
+    <string>Read a VEX file into this project as a new observation</string>
+   </property>
+  </action>
+  <action name="actionImport_CFX">
+   <property name="text">
+    <string>CFX...</string>
+   </property>
+   <property name="toolTip">
+    <string>Read a CFX file into this project as a new observation</string>
    </property>
   </action>
   <action name="actionExport_CFX">

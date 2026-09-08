@@ -23,7 +23,7 @@ from msb_arch.super.super import Super
 from msb_arch.utils.logging_setup import logger
 
 from pastrocore.base.observation import Observation
-from pastrocore.formats.vex import write_vex
+from pastrocore.formats.vex import read_vex, write_vex
 from pastrocore.super.schedule_project import ScheduleProject
 
 
@@ -144,4 +144,66 @@ class ScheduleVEX(Super):
 
         report["path"] = str(target)
         logger.info("Wrote '%s' for observation '%s'", target, observation.name)
+        return report
+
+    def _vex_import(self, obj, attributes):
+        """Read a VEX file into the project (V5)."""
+        return self._read_one(obj, attributes, read_vex, "VEX")
+
+    def _read_one(self, obj, attributes, reader, label):
+        """Read a schedule file into the project, and say what was left behind.
+
+        Args:
+            obj (ScheduleProject): The project the observation is added to.
+            attributes: `path`, the file to read. `code` names the observation, the file's own
+                experiment code by default.
+            reader: The format's reader.
+            label (str): The format, for the messages.
+
+        Returns:
+            Dict[str, Any]: What came in -- `code`, `stations`, `sources`, `scans`, `channels`
+                -- and what did not: `passed_over` names the blocks this model has no way to
+                hold, `refused` the scans it would not accept.
+
+        Raises:
+            ValueError: If no `path` was given, or nothing usable was in the file.
+            TypeError: If `obj` is not a project.
+
+        Notes:
+            - **What this model does not hold is read past, not carried** (V6). The hardware
+              and the session are the station's and the correlator's; an export leaves those
+              blocks empty for them to fill, so importing them would be keeping something
+              nothing here can use or check.
+            - A scan the model refuses is named rather than forced in. Two sub-arrays observing
+              at once in different bands is an ordinary thing to do and something the rule
+              about overlapping active scans cannot say, so `re03fr.vex` loses half its scans
+              and says so.
+        """
+        from pastrocore.formats import build_observation
+
+        path = attributes.get("path")
+        if not path:
+            raise ValueError(f"No 'path' given; there is no {label} file to read")
+        if not isinstance(obj, ScheduleProject):
+            raise TypeError(f"A {label} file is read into a project, not into "
+                            f"{type(obj).__name__}")
+
+        source = Path(path)
+        read = reader(source.read_text(encoding="utf-8", errors="replace"), source=str(source))
+        observation, refused = build_observation(read, code=attributes.get("code"))
+        obj.add_item(observation)
+
+        report = {
+            "path": str(source), "format": label.lower(), "code": observation.code,
+            "stations": [t.get_code() for t in observation.get_telescopes().get_items()],
+            "sources": [s.name for s in observation.get_sources().get_items()],
+            "scans": len(observation.get_scans().get_items()),
+            "channels": sum(band.get_channel_count()
+                            for band in observation.get_frequencies().get_items()),
+            "passed_over": read.get("passed_over", []),
+            "refused": refused,
+        }
+        logger.info("Read '%s' into observation '%s': %s scan(s), %s refused, %s passed over",
+                    source, observation.code, report["scans"], len(refused),
+                    len(report["passed_over"]))
         return report

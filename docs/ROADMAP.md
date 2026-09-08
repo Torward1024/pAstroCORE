@@ -1,162 +1,63 @@
 # pAstroCORE roadmap
 
-**1.5 shipped.** What follows is what comes next, and what was decided against.
+**1.6 shipped.** What is left, what was decided against, and why.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
-its criterion holds, not when it feels tidy. The failure mode of a project like this is not
-running out of things to do -- it is never running out.
-
-Four rules that earned their place the hard way:
-
-- **Measure before deciding.** Numbers here were taken, not estimated. Twice a plausible
-  optimisation was measured *slower* and dropped.
-- **Build the check before the change.** Twice a change was made to code nothing exercised, and
-  twice it broke something the suite could not see. G1 was only possible the second time because
-  the pixel harness was written first -- and it caught a real mistake within the hour.
-- **A characterization test cannot tell you the answer was always wrong.** It compares against
-  what the code used to produce. Where an answer can be known independently, check against
-  *that*: the orbit interpolation was out by up to 846 km with a green suite throughout.
-- **Take it from MSB.** If the framework has it, use it; if it is missing there and belongs
-  there, add it there. Sixteen of MSB's releases have come out of following that.
+its criterion holds, not when it feels tidy.
 
 ## Next
 
-Nothing here is scheduled. In rough order of what would help most:
+Nothing is scheduled, and nothing is blocking anyone.
 
-| | Item | Why it is next |
+| # | Item | Exit criterion |
 | --- | --- | --- |
-| **G4** | A most-recently-used list | Small, and asked for by anyone who opens the same project twice a day |
-| **G5** | The visualizer configured from a file | The plots are the one thing still styled in code |
+| L3 | Client-server | **Parked.** What it needs decided is storage, identity, and what a long calculation looks like to a caller who is not watching -- and those are answered by knowing who the callers are. Everything it would be built on is in place and does not go stale: a request is data, a session is a file, a project is a file |
+| K1 | SKED | **Waiting for a real file.** No example here is certainly sked output, and an exporter written against a guess is a file that looks right and is not |
 
-**L3, client-server, is deliberately parked.** Everything it needs is in place -- a request is
-data, a session is a file, a project is a file -- and none of that goes stale while it waits.
-What it needs decided is storage, identity, and what a long calculation looks like to a caller
-who is not watching, and those are answered by knowing who the callers are.
+The formats are written and read. What would settle them is a correlator accepting a file, and
+that happens when one is sent.
 
-## Done
+## Dropped
+
+| # | Item | Why |
+| --- | --- | --- |
+| V3 | Validate against a parser we did not write | No VEX parser is installable here, and an item standing against a tool nobody has can only ever be open. Each suite reads its own output by the format's punctuation and runs the same reading against the real files first -- calibration on somebody else's output, which is worth having and is not the same thing |
+| G1a | The stylesheet reloading without a restart | Serves whoever edits the stylesheet |
+| G5 | The visualizer configured from a file | Serves whoever edits the file |
+
+## Shipped
 
 | Release | What it shipped |
 | --- | --- |
-| **0.4.0** | A test suite where there was none, CI, hygiene, the calculations, MSB 1.1.1. Over 500 lines removed |
+| **0.4.0** | A test suite where there was none, CI, the calculations, MSB 1.1.1 |
 | **0.5.0** | A project became a directory; results are parquet, read lazily and capped |
 | **0.6.0** | The dialogs ask for a folder; the single-file format removed |
-| **0.7.0** | A calculation reaches the disk when it is made, in a per-session scratch directory, with recovery |
-| **0.8.0** | Adding a calculation stops at the calculator: one catalogue, derived. A space telescope can be pointed at. A result says when its inputs moved |
+| **0.7.0** | A calculation reaches the disk when it is made, with recovery |
+| **0.8.0** | One catalogue, derived. A space telescope can be pointed at. A result says when its inputs moved |
 | **0.9.0** | `pip install .` gives a command. Running calculations is a plan the backend builds. Start-up 4.0 s to 1.4 s |
-| **1.0.0** | The parts written under time pressure put in order, one measured stage at a time |
-| **1.1.0** | **L1, L2.** `pastrocore-cli` -- the backend's second caller, which is the claim 1.0 was built on. A session is checked whole before any of it runs |
-| **1.2.0** | The move to `msb_arch` 2.0.1. Three rules became `@invariant` |
+| **1.0.0** | The parts written under time pressure put in order |
+| **1.1.0** | **L1, L2.** `pastrocore-cli`, the backend's second caller. A session is checked whole before any of it runs |
+| **1.2.0** | `msb_arch` 2.0.1. Three rules became `@invariant` |
 | **1.2.2** | An audit. The orbit path was where everything was hiding |
 | **1.3.0** | **R6, T4, G1.** A project as one file; which results a change would spoil; one stylesheet |
-| **1.4.0** | **N1--N4, G6.** Asking something of the numbers, and nine tabs folded onto one base |
+| **1.4.0** | **N1--N4, G6.** Asking something of the numbers; nine tabs folded onto one base |
 | **1.5.0** | **V1--V4, X1, A2.** A schedule leaves: VEX and CFX, written whole and claiming only what is known |
+| **1.6.0** | **V5, V6, G4.** A schedule comes back in; a rule that refused real experiments is gone |
 
-### What each of the recent ones cost
+What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two formats map onto
+the model, and what an exported file leaves for somebody else to fill in, is in
+[`formats.md`](formats.md).
 
-| | Item | Outcome |
-| --- | --- | --- |
-| L1 | A command line | 230 lines, every command one request, importing neither `pastrocore.gui` nor Qt -- which one test asserts and a second measures by running a command in a fresh process and reading `sys.modules` |
-| L2 | Editing requests, in the half that matters | A session is checked whole before any of it runs, so an edited file with one bad step runs none of them. Everything it checks against is derived. **What is left is an editor inside the window, and a text editor is a better one** |
-| R6 | A project as one file | `export(method="package")`. 150 KB with results; **1 KB** with `results=False`, which is what a bug report wants. The command line takes a package anywhere it takes a project |
-| T4 | Which results a change invalidates | `compute(method="affected")`, asked *before* the change. Both halves derived: MSB's model graph says a `Telescope` is reached through `Scan` too, and each calculation's schema says what it reads |
-| G1 | One stylesheet | 235 places became one 700-line `.qss` applied to the `QApplication`. Rules are by **type**, so every button looks like every other button -- which is the point, and why some forms changed |
-| N1--N4 | Analysis | `analyze`: windows and gaps, coverage across stations, statistics with `range`, any of them over a whole project. Nothing names a column -- it is read from the schemas the calculations declare |
-| G6 | One base for the visualization tabs | 2562 lines to 832. What varies is four declarations; a tab needing more overrides one method |
-| V1--V4, X1 | A schedule that leaves | Both files written **whole**: every block present, and what cannot be known left blank or commented rather than invented. The report names what is outstanding, from the same declaration the file is written from. A space telescope is a station in CFX and excluded by name in VEX |
+## Four rules that earned their place
 
-### What was found on the way
-
-Each of these was silent, and each is now a test:
-
-| | |
-| --- | --- |
-| Chebyshev put a space telescope up to **846 km** from where it was | One polynomial of degree 30 over the whole orbit file. Linear was two orders of magnitude better, which is how it was noticed |
-| An orbit was cut to the scan exactly | So the first and last moments of every scan were extrapolated to |
-| An export that had written every file reported failure | `.value` read off an answer that was not a `Response` |
-| Six interface sites called `.items()` on a list | One opened a modal nothing mocked, so the suite *hung* rather than failed; two others quietly showed an empty project |
-| `get_observations()` never existed | Plotting a whole project raised on its first line |
-| The window released its observations *after* emptying the project | The loop had never once had a body to run |
-| A cache created and never used, guarded by a lock held over everything | Ten scans re-read the same orbit file ten times |
-| Importing a telescope could not add one already here | The two lines meant to handle it assigned two fields to themselves |
-| Closing the window destroyed the day's calculations | The scratch was discarded on every clean close |
-| Calculating for a whole project produced an empty frame | Iterating a project yields its *names* |
-| A run with a failed step reported complete success | A slot defined twice; PySide drops the arguments the winner does not accept |
-
-Details of any of these are in `CHANGELOG.md` and in the commit that made the change.
-
-## The detail
-
-### Analysis -- done in 1.4.0
-
-Shipped as `analyze`, with its own page: [asking something of the numbers](analysis.md).
-
-**The scope rule it was built under, because "analysis" has no natural end:** an operation earns
-its place when it answers a question asked *while scheduling*. Not by being a statistic that
-exists. Four earned it -- `describe`, `summary`, `windows`, `coverage` -- and that is where it
-stops. Histograms, correlations and fits are a different tool, and fitting and forecasting are
-out of scope by the line below.
-
-The primitive underneath all of it is one thing: runs of consecutive `True` in a boolean column,
-grouped by station.
-
-### Interface
-
-| # | Item | Exit criterion |
-| --- | --- | --- |
-| G4 | A most-recently-used list | Survives a restart; a missing entry is removed when clicked |
-| G5 | The visualizer configured from a file, with its own tab | Plot appearance changes without a restart; the file is editable by hand |
-
-### Formats
-
-A project of its own. Three contracts with software nobody here controls.
-
-A schedule in VEX is an observation rather than a study. **CFX** is what the ASC correlator
-reads. **SKED** is what much geodetic VLBI is scheduled in.
-
-| # | Item | Exit criterion |
-| --- | --- | --- |
-| ~~V1~~ | ~~Map the model onto the VEX blocks~~ | **Done.** [The map](formats.md), written against `re03fr.vex` and the CFX of the same experiment. It found the one thing the model is missing -- a **sideband** on `IF`, which is physics rather than paperwork -- and drew the line the rest of the work follows: a schedule pAstroCORE owns, station hardware it must be given, and session facts that are none of its business |
-| ~~V2~~ | ~~Export ground-telescope schedules~~ | **Done.** `vex(method="export")`, `pastrocore-cli vex`, **File → Export Schedule → VEX...**. The file is **structurally whole**: every block the format calls for is present, what the model knows carries real values, and what it cannot know is an empty field or a `def` whose statements are commented out — a form for `drudg` or a person at the station, rather than a file with holes. The exporter names the outstanding blocks, from the same declaration it writes them from |
-| ~~V3~~ | ~~Validate against a parser we did not write~~ | **Dropped.** No VEX parser is installable here, and standing an item up against a tool nobody has is a roadmap entry that can only ever be open. What the files get instead is a reading of the format's own punctuation, run against `re03fr.vex`, `s16tj07a.vex` and the two CFX files *first* -- calibration on somebody else's output rather than on their author's expectations. **The real check is a correlator accepting a real file**, and that happens when one is sent, not when a test says so |
-| ~~V4~~ | ~~Characterization tests~~ | **Done.** `tests/fixtures/reference.vex` is the whole file rather than a digest, so a change shows as a diff. Regenerate deliberately: `--regenerate-vex` |
-| V6 | Decide what happens to what the model cannot represent -- **before V5** | An importer that drops what it does not model, feeding an exporter that writes only what the model knows, is a lossy round trip that looks lossless. Keep unrecognised blocks verbatim, or refuse to export a lossily imported file |
-| V5 | Import VEX | A real file from an experiment this lab did not schedule loads and can be analysed. A round trip is **not** a check: it passes when reader and writer are wrong the same way |
-| ~~X1~~ | ~~**`ScheduleCFX`**~~ | **Done.** `cfx(method="export")`, `pastrocore-cli cfx`, **File → Export Schedule → CFX...**. Same rule as VEX: every section present, what correlation fills in -- the recorded data, the `TIMEOFS` figures out of the delay model, the clock, the correlator settings -- commented in place and named in the report. **The space telescope is an ordinary station with an `ORB_FILE`**, which is why this format was worth doing here. One file per frequency setup, as the two example files are. The real check is the ASC correlator accepting one, which happens when a file is sent |
-| ~~K1~~ | ~~**`ScheduleSKED`**~~ | **Dropped.** No file that is certainly sked output to check against, and an exporter written against a guess is a file that looks right and is not. It waits for a real one |
-| ~~A2~~ | ~~One `Super` per format~~ | **Done.** `ScheduleVEX`, reached as its own operation: `vex(method="export")`. The operation is the format and the method is what is done to it, so writing, reading and checking one contract stay together. Nothing about any format appears in `ScheduleData`, and the writing itself is in `pastrocore/formats/vex.py`, which knows no request |
-
-Both exporters are written, and **the formats are done as a piece of work**. What remains is
-not an item: send a file to a correlator and find out. Each suite reads its own output by the
-format's punctuation and runs the same reading against the real files first, which is
-calibration on somebody else's output -- worth having, and not the same as a real reader.
-
-Space telescopes were out of scope for V2 and are excluded **by name in its report**, which is
-a VEX limitation rather than ours: 1.5 describes a station as a place on the Earth. CFX is
-where they belong, and there they are written.
-
-~~**Before either: `IF` gains a sideband.**~~ **Done**, as `sidebands` -- a list, like
-`polarizations`, because one receiver setting records both sidebands in both polarizations and
-is still one setting. `get_band()` is the one place it becomes numbers, and the overlap rule
-asks it, which is what catches 4828 U and 4844 L being the same 16 MHz written two ways.
-
-### Reaching it from somewhere other than the window
-
-| # | Item | Needs |
-| --- | --- | --- |
-| L3 | Client-server | **Parked, not dropped.** Storage, identity, and what a long calculation looks like to a caller who is not watching -- none of which can be decided without knowing who the callers are. Everything it would be built on is already there and does not go stale: a request is data, a session is a file, a project is a file |
-
-## Considered and rejected
-
-| | Decision |
-| --- | --- |
-| Packing the *working* project into one file | **No.** Zip saves 0.6% -- parquet is already compressed -- and opening becomes 46x slower. As an **exchange** format neither cost applies, which is what R6 is: written once, unpacked once |
-| A time window that is not a scan | **No.** A scan already means "these telescopes, this window". A second way to say *when* spreads to every calculation, tab and exporter |
-| An asynchronous surface for long calculations | **Not needed.** `CalculationThread` already runs off the GUI thread with cancellation and progress; asyncio would need a bridge to Qt's loop and lose the cancellation |
-| Parallel serialization | Measured slower: 1.69x with `asyncio.gather`, 1.11x with threads |
-| An editor for sessions inside the window | A text editor is better, and both the command line and the panel check a session before running it |
-| Moving save and load into MSB now | Right eventually, recorded there as **P18**. Half a mechanism before P1 is designed leaves the graph built around the wrong shape |
-
-## Not in scope
-
-Scheduling *optimisation* -- deciding what to observe. This describes and checks schedules; it
-does not propose them. N1--N4 are the input such a thing would need, which is a different claim.
+- **Measure before deciding, on a machine that is not busy.** Twice a plausible optimisation
+  measured slower and was dropped; once a correct change was reverted on a measurement taken
+  while three copies of the suite were running on the same machine.
+- **Build the check before the change.** G1 was only possible the second time because the pixel
+  harness was written first.
+- **A characterization test cannot tell you the answer was always wrong.** It compares against
+  what the code used to produce. The orbit interpolation was out by up to 846 km with a green
+  suite throughout.
+- **A rule the model cannot justify will refuse something real.** "Active scans must not
+  overlap" threw half of `re03fr.vex` away: two sub-arrays on one source at two frequencies is
+  an ordinary way to run an array, and one antenna recording two bands at once is ordinary too.

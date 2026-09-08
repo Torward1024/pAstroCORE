@@ -328,8 +328,24 @@ class ScheduleVisualizer(Super):
             logger.error("No 'plot_type' specified in attributes")
             return {}
 
-        fig = Figure(figsize=attributes.get("figsize", self._style_config['figure']['figsize']))
-        
+        # **A caller may own the figure.** A tab passes the one its canvas was built with, so
+        # the canvas keeps a single figure for its whole life instead of having a new one
+        # swapped into it on every redraw -- which is not something matplotlib supports, and
+        # which left the navigation toolbar holding axes that had been cleared.
+        # Journaling is safe: MSB records a request's objects by name, never by reference.
+        borrowed = attributes.get("figure")
+        fig = borrowed if borrowed is not None else Figure(
+            figsize=attributes.get("figsize", self._style_config['figure']['figsize']))
+
+        def nothing_to_draw(why: str) -> Dict[str, Any]:
+            """Leave the figure empty. A borrowed one is the caller's to keep."""
+            logger.debug("%s", why)
+            fig.clf()
+            if borrowed is None:
+                plt.close(fig)
+                gc.collect(2)
+            return {}
+
         try:
             visualizer = None
             for types, func in self._object_visualizers.items():
@@ -337,28 +353,17 @@ class ScheduleVisualizer(Super):
                     visualizer = func
                     break
             if not visualizer:
-                logger.debug("Closing figure due to unsupported object type: %s", type(obj))
-                fig.clf()
-                plt.close(fig)
-                gc.collect(2)
-                return {}
+                return nothing_to_draw(f"Unsupported object type: {type(obj).__name__}")
 
             result = visualizer(obj, attributes, fig=fig)
             if not result:
-                logger.debug("No data to plot, returning empty figure")
-                fig.clf()
-                plt.close(fig)
-                gc.collect(2)
-                return {}
+                return nothing_to_draw("No data to plot, returning an empty figure")
 
             return self._finalize_plot(fig, attributes, result)
 
         except Exception as e:
             logger.error("Visualization failed: %s", str(e), exc_info=True)
-            fig.clf()
-            plt.close(fig)
-            gc.collect(2)
-            return {}
+            return nothing_to_draw("Cleared the figure after a failure")
 
     def _visualize_project_or_observation(self, obj: Union[ScheduleProject, Observation], attributes: Dict[str, Any], fig: Figure = None) -> Dict[str, Any]:
         """Visualize a ScheduleProject or Observation object."""
@@ -386,14 +391,18 @@ class ScheduleVisualizer(Super):
             # call was `self._visualize(obs, attributes, None)` against a two-argument method,
             # so every observation raised TypeError, the loop below logged it, and a whole
             # project drew nothing at all -- for as long as this branch has existed.
+            #
+            # Each observation gets a figure of its own: a figure the caller lent us is one
+            # figure, and it belongs to whichever plot is on screen.
+            each = dict(attributes, figure=None)
             results = {}
-            for one in observations:
-                code = one.get_observation_code()
+            for observation in observations:
+                code = observation.get_observation_code()
                 # One observation that cannot be drawn used to take the whole project with it,
                 # and the message named nothing, so a project of twenty plots produced none and
                 # said only what went wrong, never where. Each is reported and the rest drawn.
                 try:
-                    drawn = self._visualize(one, attributes)
+                    drawn = self._visualize(observation, each)
                 except Exception as e:                  # noqa: BLE001 - one plot frees the rest
                     logger.error("Could not draw observation '%s': %s", code, str(e),
                                  exc_info=True)

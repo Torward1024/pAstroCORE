@@ -17,6 +17,7 @@ output settings. None of that is a scheduler's to write and all of it is named.
 in C band and in K band, as two files, with `[$OUTPAR]` naming the sub-bands of that file's
 setup. A CFX file is a band, so an observation using two writes two.
 """
+import re
 from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple
 
 from astropy.time import Time
@@ -27,6 +28,7 @@ from pastrocore.base.observation import Observation
 from pastrocore.base.sources import Source
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.base.telescope import MountType, Telescope
+from pastrocore.formats.vex import vex_name
 
 #: CFX's comment character, and how a line says "not stated". `#` at the start of a line, as
 #: the examples use it for the commented-out `IF` lines of a swapped-polarization receiver.
@@ -395,3 +397,188 @@ def _one_file(observation: Observation, experiment: str, mode: _Mode, scans: Seq
     logger.info("Wrote CFX for '%s' %s: %s scans, %s stations, %s channels", experiment,
                 mode.name, len(entries), len(telescopes), len(mode.channels))
     return "\n".join(lines) + "\n", report
+
+
+# --- reading one back (V5, V6) --------------------------------------------------------------
+
+#: What this model holds of a CFX file. Everything else -- the recorded data, the delay model,
+#: the clock, the correlator's settings -- is read past, for the same reason an export leaves
+#: those lines commented: they are not a scheduler's, and carrying them would be carrying
+#: something nothing here can use or check.
+MODELLED_KEYS = ("name", "iam_name", "TLSC_PAR", "ORB_FILE", "IF", "RA", "DEC", "EPOCH",
+                 "start", "source", "telescopes")
+
+_SECTION = re.compile(r"^\[\$(\w+)\]$", re.I)
+_CLOSER = re.compile(r"^\[\$end\]$", re.I)
+
+#: `18d11m2012y13h50m00s`, which is how CFX writes a moment.
+_EPOCH = re.compile(r"(\d{1,2})d(\d{1,2})m(\d{4})y(\d{1,2})h(\d{1,2})m(\d{1,2})s")
+
+
+def read_sections(text: str) -> List[Tuple[str, List[Tuple[str, str]]]]:
+    """Return `[(section, [(key, value), ...]), ...]`, comments dropped.
+
+    Notes:
+        - `#` starts a comment, and a commented `IF` line is not a channel: that is exactly how
+          the K-band example writes a receiver whose polarizations were swapped, so reading one
+          as a channel would put two extra channels into an observation.
+    """
+    found: List[Tuple[str, List[Tuple[str, str]]]] = []
+    section, pairs = None, []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith(HASH):
+            continue
+        if _CLOSER.match(stripped):
+            if section is not None:
+                found.append((section, pairs))
+            section, pairs = None, []
+            continue
+        opening = _SECTION.match(stripped)
+        if opening:
+            section, pairs = opening.group(1).upper(), []
+            continue
+        if section is not None and "=" in stripped:
+            key, value = stripped.split("=", 1)
+            pairs.append((key.strip(), value.strip()))
+    return found
+
+
+def _first(pairs: Sequence[Tuple[str, str]], key: str) -> Optional[str]:
+    """Return the first value a section gives for a key, or None."""
+    for name, value in pairs:
+        if name.lower() == key.lower():
+            return value
+    return None
+
+
+def _every(pairs: Sequence[Tuple[str, str]], key: str) -> List[str]:
+    """Return every value a section gives for a key."""
+    return [value for name, value in pairs if name.lower() == key.lower()]
+
+
+def _cfx_moment(text: str) -> Optional[Time]:
+    """Return `18d11m2012y13h50m00s` as a `Time`, or None if it is not one."""
+    found = _EPOCH.search(text)
+    if not found:
+        return None
+    day, month, year, hour, minute, second = (int(part) for part in found.groups())
+    return Time(f"{year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d}",
+                format="iso", scale="utc")
+
+
+def read_cfx(text: str, *, source: str = "") -> Dict[str, Any]:
+    """Read a CFX file into the pieces an observation is built from.
+
+    Args:
+        text (str): The file.
+        source (str): Where it came from, for the answer.
+
+    Returns:
+        Dict[str, Any]: `code`, `telescopes`, `sources`, `bands`, `scans`, and `passed_over` --
+            the keys this model has no way to hold, by name.
+
+    Raises:
+        ValueError: If the text is not CFX, or holds no scans.
+
+    Notes:
+        - **A station with an `ORB_FILE` and no `TLSC_PAR` comes back a space telescope**, which
+          is the shape this model has and VEX has not. It is what makes a CFX file worth reading
+          here at all.
+        - A band is rebuilt from its `IF` lines: same sky frequency, one entry, with the
+          sidebands and polarizations they name. The bandwidth is not in the file -- CFX states
+          the sub-band edges in `[$OUTPAR]` instead -- so it is taken from the gap between them
+          when there is one, and left at the model's default when there is not.
+    """
+    sections = read_sections(text)
+    if not sections:
+        raise ValueError("This does not look like a CFX file: no [$SECTION] found")
+    if not any(name == "SKAN" for name, _ in sections):
+        raise ValueError("The file holds no [$skan], so there is no schedule in it")
+
+    edges = sorted(float(value) for pairs in sections if pairs[0] == "OUTPAR"
+                   for value in _every(pairs[1], "IF"))
+    spacing = min((second - first for first, second in zip(edges, edges[1:])
+                   if second > first), default=None)
+
+    telescopes, sources, bands, scans, seen = {}, {}, {}, [], set()
+    experiment = ""
+    for name, pairs in sections:
+        if name == "TLSC":
+            full = _first(pairs, "name") or ""
+            code = _first(pairs, "iam_name") or full
+            orbit = _first(pairs, "ORB_FILE")
+            parameters = _first(pairs, "TLSC_PAR")
+            entry: Dict[str, Any] = {"code": vex_name(code), "name": vex_name(full or code)}
+            if orbit and not parameters:
+                entry.update({"kind": "space", "orbit_file": orbit.strip()})
+            elif parameters:
+                fields = [field.strip() for field in parameters.split(",")]
+                numbers = []
+                for field in fields[:6]:
+                    try:
+                        numbers.append(float(field))
+                    except ValueError:
+                        numbers.append(0.0)
+                numbers += [0.0] * (6 - len(numbers))
+                entry.update({
+                    "kind": "ground", "x": numbers[0], "y": numbers[1], "z": numbers[2],
+                    "vx": numbers[3], "vy": numbers[4], "vz": numbers[5],
+                    "mount_type": "EQUA" if (fields[-1].upper() if fields else "") == "EQUA"
+                                  else "AZIM"})
+            else:
+                continue
+            telescopes[entry["code"]] = entry
+
+            for line in _every(pairs, "IF"):
+                fields = [field.strip() for field in line.split(",")]
+                if len(fields) < 3:
+                    continue
+                try:
+                    frequency = float(fields[0])
+                except ValueError:
+                    continue
+                spelled = {"R": "RCP", "L": "LCP", "H": "H", "V": "V"}.get(fields[1].upper())
+                sideband = fields[2].upper()
+                band = bands.setdefault(frequency, {
+                    "name": f"{frequency:g}MHz", "frequency": frequency,
+                    "bandwidth": spacing or 16.0, "polarizations": [], "sidebands": []})
+                if spelled and spelled not in band["polarizations"]:
+                    band["polarizations"].append(spelled)
+                if sideband in IF.VALID_SIDEBANDS and sideband not in band["sidebands"]:
+                    band["sidebands"].append(sideband)
+
+        elif name == "SOURCE":
+            named = _first(pairs, "name")
+            right, declination = _first(pairs, "RA"), _first(pairs, "DEC")
+            if not named or right is None or declination is None:
+                continue
+            sources[named] = {"name": vex_name(named),
+                              "ra_degrees": float(right), "dec_degrees": float(declination)}
+
+        elif name == "SKAN":
+            head = _first(pairs, "start") or ""
+            start = _cfx_moment(head)
+            if start is None:
+                continue
+            duration = re.search(r",\s*(\d+(?:\.\d+)?)\s*s", head)
+            on_it = [code.strip() for code in (_first(pairs, "telescopes") or "").split(",")
+                     if code.strip()]
+            scans.append({"name": f"scan{len(scans) + 1:04d}", "start": start,
+                          "duration": float(duration.group(1)) if duration else 1.0,
+                          "source": _first(pairs, "source"), "telescopes": on_it,
+                          "bands": [band["name"] for band in bands.values()]})
+
+        elif name == "OUTPAR":
+            experiment = _first(pairs, "OBSERVER") or experiment
+
+        for key, _value in pairs:
+            if key not in MODELLED_KEYS:
+                seen.add(f"[${name.lower()}] {key}")
+
+    logger.info("Read CFX '%s': %s station(s), %s source(s), %s scan(s), %s key(s) passed over",
+                experiment, len(telescopes), len(sources), len(scans), len(seen))
+    return {"code": vex_name(experiment or "IMPORTED"), "description": "", "path": source,
+            "telescopes": telescopes, "sources": sources,
+            "bands": {(band["frequency"], band["bandwidth"]): band for band in bands.values()},
+            "scans": scans, "passed_over": sorted(seen)}

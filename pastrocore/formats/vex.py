@@ -687,3 +687,262 @@ def write_vex(observation: Observation, *, generator: str = "pAstroCORE") -> Tup
     logger.info("Wrote VEX for '%s': %s scans, %s stations, %s modes", experiment,
                 len(entries), len(stations), len(modes))
     return "\n".join(lines) + "\n", report
+
+
+# --- reading one back (V5, V6) ------------------------------------------------------------
+
+#: The blocks this model holds. **Everything else is read past** (V6): the hardware and the
+#: session are not this model's to hold, an export leaves them empty for the station to fill,
+#: and an import that kept them would be keeping something nothing here can use or check. What
+#: was passed over is named in the answer, so a round trip is never mistaken for a lossless one.
+MODELLED = ("$GLOBAL", "$EXPER", "$MODE", "$STATION", "$SITE", "$ANTENNA", "$SOURCE", "$FREQ",
+            "$IF", "$SCHED")
+
+#: `2012y323d13h50m00s`, which is how VEX writes a moment.
+_EPOCH = re.compile(r"(\d{4})y(\d{1,3})d(\d{1,2})h(\d{1,2})m(\d{1,2})s")
+
+#: `ref $FREQ = NAME:Wb:Sv;` -- the station qualifiers after the name are not part of it.
+_REFERENCE = re.compile(r"^ref (\$[A-Z_]+) = ([^:]+)")
+
+
+def statements(text: str):
+    """Yield a VEX file's statements, with comments and quoted awkwardness dealt with.
+
+    Notes:
+        - `*` starts a comment to the end of the line *outside a quoted string*, and `;` ends a
+          statement. That is the whole grammar this needs.
+        - A quote opens a string only where a value may begin -- after `=`, `:` or `,`. VEX
+          also writes it as the arcsecond mark, and a declination ending in one would otherwise
+          open a string that swallows the rest of the file. That is `sched` output, not a quirk
+          of ours.
+    """
+    collected, quoted, commented, previous = [], False, False, ""
+    for character in text:
+        if commented:
+            if character == "\n":
+                commented = False
+            continue
+        if character == '"' and (quoted or previous in ("=", ":", ",")):
+            quoted = not quoted
+        elif not quoted and character == "*":
+            commented = True
+            continue
+        elif not quoted and character == ";":
+            statement = " ".join("".join(collected).split())
+            if statement:
+                yield statement
+            collected, previous = [], ""
+            continue
+        if not character.isspace():
+            previous = character
+        collected.append(character)
+
+
+def read_blocks(text: str) -> Dict[str, Dict[str, List[str]]]:
+    """Return `{block: {def name: [statements]}}` for a VEX file."""
+    blocks: Dict[str, Dict[str, List[str]]] = {}
+    block = current = None
+    for statement in statements(text):
+        if statement.startswith("$"):
+            block, current = statement, None
+            blocks.setdefault(block, {})
+        elif statement.startswith("def ") or statement.startswith("scan "):
+            current = statement.split(None, 1)[1]
+            blocks.setdefault(block, {})[current] = []
+        elif statement in ("enddef", "endscan"):
+            current = None
+        elif current is not None:
+            blocks[block][current].append(statement)
+    return blocks
+
+
+def _moment(text: str) -> Optional[Time]:
+    """Return a `start=2012y323d13h50m00s` as a `Time`, or None if it is not one."""
+    found = _EPOCH.search(text)
+    if not found:
+        return None
+    year, day, hour, minute, second = (int(part) for part in found.groups())
+    return Time(f"{year}:{day:03d}:{hour:02d}:{minute:02d}:{second:02d}", format="yday",
+                scale="utc")
+
+
+def _value(statements_of: List[str], key: str) -> Optional[str]:
+    """Return the value of `key = ...` in a def, or None.
+
+    Notes:
+        - The space around `=` is optional and both spellings are in the same file: `sched`
+          writes `site_position = ...` in `$SITE` and `start=...` in `$SCHED`.
+    """
+    for statement in statements_of:
+        name, _, value = statement.partition("=")
+        if name.strip().lower() == key.lower():
+            return value.strip()
+    return None
+
+
+def _metres(text: str) -> List[float]:
+    """Return the numbers of a `site_position` or `site_velocity` statement."""
+    numbers = []
+    for part in text.split(":"):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            numbers.append(float(part.split()[0]))
+        except ValueError:
+            continue
+    return numbers
+
+
+def _numbers(text: str) -> List[float]:
+    """Return every number in a piece of text, sign dropped."""
+    return [abs(float(part)) for part in re.findall(r"-?\d+\.?\d*", text)]
+
+
+def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
+    """Read a VEX file into the pieces an observation is built from.
+
+    Args:
+        text (str): The file.
+        source (str): Where it came from, recorded in the observation's provenance.
+
+    Returns:
+        Dict[str, Any]: `code`, `description`, `telescopes`, `sources`, `bands`, `scans`, and
+            `passed_over` -- the blocks this model has no way to hold, by name.
+
+    Raises:
+        ValueError: If the text is not VEX, or holds no schedule.
+
+    Notes:
+        - **What is not modelled is read past** (V6), and named in `passed_over`. A station's
+          rack, its baseband converters, its recording format: an export leaves those blocks
+          empty for the station to fill in, so importing them would be carrying something this
+          model can neither use nor check.
+        - Polarizations come from the `$IF` block of the mode a scan uses, since a `chan_def`
+          does not carry one.
+    """
+    if "VEX_rev" not in text:
+        raise ValueError("This does not look like a VEX file: no VEX_rev")
+
+    blocks = read_blocks(text)
+    if not blocks.get("$SCHED"):
+        raise ValueError("The file holds no $SCHED, so there is no schedule in it")
+
+    passed_over = sorted(name for name in blocks if name not in MODELLED)
+
+    experiment = next(iter(blocks.get("$EXPER", {})), "IMPORTED")
+    described = (_value(blocks.get("$EXPER", {}).get(experiment, []),
+                        "exper_description") or "").strip('"')
+
+    telescopes = {}
+    for key, station in blocks.get("$STATION", {}).items():
+        named = {}
+        for statement in station:
+            found = _REFERENCE.match(statement)
+            if found:
+                named.setdefault(found.group(1), found.group(2).strip())
+        site = blocks.get("$SITE", {}).get(named.get("$SITE", ""), [])
+        position = _value(site, "site_position")
+        if not position:
+            continue
+        coordinates = (_metres(position) + [0.0, 0.0, 0.0])[:3]
+        velocity = _value(site, "site_velocity")
+        speeds = (_metres(velocity) + [0.0, 0.0, 0.0])[:3] if velocity else [0.0, 0.0, 0.0]
+        axis = _value(blocks.get("$ANTENNA", {}).get(named.get("$ANTENNA", ""), []),
+                      "axis_type") or ""
+        telescopes[key] = {
+            "code": vex_name(_value(site, "site_ID") or key),
+            "name": vex_name(_value(site, "site_name") or key),
+            "x": coordinates[0], "y": coordinates[1], "z": coordinates[2],
+            "vx": speeds[0], "vy": speeds[1], "vz": speeds[2],
+            "mount_type": "EQUA" if "ha" in axis else "AZIM"}
+
+    sources = {}
+    for name, described_as in blocks.get("$SOURCE", {}).items():
+        # `ra = ...; dec = ...; ref_coord_frame = J2000` is written on one line and is three
+        # statements: `;` ends one, wherever the line breaks happen to be.
+        right = _value(described_as, "ra")
+        declination = _value(described_as, "dec")
+        if right is None or declination is None:
+            continue
+        ra = _numbers(right)
+        dec = _numbers(declination)
+        if len(ra) < 3 or len(dec) < 3:
+            continue
+        sources[name] = {
+            "name": vex_name(_value(described_as, "source_name") or name),
+            "ra_h": ra[0], "ra_m": ra[1], "ra_s": ra[2],
+            "de_d": -dec[0] if declination.strip().startswith("-") else dec[0],
+            "de_m": dec[1], "de_s": dec[2]}
+
+    bands, modes = {}, {}
+    for mode, statements_of in blocks.get("$MODE", {}).items():
+        named = {}
+        for statement in statements_of:
+            found = _REFERENCE.match(statement)
+            if found:
+                named.setdefault(found.group(1), found.group(2).strip())
+
+        polarizations = []
+        for statement in blocks.get("$IF", {}).get(named.get("$IF", ""), []):
+            if not statement.startswith("if_def"):
+                continue
+            fields = [field.strip() for field in statement.split("=", 1)[1].split(":")]
+            spelled = {"R": "RCP", "L": "LCP", "H": "H", "V": "V"}.get(
+                fields[2] if len(fields) > 2 else "")
+            if spelled and spelled not in polarizations:
+                polarizations.append(spelled)
+
+        here = []
+        for statement in blocks.get("$FREQ", {}).get(named.get("$FREQ", ""), []):
+            if not statement.startswith("chan_def"):
+                continue
+            fields = [field.strip() for field in statement.split("=", 1)[1].split(":")]
+            if len(fields) < 4:
+                continue
+            try:
+                frequency = float(fields[1].split()[0])
+                bandwidth = float(fields[3].split()[0])
+            except (IndexError, ValueError):
+                continue
+            entry = bands.setdefault((frequency, bandwidth), {
+                "name": f"{frequency:g}MHz", "frequency": frequency, "bandwidth": bandwidth,
+                "polarizations": polarizations, "sidebands": []})
+            sideband = fields[2].upper()
+            if sideband in IF.VALID_SIDEBANDS and sideband not in entry["sidebands"]:
+                entry["sidebands"].append(sideband)
+            if entry["name"] not in here:
+                here.append(entry["name"])
+        modes[mode] = here
+
+    scans = []
+    for name, statements_of in blocks.get("$SCHED", {}).items():
+        # `start=...; mode=...; source=...;` sits on one line and is three statements: `;` ends
+        # one, wherever the line breaks are. Each is read as its own.
+        start = _moment(_value(statements_of, "start") or "")
+        if start is None:
+            continue
+        mode = _value(statements_of, "mode")
+        named_source = _value(statements_of, "source")
+        on_it, seconds = [], 0.0
+        for statement in statements_of:
+            if not statement.startswith("station"):
+                continue
+            fields = [field.strip() for field in statement.split("=", 1)[1].split(":")]
+            on_it.append(fields[0])
+            # `station=Wb: 0 sec: 570 sec: ...` -- recording starts at the first and stops at
+            # the second, so the second is the scan's length.
+            if len(fields) > 2 and fields[2].split():
+                try:
+                    seconds = max(seconds, float(fields[2].split()[0]))
+                except ValueError:
+                    pass
+        scans.append({"name": vex_name(name), "start": start, "duration": seconds or 1.0,
+                      "source": named_source, "telescopes": on_it,
+                      "bands": modes.get(mode or "", [])})
+
+    logger.info("Read VEX '%s': %s station(s), %s source(s), %s scan(s), %s block(s) passed "
+                "over", experiment, len(telescopes), len(sources), len(scans), len(passed_over))
+    return {"code": vex_name(experiment), "description": described, "path": source,
+            "telescopes": telescopes, "sources": sources, "bands": bands, "scans": scans,
+            "passed_over": passed_over}

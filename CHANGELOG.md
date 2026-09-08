@@ -8,6 +8,66 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.6.0] - 2026-09-08
+
+Schedules come back in, and a rule that had been refusing real experiments is gone.
+
+### Added
+
+- **Reading VEX and CFX** (V5). `vex(method="import")` and `cfx(method="import")`, and
+  **File → Import Schedule**. All four example files load -- two written by `sched`, two
+  written at the ASC -- and what comes back is an observation like any other: calculable,
+  analysable, exportable. `re03fr.vex` returns six stations, two bands, one source and its
+  eight scans.
+
+- **V6, decided: what this model cannot hold is read past, and named.** Neither of the two
+  options that item offered. Keeping unrecognised blocks verbatim means carrying something
+  nothing here can use or check; refusing to export an imported file makes the round trip
+  useless -- and an export leaves those blocks empty for the station and the correlator to fill
+  anyway, which is the same answer from the other side. An import reports `passed_over` by
+  name, so a round trip is never mistaken for a lossless one.
+
+- **A most-recently-used list** (G4). File → Recent Projects, ten deep, kept in the settings so
+  it survives a restart by being a setting rather than something the window remembers. An entry
+  whose folder is no longer a project is removed when it is clicked.
+
+### Fixed
+
+- **A rule was refusing half of a real experiment.** "Active scans must not overlap in time" --
+  but `re03fr.vex` observes 2230+114 from 13:50 with Wb, Sv and Bd at 4828 MHz *and* with Ev,
+  Nt and Zc at 22228 MHz. Two sub-arrays on one source at two frequencies is an ordinary way to
+  run an array and the basis of multi-frequency synthesis; one antenna recording two bands at
+  once is ordinary too. The rule is about **pointing** now -- one mount cannot be aimed at two
+  sources at the same moment -- which is the only thing the model can honestly say. Importing
+  that file went from four scans to eight.
+
+- **Both catalogue browsers raised on every path.** The lookup had been moved onto the
+  orchestrator and the dialog was never given one, so the Options menu, the sources tab, the
+  telescopes tab and Generate Observations all failed with `AttributeError`. Nothing ever
+  constructed these dialogs, so nothing noticed; a test builds both, in both selection modes,
+  against the shipped catalogues.
+
+- **One font, everywhere.** The forms carried 60 `font` properties, and a widget font beats the
+  stylesheet: family-only meant Arial at whatever size the platform defaults to, next to a
+  widget the stylesheet had given Arial 9pt. The stylesheet states it once on `QWidget`; a test
+  tells a font that says something new from one that repeats what is already said.
+
+- `create_telescope` and `create_space_telescope` took a `name` and passed `name=code`,
+  discarding it -- so a telescope called Svetloe came back as `Sv`, and both exporters wrote a
+  name where the model had only ever kept a code.
+
+### Changed
+
+- **A visualization tab owns its figure again.** Swapping a `Figure` into a live canvas is not
+  something matplotlib supports. It was reverted in 1.5.0 on a measurement taken while three
+  copies of the suite were running on the same machine -- "60 redraws in 280 s". Measured alone,
+  back to back in one process: 5.04 s against 5.31 s, both growing by 0.1 MB. **A number taken
+  on a busy machine is not a number.**
+
+- V3 dropped. No VEX parser is installable here, and an item standing against a tool nobody has
+  can only ever be open. The real check is a correlator accepting a real file. G5 dropped: a
+  visualizer configured from a file serves whoever edits the file.
+
 ## [1.5.0] - 2026-09-08
 
 A schedule leaves pAstroCORE. Two formats, written whole and claiming only what is known.
