@@ -291,6 +291,39 @@ def package(arguments) -> int:
     return 0
 
 
+def vex(arguments) -> int:
+    """Write a schedule as VEX, and print what the file leaves for a station to finish.
+
+    Notes:
+        - The outstanding blocks are printed every time rather than behind a flag. A VEX file
+          this writes is complete in shape and partial in content by design, and a command that
+          said only "written" would be hiding the half that matters.
+    """
+    project = _open(arguments.project)
+    manipulator = ScheduleManipulator(project, journal_limit=None)
+
+    answer = manipulator.vex(obj=project, method="export", path=arguments.destination,
+                             overwrite=arguments.force, raise_on_error=False)
+    if not answer.ok:
+        print(f"  {answer.error}")
+        return 1
+
+    report = answer.value
+    for one in report.get("files", [report]):
+        print(f"{one['path']}")
+        print(f"  {one['scans']} scan(s), {len(one['stations'])} station(s), "
+              f"{len(one['modes'])} mode(s), {one['channels']} channel(s)")
+
+    for entry in report["excluded"]:
+        print(f"  left out: {entry.get('telescope') or entry.get('scan')} "
+              f"-- {entry['reason']}")
+
+    print("\nTo be completed at the station:")
+    for entry in report["to_complete"]:
+        print(f"  {entry['block']:<20} {entry['needs']}")
+    return 0
+
+
 def affected(arguments) -> int:
     """Say which results editing something of a given type would make wrong."""
     project = _open(arguments.project)
@@ -440,6 +473,15 @@ def build_parser() -> argparse.ArgumentParser:
                         help="leave the results out; a few KB that reproduce the configuration")
     packed.add_argument("--force", action="store_true", help="replace a file that is there")
     packed.set_defaults(run=package)
+
+    schedule = commands.add_parser(
+        "vex", help="write the schedule as VEX, for a station or a correlator")
+    schedule.add_argument("project")
+    schedule.add_argument("destination",
+                          help="the file to write, or a directory for a project with several "
+                               "observations -- a VEX file is one experiment")
+    schedule.add_argument("--force", action="store_true", help="replace a file that is there")
+    schedule.set_defaults(run=vex)
 
     spoiled = commands.add_parser(
         "affected", help="which results editing something of a type would make wrong")

@@ -15,6 +15,7 @@
     "ui_dialog_preferences.Ui_PreferencesDialog": "6d3fde5f7e4eb4ae88910015aae9f332",
     "ui_dialog_run_report.Ui_RunReportDialog": "8aee53362ca9e0dc28869b0f655a8fdf",
     "ui_dialog_session.Ui_SessionDialog": "a56e64af110322de56fb50113efea145",
+    "ui_dialog_vex_report.Ui_VEXReportDialog": "e970d2632bd5cd5a381f9b3ad899bb9b",
     "ui_dialog_visualize.Ui_VisualizationDialog": "c68d67ff7079746ebc4b94777c5563aa",
     "ui_main_window.Ui_MainWindow": "bbc3348288ff56c35f2e309cd8aa3c8f",
     "ui_tab_analysis.Ui_AnalysisTab": "34dcec2d0148377989573363e08e1332",

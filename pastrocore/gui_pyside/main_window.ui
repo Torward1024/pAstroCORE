@@ -73,6 +73,15 @@
     <property name="title">
      <string>File</string>
     </property>
+    <widget class="QMenu" name="menuExport_Schedule">
+     <property name="title">
+      <string>Export Schedule</string>
+     </property>
+     <property name="toolTip">
+      <string>Write the schedule in a format a station or a correlator reads</string>
+     </property>
+     <addaction name="actionExport_VEX" />
+    </widget>
     <addaction name="actionNewProject" />
     <addaction name="separator" />
     <addaction name="actionOpenProject" />
@@ -81,6 +90,7 @@
     <addaction name="actionSave_Project_As" />
     <addaction name="separator" />
     <addaction name="actionExport_Calulcated_Data" />
+    <addaction name="menuExport_Schedule" />
     <addaction name="separator" />
     <addaction name="actionOpen_Package" />
     <addaction name="actionPackage_Project" />
@@ -238,6 +248,14 @@
    </property>
    <property name="toolTip">
     <string>Pack this project into one file, to send or to attach to a bug report</string>
+   </property>
+  </action>
+  <action name="actionExport_VEX">
+   <property name="text">
+    <string>VEX...</string>
+   </property>
+   <property name="toolTip">
+    <string>Write this observation as a VEX file. Blocks describing station hardware are written empty, and named afterwards</string>
    </property>
   </action>
   <action name="actionAnalysis">
