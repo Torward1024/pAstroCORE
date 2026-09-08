@@ -18,7 +18,7 @@ in C band and in K band, as two files, with `[$OUTPAR]` naming the sub-bands of 
 setup. A CFX file is a band, so an observation using two writes two.
 """
 import re
-from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from astropy.time import Time
 from msb_arch.utils.logging_setup import logger
@@ -28,7 +28,8 @@ from pastrocore.base.observation import Observation
 from pastrocore.base.sources import Source
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.base.telescope import MountType, Telescope
-from pastrocore.formats import SIDEBAND_ORDER, Mode as _Mode, bare_name as vex_name, collect_modes, letter_for
+from pastrocore.formats import (SIDEBAND_ORDER, Mode as _Mode, Skeleton, bare_name as vex_name,
+                                collect_modes, letter_for)
 
 #: CFX's comment character, and how a line says "not stated". `#` at the start of a line, as
 #: the examples use it for the commented-out `IF` lines of a swapped-polarization receiver.
@@ -41,21 +42,10 @@ INDENT = "\t"
 MOUNTS = {MountType.AZIMUTHAL: "AZEL", MountType.EQUATORIAL: "EQUA"}
 
 
-class Skeleton(NamedTuple):
-    """Lines written commented out, because what goes in them is not a scheduler's to say.
-
-    Attributes:
-        needs (str): What has to be supplied, in words, for the report and for the file.
-        lines (Tuple[str, ...]): The keys, with their shape, written commented.
-    """
-
-    needs: str
-    lines: Tuple[str, ...]
-
-
 #: Per station: everything about the recording and the correlation model. **The list the report
 #: is made of** -- there is no second copy, so a line cannot be written and go unreported.
 STATION_SKELETON = Skeleton(
+    "[$TLSC]",
     "the recording format, the data files, and the clock -- all known after observing", (
         "FORMAT** = <Mark5B-256-4-2 | RDF_128-4-1-4 | ...>",
         "%P = <directory holding the recorded data>",
@@ -71,12 +61,14 @@ STATION_SKELETON = Skeleton(
 
 #: The clock section: measured against a reference station during correlation.
 CLOCK_SKELETON = Skeleton(
+    "[$CLOCK]",
     "clock offsets, which are measured during correlation rather than scheduled", (
         "CLOCK = <station>, <dd>d<mm>m<yyyy>y<hh>h<mm>m<ss>s, <delay>, <rate>, <acceleration>",
     ))
 
 #: The output section. `OBSERVER` and the sub-bands are ours; the rest is the correlator's.
 OUTPUT_SKELETON = Skeleton(
+    "[$OUTPAR]",
     "where the correlator writes and how it is set up", (
         "%W = <working directory>",
         "ARIAD_PATH = <correlator>",
@@ -90,7 +82,12 @@ OUTPUT_SKELETON = Skeleton(
 #: Fields of `TLSC_PAR` this model does not carry. Positional, so they are written blank, and
 #: named above the line so that a blank is read as a blank rather than as zero.
 TLSC_PAR_BLANKS = Skeleton(
-    "a station's axis offset and the epoch its coordinates were measured at", ())
+    "[$TLSC]",
+    "a station's axis offset and the epoch its coordinates were measured at")
+
+#: Everything a CFX file leaves for correlation. **The report is made of this**, so a section
+#: cannot be written empty and go unreported, or reported and not written.
+OUTSTANDING = (STATION_SKELETON, TLSC_PAR_BLANKS, CLOCK_SKELETON, OUTPUT_SKELETON)
 
 
 # --- CFX's spelling --------------------------------------------------------------------------
@@ -327,10 +324,7 @@ def _one_file(observation: Observation, experiment: str, mode: _Mode, scans: Seq
         "sources": sorted(sources),
         "channels": len(mode.channels),
         "excluded": excluded,
-        "to_complete": [{"block": "[$TLSC]", "needs": STATION_SKELETON.needs},
-                        {"block": "[$TLSC]", "needs": TLSC_PAR_BLANKS.needs},
-                        {"block": "[$CLOCK]", "needs": CLOCK_SKELETON.needs},
-                        {"block": "[$OUTPAR]", "needs": OUTPUT_SKELETON.needs}],
+        "to_complete": [one.as_reported() for one in OUTSTANDING],
     }
     logger.info("Wrote CFX for '%s' %s: %s scans, %s stations, %s channels", experiment,
                 mode.name, len(entries), len(telescopes), len(mode.channels))

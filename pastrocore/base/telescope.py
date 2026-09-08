@@ -94,7 +94,7 @@ class Telescope(BaseEntity):
         "effective_area_table": "an effective area, in square metres",
     }
 
-    @invariant("every value in a telescope's tables must be positive")
+    @invariant("a telescope's tables and its surface accuracy must be positive")
     def _tables_hold_positive_values(self) -> bool:
         """A dish with a negative SEFD is not a worse dish, it is a wrong answer.
 
@@ -116,6 +116,16 @@ class Telescope(BaseEntity):
                     raise InvariantError(
                         f"Telescope '{self.code}': {table} at {frequency} MHz is {value!r}; "
                         f"{what} must be positive")
+
+        if self.surface_accuracy is not None and (
+                not isinstance(self.surface_accuracy, (int, float))
+                or self.surface_accuracy <= 0):
+            # An RMS surface error is a length. It reaches Ruze's formula squared, so a
+            # negative one gives the same answer as its opposite -- which is worse than an
+            # error, because the number is wrong and the result looks reasonable.
+            raise InvariantError(
+                f"Telescope '{self.code}': surface accuracy is {self.surface_accuracy!r}; "
+                f"it is an RMS error in metres, so it is positive or not stated")
 
         for frequency, value in (self.surface_efficiency_table or {}).items():
             if not isinstance(value, (int, float)) or not 0 < value <= 1:

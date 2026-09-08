@@ -37,6 +37,30 @@ def bare_name(text: str) -> str:
     return cleaned or "unnamed"
 
 
+class Skeleton(NamedTuple):
+    """A block or a set of lines written empty, because what goes in it is not a scheduler's.
+
+    Attributes:
+        block (str): Where it belongs, spelled as its own format spells it -- `$DAS`, `[$TLSC]`.
+        needs (str): What has to be supplied, in words, for the file and for the report.
+        lines (Tuple[str, ...]): The statements, written commented out, so whoever completes
+            the file has the shape in front of them.
+
+    Notes:
+        - **A report is made of these**, so a block cannot be written empty and go unreported,
+          or reported and not written. Both formats had their own copy of this and CFX's report
+          then named its blocks in string literals a second time.
+    """
+
+    block: str
+    needs: str
+    lines: Tuple[str, ...] = ()
+
+    def as_reported(self) -> dict:
+        """What this looks like in an operation's report."""
+        return {"block": self.block, "needs": self.needs}
+
+
 class Channel(NamedTuple):
     """One recorded channel: a band, one of its sidebands, one of its polarizations.
 

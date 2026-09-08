@@ -221,6 +221,28 @@ class IF(BaseEntity):
         # `set` and for a project being read back. This normalizes; the rule below refuses.
         return polarizations
 
+    @invariant("a sideband is U or L")
+    def _sidebands_are_known(self) -> bool:
+        """`U` or `L`, because those are the two directions a band runs from its frequency.
+
+        Raises:
+            InvariantError: Naming what was found.
+
+        Notes:
+            - `_validate_sidebands` runs from `__init__` and from `set_sidebands`, and `set`
+              reaches neither -- so `set({"sidebands": ["X"]})` was taken, and then `get_band`
+              returned a band of zero width, quietly, because neither letter matched. Both
+              exporters would have written it.
+        """
+        for letter in self.sidebands or []:
+            if letter not in self.VALID_SIDEBANDS:
+                raise InvariantError(
+                    f"IF '{self.name}': sideband {letter!r} is neither "
+                    f"{' nor '.join(self.VALID_SIDEBANDS)}")
+        if not self.sidebands:
+            raise InvariantError(f"IF '{self.name}': a band records at least one sideband")
+        return True
+
     @invariant("polarizations must all be circular or all be linear")
     def _polarizations_are_one_group(self) -> bool:
         """A band is recorded in circular polarization or in linear, never in a mixture.

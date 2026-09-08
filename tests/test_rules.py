@@ -473,3 +473,58 @@ def test_a_telescope_with_sensible_tables_is_accepted():
 
     assert telescope.get_sefd(1000.0) == 500.0
     assert telescope.get_surface_efficiency(1000.0) == 0.6
+
+
+# --- what else guarded only the constructor -------------------------------------------------
+
+@pytest.mark.parametrize("path", ["build", "set", "from_dict"])
+def test_a_sideband_is_U_or_L_on_every_path(path):
+    """`_validate_sidebands` runs from `__init__` and from `set_sidebands`, and `set` reaches
+    neither -- so `set({"sidebands": ["X"]})` was taken, and `get_band` then returned a band of
+    zero width, quietly, because neither letter matched. Both exporters would have written it."""
+    attempts = {
+        "build": lambda: IF(name="a", sidebands=["X"]),
+        "set": lambda: IF(name="a").set({"sidebands": ["X"]}),
+        "from_dict": lambda: IF.from_dict({**IF(name="a").to_dict(), "sidebands": ["X"]}),
+    }
+
+    with pytest.raises((InvariantError, ValueError)):
+        attempts[path]()
+
+
+def test_a_band_records_at_least_one_sideband():
+    """A band with none says nothing about what it recorded, and covers nothing."""
+    with pytest.raises((InvariantError, ValueError)):
+        IF(name="a").set({"sidebands": []})
+
+
+def test_a_surface_accuracy_is_positive_or_not_stated():
+    """It is an RMS error in metres, and it reaches Ruze's formula squared -- so a negative one
+    gives the same answer as its opposite, which is worse than an error: the number is wrong
+    and the result looks reasonable."""
+    from pastrocore.base.telescope import Telescope
+
+    with pytest.raises((InvariantError, ValueError)):
+        Telescope(code="T", name="T").set({"surface_accuracy": -0.5})
+
+    assert Telescope(code="T", name="T", surface_accuracy=0.2).surface_accuracy == 0.2
+    assert Telescope(code="T", name="T").surface_accuracy is None
+
+
+def test_an_orbit_file_is_a_path_or_nothing():
+    """A blank string is not a file, and it is not "not set" either -- the failure used to
+    arrive later, inside a calculation, as an empty path being opened.
+
+    It deliberately does **not** insist a spacecraft be positioned: making one and giving it an
+    orbit afterwards is how the editor works, and a rule the model cannot justify refuses
+    something real.
+    """
+    from pastrocore.base.spacetelescope import SpaceTelescope
+
+    spacecraft = SpaceTelescope(code="S", name="S", use_kep=False)
+
+    with pytest.raises((InvariantError, ValueError)):
+        spacecraft.set({"orbit_file": "   "})
+
+    spacecraft.set({"orbit_file": None})          # not yet positioned, which is allowed
+    assert spacecraft.orbit_file is None
