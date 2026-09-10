@@ -140,7 +140,20 @@ def deletions_happen_between_tests():
     application = QApplication.instance()
     if application is None:
         return
+
+    # Collect first, while the C++ halves are still there: PySide schedules the deletion when
+    # the wrapper goes, which is the safe direction. A test that let a widget go out of scope
+    # has not scheduled anything yet.
     gc.collect()
+
+    # Then take away whatever is still standing. Twenty-one tests across six files build a
+    # dialog or a window and never take it away, and a widget that is merely dropped is
+    # disposed of whenever the collector next runs -- inside some later test's event loop,
+    # which is where a Qt teardown takes the process with it.
+    for widget in list(application.topLevelWidgets()):
+        widget.close()
+        widget.deleteLater()
+
     application.sendPostedEvents(None, QEvent.DeferredDelete)
     application.processEvents()
 
