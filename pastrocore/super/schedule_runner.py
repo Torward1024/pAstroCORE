@@ -172,7 +172,9 @@ class ScheduleRunner(Super):
 
         Returns:
             Dict[str, Any]: `{"ran": [...], "failed": [...], "cancelled": bool,
-                "timings": {step: seconds}}` -- step names, in plan order.
+                "timings": {step: seconds}, "report": [...], "summary": {...}}` -- step names,
+                in plan order. The summary's `seconds` is the clock and `work` is the sum of
+                the steps; with a concurrent stage the second is larger.
 
         Notes:
             - The whole point of doing it here rather than in a dialog: an interface, a command
@@ -230,10 +232,12 @@ class ScheduleRunner(Super):
             return response
 
         self._manipulator.add_interceptor(watch)
+        began = time.perf_counter()
         try:
             outcome = self._manipulator.pipeline(
                 plan, raise_on_error=False, concurrent=bool(attributes.get("concurrent")))
         finally:
+            elapsed = time.perf_counter() - began
             self._manipulator.remove_interceptor(watch)
 
         # In plan order rather than in the order they finished, which with a concurrent stage
@@ -267,8 +271,15 @@ class ScheduleRunner(Super):
                 # Summarised here rather than by whoever displays it. A window, a command line
                 # and a server all want the same three numbers, and the first of them worked
                 # them out for itself until this line existed.
+                # **`seconds` is the clock, not the sum.** Independent steps of a stage run
+                # together -- which is what `concurrent` is for, and both the window and the
+                # command line ask for it -- so adding their durations counts the same seconds
+                # several times: measured, 4.08 s reported against 2.51 s actually waited.
+                # `work` is that sum, which is a different and also useful fact: divided by
+                # `seconds` it says what the concurrency bought.
                 "summary": {"steps": len(ran), "failed": len(outcome.failed),
-                            "seconds": sum(timings.values()),
+                            "seconds": elapsed,
+                            "work": sum(timings.values()),
                             "slowest": slowest.split("/", 1)[-1] if slowest else None,
                             "slowest_seconds": timings[slowest] if slowest else 0.0}}
 

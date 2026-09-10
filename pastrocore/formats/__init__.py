@@ -179,10 +179,9 @@ def build_observation(read: dict, *, code: str = None):
         - What a reader passed over is passed over here too (V6): the hardware and the session
           are not this model's, an export leaves them for the station and the correlator to
           fill, and importing them would be carrying something nothing here can use or check.
-        - **A scan this model refuses is named rather than forced in.**  is the
-          case: two sub-arrays observing at the same moment in different bands, which is an
-          ordinary thing to do and something the rule about overlapping active scans has no
-          way to say. The ones that fit are imported and the rest are reported.
+        - **A scan this model refuses is named rather than forced in.** The ones that fit are
+          imported and the rest are reported, so a partial reading is never mistaken for a
+          whole one.
     """
     from pastrocore.base.observation import Observation
 
