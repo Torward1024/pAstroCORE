@@ -8,6 +8,70 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.7.1] - 2026-09-10
+
+A second audit pass, over the parts the first one did not reach: the visualizer, the
+catalogues, the analyzer, the generator and the window. Seven defects, every one of them
+found by asking the same question -- does this call reach something that is actually there.
+
+### Fixed
+
+- **Two projects opened, one tab closed, two tabs gone.** `setup_connections` runs again on
+  New Project, Open Project and Open Package, and `clear_connections` was meant to take the
+  previous set back first. It asked `receivers(QtCore.SIGNAL("tabCloseRequested(int)"))`
+  whether the signal had any connection at all, then disconnected one particular slot -- a
+  count that includes everyone else's connections, and a string spelling that does not see
+  connections made in the new one. The guard passed, the disconnect did nothing, and every
+  reopen left another connection behind. `handle_tab_close` then ran twice for one click, and
+  after the first call removed that tab, the index belonged to its neighbour. What is
+  disconnected is now what was connected, from a register.
+
+- **Editing a source switched off every scan pointed at it.** The activity check asked
+  `self.source in observation.get_sources().get_items()`, and `in` compares every field of a
+  model. A generated observation holds the source and each scan holds a copy -- equal until
+  one is edited. Correct one digit of the declination and the two stopped being equal, so the
+  scan counted as pointed at nothing and went quietly inactive. It is found by name now.
+
+- **A copied scan renamed itself.** `Scan.copy` did not carry the name over, so the
+  constructor invented one while `Scans.copy` filed it under the old key: a container whose
+  keys and whose items disagreed. Results are keyed by scan name, so a copied observation had
+  no scan under the name its own results referred to. `Source`, `Telescope` and `IF` all
+  carried theirs; this was the one that did not.
+
+- **Five catalogue lookups called names the containers do not have.** `get_source`,
+  `get_telescope`, both range searches and `get_telescopes_by_type` called
+  `get_all_sources()` / `get_all_telescopes()`, and two asked a source for `get_ra_degrees()`
+  rather than the `ra_degrees` property. Every one was an `AttributeError` waiting for its
+  first caller, and nothing in the application had a first caller. One had even been repaired
+  for a different defect without the repair ever being run.
+
+- **Unticking a source left its Mollweide tracks on the plot.** The filter went through a
+  `source_name` column no track has ever had, inside the branch that ran when a source was
+  *not* found -- so the ordinary case filtered nothing and the unknown case raised. A track
+  names a scan, and the scan carries the source.
+
+- **A coverage window reported the stations of a different window.** The count was `max` over
+  every window of the source, so a night when two stations saw it and a night when five did
+  were both reported as five.
+
+- **A tab was cleaned up twice and called the second pass an error.** `close_tab` cleans and
+  then removes the tab, and Qt delivers `closeEvent` afterwards. The second pass disconnected
+  what was already disconnected and reached through attributes the first had set to `None`,
+  logged as "Error cleaning up" for work that had been done. The suite's Qt warnings went
+  from 76 to 31.
+
+- **A telescope catalogue line without a diameter** was reported as unparseable rather than
+  as too short: the guard read `< 6` while the diameter is the seventh field.
+
+### Added
+
+- A convention test that checks the whole codebase for a method called on a model that does
+  not have it -- a parameter annotated with a model class, or an attribute assigned one in a
+  constructor. This family has now been found twice by hand: `clear` became `remove_all` in
+  msb_arch 2.0.0 and five callers kept asking for `clear`, and the catalogue lookups above.
+
+- Tests for the catalogues, which had none, driven against the files the application ships.
+
 ## [1.7.0] - 2026-09-08
 
 An audit: four bugs, the duplication the format work left behind, and a rule that was
