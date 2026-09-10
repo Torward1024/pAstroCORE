@@ -987,3 +987,114 @@ def test_nothing_is_deleted_while_it_is_still_being_held():
         "these are deleted and still referenced, which segfaults when the wrapper is "
         "collected:\n  " + "\n  ".join(offenders)
         + "\nSet the attribute to None after `deleteLater()`.")
+
+
+def model_classes():
+    """Every model type the application passes around, by name.
+
+    Notes:
+        - Imported rather than parsed, because what matters is the method set the class
+          actually has -- including everything it inherits from `msb_arch`, which is where
+          the names that moved (`clear` to `remove_all`) came from.
+    """
+    import importlib
+
+    found = {}
+    for name in ("pastrocore.base.observation", "pastrocore.base.telescope",
+                 "pastrocore.base.spacetelescope", "pastrocore.base.telescopes",
+                 "pastrocore.base.sources", "pastrocore.base.scans",
+                 "pastrocore.base.frequencies", "pastrocore.super.schedule_project",
+                 "pastrocore.utils.catalogmanager"):
+        module = importlib.import_module(name)
+        for attribute in dir(module):
+            value = getattr(module, attribute)
+            # Only what this project defines. A module's namespace also holds what it imported,
+            # and `typing.Any` is a class in its own right: taken as a model type it matches
+            # every `obj: Any` in the codebase and calls all of them defective.
+            if (isinstance(value, type)
+                    and getattr(value, "__module__", "").startswith(("pastrocore", "msb_arch"))):
+                found.setdefault(attribute, value)
+    return found
+
+
+def _annotation_name(node):
+    """The bare class name of an annotation, whatever form it was written in."""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value.strip("'\"")
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
+
+
+def test_a_method_is_only_called_on_a_model_that_has_it():
+    """The names a model offers change, and the calls do not follow on their own.
+
+    Two rounds of this have already been found by hand. `clear()` became `remove_all()` when
+    msb_arch 2.0.0 was adopted and five callers kept asking for `clear`. `get_all_sources()`
+    and `get_all_telescopes()` were names `Sources` and `Telescopes` never had under that
+    spelling, and five `CatalogManager` lookups called them -- every one an `AttributeError`
+    for its first caller, and nothing in the application had a first caller. One of the five
+    had even been repaired for a different defect without anyone running it.
+
+    Two shapes are checked, because those are the two that carry a type worth checking: a
+    parameter annotated with a model class, and an attribute assigned one in a constructor.
+    Anything else is a guess, and a convention test that guesses is one that gets deleted.
+    """
+    classes = model_classes()
+    offenders = []
+
+    for path in source_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        where = path.relative_to(ROOT).as_posix()
+
+        for func in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
+            typed = {}
+            for argument in func.args.args + func.args.kwonlyargs:
+                name = _annotation_name(argument.annotation) if argument.annotation else None
+                if name in classes:
+                    typed[argument.arg] = classes[name]
+            for call in [n for n in ast.walk(func) if isinstance(n, ast.Call)]:
+                called = call.func
+                if not isinstance(called, ast.Attribute) or not isinstance(called.value, ast.Name):
+                    continue
+                model = typed.get(called.value.id)
+                # `isinstance` narrows a parameter to a subclass, and the subclass is where
+                # the method it then calls lives -- that is a correct call, not a defect.
+                if model is None or hasattr(model, called.attr):
+                    continue
+                if any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                       and n.func.id == "isinstance" for n in ast.walk(func)):
+                    continue
+                offenders.append(f"{where}:{call.lineno} {called.value.id}: "
+                                 f"{model.__name__} has no .{called.attr}()")
+
+        for klass in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
+            held = {}
+            for node in ast.walk(klass):
+                if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)):
+                    continue
+                built = node.value.func
+                name = built.id if isinstance(built, ast.Name) else getattr(built, "attr", None)
+                if name not in classes:
+                    continue
+                for target in node.targets:
+                    if (isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)
+                            and target.value.id == "self"):
+                        held[target.attr] = classes[name]
+            for call in [n for n in ast.walk(klass) if isinstance(n, ast.Call)]:
+                called = call.func
+                if not (isinstance(called, ast.Attribute)
+                        and isinstance(called.value, ast.Attribute)
+                        and isinstance(called.value.value, ast.Name)
+                        and called.value.value.id == "self"):
+                    continue
+                model = held.get(called.value.attr)
+                if model is not None and not hasattr(model, called.attr):
+                    offenders.append(f"{where}:{call.lineno} self.{called.value.attr}: "
+                                     f"{model.__name__} has no .{called.attr}()")
+
+    assert not offenders, (
+        "these call a name the model does not have:\n  " + "\n  ".join(offenders)
+        + "\nThe model was renamed; the call was not.")
