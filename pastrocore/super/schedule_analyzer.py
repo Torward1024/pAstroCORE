@@ -537,9 +537,14 @@ class ScheduleAnalyzer(Super):
                 part = part.sort("time")
                 times = part["time"].to_list()
                 for run in self._consecutive(times, step):
+                    # Counted inside this window, not across the whole source. The maximum
+                    # over every window said "5 stations" of a window that had two, and the
+                    # number of stations is the answer this analysis exists to give.
+                    within = part.filter((pl.col("time") >= run["start"])
+                                         & (pl.col("time") <= run["end"]))
                     rows.append({"observation": observation.code, **labels,
                                  "at_least": at_least,
-                                 "stations": int(part["stations"].max()), **run})
+                                 "stations": int(within["stations"].max()), **run})
 
         logger.info("Coverage by at least %s station(s): %s window(s)", at_least, len(rows))
         return rows

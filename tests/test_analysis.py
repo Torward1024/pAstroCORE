@@ -423,3 +423,39 @@ def test_the_tab_exports_what_is_on_screen(analysed, tmp_path, qt_application, m
     written = destination.read_text(encoding="utf-8-sig").splitlines()
     assert len(written) - 1 == tab.ui.resultTable.rowCount()
     tab.deleteLater()
+
+
+def test_each_coverage_window_counts_its_own_stations(analysed):
+    """A window says how many stations saw the source *in that window*.
+
+    The count was `max` over every window of the source, so a night when two stations saw it
+    and a night when five did were both reported as five. The number of stations is the answer
+    this analysis exists to give, and reporting a neighbour's is worse than reporting none.
+
+    The fixture has two stations, which cannot show this: the frame is written here so the two
+    windows genuinely differ.
+    """
+    core, project, observation = analysed
+    day = 1.0 / 24.0
+    times, codes, visible = [], [], []
+    for index, moment in enumerate([0.0, day, 2 * day,      # a window seen by two stations
+                                    10 * day, 11 * day]):   # and a later one seen by four
+        for station in (["A", "B"] if index < 3 else ["A", "B", "C", "D"]):
+            times.append(60000.0 + moment)
+            codes.append(station)
+            visible.append(True)
+
+    frame = pl.DataFrame({"time": times, "telescope_code": codes,
+                          "source_name": ["1228+126"] * len(times),
+                          "scan_name": ["s"] * len(times), "visibility": visible},
+                         schema=CalculatedDataStructure.get_dtypes("source_visibility"))
+    observation.set_calculated_data_by_key(
+        "source_visibility", frame,
+        {"time_step": 3600.0, "scan_count": 1, "position_store_key": "telescope_positions"})
+
+    rows = sorted(ScheduleAnalyzer(core)._analyze_coverage(observation, {"at_least": 2}),
+                  key=lambda row: row["start"])
+
+    assert len(rows) == 2, f"two separate windows were expected, got {len(rows)}"
+    assert [row["stations"] for row in rows] == [2, 4], (
+        "each window must report the stations that saw it, not the most any window saw")
