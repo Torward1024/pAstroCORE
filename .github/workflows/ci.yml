@@ -56,5 +56,8 @@ jobs:
     - name: GUI smoke tests
       run: python -m pytest tests/test_gui_smoke.py -v --timeout=60 --timeout-method=thread
 
+    # `-v` rather than `-q`: a build that dies mid-run has to say where. A segfault takes the
+    # process with it, so there is no report at the end -- the last line of the log is the only
+    # evidence there will be, and with `-q` that line is a dot.
     - name: Everything
-      run: python -m pytest tests/ -q --timeout=120 --timeout-method=thread
+      run: python -m pytest tests/ -v --timeout=120 --timeout-method=thread
