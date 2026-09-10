@@ -242,6 +242,50 @@ def test_the_comparison_notices_a_lost_artist():
     assert worst == math.inf, f"a dropped line must fail, reported {worst} at {where}"
 
 
+# --- filters -------------------------------------------------------------------------------
+
+def test_the_tracks_are_narrowed_to_the_sources_that_were_asked_for(manipulator, observation):
+    """Unticking a source has to take its tracks away, not only its marker.
+
+    A track names a scan and a telescope; the scan is what carries the source. The filter went
+    through a `source_name` column no track has ever had -- and it sat inside the branch that
+    ran when a source was *not* in the metadata, so the ordinary case filtered nothing and the
+    unknown case asked polars for a column that does not exist.
+
+    The fixture observes one source, so the second one is added here: with a single source
+    there is nothing a filter can be wrong about, which is why nothing caught this.
+    """
+    import polars as pl
+    from astropy.time import Time
+
+    from pastrocore.base.sources import Source
+
+    theirs = observation.get_scans().get_items()[0]
+    elsewhere = Source(name="OTHER", ra_h=1.0, de_d=10.0)
+    observation.get_sources().add(elsewhere)
+    # A day later, because one antenna may not be pointed at two sources at once.
+    observation.get_scans().create_scan(
+        name="second", start=Time(theirs.get_start().jd + 1.0, format="jd"),
+        duration=theirs.duration, source=elsewhere, telescopes=list(theirs.telescopes))
+
+    code = observation.get_telescopes().get_items()[0].get_code()
+    frame = pl.DataFrame({"time": [1.0, 2.0], "scan_name": [theirs.name, "second"],
+                          "telescope_code": [code, code], "lon": [10.0, 20.0],
+                          "lat": [30.0, 40.0]})
+    observation.set_calculated_data_by_key(
+        "mollweide_tracks", frame,
+        {"time_step": 600.0, "scan_count": 2,
+         "sources": {source.name: [1.0, 2.0] for source in observation.get_sources().get_items()}})
+
+    response = manipulator.visualize(obj=observation, plot_type="mollweide_tracks",
+                                     return_figure=True, show=False, raise_on_error=False,
+                                     telescopes=[code], sources=["OTHER"])
+    assert response.ok, "the plot refused to draw at all"
+    assert response.value.get("scans") == 1, (
+        f"one of the two scans is on OTHER, so one track belongs in the plot; drew "
+        f"{response.value.get('scans')}")
+
+
 def regenerate():
     """Write the reference from the current behaviour.
 

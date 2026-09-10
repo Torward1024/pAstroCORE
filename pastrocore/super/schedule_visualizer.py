@@ -264,7 +264,21 @@ class ScheduleVisualizer(Super):
     def _check_filters(self, attributes: Dict[str, Any], required_filters: List[str]) -> bool:
         """Check if any of the required filters are provided."""
         return any(attributes.get(key) for key in required_filters)
-    
+
+    def _scans_on(self, obj: Observation, sources: List[str]) -> List[str]:
+        """The names of the scans pointed at any of `sources`.
+
+        Notes:
+            - A track is drawn per scan and per telescope, and it is the scan that carries the
+              source, so a result whose rows name only the scan is narrowed to a source through
+              its scans. A `source_name` column would repeat one name down every row of a track
+              and say nothing the scan does not already say.
+        """
+        wanted = set(sources)
+        return [scan.name for scan in obj.get_scans().get_items()
+                if scan.source is not None and scan.source.name in wanted]
+
+
     def _setup_axes(self, fig: Figure, plot_type: str, obj_name: str, projection: str = None, 
                     n_rows: int = 1, n_cols: int = 1, sharex: bool = False, sharey: bool = False) -> Union[plt.Axes, np.ndarray]:
         """Set up axes for plotting with consistent styling."""
@@ -1753,9 +1767,11 @@ class ScheduleVisualizer(Super):
             if scans:
                 filtered_df = filtered_df.filter(pl.col("scan_name").is_in(scans))
             if sources:
-                if not all(source in sources_metadata for source in sources):
-                    logger.error("Some sources %s not found in calculated_data['metadata']['sources']", sources)
-                    filtered_df = filtered_df.filter(pl.col("source_name").is_in(sources))
+                unknown = [source for source in sources if source not in sources_metadata]
+                if unknown:
+                    logger.warning("Sources %s are not among the tracks' metadata", unknown)
+                filtered_df = filtered_df.filter(
+                    pl.col("scan_name").is_in(self._scans_on(obj, sources)))
 
             filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
@@ -1820,7 +1836,7 @@ class ScheduleVisualizer(Super):
                     continue
 
                 lon = tel_data["lon"].to_numpy()
-                lat = lat = tel_data["lat"].to_numpy()
+                lat = tel_data["lat"].to_numpy()
                 valid_mask = (~np.isnan(lon)) & (~np.isnan(lat))
                 lon = lon[valid_mask]
                 lat = lat[valid_mask]
