@@ -345,7 +345,7 @@ class FrequenciesTab(QWidget):
     def clear_frequencies(self):
         """Clear all frequencies from the observation."""
         try:
-            self.manipulator.configure(self.observation.get_frequencies(), clear=None)
+            self.manipulator.configure(self.observation.get_frequencies(), remove_all=None)
             self.update()
             self.data_updated.emit(None, None, "clear")
             logger.info("All frequencies cleared from observation '%s'", self.observation.code)

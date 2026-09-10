@@ -381,7 +381,7 @@ class TelescopesTab(QWidget):
     def clear_telescopes(self):
         """Clear all telescopes from the observation."""
         try:
-            self.manipulator.configure(self.observation.get_telescopes(), clear=None)
+            self.manipulator.configure(self.observation.get_telescopes(), remove_all=None)
             self.update()
             self.data_updated.emit(None, None, "clear")
             logger.info("All telescopes cleared from observation '%s'", self.observation.code)

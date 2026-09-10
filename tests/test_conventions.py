@@ -875,3 +875,69 @@ def test_the_table_grid_refuses_what_the_telescope_would_refuse(attribute, qt_ap
     # cannot drift apart with only this file changed.
     with pytest.raises((InvariantError, ValueError)):
         Telescope(code="T", name="T", **{attribute: {1000.0: 0.0}})
+
+
+def test_the_interface_never_asks_for_a_method_the_model_does_not_have():
+    """`configure(container, clear=None)` in four tabs and the window, and MSB 2.0.0 had
+    removed `clear`. Every Clear in the application put up "Failed to clear frequencies", and
+    had done since the migration -- nothing constructed those tabs, so nothing noticed.
+
+    A request is data, so a method that is not there is not a `NameError` at import: it is a
+    `HandlerError` at the moment a user clicks. This reads the interface's own calls and asks
+    the registry MSB builds from the model whether each name exists on anything.
+    """
+    import ast
+    import logging
+
+    logging.disable(logging.INFO)
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    core = ScheduleManipulator()
+    known = {"method", "obj", "raise_on_error", "attributes", "operation"}
+    # Proof the check can fail: [H[2J[3J was removed in msb_arch 2.0.0 and four tabs and the
+    # window went on asking for it, so every Clear in the application put up an error box.
+    assert "clear" not in known, "the method this check was written for is back"
+    for base in core._base_classes:
+        known |= set(core.get_methods_for_type(base))
+
+    modules = [module for module in sorted((ROOT / "pastrocore" / "gui").glob("*.py"))
+               if not module.name.startswith(("ui_", "rc_"))]
+    modules.append(ROOT / "pastrocore" / "app.py")
+    modules.append(ROOT / "pastrocore" / "cli.py")
+
+    #: The operations whose keyword arguments name a *method*. `export`, `save`, `vex` and the
+    #: rest take plain parameters, so their keywords say nothing about the model.
+    BY_METHOD = {"configure", "inspect"}
+
+    # A `Super` named for a type reads the attributes itself -- `_configure_scheduleproject`
+    # answers `generate_observations` without any model class having a method of that name. So
+    # what those handlers *read* counts as known, derived from their source rather than listed
+    # here, or this check would be a second place to keep in step.
+    for module in sorted((ROOT / "pastrocore" / "super").glob("*.py")):
+        for node in ast.walk(ast.parse(module.read_text(encoding="utf-8"))):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in ("get", "pop")
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "attributes"
+                    and node.args and isinstance(node.args[0], ast.Constant)
+                    and isinstance(node.args[0].value, str)):
+                known.add(node.args[0].value)
+            if (isinstance(node, ast.Compare) and isinstance(node.left, ast.Constant)
+                    and isinstance(node.left.value, str)
+                    and any(isinstance(op, ast.In) for op in node.ops)):
+                known.add(node.left.value)
+
+    offenders = []
+    for module in modules:
+        tree = ast.parse(module.read_text(encoding="utf-8"))
+        for call in [n for n in ast.walk(tree) if isinstance(n, ast.Call)]:
+            if not isinstance(call.func, ast.Attribute) or call.func.attr not in BY_METHOD:
+                continue
+            for keyword in call.keywords:
+                if keyword.arg and keyword.arg not in known:
+                    offenders.append(f"{module.name}:{call.lineno} "
+                                     f"{call.func.attr}(..., {keyword.arg}=...)")
+
+    assert not offenders, (
+        "the interface asks for methods no model class has, which fails when a user clicks:\n  "
+        + "\n  ".join(offenders))

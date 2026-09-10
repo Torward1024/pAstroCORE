@@ -319,7 +319,7 @@ class ScansTab(QWidget):
     def clear_scans(self):
         """Clear all scans from the observation."""
         try:
-            self.manipulator.configure(self.observation.get_scans(), clear=None)
+            self.manipulator.configure(self.observation.get_scans(), remove_all=None)
             self.update()
             self.data_updated.emit()
             logger.info("All scans cleared from observation '%s'", self.observation.code)

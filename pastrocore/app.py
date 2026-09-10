@@ -551,7 +551,7 @@ class PAstroCoreMainWindow(QMainWindow):
                 self.ui.tabContainer.removeTab(i)
 
         try:
-            self.manipulator.configure(self.project, clear=None)
+            self.manipulator.configure(self.project, remove_all=None)
             logger.info("All observations were removed from project '%s'", self.project.get_name())
             self.project_updated.emit()
         except Exception as e:
