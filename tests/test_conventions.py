@@ -941,3 +941,49 @@ def test_the_interface_never_asks_for_a_method_the_model_does_not_have():
     assert not offenders, (
         "the interface asks for methods no model class has, which fails when a user clicks:\n  "
         + "\n  ".join(offenders))
+
+
+def test_nothing_is_deleted_while_it_is_still_being_held():
+    """`deleteLater` destroys the C++ half at the next turn of the event loop. A Python wrapper
+    that outlives it crashes when it is finally collected -- the interpreter reaches into an
+    object that is not there, and what it costs is the whole process.
+
+    Four tabs called `self.model.deleteLater()` and went on holding `self.model`. It killed the
+    Linux build inside a garbage collection, in the fixture that drains deferred deletions
+    between tests -- so the crash landed nowhere near the code that caused it.
+    """
+    import ast
+
+    modules = [module for module in sorted((ROOT / "pastrocore" / "gui").glob("*.py"))
+               if not module.name.startswith(("ui_", "rc_"))]
+    modules.append(ROOT / "pastrocore" / "app.py")
+
+    offenders = []
+    for module in modules:
+        tree = ast.parse(module.read_text(encoding="utf-8"))
+        for func in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
+            deleted, let_go = [], set()
+            for node in ast.walk(func):
+                if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                        and node.func.attr == "deleteLater"
+                        and isinstance(node.func.value, ast.Attribute)
+                        and isinstance(node.func.value.value, ast.Name)
+                        and node.func.value.value.id == "self"):
+                    deleted.append((node.func.value.attr, node.lineno))
+                if isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        if (isinstance(target, ast.Attribute)
+                                and isinstance(target.value, ast.Name)
+                                and target.value.id == "self"
+                                and isinstance(node.value, ast.Constant)
+                                and node.value.value is None):
+                            let_go.add(target.attr)
+            for name, line in deleted:
+                if name not in let_go:
+                    offenders.append(f"{module.name}:{line} {func.name}() deletes "
+                                     f"self.{name} and goes on holding it")
+
+    assert not offenders, (
+        "these are deleted and still referenced, which segfaults when the wrapper is "
+        "collected:\n  " + "\n  ".join(offenders)
+        + "\nSet the attribute to None after `deleteLater()`.")
