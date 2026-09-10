@@ -82,8 +82,18 @@ class Scan(BaseEntity):
         return self._check_activity_status(observation)
     
     def copy(self) -> 'Scan':
-        """Create a deep copy of the Scan object."""
+        """Create a deep copy of the Scan object.
+
+        Notes:
+            - **The name comes too.** Without it the constructor invents one, and `Scans.copy`
+              files each copy under the *old* key: the container then held scans whose `name`
+              did not match the key they answered to. A copied observation is where that
+              showed -- its results are keyed by scan name, and after the copy no scan had
+              the name the results referred to. `Source`, `Telescope` and `IF` all carry
+              theirs; this was the one that did not.
+        """
         return Scan(
+            name=self.name,
             start=self.start,
             duration=self.duration,
             source=self.source,
@@ -101,13 +111,17 @@ class Scan(BaseEntity):
         min_telescopes = 1 if observation_type == "SINGLE_DISH" else 2
         active_telescopes = [t for t in self.telescopes if t.isactive]
         active_frequencies = [f for f in self.frequencies if f.isactive]
+        # **By name, not by value.** `self.source in observation.get_sources().get_items()`
+        # compares every field, so a scan counted as pointed at nothing the moment the source
+        # was edited: change one digit of its declination in the Sources tab and the copy the
+        # scan holds no longer equalled it, and every scan on that source went quietly
+        # inactive. A scan refers to a source; what identifies it is its name.
+        held = None if self.source is None else observation.get_sources().get(self.source.name)
         source_active = (
             self.is_off_source or
             self.source is None or
-            (self.source in observation.get_sources().get_items() and self.source.isactive)
+            (held is not None and held.isactive)
         )
-        logger.debug(self.source)
-        logger.debug(observation.get_sources().get_items())
         should_be_active = (
             len(active_telescopes) >= min_telescopes and
             len(active_frequencies) >= 1 and
