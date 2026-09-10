@@ -8,6 +8,35 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.7.2] - 2026-09-10
+
+### Removed
+
+- **Randomize Scan Order.** Each scan's start is set from its index, so shuffling the list
+  changed the order the scans were added to the container and nothing else: the sequence they
+  are observed in stayed exactly as it was. The tick claimed a randomisation that never
+  happened.
+
+  There is nothing for it to mean here either -- the generator makes one observation per
+  source, so every scan in an observation is on the same source and there is no order to
+  randomise. Gone from the backend, the dialog, both presets and the form.
+
+### Fixed
+
+- **The connection register grew when connections were made twice.** Introduced in 1.7.1:
+  `setup_connections` appended to it and never started it empty, so a caller that connects
+  twice without clearing in between left the register holding each pair twice, and
+  `clear_connections` disconnected each of them twice. The actions beside it have always been
+  rebuilt wholesale; both registers now start empty.
+
+### Known
+
+- **The form-pixel reference does not see a tab that is not showing.** A form is grabbed as it
+  appears, so a change on any other tab of a `QTabWidget` leaves its digest identical -- which
+  is why removing the checkbox above moved nothing in the reference. Widening the harness to
+  walk every tab would rewrite all 26 digests, so it is recorded here rather than done in
+  passing.
+
 ## [1.7.1] - 2026-09-10
 
 A second audit pass, over the parts the first one did not reach: the visualizer, the
