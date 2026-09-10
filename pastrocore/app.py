@@ -82,6 +82,9 @@ class PAstroCoreMainWindow(QMainWindow):
     
         self.current_project_path = None
         self._action_connections = {}
+        #: The widget signals `setup_connections` makes, so `clear_connections` can take back
+        #: exactly what was given. See the note there for what counting receivers cost.
+        self._signal_connections = []
         self.setup_ui()
         self.setup_connections()
         self.rebuild_recent_menu()
@@ -133,12 +136,29 @@ class PAstroCoreMainWindow(QMainWindow):
         except (TypeError, ValueError) as e:
             logger.error("Ignoring invalid results memory share in settings: %s", str(e))
 
+    def _connect(self, signal, slot):
+        """Connect a widget signal and remember it, so it can be taken back exactly."""
+        signal.connect(slot)
+        self._signal_connections.append((signal, slot))
+
     def clear_connections(self, is_initial_setup: bool = False):
-        """
-        Disconnect all action signals to prevent duplicates.
+        """Take back every connection `setup_connections` made, so it can be made again.
 
         Args:
-            is_initial_setup (bool): If True, skip disconnecting signals that may not be connected yet (used during initial setup).
+            is_initial_setup (bool): True on the first pass, when there is nothing to take back.
+
+        Notes:
+            - **What is disconnected is what was connected**, from a register, exactly as the
+              actions above already do. What was here asked `receivers(QtCore.SIGNAL("..."))`
+              whether a signal had any connection at all and then disconnected one particular
+              slot. Those are different questions: the count includes connections made by Qt
+              and by anything else, and the old string spelling does not see connections made
+              in the new one. So the guard passed while the disconnect did nothing, silently.
+            - It accumulated. `setup_connections` runs again on New Project, Open Project and
+              Open Package, and every run added another `tabCloseRequested` connection that
+              was never taken away. Closing one tab then called `handle_tab_close` twice with
+              the same index -- and after the first call removed that tab, the index belonged
+              to its neighbour. **Two projects opened, one tab closed, two tabs gone.**
         """
         if is_initial_setup:
             logger.debug("Skipping UI signal disconnection during initial setup")
@@ -148,61 +168,18 @@ class PAstroCoreMainWindow(QMainWindow):
             try:
                 action.triggered.disconnect(slot)
                 logger.debug("Disconnected signal for action %s", action.objectName())
-            except TypeError as e:
+            except (TypeError, RuntimeError) as e:
                 logger.debug("No signal to disconnect for action %s: %s", action.objectName(), str(e))
         self._action_connections.clear()
 
-        try:
-            if self.receivers(QtCore.SIGNAL("project_updated()")) > 0:
-                self.project_updated.disconnect()
-                logger.debug("Disconnected project_updated signal")
-            else:
-                logger.debug("No active connections for project_updated signal")
-        except TypeError as e:
-            logger.debug("Error checking project_updated signal: %s", str(e))
-
-        project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
-        if project_explorer:
+        for signal, slot in self._signal_connections:
             try:
-                if project_explorer.receivers(QtCore.SIGNAL("clicked(QModelIndex)")) > 0:
-                    project_explorer.clicked.disconnect(self.handle_project_explorer_click)
-                    logger.debug("Disconnected project explorer clicked signal")
-                else:
-                    logger.debug("No active connections for project explorer clicked signal")
-            except TypeError as e:
-                logger.debug("Error checking project explorer clicked signal: %s", str(e))
-        else:
-            logger.debug("Project explorer widget not found during clear_connections")
+                signal.disconnect(slot)
+            except (TypeError, RuntimeError) as e:
+                logger.debug("No signal to disconnect for %s: %s", getattr(slot, "__name__", slot), str(e))
+        self._signal_connections.clear()
 
-        tab_container = self.ui.tabContainer
-        if tab_container:
-            try:
-                if tab_container.receivers(QtCore.SIGNAL("tabCloseRequested(int)")) > 0:
-                    tab_container.tabCloseRequested.disconnect(self.handle_tab_close)
-                    logger.debug("Disconnected tabCloseRequested signal")
-                else:
-                    logger.debug("No active connections for tabCloseRequested signal")
-            except TypeError as e:
-                logger.debug("Error checking tabCloseRequested signal: %s", str(e))
 
-        try:
-            if self.ui.actionProject_Explorer.receivers(QtCore.SIGNAL("toggled(bool)")) > 0:
-                self.ui.actionProject_Explorer.toggled.disconnect()
-                logger.debug("Disconnected actionProject_Explorer.toggled signal")
-            else:
-                logger.debug("No active connections for actionProject_Explorer toggled signal")
-        except TypeError as e:
-            logger.debug("Error checking actionProject_Explorer toggled signal: %s", str(e))
-
-        try:
-            if self.ui.dockWidget.receivers(QtCore.SIGNAL("visibilityChanged(bool)")) > 0:
-                self.ui.dockWidget.visibilityChanged.disconnect()
-                logger.debug("Disconnected dockWidget.visibilityChanged signal")
-            else:
-                logger.debug("No active connections for dockWidget visibilityChanged signal")
-        except TypeError as e:
-            logger.debug("Error checking dockWidget visibilityChanged signal: %s", str(e))     
-    
     def initialize_catalog_manager(self):
         """Initialize CatalogManager with paths from settings or what was shipped."""
         sources_path = existing_or_shipped(
@@ -292,12 +269,12 @@ class PAstroCoreMainWindow(QMainWindow):
 
         project_explorer = self.ui.dockWidget.findChild(QTreeView, "projectExplorer")
         if project_explorer:
-            project_explorer.clicked.connect(self.handle_project_explorer_click)
-        self.ui.tabContainer.tabCloseRequested.connect(self.handle_tab_close)
-        self.ui.actionProject_Explorer.toggled.connect(self.ui.dockWidget.setVisible)
-        self.ui.dockWidget.visibilityChanged.connect(self.sync_project_explorer_action)
-        
-        self.project_updated.connect(self.update_project_explorer)
+            self._connect(project_explorer.clicked, self.handle_project_explorer_click)
+        self._connect(self.ui.tabContainer.tabCloseRequested, self.handle_tab_close)
+        self._connect(self.ui.actionProject_Explorer.toggled, self.ui.dockWidget.setVisible)
+        self._connect(self.ui.dockWidget.visibilityChanged, self.sync_project_explorer_action)
+
+        self._connect(self.project_updated, self.update_project_explorer)
 
     @Slot()
     def open_export_dialog(self):
@@ -1596,7 +1573,12 @@ class PAstroCoreMainWindow(QMainWindow):
                 # Qt raises when a signal has no connections, and offers no way to ask
                 # beforehand, so this is the only way to disconnect idempotently.
                 pass
-            
+            # That took back every connection to the signal, this window's included, so the
+            # register must stop claiming it: `clear_connections` runs a few lines later on
+            # each of the three paths through here, and would disconnect it a second time.
+            self._signal_connections = [entry for entry in self._signal_connections
+                                        if entry[1] != self.update_project_explorer]
+
             # Asked of the project, before the orchestrator that carries the request is taken
             # down. The window used to do this itself -- walk the observations, call `cleanup`,
             # null three back references and empty the project -- which is model work in the

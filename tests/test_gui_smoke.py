@@ -626,3 +626,32 @@ def test_a_successful_export_is_reported_as_success(qt_application, project, tmp
     assert "error" not in seen, f"a finished export reported: {seen.get('error')}"
     assert seen.get("finished"), "the export finished and said nothing"
     assert list(destination.iterdir()), "reported success without writing anything"
+
+
+def test_reopening_a_project_does_not_connect_a_signal_twice(window):
+    """Open a second project and closing one tab used to close two.
+
+    `setup_connections` runs again on New Project, Open Project and Open Package, and
+    `clear_connections` was supposed to take the previous set back first. It asked
+    `receivers(QtCore.SIGNAL("tabCloseRequested(int)"))` whether the signal had any connection
+    and then disconnected one particular slot -- a count that includes everyone else's
+    connections, and an old string spelling that does not see connections made in the new one.
+    The guard passed, the disconnect did nothing, and every reopen left another connection
+    behind. `handle_tab_close` then ran twice for one click, and after the first call removed
+    the tab, the index it was given belonged to the neighbour.
+
+    Counted rather than reasoned about: the slot is replaced first, so what is counted is the
+    number of live connections, not what any of them do.
+    """
+    closed = []
+    window.handle_tab_close = lambda index: closed.append(index)
+
+    for _ in range(3):                          # three projects opened in one session
+        window.clear_connections(is_initial_setup=False)
+        window.setup_connections()
+
+    window.ui.tabContainer.tabCloseRequested.emit(0)
+
+    assert len(closed) == 1, (
+        f"one click on a tab's close button reached the handler {len(closed)} times; "
+        f"each extra call closes whichever tab has slid into that index")
