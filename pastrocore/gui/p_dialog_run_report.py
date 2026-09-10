@@ -46,8 +46,15 @@ class RunReportDialog(QDialog):
         summary = self._outcome.get("summary") or {}
 
         failed = summary.get("failed", 0)
-        headline = (f"{summary.get('steps', len(rows))} calculation(s) in "
-                    f"{summary.get('seconds', 0.0):.2f} s")
+        # **The clock, then the work.** Independent steps of a stage run together, so adding
+        # their durations counts the same seconds several times -- this said 4.08 s for a run
+        # the user waited 2.51 s for. Both are shown when they differ: the second divided by
+        # the first is what the concurrency bought.
+        elapsed = summary.get("seconds", 0.0)
+        work = summary.get("work", elapsed)
+        headline = f"{summary.get('steps', len(rows))} calculation(s) in {elapsed:.2f} s"
+        if work > elapsed * 1.05:
+            headline += f"  ·  {work:.2f} s of work, {work / elapsed:.1f}x in parallel"
         if summary.get("slowest"):
             headline += (f"  ·  slowest {summary['slowest']} at "
                          f"{summary.get('slowest_seconds', 0.0):.2f} s")

@@ -456,3 +456,45 @@ def test_the_log_says_a_calculation_ran_once_per_calculation(bench, caplog):
         f"the same calculation says it ran more than once:\n  " + "\n  ".join(sorted(ran)))
     assert not [line for line in said if "completed in" in line], (
         "the per-call line is at info again, and it fires on cache hits")
+
+
+def test_the_report_gives_the_clock_rather_than_the_sum_of_the_steps(bench):
+    """Reported by the author, from the run report of a real session: if the independent steps
+    are run together, adding their durations counts the same seconds several times.
+
+    Measured on the fixture: 4.08 s reported for a run the user waited 2.51 s for. The window
+    and the command line both ask for `concurrent`, so this was every run.
+
+    The sum is not thrown away -- it is `work`, and divided by the clock it says what the
+    concurrency bought. What is checked here is that they are two facts and that `seconds` is
+    the one the label claims: how long the run took.
+    """
+    import time
+
+    manipulator, observation = bench
+
+    began = time.perf_counter()
+    outcome = manipulator.compute(
+        obj=observation, method="run", concurrent=True, recalculate=True, time_step=300.0,
+        calculations=["az_el", "uv_coverage", "sun_angles", "parallactic_angle",
+                      "time_on_source", "mollweide_tracks", "beam_pattern"])
+    wall = time.perf_counter() - began
+    summary = outcome["summary"]
+
+    assert summary["work"] == pytest.approx(sum(outcome["timings"].values()))
+    assert 0 < summary["seconds"] <= wall + 0.5, (
+        f"the run took {wall:.2f} s and the report says {summary['seconds']:.2f} s; "
+        f"the summed work is {summary['work']:.2f} s")
+
+
+def test_a_sequential_run_does_the_same_work_as_it_takes(bench):
+    """The other side of it: with nothing running together the two numbers agree, so the
+    interface has nothing extra to say."""
+    manipulator, observation = bench
+
+    outcome = manipulator.compute(
+        obj=observation, method="run", concurrent=False, recalculate=True, time_step=300.0,
+        calculations=["az_el", "time_on_source"])
+    summary = outcome["summary"]
+
+    assert summary["work"] <= summary["seconds"] + 0.2
