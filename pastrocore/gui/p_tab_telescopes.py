@@ -484,6 +484,13 @@ class TelescopesTab(QWidget):
             self.model.clear()
             self.proxy_model.deleteLater()
             self.model.deleteLater()
+            # **Let go of them here.** `deleteLater` destroys the C++ half at the next turn of
+            # the event loop, and a Python wrapper that outlives it crashes when it is finally
+            # collected -- the interpreter reaches into an object that is not there. It killed
+            # the build on Linux inside a garbage collection, and every other thing this method
+            # releases was already dropped this way.
+            self.proxy_model = None
+            self.model = None
 
             self.observation = None
             self.project = None
