@@ -253,6 +253,14 @@ class ScheduleConfigurator(Configurator):
                 )
                 logger.debug("Created observation '%s' for source '%s'", obs_code, source.name)
 
+                # **The observation's own source, not the one that was handed in.** The
+                # telescopes and frequencies below already come from `obs`; the source did
+                # not, so a scan pointed at an object the observation did not hold. Turning
+                # the source off in the Sources tab then left every scan still pointed at a
+                # copy that was still active, and the calculations -- which ask
+                # `scan.get_source(observation).isactive` -- went on computing it.
+                obs_source = obs.get_sources().get_items()[0]
+
                 scans_list = []
                 for j in range(num_scans):
                     scan_start = obs_start + (j * step_sec) * u.s
@@ -264,7 +272,7 @@ class ScheduleConfigurator(Configurator):
                         continue
                     scan = Scan(
                         name=scan_name,
-                        source=source,
+                        source=obs_source,
                         telescopes=scan_telescopes,
                         frequencies=scan_frequencies,
                         start=scan_start,
@@ -280,7 +288,7 @@ class ScheduleConfigurator(Configurator):
                         off_start = scan_start + scan_duration * u.s
                         off_scan = Scan(
                             name=off_scan_name,
-                            source=source,
+                            source=obs_source,
                             telescopes=scan_telescopes,
                             frequencies=scan_frequencies,
                             start=off_start,

@@ -555,3 +555,72 @@ def test_the_pointing_rule_does_not_build_a_time_object_per_pair(monkeypatch):
     scans.add(pointed("one_more", "2026-01-02 05:00:00"))
 
     assert not calls, f"the rule built a Time for {len(calls)} scan(s) it only had to order"
+
+
+# --- a scan refers to a source by name -------------------------------------------------------
+
+def generated_observation():
+    """A project made the way File -> Generate Observations makes one."""
+    from pastrocore.base.sources import Sources
+    from pastrocore.base.telescopes import Telescopes
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    sources = Sources()
+    sources.add(Source(name="3C273", ra_h=12.0, de_d=2.0))
+    telescopes = Telescopes()
+    telescopes.create_telescope(code="Sv", name="Svetloe", x=2730173.0, y=1562442.7, z=5529969.1)
+    telescopes.create_telescope(code="Zc", name="Zelenchuk", x=3451207.5, y=3060375.4, z=4391915.0)
+    frequencies = Frequencies()
+    frequencies.create_if(name="f1", frequency=8400.0, bandwidth=16.0)
+
+    project = ScheduleProject(name="generated")
+    ScheduleManipulator(project).configure(obj=project, generate_observations={
+        "sources": sources, "telescopes": telescopes, "frequencies": frequencies,
+        "time_range": {"start": "2026-01-01 00:00:00", "end": "2026-01-02 00:00:00"},
+        "scan_duration": 300.0, "num_scans": 2,
+        "pattern": {"naming_mask": "OBS_{i}"}}, raise_on_error=False)
+    observation = project.observations()[0]
+    return observation, observation.get_scans().get_items()[0]
+
+
+def test_editing_a_source_does_not_switch_its_scans_off():
+    """Changing a coordinate used to make every scan on that source inactive.
+
+    The check asked `self.source in observation.get_sources().get_items()`, and `in` on a
+    model compares every field. A generated observation holds the source and the scan holds
+    a copy of it -- equal until one of them is edited. Correct one digit of the declination
+    in the Sources tab and the two stopped being equal, so the scan counted as pointed at
+    nothing and went quietly inactive. Nothing said so; the scan simply stopped being
+    calculated.
+    """
+    observation, scan = generated_observation()
+    assert scan.check_activity_status(observation), "the scan is not active to begin with"
+
+    observation.get_sources().get_items()[0].set({"de_m": 30.0})
+
+    assert scan.check_activity_status(observation), (
+        "editing the source's declination switched its scan off")
+
+
+def test_deactivating_a_source_does_switch_its_scans_off():
+    """The other half: the check has to still do what it is for."""
+    observation, scan = generated_observation()
+
+    observation.get_sources().get_items()[0].isactive = False
+
+    assert not scan.check_activity_status(observation), (
+        "the source was deactivated and its scan stayed active")
+
+
+def test_a_copied_scan_keeps_its_name():
+    """`Scans.copy` files each copy under the old key, so a copy that renames itself leaves a
+    container whose keys and whose items disagree -- and results are keyed by scan name."""
+    from pastrocore.base.scans import Scans
+
+    held = Scans(name="scans")
+    held.add(a_scan("scan_one", "2026-01-01 00:00:00"))
+
+    copied = held.copy()
+
+    assert [item.name for item in copied.get_items()] == ["scan_one"]
+    assert copied.get("scan_one") is not None, "the copy is filed under a name it does not have"
