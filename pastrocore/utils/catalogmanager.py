@@ -131,7 +131,7 @@ class CatalogManager:
         Returns:
             Optional[Source]: The matching Source object, or None if not found.
         """
-        return next((s for s in self.source_catalog.get_all_sources() 
+        return next((s for s in self.source_catalog.get_items() 
                      if s.name == name or (s.name_J2000 and s.name_J2000 == name)), None)
 
     def get_sources_by_ra_range(self, ra_min: float, ra_max: float) -> List[Source]:
@@ -144,8 +144,8 @@ class CatalogManager:
         Returns:
             List[Source]: List of Source objects within the RA range.
         """
-        return [s for s in self.source_catalog.get_all_sources() 
-                if ra_min <= s.get_ra_degrees() <= ra_max]
+        return [s for s in self.source_catalog.get_items() 
+                if ra_min <= s.ra_degrees <= ra_max]
 
     def get_sources_by_dec_range(self, dec_min: float, dec_max: float) -> List[Source]:
         """Retrieve sources within a specified declination (DEC) range in degrees.
@@ -157,8 +157,8 @@ class CatalogManager:
         Returns:
             List[Source]: List of Source objects within the DEC range.
         """
-        return [s for s in self.source_catalog.get_all_sources() 
-                if dec_min <= s.get_dec_degrees() <= dec_max]
+        return [s for s in self.source_catalog.get_items() 
+                if dec_min <= s.dec_degrees <= dec_max]
 
     def load_telescope_catalog(self, telescope_file: str) -> None:
         """Load a telescopes catalog from a text file into the telescope_catalog attribute.
@@ -185,7 +185,10 @@ class CatalogManager:
                     if not line or line.startswith('#'):
                         continue
                     parts = re.split(r'\s+', line)
-                    if len(parts) < 6:
+                    # Seven, not six: the diameter is `parts[6]`, so a line of exactly six
+                    # fields passed this guard and then failed on the read below -- reported
+                    # as a line that could not be parsed rather than one that is too short.
+                    if len(parts) < 7:
                         logger.warning("Skipping invalid telescope format: %s", line)
                         failed_count += 1
                         continue
@@ -227,7 +230,7 @@ class CatalogManager:
         Returns:
             Optional[Telescope]: The matching Telescope object, or None if not found.
         """
-        return next((t for t in self.telescope_catalog.get_all_telescopes() if t.code == code), None)
+        return next((t for t in self.telescope_catalog.get_items() if t.code == code), None)
 
     def get_telescopes_by_type(self, telescope_type: str = "Telescope") -> List[Telescope]:
         """Retrieve telescopes filtered by type.
@@ -249,7 +252,7 @@ class CatalogManager:
             logger.warning("No telescope type called '%s'; there is Telescope and SpaceTelescope",
                            telescope_type)
             return []
-        return [t for t in self.telescope_catalog.get_all_telescopes() if wanted(t)]
+        return [t for t in self.telescope_catalog.get_items() if wanted(t)]
 
     def clear_source_catalog(self) -> None:
         """Empty the source catalogue, keeping the telescopes.
