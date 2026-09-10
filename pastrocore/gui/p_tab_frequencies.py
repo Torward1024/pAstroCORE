@@ -426,7 +426,18 @@ class FrequenciesTab(QWidget):
             logger.error("Exception while updating frequencies table: %s", str(e))
     
     def _cleanup(self):
-        """Clean up resources associated with this tab."""
+        """Clean up resources associated with this tab.
+
+        Notes:
+            - **It may be called twice.** `close_tab` cleans and then removes the tab, and Qt
+              delivers `closeEvent` afterwards. The second pass used to disconnect signals that
+              were already disconnected -- Qt warns once per signal -- and then reach through
+              an attribute this method had set to `None`, which the blanket `except` below
+              logged as "Error cleaning up" for work that had in fact been done.
+        """
+        if self.observation is None:
+            return
+
         try:
             self.blockSignals(True)
             self.data_updated.disconnect()
