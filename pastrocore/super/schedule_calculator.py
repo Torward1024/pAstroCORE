@@ -242,7 +242,6 @@ class ScheduleCalculator(Super):
                     for obs in observations
                 }
                 for future in futures:
-                    obs_code = futures[future]
                     df = future.result()
                     if not df.is_empty():
                         dfs.append(df)
@@ -429,7 +428,6 @@ class ScheduleCalculator(Super):
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "interpolated_orbits")
-            recalculate = attributes.get("recalculate", False)
 
             if time_step is not None and time_step <= 0:
                 logger.error("Invalid time_step: %s. Must be positive.", time_step)
@@ -877,7 +875,6 @@ class ScheduleCalculator(Super):
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "telescope_positions")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_positions(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, telescopes, _ = self._get_active_components(obs)
@@ -1239,7 +1236,6 @@ class ScheduleCalculator(Super):
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "source_visibility")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_visibility(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, _, _ = self._get_active_components(obs)
@@ -1390,12 +1386,6 @@ class ScheduleCalculator(Super):
                 )
                 itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
                 locations = itrs.earth_location
-                altaz = source_coord.transform_to(AltAz(obstime=obstime, location=locations))
-                hadec = source_coord.transform_to(HADec(obstime=obstime, location=locations))
-                el = altaz.alt.deg
-                az = altaz.az.deg
-                ha = hadec.ha.deg
-                dec = hadec.dec.deg
 
                 mount_type = tel.get("mount_type").value
                 valid_positions = ~nan_positions
@@ -1403,7 +1393,16 @@ class ScheduleCalculator(Super):
                     logger.warning("All positions are NaN for ground telescope '%s' in scan '%s'", tel_code, scan_name)
                     continue
 
+                # **Only the frame the mount is limited in.** Both transforms were computed for
+                # every station and one of them thrown away: an azimuthal dish is bounded in
+                # elevation and azimuth and never looks at the hour angle, and an equatorial one
+                # is the other way round. Each is an erfa transform over the whole time grid, so
+                # this is half the cost of the step for an array of one kind -- which every
+                # array in these examples is.
                 if mount_type == "AZIM":
+                    altaz = source_coord.transform_to(AltAz(obstime=obstime, location=locations))
+                    el = altaz.alt.deg
+                    az = altaz.az.deg
                     el_range = tel.get_elevation_range()
                     az_range = tel.get_azimuth_range()
                     is_visible[valid_positions] = (
@@ -1413,6 +1412,9 @@ class ScheduleCalculator(Super):
                         (az[valid_positions] <= float(az_range[1]))
                     )
                 elif mount_type == "EQUA":
+                    hadec = source_coord.transform_to(HADec(obstime=obstime, location=locations))
+                    ha = hadec.ha.deg
+                    dec = hadec.dec.deg
                     ha_range = tel.get_azimuth_range()
                     dec_range = tel.get_elevation_range()
                     is_visible[valid_positions] = (
@@ -1459,7 +1461,6 @@ class ScheduleCalculator(Super):
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "uv_coverage")
-            recalculate = attributes.get("recalculate", False)
             if "freq_name" in attributes:
                 logger.info("Ignoring 'freq_name' attribute for UV coverage calculation in geometric coordinates")
 
@@ -1681,7 +1682,6 @@ class ScheduleCalculator(Super):
 
         i, j = np.triu_indices(n_tels, k=1)
         pairs = [f"{telescopes[i].get_code()}-{telescopes[j].get_code()}" for i, j in zip(i, j)]
-        n_pairs = len(pairs)
 
         baselines = gcrs_positions[i] - gcrs_positions[j]  # shape: (n_pairs, n_times, 3)
 
@@ -1730,7 +1730,6 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", "sun_angles")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_sun_angles(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, _, _ = self._get_active_components(obs)
@@ -1966,7 +1965,6 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", "az_el")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_az_el(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True)
@@ -2197,7 +2195,6 @@ class ScheduleCalculator(Super):
             position_store_key = attributes.get("position_store_key", "telescope_positions")
             orbit_store_key = attributes.get("orbit_store_key", "interpolated_orbits")
             target_code = attributes.get("target_telescope")
-            recalculate = attributes.get("recalculate", False)
 
             if not target_code:
                 logger.error("No 'target_telescope' given; there is nothing to point at")
@@ -2474,7 +2471,6 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", "telescope_visibility")
             az_el_store_key = attributes.get("az_el_store_key", "telescope_az_el")
             target_code = attributes.get("target_telescope")
-            recalculate = attributes.get("recalculate", False)
             empty = pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_visibility"))
 
             if not target_code:
@@ -2550,7 +2546,6 @@ class ScheduleCalculator(Super):
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "time_on_source")
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_time_on_source(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, _, _ = self._get_active_components(obs)
@@ -2738,7 +2733,6 @@ class ScheduleCalculator(Super):
         """
         try:
             store_key = attributes.get("store_key", "beam_pattern")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_beam_pattern(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 _, telescopes, _ = self._get_active_components(obs, require_scans=False, require_telescopes=True)
@@ -2816,7 +2810,6 @@ class ScheduleCalculator(Super):
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "baseline_projections")
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_baseline_projections(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 if obs.get_observation_type() != "VLBI":
@@ -3031,7 +3024,6 @@ class ScheduleCalculator(Super):
         try:
             time_step = attributes.get("time_step")
             store_key = attributes.get("store_key", "mollweide_tracks")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_mollweide(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, _, _ = self._get_active_components(obs, require_scans=True)
@@ -3226,7 +3218,6 @@ class ScheduleCalculator(Super):
             store_key = attributes.get("store_key", "parallactic_angle")
             position_store_key = attributes.get("position_store_key", "telescope_positions")
             visibility_store_key = attributes.get("visibility_store_key", "source_visibility")
-            recalculate = attributes.get("recalculate", False)
 
             def calculate_parallactic(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, telescopes, _ = self._get_active_components(obs, require_telescopes=True)
@@ -3396,9 +3387,10 @@ class ScheduleCalculator(Super):
                     itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
                     locations = itrs.earth_location
 
-                    altaz_frame = AltAz(obstime=obstime[is_visible], location=locations[is_visible])
-                    source_altaz = source_coord.transform_to(altaz_frame)
-
+                    # The parallactic angle is hour angle, declination and latitude, and
+                    # nothing else. An `AltAz` transform of the source was computed here and
+                    # never read -- a full erfa transform over the visible samples, per station
+                    # per scan, thrown away.
                     hadec_frame = HADec(obstime=obstime[is_visible], location=locations[is_visible])
                     source_hadec = source_coord.transform_to(hadec_frame)
 

@@ -1421,9 +1421,6 @@ class ScheduleVisualizer(Super):
             )
             axes = np.atleast_1d(axes)
 
-            norm = plt.Normalize(min(freq_list), max(freq_list)) if freq_list else None
-            cmap = self._style_config["colormaps"]["redpurple"] if freq_list else None
-
             result = {"telescopes": 0, "frequencies": len(freq_list)}
             plotted_telescopes = set()
             plotted_frequencies = set()

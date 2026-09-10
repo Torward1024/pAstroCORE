@@ -167,3 +167,34 @@ def test_the_comparison_notices_a_real_change(manipulator, observation, saved_re
 
     worst, _ = worst_difference(nudged, saved)
     assert worst > RELATIVE_TOLERANCE, "a one-in-a-thousand change must not pass"
+
+
+def test_visibility_transforms_only_the_frame_the_mount_is_limited_in(project, monkeypatch):
+    """An azimuthal dish is bounded in elevation and azimuth and never looks at the hour angle;
+    an equatorial one is the other way round. Both transforms were computed for every station
+    and one of them thrown away -- and each is an erfa transform over the whole time grid, so
+    the step cost twice what it had to for an array of one kind, which every array here is.
+
+    Counted rather than timed. What is asserted is that the work is not done, not that the
+    clock moved.
+    """
+    from pastrocore.super import schedule_calculator
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.observations()[0]
+    mounts = {telescope.get("mount_type").value
+              for telescope in observation.get_telescopes().get_items()}
+    assert mounts == {"AZIM"}, f"this fixture is meant to be all azimuthal, it is {mounts}"
+
+    built = []
+    original = schedule_calculator.HADec
+    monkeypatch.setattr(schedule_calculator, "HADec",
+                        lambda *args, **kwargs: built.append(1) or original(*args, **kwargs))
+
+    ScheduleManipulator(project).compute(
+        obj=observation, method="run", calculations=["source_visibility"],
+        time_step=600.0, recalculate=True)
+
+    assert not built, (
+        f"the hour-angle frame was built {len(built)} time(s) for an array that cannot be "
+        f"limited in it")
