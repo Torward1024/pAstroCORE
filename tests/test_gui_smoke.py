@@ -112,6 +112,30 @@ def test_the_constructor_opens_no_modal_dialog():
                     f"{node.name} opens a modal QMessageBox at line {call.lineno}")
 
 
+def dispose(window):
+    """Take a main window away at a point this suite chose.
+
+    Notes:
+        - **A window that is merely dropped is disposed of whenever the collector next runs**,
+          which is inside some later test's event loop -- and a Qt object torn down there takes
+          the process with it. That is what segfaulted the Linux build, in a fixture that had
+          nothing to do with the test that built the window.
+        - The project goes first: one holding results nobody saved makes `close` ask a
+          question, and a question nothing answers stops the suite.
+    """
+    import gc
+
+    from PySide6.QtCore import QEvent
+    from PySide6.QtWidgets import QApplication
+
+    window.project = None
+    window.close()
+    window.deleteLater()
+    QApplication.instance().sendPostedEvents(None, QEvent.DeferredDelete)
+    QApplication.instance().processEvents()
+    gc.collect()
+
+
 @pytest.fixture
 def window(qt_application, project):
     """The main window holding the fixture project, constructed but never shown."""
@@ -124,8 +148,7 @@ def window(qt_application, project):
     try:
         yield built
     finally:
-        built.close()
-        built.deleteLater()
+        dispose(built)
 
 
 def test_opening_asks_for_a_directory(tmp_path, monkeypatch, window):
@@ -485,21 +508,25 @@ def test_closing_with_unsaved_results_asks_before_discarding_them(qt_application
     from pastrocore.app import PAstroCoreMainWindow
 
     window = PAstroCoreMainWindow()
-    window.project = _project_with_unsaved_results(tmp_path)
-    scratch = window.project.scratch.path
-    assert scratch is not None and scratch.exists()
+    try:
+        window.project = _project_with_unsaved_results(tmp_path)
+        scratch = window.project.scratch.path
+        assert scratch is not None and scratch.exists()
 
-    asked = {}
-    monkeypatch.setattr(QMessageBox, "question",
-                        staticmethod(lambda *args, **kwargs: (
-                            asked.update(text=args[2]), QMessageBox.StandardButton.Cancel)[1]))
+        asked = {}
+        monkeypatch.setattr(QMessageBox, "question",
+                            staticmethod(lambda *args, **kwargs: (
+                                asked.update(text=args[2]),
+                                QMessageBox.StandardButton.Cancel)[1]))
 
-    event = QCloseEvent()
-    window.closeEvent(event)
+        event = QCloseEvent()
+        window.closeEvent(event)
 
-    assert asked, "the window closed without asking about results nobody has saved"
-    assert not event.isAccepted(), "cancelling the question still closed the window"
-    assert scratch.exists(), "the results were discarded anyway"
+        assert asked, "the window closed without asking about results nobody has saved"
+        assert not event.isAccepted(), "cancelling the question still closed the window"
+        assert scratch.exists(), "the results were discarded anyway"
+    finally:
+        dispose(window)
 
 
 def test_closing_a_project_with_nothing_unsaved_asks_nothing(qt_application, monkeypatch):
@@ -510,13 +537,17 @@ def test_closing_a_project_with_nothing_unsaved_asks_nothing(qt_application, mon
     from pastrocore.app import PAstroCoreMainWindow
 
     window = PAstroCoreMainWindow()
-    asked = {}
-    monkeypatch.setattr(QMessageBox, "question",
-                        staticmethod(lambda *args, **kwargs: (
-                            asked.update(text=args[2]), QMessageBox.StandardButton.Yes)[1]))
+    try:
+        asked = {}
+        monkeypatch.setattr(QMessageBox, "question",
+                            staticmethod(lambda *args, **kwargs: (
+                                asked.update(text=args[2]),
+                                QMessageBox.StandardButton.Yes)[1]))
 
-    window.closeEvent(QCloseEvent())
-    assert not asked, "a window with nothing calculated asked about saving anyway"
+        window.closeEvent(QCloseEvent())
+        assert not asked, "a window with nothing calculated asked about saving anyway"
+    finally:
+        dispose(window)
 
 
 def test_starting_a_new_project_does_not_leave_a_scratch_behind(qt_application, monkeypatch):
@@ -542,7 +573,7 @@ def test_starting_a_new_project_does_not_leave_a_scratch_behind(qt_application, 
             "the scratch of the project that was replaced is still there, and the next start "
             "will offer to recover it")
     finally:
-        window.close()
+        dispose(window)
 
 
 def test_a_scratch_holding_results_is_kept_when_the_project_is_replaced(qt_application, monkeypatch,
@@ -560,8 +591,7 @@ def test_a_scratch_holding_results_is_kept_when_the_project_is_replaced(qt_appli
 
         assert held.exists(), "results nobody has saved were discarded by replacing the project"
     finally:
-        window.project = None           # or closing asks about them, and blocks the suite
-        window.close()
+        dispose(window)
 
 
 def test_a_successful_export_is_reported_as_success(qt_application, project, tmp_path):
