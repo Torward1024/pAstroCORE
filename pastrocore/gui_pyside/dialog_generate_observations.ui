@@ -247,16 +247,6 @@
          </item>
         </layout>
        </item>
-       <item row="2" column="0">
-        <widget class="QCheckBox" name="randomizeOrderCheck">
-         <property name="text">
-          <string>Randomize Scan Order</string>
-         </property>
-         <property name="checked">
-          <bool>false</bool>
-         </property>
-        </widget>
-       </item>
        <item row="1" column="0">
         <widget class="QCheckBox" name="addOffSourceCheck">
          <property name="text">
