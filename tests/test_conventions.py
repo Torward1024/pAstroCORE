@@ -841,3 +841,37 @@ def test_an_invariant_does_no_expensive_work_to_decide():
     assert not offenders, (
         "an invariant is doing expensive work to decide, and it decides on every write:\n  "
         + "\n  ".join(offenders))
+
+
+@pytest.mark.parametrize("attribute", ["sefd_table", "surface_efficiency_table",
+                                       "effective_area_table", "system_temperature_table"])
+def test_the_table_grid_refuses_what_the_telescope_would_refuse(attribute, qt_application):
+    """The grid and the model used to disagree: three of these tables took a **zero** in the
+    editor and `Telescope` refuses one, so the cell was accepted and the save was not.
+
+    Eight classes said this -- four in each telescope editor, 126 lines byte for byte identical
+    between the two files. One now, with the bound as a declaration.
+    """
+    from PySide6.QtCore import QModelIndex, Qt
+
+    from msb_arch import InvariantError
+    from pastrocore.base.telescope import Telescope
+    from pastrocore.gui.p_table_models import model_for
+
+    grid = model_for(attribute)
+    grid.add_row(1000.0)
+    value = grid.index(0, 1)
+
+    assert not grid.setData(value, "0", Qt.EditRole), "a zero is not a positive number"
+    assert not grid.setData(value, "-1", Qt.EditRole)
+    assert not grid.setData(value, "not a number", Qt.EditRole)
+    assert not grid.setData(grid.index(0, 0), "0", Qt.EditRole), "nor is a zero a frequency"
+
+    # And what the grid does take, the telescope takes.
+    assert grid.setData(value, "0.5", Qt.EditRole)
+    Telescope(code="T", name="T", **{attribute: grid.get_data()})
+
+    # What it refuses, the telescope refuses too -- checked from the other side, so the two
+    # cannot drift apart with only this file changed.
+    with pytest.raises((InvariantError, ValueError)):
+        Telescope(code="T", name="T", **{attribute: {1000.0: 0.0}})

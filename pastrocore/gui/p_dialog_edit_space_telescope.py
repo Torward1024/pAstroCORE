@@ -1,137 +1,12 @@
 # pastrocore/gui/p_dialog_edit_space_telescope.py
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
+from pastrocore.gui.p_table_models import model_for
 from pastrocore.gui.ui_dialog_edit_space_telescope import Ui_SpaceTelescopeEditorDialog
 from pastrocore.base.spacetelescope import SpaceTelescope
 from astropy.time import Time
 from msb_arch.utils.logging_setup import logger
 import re
-
-class SEFDTableModel(QAbstractTableModel):
-    """Table model for SEFD (MHz, Jy) data."""
-    def __init__(self, data=None):
-        super().__init__()
-        self._data = data if data else []
-
-    def rowCount(self, parent=QModelIndex()):
-        return len(self._data)
-
-    def columnCount(self, parent=QModelIndex()):
-        return 2
-
-    def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid():
-            return None
-        if role == Qt.DisplayRole or role == Qt.EditRole:
-            return str(self._data[index.row()][index.column()])
-        return None
-
-    def setData(self, index, value, role=Qt.EditRole):
-        if role == Qt.EditRole:
-            try:
-                val = float(value)
-                if index.column() == 0 and val <= 0:
-                    return False
-                if index.column() == 1 and val < 0:
-                    return False
-                self._data[index.row()][index.column()] = val
-                self.dataChanged.emit(index, index)
-                return True
-            except ValueError:
-                return False
-        return False
-
-    def flags(self, index):
-        return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
-
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return ["Frequency (MHz)", "SEFD (Jy)"][section]
-        return None
-
-    def add_row(self, frequency=1000.0, sefd=1000.0):
-        self.beginInsertRows(QModelIndex(), len(self._data), len(self._data))
-        self._data.append([frequency, sefd])
-        self.endInsertRows()
-
-    def remove_row(self, row):
-        self.beginRemoveRows(QModelIndex(), row, row)
-        del self._data[row]
-        self.endRemoveRows()
-
-    def clear(self):
-        self.beginResetModel()
-        self._data = []
-        self.endResetModel()
-
-    def get_data(self):
-        return {row[0]: row[1] for row in self._data}
-
-class SurfaceEfficiencyTableModel(SEFDTableModel):
-    """Table model for Surface Efficiency (MHz, Efficiency) data."""
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return ["Frequency (MHz)", "Efficiency"][section]
-        return None
-
-    def setData(self, index, value, role=Qt.EditRole):
-        if role == Qt.EditRole:
-            try:
-                val = float(value)
-                if index.column() == 0 and val <= 0:
-                    return False
-                if index.column() == 1 and (val < 0 or val > 1):
-                    return False
-                self._data[index.row()][index.column()] = val
-                self.dataChanged.emit(index, index)
-                return True
-            except ValueError:
-                return False
-        return False
-
-class EffectiveAreaTableModel(SEFDTableModel):
-    """Table model for Effective Area (MHz, m²) data."""
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return ["Frequency (MHz)", "Area (m²)"][section]
-        return None
-
-    def setData(self, index, value, role=Qt.EditRole):
-        if role == Qt.EditRole:
-            try:
-                val = float(value)
-                if index.column() == 0 and val <= 0:
-                    return False
-                if index.column() == 1 and val < 0:
-                    return False
-                self._data[index.row()][index.column()] = val
-                self.dataChanged.emit(index, index)
-                return True
-            except ValueError:
-                return False
-        return False
-
-class SystemTemperatureTableModel(SEFDTableModel):
-    """Table model for System Temperature (MHz, K) data."""
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return ["Frequency (MHz)", "Temperature (K)"][section]
-        return None
-
-    def setData(self, index, value, role=Qt.EditRole):
-        if role == Qt.EditRole:
-            try:
-                val = float(value)
-                if index.column() == 0 and val <= 0:
-                    return False
-                if index.column() == 1 and val < 0:
-                    return False
-                self._data[index.row()][index.column()] = val
-                self.dataChanged.emit(index, index)
-                return True
-            except ValueError:
-                return False
-        return False
 
 class SpaceTelescopeEditorDialog(QDialog):
     """Dialog for editing or adding SpaceTelescope objects."""
@@ -146,13 +21,13 @@ class SpaceTelescopeEditorDialog(QDialog):
 
     def setup_models(self):
         """Set up table models for SEFD, surface efficiency, effective area, and system temperature."""
-        self.sefd_model = SEFDTableModel()
+        self.sefd_model = model_for("sefd_table")
         self.ui.sefdTable.setModel(self.sefd_model)
-        self.surface_efficiency_model = SurfaceEfficiencyTableModel()
+        self.surface_efficiency_model = model_for("surface_efficiency_table")
         self.ui.surfaceEfficiencyTable.setModel(self.surface_efficiency_model)
-        self.effective_area_model = EffectiveAreaTableModel()
+        self.effective_area_model = model_for("effective_area_table")
         self.ui.effectiveAreaTable.setModel(self.effective_area_model)
-        self.system_temperature_model = SystemTemperatureTableModel()
+        self.system_temperature_model = model_for("system_temperature_table")
         self.ui.systemTemperatureTable.setModel(self.system_temperature_model)
 
     def setup_connections(self):
