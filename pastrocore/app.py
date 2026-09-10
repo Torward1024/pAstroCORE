@@ -239,6 +239,12 @@ class PAstroCoreMainWindow(QMainWindow):
         """Setup UI signal connections."""
         self.clear_connections(is_initial_setup=True)
 
+        # Both registers start empty, so a second pass records this pass rather than adding to
+        # the last one. The actions have always been rebuilt wholesale a few lines down; the
+        # widget signals were appended to, and a caller that connects twice without clearing in
+        # between -- which is what building a window and then calling this does -- left the
+        # register holding each pair twice and `clear_connections` disconnecting it twice.
+        self._signal_connections = []
         self._action_connections = {
             self.ui.actionNewProject: self.new_project,
             self.ui.actionOpenProject: self.open_project,
