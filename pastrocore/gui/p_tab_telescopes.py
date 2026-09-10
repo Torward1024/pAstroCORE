@@ -333,7 +333,7 @@ class TelescopesTab(QWidget):
     def activate_telescope(self, telescope_name: str):
         """Activate the specified telescope."""
         try:
-            response = self.manipulator.configure(self.observation.get_telescopes(), activate_item=telescope_name)
+            self.manipulator.configure(self.observation.get_telescopes(), activate_item=telescope_name)
             logger.info("Telescope '%s' activated in observation '%s'", telescope_name, self.observation.code)
             self.update()
             self.data_updated.emit(telescope_name, True, "activate")

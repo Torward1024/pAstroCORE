@@ -70,7 +70,6 @@ class CatalogManager:
         Notes:
             - Logs warnings for invalid lines and a summary of loaded/failed sources.
         """
-        sources = {}
         failed_count = 0
         try:
             with open(source_file, 'r', encoding='utf-8') as f:
