@@ -132,8 +132,6 @@ def deletions_happen_between_tests():
     """
     yield
 
-    import gc
-
     from PySide6.QtCore import QEvent
     from PySide6.QtWidgets import QApplication
 
@@ -141,12 +139,14 @@ def deletions_happen_between_tests():
     if application is None:
         return
 
-    # Collect first, while the C++ halves are still there: PySide schedules the deletion when
-    # the wrapper goes, which is the safe direction. A test that let a widget go out of scope
-    # has not scheduled anything yet.
-    gc.collect()
+    # **No `gc.collect()` here.** It was put in to stop an intermittent access violation on
+    # Windows, before the things it was papering over were understood: four tabs deleting the
+    # models they went on holding, and twenty-one tests building a window and abandoning it.
+    # Those are fixed, and forcing a collection here is itself fatal on Linux -- every build
+    # died inside it. Closing what is standing is the part that does the work; the collector
+    # can run when it likes, on objects that are consistent.
 
-    # Then take away whatever is still standing. Twenty-one tests across six files build a
+    # Take away whatever the test left standing. Twenty-one tests across six files build a
     # dialog or a window and never take it away, and a widget that is merely dropped is
     # disposed of whenever the collector next runs -- inside some later test's event loop,
     # which is where a Qt teardown takes the process with it.
