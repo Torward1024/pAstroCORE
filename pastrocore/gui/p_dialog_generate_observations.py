@@ -114,7 +114,6 @@ class GenerateObservationsDialog(QDialog):
         self.ui.namingMaskEdit.setValidator(mask_validator)
         
         self.ui.addOffSourceCheck.setChecked(False)
-        self.ui.randomizeOrderCheck.setChecked(False)
         self.ui.intervalSpinBox.setValue(0)
 
         current_date = datetime.now().date()
@@ -444,7 +443,6 @@ class GenerateObservationsDialog(QDialog):
                     "num_scans": self.ui.numScansSpinBox.value(),
                     "naming_mask": self.ui.namingMaskEdit.text(),
                     "add_off_source": self.ui.addOffSourceCheck.isChecked(),
-                    "randomize_order": self.ui.randomizeOrderCheck.isChecked(),
                     "interval_min": self.ui.intervalSpinBox.value(),
                     "parallel": self.ui.chkParallel.isChecked()
                 }
@@ -470,7 +468,6 @@ class GenerateObservationsDialog(QDialog):
                 self.ui.numScansSpinBox.setValue(preset_data.get("num_scans", 5))
                 self.ui.namingMaskEdit.setText(preset_data.get("naming_mask", "Observation_{i}_{s}_{dt}"))
                 self.ui.addOffSourceCheck.setChecked(preset_data.get("add_off_source", False))
-                self.ui.randomizeOrderCheck.setChecked(preset_data.get("randomize_order", False))
                 self.ui.intervalSpinBox.setValue(preset_data.get("interval_min", 5))
                 self.ui.chkParallel.setChecked(preset_data.get("parallel", True))
                 logger.info("Loaded preset from %s", file_name)
@@ -487,7 +484,6 @@ class GenerateObservationsDialog(QDialog):
             self.ui.scanDurationSpinBox.setValue(300)
             self.ui.numScansSpinBox.setValue(10)
             self.ui.addOffSourceCheck.setChecked(False)
-            self.ui.randomizeOrderCheck.setChecked(False)
             self.ui.intervalSpinBox.setValue(5)
             self.ui.chkParallel.setChecked(True)
         elif preset == "Quick Single Dish":
@@ -495,7 +491,6 @@ class GenerateObservationsDialog(QDialog):
             self.ui.scanDurationSpinBox.setValue(60)
             self.ui.numScansSpinBox.setValue(5)
             self.ui.addOffSourceCheck.setChecked(True)
-            self.ui.randomizeOrderCheck.setChecked(True)
             self.ui.intervalSpinBox.setValue(1)
             self.ui.chkParallel.setChecked(False)
         logger.info("Loaded preset '%s'", preset)
@@ -537,7 +532,6 @@ class GenerateObservationsDialog(QDialog):
 
             pattern_attributes = {
                 "add_off_source": self.ui.addOffSourceCheck.isChecked(),
-                "randomize_order": self.ui.randomizeOrderCheck.isChecked(),
                 "interval_sec": self.ui.intervalSpinBox.value(),
                 "naming_mask": naming_mask
             }

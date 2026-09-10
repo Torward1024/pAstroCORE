@@ -174,12 +174,6 @@ class Ui_GenerateObservationsDialog(object):
 
         self.gridLayout_5.addLayout(self.horizontalLayoutPresetButtons, 6, 0, 1, 1)
 
-        self.randomizeOrderCheck = QCheckBox(self.tabPattern)
-        self.randomizeOrderCheck.setObjectName(u"randomizeOrderCheck")
-        self.randomizeOrderCheck.setChecked(False)
-
-        self.gridLayout_5.addWidget(self.randomizeOrderCheck, 2, 0, 1, 1)
-
         self.addOffSourceCheck = QCheckBox(self.tabPattern)
         self.addOffSourceCheck.setObjectName(u"addOffSourceCheck")
         self.addOffSourceCheck.setCheckable(True)
@@ -367,7 +361,6 @@ class Ui_GenerateObservationsDialog(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabBasic), QCoreApplication.translate("GenerateObservationsDialog", u"Basic Settings", None))
         self.savePresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Save Preset", None))
         self.loadPresetButton.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Load Preset", None))
-        self.randomizeOrderCheck.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Randomize Scan Order", None))
         self.addOffSourceCheck.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Add Off-Source Scans", None))
         self.labelPreset.setText(QCoreApplication.translate("GenerateObservationsDialog", u"Preset:", None))
         self.presetCombo.setItemText(0, QCoreApplication.translate("GenerateObservationsDialog", u"Standard VLBI", None))

@@ -10,7 +10,6 @@ from typing import Dict, Any
 from astropy.time import Time
 import astropy.units as u
 import uuid
-import random
 
 class ScheduleConfigurator(Configurator):
     """Implementation of Configurator for configuring scheduling entities using the Super framework.
@@ -111,7 +110,6 @@ class ScheduleConfigurator(Configurator):
                 - parallel (bool): If True, generate observations in parallel; else sequential.
                 - pattern (dict): Pattern settings including:
                     - add_off_source (bool): Add off-source scans.
-                    - randomize_order (bool): Randomize scan order.
                     - interval_sec (int): Interval between scans in seconds.
                     - naming_mask (str): Naming pattern for observation codes.
                 - progress_callback (Callable, optional): Callback to report progress (value, message).
@@ -131,7 +129,6 @@ class ScheduleConfigurator(Configurator):
             parallel = attributes.get("parallel", False)
             pattern = attributes.get("pattern", {})
             add_off_source = pattern.get("add_off_source", False)
-            randomize_order = pattern.get("randomize_order", False)
             interval_sec = pattern.get("interval_sec", 300)
             naming_mask = pattern.get("naming_mask", "OBS_{s}_{uuid}")
             progress_callback = attributes.get("progress_callback", None)
@@ -302,9 +299,6 @@ class ScheduleConfigurator(Configurator):
                 if not scans_list:
                     logger.error("No scans generated for observation '%s'", obs_code)
                     continue
-
-                if randomize_order:
-                    random.shuffle(scans_list)
 
                 for scan in scans_list:
                     obs.scans.add(scan)
