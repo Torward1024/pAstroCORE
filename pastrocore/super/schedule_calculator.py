@@ -10,7 +10,6 @@ from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.super.schedule_project import ScheduleProject
 
 from typing import Dict, Any, Optional, Tuple, List, Callable
-from concurrent.futures import ThreadPoolExecutor
 from scipy.special import j1
 from functools import wraps
 
@@ -59,6 +58,46 @@ def time_execution(func):
         logger.debug("Calculation '%s' for '%s' returned in %.3f s", calc_type, obj_name, duration)
         return result
     return wrapper
+
+
+
+class _InTurn:
+    """Runs each piece of work where it stands, with an executor's vocabulary.
+
+    Notes:
+        - **One place decides how work is spread, and it is the pipeline.** Every calculation
+          used to open a `ThreadPoolExecutor` of its own over the scans, and `_process_object`
+          another over the observations -- underneath a pipeline that is already running the
+          calculations in threads when asked to. Four workers under six concurrent steps is
+          twenty-four threads contending for the GIL and for cores.
+        - **It is not faster, and that is not the reason.** Measured on a 69-scan schedule,
+          interleaved six times each: 9.62 s at the median with the inner pools and 9.71 s
+          without, which is a wash. An earlier measurement said 6% faster and was a quiet
+          window on the machine rather than a fact. The reasons are that eleven copies of one
+          block are eleven places to change, and that a second policy for spreading work,
+          hidden under the one the pipeline applies, is how a whole project came to draw
+          nothing when the visualizer had the same shape.
+        - It keeps `submit` and `result` so the call sites read as they did. The name says what
+          it does, so nobody reads concurrency into it.
+    """
+
+    class _Done:
+        """A result that is already there."""
+
+        def __init__(self, value):
+            self._value = value
+
+        def result(self):
+            return self._value
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_details):
+        return False
+
+    def submit(self, work, *args, **kwargs):
+        return self._Done(work(*args, **kwargs))
 
 
 class ScheduleCalculator(Super):
@@ -235,8 +274,7 @@ class ScheduleCalculator(Super):
                 logger.warning("No observations in project '%s'", obj.name)
                 return pl.DataFrame()
             dfs = []
-            max_workers = min(len(observations), 4) if len(observations) > 1 else 1
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            with _InTurn() as executor:
                 futures = {
                     executor.submit(self._process_object, obs, attributes, calc_func, store_key, metadata): obs.get_observation_code()
                     for obs in observations
@@ -903,8 +941,7 @@ class ScheduleCalculator(Super):
                 z_list = []
                 excluded_telescopes = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -1258,8 +1295,7 @@ class ScheduleCalculator(Super):
                 source_names = []
                 is_visible_list = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -1489,8 +1525,7 @@ class ScheduleCalculator(Super):
                 v_list = []
                 w_list = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -1754,8 +1789,7 @@ class ScheduleCalculator(Super):
                 source_names = []
                 sun_angles_list = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -1995,8 +2029,7 @@ class ScheduleCalculator(Super):
                 az_ha_list = []
                 el_dec_list = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -2233,8 +2266,7 @@ class ScheduleCalculator(Super):
                     return empty
 
                 collected = []
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -2569,8 +2601,7 @@ class ScheduleCalculator(Super):
                 end_mjd_list = []
                 durations_list = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -2838,8 +2869,7 @@ class ScheduleCalculator(Super):
                 baselines = []
                 projections_list = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -3046,8 +3076,7 @@ class ScheduleCalculator(Super):
                 lons_list = []
                 lats_list = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
@@ -3249,8 +3278,7 @@ class ScheduleCalculator(Super):
                 source_names = []
                 pa_list = []
 
-                max_workers = min(len(scans), 4) if len(scans) > 1 else 1
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
                         scan_name = scan.name
