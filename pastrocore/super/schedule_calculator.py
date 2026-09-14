@@ -20,8 +20,10 @@ from astropy.coordinates import ITRS, GCRS, CartesianRepresentation, SkyCoord, A
 import numpy as np
 import polars as pl
 
+import hashlib
 import threading
 import time
+from collections import OrderedDict
 import re
 import os
 
@@ -127,7 +129,77 @@ class ScheduleCalculator(Super):
         # against one spacecraft re-read and re-parsed the same file ten times.
         self._orbit_cache: Dict[tuple, Dict[str, np.ndarray]] = {}
         self._orbit_cache_lock = threading.Lock()
+        self._topocentric_cache: "OrderedDict[tuple, Tuple[np.ndarray, np.ndarray, np.ndarray]]" = OrderedDict()
+        self._topocentric_bytes = 0
+        self._topocentric_lock = threading.Lock()
         logger.debug("Initialized Scheduling Calculator")
+
+    #: What the shared topocentric directions may occupy. A day at a one-second step for one
+    #: station is 6 MB, so this holds a busy run's worth and never a project's.
+    TOPOCENTRIC_CACHE_BYTES = 64 * 1024 ** 2
+
+    def _topocentric(self, source: Source, positions: np.ndarray, times_mjd: np.ndarray,
+                     frame: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return where a source stands, seen from a station, at every sample of a scan.
+
+        Args:
+            source (Source): What is looked at.
+            positions (np.ndarray): The station's GCRS positions in metres, (n, 3).
+            times_mjd (np.ndarray): The samples, MJD UTC, (n,).
+            frame (str): "altaz" or "hadec".
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray, np.ndarray]: In degrees and read-only -- azimuth and
+                altitude for "altaz", hour angle and declination for "hadec" -- and the station's
+                geodetic latitude at each sample.
+
+        Notes:
+            - **Computed once, read by three steps.** Visibility, az/el and the parallactic
+              angle each rebuilt the station's location from its GCRS positions and transformed
+              the source into the same frame over the same samples: the same two erfa pipelines,
+              three times, and together more than half of a run's work.
+            - Keyed by what the answer is made of -- the frame, the source's position, the bytes
+              of the positions and the times -- so it has nothing to go stale against. A source
+              moved or a station moved is a different key.
+            - Bounded in bytes rather than entries, oldest first, because one entry of a day at
+              a one-second step weighs as much as a hundred of a short scan.
+        """
+        times_mjd = np.ascontiguousarray(times_mjd, dtype=float)
+        positions = np.ascontiguousarray(positions, dtype=float)
+        fingerprint = hashlib.blake2b(positions.tobytes() + times_mjd.tobytes(), digest_size=16).digest()
+        key = (frame, float(source.ra_degrees), float(source.dec_degrees), fingerprint)
+        with self._topocentric_lock:
+            held = self._topocentric_cache.get(key)
+            if held is not None:
+                self._topocentric_cache.move_to_end(key)
+                return held
+
+        obstime = Time(times_mjd, format="mjd", scale="utc")
+        stations = GCRS(CartesianRepresentation(x=positions[:, 0] * u.m, y=positions[:, 1] * u.m,
+                                                z=positions[:, 2] * u.m),
+                        obstime=obstime).transform_to(ITRS(obstime=obstime)).earth_location
+        looked_at = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame="icrs")
+        if frame == "altaz":
+            seen = looked_at.transform_to(AltAz(obstime=obstime, location=stations))
+            held = (seen.az.deg, seen.alt.deg, stations.lat.deg)
+        elif frame == "hadec":
+            seen = looked_at.transform_to(HADec(obstime=obstime, location=stations))
+            held = (seen.ha.deg, seen.dec.deg, stations.lat.deg)
+        else:
+            raise ValueError(f"No topocentric frame called '{frame}'")
+        held = tuple(np.array(values, dtype=float) for values in held)
+        for values in held:
+            values.setflags(write=False)
+
+        size = sum(values.nbytes for values in held)
+        with self._topocentric_lock:
+            if key not in self._topocentric_cache:
+                self._topocentric_cache[key] = held
+                self._topocentric_bytes += size
+                while self._topocentric_bytes > self.TOPOCENTRIC_CACHE_BYTES and len(self._topocentric_cache) > 1:
+                    _, dropped = self._topocentric_cache.popitem(last=False)
+                    self._topocentric_bytes -= sum(values.nbytes for values in dropped)
+        return held
     
     @staticmethod
     def _active_scan_count(obj: Observation | ScheduleProject) -> int:
@@ -1381,8 +1453,6 @@ class ScheduleCalculator(Super):
             logger.warning("No valid times for scan '%s' in source '%s'", scan_name, source_name)
             return None
 
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
-        obstime=Time(times_mjd, format="mjd", scale="utc")
 
         times_list = []
         scan_names = []
@@ -1415,14 +1485,6 @@ class ScheduleCalculator(Super):
             if isinstance(tel, SpaceTelescope):
                 is_visible[~nan_positions] = True
             else:
-                gcrs_coords = CartesianRepresentation(
-                    x=positions[:, 0] * u.m,
-                    y=positions[:, 1] * u.m,
-                    z=positions[:, 2] * u.m
-                )
-                itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
-                locations = itrs.earth_location
-
                 mount_type = tel.get("mount_type").value
                 valid_positions = ~nan_positions
                 if not np.any(valid_positions):
@@ -1436,9 +1498,7 @@ class ScheduleCalculator(Super):
                 # this is half the cost of the step for an array of one kind -- which every
                 # array in these examples is.
                 if mount_type == "AZIM":
-                    altaz = source_coord.transform_to(AltAz(obstime=obstime, location=locations))
-                    el = altaz.alt.deg
-                    az = altaz.az.deg
+                    az, el, _ = self._topocentric(source, positions, times_mjd, "altaz")
                     el_range = tel.get_elevation_range()
                     az_range = tel.get_azimuth_range()
                     is_visible[valid_positions] = (
@@ -1448,9 +1508,7 @@ class ScheduleCalculator(Super):
                         (az[valid_positions] <= float(az_range[1]))
                     )
                 elif mount_type == "EQUA":
-                    hadec = source_coord.transform_to(HADec(obstime=obstime, location=locations))
-                    ha = hadec.ha.deg
-                    dec = hadec.dec.deg
+                    ha, dec, _ = self._topocentric(source, positions, times_mjd, "hadec")
                     ha_range = tel.get_azimuth_range()
                     dec_range = tel.get_elevation_range()
                     is_visible[valid_positions] = (
@@ -2089,7 +2147,6 @@ class ScheduleCalculator(Super):
             logger.warning("No valid times for scan '%s' in source '%s'", scan_name, source_name)
             return None
 
-        source_coord = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame='icrs')
 
         times_list = []
         scan_names = []
@@ -2097,7 +2154,6 @@ class ScheduleCalculator(Super):
         source_names = []
         az_ha_list = []
         el_dec_list = []
-        obstime=Time(times_mjd, format="mjd", scale="utc")
 
         for tel in active_telescopes:
             tel_code = tel.get_code()
@@ -2129,21 +2185,10 @@ class ScheduleCalculator(Super):
             is_visible = visibility & ~nan_positions
 
             if np.any(is_visible):
-                gcrs_coords = CartesianRepresentation(
-                    x=positions[:, 0] * u.m,
-                    y=positions[:, 1] * u.m,
-                    z=positions[:, 2] * u.m
-                )
-                itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
-                locations = itrs.earth_location
-                if mount_type == "AZIM":
-                    altaz = source_coord.transform_to(AltAz(obstime=obstime, location=locations))
-                    az_ha[is_visible] = altaz.az.deg[is_visible]
-                    el_dec[is_visible] = altaz.alt.deg[is_visible]
-                else:  # EQUA
-                    hadec = source_coord.transform_to(HADec(obstime=obstime, location=locations))
-                    az_ha[is_visible] = hadec.ha.deg[is_visible]
-                    el_dec[is_visible] = hadec.dec.deg[is_visible]
+                first, second, _ = self._topocentric(
+                    source, positions, times_mjd, "altaz" if mount_type == "AZIM" else "hadec")
+                az_ha[is_visible] = first[is_visible]
+                el_dec[is_visible] = second[is_visible]
 
                 logger.debug("Computed %s az/el or ha/dec angles for telescope '%s' in scan '%s'", np.sum(is_visible), tel_code, scan_name)
 
@@ -3352,12 +3397,6 @@ class ScheduleCalculator(Super):
             logger.warning("No valid times for scan '%s'", scan_name)
             return None
 
-        source_coord = SkyCoord(
-            ra=source.ra_degrees * u.deg,
-            dec=source.dec_degrees * u.deg,
-            frame='icrs'
-        )
-        obstime = Time(times_mjd, format="mjd", scale="utc")
 
         times_list = []
         scan_names = []
@@ -3390,27 +3429,26 @@ class ScheduleCalculator(Super):
 
             if np.any(is_visible):
                 try:
-                    gcrs_coords = CartesianRepresentation(
-                        x=positions[:, 0] * u.m,
-                        y=positions[:, 1] * u.m,
-                        z=positions[:, 2] * u.m
-                    )
-                    itrs = GCRS(gcrs_coords, obstime=obstime).transform_to(ITRS(obstime=obstime))
-                    locations = itrs.earth_location
-
-                    # The parallactic angle is hour angle, declination and latitude, and
-                    # nothing else. An `AltAz` transform of the source was computed here and
-                    # never read -- a full erfa transform over the visible samples, per station
-                    # per scan, thrown away.
-                    hadec_frame = HADec(obstime=obstime[is_visible], location=locations[is_visible])
-                    source_hadec = source_coord.transform_to(hadec_frame)
-
-                    ha = source_hadec.ha.rad
-                    dec = np.radians(source_hadec.dec.deg)
-                    lat = np.radians(locations[is_visible].lat.deg)
-
-                    sin_pa = np.sin(ha) * np.cos(lat)
-                    cos_pa = np.sin(lat) * np.cos(dec) - np.cos(lat) * np.sin(dec) * np.cos(ha)
+                    # From the direction the mount already needed, rather than a transform of
+                    # its own. On the celestial sphere the angle at the source between the pole
+                    # and the zenith is the same spherical triangle written either way:
+                    #   q = atan2( sin H cos(phi), sin(phi) cos(dec) - cos(phi) sin(dec) cos H)
+                    #     = atan2(-sin A cos(phi), sin(phi) cos(h)   - cos(phi) sin(h)   cos A)
+                    # -- equal to 1e-13 degrees against astropy's own hour angle, measured.
+                    if tel.get("mount_type").value == "EQUA":
+                        hour, declination, latitude = self._topocentric(source, positions, times_mjd, "hadec")
+                        hour, declination = np.radians(hour[is_visible]), np.radians(declination[is_visible])
+                        lat = np.radians(latitude[is_visible])
+                        sin_pa = np.sin(hour) * np.cos(lat)
+                        cos_pa = (np.sin(lat) * np.cos(declination)
+                                  - np.cos(lat) * np.sin(declination) * np.cos(hour))
+                    else:
+                        azimuth, altitude, latitude = self._topocentric(source, positions, times_mjd, "altaz")
+                        azimuth, altitude = np.radians(azimuth[is_visible]), np.radians(altitude[is_visible])
+                        lat = np.radians(latitude[is_visible])
+                        sin_pa = -np.sin(azimuth) * np.cos(lat)
+                        cos_pa = (np.sin(lat) * np.cos(altitude)
+                                  - np.cos(lat) * np.sin(altitude) * np.cos(azimuth))
                     pa_rad = np.arctan2(sin_pa, cos_pa)
 
                     pa_deg = np.degrees(pa_rad)
