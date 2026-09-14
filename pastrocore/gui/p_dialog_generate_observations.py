@@ -14,37 +14,10 @@ from pastrocore.gui.p_dialog_telescopes_catalog import TelescopesCatalogDialog
 from pastrocore.gui.p_dialog_edit_source import SourceEditorDialog
 from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
 from pastrocore.gui.p_dialog_edit_space_telescope import SpaceTelescopeEditorDialog
-from .ui_dialog_calc_progress import Ui_ProgressDialog
+from pastrocore.gui.p_dialog_progress import ProgressDialog, stop_and_wait
 from msb_arch.utils.logging_setup import logger
 import json
 from datetime import datetime, timedelta
-
-class ProgressDialog(QDialog):
-    """Dialog for displaying progress of observation generation."""
-    cancelRequested = Signal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.ui = Ui_ProgressDialog()
-        self.ui.setupUi(self)
-        self.setWindowTitle("Generating Observations")
-        self.ui.label.setText("Generating observations...")
-        self.ui.pushButtonCancel.clicked.connect(self.cancel)
-        self.cancel_requested = False
-
-    def update_progress(self, value, message):
-        """Update progress bar and label."""
-        self.ui.progressBar.setValue(value)
-        self.ui.label.setText(message)
-        logger.debug("Progress updated: %s%% - %s", value, message)
-
-    def cancel(self):
-        """Emit cancelRequested signal and update UI."""
-        self.cancel_requested = True
-        self.ui.pushButtonCancel.setEnabled(False)
-        self.ui.label.setText("Cancelling after current observation...")
-        logger.debug("Cancellation requested for observation generation")
-        self.cancelRequested.emit()
 
 class GenerationThread(QThread):
     """Thread for performing observation generation asynchronously."""
@@ -87,6 +60,11 @@ class GenerationThread(QThread):
 class GenerateObservationsDialog(QDialog):
     """Dialog for generating observations in pAstroCORE."""
     observation_generated = Signal(list)
+
+    def done(self, result):
+        """Close, but never ahead of the work this dialog started."""
+        stop_and_wait(getattr(self, "thread", None))
+        super().done(result)
 
     def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, 
                  catalog_manager: CatalogManager, parent=None):
@@ -555,7 +533,8 @@ class GenerateObservationsDialog(QDialog):
             }
 
             self.thread = GenerationThread(self.manipulator, self.project, attributes)
-            self.progress_dialog = ProgressDialog(self)
+            self.progress_dialog = ProgressDialog(self, "Generating Observations",
+                                                  "Generating observations...")
             self.thread.progress.connect(self.progress_dialog.update_progress)
             self.thread.finished.connect(self.generation_finished)
             self.thread.error.connect(self.generation_error)
@@ -570,7 +549,7 @@ class GenerateObservationsDialog(QDialog):
     @Slot(dict)
     def generation_finished(self, response):
         """Handle generation completion."""
-        self.progress_dialog.close()
+        self.progress_dialog.finish()
         made = list(response.get("result") or [])
         if response.get("status"):
             self.observation_generated.emit(made)
@@ -596,7 +575,7 @@ class GenerateObservationsDialog(QDialog):
     @Slot(str)
     def generation_error(self, error):
         """Handle generation errors."""
-        self.progress_dialog.close()
+        self.progress_dialog.finish()
         logger.error("Generation error: %s", error)
         QMessageBox.critical(self, "Error", f"Generation failed: {error}")
         self.reject()

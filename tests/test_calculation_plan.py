@@ -118,7 +118,7 @@ class _FakeProgress:
     def update_progress(self, *args, **kwargs):
         return None
 
-    def close(self):
+    def finish(self):
         return None
 
 
@@ -182,7 +182,7 @@ def test_the_interface_thread_only_sends_a_request():
 
     source = (pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui"
               / "p_dialog_calculations.py").read_text(encoding="utf-8")
-    thread = source[source.index("class CalculationThread"):source.index("class ProgressDialog")]
+    thread = source[source.index("class CalculationThread"):source.index("class CalculationDialog")]
 
     assert "for calc_type in" not in thread, "the thread is looping over calculations again"
     assert 'method="run"' in thread, "the thread should send one request"
