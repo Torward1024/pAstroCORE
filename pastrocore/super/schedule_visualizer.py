@@ -1396,7 +1396,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("Empty filter: telescopes=%s, frequencies=%s, returning empty result", telescopes, frequencies)
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
-                    labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
+                    labels={"xlabel": "Theta, (deg.)", "ylabel": "Normalized Peak Flux",
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
@@ -1405,19 +1405,17 @@ class ScheduleVisualizer(Super):
                 logger.debug("No beam data available, returning empty result")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
-                    labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
+                    labels={"xlabel": "Theta, (deg.)", "ylabel": "Normalized Peak Flux",
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
-            metadata = obj.get_calculated_metadata(store_key)
-            
             filtered_df = beam_data.filter(pl.col("telescope_code").is_in(telescopes))
             filtered_df = filtered_df.collect()
             if filtered_df.is_empty():
                 logger.debug("No valid telescopes in beam_data, returning empty result")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
-                    labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
+                    labels={"xlabel": "Theta, (deg.)", "ylabel": "Normalized Peak Flux",
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
@@ -1426,7 +1424,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("No valid frequencies provided, returning empty result")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
-                    labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
+                    labels={"xlabel": "Theta, (deg.)", "ylabel": "Normalized Peak Flux",
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 
@@ -1434,9 +1432,11 @@ class ScheduleVisualizer(Super):
             n_tels = len(tel_list)
             n_cols = int(np.ceil(np.sqrt(n_tels)))
             n_rows = int(np.ceil(n_tels / n_cols))
+            # Not sharing x: a beam is as wide as the wavelength over the dish, so a 70 m and a
+            # 12 m station differ sixfold, and on one scale the larger dish's beam is a line.
             axes = self._setup_axes(
                 fig, "beam_pattern", obj.get_observation_code(),
-                n_rows=n_rows, n_cols=n_cols, sharex=True, sharey=True
+                n_rows=n_rows, n_cols=n_cols, sharex=False, sharey=True
             )
             axes = np.atleast_1d(axes)
 
@@ -1462,18 +1462,35 @@ class ScheduleVisualizer(Super):
                     logger.warning("Invalid beam data for %s: theta=%s, pattern=%s", tel_code, len(theta), len(pattern))
                     continue
 
+                order = np.argsort(theta)
+                theta, pattern = theta[order], pattern[order]
+                # How far to show: four lobes past the first null of the widest beam drawn for
+                # this station, which is its lowest frequency's. Read off the curve itself.
+                extent = 0.0
+                peak = np.max(np.abs(pattern))
+                normalised = pattern / peak if peak > 0 else pattern
                 for freq_idx, freq_mhz in enumerate(freq_list):
                     try:
                         wavelength = self.SPEED_OF_LIGHT / (freq_mhz * 1e6)
                         if wavelength <= 0:
                             logger.warning("Invalid frequency %s MHz for %s", freq_mhz, tel_code)
                             continue
-                        
-                        scaled_theta = theta * wavelength
-                        scaled_pattern = pattern / np.max(np.abs(pattern)) if np.max(np.abs(pattern)) > 0 else pattern
+
+                        # **The stored curve is the same at every frequency; this is where it is
+                        # given one.** The calculation keeps `x = D sin(t)` in the `theta` column,
+                        # and the Airy pattern is `x = pi D sin(theta) / lambda`, so
+                        #     sin(theta) = lambda sin(t) / pi.
+                        # What was here drew `theta = t * lambda`: no division by pi and no sine,
+                        # so every beam came out pi times as wide as it is -- a 70 m dish at 1 GHz
+                        # at 0.79 degrees half-power where it has 0.25. Past the horizon, which a
+                        # wavelength longer than pi metres reaches, there is no angle to draw.
+                        reach = wavelength * np.sin(theta) / np.pi
+                        seen = np.abs(reach) <= 1.0
+                        angle = np.degrees(np.arcsin(reach[seen]))
+                        drawn = normalised[seen]
                         color = self._style_config["colors"][freq_idx % len(self._style_config["colors"])]
                         line, = ax.plot(
-                            scaled_theta, scaled_pattern,
+                            angle, drawn,
                             color=color,
                             linestyle=self._style_config["linestyles"]["default"]
                         )
@@ -1481,16 +1498,21 @@ class ScheduleVisualizer(Super):
                         if label not in legend_labels:
                             legend_handles.append(line)
                             legend_labels.append(label)
-                        theta_range = np.max(np.abs(scaled_theta)) * 1.1 if len(scaled_theta) > 0 else 1.0
-                        ax.set_xlim(-theta_range, theta_range)
+
+                        beyond = angle > 0
+                        falling = np.flatnonzero(np.diff(np.sign(np.diff(drawn[beyond]))) > 0)
+                        null = angle[beyond][falling[0] + 1] if len(falling) else np.max(np.abs(angle))
+                        extent = max(extent, min(5.0 * null, float(np.max(np.abs(angle)))))
                         plotted_frequencies.add(freq_mhz)
-                        logger.debug(f"Plotted beam for {tel_code} at {freq_mhz:.2f} MHz: "
-                                     f"theta_scaling_factor={wavelength:.2f}, "
-                                     f"max_pattern={np.max(scaled_pattern):.2f}")
+                        logger.debug("Plotted beam for %s at %.2f MHz: first null %.4g deg",
+                                     tel_code, freq_mhz, null)
                     except (ValueError, TypeError) as e:
                         logger.error("Error plotting beam for %s at %s MHz: %s", tel_code, freq_mhz, str(e))
                         continue
 
+
+                if extent > 0:
+                    ax.set_xlim(-extent, extent)
                 plotted_telescopes.add(tel_code)
 
             # Set shared axis labels
@@ -1498,7 +1520,7 @@ class ScheduleVisualizer(Super):
                 ax.set_xlabel("")
                 ax.set_ylabel("")
             if plotted_telescopes:
-                fig.text(0.5, 0.04, "Theta, (rad.)", ha="center", fontsize=self._style_config["font"]["label_size"])
+                fig.text(0.5, 0.04, "Theta, (deg.)", ha="center", fontsize=self._style_config["font"]["label_size"])
                 fig.text(0.04, 0.5, "Normalized Peak Flux", va="center", rotation="vertical",
                          fontsize=self._style_config["font"]["label_size"])
 
@@ -1522,7 +1544,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("No valid data plotted, returning empty result")
                 return self._create_empty_plot(
                     fig, "beam_pattern", obj.get_observation_code(),
-                    labels={"xlabel": "Theta, (rad.)", "ylabel": "Normalized Peak Flux",
+                    labels={"xlabel": "Theta, (deg.)", "ylabel": "Normalized Peak Flux",
                             "title": f"Beam Pattern for Observation: {obj.get_observation_code()}"}
                 )
 

@@ -161,7 +161,7 @@ report = core.compute(obj=project, method="affected", type="Telescope")
 assert report["parts"] == ["scans", "telescopes"]
 assert "uv_coverage" in report["calculations"]
 
-# A scan cannot spoil a beam pattern: that reads telescopes and frequencies.
+# A scan cannot spoil a beam pattern: that reads the telescopes and nothing else.
 scans = core.compute(obj=project, method="affected", type="Scan")
 assert "beam_pattern" not in scans["calculations"]
 ```

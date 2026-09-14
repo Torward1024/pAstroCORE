@@ -124,7 +124,9 @@ class CalculatedDataStructure:
             }
         },
         "beam_pattern": {
-            "depends_on": ("telescopes", "frequencies"),
+            # Not frequencies: one curve per dish, given a frequency when it is drawn. Declaring
+            # them marked the beam stale whenever a band was edited, and nothing had changed.
+            "depends_on": ("telescopes",),
             "columns": ["telescope_code", "theta", "pattern"],
             "metadata": {
                 "telescope_count": int,

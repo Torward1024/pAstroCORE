@@ -39,11 +39,11 @@ def eager_log_calls(path):
     return found
 
 
-# Fourteen calls carry a format spec or a conversion -- `{x:.2f}`, `{x!r}` -- where `%s` would
+# Thirteen calls carry a format spec or a conversion -- `{x:.2f}`, `{x!r}` -- where `%s` would
 # render something different. They are left alone deliberately. The number may only go down: by
-# one when the calculator's per-call timing line became lazy, and by one when the Sun angle's
-# NaN warning was rewritten along with the step.
-ALLOWED_EAGER = 14
+# one when the calculator's per-call timing line became lazy, by one when the Sun angle's NaN
+# warning was rewritten along with the step, and by one with the beam pattern's drawing line.
+ALLOWED_EAGER = 13
 
 
 def test_logging_is_lazy():
