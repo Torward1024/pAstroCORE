@@ -65,7 +65,7 @@ class VisualizationTab(QWidget):
         self.observation = observation
         self.is_processing = False
 
-        self.layout = QVBoxLayout(self.ui.widget)
+        self.plot_layout = QVBoxLayout(self.ui.widget)
         # **One figure, one canvas, one toolbar, for the life of the tab.** They are built here
         # rather than at the first draw because the figure is what the tab asks the visualizer
         # to draw *into*: nothing is ever swapped, so there is no ring of three to break and no
@@ -73,8 +73,8 @@ class VisualizationTab(QWidget):
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
-        self.layout.addWidget(self.toolbar)
-        self.layout.addWidget(self.canvas)
+        self.plot_layout.addWidget(self.toolbar)
+        self.plot_layout.addWidget(self.canvas)
 
         self._populate_filters()
 

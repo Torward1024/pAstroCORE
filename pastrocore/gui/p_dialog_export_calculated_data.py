@@ -73,11 +73,14 @@ class ExportCalculatedDataDialog(QDialog):
 
     def done(self, result):
         """Close, but never ahead of the work this dialog started."""
-        stop_and_wait(getattr(self, "thread", None))
+        stop_and_wait(self.worker)
         super().done(result)
 
     def __init__(self, manipulator: ScheduleManipulator, parent=None):
         super().__init__(parent)
+        # Not `thread`: that name is `QObject.thread()`, and a dialog that had started nothing
+        # found the method there, failed on `isRunning`, and would not close.
+        self.worker = None
         self.ui = Ui_ExportCalculatedDataDialog()
         self.ui.setupUi(self)
         self.manipulator = manipulator
@@ -184,15 +187,15 @@ class ExportCalculatedDataDialog(QDialog):
         self.progress_dialog.cancelRequested.connect(self.cancel_export)
         self.progress_dialog.show()
 
-        self.thread = ExportThread(self.manipulator, selected_targets, selected_calcs,
+        self.worker = ExportThread(self.manipulator, selected_targets, selected_calcs,
                                    self.ui.chkExportData.isChecked(), self.ui.chkExportVisualizations.isChecked(), export_path, units)
-        self.thread.progress.connect(self.progress_dialog.update_progress)
-        self.thread.finished.connect(self.export_finished)
-        self.thread.error.connect(self.export_error)
-        self.thread.start()
+        self.worker.progress.connect(self.progress_dialog.update_progress)
+        self.worker.finished.connect(self.export_finished)
+        self.worker.error.connect(self.export_error)
+        self.worker.start()
 
     def cancel_export(self):
-        self.thread.cancel()
+        self.worker.cancel()
 
     def export_finished(self):
         self.progress_dialog.finish()

@@ -83,11 +83,14 @@ class CalculationDialog(QDialog):
 
     def done(self, result):
         """Close, but never ahead of the work this dialog started."""
-        stop_and_wait(getattr(self, "thread", None))
+        stop_and_wait(self.worker)
         super().done(result)
 
     def __init__(self, manipulator: ScheduleManipulator, targets=None, calc_type=None, time_step=600, parent=None):
         super().__init__(parent)
+        # Not `thread`: that name is `QObject.thread()`, and a dialog that had started nothing
+        # found the method there, failed on `isRunning`, and would not close.
+        self.worker = None
         self.ui = Ui_CalculationDialog()
         self.ui.setupUi(self)
         self.manipulator = manipulator
@@ -313,12 +316,12 @@ class CalculationDialog(QDialog):
         self.progress_dialog.show()
 
         selected_keys = [self._key_for_label(label) for label in selected_calcs]
-        self.thread = CalculationThread(self.manipulator, selected_targets, selected_keys,
+        self.worker = CalculationThread(self.manipulator, selected_targets, selected_keys,
                                         calc_params)
-        self.thread.progress.connect(self.progress_dialog.update_progress)
-        self.thread.finished.connect(self.calculation_finished)
-        self.thread.error.connect(self.calculation_error)
-        self.thread.start()
+        self.worker.progress.connect(self.progress_dialog.update_progress)
+        self.worker.finished.connect(self.calculation_finished)
+        self.worker.error.connect(self.calculation_error)
+        self.worker.start()
 
         if self.ui.timeStepSpin.value() != self.time_step:
             self.time_step_updated.emit(self.ui.timeStepSpin.value())
@@ -364,8 +367,8 @@ class CalculationDialog(QDialog):
     def cancel_calculation(self):
         """Handle user cancellation."""
         logger.debug("Cancellation requested by user")
-        if hasattr(self, 'thread') and self.thread:
-            self.thread.cancel()
+        if self.worker is not None:
+            self.worker.cancel()
 
     def load_settings(self):
         """Load dialog-specific settings."""

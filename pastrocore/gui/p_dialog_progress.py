@@ -1,6 +1,6 @@
 # pastrocore/gui/p_dialog_progress.py
 """The progress of work running in a thread, and the one way to stop it."""
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QDialog
 from msb_arch.utils.logging_setup import logger
 
@@ -69,7 +69,8 @@ def stop_and_wait(thread) -> None:
           dialog can be closed -- a script, a test, a parent closing. Cancellation lands between
           steps, so the wait is at most the step in flight.
     """
-    if thread is None or not thread.isRunning():
+    # Checked by type: anything that is not a thread has nothing to wait for.
+    if not isinstance(thread, QThread) or not thread.isRunning():
         return
     logger.info("Waiting for the work in progress to stop before closing")
     thread.cancel()
