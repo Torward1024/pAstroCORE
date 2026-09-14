@@ -44,6 +44,16 @@ RELATIVE_TOLERANCE = 5e-4
 # Below this magnitude a relative comparison is meaningless, so it becomes an absolute one.
 ABSOLUTE_FLOOR = 1e-8
 
+# **Times are compared in seconds, not relatively.** A time here is an MJD near 61000, and five
+# parts in ten thousand of that is thirty days: a result shifted by an hour -- a time zone, a UTC
+# taken for TAI -- sat far inside the relative tolerance and passed. It was only ever caught
+# through some other column that happened to move with it; `time_on_source` lost one sampling
+# step from `end` and the comparison saw it in `duration`, never in `end`. Measured, times
+# recompute to exactly the saved value -- they are arithmetic, untouched by Earth orientation --
+# so a millisecond is a margin rather than an estimate.
+TIME_COLUMNS = ("time", "start", "end")
+TIME_TOLERANCE_SECONDS = 1e-3
+
 
 def worst_difference(actual, expected):
     """Return the largest relative difference between two frames, and the column it is in.
@@ -69,6 +79,11 @@ def worst_difference(actual, expected):
                     # That hid a genuine defect -- baseline projections were entirely NaN and
                     # this comparison called the recomputation identical.
                     difference = math.inf
+                elif column in TIME_COLUMNS:
+                    # Expressed on the same scale as everything else: a time off by exactly
+                    # the tolerance reports as exactly `RELATIVE_TOLERANCE`.
+                    seconds = abs(left - right) * 86400.0
+                    difference = seconds / TIME_TOLERANCE_SECONDS * RELATIVE_TOLERANCE
                 else:
                     scale = max(abs(left), abs(right), ABSOLUTE_FLOOR)
                     difference = abs(left - right) / scale
@@ -167,6 +182,18 @@ def test_the_comparison_notices_a_real_change(manipulator, observation, saved_re
 
     worst, _ = worst_difference(nudged, saved)
     assert worst > RELATIVE_TOLERANCE, "a one-in-a-thousand change must not pass"
+
+
+def test_the_comparison_notices_a_time_moved_by_one_second(saved_results):
+    """Relative to an MJD, one second is two parts in ten billion, and an hour barely more.
+    Every time column must notice a second, whatever else moved with it."""
+    for key, saved in saved_results.items():
+        frame = saved["data"]
+        for column in (c for c in TIME_COLUMNS if c in frame.columns):
+            moved = frame.with_columns(frame[column] + 1.0 / 86400.0)
+            worst, where = worst_difference(moved, frame)
+            assert worst > RELATIVE_TOLERANCE and where == column, (
+                f"'{key}.{column}' moved by a second and the comparison did not see it")
 
 
 def test_visibility_transforms_only_the_frame_the_mount_is_limited_in(project, monkeypatch):
