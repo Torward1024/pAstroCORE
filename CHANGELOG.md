@@ -8,6 +8,85 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.8.0] - 2026-09-14
+
+A third audit, and the first to check the numbers against physics rather than against themselves.
+Two results were wrong, two test harnesses could not have noticed, a failed save destroyed what it
+replaced, and a full calculation takes less than half the time it did.
+
+### Fixed
+
+- **The beam pattern was drawn pi times too wide at every frequency.** A result holds one curve
+  per dish and the plot gives it the frequency chosen in the tab -- that design stands. The curve
+  keeps `x = D sin(t)`; the Airy pattern has `x = pi D sin(theta) / lambda`, so the angle is
+  `sin(theta) = lambda sin(t) / pi`, and the plot drew `theta = t * lambda`. A 70 m dish at 1 GHz
+  was shown with a half-power width of 0.79 degrees; it has 0.25. The axis is now in degrees and
+  each station has its own scale, since a large dish's beam was a line on a shared one.
+
+- **Time on source lost one sampling step from every block.** A block of k samples was measured
+  from its first sample to its last, k - 1 steps. A source seen in one sample was on source for
+  zero seconds, a scan visible throughout came out shorter than the scan, and a schedule of short
+  scans lost up to a tenth of its time on source. The fixture's blocks now end at 00:20 with
+  32400 s, not at 00:15 with 32100 s -- which is what the analysis tab already said.
+
+- **"Total" on the time-on-source plot stopped at the first of two touching scans**, so two hours
+  in common across two scans were reported as one. It counted open telescopes in a set, and at
+  the seam the start of the second scan was a no-op and the end of the first removed the station.
+
+- **A save that failed part way destroyed the saved result it was replacing.** Results and
+  `project.json` were written in place, and a parquet write truncates before it encodes: a full
+  disk or an application closed mid-save left the result at zero bytes, and for `project.json`, a
+  project with nothing to open. Every file is now written beside the old one and moved over it.
+  Removing a results directory also waits out a file Windows has not yet let go of.
+
+- **A window idle for an hour lost its scratch to the next window.** An empty scratch directory's
+  time never moves, so it looked like litter and was swept without asking whether its process was
+  alive. Its results then went into a directory without a session marker, and after a crash there
+  was nothing to offer back.
+
+- **Escape on a progress window left the work running, and closing the application then aborted
+  it** (`QThread: Destroyed while thread is still running`, 0xC0000409). Escape and the close
+  button now cancel, and a dialog does not close ahead of its thread. The three copies of the
+  progress window are one.
+
+- **A generation that made nothing closed its dialog as if it had worked**, because the thread
+  wrapped the generator's answer in `{"status": True}`. A cancel now names the observations
+  already added instead of `[]`.
+
+- **`run` and `replay` on a package** calculated everything, then failed on saving a directory
+  over a file and lost it all. They refuse a package before calculating.
+
+- **The beam pattern declared a dependency on the frequencies it never reads**, so editing a band
+  marked it stale. A beam saved before this is reported stale once.
+
+### Changed
+
+- **A full calculation takes less than half the time.** On the fixture at a 60 s step: 2.22 s on
+  the clock and 3.75 s of work, now 0.97 s and 1.05 s.
+  - The Sun angle is taken between two directions -- the Sun from the station, the source -- in
+    numpy, once per scan, instead of three astropy transforms per station: 1.12 s to 0.16 s. It
+    agrees with astropy's topocentric `get_body` to 0.21", and for a spacecraft it now uses the Sun
+    as seen from the spacecraft, where it had used the geocentre.
+  - Visibility, az/el and the parallactic angle share one topocentric transform, cached by what it
+    is made of and bounded in bytes; the parallactic angle is taken from altitude and azimuth.
+    Az/el went from 0.81 s to 0.02 s, the parallactic angle from 0.70 s to 0.02 s.
+
+### Added
+
+- **`tests/test_physics.py`** derives every result a second way -- from astropy, or from the
+  geometry the result claims to be -- on a fresh recomputation: az/el, parallactic angle, Sun
+  angle, visibility, uvw, baseline projections, Mollweide tracks, time on source and the drawn
+  beam. Characterization says the numbers did not change; this says they are right. With the
+  station's parallax removed from the Sun angle, characterization passed and this failed at 8".
+
+- **Characterization compares times in seconds.** A relative tolerance on an MJD near 61000 is
+  thirty days wide, so a result shifted by an hour passed.
+
+- **The plot harness sees what a plot draws.** It read the offsets of `fill_between` polygons,
+  which are all (0, 0), and compared MJD coordinates relatively: a time-on-source bar five minutes
+  longer compared equal, difference 0.00. It now records polygon vertices, the labels a reader
+  reads, and coordinates from the axes' origin.
+
 ## [1.7.2] - 2026-09-10
 
 ### Removed
