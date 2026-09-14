@@ -25,7 +25,9 @@ when a key is actually asked for.
 """
 import json
 import math
+import os
 import shutil
+import time
 from collections import OrderedDict
 from pathlib import Path
 from threading import RLock
@@ -37,6 +39,52 @@ from msb_arch.utils.logging_setup import logger
 __all__ = ["CalculatedData", "ResultStore"]
 
 METADATA_SUFFIX = ".meta.json"
+
+#: Appended to a file while it is being written. Nothing globs for it: `*.parquet` does not match
+#: `uv_coverage.parquet.partial`, so a write interrupted half way is never taken for a result.
+PARTIAL_SUFFIX = ".partial"
+
+
+def _partial(path: Path) -> Path:
+    """The sibling a file is written to before it replaces `path`."""
+    return path.with_name(path.name + PARTIAL_SUFFIX)
+
+
+def remove_tree(path: Path, attempts: int = 5) -> None:
+    """Delete a directory, allowing Windows the moment it takes to let go of a fresh file.
+
+    Args:
+        path (Path): What to delete.
+        attempts (int): How many times to try before the error is real.
+
+    Raises:
+        OSError: If it still cannot be removed.
+
+    Notes:
+        - A file written a moment ago is often still open in someone else's hands -- the search
+          indexer, the antivirus -- and its deletion is only *pending*. Removing its directory
+          then fails with "the directory is not empty" (WinError 145), and nothing is wrong.
+          Renaming an observation onto an existing name failed this way, and so did the last
+          step of a save, after every result had already been written.
+    """
+    for attempt in range(attempts):
+        try:
+            shutil.rmtree(path)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.05 * 2 ** attempt)
+
+
+def _discard_partials(*paths: Path) -> None:
+    for path in paths:
+        try:
+            _partial(path).unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def json_safe(value: Any) -> Any:
@@ -110,8 +158,13 @@ class ResultStore:
         _, metadata_path = self._paths(owner, key)
         if not metadata_path.parent.is_dir():
             raise IOError(f"no results stored for '{owner}'")
-        metadata_path.write_text(
-            json.dumps(json_safe(metadata), indent=2, allow_nan=False), encoding="utf-8")
+        text = json.dumps(json_safe(metadata), indent=2, allow_nan=False)
+        try:
+            _partial(metadata_path).write_text(text, encoding="utf-8")
+            os.replace(_partial(metadata_path), metadata_path)
+        except BaseException:
+            _discard_partials(metadata_path)
+            raise
 
     def metadata(self, owner: str, key: str) -> Optional[Dict[str, Any]]:
         """Return one result's metadata without reading the result.
@@ -149,7 +202,7 @@ class ResultStore:
         if not source.is_dir():
             return
         if target.exists():
-            shutil.rmtree(source)
+            remove_tree(source)
             logger.warning("Results already exist under '%s'; dropped those left under '%s'", new, old)
             return
         source.rename(target)
@@ -220,7 +273,6 @@ class ResultStore:
         """
         data_path, meta_path = self._paths(owner, key)
         data_path.parent.mkdir(parents=True, exist_ok=True)
-        frame.write_parquet(data_path)
 
         # Whatever the caller says about the frame, the frame is the authority.
         recorded = dict(metadata or {})
@@ -235,7 +287,21 @@ class ResultStore:
                 keepable.pop(name, None)
                 logger.warning("Dropping unserializable metadata '%s' for result '%s' of '%s'",
                                name, key, owner)
-        meta_path.write_text(json.dumps(keepable, indent=2, allow_nan=False), encoding="utf-8")
+
+        # **Both files are written beside the old ones, and only then moved over them.** The
+        # parquet was written in place, and `write_parquet` truncates before it encodes: a
+        # write that failed half way -- a full disk, a closed application, a column that would
+        # not encode -- left the saved result at zero bytes, unreadable, with its old metadata
+        # still describing it. In a saved project that was a calculation gone from disk.
+        try:
+            frame.write_parquet(_partial(data_path))
+            _partial(meta_path).write_text(json.dumps(keepable, indent=2, allow_nan=False),
+                                           encoding="utf-8")
+            os.replace(_partial(data_path), data_path)
+            os.replace(_partial(meta_path), meta_path)
+        except BaseException:
+            _discard_partials(data_path, meta_path)
+            raise
         logger.debug("Wrote result '%s' for '%s': %s rows", key, owner, frame.height)
 
     def drop(self, owner: str, key: Optional[str] = None) -> None:

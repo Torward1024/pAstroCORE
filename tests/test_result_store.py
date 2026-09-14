@@ -1059,3 +1059,65 @@ def test_a_frame_with_no_time_records_no_span(tmp_path):
     metadata = store.metadata("obs", "beam_pattern")
     assert "start_time" not in metadata
     assert "end_time" not in metadata
+
+
+def test_a_write_that_fails_leaves_the_stored_result_whole(tmp_path):
+    """`write_parquet` truncates before it encodes, and the result was written in place.
+
+    A write that failed part way -- here a column that will not encode; in use a full disk or an
+    application closed mid-save -- left the saved result at zero bytes, unreadable, with the old
+    metadata still describing it.
+    """
+    store = ResultStore(tmp_path)
+    store.write("obs", "uv_coverage", pl.DataFrame({"u": [1.0, 2.0, 3.0]}), {"time_step": 300.0})
+
+    unencodable = pl.DataFrame({"u": [object()]}, schema={"u": pl.Object})
+    with pytest.raises(Exception):
+        store.write("obs", "uv_coverage", unencodable, {"time_step": 60.0})
+
+    kept = store.read("obs", "uv_coverage")
+    assert kept["data"]["u"].to_list() == [1.0, 2.0, 3.0], "the saved result was destroyed"
+    assert kept["metadata"]["time_step"] == 300.0, "and its metadata no longer describes it"
+    assert store.keys("obs") == ["uv_coverage"]
+    assert not list((tmp_path / "obs").glob("*.partial")), "a half-written file was left behind"
+
+
+def test_removing_a_directory_waits_out_a_file_windows_has_not_let_go_of(tmp_path, monkeypatch):
+    """"The directory is not empty" right after a file in it was written is Windows finishing a
+    pending delete, not an error. It failed a rename onto an existing observation name, and the
+    last step of a save."""
+    import shutil
+
+    from pastrocore.base import result_store
+
+    directory = tmp_path / "first"
+    directory.mkdir()
+    (directory / "times.parquet").write_bytes(b"x")
+
+    real_rmtree, calls = shutil.rmtree, []
+
+    def not_yet(path, *args, **kwargs):
+        calls.append(path)
+        if len(calls) < 3:
+            raise OSError(145, "The directory is not empty")
+        return real_rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(result_store.shutil, "rmtree", not_yet)
+    monkeypatch.setattr(result_store.time, "sleep", lambda seconds: None)
+
+    result_store.remove_tree(directory)
+
+    assert not directory.exists() and len(calls) == 3
+
+
+def test_a_directory_that_really_cannot_be_removed_still_says_so(tmp_path, monkeypatch):
+    from pastrocore.base import result_store
+
+    def never(path, *args, **kwargs):
+        raise OSError(5, "Access is denied")
+
+    monkeypatch.setattr(result_store.shutil, "rmtree", never)
+    monkeypatch.setattr(result_store.time, "sleep", lambda seconds: None)
+
+    with pytest.raises(OSError):
+        result_store.remove_tree(tmp_path)

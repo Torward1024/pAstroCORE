@@ -2,7 +2,8 @@
 from typing import Dict, List, Optional
 from pastrocore.base.observation import Observation
 from pastrocore.base import freshness
-from pastrocore.base.result_store import ResidencyBudget, ResultStore, json_safe
+from pastrocore.base.result_store import (PARTIAL_SUFFIX, ResidencyBudget, ResultStore, json_safe,
+                                         remove_tree)
 from pastrocore.base.scratch import ScratchSpace
 from msb_arch import InvariantError, invariant
 from msb_arch.super.project import Project
@@ -10,7 +11,7 @@ from msb_arch.utils.validation import check_type, check_non_empty_string
 from msb_arch.utils.logging_setup import logger
 import uuid
 import json
-import shutil
+import os
 from pathlib import Path
 
 class ScheduleProject(Project):
@@ -306,8 +307,19 @@ class ScheduleProject(Project):
 
         # allow_nan=False so an unrepresentable number fails here, loudly, rather than
         # producing a file only a lenient parser can read.
-        (root / self.MODEL_FILE).write_text(
-            json.dumps(json_safe(model), indent=4, allow_nan=False), encoding="utf-8")
+        #
+        # Written beside the old model and moved over it, like every result: this is the one
+        # file without which the project does not open at all, and writing it in place meant a
+        # save interrupted part way left nothing to open.
+        text = json.dumps(json_safe(model), indent=4, allow_nan=False)
+        model_path = root / self.MODEL_FILE
+        partial = model_path.with_name(model_path.name + PARTIAL_SUFFIX)
+        try:
+            partial.write_text(text, encoding="utf-8")
+            os.replace(partial, model_path)
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
 
         # Results belonging to observations the project no longer has. Left in place they are
         # not merely clutter: renaming an observation away and back would find the old results
@@ -316,7 +328,7 @@ class ScheduleProject(Project):
         dropped = 0
         for directory in (root / self.RESULTS_DIRECTORY).iterdir():
             if directory.is_dir() and directory.name not in model["items"]:
-                shutil.rmtree(directory)
+                remove_tree(directory)
                 dropped += 1
         if dropped:
             logger.info("Dropped results for %s observation(s) no longer in the project", dropped)

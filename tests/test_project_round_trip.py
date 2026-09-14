@@ -221,3 +221,31 @@ def test_a_project_holding_a_space_telescope_opens(tmp_path):
     reopened = ScheduleProject.open(str(root))
     restored = reopened.get_observation("obs_space").get_telescopes().get_all()["RadioAstron"]
     assert isinstance(restored, SpaceTelescope)
+
+
+def test_a_save_interrupted_part_way_leaves_the_last_save_openable(project, tmp_path, monkeypatch):
+    """`project.json` was written in place, and it is the one file without which a project does
+    not open at all. A save that failed while writing it -- a full disk, an application closed
+    mid-save -- left a truncated model and nothing to open."""
+    import pathlib
+
+    root = tmp_path / "saved"
+    project.save(str(root))
+    before = (root / ScheduleProject.MODEL_FILE).read_text(encoding="utf-8")
+
+    real_write = pathlib.Path.write_text
+
+    def disk_fills_half_way(self, data, *args, **kwargs):
+        if self.name.startswith(ScheduleProject.MODEL_FILE):
+            real_write(self, data[: len(data) // 2], *args, **kwargs)
+            raise OSError("No space left on device")
+        return real_write(self, data, *args, **kwargs)
+
+    monkeypatch.setattr(pathlib.Path, "write_text", disk_fills_half_way)
+    with pytest.raises(OSError):
+        project.save(str(root))
+    monkeypatch.undo()
+
+    assert (root / ScheduleProject.MODEL_FILE).read_text(encoding="utf-8") == before
+    assert ScheduleProject.open(str(root)).observations(), "the last save no longer opens"
+    assert not list(root.glob("*.partial")), "a half-written model was left behind"
