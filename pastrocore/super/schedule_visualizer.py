@@ -1309,24 +1309,29 @@ class ScheduleVisualizer(Super):
                 # That raised KeyError and took the whole plot with it.
                 time_points.sort(key=lambda point: (point[0], point[1] != "start", point[2]))
 
-                # Find intervals where all telescopes are active
+                # Find intervals where all telescopes are active.
+                #
+                # **Counted, not collected in a set.** A telescope can hold two blocks at once
+                # -- two scans touching end to start, or one antenna on two frequencies -- and a
+                # set forgets the second: at the seam the start of B was a no-op, the end of A
+                # removed the telescope, and "Total" stopped at the first scan. Two stations
+                # seeing a source for two hours across two scans were reported as one hour.
                 intersection_times = []
-                active_telescopes = set()
+                open_blocks = {tel: 0 for tel in tel_list}
                 start_time = None
                 for time, point_type, tel in time_points:
                     if point_type == "start":
-                        active_telescopes.add(tel)
-                        if len(active_telescopes) == len(tel_list) and start_time is None:
+                        open_blocks[tel] += 1
+                        if start_time is None and all(open_blocks.values()):
                             start_time = time
                     else:  # point_type == "end"
-                        if len(active_telescopes) == len(tel_list) and start_time is not None:
+                        # Never below zero: an end without a matching start says the data is
+                        # odd, not that the plot should fail.
+                        open_blocks[tel] = max(open_blocks[tel] - 1, 0)
+                        if start_time is not None and not all(open_blocks.values()):
                             intersection_times.append((start_time, time))
                             start_time = None
-                        # discard rather than remove: the set is a view of what is currently
-                        # open, and an end without a matching start says the data is odd, not
-                        # that the plot should fail.
-                        active_telescopes.discard(tel)
-                    logger.debug("Time: %s, Type: %s, Telescope: %s, Active: %s", time, point_type, tel, active_telescopes)
+                    logger.debug("Time: %s, Type: %s, Telescope: %s, Open: %s", time, point_type, tel, open_blocks)
 
                 # Plot intersection times
                 for i, (start, end) in enumerate(intersection_times):

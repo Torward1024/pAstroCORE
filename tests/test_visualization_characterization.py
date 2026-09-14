@@ -11,7 +11,7 @@ an exception that empties the plot removes them entirely. Both fail here.
 
 The reference lives in `fixtures/visualization_reference.json` and is regenerated with:
 
-    python -m tests.test_visualization_characterization --regenerate
+    python tests/test_visualization_characterization.py --regenerate
 
 Regenerating it is a deliberate act, and the reason belongs in the commit message that carries
 the new file.
@@ -20,6 +20,7 @@ import json
 import math
 import pathlib
 
+import numpy as np
 import pytest
 
 REFERENCE = pathlib.Path(__file__).parent / "fixtures" / "visualization_reference.json"
@@ -52,23 +53,57 @@ def drawn_points(figure):
     """
     axes_summary = []
     for axes in figure.get_axes():
-        lines = []
-        for line in axes.get_lines():
-            x, y = line.get_data()
-            lines.append([[_clean(v) for v in list(x)], [_clean(v) for v in list(y)]])
-        collections = []
-        for collection in axes.collections:
-            offsets = collection.get_offsets()
-            collections.append([[_clean(v) for v in point] for point in offsets.tolist()])
+        raw_lines = [np.column_stack([np.asarray(x, dtype=float), np.asarray(y, dtype=float)])
+                     for x, y in (line.get_data() for line in axes.get_lines())]
+        raw_collections = [_collection_points(collection) for collection in axes.collections]
+
+        # **Measured from the smallest coordinate the axes draw.** A relative tolerance on an
+        # MJD near 61000 is thirty days wide, so a bar moved by a sampling step -- or by an hour
+        # -- compared equal. From an origin, the same step is a visible part of the span.
+        drawn = [points for points in raw_lines + raw_collections if len(points)]
+        stacked = np.vstack(drawn) if drawn else np.zeros((0, 2))
+        finite = stacked[np.all(np.isfinite(stacked), axis=1)]
+        origin = finite.min(axis=0) if len(finite) else np.zeros(2)
+
         axes_summary.append({
             "title": axes.get_title(),
             "xlabel": axes.get_xlabel(),
             "ylabel": axes.get_ylabel(),
-            "lines": lines,
-            "collections": collections,
+            "origin": [_clean(value) for value in origin],
+            "lines": [_relative(points, origin, as_columns=True) for points in raw_lines],
+            "collections": [_relative(points, origin) for points in raw_collections],
+            # What a reader reads off the plot: the "Total" of time on source is a label, not
+            # a coordinate, and nothing guarded it.
+            "texts": [label.get_text() for label in axes.texts],
             "images": len(axes.images),
         })
     return {"axes": axes_summary}
+
+
+def _collection_points(collection):
+    """Return what a collection draws, as an (n, 2) array.
+
+    Notes:
+        - A scatter places copies of one marker at its offsets, so the offsets are the data. A
+          filled region is the other way round: `fill_between` draws polygons whose offsets
+          are a single `(0, 0)` and whose data is the vertices. Reading only offsets recorded
+          every bar of `time_on_source` as the same point, so a bar of any length passed.
+    """
+    offsets = np.asarray(collection.get_offsets(), dtype=float).reshape(-1, 2)
+    if len(offsets) and np.any(offsets != 0.0):
+        return offsets
+    paths = collection.get_paths()
+    if not paths:
+        return offsets
+    return np.vstack([np.asarray(path.vertices, dtype=float) for path in paths])
+
+
+def _relative(points, origin, as_columns=False):
+    """Coordinates less the axes' origin, rounded, as lists -- columns for a line, rows otherwise."""
+    shifted = np.asarray(points, dtype=float) - origin if len(points) else np.zeros((0, 2))
+    if as_columns:
+        return [[_clean(v) for v in shifted[:, 0]], [_clean(v) for v in shifted[:, 1]]]
+    return [[_clean(v) for v in row] for row in shifted]
 
 
 def _clean(value):
@@ -345,3 +380,55 @@ def test_a_zero_length_block_does_not_take_the_plot_with_it(manipulator, observa
 
     figure = render(manipulator, observation, "time_on_source")
     assert figure is not None, "a zero-length block must not destroy the plot"
+
+
+def test_a_bar_moved_by_one_sampling_step_is_noticed(manipulator, observation, reference):
+    """The harness has to see what `time_on_source` draws, and see it move.
+
+    It saw neither. `fill_between` draws polygons whose offsets are a single `(0, 0)`, so every
+    bar was recorded as the same point; and a relative tolerance on an MJD near 61000 is thirty
+    days wide. A bar one sampling step longer -- which is exactly what correcting the block
+    duration produced -- compared equal to the old one.
+    """
+    import polars as pl
+
+    stored = observation.get_calculated_data_by_key("time_on_source")
+    frame = stored["data"]
+    longer = frame.with_columns((pl.col("end") + 300.0 / 86400.0).alias("end"),
+                                (pl.col("duration") + 300.0).alias("duration"))
+    observation.set_calculated_data_by_key("time_on_source", longer, stored.get("metadata") or {})
+
+    worst, where = worst_difference(drawn_points(render(manipulator, observation, "time_on_source")),
+                                    reference["time_on_source"])
+    assert worst > RELATIVE_TOLERANCE, (
+        f"a bar five minutes longer compared equal to the reference (worst {worst:.2e} at {where})")
+
+
+def test_total_carries_across_scans_that_touch(manipulator, observation):
+    """Two stations seeing a source for two hours, across two scans that meet end to start.
+
+    "Total" kept the open telescopes in a set. At the seam the start of the second scan was a
+    no-op and the end of the first removed the telescope, so the intersection stopped at the
+    first scan: one hour reported for two. Touching scans are the ordinary case once a block
+    lasts as long as its samples do.
+    """
+    import polars as pl
+
+    from pastrocore.base.data_structure import CalculatedDataStructure
+
+    hour = 1.0 / 24.0
+    rows = [{"source_name": "1228+126", "scan_name": scan, "telescope_code": station,
+             "start": 61000.0 + offset, "end": 61000.0 + offset + hour, "duration": 3600.0}
+            for scan, offset in (("first", 0.0), ("second", hour))
+            for station in ("ALMA", "APEX")]
+    observation.set_calculated_data_by_key(
+        "time_on_source", pl.DataFrame(rows, schema=CalculatedDataStructure.get_dtypes("time_on_source")),
+        {"time_step": 300.0, "scan_count": 2, "visibility_store_key": "source_visibility"})
+
+    answer = manipulator.visualize(obj=observation, plot_type="time_on_source", return_figure=True,
+                                   show=False, raise_on_error=False, source_name="1228+126",
+                                   telescopes=["ALMA", "APEX"])
+    labels = [label.get_text() for label in answer.value["figure"].get_axes()[0].texts]
+
+    assert answer.value["intersections"] == 1
+    assert labels == ["7200.0s"], f"two hours in common across two scans, the plot said {labels}"
