@@ -225,3 +225,54 @@ def test_visibility_transforms_only_the_frame_the_mount_is_limited_in(project, m
     assert not built, (
         f"the hour-angle frame was built {len(built)} time(s) for an array that cannot be "
         f"limited in it")
+
+
+def test_the_three_steps_that_look_from_a_station_share_one_transform(project, monkeypatch):
+    """Visibility, az/el and the parallactic angle each rebuilt a station's location and
+    transformed the source into the same frame over the same samples -- together more than half
+    of a run's work. Counted: one AltAz per station per scan for all three, not three."""
+    from pastrocore.super import schedule_calculator
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.observations()[0]
+    stations = len(observation.get_telescopes().get_items())
+    scans = len(observation.get_scans().get_items())
+
+    built = []
+    original = schedule_calculator.AltAz
+    monkeypatch.setattr(schedule_calculator, "AltAz",
+                        lambda *args, **kwargs: built.append(1) or original(*args, **kwargs))
+
+    ScheduleManipulator(project).compute(
+        obj=None, method="run", targets=[observation],
+        calculations=["source_visibility", "az_el", "parallactic_angle"],
+        time_step=600.0, force=True)
+
+    assert len(built) == stations * scans, (
+        f"{len(built)} AltAz frames for {stations} station(s) over {scans} scan(s)")
+
+
+def test_the_shared_transforms_stay_within_their_budget(manipulator, observation, monkeypatch):
+    """Keyed by content, so nothing goes stale -- which also means nothing leaves unless
+    something makes it. A day at a one-second step is 6 MB a station; the bound is bytes."""
+    import numpy as np
+
+    from pastrocore.super.schedule_calculator import ScheduleCalculator
+
+    calculator = ScheduleCalculator(manipulator)
+    monkeypatch.setattr(ScheduleCalculator, "TOPOCENTRIC_CACHE_BYTES", 200_000)
+    source = observation.get_sources().get_items()[0]
+    station = np.array(observation.get_telescopes().get_items()[0].get_coordinates())
+
+    for offset in range(4):
+        times = 61262.0 + offset + np.arange(3000) / 86400.0
+        calculator._topocentric(source, np.tile(station, (len(times), 1)), times, "altaz")
+
+    held = sum(values.nbytes for entry in calculator._topocentric_cache.values() for values in entry)
+    assert held <= 200_000 or len(calculator._topocentric_cache) == 1
+    assert held == calculator._topocentric_bytes, "the running count drifted from what is held"
+
+    first = calculator._topocentric(source, np.tile(station, (3000, 1)), times, "altaz")
+    again = calculator._topocentric(source, np.tile(station, (3000, 1)), times, "altaz")
+    assert first is again, "the same question was answered twice"
+    assert not first[0].flags.writeable, "a shared answer must not be editable by one reader"
