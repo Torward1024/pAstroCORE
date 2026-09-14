@@ -2689,6 +2689,20 @@ class ScheduleCalculator(Super):
             logger.warning("No valid times for scan '%s' in source '%s'", scan_name, source_name)
             return None
 
+        # One sample alone covers the whole scan and sits at its middle: that is how the grid
+        # is built without a step. Otherwise each sample opens the spacing that follows it.
+        if n_times > 1:
+            # Across the whole grid rather than between two neighbours: an MJD near 61000 is
+            # resolved to about a microsecond, and one neighbouring difference carries all of
+            # that error into every sample a block holds.
+            # To the microsecond, which is all an MJD this size resolves: what is left beyond
+            # it is float noise, and it reached the exported file as 32400.000000105138.
+            spacing_seconds = round((times_mjd[-1] - times_mjd[0]) * 86400.0 / (n_times - 1), 6)
+            opens_at = 0.0
+        else:
+            spacing_seconds = float(scan.get_duration())
+            opens_at = spacing_seconds / 2.0
+
         scan_names = []
         telescope_codes = []
         source_names = []
@@ -2703,31 +2717,31 @@ class ScheduleCalculator(Super):
                 logger.warning("No visibility data for telescope '%s' in scan '%s'", tel_code, scan_name)
                 continue
 
-            visibility = tel_visibility["visibility"].to_numpy()
+            visibility = tel_visibility["visibility"].to_numpy().astype(bool)
             if len(visibility) != n_times:
                 logger.warning("Visibility data length mismatch for '%s' in scan '%s': got %s, expected %s", tel_code, scan_name, len(visibility), n_times)
-                visibility = np.full(n_times, False)[:min(len(visibility), n_times)] if len(visibility) > 0 else np.full(n_times, False)
+                continue
 
-            diff = np.diff(visibility.astype(int))
-            start_indices = np.where(diff == 1)[0] + 1
-            end_indices = np.where(diff == -1)[0]
-            if visibility[0]:
-                start_indices = np.concatenate(([0], start_indices))
-            if visibility[-1]:
-                end_indices = np.concatenate((end_indices, [n_times - 1]))
-            if len(start_indices) > len(end_indices):
-                end_indices = np.concatenate((end_indices, [n_times - 1]))
-            elif len(end_indices) > len(start_indices):
-                start_indices = np.concatenate(([0], start_indices))
-
-            if len(start_indices) == 0 or len(end_indices) == 0:
+            # Runs of visible samples: padded with False on both sides, a run starts where the
+            # difference is +1 and ends -- exclusively -- where it is -1.
+            edges = np.diff(np.concatenate(([0], visibility.astype(np.int8), [0])))
+            start_indices = np.flatnonzero(edges == 1)
+            end_indices = np.flatnonzero(edges == -1)
+            if len(start_indices) == 0:
                 logger.debug("No visibility blocks for telescope '%s' in scan '%s'", tel_code, scan_name)
                 continue
 
+            # **A sample stands for one spacing of the grid, so a run of k samples lasts k
+            # spacings.** Measuring from the first visible sample to the last counted k - 1:
+            # every block lost one step, a source seen in a single sample was on source for
+            # zero seconds, and a scan visible throughout came out shorter than the scan. The
+            # grid is `linspace(0, duration, n, endpoint=False)`, so the spacing is read off
+            # the grid itself -- a scan whose length is not a multiple of the step is sampled
+            # more finely than `time_step`.
             n_blocks = len(start_indices)
-            blocks_start = times_mjd[start_indices]
-            blocks_end = times_mjd[end_indices]
-            blocks_duration = (blocks_end - blocks_start) * 86400.0  # Конвертация MJD в секунды
+            blocks_start = times_mjd[start_indices] - opens_at / 86400.0
+            blocks_duration = (end_indices - start_indices) * spacing_seconds
+            blocks_end = blocks_start + blocks_duration / 86400.0
 
             scan_names.append(np.full(n_blocks, scan_name, dtype=object))
             telescope_codes.append(np.full(n_blocks, tel_code, dtype=object))

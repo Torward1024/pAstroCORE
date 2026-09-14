@@ -107,10 +107,14 @@ def test_the_bytes_are_what_the_dialog_used_to_produce(project, tmp_path):
     """The move is only safe if the files are identical, not merely similar.
 
     These digests were taken from the previous implementation before a line was moved.
+
+    `Time_on_Source.txt` was taken again, once, on purpose: a block of k samples lasted k - 1
+    sampling steps, so the fixture's two blocks ended at 00:15 with 32100 s where the source was
+    visible until 00:20 for 32400 s. The other three files are the originals.
     """
     expected = {
         "OBS_DEFAULT_UV_Coverage.txt": "3d434be646a57a43",
-        "OBS_DEFAULT_Time_on_Source.txt": "d8d4a3c61ea1d50c",
+        "OBS_DEFAULT_Time_on_Source.txt": "3b2c81e0b5f08fb3",
         "OBS_DEFAULT_Sun_Angles.txt": "2f7195b35eaa09d5",
         "OBS_DEFAULT_Mollweide.txt": "4c8e76c65530fc78",
     }
