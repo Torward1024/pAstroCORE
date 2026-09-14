@@ -924,12 +924,13 @@ def test_looking_for_abandoned_sessions_does_not_ask_about_every_directory(tmp_p
     assert len(found) == 1 and found[0].results == 1
 
 
-def test_scratch_directories_holding_nothing_are_swept(tmp_path):
+def test_scratch_directories_holding_nothing_are_swept(tmp_path, monkeypatch):
     """One accumulates per run otherwise. "A scratch directory is not litter" protects
-    calculations, and one holding none is exactly litter."""
+    calculations, and one holding none is exactly litter -- once its session has ended."""
     import os
     import time
 
+    from pastrocore.base import scratch as scratch_module
     from pastrocore.base.scratch import ScratchSpace
 
     root = tmp_path / "scratch"
@@ -940,6 +941,8 @@ def test_scratch_directories_holding_nothing_are_swept(tmp_path):
 
     old = time.time() - 7200
     os.utime(empty.path, (old, old))
+    # Both were made by this process; the one being swept has to belong to one that ended.
+    monkeypatch.setattr(scratch_module, "live_pids", lambda: set())
 
     ScratchSpace.abandoned(root=root)
 
@@ -959,6 +962,32 @@ def test_a_session_running_right_now_is_not_swept(tmp_path):
     ScratchSpace.abandoned(root=root)
 
     assert fresh.path.exists(), "a directory touched moments ago belongs to a live session"
+
+
+def test_an_idle_session_is_not_swept_while_its_window_is_open(tmp_path):
+    """A window open for an hour without calculating lost its scratch to the next window.
+
+    The directory is created when a project is opened, and an empty directory's time never
+    moves, so idleness looked like abandonment. The next window to start deleted it; the first
+    then wrote its results into a directory recreated without a marker, and when it crashed
+    `abandoned` had nothing to offer back.
+    """
+    import os
+    import time
+
+    from pastrocore.base.scratch import MARKER, ScratchSpace
+
+    root = tmp_path / "scratch"
+    open_window = ScratchSpace(root=root, session="idle")
+    store = open_window.store                    # the project is open; nothing calculated yet
+    old = time.time() - 7200
+    os.utime(open_window.path, (old, old))       # and nothing for two hours
+
+    ScratchSpace.abandoned(root=root)            # another window starts
+
+    assert (open_window.path / MARKER).is_file(), "a live session's directory was swept"
+    store.write("obs", "uv_coverage", pl.DataFrame({"u": [1.0]}), {})
+    assert (open_window.path / MARKER).is_file(), "its results would be unrecoverable"
 
 
 def test_numpy_in_metadata_survives_being_written(tmp_path):
