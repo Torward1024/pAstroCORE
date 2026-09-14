@@ -193,8 +193,14 @@ class ScheduleConfigurator(Configurator):
 
             for i, source in enumerate(source_items, 1):
                 if attributes.get("cancelled", False):
-                    logger.info("Observation generation cancelled")
-                    return {"status": False, "error": "Observation generation cancelled", "result": []}
+                    # What was generated before the cancel is already in the project, so it is
+                    # what the answer names. `[]` here told the caller nothing had been added
+                    # while the project held every observation made so far.
+                    logger.info("Observation generation cancelled after %s observation(s)",
+                                len(generated_codes))
+                    return {"status": False, "cancelled": True,
+                            "error": "Observation generation cancelled",
+                            "result": generated_codes}
 
                 if parallel:
                     obs_start = start_time
@@ -337,4 +343,5 @@ class ScheduleConfigurator(Configurator):
 
         except Exception as e:
             logger.error("Error generating observations: %s. Generated %s observations before failure", str(e), len(generated_codes), exc_info=True)
-            return {"status": False, "error": f"Error generating observations: {str(e)}", "result": []}
+            return {"status": False, "error": f"Error generating observations: {str(e)}",
+                    "result": generated_codes}

@@ -73,8 +73,13 @@ class GenerationThread(QThread):
     def run(self):
         """Execute observation generation asynchronously and emit progress signals."""
         try:
-            result = self.manipulator.configure(obj=self.project, generate_observations=self.attributes)
-            self.finished.emit({"status": True, "result": result})
+            # The generator's own answer, passed on as it is: it already says whether anything
+            # was made, and what. Wrapping it as `{"status": True, "result": answer}` made
+            # every run a success -- a range too short for a single observation closed the
+            # dialog as if it had worked, and nobody was told why nothing appeared.
+            answer = self.manipulator.configure(obj=self.project, generate_observations=self.attributes)
+            self.finished.emit(answer if isinstance(answer, dict) else
+                               {"status": False, "error": f"Unexpected answer: {answer!r}", "result": []})
         except Exception as e:
             logger.error("Error in GenerationThread: %s", str(e))
             self.error.emit(str(e))
@@ -566,13 +571,27 @@ class GenerateObservationsDialog(QDialog):
     def generation_finished(self, response):
         """Handle generation completion."""
         self.progress_dialog.close()
-        if response["status"]:
-            self.observation_generated.emit(response["result"])
+        made = list(response.get("result") or [])
+        if response.get("status"):
+            self.observation_generated.emit(made)
             self.accept()
-        else:
-            logger.error("Generation failed: %s. Partial results: %s observations", response.get('error', 'Unknown error'), len(response.get('result', [])))
-            QMessageBox.critical(self, "Error", f"Generation failed: {response.get('error', 'Unknown error')}")
-            self.reject()
+            return
+
+        # Whatever was made before a cancel or a failure is in the project already, so the
+        # project explorer has to hear about it either way.
+        if made:
+            self.observation_generated.emit(made)
+        if response.get("cancelled"):
+            logger.info("Generation cancelled after %s observation(s)", len(made))
+            if made:
+                self.accept()
+            else:
+                self.reject()
+            return
+        logger.error("Generation failed: %s. Partial results: %s observations",
+                     response.get("error", "Unknown error"), len(made))
+        QMessageBox.critical(self, "Error", f"Generation failed: {response.get('error', 'Unknown error')}")
+        self.reject()
 
     @Slot(str)
     def generation_error(self, error):
