@@ -2781,14 +2781,23 @@ class ScheduleCalculator(Super):
     
     @time_execution
     def _calculate_beam_pattern(self, obj: Observation | ScheduleProject, attributes: Dict[str, Any]) -> pl.DataFrame:
-        """Calculate beam pattern for active telescopes in the observation or project, independent of frequency.
+        """Calculate each active telescope's beam, once, for every frequency at the same time.
 
         Args:
             obj: The object to calculate beam pattern for (Observation or ScheduleProject).
             attributes: Parameters including "store_key", "recalculate".
 
         Returns:
-            pl.DataFrame: DataFrame with columns ["telescope_code", "theta", "pattern"] (theta in radians, pattern normalized).
+            pl.DataFrame: Columns ["telescope_code", "theta", "pattern"], pattern normalised.
+
+        Notes:
+            - **`theta` is not an angle.** It is `t` in `x = D sin(t)`, over -pi/2..pi/2, and
+              the pattern is Airy's `(2 J1(x) / x)^2`. The Airy pattern has
+              `x = pi D sin(theta) / lambda`, so at any wavelength the angle is
+              `sin(theta) = lambda sin(t) / pi` -- which is what the visualizer applies. One
+              curve per dish, and the frequency is chosen when it is drawn.
+            - `x` reaches `D`, so a dish under 3.83 m does not reach its first null. The
+              shipped catalogue starts at 6 m.
         """
         try:
             store_key = attributes.get("store_key", "beam_pattern")
@@ -2841,7 +2850,7 @@ class ScheduleCalculator(Super):
 
             metadata = {
                 "telescope_count": self._active_telescope_count(obj),
-                "scale_instruction": "Multiply pattern by wavelength during visualization"
+                "scale_instruction": "sin(theta) = wavelength * sin(t) / pi, t being the stored theta"
             }
             df = self._process_object(obj, attributes, calculate_beam_pattern, store_key, metadata)
 

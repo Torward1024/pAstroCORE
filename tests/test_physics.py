@@ -17,7 +17,8 @@ Tolerances are measured, and stated with the reason they are not zero:
 - uvw, baseline projections and Mollweide tracks are geometry of the saved positions, exact to
   rounding, so they are held to a millimetre and a microdegree.
 
-The beam pattern is not here, because it is not right: see `test_the_beam_pattern_is_not_yet_physical`.
+The beam pattern is checked where its physics lives: a result holds one curve per dish, and it
+is the plot that gives the curve a frequency.
 """
 import warnings
 
@@ -33,8 +34,8 @@ warnings.filterwarnings("ignore", module="erfa")
 
 
 @pytest.fixture(scope="module")
-def computed():
-    """The fixture project's observation, every result recomputed by the code as it is now."""
+def recomputed():
+    """The fixture project and its orchestrator, every result recomputed by the code as it is now."""
     import copy
     import json
 
@@ -51,7 +52,13 @@ def computed():
     outcome = core.compute(obj=None, method="run", targets=[observation], calculations=held,
                            time_step=300.0, force=True, concurrent=True)
     assert not outcome["failed"], f"could not recompute {outcome['failed']}"
-    return observation
+    return core, observation
+
+
+@pytest.fixture(scope="module")
+def computed(recomputed):
+    """The recomputed observation."""
+    return recomputed[1]
 
 
 def stored(observation, key):
@@ -200,20 +207,39 @@ def test_time_on_source_is_the_visible_samples_times_the_spacing(computed):
         assert part["duration"].sum() == pytest.approx(seen * spacing, abs=1e-3), code
 
 
-def test_the_beam_pattern_is_not_yet_physical(computed):
-    """Recorded rather than asserted correct.
+@pytest.mark.parametrize("megahertz", [1000.0, 22000.0])
+def test_the_drawn_beam_is_an_airy_pattern_at_the_chosen_frequency(recomputed, megahertz):
+    """Half power at 1.029 lambda/D, first null at 1.2197 lambda/D.
 
-    The pattern is `(2 J1(x) / x)^2` with `x = D sin(theta)`, where the Airy pattern has
-    `x = pi D sin(theta) / lambda`. That is the pattern at a wavelength of pi metres -- 95 MHz --
-    whatever band the observation uses: a 70 m dish at 1 GHz is drawn with a half-power width of
-    2.7 degrees where it has 0.25. This fails the day that is corrected, so the correction also
-    has to replace it with a real check.
+    It was drawn pi times too wide at every frequency: the stored curve keeps `x = D sin(t)`, the
+    Airy pattern has `x = pi D sin(theta) / lambda`, and the plot took `theta = t * lambda`.
     """
-    observation = computed
-    pattern = stored(observation, "beam_pattern")
-    dish = max(stations(observation).values(), key=lambda telescope: telescope.diameter)
-    part = pattern.filter((pl.col("telescope_code") == dish.get_code()) & (pl.col("theta") > 0)).sort("theta")
-    half_power = part.filter(pl.col("pattern") < 0.5)["theta"][0]
-    at_pi_metres = np.arcsin(1.6163 / dish.diameter)
-    one_sample = float(np.median(np.diff(part["theta"].to_numpy())))
-    assert half_power == pytest.approx(at_pi_metres, abs=one_sample)
+    core, observation = recomputed
+    dishes = stations(observation)
+    answer = core.visualize(
+        obj=observation, plot_type="beam_pattern", return_figure=True, show=False,
+        raise_on_error=False, telescopes=sorted(dishes), frequencies=[megahertz])
+    assert answer.ok, answer.error
+    wavelength = 299792458.0 / (megahertz * 1e6)
+
+    checked = 0
+    for axes in answer.value["figure"].get_axes():
+        if not axes.get_visible() or not axes.get_lines():
+            continue
+        diameter = dishes[axes.get_title()].diameter
+        angle, level = (np.asarray(values, dtype=float) for values in axes.get_lines()[0].get_data())
+        outward = angle > 0
+        angle, level = angle[outward], level[outward]
+
+        below = np.argmax(level < 0.5)
+        half = np.interp(0.5, [level[below], level[below - 1]], [angle[below], angle[below - 1]])
+        assert 2 * half == pytest.approx(np.degrees(1.029 * wavelength / diameter), rel=0.005), (
+            f"{axes.get_title()} at {megahertz} MHz")
+
+        rising = np.flatnonzero(np.diff(np.sign(np.diff(level))) > 0)
+        first_null = angle[rising[0] + 1]
+        spacing = float(np.median(np.diff(angle[: rising[0] + 2])))
+        assert first_null == pytest.approx(
+            np.degrees(np.arcsin(1.2197 * wavelength / diameter)), abs=2 * spacing)
+        checked += 1
+    assert checked == len(dishes)

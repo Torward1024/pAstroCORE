@@ -50,7 +50,7 @@ time_arrays
 │       ├── mollweide_tracks
 │       └── telescope_az_el      (pointing at a spacecraft)
 │           └── telescope_visibility
-└── beam_pattern                 (needs neither: a dish and a frequency)
+└── beam_pattern                 (needs neither: one curve per dish)
 ```
 
 You never write this down when calculating. Ask for the top of a branch and the branch comes
@@ -91,14 +91,16 @@ Pass it as `target_telescope="RADIO"`, naming a space telescope in the observati
 
 Separately from *which calculation* needs which, each result declares which **parts of the
 model** it reads. That is what makes staleness granular: editing a scan makes `uv_coverage`
-stale and leaves `beam_pattern` alone.
+stale and leaves `beam_pattern` alone -- and so does editing a band, because a beam is one curve
+per dish that is given a frequency only when it is drawn (`sin(theta) = lambda sin(t) / pi`, with
+`t` the stored `theta`).
 
 ```python
 from pastrocore.base.data_structure import CalculatedDataStructure
 
 assert CalculatedDataStructure.get_dependencies("uv_coverage") == (
     "telescopes", "sources", "scans", "frequencies")
-assert CalculatedDataStructure.get_dependencies("beam_pattern") == ("telescopes", "frequencies")
+assert CalculatedDataStructure.get_dependencies("beam_pattern") == ("telescopes",)
 ```
 
 ## This page against the code
