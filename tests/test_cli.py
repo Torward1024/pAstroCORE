@@ -184,3 +184,23 @@ def test_an_attribute_nothing_reads_is_reported_as_a_warning(saved, tmp_path, ca
     code, printed = run("check", saved, session, capsys=capsys)
     assert code == 0, "a warning is not a refusal"
     assert "noo" in printed
+
+
+@pytest.mark.parametrize("command", [["run", "--only", "time_arrays"], ["replay", "session.json"]])
+def test_a_command_that_saves_refuses_a_package_before_it_calculates(saved, tmp_path, capsys, command):
+    """A package opens anywhere a project does, but it is a file and saving writes a directory.
+    `run` calculated everything, then died on the save with `FileExistsError` and a traceback,
+    and everything it had just calculated went with it."""
+    package = tmp_path / "sent.pastroz"
+    cli.main(["--quiet", "package", str(saved), str(package)])
+    before = package.read_bytes()
+    capsys.readouterr()
+
+    name, *rest = command
+    code = cli.main(["--quiet", name, str(package), *rest])
+    printed = capsys.readouterr().out
+
+    assert code == 2 and "is a package" in printed, f"not refused: {code}, {printed!r}"
+    assert "Calculated" not in printed and "calculation(s) in" not in printed, (
+        "it calculated before refusing")
+    assert package.read_bytes() == before
