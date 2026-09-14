@@ -52,6 +52,25 @@ def _open(path: str) -> ScheduleProject:
     return ScheduleProject.open(path)
 
 
+def _open_to_save(path: str) -> ScheduleProject:
+    """Open a project that a command will save back to where it came from.
+
+    Raises:
+        SystemExit: For a package, before anything is calculated.
+
+    Notes:
+        - A package can be read anywhere a project can, but it cannot be saved over: saving
+          writes a directory, and the package is a file. `run` calculated everything, then
+          failed with `FileExistsError` and a traceback on the save, and every result it had
+          just produced was gone. Refused first, with what to do instead.
+    """
+    if Path(path).is_file() and zipfile.is_zipfile(path):
+        raise SystemExit(f"'{path}' is a package, and this command saves the project back to "
+                         f"where it came from. Open it in the application, save it as a "
+                         f"folder, and run this on the folder.")
+    return _open(path)
+
+
 def _catalogue(manipulator) -> List[dict]:
     """What this application can calculate, asked rather than listed."""
     return manipulator.compute(obj=manipulator.get_managing_object(), method="catalogue",
@@ -119,7 +138,7 @@ def calculations(arguments) -> int:
 
 def run(arguments) -> int:
     """Run calculations and print what each step did."""
-    project = _open(arguments.project)
+    project = _open_to_save(arguments.project)
     manipulator = ScheduleManipulator(project)
     wanted = _wanted(manipulator, arguments.only)
 
@@ -406,7 +425,7 @@ def check(arguments) -> int:
 
 def replay(arguments) -> int:
     """Run a recorded session again, against this project."""
-    project = _open(arguments.project)
+    project = _open_to_save(arguments.project)
     manipulator = ScheduleManipulator(project)
 
     outcome = manipulator.compute(obj=project, method="replay", path=arguments.session,
