@@ -719,3 +719,99 @@ def test_a_project_that_has_gone_is_removed_when_it_is_clicked(qt_application, m
             ["Nothing opened yet"]
     finally:
         window.close()
+
+
+# --- work in a thread ------------------------------------------------------------------------
+
+def test_escape_on_a_progress_window_cancels_rather_than_hides(qt_application):
+    """Escape and the close button closed the window and left the work running. The dialog
+    behind became usable, could be closed, and closing the application then destroyed a thread
+    that was still writing results: the process aborted with 0xC0000409."""
+    from pastrocore.gui.p_dialog_progress import ProgressDialog
+
+    window = ProgressDialog(None, "Calculation Progress")
+    asked = []
+    window.cancelRequested.connect(lambda: asked.append(1))
+    window.show()
+
+    window.reject()                      # what Escape does
+    window.close()                       # and the close button, which Qt routes through reject
+
+    assert window.isVisible(), "the window went away while the work was still running"
+    assert asked == [1], f"cancellation was requested {len(asked)} times, not once"
+
+    window.finish()
+    assert not window.isVisible(), "reporting back has to close it"
+    window.deleteLater()
+
+
+def test_a_calculation_is_cancelled_by_escape_on_its_progress_window(qt_application, project):
+    """End to end in the dialog: the thread is told, not just the window."""
+    from PySide6.QtCore import Qt
+
+    from pastrocore.gui import p_dialog_calculations
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    started = []
+
+    class Held(p_dialog_calculations.CalculationThread):
+        def start(self):
+            started.append(self)
+
+    original = p_dialog_calculations.CalculationThread
+    p_dialog_calculations.CalculationThread = Held
+    try:
+        dialog = p_dialog_calculations.CalculationDialog(ScheduleManipulator(project), time_step=600)
+        for index in range(dialog.ui.calcList.count()):
+            item = dialog.ui.calcList.item(index)
+            item.setCheckState(Qt.Checked if index == 0 else Qt.Unchecked)
+        for index in range(dialog.ui.targetList.count()):
+            dialog.ui.targetList.item(index).setCheckState(Qt.Checked)
+        dialog._ask_for_target = lambda *arguments, **keywords: "ALMA"
+        dialog.run_calculation()
+
+        assert started, "no calculation was started"
+        dialog.progress_dialog.reject()
+        assert started[0]._cancelled, "Escape closed the window and the calculation went on"
+        dialog.progress_dialog.finish()
+        dialog.deleteLater()
+    finally:
+        p_dialog_calculations.CalculationThread = original
+
+
+@pytest.mark.parametrize("module, dialog_class", [
+    ("p_dialog_calculations", "CalculationDialog"),
+    ("p_dialog_export_calculated_data", "ExportCalculatedDataDialog"),
+    ("p_dialog_generate_observations", "GenerateObservationsDialog"),
+])
+def test_closing_a_dialog_waits_for_the_work_it_started(qt_application, module, dialog_class):
+    """A QThread destroyed while running aborts the process, and a dialog's thread goes with
+    the dialog. Closing one mid-run has to stop the work first, however it is closed."""
+    import importlib
+    import threading
+
+    from PySide6.QtCore import QThread
+
+    class Busy(QThread):
+        def __init__(self):
+            super().__init__()
+            self.stop = threading.Event()
+
+        def cancel(self):
+            self.stop.set()
+
+        def run(self):
+            self.stop.wait(30)
+
+    owner = getattr(importlib.import_module(f"pastrocore.gui.{module}"), dialog_class)
+    dialog = owner.__new__(owner)
+    QDialog = importlib.import_module("PySide6.QtWidgets").QDialog
+    QDialog.__init__(dialog)
+    dialog.thread = Busy()
+    dialog.thread.start()
+    assert dialog.thread.wait(50) is False, "the stand-in work should still be running"
+
+    dialog.reject()
+
+    assert not dialog.thread.isRunning(), "the dialog closed ahead of the work it started"
+    dialog.deleteLater()

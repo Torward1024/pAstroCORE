@@ -236,7 +236,7 @@ def test_running_from_the_dialog_passes_the_target(tracked, qt_application, monk
 
     monkeypatch.setattr(p_dialog_calculations, "CalculationThread", CapturedThread)
     monkeypatch.setattr(p_dialog_calculations, "ProgressDialog",
-                        lambda parent=None: _FakeProgress())
+                        lambda *arguments, **keywords: _FakeProgress())
 
     dialog = CalculationDialog(manipulator, time_step=600)
     for index in range(dialog.ui.targetList.count()):
@@ -267,6 +267,10 @@ class _FakeProgress:
 
     def __init__(self):
         self.ui = type("ui", (), {"pushButtonCancel": type("b", (), {"clicked": _FakeProgress._Signal()})()})()
+        self.cancelRequested = _FakeProgress._Signal()
+
+    def finish(self):
+        return None
 
     def update_progress(self, *args, **kwargs):
         return None

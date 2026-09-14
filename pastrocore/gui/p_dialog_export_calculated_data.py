@@ -4,23 +4,8 @@ from PySide6.QtCore import Qt, QThread, Signal
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from msb_arch.utils.logging_setup import logger
 from pastrocore.gui.ui_dialog_export_calculated_data import Ui_ExportCalculatedDataDialog
-from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
+from pastrocore.gui.p_dialog_progress import ProgressDialog, stop_and_wait
 import os
-
-class ProgressDialog(QDialog):
-    """Custom progress dialog for export progress."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.ui = Ui_ProgressDialog()
-        self.ui.setupUi(self)
-        self.setWindowTitle("Export Progress")
-        logger.debug("ProgressDialog initialized")
-
-    def update_progress(self, value, message):
-        """Update progress bar and label."""
-        self.ui.progressBar.setValue(value)
-        self.ui.label.setText(message)
-        logger.debug("ProgressDialog updated: value=%s, message=%s", value, message)
 
 class ExportThread(QThread):
     """Thread for exporting calculated data and visualizations asynchronously."""
@@ -85,6 +70,11 @@ class ExportThread(QThread):
 
 class ExportCalculatedDataDialog(QDialog):
     """Dialog for exporting calculated data and visualizations."""
+
+    def done(self, result):
+        """Close, but never ahead of the work this dialog started."""
+        stop_and_wait(getattr(self, "thread", None))
+        super().done(result)
 
     def __init__(self, manipulator: ScheduleManipulator, parent=None):
         super().__init__(parent)
@@ -190,8 +180,8 @@ class ExportCalculatedDataDialog(QDialog):
             return
         units = self.ui.cmbUnits.currentText().lower().replace(" ", "_")
 
-        self.progress_dialog = ProgressDialog(self)
-        self.progress_dialog.ui.pushButtonCancel.clicked.connect(self.cancel_export)
+        self.progress_dialog = ProgressDialog(self, "Export Progress")
+        self.progress_dialog.cancelRequested.connect(self.cancel_export)
         self.progress_dialog.show()
 
         self.thread = ExportThread(self.manipulator, selected_targets, selected_calcs,
@@ -203,13 +193,12 @@ class ExportCalculatedDataDialog(QDialog):
 
     def cancel_export(self):
         self.thread.cancel()
-        self.progress_dialog.update_progress(self.progress_dialog.ui.progressBar.value(), "Cancelling...")
 
     def export_finished(self):
-        self.progress_dialog.close()
+        self.progress_dialog.finish()
         self.accept()
 
     def export_error(self, error):
-        self.progress_dialog.close()
+        self.progress_dialog.finish()
         QMessageBox.critical(self, "Error", f"Export failed: {error}")
         self.reject()

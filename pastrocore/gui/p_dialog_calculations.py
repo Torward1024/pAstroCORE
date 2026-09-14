@@ -5,7 +5,7 @@ from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from msb_arch.utils.logging_setup import logger
 from pastrocore.base.data_structure import CalculatedDataStructure
 from pastrocore.gui.ui_dialog_calculations import Ui_CalculationDialog
-from pastrocore.gui.ui_dialog_calc_progress import Ui_ProgressDialog
+from pastrocore.gui.p_dialog_progress import ProgressDialog, stop_and_wait
 
 
 class CalculationThread(QThread):
@@ -77,25 +77,14 @@ class CalculationThread(QThread):
             self.error.emit(f"Critical error: {error}")
 
 
-class ProgressDialog(QDialog):
-    """Custom progress dialog for calculation progress."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.ui = Ui_ProgressDialog()
-        self.ui.setupUi(self)
-        self.setWindowTitle("Calculation Progress")
-        logger.debug("ProgressDialog initialized")
-
-    def update_progress(self, value, message):
-        """Update progress bar and label."""
-        self.ui.progressBar.setValue(value)
-        self.ui.label.setText(message)
-        logger.debug("ProgressDialog updated: value=%s, message=%s", value, message)
-
-
 class CalculationDialog(QDialog):
     """Dialog for configuring and running multiple calculations."""
     time_step_updated = Signal(int)
+
+    def done(self, result):
+        """Close, but never ahead of the work this dialog started."""
+        stop_and_wait(getattr(self, "thread", None))
+        super().done(result)
 
     def __init__(self, manipulator: ScheduleManipulator, targets=None, calc_type=None, time_step=600, parent=None):
         super().__init__(parent)
@@ -318,8 +307,8 @@ class CalculationDialog(QDialog):
             for calc in calc_params:
                 calc_params[calc].setdefault("target_telescope", target_code)
 
-        self.progress_dialog = ProgressDialog(self)
-        self.progress_dialog.ui.pushButtonCancel.clicked.connect(self.cancel_calculation)
+        self.progress_dialog = ProgressDialog(self, "Calculation Progress")
+        self.progress_dialog.cancelRequested.connect(self.cancel_calculation)
         self.progress_dialog.update_progress(0, "Preparing calculations...")
         self.progress_dialog.show()
 
@@ -348,7 +337,7 @@ class CalculationDialog(QDialog):
               nowhere to put the detail, so the detail went to `output.log` and nobody read it.
               One report instead, which the window keeps so it can be reopened.
         """
-        self.progress_dialog.close()
+        self.progress_dialog.finish()
         self.outcome = outcome or {}
         summary = self.outcome.get("summary", {})
 
@@ -367,7 +356,7 @@ class CalculationDialog(QDialog):
     def calculation_error(self, error: str):
         """Handle critical thread errors."""
         if hasattr(self, 'progress_dialog') and self.progress_dialog:
-            self.progress_dialog.close()
+            self.progress_dialog.finish()
         logger.error("Calculation critical error: %s", error)
         QMessageBox.critical(self, "Error", f"Calculation failed: {error}")
         self.reject()
@@ -377,11 +366,6 @@ class CalculationDialog(QDialog):
         logger.debug("Cancellation requested by user")
         if hasattr(self, 'thread') and self.thread:
             self.thread.cancel()
-            if hasattr(self, 'progress_dialog') and self.progress_dialog:
-                self.progress_dialog.update_progress(
-                    self.progress_dialog.ui.progressBar.value(),
-                    "Cancelling after current calculation..."
-                )
 
     def load_settings(self):
         """Load dialog-specific settings."""
