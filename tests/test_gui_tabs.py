@@ -779,18 +779,49 @@ def test_a_calculation_is_cancelled_by_escape_on_its_progress_window(qt_applicat
         p_dialog_calculations.CalculationThread = original
 
 
-@pytest.mark.parametrize("module, dialog_class", [
-    ("p_dialog_calculations", "CalculationDialog"),
-    ("p_dialog_export_calculated_data", "ExportCalculatedDataDialog"),
-    ("p_dialog_generate_observations", "GenerateObservationsDialog"),
-])
-def test_closing_a_dialog_waits_for_the_work_it_started(qt_application, module, dialog_class):
+def work_dialogs(project):
+    """The three dialogs that start work in a thread, built the way the window builds them."""
+    from pastrocore.gui.p_dialog_calculations import CalculationDialog
+    from pastrocore.gui.p_dialog_export_calculated_data import ExportCalculatedDataDialog
+    from pastrocore.gui.p_dialog_generate_observations import GenerateObservationsDialog
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.utils.catalogmanager import CatalogManager
+
+    core = ScheduleManipulator(project)
+    return {"calculations": lambda: CalculationDialog(core, time_step=600),
+            "export": lambda: ExportCalculatedDataDialog(core),
+            "generation": lambda: GenerateObservationsDialog(project, core, CatalogManager())}
+
+
+@pytest.mark.parametrize("kind", ["calculations", "export", "generation"])
+def test_cancel_closes_a_dialog_that_started_nothing(qt_application, project, kind):
+    """Released in 1.8.0 broken: Cancel printed an AttributeError and the dialog stayed open.
+
+    The worker was kept in `self.thread`, which on any QObject is the method `thread()`. A dialog
+    that had started nothing found the method there, and `isRunning` failed before the dialog
+    could close. `done` is called directly, so the error is raised here rather than printed by
+    PySide and swallowed -- which is how the test before this one missed it: it built the dialog
+    without its constructor and always gave it a thread.
+    """
+    from PySide6.QtWidgets import QDialog
+
+    dialog = work_dialogs(project)[kind]()
+    dialog.show()
+
+    dialog.done(QDialog.DialogCode.Rejected)
+
+    assert not dialog.isVisible(), "Cancel did not close the dialog"
+    dialog.deleteLater()
+
+
+@pytest.mark.parametrize("kind", ["calculations", "export", "generation"])
+def test_closing_a_dialog_waits_for_the_work_it_started(qt_application, project, kind):
     """A QThread destroyed while running aborts the process, and a dialog's thread goes with
     the dialog. Closing one mid-run has to stop the work first, however it is closed."""
-    import importlib
     import threading
 
     from PySide6.QtCore import QThread
+    from PySide6.QtWidgets import QDialog
 
     class Busy(QThread):
         def __init__(self):
@@ -803,15 +834,12 @@ def test_closing_a_dialog_waits_for_the_work_it_started(qt_application, module, 
         def run(self):
             self.stop.wait(30)
 
-    owner = getattr(importlib.import_module(f"pastrocore.gui.{module}"), dialog_class)
-    dialog = owner.__new__(owner)
-    QDialog = importlib.import_module("PySide6.QtWidgets").QDialog
-    QDialog.__init__(dialog)
-    dialog.thread = Busy()
-    dialog.thread.start()
-    assert dialog.thread.wait(50) is False, "the stand-in work should still be running"
+    dialog = work_dialogs(project)[kind]()
+    dialog.worker = Busy()
+    dialog.worker.start()
+    assert dialog.worker.wait(50) is False, "the stand-in work should still be running"
 
-    dialog.reject()
+    dialog.done(QDialog.DialogCode.Rejected)
 
-    assert not dialog.thread.isRunning(), "the dialog closed ahead of the work it started"
+    assert not dialog.worker.isRunning(), "the dialog closed ahead of the work it started"
     dialog.deleteLater()

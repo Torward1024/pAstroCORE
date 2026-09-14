@@ -63,12 +63,15 @@ class GenerateObservationsDialog(QDialog):
 
     def done(self, result):
         """Close, but never ahead of the work this dialog started."""
-        stop_and_wait(getattr(self, "thread", None))
+        stop_and_wait(self.worker)
         super().done(result)
 
     def __init__(self, project: ScheduleProject, manipulator: ScheduleManipulator, 
                  catalog_manager: CatalogManager, parent=None):
         super().__init__(parent)
+        # Not `thread`: that name is `QObject.thread()`, and a dialog that had started nothing
+        # found the method there, failed on `isRunning`, and would not close.
+        self.worker = None
         self.ui = Ui_GenerateObservationsDialog()
         self.ui.setupUi(self)
         self.project = project
@@ -532,14 +535,14 @@ class GenerateObservationsDialog(QDialog):
                 "parallel": self.ui.chkParallel.isChecked()
             }
 
-            self.thread = GenerationThread(self.manipulator, self.project, attributes)
+            self.worker = GenerationThread(self.manipulator, self.project, attributes)
             self.progress_dialog = ProgressDialog(self, "Generating Observations",
                                                   "Generating observations...")
-            self.thread.progress.connect(self.progress_dialog.update_progress)
-            self.thread.finished.connect(self.generation_finished)
-            self.thread.error.connect(self.generation_error)
-            self.progress_dialog.cancelRequested.connect(self.thread.cancel)
-            self.thread.start()
+            self.worker.progress.connect(self.progress_dialog.update_progress)
+            self.worker.finished.connect(self.generation_finished)
+            self.worker.error.connect(self.generation_error)
+            self.progress_dialog.cancelRequested.connect(self.worker.cancel)
+            self.worker.start()
             self.progress_dialog.exec()
 
         except Exception as e:

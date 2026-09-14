@@ -1099,3 +1099,44 @@ def test_a_method_is_only_called_on_a_model_that_has_it():
     assert not offenders, (
         "these call a name the model does not have:\n  " + "\n  ".join(offenders)
         + "\nThe model was renamed; the call was not.")
+
+
+def test_no_widget_hides_a_qt_method_behind_an_attribute():
+    """`self.thread = SomeThread(...)` on a dialog replaces `QObject.thread()` for every Python
+    caller, and `getattr(self, "thread", None)` then finds a method, never None.
+
+    That shipped in 1.8.0: three dialogs kept their worker in `self.thread`, Cancel on one that
+    had started nothing raised on `isRunning`, and the dialog would not close. A visualization tab
+    kept its plot's layout in `self.layout`, the name of `QWidget.layout()`.
+    """
+    import importlib
+    import inspect
+
+    from PySide6.QtCore import QObject
+
+    offenders = []
+    modules = [module for module in sorted((ROOT / "pastrocore" / "gui").glob("p_*.py"))]
+    modules.append(ROOT / "pastrocore" / "app.py")
+    for path in modules:
+        name = "pastrocore." + ".".join(path.relative_to(ROOT / "pastrocore").with_suffix("").parts)
+        module = importlib.import_module(name)
+        for node in [n for n in ast.parse(path.read_text(encoding="utf-8")).body
+                     if isinstance(n, ast.ClassDef)]:
+            cls = getattr(module, node.name, None)
+            if not (inspect.isclass(cls) and issubclass(cls, QObject)):
+                continue
+            qt_names = {attribute for base in cls.__mro__
+                        if base.__module__.startswith("PySide6") for attribute in vars(base)}
+            for assignment in ast.walk(node):
+                if not isinstance(assignment, (ast.Assign, ast.AnnAssign)):
+                    continue
+                targets = (assignment.targets if isinstance(assignment, ast.Assign)
+                           else [assignment.target])
+                for target in targets:
+                    if (isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)
+                            and target.value.id == "self" and target.attr in qt_names):
+                        offenders.append(f"{path.name}:{assignment.lineno} "
+                                         f"{node.name}.{target.attr}")
+
+    assert not offenders, (
+        "an attribute hides a Qt method of the same name:\n  " + "\n  ".join(offenders))
