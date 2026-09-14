@@ -254,13 +254,20 @@ class ScratchSpace:
               lose. The rule "a scratch directory is not litter" protects *calculations*, and
               one that holds none is exactly litter. Left alone they accumulate one per run --
               a hundred and ninety-nine of them was what made startup slow.
-            - Recently touched directories are left alone, which protects a session running
-              right now without asking the operating system about it -- the cost this exists to
-              avoid. An hour is generous: a session that has written nothing for an hour has
-              nothing anyone wants.
+            - Recently touched directories are left alone without asking anything, which is
+              most of them and costs nothing.
+            - **An idle directory is not a dead one.** A session's directory is created when
+              its project is opened, before anything is calculated, and an empty directory's
+              time never moves -- so a window left open for an hour without calculating looked
+              exactly like litter, and the next window to start deleted it. The first window then
+              wrote its results into a directory recreated without its marker, and when it
+              crashed there was nothing to offer back: the one loss this module exists to
+              prevent. So the process is asked about -- once for the whole sweep, which is
+              the cheap way; asking per directory is what once made startup slow.
         """
         cutoff = time.time() - 3600
         removed = 0
+        running, asked = None, False
         for candidate in directories:
             if not _is_a_scratch_directory(candidate, root):
                 continue
@@ -268,6 +275,16 @@ class ScratchSpace:
                 if candidate.stat().st_mtime > cutoff:
                     continue
             except OSError:
+                continue
+            try:
+                owner = json.loads((candidate / MARKER).read_text(encoding="utf-8")).get("pid", 0)
+            except (OSError, ValueError):
+                continue
+            if not asked:
+                running, asked = live_pids(), True
+            # Unknown counts as alive, as everywhere here: a stale directory survives, a live
+            # one is never removed.
+            if running is None or owner in running:
                 continue
             try:
                 shutil.rmtree(candidate, ignore_errors=True)
