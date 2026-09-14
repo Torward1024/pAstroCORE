@@ -285,4 +285,3 @@ class CatalogManager:
     # catalogues are held in `source_catalog` and `telescope_catalog` -- so it created two
     # attributes nobody reads and left both catalogues full. Nothing called it. `clear_catalogs`
     # is the method that does the job, and `clear` is the name msb_arch 2.0.0 removed anyway.
-        logger.debug("Cleared CatalogManager data")
