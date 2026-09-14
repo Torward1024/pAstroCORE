@@ -8,6 +8,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.8.1] - 2026-09-15
+
+### Fixed
+
+- **Cancel would not close the calculation, export or generation dialog if nothing had been
+  started in it.** Introduced in 1.8.0. Each dialog kept its worker in `self.thread`, and on any Qt
+  object that name is the method `thread()`: a dialog closed before starting anything found the
+  method rather than nothing, failed on `isRunning` inside `done`, and stayed open while PySide
+  printed "Error calling Python override of QDialog::done()". The worker is `self.worker` now.
+
+  A visualization tab had the same shape -- its plot's layout in `self.layout`, the name of
+  `QWidget.layout()` -- and it is `plot_layout`.
+
+### Added
+
+- The three dialogs are tested built for real, with Cancel pressed before anything starts. The test
+  that let this through built them without their constructors and always gave them a thread.
+- A convention test refuses an attribute on a widget that hides a Qt method of the same name.
+
 ## [1.8.0] - 2026-09-14
 
 A third audit, and the first to check the numbers against physics rather than against themselves.
