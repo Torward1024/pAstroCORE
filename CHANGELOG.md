@@ -8,6 +8,44 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.10.0] - 2026-09-15
+
+Stage 1 of the roadmap: what got in the way every day.
+
+### Added
+
+- **G7: Select All and Clear under every list a plot is chosen from** -- sources, scans, telescopes,
+  baselines, frequencies, on every visualization tab. Two hundred baselines and one of them wanted
+  is two clicks. A whole list is ticked with the plot drawn once, not once per item. The buttons are
+  found by the name of their list, so a list added to a form gets them by being named like the
+  others.
+- **G9: saving shows how far it has got.** Each result file as it is written, by observation code
+  and calculation, then the model; the window keeps answering throughout. A save that takes no time
+  shows nothing, and a save has no Cancel -- stopped half way it would leave the project directory
+  half new. A request's `save` takes `progress(percent, message)`, as a calculation's `run` does.
+  Opening a project has no progress window: it reads the model alone, a tenth of a second.
+- `test_form_layout`: every form laid out as authored and at its smallest, each tab page in turn,
+  fails on overlapping widgets, cut-off text, squashed fields and windows pinned to a size.
+
+### Fixed
+
+- **G8: nothing on a form overlaps or is cut off.** Twelve dialogs pinned their window to one size.
+  Five were smaller than their own layout: fields in the source editor 20 px high with their text
+  cut through, crushed spin boxes in the IF editor, Cancel lying on the progress bar, the About text
+  missing the tops of its lines. The other seven fitted Arial on Windows and cut their labels with a
+  wider font, and the catalogue browser could not be made larger for a catalogue of hundreds. A
+  window is now as large as its layout says. The generator's list buttons had lost the tops of
+  "Up" and "Down". The progress window's bar spans it, Cancel sits a little lower, and a long message
+  is shortened in the middle, with the whole of it as the tooltip.
+- **Beam pattern with many stations.** Each code was its panel's title and sat on the angle labels of
+  the panel above, and the legend lay over the top row. Codes are inside their panels and the figure
+  is laid out by what is on it, again on every resize.
+- Closing a visualization tab never cleared its figure: every close logged "Could not clear the
+  figure on close" and kept the plot's arrays.
+- Tests: every run is on the offscreen platform, which is what made regenerating the form pixels
+  from one file rewrite 25 of 26 digests; and the pixel harness no longer reads an image freed under
+  it, which crashed it now and then.
+
 ## [1.9.3] - 2026-09-15
 
 ### Fixed
