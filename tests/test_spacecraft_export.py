@@ -118,7 +118,11 @@ def test_both_tabs_open_and_draw(tracked, qt_application):
         assert tab.get_selected_target() == "RADIO", tab_class.__name__
         assert tab.get_selected_scans(), tab_class.__name__
         assert tab.get_selected_telescopes() == ["ALMA", "APEX"], tab_class.__name__
-        assert tab.canvas is not None, f"{tab_class.__name__} drew nothing"
+        # On the figure the tab shows. `canvas is not None` held for a tab that drew into a
+        # figure nobody displayed -- the canvas is built with the tab, whatever gets drawn.
+        drawn = sum(len(axes.lines) + len(axes.collections) + len(axes.patches)
+                    for axes in tab.figure.get_axes())
+        assert drawn > 0, f"{tab_class.__name__} drew nothing on its own figure"
         tab.close()
 
 

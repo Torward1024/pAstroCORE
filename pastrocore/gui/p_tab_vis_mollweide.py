@@ -58,13 +58,16 @@ class MollweideVisualizationTab(VisualizationTab):
         self.update_scans_for_source(None)
         self.update_visualization()
 
-    def _attributes(self) -> Optional[Dict[str, Any]]:
-        """Scans, telescopes and however many sources are ticked."""
+    def _extra_attributes(self) -> Optional[Dict[str, Any]]:
+        """However many sources are ticked; the base asks for the scans and telescopes.
+
+        Notes:
+            - **Added to the base's request rather than written instead of it.** This built its
+              own dictionary and left out the tab's figure, so the visualizer drew into a figure
+              of its own and the tab showed its empty one: the Mollweide tab opened and never
+              drew a thing.
+        """
         sources = self.get_selected_sources()
-        scans = self.get_selected_scans()
-        telescopes = self.get_selected_telescopes()
-        if not sources or not scans or not telescopes:
+        if not sources:
             return None
-        return {"plot_type": self.plot_type(), "show": False, "return_figure": True,
-                "store_key": self.STORE_KEY, "scans": scans, "telescopes": telescopes,
-                "sources": sources}
+        return {"store_key": self.STORE_KEY, "sources": sources}

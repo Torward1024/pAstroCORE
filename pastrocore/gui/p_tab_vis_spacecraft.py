@@ -76,14 +76,20 @@ class SpacecraftVisualizationTab(VisualizationTab):
             self.ui.listScans.addItem(item)
 
     def _attributes(self) -> Optional[Dict[str, Any]]:
-        """Target, scans and stations."""
-        target = self.get_selected_source()
-        scans = self.get_selected_scans()
-        stations = self.get_selected_telescopes()
-        if not target or not scans or not stations:
+        """The base's request, with the chosen spacecraft as the target rather than a source.
+
+        Notes:
+            - Built on the base's answer. It was written from scratch and left out the tab's
+              figure, so both spacecraft tabs drew into a figure nobody showed.
+        """
+        attributes = super()._attributes()
+        if attributes is None:
             return None
-        return {"plot_type": self.plot_type(), "show": False, "return_figure": True,
-                "target_code": target, "scans": scans, "telescopes": stations}
+        target = attributes.pop("source_name", None)
+        if not target:
+            return None
+        attributes["target_code"] = target
+        return attributes
 
 
 class SpacecraftPointingVisualizationTab(SpacecraftVisualizationTab):
