@@ -140,6 +140,16 @@ class SpaceTelescope(Telescope):
         if kepler_elements["mu"] <= 0:
             raise ValueError("Gravitational parameter must be positive")
 
+    @property
+    def follows_orbit_file(self) -> bool:
+        """Whether this spacecraft is placed from an orbit file rather than Keplerian elements.
+
+        Notes:
+            - One answer to a question the calculator asked in four places, each spelled
+              `isinstance(tel, SpaceTelescope) and not tel.get("use_kep")`.
+        """
+        return not self.use_kep
+
     def get_orbit(self) -> Optional[str]:
         """Retrieve the orbit file path.
 

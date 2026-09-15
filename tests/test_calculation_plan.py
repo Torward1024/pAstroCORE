@@ -27,9 +27,10 @@ def test_asking_for_one_plans_everything_it_needs(bench):
     plan = manipulator.compute(obj=None, method="plan", targets=[observation],
                               calculations=["uv_coverage"], time_step=300.0)
 
+    # No orbits: the fixture's stations are on the ground, so there is nothing to interpolate
+    # and the step is not planned.
     assert [name.split("/")[-1] for name in plan] == [
-        "time_arrays", "interpolated_orbits", "telescope_positions", "source_visibility",
-        "uv_coverage"]
+        "time_arrays", "telescope_positions", "source_visibility", "uv_coverage"]
 
 
 def test_the_order_comes_from_the_handlers(bench):
@@ -82,7 +83,7 @@ def test_progress_is_reported_step_by_step(bench):
                        calculations=["uv_coverage"], time_step=300.0, recalculate=True,
                        progress=lambda percent, message: seen.append((percent, message)))
 
-    assert [percent for percent, _ in seen] == [20, 40, 60, 80, 100]
+    assert [percent for percent, _ in seen] == [25, 50, 75, 100]
     assert "uv_coverage" in seen[-1][1]
     assert seen[-1][1].endswith(" s"), "each step reports how long it took"
 
@@ -498,3 +499,55 @@ def test_a_sequential_run_does_the_same_work_as_it_takes(bench):
     summary = outcome["summary"]
 
     assert summary["work"] <= summary["seconds"] + 0.2
+
+
+# --- a step with nothing to do is not planned -------------------------------------------------------
+
+def test_orbits_are_not_planned_for_ground_stations_only(project):
+    """Interpolating orbits ran for every array of ground stations, found nothing, stored an empty
+    result and logged four warnings on every calculation. Positions need orbits only when a
+    spacecraft is placed from a file; the plan now asks the observation."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.observations()[0]
+    plan = ScheduleManipulator(project).compute(obj=None, method="plan", targets=[observation],
+                                                calculations=["uv_coverage"], time_step=300.0)
+
+    planned = [name.split("/", 1)[1] for name in plan]
+    assert "interpolated_orbits" not in planned
+    assert "telescope_positions" in planned, "what did need planning still is"
+
+
+def test_orbits_are_planned_when_a_spacecraft_follows_an_orbit_file(project):
+    from pastrocore.base.spacetelescope import SpaceTelescope
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.observations()[0]
+    observation.get_telescopes().add(SpaceTelescope(code="RADIO", name="RadioAstron", use_kep=False))
+
+    plan = ScheduleManipulator(project).compute(obj=None, method="plan", targets=[observation],
+                                                calculations=["uv_coverage"], time_step=300.0)
+
+    planned = [name.split("/", 1)[1] for name in plan]
+    assert planned.index("interpolated_orbits") < planned.index("telescope_positions")
+
+
+def test_a_run_of_ground_stations_says_nothing_about_orbits(project, caplog):
+    """The four warnings of the report, asserted absent over a whole run."""
+    import logging
+
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.observations()[0]
+    observation.calculated_data.clear()
+    core = ScheduleManipulator(project)
+    every = [entry["key"] for entry in core.compute(obj=None, method="catalogue")
+             if not entry.get("needs_target")]
+
+    logging.getLogger("msb_arch").setLevel(logging.WARNING)
+    with caplog.at_level(logging.WARNING, logger="msb_arch"):
+        core.compute(obj=None, method="run", targets=[observation], calculations=every,
+                     time_step=600.0, force=True)
+
+    about_orbits = [record.getMessage() for record in caplog.records if "orbit" in record.getMessage()]
+    assert about_orbits == []
