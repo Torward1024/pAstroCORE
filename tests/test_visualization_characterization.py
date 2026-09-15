@@ -536,3 +536,51 @@ def test_a_line_breaks_where_azimuth_wraps_and_where_nothing_was_seen(manipulato
     el = np.asarray(elevation.get_ydata(), dtype=float)
     assert np.isnan(az).sum() == 2, "one break where it wraps, one across the gap"
     assert np.isnan(el).sum() == 1, "one break across the gap"
+
+
+# --- redrawing into the figure a tab keeps ------------------------------------------------------------
+
+def figure_contents(figure):
+    """What a figure holds, counted: its axes, the text and legends placed on the figure itself."""
+    return {"axes": len(figure.axes), "texts": len(figure.texts), "legends": len(figure.legends),
+            "drawn": drawn_points(figure)}
+
+
+@pytest.mark.parametrize("plot_type", PLOT_TYPES)
+def test_drawing_again_into_the_same_figure_replaces_what_was_there(manipulator, observation, plot_type):
+    """A tab keeps one figure and hands it over for every redraw, and nothing emptied it: each
+    redraw added its axes, labels and legend on top of the last. With the same selection they lay
+    exactly over each other, so it looked fine -- until a station was unticked."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    figure = Figure(figsize=(12, 7), dpi=80)
+    FigureCanvasAgg(figure)
+    attributes = dict(plot_type=plot_type, return_figure=True, show=False, raise_on_error=False,
+                      figure=figure, **filters_for(observation))
+
+    manipulator.visualize(obj=observation, **attributes)
+    once = figure_contents(figure)
+    manipulator.visualize(obj=observation, **attributes)
+    twice = figure_contents(figure)
+
+    assert once["axes"] > 0, f"'{plot_type}' drew nothing to compare"
+    assert twice == once, f"'{plot_type}' drawn twice holds more than drawn once"
+
+
+def test_unticking_stations_leaves_only_their_panels(manipulator, observation):
+    """The report: untick stations on the Az/El tab and axes, labels and legends pile up."""
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    codes = twelve_stations(observation)
+    figure = Figure(figsize=(15.5, 9.0), dpi=90)
+    FigureCanvasAgg(figure)
+
+    for chosen in (codes, codes[:4], codes):
+        manipulator.visualize(obj=observation, plot_type="az_el", return_figure=True, show=False,
+                              raise_on_error=False, source_name="1228+126", telescopes=chosen,
+                              scans=["s"], figure=figure)
+        assert len(figure.axes) == len(chosen), f"{len(figure.axes)} panels for {len(chosen)} stations"
+        assert len(figure.legends) == 1 and len(figure.texts) == 3
+
