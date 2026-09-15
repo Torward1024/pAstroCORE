@@ -24,7 +24,43 @@
        </property>
       </widget>
      </item>
+     <item row="1" column="0">
+      <widget class="QListWidget" name="listSources" />
+     </item>
      <item row="2" column="0">
+      <layout class="QHBoxLayout" name="layoutSourcesButtons">
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="listSourcesSelectAll">
+         <property name="toolTip">
+          <string>Tick every source</string>
+         </property>
+         <property name="text">
+          <string>Select All</string>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="listSourcesClear">
+         <property name="toolTip">
+          <string>Untick every source</string>
+         </property>
+         <property name="text">
+          <string>Clear</string>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="3" column="0">
       <layout class="QGridLayout" name="gridLayout">
        <item row="0" column="0" colspan="2">
         <widget class="QLabel" name="lblScans">
@@ -33,23 +69,86 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0" colspan="2">
-        <widget class="QListWidget" name="listTelescopes" />
+       <item row="1" column="0" colspan="2">
+        <widget class="QListWidget" name="listScans" />
        </item>
        <item row="2" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="layoutScansButtons">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="listScansSelectAll">
+           <property name="toolTip">
+            <string>Tick every scan</string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="listScansClear">
+           <property name="toolTip">
+            <string>Untick every scan</string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="3" column="0" colspan="2">
         <widget class="QLabel" name="lblTelescopes">
          <property name="text">
           <string>Telescopes:</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="0" colspan="2">
-        <widget class="QListWidget" name="listScans" />
+       <item row="4" column="0" colspan="2">
+        <widget class="QListWidget" name="listTelescopes" />
+       </item>
+       <item row="5" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="layoutTelescopesButtons">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="listTelescopesSelectAll">
+           <property name="toolTip">
+            <string>Tick every telescope</string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="listTelescopesClear">
+           <property name="toolTip">
+            <string>Untick every telescope</string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
-     </item>
-     <item row="1" column="0">
-      <widget class="QListWidget" name="listWidget" />
      </item>
     </layout>
    </item>

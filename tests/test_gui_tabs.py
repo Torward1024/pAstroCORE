@@ -952,3 +952,84 @@ def test_a_tab_draws_into_the_figure_it_shows(qt_application, project, tab_class
     assert drawn > 0, f"{tab_class.__name__} opened with nothing on its figure"
     tab.close()
     tab.deleteLater()
+
+
+# --- G7: Select All and Clear under every list ----------------------------------------------------
+
+def visualization_forms():
+    """Every generated form a visualization tab is laid out with, found from the tabs."""
+    return sorted({cls.FORM for cls in visualization_tabs()}, key=lambda form: form.__name__)
+
+
+@pytest.mark.parametrize("form", visualization_forms(), ids=lambda form: form.__name__)
+def test_every_list_a_plot_is_chosen_from_has_select_all_and_clear(qt_application, form):
+    """Two hundred baselines, and one wanted: without these it is two hundred clicks. Every list on
+    every visualization form, found rather than named, has its pair -- called after it, which is
+    how the tab finds them."""
+    from PySide6.QtWidgets import QListWidget, QPushButton, QWidget
+
+    host = QWidget()
+    ui = form()
+    ui.setupUi(host)
+    lists = host.findChildren(QListWidget)
+    assert lists, f"{form.__name__} has no lists to check"
+    for widget in lists:
+        for role, text in (("SelectAll", "Select All"), ("Clear", "Clear")):
+            button = getattr(ui, f"{widget.objectName()}{role}", None)
+            assert isinstance(button, QPushButton), f"{form.__name__}.{widget.objectName()} has no {role}"
+            assert button.text() == text
+            assert not button.autoDefault(), "Enter in a list would press it"
+    host.deleteLater()
+
+
+@pytest.mark.parametrize("tab_class", visualization_tabs(), ids=lambda cls: cls.__name__)
+def test_clear_and_select_all_tick_a_whole_list_and_draw_once(qt_application, project, tab_class):
+    """Each item's `itemChanged` means redraw; a list ticked one item at a time would draw the plot
+    once per item. Clear empties the plot, Select All brings it back, each with one drawing."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QListWidget
+
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.observations()[0]
+    if (observation.get_calculated_data_by_key(tab_class.STORE_KEY) or {}).get("data") is None:
+        pytest.skip(f"the fixture holds no '{tab_class.STORE_KEY}'")
+
+    tab = tab_class(ScheduleManipulator(project), observation)
+    drawings = []
+    original = tab.update_visualization
+    tab.update_visualization = lambda: (drawings.append(1), original())[1]
+
+    def artists():
+        return sum(len(axes.lines) + len(axes.collections) + len(axes.patches)
+                   for axes in tab.figure.get_axes())
+
+    def ticks(widget):
+        """The list's tickable items' states, read afresh: the scans list is refilled on redraw."""
+        return [widget.item(index).checkState() for index in range(widget.count())
+                if widget.item(index).flags() & Qt.ItemIsUserCheckable]
+
+    try:
+        for widget in tab.findChildren(QListWidget):
+            if not ticks(widget):
+                continue
+            name = widget.objectName()
+
+            drawings.clear()
+            getattr(tab.ui, f"{name}Clear").click()
+            assert set(ticks(widget)) == {Qt.Unchecked}, name
+            assert len(drawings) == 1, f"{name}: Clear drew {len(drawings)} times"
+            assert artists() == 0, f"{name}: nothing ticked, and something is still drawn"
+
+            drawings.clear()
+            getattr(tab.ui, f"{name}SelectAll").click()
+            assert set(ticks(widget)) == {Qt.Checked}, name
+            assert len(drawings) == 1, f"{name}: Select All drew {len(drawings)} times"
+            assert artists() > 0, f"{name}: everything ticked, and nothing drawn"
+
+            drawings.clear()
+            getattr(tab.ui, f"{name}SelectAll").click()
+            assert drawings == [], f"{name}: a list already all ticked was drawn again"
+    finally:
+        tab.close()
+        tab.deleteLater()

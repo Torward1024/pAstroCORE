@@ -26,7 +26,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QApplication, QListWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from msb_arch.utils.logging_setup import logger
 
 from pastrocore.base.observation import Observation
@@ -80,6 +80,7 @@ class VisualizationTab(QWidget):
 
         for widget, signal in self._filter_signals():
             signal.connect(self.filter_changed)
+        self._connect_list_buttons()
 
         logger.debug("%s ready for observation '%s'", type(self).__name__, observation.name)
         self._first_draw()
@@ -166,6 +167,53 @@ class VisualizationTab(QWidget):
 
     def _populate_extra_filters(self):
         """Anything this form has that the common ones do not. Nothing, usually."""
+
+    # --- ticking a whole list ---------------------------------------------------------------
+
+    #: What the two buttons under a list are called after it, and what each leaves the items.
+    LIST_BUTTONS = (("SelectAll", Qt.Checked), ("Clear", Qt.Unchecked))
+
+    def _connect_list_buttons(self):
+        """Give every list its Select All and Clear, by the names the form gives them.
+
+        Notes:
+            - **Found, not listed.** Every `QListWidget` on the form is asked for
+              `<list>SelectAll` and `<list>Clear`, so a list added to a form in Designer gets its
+              buttons by being named like the others -- and a test fails on one that has none.
+        """
+        for widget in self.findChildren(QListWidget):
+            for role, state in self.LIST_BUTTONS:
+                button = getattr(self.ui, f"{widget.objectName()}{role}", None)
+                if button is not None:
+                    button.clicked.connect(
+                        lambda checked=False, where=widget, to=state: self.tick_all(where, to))
+
+    def tick_all(self, widget: QListWidget, state: Qt.CheckState):
+        """Tick, or untick, every item of a list -- and draw once.
+
+        Args:
+            widget (QListWidget): The list.
+            state (Qt.CheckState): `Qt.Checked` or `Qt.Unchecked`.
+
+        Notes:
+            - **The list is silent while its items change.** Each item's `itemChanged` means
+              "redraw", so two hundred baselines ticked one at a time would draw the plot two
+              hundred times. The redraw happens once, after.
+            - An item that cannot be ticked -- "No scans available" -- is left alone, and a list
+              already as asked is not redrawn at all.
+        """
+        items = [widget.item(index) for index in range(widget.count())]
+        changing = [item for item in items
+                    if item.flags() & Qt.ItemIsUserCheckable and item.checkState() != state]
+        if not changing:
+            return
+        was_blocked = widget.blockSignals(True)
+        try:
+            for item in changing:
+                item.setCheckState(state)
+        finally:
+            widget.blockSignals(was_blocked)
+        self.filter_changed()
 
     # --- reading the selection --------------------------------------------------------------
 
