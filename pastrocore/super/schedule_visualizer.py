@@ -362,6 +362,15 @@ class ScheduleVisualizer(Super):
         borrowed = attributes.get("figure")
         fig = borrowed if borrowed is not None else Figure(
             figsize=attributes.get("figsize", self._style_config['figure']['figsize']))
+        if borrowed is not None:
+            # **A borrowed figure still holds the last drawing, so it is emptied first.** Nothing
+            # did: every redraw added its axes, its labels and its legend on top of the last. With
+            # the same number of panels they lay exactly over each other and looked fine; untick
+            # a station and a stack of tick labels, titles and legends appeared. The margins go
+            # back to the defaults too, so one layout's `subplots_adjust` is not the next one's.
+            fig.clf()
+            fig.subplots_adjust(**{side: matplotlib.rcParams[f"figure.subplot.{side}"]
+                                   for side in ("left", "right", "bottom", "top", "wspace", "hspace")})
 
         def nothing_to_draw(why: str) -> Dict[str, Any]:
             """Leave the figure empty. A borrowed one is the caller's to keep."""

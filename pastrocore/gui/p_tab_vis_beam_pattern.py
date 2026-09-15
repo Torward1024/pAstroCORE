@@ -64,8 +64,7 @@ class BeamPatternVisualizationTab(VisualizationTab):
         if not telescopes or not frequencies:
             return None
         return {"plot_type": self.plot_type(), "show": False, "return_figure": True,
-                "figure": self.figure, "telescopes": telescopes, "frequencies": frequencies,
-                "clear_previous": True}
+                "figure": self.figure, "telescopes": telescopes, "frequencies": frequencies}
 
     def update_visualization(self):
         """As the base does, but an empty answer here means *both* counts are zero.
