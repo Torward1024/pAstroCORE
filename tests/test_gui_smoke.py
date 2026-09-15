@@ -7,16 +7,15 @@ rather than by a build.
 It proves nothing about behaviour. It proves the application still starts, which is exactly
 what a refactoring of the layers underneath it threatens.
 
-Qt runs on the offscreen platform, so this works on a build machine with no display.
+Qt runs on the offscreen platform -- `conftest` sees to it for every run -- so this works on a
+build machine with no display.
 """
 import importlib
-import os
 import pathlib
 import pkgutil
 
 import pytest
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 GUI = pathlib.Path(__file__).parent.parent / "pastrocore" / "gui"
 
@@ -324,8 +323,7 @@ def test_declining_a_recovered_session_removes_it(window, tmp_path, monkeypatch)
 def test_keeping_a_recovered_session_leaves_it_alone(window, tmp_path, monkeypatch):
     """The default answer, and the one that matters: the results are still there afterwards."""
     from PySide6.QtWidgets import QMessageBox
-    import os
-
+    
     from pastrocore.base import scratch as scratch_module
     from pastrocore.base.scratch import ScratchSpace
     import polars as pl

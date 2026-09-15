@@ -15,9 +15,18 @@ recomputing has to reproduce what the project already contains.
 import copy
 import json
 import logging
+import os
 import pathlib
 
 import pytest
+
+# **Every run on the offscreen platform, whichever tests it collects.** This was set when
+# `test_gui_smoke` was imported, so a whole run drew every form offscreen and a run of one file drew
+# them on the desktop's platform, with its fonts -- which is why regenerating the form pixels from one
+# file rewrote 25 of 26 digests, and why the layout of a form measured differently alone and in
+# company. Set here, before anything creates the application, a run is one condition. A platform
+# given in the environment still wins.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from pastrocore.super.schedule_manipulator import ScheduleManipulator
 from pastrocore.super.schedule_project import ScheduleProject
