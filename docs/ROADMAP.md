@@ -7,7 +7,7 @@ its criterion holds, not when it feels tidy.
 
 ## Next -- finishing it
 
-Thirteen items from using it, ranked: what costs an hour every day first, what a new user sees
+Fourteen items from using it, ranked: what costs an hour every day first, what a new user sees
 second, what it cannot do yet third, and last what lets any astronomer install it and start.
 Each lands as its own release, in this order, unless a later one turns out to need an earlier
 one.
@@ -24,7 +24,7 @@ one.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
-| G10 | **The icon set, complete** | Every menu action has an icon in the existing style -- 24x24, stroke `#005BB5`, width 2, round caps and joins, no fill, no Illustrator preamble. A test fails on an action without one and on an SVG outside that style |
+| G10 | **The icon set, complete** | Every menu action has an icon in the existing style -- 24x24, stroke `#005BB5`, width 2, round caps and joins, no fill, no Illustrator preamble. A test fails on an action without one and on an SVG outside that style. The stroke is one colour, so U1 can recolour the set rather than redraw it |
 | G11 | **A toolbar** | New, Open, Save, Import, Export, Calculate, Visualize, Analysis, Generate, Session, Preferences -- the menu's own `QAction`s, so a disabled action is disabled in both places. Defined in `main_window.ui` |
 | G12 | **Shortcuts** | The platform's standard keys where one exists (`QKeySequence.New`, `Open`, `Save`, `SaveAs`, `Preferences`, `Quit`), `Ctrl+R` calculate, `Ctrl+Shift+V` visualize, `F1` about. No two actions share one: a test fails on a collision |
 | G13 | **A status bar** | The process's memory (resident set, from `psutil`, already a dependency), refreshed every two seconds, and the last log message at INFO or above -- warnings in amber, errors in red -- from a logging handler, not from call sites |
@@ -42,6 +42,7 @@ one.
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
+| U1 | **A redesign** | The window looks like a current application rather than an early Windows 8 one. Designed as tokens -- palette, type scale, spacing, radii, one light and one dark theme -- from which the stylesheet and the plots' matplotlib style are both generated, so a colour is changed in one place. Mockups of the main window, a visualization tab and an editor are agreed before any form is touched; then every form, restyled, with its pixels regenerated deliberately and before/after shown for each. The theme is a choice in Preferences. The icons from G10 take their stroke from the palette, so they follow rather than get redrawn |
 | I1 | **Installing without Python** | A tag builds, in CI, a download per platform that installs and starts with no Python on the machine -- a Windows installer with a Start menu entry, a macOS application, a Linux AppImage -- and attaches them to the release. CI starts each build it made, opens the fixture project and closes, so a download that does not start is a failed build. *Which platforms, signing, and PyPI: decided when it starts* |
 | D1 | **The documentation, whole** | An astronomer with no Python reaches a VEX file from the manual alone: installing, a first observation from the catalogues, every tab and dialog, calculations and what each plot shows, formats, sessions, the command line, troubleshooting. Screenshots are made by a script from the application, so they are regenerated rather than going stale; every code block runs in the suite, as now; the command-line reference comes from the command line itself. Built as a site in CI and published with each release |
 
