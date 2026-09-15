@@ -243,3 +243,48 @@ def test_the_drawn_beam_is_an_airy_pattern_at_the_chosen_frequency(recomputed, m
             np.degrees(np.arcsin(1.2197 * wavelength / diameter)), abs=2 * spacing)
         checked += 1
     assert checked == len(dishes)
+
+
+def test_a_moving_station_is_where_its_velocity_in_metres_per_year_puts_it():
+    """Velocities are metres per year -- VEX `site_velocity`, CFX `TLSC_PAR`, the editor -- and
+    the position multiplied them by seconds since J2000. Westerbork, Svetloe and Badary from a
+    RadioAstron schedule came out 9 500 to 11 000 km from where they are. The fixture's two
+    stations do not move, which is why every check above passed regardless.
+    """
+    from pastrocore.base.observation import Observation
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    observation = Observation(code="MOVING")
+    stations = observation.get_telescopes()
+    stations.create_telescope(code="Wb", name="WSTRBORK", x=3828445.659, y=445223.6, z=5064921.568,
+                              vx=-0.01353, vy=0.01704, vz=0.00873)
+    stations.create_telescope(code="Sv", name="SVETLOE", x=2730173.7626, y=1562442.7288,
+                              z=5529969.1054, vx=-0.01817, vy=0.01272, vz=0.00832)
+    observation.get_sources().create_source(name="S", ra_h=12.0, de_d=60.0)
+    observation.get_frequencies().create_if(name="x", frequency=8400.0, bandwidth=16.0)
+    observation.get_scans().create_scan(
+        name="No0001", start=Time("2012-11-18T14:00:00"), duration=1200.0,
+        source=observation.get_sources().get("S"), telescopes=stations.get_items(),
+        frequencies=observation.get_frequencies().get_items(), observation=observation)
+    project = ScheduleProject(name="moving")
+    project.add_item(observation)
+    observation = project.observations()[0]
+
+    ScheduleManipulator(project).compute(obj=None, method="run", targets=[observation],
+                                         calculations=["telescope_positions"], time_step=300.0,
+                                         force=True)
+    positions = stored(observation, "telescope_positions")
+    j2000 = Time("2000-01-01T12:00:00").mjd
+
+    for telescope in observation.get_telescopes().get_items():
+        rows = positions.filter(pl.col("telescope_code") == telescope.get_code())
+        years = (rows["time"].to_numpy() - j2000) / 365.25
+        moved = (np.asarray(telescope.get_coordinates())[np.newaxis, :]
+                 + np.asarray(telescope.get_velocities())[np.newaxis, :] * years[:, np.newaxis])
+        when = Time(rows["time"].to_numpy(), format="mjd", scale="utc")
+        expected = EarthLocation.from_geocentric(moved[:, 0], moved[:, 1], moved[:, 2],
+                                                 unit=u.m).get_gcrs(obstime=when).cartesian
+        ours = rows.select(["x", "y", "z"]).to_numpy()
+        worst = np.max(np.linalg.norm(ours - expected.xyz.to_value(u.m).T, axis=1))
+        assert worst < 0.01, f"{telescope.get_code()} is {worst:,.2f} m from where it is"

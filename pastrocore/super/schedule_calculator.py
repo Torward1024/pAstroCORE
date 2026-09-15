@@ -1191,7 +1191,18 @@ class ScheduleCalculator(Super):
                 res = telescope.get(["vx", "vy", "vz"])
                 vx, vy, vz = res["vx"], res["vy"], res["vz"]
 
-                dt = (times_mjd - self._j2000_mjd) * 86400.0
+                # **Years, because a station's velocity is metres per year.** That is what VEX
+                # writes as `site_velocity ... m/yr`, what CFX's `TLSC_PAR` carries, and what the
+                # editor holds. This multiplied it by *seconds* since J2000: a station moving
+                # 23 mm a year was placed 9 500 km from where it is -- Westerbork, Svetloe and
+                # Badary read from a RadioAstron schedule all sat inside the Earth, and every
+                # visibility, uv point and elevation computed for them was for nowhere. The
+                # fixture's stations do not move, so nothing had ever noticed.
+                #
+                # J2000 is taken as the epoch the coordinates hold at. A file states its own
+                # (VEX `site_position_epoch`, CFX's eighth field) and the model does not carry it;
+                # at these speeds the difference is centimetres.
+                dt = (times_mjd - self._j2000_mjd) / 365.25
 
                 itrs_coords = CartesianRepresentation(
                     x + vx * dt,
