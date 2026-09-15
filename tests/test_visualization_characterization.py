@@ -584,3 +584,38 @@ def test_unticking_stations_leaves_only_their_panels(manipulator, observation):
         assert len(figure.axes) == len(chosen), f"{len(figure.axes)} panels for {len(chosen)} stations"
         assert len(figure.legends) == 1 and len(figure.texts) == 3
 
+
+# --- the sky outside the Mollweide ellipse ------------------------------------------------------------
+
+def test_the_cursor_leaving_the_mollweide_ellipse_asks_nothing_impossible(manipulator, observation):
+    """matplotlib's inverse Mollweide takes `arcsin(y / sqrt 2)` of any point it is given, and it is
+    given one outside the ellipse each time the cursor leaves the sky: the axes-leave event asks
+    where the cursor is in longitude and latitude. `invalid value encountered in arcsin`, once a
+    session -- found by reaching for the zoom button. Outside the ellipse there is no sky, so
+    there is no coordinate; inside it, the answer is matplotlib's own."""
+    import warnings
+    from matplotlib.backend_bases import MouseEvent
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    figure = Figure(figsize=(12, 7), dpi=80)
+    FigureCanvasAgg(figure)
+    manipulator.visualize(obj=observation, plot_type="mollweide_tracks", return_figure=True,
+                          show=False, raise_on_error=False, figure=figure, **filters_for(observation))
+    figure.canvas.draw()
+    (axes,) = figure.axes
+    left, bottom, right, top = axes.bbox.extents
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        for x, y in (((left + right) / 2, (bottom + top) / 2), ((left + right) / 2, top + 30)):
+            MouseEvent("motion_notify_event", figure.canvas, x, y)._process()
+        off_sky = axes.transData.inverted().transform([((left + right) / 2, top + 30),
+                                                        (left + 2, top - 2)])
+    assert [str(w.message) for w in caught] == []
+    assert np.isnan(off_sky).all(), "above the sky, or in the box's corner beside it, is nowhere"
+
+    from matplotlib.projections.geo import MollweideAxes
+    on_sky = axes.transProjection.transform(np.radians([(0.0, 0.0), (-179.0, 10.0), (120.0, -89.5)]))
+    stock = MollweideAxes.InvertedMollweideTransform(axes.RESOLUTION).transform_non_affine(on_sky)
+    assert np.array_equal(axes.transProjection.inverted().transform_non_affine(on_sky), stock),         "on the sky the answer is matplotlib's own"

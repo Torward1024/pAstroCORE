@@ -26,8 +26,44 @@ from matplotlib.figure import Figure
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 
+from matplotlib.projections import register_projection
+from matplotlib.projections.geo import MollweideAxes
+
 from erfa import ErfaWarning
 warnings.filterwarnings("ignore", category=ErfaWarning)
+
+
+class SkyMollweideAxes(MollweideAxes):
+    """matplotlib's Mollweide axes, with an inverse that knows where the sky ends.
+
+    Notes:
+        - **Outside the ellipse there is no longitude or latitude.** matplotlib inverts any
+          point it is handed, and it is handed one outside each time the cursor leaves the
+          axes -- the leave event asks where the cursor is. Above the ellipse that is `arcsin`
+          of more than one (`invalid value encountered in arcsin`); in the corners of the box
+          beside it, a longitude of twenty radians. Such a point answers NaN instead.
+    """
+    name = "sky_mollweide"
+
+    class InvertedMollweideTransform(MollweideAxes.InvertedMollweideTransform):
+
+        def transform_non_affine(self, values):
+            values = np.asarray(values, dtype=float)
+            off_sky = (values[:, 0] / (2.0 * np.sqrt(2.0))) ** 2 + (values[:, 1] / np.sqrt(2.0)) ** 2 > 1.0
+            sky = super().transform_non_affine(np.where(off_sky[:, np.newaxis], 0.0, values))
+            sky[off_sky] = np.nan
+            return sky
+
+        def inverted(self):
+            return SkyMollweideAxes.MollweideTransform(self._resolution)
+
+    class MollweideTransform(MollweideAxes.MollweideTransform):
+
+        def inverted(self):
+            return SkyMollweideAxes.InvertedMollweideTransform(self._resolution)
+
+
+register_projection(SkyMollweideAxes)
 
 class ScheduleVisualizer(Super):
     SPEED_OF_LIGHT: float = 299792458.0  # Speed of light in m/s
@@ -1813,7 +1849,7 @@ class ScheduleVisualizer(Super):
             sources = attributes.get("sources", [])
             max_points = attributes.get("max_points", 10000)
 
-            ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection="mollweide")
+            ax = self._setup_axes(fig, "mollweide_tracks", obj.get_observation_code(), projection=SkyMollweideAxes.name)
             ax.set_title(f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}",
                          fontsize=self._style_config["font"]["title_size"])
             ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
@@ -1823,7 +1859,7 @@ class ScheduleVisualizer(Super):
                 logger.warning("No valid Mollweide track data found for '%s'", store_key)
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
-                    projection="mollweide",
+                    projection=SkyMollweideAxes.name,
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1832,7 +1868,7 @@ class ScheduleVisualizer(Super):
                 logger.warning("No source metadata found in calculated_data['metadata']['sources']")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
-                    projection="mollweide",
+                    projection=SkyMollweideAxes.name,
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1853,7 +1889,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("No data after filtering, returning empty Mollweide plot")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
-                    projection="mollweide",
+                    projection=SkyMollweideAxes.name,
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
@@ -1975,7 +2011,7 @@ class ScheduleVisualizer(Super):
                 logger.debug("No telescopes or sources plotted, returning empty Mollweide plot")
                 return self._create_empty_plot(
                     fig, "mollweide_tracks", obj.get_observation_code(),
-                    projection="mollweide",
+                    projection=SkyMollweideAxes.name,
                     labels={"title": f"Mollweide Tracks\nObs. code: {obj.get_observation_code()}"}
                 )
 
