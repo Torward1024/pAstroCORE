@@ -7,9 +7,10 @@ its criterion holds, not when it feels tidy.
 
 ## Next -- finishing it
 
-Eleven items from using it, ranked: what costs an hour every day first, what a new user sees
-second, what makes it complete last. Each lands as its own release, in this order, unless a
-later one turns out to need an earlier one.
+Thirteen items from using it, ranked: what costs an hour every day first, what a new user sees
+second, what it cannot do yet third, and last what lets any astronomer install it and start.
+Each lands as its own release, in this order, unless a later one turns out to need an earlier
+one.
 
 ### Stage 1 -- what gets in the way every day
 
@@ -36,6 +37,13 @@ later one turns out to need an earlier one.
 | C1 | **Editing the catalogues** | Add, edit and remove sources and stations in the catalogue managers, and save to the same file or a new one. **A catalogue is JSON** -- the same `Sources` and `Telescopes` a project serializes, so a space telescope and any field added later have somewhere to go; `.dat` files still open, and are saved as JSON. The shipped catalogues are converted once, and read back equal to what the `.dat` gave |
 | S1 | **Editing a session** | A session can be cut down to what is worth repeating: rows removed, the rest saved, and a filter showing only the requests that change the model. **Everything is still recorded** -- what the window asked is what a bug report needs. Whether an operation only reads is declared on the operation, in MSB, not listed here |
 | L4 | **Everything from the command line** | Every operation the window can ask for can be asked from the command line: `pastrocore-cli ask <operation> <object> key=value`, and an interactive `pastrocore-cli shell` that completes operations, methods and objects. **No new language**: both are built from the catalogue of requests MSB already describes, so nothing is a command table to keep in step with the window, and a script is a session file, which already replays |
+
+### Stage 4 -- for anyone to install and use
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| I1 | **Installing without Python** | A tag builds, in CI, a download per platform that installs and starts with no Python on the machine -- a Windows installer with a Start menu entry, a macOS application, a Linux AppImage -- and attaches them to the release. CI starts each build it made, opens the fixture project and closes, so a download that does not start is a failed build. *Which platforms, signing, and PyPI: decided when it starts* |
+| D1 | **The documentation, whole** | An astronomer with no Python reaches a VEX file from the manual alone: installing, a first observation from the catalogues, every tab and dialog, calculations and what each plot shows, formats, sessions, the command line, troubleshooting. Screenshots are made by a script from the application, so they are regenerated rather than going stale; every code block runs in the suite, as now; the command-line reference comes from the command line itself. Built as a site in CI and published with each release |
 
 ## Parked
 
