@@ -8,6 +8,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.9.2] - 2026-09-15
+
+### Fixed
+
+- **The Mollweide tab opened and never drew, and neither did the two spacecraft tabs.** A
+  visualization tab owns one figure and hands it to the visualizer with each request, so the drawing
+  lands on the canvas the tab shows. These three wrote their request from scratch -- for their
+  sources, or their target -- and left the figure out: the visualizer drew into a figure of its own,
+  the tab showed its empty one, and nothing in the log said why. They now add to the base's request
+  instead of replacing it.
+
+### Added
+
+- Every visualization tab, found rather than listed, is required to have something drawn on the
+  figure it shows. The check it replaces, `tab.canvas is not None`, held for any tab, drawn or not.
+
 ## [1.9.1] - 2026-09-15
 
 ### Fixed
