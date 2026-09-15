@@ -17,41 +17,18 @@
    </item>
    <item row="0" column="1">
     <layout class="QGridLayout" name="gridLayout_2">
+     <item row="0" column="0">
+      <widget class="QLabel" name="lblSource">
+       <property name="text">
+        <string>Source:</string>
+       </property>
+      </widget>
+     </item>
      <item row="1" column="0">
       <layout class="QGridLayout" name="gridLayout">
-       <item row="6" column="0" colspan="2">
-        <widget class="QListWidget" name="listBaselines" />
-       </item>
-       <item row="4" column="0" colspan="2">
-        <widget class="QListWidget" name="listScans" />
-       </item>
        <item row="0" column="0" colspan="2">
         <widget class="QComboBox" name="comboBox">
          </widget>
-       </item>
-       <item row="3" column="0" colspan="2">
-        <widget class="QLabel" name="lblScans">
-         <property name="text">
-          <string>Scans:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
-        <widget class="QListWidget" name="listFrequencies" />
-       </item>
-       <item row="7" column="0">
-        <widget class="QLabel" name="lblUnits">
-         <property name="text">
-          <string>Units:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="0" colspan="2">
-        <widget class="QLabel" name="lblBaselines">
-         <property name="text">
-          <string>Baselines:</string>
-         </property>
-        </widget>
        </item>
        <item row="1" column="0" colspan="2">
         <widget class="QLabel" name="lblFrequencies">
@@ -60,18 +37,140 @@
          </property>
         </widget>
        </item>
-       <item row="8" column="0">
+       <item row="2" column="0" colspan="2">
+        <widget class="QListWidget" name="listFrequencies" />
+       </item>
+       <item row="3" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="layoutFrequenciesButtons">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="listFrequenciesSelectAll">
+           <property name="toolTip">
+            <string>Tick every frequency</string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="listFrequenciesClear">
+           <property name="toolTip">
+            <string>Untick every frequency</string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="4" column="0" colspan="2">
+        <widget class="QLabel" name="lblScans">
+         <property name="text">
+          <string>Scans:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0" colspan="2">
+        <widget class="QListWidget" name="listScans" />
+       </item>
+       <item row="6" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="layoutScansButtons">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="listScansSelectAll">
+           <property name="toolTip">
+            <string>Tick every scan</string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="listScansClear">
+           <property name="toolTip">
+            <string>Untick every scan</string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="7" column="0" colspan="2">
+        <widget class="QLabel" name="lblBaselines">
+         <property name="text">
+          <string>Baselines:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0" colspan="2">
+        <widget class="QListWidget" name="listBaselines" />
+       </item>
+       <item row="9" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="layoutBaselinesButtons">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="listBaselinesSelectAll">
+           <property name="toolTip">
+            <string>Tick every baseline</string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="listBaselinesClear">
+           <property name="toolTip">
+            <string>Untick every baseline</string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="10" column="0" colspan="2">
+        <widget class="QLabel" name="lblUnits">
+         <property name="text">
+          <string>Units:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="0" colspan="2">
         <widget class="QComboBox" name="comboBox_2">
          </widget>
        </item>
       </layout>
-     </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="lblSource">
-       <property name="text">
-        <string>Source:</string>
-       </property>
-      </widget>
      </item>
     </layout>
    </item>

@@ -27,12 +27,11 @@ class MollweideVisualizationTab(VisualizationTab):
 
     def _populate_extra_filters(self):
         """Add the source list, from the metadata beside the result."""
-        self.ui.listWidget.setObjectName("listSources")
         for source in sorted(self._sources()):
             item = QListWidgetItem(source)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             item.setCheckState(Qt.Checked)
-            self.ui.listWidget.addItem(item)
+            self.ui.listSources.addItem(item)
 
     def _sources(self) -> List[str]:
         """The sources the tracks were drawn against, from the result's metadata."""
@@ -45,13 +44,13 @@ class MollweideVisualizationTab(VisualizationTab):
             return []
 
     def _filter_signals(self):
-        """The base's, plus the source list this form calls `listWidget`."""
+        """The base's, plus the source list."""
         yield from super()._filter_signals()
-        yield self.ui.listWidget, self.ui.listWidget.itemChanged
+        yield self.ui.listSources, self.ui.listSources.itemChanged
 
     def get_selected_sources(self) -> List[str]:
         """The ticked sources."""
-        return self._checked(self.ui.listWidget)
+        return self._checked(self.ui.listSources)
 
     def _first_draw(self):
         """Every scan, since the scans here are not narrowed by a single source."""

@@ -22,9 +22,9 @@
     "ui_tab_observation.Ui_ObservationInfoTab": "f37ef3c41bec0a03257ed2395e965c8d",
     "ui_tab_observation_any.Ui_observation_tab": "93e4850a7392fe5de033e1ffa77f0462",
     "ui_tab_project.Ui_ProjectInfoTab": "4caea3951ca631c8851db17598a75805",
-    "ui_tab_vis_beam_pattern.Ui_VisBeamPatternTab": "6ad615c958c5e6be84a40f402e461895",
-    "ui_tab_vis_default.Ui_VisDefaultTab": "09835b72a314f058196b565e2a992cb5",
-    "ui_tab_vis_mollweide.Ui_MollweideVisTab": "1c4f11c18aff21efccff3d524d36067f",
-    "ui_tab_vis_uv_coverage.Ui_UVCoverageVisTab": "98931967aa8cf3b573100ac0b3cca50e"
+    "ui_tab_vis_beam_pattern.Ui_VisBeamPatternTab": "fb76cb736a2553a5f0025b2a494f233f",
+    "ui_tab_vis_default.Ui_VisDefaultTab": "b63589b6f7e25c0aefec8622cf8cf802",
+    "ui_tab_vis_mollweide.Ui_MollweideVisTab": "fbb80613b1965ca92f9341a1ab659dae",
+    "ui_tab_vis_uv_coverage.Ui_UVCoverageVisTab": "24e6e876ad9cf82c234ce813827abd09"
   }
 }

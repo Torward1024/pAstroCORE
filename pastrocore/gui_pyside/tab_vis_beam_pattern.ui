@@ -19,25 +19,91 @@
     <layout class="QGridLayout" name="gridLayout_2">
      <item row="0" column="0">
       <layout class="QGridLayout" name="gridLayout">
-       <item row="7" column="0">
-        <widget class="QListWidget" name="listFrequencies" />
-       </item>
-       <item row="0" column="0">
+       <item row="0" column="0" colspan="2">
         <widget class="QLabel" name="lblTelescopes">
          <property name="text">
           <string>Telescopes:</string>
          </property>
         </widget>
        </item>
-       <item row="6" column="0">
+       <item row="1" column="0" colspan="2">
+        <widget class="QListWidget" name="listTelescopes" />
+       </item>
+       <item row="2" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="layoutTelescopesButtons">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="listTelescopesSelectAll">
+           <property name="toolTip">
+            <string>Tick every telescope</string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="listTelescopesClear">
+           <property name="toolTip">
+            <string>Untick every telescope</string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="3" column="0" colspan="2">
         <widget class="QLabel" name="lblFrequencies">
          <property name="text">
           <string>Frequencies:</string>
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QListWidget" name="listTelescopes" />
+       <item row="4" column="0" colspan="2">
+        <widget class="QListWidget" name="listFrequencies" />
+       </item>
+       <item row="5" column="0" colspan="2">
+        <layout class="QHBoxLayout" name="layoutFrequenciesButtons">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="listFrequenciesSelectAll">
+           <property name="toolTip">
+            <string>Tick every frequency</string>
+           </property>
+           <property name="text">
+            <string>Select All</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="listFrequenciesClear">
+           <property name="toolTip">
+            <string>Untick every frequency</string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
       </layout>
      </item>
