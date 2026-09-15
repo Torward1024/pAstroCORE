@@ -619,3 +619,59 @@ def test_the_cursor_leaving_the_mollweide_ellipse_asks_nothing_impossible(manipu
     on_sky = axes.transProjection.transform(np.radians([(0.0, 0.0), (-179.0, 10.0), (120.0, -89.5)]))
     stock = MollweideAxes.InvertedMollweideTransform(axes.RESOLUTION).transform_non_affine(on_sky)
     assert np.array_equal(axes.transProjection.inverted().transform_non_affine(on_sky), stock),         "on the sky the answer is matplotlib's own"
+
+
+# --- beam patterns in a grid --------------------------------------------------------------------------
+
+def draw_beam_for(manipulator, observation, count):
+    """The fixture's beam, copied to `count` stations, drawn into a tab-sized figure."""
+    import polars as pl
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    stored = observation.scan_calculated_data("beam_pattern").collect()
+    one = stored.filter(pl.col("telescope_code") == stored["telescope_code"][0])
+    codes = [f"T{index:02d}" for index in range(count)]
+    observation.set_calculated_data_by_key(
+        "beam_pattern",
+        pl.concat([one.with_columns(pl.lit(code).alias("telescope_code")) for code in codes])
+        .select(stored.columns),
+        observation.get_calculated_metadata("beam_pattern"))
+    figure = Figure(figsize=(8.8, 5.6), dpi=100)
+    FigureCanvasAgg(figure)
+    answer = manipulator.visualize(obj=observation, plot_type="beam_pattern", return_figure=True,
+                                   show=False, raise_on_error=False, telescopes=codes,
+                                   frequencies=[1000.0, 5000.0], figure=figure)
+    assert answer.ok, answer.error
+    figure.canvas.draw()
+    return figure
+
+
+@pytest.mark.parametrize("count", [2, 9, 12])
+def test_beam_panels_names_labels_and_legend_do_not_overlap(manipulator, observation, count):
+    """With nine stations each code was its panel's title and sat on the angle labels of the panel
+    above; the legend, anchored by its right edge, lay over the top row's last title."""
+    figure = draw_beam_for(manipulator, observation, count)
+    renderer = figure.canvas.get_renderer()
+    panels = [axes for axes in figure.get_axes() if axes.get_visible()]
+    assert len(panels) == count
+
+    def overlap(a, b):
+        return a.x0 < b.x1 and b.x0 < a.x1 and a.y0 < b.y1 and b.y0 < a.y1
+
+    tick_labels = [(axes, label.get_window_extent(renderer)) for axes in panels
+                   for label in axes.get_xticklabels() + axes.get_yticklabels() if label.get_text()]
+    legend = figure.legends[0].get_window_extent(renderer)
+    for axes in panels:
+        assert axes.get_title() == "", "a title needs a row the grid does not have"
+        (name,) = axes.texts
+        box = name.get_window_extent(renderer)
+        panel = axes.get_window_extent(renderer)
+        assert panel.x0 <= box.x0 and box.x1 <= panel.x1 and panel.y0 <= box.y0 and box.y1 <= panel.y1, \
+            f"{name.get_text()} spills out of its panel"
+        assert not [other for other, label in tick_labels if other is not axes and overlap(box, label)], \
+            f"{name.get_text()} lies on another panel's labels"
+        assert not overlap(legend, panel), f"the legend lies over {name.get_text()}"
+        for label in (figure._suptitle, figure._supxlabel, figure._supylabel):
+            assert not overlap(label.get_window_extent(renderer), panel), \
+                f"'{label.get_text()}' lies over {name.get_text()}"

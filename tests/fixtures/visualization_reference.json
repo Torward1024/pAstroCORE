@@ -2388,7 +2388,7 @@
  "beam_pattern": {
   "axes": [
    {
-    "title": "ALMA",
+    "title": "",
     "xlabel": "",
     "ylabel": "",
     "origin": [
@@ -12404,11 +12404,13 @@
      ]
     ],
     "collections": [],
-    "texts": [],
+    "texts": [
+     "ALMA"
+    ],
     "images": 0
    },
    {
-    "title": "APEX",
+    "title": "",
     "xlabel": "",
     "ylabel": "",
     "origin": [
@@ -22424,7 +22426,9 @@
      ]
     ],
     "collections": [],
-    "texts": [],
+    "texts": [
+     "APEX"
+    ],
     "images": 0
    }
   ]

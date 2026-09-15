@@ -405,6 +405,9 @@ class ScheduleVisualizer(Super):
             # a station and a stack of tick labels, titles and legends appeared. The margins go
             # back to the defaults too, so one layout's `subplots_adjust` is not the next one's.
             fig.clf()
+            # A plot that lays itself out with an engine leaves it on the figure; the next
+            # drawing starts from none, as a new figure would.
+            fig.set_layout_engine(None)
             fig.subplots_adjust(**{side: matplotlib.rcParams[f"figure.subplot.{side}"]
                                    for side in ("left", "right", "bottom", "top", "wspace", "hspace")})
 
@@ -1532,7 +1535,11 @@ class ScheduleVisualizer(Super):
 
             for tel_idx, tel_code in enumerate(tel_list):
                 ax = axes[tel_idx] if tel_idx < len(axes) else axes[-1]
-                ax.set_title(tel_code, fontsize=self._style_config["font"]["title_size"])
+                # Inside the panel, as on the az/el plot: a title above a panel sat on the angle
+                # labels of the panel above it. The top left is where a beam is at its faintest.
+                ax.text(0.02, 0.95, tel_code, transform=ax.transAxes, ha="left", va="top",
+                        fontsize=self._style_config["font"]["tick_size"],
+                        bbox=dict(facecolor="white", alpha=0.75, edgecolor="none", pad=1.5))
                 ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel_code)
@@ -1599,26 +1606,25 @@ class ScheduleVisualizer(Super):
                     ax.set_xlim(-extent, extent)
                 plotted_telescopes.add(tel_code)
 
-            # Set shared axis labels
+            # **Laid out by what is actually there, not by fractions of the figure.** Every panel
+            # has its own angle labels -- the scales differ -- and fixed margins left no room for
+            # them between rows, while the legend, anchored by its right edge, lay across the
+            # last panel of the top row. The constrained engine measures the labels, the title
+            # and the legend, and keeps measuring as the tab is resized.
             for ax in axes:
                 ax.set_xlabel("")
                 ax.set_ylabel("")
+            fig.set_layout_engine("constrained")
             if plotted_telescopes:
-                fig.text(0.5, 0.04, "Theta, (deg.)", ha="center", fontsize=self._style_config["font"]["label_size"])
-                fig.text(0.04, 0.5, "Normalized Peak Flux", va="center", rotation="vertical",
-                         fontsize=self._style_config["font"]["label_size"])
-
-            # Adjust layout and add legend
-            fig.subplots_adjust(left=0.10, bottom=0.10, right=0.86, top=0.85)
+                fig.supxlabel("Theta, (deg.)", fontsize=self._style_config["font"]["label_size"])
+                fig.supylabel("Normalized Peak Flux", fontsize=self._style_config["font"]["label_size"])
             if legend_handles:
                 fig.legend(
                     legend_handles, legend_labels,
-                    loc=self._style_config["legend"]["loc"],
-                    bbox_to_anchor=(0.87, 0.99),
+                    loc="outside right upper",
                     fontsize=self._style_config["legend"]["fontsize"],
                     title="Frequencies:",
                     title_fontsize=self._style_config["legend"]["title_fontsize"],
-                    bbox_transform=fig.transFigure
                 )
 
             for idx in range(len(tel_list), len(axes)):
