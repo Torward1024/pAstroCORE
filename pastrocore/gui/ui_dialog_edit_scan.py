@@ -31,8 +31,6 @@ class Ui_ScanEditorDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(ScanEditorDialog.sizePolicy().hasHeightForWidth())
         ScanEditorDialog.setSizePolicy(sizePolicy)
-        ScanEditorDialog.setMinimumSize(QSize(560, 420))
-        ScanEditorDialog.setMaximumSize(QSize(560, 420))
         icon = QIcon()
         icon.addFile(u":/icons/edit_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         ScanEditorDialog.setWindowIcon(icon)

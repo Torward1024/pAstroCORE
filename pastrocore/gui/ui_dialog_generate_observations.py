@@ -93,25 +93,21 @@ class Ui_GenerateObservationsDialog(object):
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.sourceSelectAllButton = QPushButton(self.tabBasic)
         self.sourceSelectAllButton.setObjectName(u"sourceSelectAllButton")
-        self.sourceSelectAllButton.setMinimumSize(QSize(40, 20))
 
         self.gridLayout_2.addWidget(self.sourceSelectAllButton, 2, 0, 1, 1)
 
         self.sourceUpButton = QPushButton(self.tabBasic)
         self.sourceUpButton.setObjectName(u"sourceUpButton")
-        self.sourceUpButton.setMinimumSize(QSize(40, 20))
 
         self.gridLayout_2.addWidget(self.sourceUpButton, 0, 0, 1, 1)
 
         self.sourceClearButton = QPushButton(self.tabBasic)
         self.sourceClearButton.setObjectName(u"sourceClearButton")
-        self.sourceClearButton.setMinimumSize(QSize(40, 20))
 
         self.gridLayout_2.addWidget(self.sourceClearButton, 3, 0, 1, 1)
 
         self.sourceDownButton = QPushButton(self.tabBasic)
         self.sourceDownButton.setObjectName(u"sourceDownButton")
-        self.sourceDownButton.setMinimumSize(QSize(40, 20))
 
         self.gridLayout_2.addWidget(self.sourceDownButton, 1, 0, 1, 1)
 
@@ -122,13 +118,11 @@ class Ui_GenerateObservationsDialog(object):
         self.gridLayout_3.setObjectName(u"gridLayout_3")
         self.telescopeClearButton = QPushButton(self.tabBasic)
         self.telescopeClearButton.setObjectName(u"telescopeClearButton")
-        self.telescopeClearButton.setMinimumSize(QSize(40, 20))
 
         self.gridLayout_3.addWidget(self.telescopeClearButton, 1, 1, 1, 1)
 
         self.telescopeSelectAllButton = QPushButton(self.tabBasic)
         self.telescopeSelectAllButton.setObjectName(u"telescopeSelectAllButton")
-        self.telescopeSelectAllButton.setMinimumSize(QSize(40, 20))
 
         self.gridLayout_3.addWidget(self.telescopeSelectAllButton, 0, 1, 1, 1)
 
@@ -139,13 +133,11 @@ class Ui_GenerateObservationsDialog(object):
         self.gridLayout_4.setObjectName(u"gridLayout_4")
         self.frequencyClearButton = QPushButton(self.tabBasic)
         self.frequencyClearButton.setObjectName(u"frequencyClearButton")
-        self.frequencyClearButton.setMinimumSize(QSize(40, 20))
 
         self.gridLayout_4.addWidget(self.frequencyClearButton, 1, 1, 1, 1)
 
         self.frequencySelectAllButton = QPushButton(self.tabBasic)
         self.frequencySelectAllButton.setObjectName(u"frequencySelectAllButton")
-        self.frequencySelectAllButton.setMinimumSize(QSize(40, 20))
 
         self.gridLayout_4.addWidget(self.frequencySelectAllButton, 0, 1, 1, 1)
 

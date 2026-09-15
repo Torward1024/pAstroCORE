@@ -19,18 +19,6 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
-  <property name="minimumSize">
-   <size>
-    <width>460</width>
-    <height>380</height>
-   </size>
-  </property>
-  <property name="maximumSize">
-   <size>
-    <width>460</width>
-    <height>380</height>
-   </size>
-  </property>
   <property name="windowTitle">
    <string>Edit Source</string>
   </property>

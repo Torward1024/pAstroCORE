@@ -30,8 +30,6 @@ class Ui_AddObservationDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(AddObservationDialog.sizePolicy().hasHeightForWidth())
         AddObservationDialog.setSizePolicy(sizePolicy)
-        AddObservationDialog.setMinimumSize(QSize(330, 120))
-        AddObservationDialog.setMaximumSize(QSize(330, 120))
         icon = QIcon()
         icon.addFile(u":/icons/add_observation_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         AddObservationDialog.setWindowIcon(icon)

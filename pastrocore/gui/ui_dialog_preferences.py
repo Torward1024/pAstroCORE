@@ -31,8 +31,6 @@ class Ui_PreferencesDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(PreferencesDialog.sizePolicy().hasHeightForWidth())
         PreferencesDialog.setSizePolicy(sizePolicy)
-        PreferencesDialog.setMinimumSize(QSize(450, 350))
-        PreferencesDialog.setMaximumSize(QSize(450, 350))
         icon = QIcon()
         icon.addFile(u":/icons/preferences.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         PreferencesDialog.setWindowIcon(icon)
