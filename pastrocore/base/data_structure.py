@@ -40,6 +40,9 @@ class CalculatedDataStructure:
         },
         "interpolated_orbits": {
             "intermediate": True,
+            # A question for the observation, asked by name: without a spacecraft placed from an
+            # orbit file there is nothing to interpolate, and the step is left out of a plan.
+            "only_if": "has_orbit_file_telescopes",
             "depends_on": ("telescopes", "scans"),
             "columns": ["time", "scan_name", "telescope_code", "x", "y", "z"],
             "metadata": {
@@ -354,6 +357,24 @@ class CalculatedDataStructure:
               something -- the difference is intent, and intent has to be stated.
         """
         return bool(cls.entry_for(key).get("intermediate", False))
+
+    @classmethod
+    def condition_for(cls, key: str) -> Optional[str]:
+        """Return the question an observation must answer yes to for this result to exist.
+
+        Args:
+            key (str): The result's store key, or its handler's name.
+
+        Returns:
+            Optional[str]: The name of an `Observation` method taking no arguments, or None for
+                a result every observation can have.
+
+        Notes:
+            - Declared beside the result, like everything else about it, and asked of the model
+              through a request -- so what makes a calculation pointless is a fact about the
+              observation, not a list kept by whoever plans the run.
+        """
+        return cls.entry_for(key).get("only_if")
 
     @classmethod
     def uses_time_step(cls, key: str) -> bool:

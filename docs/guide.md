@@ -156,17 +156,18 @@ outcome = manipulator.compute(obj=None, method="run",
 
 assert outcome["failed"] == []
 assert [step.split("/")[-1] for step in outcome["ran"]] == [
-    "time_arrays", "interpolated_orbits", "telescope_positions", "source_visibility", "az_el"]
+    "time_arrays", "telescope_positions", "source_visibility", "az_el"]
 ```
 
-You asked for one calculation and five ran. The four others are what `az_el` needs, and you did
-not have to know that.
+You asked for one calculation and four ran. The three others are what `az_el` needs, and you did
+not have to know that. Neither did you have to know that interpolating orbits is left out: this
+observation has no spacecraft placed from an orbit file, so that step has nothing to do.
 
 The outcome describes itself, which is what the window shows and what a command line would
 print:
 
 ```python
-assert outcome["summary"]["steps"] == 5
+assert outcome["summary"]["steps"] == 4
 assert outcome["summary"]["seconds"] > 0.0
 assert {row["outcome"] for row in outcome["report"]} == {"ok"}
 ```

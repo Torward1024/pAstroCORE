@@ -677,6 +677,14 @@ class ScheduleCalculator(Super):
                 logger.error("Invalid time_step: %s. Must be positive.", time_step)
                 return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
 
+            # Nothing to interpolate, so nothing is looked up, computed or stored -- each of which
+            # the caching layer reported as a warning when it found the answer empty.
+            observations = [obj] if isinstance(obj, Observation) else list(obj.observations())
+            if not any(observation.has_orbit_file_telescopes() for observation in observations):
+                logger.debug("No spacecraft placed from an orbit file in '%s'; no orbits to interpolate",
+                             obj.get_observation_code() if isinstance(obj, Observation) else obj.name)
+                return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("interpolated_orbits"))
+
             def calculate_orbits(obs: Observation, attrs: Dict[str, Any]) -> pl.DataFrame:
                 scans, telescopes, _ = self._get_active_components(obs, require_scans=True, require_telescopes=True)
                 if not scans:
@@ -691,7 +699,7 @@ class ScheduleCalculator(Super):
 
                 active_space_telescopes = [
                     tel for tel in telescopes
-                    if isinstance(tel, SpaceTelescope) and not tel.get("use_kep")
+                    if isinstance(tel, SpaceTelescope) and tel.follows_orbit_file
                 ]
                 if not active_space_telescopes:
                     logger.debug("No active SpaceTelescopes with use_kep=False in '%s'", obs.get_observation_code())
@@ -725,7 +733,7 @@ class ScheduleCalculator(Super):
                     scan_telescopes = scan.get_telescopes(obs).get_active_items()
                     scan_space_telescopes = [
                         tel for tel in scan_telescopes
-                        if isinstance(tel, SpaceTelescope) and not tel.get("use_kep")
+                        if isinstance(tel, SpaceTelescope) and tel.follows_orbit_file
                     ]
                     if not scan_space_telescopes:
                         logger.debug("No active SpaceTelescopes in scan '%s'", scan_name)
@@ -1132,7 +1140,7 @@ class ScheduleCalculator(Super):
                     logger.error("No time data for '%s'", obs.get_observation_code())
                     return pl.DataFrame(schema=CalculatedDataStructure.get_dtypes("telescope_positions"))
 
-                has_orbit_telescopes = any(isinstance(tel, SpaceTelescope) and not tel.get("use_kep") for tel in telescopes)
+                has_orbit_telescopes = any(isinstance(tel, SpaceTelescope) and tel.follows_orbit_file for tel in telescopes)
                 orbit_df = pl.DataFrame()
                 if has_orbit_telescopes:
                     orbit_attrs = {"time_step": time_step, "store_key": "interpolated_orbits", "recalculate": False}
@@ -1253,7 +1261,7 @@ class ScheduleCalculator(Super):
 
         for tel in active_telescopes:
             tel_code = tel.get_code()
-            if isinstance(tel, SpaceTelescope) and not tel.get("use_kep"):
+            if isinstance(tel, SpaceTelescope) and tel.follows_orbit_file:
                 tel_orbit = orbit_df.filter(pl.col("telescope_code") == tel_code)
                 if tel_orbit.is_empty():
                     logger.warning("No orbit data for telescope '%s' in scan '%s'", tel_code, scan_name)

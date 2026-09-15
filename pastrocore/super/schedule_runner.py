@@ -140,6 +140,14 @@ class ScheduleRunner(Super):
         for target in targets:
             previous_by_key = {}
             for key in ordered:
+                # A step with nothing to do for this observation is not planned. Interpolating
+                # orbits for an array of ground stations ran, found nothing, stored an empty
+                # result and logged four warnings on every calculation. What it takes for a step
+                # to have something to do is declared beside its result and asked of the model.
+                condition = CalculatedDataStructure.condition_for(key)
+                if condition and not self._manipulator.inspect(target, **{condition: None}):
+                    logger.debug("Not planning '%s' for '%s': %s is not so", key, target.code, condition)
+                    continue
                 name = f"{target.code}/{key}"
                 # Named by handler, filed under the schema's key. They are the same string for
                 # every calculation but one, and passing the handler's name for that one stored

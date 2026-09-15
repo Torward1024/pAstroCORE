@@ -448,6 +448,20 @@ class Observation(BaseEntity):
         """Retrieve the Scans object."""
         return self.get("scans")
 
+    def has_orbit_file_telescopes(self) -> bool:
+        """Whether any active telescope here is a spacecraft placed from an orbit file.
+
+        Notes:
+            - What decides whether interpolating orbits has anything to do. An observation of
+              ground stations only had the step planned anyway, which ran, found nothing, stored
+              an empty result, and logged four warnings about it on every calculation.
+        """
+        from pastrocore.base.spacetelescope import SpaceTelescope
+
+        return any(isinstance(telescope, SpaceTelescope) and telescope.isactive
+                   and telescope.follows_orbit_file
+                   for telescope in self.get_telescopes().get_items())
+
     def get_calculated_data(self) -> Dict[str, Dict]:
         """Retrieve all calculated data."""
         return self.get("calculated_data")
