@@ -1,24 +1,16 @@
 # pAstroCORE roadmap
 
-**1.9.3 shipped.** What is left, what was decided against, and why.
+**1.10.0 shipped.** What is left, what was decided against, and why.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy.
 
 ## Next -- finishing it
 
-Fifteen items from using it, ranked: what costs an hour every day first, what a new user sees
+Fifteen items from using it, ranked: what cost an hour every day first, what a new user sees
 second, what it cannot do yet third, and last what lets any astronomer install it and start.
-Each lands as its own release, in this order, unless a later one turns out to need an earlier
-one.
-
-### Stage 1 -- what gets in the way every day
-
-| # | Item | Exit criterion |
-| --- | --- | --- |
-| G7 | **Select All / Clear under every list a plot is chosen from** | Every `QListWidget` on a visualization tab has both buttons, found rather than listed: a test walks every tab and fails on a list without them. Two hundred baselines to one is two clicks |
-| G8 | **Nothing overlaps** | A test lays out every form at its default size and at its minimum, and fails when two sibling widgets intersect or a label's text is wider than its label. Fixed in the `.ui` files, regenerated, pixels regenerated from a whole run |
-| G9 | **Saving and opening show real progress** | Save and open run off the window's thread in the shared `ProgressDialog`, which moves by what has been written or read (the model, then each result file) and names it. Today save shows a bar that never moves and open shows nothing. Cancel on open leaves the project that was open |
+They land in this order, a stage or an item per release, unless a later one turns out to need an
+earlier one. **Stage 1 shipped in 1.10.0.**
 
 ### Stage 2 -- the main window
 
@@ -84,6 +76,9 @@ that happens when one is sent.
 | **1.5.0** | **V1--V4, X1, A2.** A schedule leaves: VEX and CFX, written whole and claiming only what is known |
 | **1.6.0** | **V5, V6, G4.** A schedule comes back in; a rule that refused real experiments is gone |
 | **1.7.0** | An audit: a position in degrees did not read back, five rules guarded only the constructor, and reading a schedule is 17x faster |
+| **1.8.0** | An audit against physics rather than against what the code used to say: the beam pattern was drawn pi times too wide, time on source was one step short per block. Atomic saves; a calculation about twice as fast |
+| **1.9.0** | Moving stations (velocities in m/yr taken as m/s, 9 500 km off), sources at -0 degrees, editors that rounded on save, X/Y polarizations, and a calculation that scales linearly with scans. 1.9.1--1.9.3: no orbit step without a spacecraft, the Mollweide and spacecraft tabs draw, and plots redraw clean |
+| **1.10.0** | **G7, G8, G9.** Select All and Clear under every list a plot is chosen from; nothing on a form overlaps or is cut off, and no window is pinned to a size; saving shows how far it has got and the window keeps answering |
 
 What each release changed is in [`CHANGELOG.md`](../CHANGELOG.md). How the two formats map onto
 the model, and what an exported file leaves for somebody else to fill in, is in
