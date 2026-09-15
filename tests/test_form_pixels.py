@@ -11,20 +11,18 @@ compares the pixels against a stored reference. It is not a test of whether the 
 *good* -- it is a test of whether they look the same as they did, which is the only question a
 refactoring of styling can be judged by.
 
-The reference is regenerated deliberately, **from a whole run**:
+The reference is regenerated deliberately:
 
     python -m pytest --regenerate-form-pixels
 
 Do that only when a form was *meant* to change, and look at what changed first: the failure
 names the form and how many pixels moved.
 
-**Regenerate from a whole run, not from this file.** Measured: `pytest tests/test_form_pixels.py
---regenerate-form-pixels` rewrites 25 of the 26 digests, and running any GUI test before it --
-`tests/test_gui_smoke.py` will do -- makes every one of them match again. So something the rest
-of the suite does first changes how a form renders here. What, exactly, is not established: it
-is not the stylesheet (`render` applies it itself) and not the platform plugin. Until it is,
-the reference is calibrated to a whole run, and regenerating from a partial one silently
-records a different condition under the same name.
+**It used to have to be a whole run.** Regenerating from this file alone rewrote 25 of the 26
+digests, and collecting `tests/test_gui_smoke.py` first made every one match again. That was the
+platform: the smoke tests set `QT_QPA_PLATFORM=offscreen` when they were imported, so a whole run drew
+offscreen and this file alone drew on the desktop, with different fonts. `conftest` sets it for every
+run now, so a partial run and a whole one record the same condition.
 """
 import hashlib
 import importlib
@@ -156,17 +154,20 @@ def test_the_harness_would_notice_a_change(qt_application):
     stem, class_name = form_classes()[0]
     module = importlib.import_module(f"pastrocore.gui.{stem}")
 
+    def digest(widget):
+        # The image is held while its bytes are read. Chained, the converted image was a temporary
+        # that could be freed under `constBits()` -- an access violation now and then.
+        image = widget.grab().toImage()
+        image = image.convertToFormat(image.Format.Format_RGBA8888)
+        return hashlib.sha256(image.constBits().tobytes()).hexdigest()
+
     host = QDialog()
     getattr(module, class_name)().setupUi(host)
     host.resize(*SIZE)
-    before = hashlib.sha256(
-        host.grab().toImage().convertToFormat(
-            host.grab().toImage().Format.Format_RGBA8888).constBits().tobytes()).hexdigest()
+    before = digest(host)
 
     host.setStyleSheet("QWidget { background-color: #ff00ff; }")
-    after = hashlib.sha256(
-        host.grab().toImage().convertToFormat(
-            host.grab().toImage().Format.Format_RGBA8888).constBits().tobytes()).hexdigest()
+    after = digest(host)
     host.deleteLater()
 
     assert before != after, "the harness cannot see a stylesheet change, so it proves nothing"
