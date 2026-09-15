@@ -1033,3 +1033,35 @@ def test_clear_and_select_all_tick_a_whole_list_and_draw_once(qt_application, pr
     finally:
         tab.close()
         tab.deleteLater()
+
+
+@pytest.mark.parametrize("tab_class", visualization_tabs(), ids=lambda cls: cls.__name__)
+def test_closing_a_tab_clears_its_figure(qt_application, project, tab_class, caplog):
+    """Closing a tab is when a day's sampling is let go of, and it never was: the figure was
+    unhooked from its canvas first, so as not to repaint a widget being destroyed, and matplotlib's
+    `Figure.clear` then asked the missing canvas for its toolbar. Every close logged "Could not
+    clear the figure on close" and kept every array the plot held."""
+    import logging
+
+    from PySide6.QtWidgets import QApplication
+
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.observations()[0]
+    if (observation.get_calculated_data_by_key(tab_class.STORE_KEY) or {}).get("data") is None:
+        pytest.skip(f"the fixture holds no '{tab_class.STORE_KEY}'")
+
+    tab = tab_class(ScheduleManipulator(project), observation)
+    figure = tab.figure
+    assert figure.get_axes(), f"{tab_class.__name__} drew nothing to clear"
+
+    with caplog.at_level(logging.WARNING, logger="msb_arch"):
+        tab.close()
+        QApplication.processEvents()
+
+    assert figure.get_axes() == [], f"{tab_class.__name__} kept its plot after closing"
+    assert not [record.getMessage() for record in caplog.records
+                if "Could not clear the figure" in record.getMessage()]
+    assert figure.canvas is not tab.canvas, "the figure still points at the Qt canvas being destroyed"
+    tab.deleteLater()
+    QApplication.processEvents()

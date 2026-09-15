@@ -22,6 +22,7 @@ fixed once rather than nine times.
 """
 from typing import Any, Dict, List, Optional
 
+from matplotlib.backend_bases import FigureCanvasBase
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -430,10 +431,14 @@ class VisualizationTab(QWidget):
               paint on a widget whose C++ half is going, and Qt runs it at whatever
               `processEvents` comes next. That is somebody else's redraw, and it is an access
               violation rather than an exception.
+            - **Unhooked onto a canvas that is not a widget, not onto nothing.** `Figure.clear`
+              asks its canvas for a toolbar to update, and with `canvas = None` it raised every
+              time: the figure was never cleared, every close logged a warning, and the arrays
+              stayed. A bare `FigureCanvasBase` has no toolbar and no widget to paint.
         """
         try:
-            self.figure.canvas = None
             self.figure.stale_callback = None
+            FigureCanvasBase(self.figure)
             self.figure.clf()
         except Exception as e:                          # noqa: BLE001 - teardown never raises
             logger.warning("Could not clear the figure on close: %s", str(e))
