@@ -31,7 +31,8 @@ from pastrocore.base.observation import Observation
 from pastrocore.base.sources import Source
 from pastrocore.base.telescope import MountType, Telescope
 from pastrocore.formats import (Mode as _Mode, Skeleton, bands_of,
-                                bare_name as vex_name, collect_modes, letter_for)
+                                bare_name as vex_name, collect_modes, letter_for,
+                                polarization_for)
 
 #: The revision this writes. VEX 2 exists; the stations and correlators this file is for read 1.5.
 VEX_REV = "1.5"
@@ -128,7 +129,8 @@ def vex_epoch(moment: Time) -> str:
 
 def _right_ascension(source: Source) -> str:
     """Return a source's right ascension as `22h32m36.4089050s`."""
-    return f"{int(source.ra_h):02d}h{int(source.ra_m):02d}m{source.ra_s:010.7f}s"
+    hours, minutes, seconds = source.right_ascension_parts(7)
+    return f"{hours:02d}h{minutes:02d}m{seconds:010.7f}s"
 
 
 def _declination(source: Source) -> str:
@@ -137,8 +139,12 @@ def _declination(source: Source) -> str:
     Notes:
         - The sign is written explicitly. VEX accepts a bare number, and a reader skimming a
           list of sources should not have to work out whether one is north or south.
+        - **Asked of the source, not formatted from its fields.** `int(de_d)` of `-0.0` is `0`,
+          and `+03d` wrote it as `+00`: every source between -1 and 0 degrees went to the
+          correlator on the wrong side of the equator, up to two degrees from where it is.
     """
-    return f"{int(source.de_d):+03d}d{int(source.de_m):02d}'{source.de_s:09.6f}\""
+    sign, degrees, minutes, seconds = source.declination_parts(6)
+    return f"{sign}{degrees:02d}d{minutes:02d}'{seconds:09.6f}\""
 
 
 def _axis_type(telescope: Telescope) -> Optional[str]:
@@ -773,7 +779,7 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
             "de_d": -dec[0] if declination.strip().startswith("-") else dec[0],
             "de_m": dec[1], "de_s": dec[2]}
 
-    bands, modes = {}, {}
+    bands, modes, unheld = {}, {}, set()
     for mode, statements_of in blocks.get("$MODE", {}).items():
         named = {}
         for statement in statements_of:
@@ -786,9 +792,13 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
             if not statement.startswith("if_def"):
                 continue
             fields = [field.strip() for field in statement.split("=", 1)[1].split(":")]
-            spelled = {"R": "RCP", "L": "LCP", "H": "H", "V": "V"}.get(
-                fields[2] if len(fields) > 2 else "")
-            if spelled and spelled not in polarizations:
+            letter = fields[2] if len(fields) > 2 else ""
+            spelled = polarization_for(letter)
+            if spelled is None:
+                if letter:
+                    unheld.add(f"$IF polarization {letter}")
+                continue
+            if spelled not in polarizations:
                 polarizations.append(spelled)
 
         here = []
@@ -844,4 +854,4 @@ def read_vex(text: str, *, source: str = "") -> Dict[str, Any]:
                 "over", experiment, len(telescopes), len(sources), len(scans), len(passed_over))
     return {"code": vex_name(experiment), "description": described, "path": source,
             "telescopes": telescopes, "sources": sources, "bands": bands, "scans": scans,
-            "passed_over": passed_over}
+            "passed_over": passed_over + sorted(unheld)}

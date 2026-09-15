@@ -15,11 +15,11 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QDialog,
-    QDoubleSpinBox, QFormLayout, QFrame, QGridLayout,
-    QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QPushButton, QSizePolicy, QSpacerItem, QTableView,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
+    QDialog, QDoubleSpinBox, QFormLayout, QFrame,
+    QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QPushButton, QSizePolicy, QSpacerItem,
+    QTableView, QVBoxLayout, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_SourceEditorDialog(object):
     def setupUi(self, SourceEditorDialog):
@@ -95,8 +95,8 @@ class Ui_SourceEditorDialog(object):
 
         self.raSEdit = QDoubleSpinBox(SourceEditorDialog)
         self.raSEdit.setObjectName(u"raSEdit")
-        self.raSEdit.setDecimals(3)
-        self.raSEdit.setMaximum(59.999000000000002)
+        self.raSEdit.setDecimals(7)
+        self.raSEdit.setMaximum(59.999999899999999)
 
         self.raLayout.addWidget(self.raSEdit)
 
@@ -110,10 +110,17 @@ class Ui_SourceEditorDialog(object):
 
         self.decLayout = QHBoxLayout()
         self.decLayout.setObjectName(u"decLayout")
+        self.deSignCombo = QComboBox(SourceEditorDialog)
+        self.deSignCombo.addItem("")
+        self.deSignCombo.addItem("")
+        self.deSignCombo.setObjectName(u"deSignCombo")
+
+        self.decLayout.addWidget(self.deSignCombo)
+
         self.deDEdit = QDoubleSpinBox(SourceEditorDialog)
         self.deDEdit.setObjectName(u"deDEdit")
         self.deDEdit.setDecimals(0)
-        self.deDEdit.setMinimum(-90.000000000000000)
+        self.deDEdit.setMinimum(0.000000000000000)
         self.deDEdit.setMaximum(90.000000000000000)
 
         self.decLayout.addWidget(self.deDEdit)
@@ -127,8 +134,8 @@ class Ui_SourceEditorDialog(object):
 
         self.deSEdit = QDoubleSpinBox(SourceEditorDialog)
         self.deSEdit.setObjectName(u"deSEdit")
-        self.deSEdit.setDecimals(3)
-        self.deSEdit.setMaximum(59.999000000000002)
+        self.deSEdit.setDecimals(6)
+        self.deSEdit.setMaximum(59.999999000000003)
 
         self.decLayout.addWidget(self.deSEdit)
 
@@ -259,6 +266,12 @@ class Ui_SourceEditorDialog(object):
         self.raMEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"m", None))
         self.raSEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"s", None))
         self.labelDec.setText(QCoreApplication.translate("SourceEditorDialog", u"DEC (dd:mm:ss):", None))
+        self.deSignCombo.setItemText(0, QCoreApplication.translate("SourceEditorDialog", u"+", None))
+        self.deSignCombo.setItemText(1, QCoreApplication.translate("SourceEditorDialog", u"-", None))
+
+#if QT_CONFIG(tooltip)
+        self.deSignCombo.setToolTip(QCoreApplication.translate("SourceEditorDialog", u"North or south of the celestial equator. Kept apart from the degrees, because a declination between -1 and 0 degrees has no sign there.", None))
+#endif // QT_CONFIG(tooltip)
         self.deDEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"d", None))
         self.deMEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"m", None))
         self.deSEdit.setSuffix(QCoreApplication.translate("SourceEditorDialog", u"s", None))

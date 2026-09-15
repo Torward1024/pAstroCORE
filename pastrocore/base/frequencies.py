@@ -11,7 +11,12 @@ C_MHZ_CM = 29979.2458
 #: them in one order without keeping a second list of its own to do it.
 CIRCULAR_POLARIZATIONS = ("RCP", "LCP")
 SINGLE_LINEAR_POLARIZATIONS = ("H", "V")
-VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS + SINGLE_LINEAR_POLARIZATIONS
+#: Linear feeds as VEX and CFX name them. Not `H` and `V`: a feed's orientation is the station's,
+#: so the two are kept apart rather than one taken for the other.
+LINEAR_FEED_POLARIZATIONS = ("X", "Y")
+#: A band's polarizations all come from one of these.
+POLARIZATION_GROUPS = (CIRCULAR_POLARIZATIONS, SINGLE_LINEAR_POLARIZATIONS, LINEAR_FEED_POLARIZATIONS)
+VALID_POLARIZATIONS = CIRCULAR_POLARIZATIONS + SINGLE_LINEAR_POLARIZATIONS + LINEAR_FEED_POLARIZATIONS
 
 class IF(BaseEntity):
     """Base class representing an Intermediate Frequency (IF) with frequency, bandwidth, and polarization properties.
@@ -243,7 +248,7 @@ class IF(BaseEntity):
             raise InvariantError(f"IF '{self.name}': a band records at least one sideband")
         return True
 
-    @invariant("polarizations must all be circular or all be linear")
+    @invariant("polarizations must all come from one group: circular, H/V, or X/Y")
     def _polarizations_are_one_group(self) -> bool:
         """A band is recorded in circular polarization or in linear, never in a mixture.
 
@@ -257,8 +262,7 @@ class IF(BaseEntity):
         """
         if not self.polarizations:
             return True
-        return (all(p in CIRCULAR_POLARIZATIONS for p in self.polarizations)
-                or all(p in SINGLE_LINEAR_POLARIZATIONS for p in self.polarizations))
+        return any(all(p in group for p in self.polarizations) for group in POLARIZATION_GROUPS)
 
     def __repr__(self) -> str:
         """Return a string representation of the IF object."""

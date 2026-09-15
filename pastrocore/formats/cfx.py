@@ -29,7 +29,7 @@ from pastrocore.base.sources import Source
 from pastrocore.base.spacetelescope import SpaceTelescope
 from pastrocore.base.telescope import MountType, Telescope
 from pastrocore.formats import (SIDEBAND_ORDER, Mode as _Mode, Skeleton, bare_name as vex_name,
-                                collect_modes, letter_for)
+                                collect_modes, letter_for, polarization_for)
 
 #: CFX's comment character, and how a line says "not stated". `#` at the start of a line, as
 #: the examples use it for the commented-out `IF` lines of a swapped-polarization receiver.
@@ -483,7 +483,9 @@ def read_cfx(text: str, *, source: str = "") -> Dict[str, Any]:
                     frequency = float(fields[0])
                 except ValueError:
                     continue
-                spelled = {"R": "RCP", "L": "LCP", "H": "H", "V": "V"}.get(fields[1].upper())
+                spelled = polarization_for(fields[1])
+                if spelled is None and fields[1]:
+                    seen.add(f"[${name.lower()}] IF polarization {fields[1]}")
                 sideband = fields[2].upper()
                 band = bands.setdefault(frequency, {
                     "name": f"{frequency:g}MHz", "frequency": frequency,

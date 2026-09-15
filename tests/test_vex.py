@@ -358,3 +358,79 @@ def test_a_scan_the_model_refuses_is_named_rather_than_forced_in(example_file):
     _project, report = imported(example_file)
 
     assert report["refused"] == [], f"scans were refused: {report['refused']}"
+
+
+# --- positions and polarizations at their edges --------------------------------------------------
+
+def edge_observation(**source):
+    """One scan, two stations, one band, and a source placed wherever the test wants it."""
+    from astropy.time import Time
+
+    from pastrocore.base.observation import Observation
+
+    observation = Observation(code="EDGE01")
+    stations = observation.get_telescopes()
+    stations.create_telescope(code="Sv", name="SVETLOE", x=2730173.6, y=1562442.8, z=5529969.2)
+    stations.create_telescope(code="Zc", name="ZELENCHK", x=3451207.5, y=3060375.4, z=4391915.1)
+    observation.get_sources().create_source(name="S", **source)
+    observation.get_frequencies().create_if(name="x", frequency=8400.0, bandwidth=16.0,
+                                            polarizations=["RCP", "LCP"], sidebands=["U"])
+    observation.get_scans().create_scan(
+        name="No0001", start=Time("2026-03-01T00:00:00"), duration=600.0,
+        source=observation.get_sources().get("S"), telescopes=stations.get_items(),
+        frequencies=observation.get_frequencies().get_items(), observation=observation)
+    return observation
+
+
+@pytest.mark.parametrize("position", [
+    dict(ra_h=0.0, ra_m=0.0, ra_s=0.01, de_d=-0.0, de_m=30.0, de_s=15.2),
+    dict(ra_h=12.0, ra_m=0.0, ra_s=0.0, de_d=-0.0, de_m=0.0, de_s=0.5),
+    dict(ra_h=23.0, ra_m=59.0, ra_s=59.99, de_d=-89.0, de_m=59.0, de_s=59.9),
+], ids=["half a degree south", "half an arcsecond south", "last second of the circle"])
+def test_a_source_comes_back_where_it_was_written(position):
+    """A source between -1 and 0 degrees was written north of the equator.
+
+    Its sign lives in `-0.0`, `int(-0.0)` is `0`, and `+03d` wrote `+00`: the file sent to the
+    correlator put it up to two degrees from where it is.
+    """
+    from pastrocore.formats import build_observation
+
+    observation = edge_observation(**position)
+    written = observation.get_sources().get("S")
+    text, _ = vex.write_vex(observation)
+    read, _ = build_observation(vex.read_vex(text))
+    back = read.get_sources().get_items()[0]
+
+    assert back.dec_degrees == pytest.approx(written.dec_degrees, abs=1e-9)
+    assert (back.ra_degrees - written.ra_degrees + 180) % 360 - 180 == pytest.approx(0, abs=1e-9)
+
+
+def test_seconds_are_never_written_as_sixty():
+    """Rounded on their own, 59.99999999 seconds were written `60.0000000`."""
+    observation = edge_observation(ra_h=5.0, ra_m=59.0, ra_s=59.99999999,
+                                   de_d=10.0, de_m=59.0, de_s=59.9999999)
+    text, _ = vex.write_vex(observation)
+
+    line = next(line for line in text.splitlines() if line.strip().startswith("ra ="))
+    assert "06h00m00.0000000s" in line, line
+    assert "+11d00'00.000000\"" in line, line
+
+
+def test_linear_feeds_come_in_as_themselves_and_an_unknown_letter_is_named():
+    """X and Y were dropped without a word, so a file of linear feeds came in unpolarized."""
+    from pastrocore.formats import build_observation
+
+    text = (pathlib.Path("I:/format_examples/s16tj07a.vex") if pathlib.Path(
+        "I:/format_examples/s16tj07a.vex").is_file() else None)
+    if text is None:
+        pytest.skip("the sched example is not on this machine")
+    original = text.read_text(encoding="utf-8", errors="replace")
+    linear = (original.replace("if_def = &IF_B : B : R :", "if_def = &IF_B : B : X :")
+                      .replace("if_def = &IF_A : A : L :", "if_def = &IF_A : A : Y :"))
+
+    read = vex.read_vex(linear)
+    observation, _ = build_observation(read)
+    assert set(observation.get_frequencies().get_items()[0].polarizations) == {"X", "Y"}
+
+    unknown = vex.read_vex(original.replace("if_def = &IF_B : B : R :", "if_def = &IF_B : B : Q :"))
+    assert "$IF polarization Q" in unknown["passed_over"]

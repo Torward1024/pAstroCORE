@@ -5,27 +5,38 @@ from msb_arch.base.baseentity import BaseEntity
 from msb_arch.base.basecontainer import BaseContainer
 from msb_arch import InvariantError, invariant
 from msb_arch.utils.logging_setup import logger
-from msb_arch.utils.validation import Range
+from msb_arch.utils.validation import Predicate, Range
 import math
 import uuid
 
-def _sexagesimal(value: float) -> tuple:
+def _sexagesimal(value: float, decimals: int = 6) -> tuple:
     """Split a positive decimal into whole units, whole minutes and seconds.
+
+    Args:
+        value (float): Hours or degrees, not negative.
+        decimals (int): The seconds are rounded to this many places *before* they are split,
+            so that what is carried is what will be shown.
 
     Notes:
         - One place, because right ascension and declination were each doing it and each got it
-          wrong the same way. Rounded to microseconds first, so 11.7308066500 does not come back
-          as 43 minutes and 59.999999 seconds.
+          wrong the same way. Rounded first, so 11.7308066500 does not come back as 43 minutes
+          and 59.999999 seconds.
+        - **From the total, not piece by piece.** Rounding the seconds on their own let
+          59.99999999 be written as `60.0000000` -- a minute that is not there.
     """
-    units = int(value)
-    minutes_over = round((value - units) * 60, 9)
-    minutes = int(minutes_over)
-    seconds = round((minutes_over - minutes) * 60, 6)
+    total = round(value * 3600.0, decimals)
+    units, rest = divmod(total, 3600.0)
+    minutes, seconds = divmod(rest, 60.0)
+    seconds = round(seconds, decimals)
     if seconds >= 60.0:
         seconds, minutes = 0.0, minutes + 1
     if minutes >= 60:
-        minutes, units = 0, units + 1
+        minutes, units = 0.0, units + 1
     return float(units), float(minutes), seconds
+
+
+def _below_sixty(value: float) -> bool:
+    return 0.0 <= value < 60.0
 
 
 class Source(BaseEntity):
@@ -51,10 +62,13 @@ class Source(BaseEntity):
     name: str
     ra_h: Annotated[float, Range(0, 23)]
     ra_m: Annotated[float, Range(0, 59)]
-    ra_s: Annotated[float, Range(0, 59.999)]
+    # Seconds are anything below sixty. `Range(0, 59.999)` refused 59.9995 -- a position a
+    # catalogue can hold and a VEX file can state, so reading one failed, and so did converting
+    # a declination whose seconds rounded to it.
+    ra_s: Annotated[float, Predicate(_below_sixty, "must be at least 0 and below 60")]
     de_d: Annotated[float, Range(-90, 90)]
     de_m: Annotated[float, Range(0, 59)]
-    de_s: Annotated[float, Range(0, 59.999)]
+    de_s: Annotated[float, Predicate(_below_sixty, "must be at least 0 and below 60")]
     name_J2000: Optional[str]
     alt_name: Optional[str]
     flux_table: Dict[float, float]
@@ -164,6 +178,29 @@ class Source(BaseEntity):
         sign = math.copysign(1.0, self.de_d)
         return sign * (abs(self.de_d) + self.de_m / 60 + self.de_s / 3600)
 
+    def right_ascension_parts(self, decimals: int = 7) -> tuple:
+        """Return `(hours, minutes, seconds)` as they are to be written, to `decimals` places.
+
+        Notes:
+            - For anything that writes a position out. Formatting the stored fields directly
+              rounded the seconds apart from the minutes, and 24 hours is 0.
+        """
+        hours, minutes, seconds = _sexagesimal(self.ra_degrees / 15.0, decimals)
+        return int(hours) % 24, int(minutes), seconds
+
+    def declination_parts(self, decimals: int = 6) -> tuple:
+        """Return `(sign, degrees, minutes, seconds)` as they are to be written.
+
+        Notes:
+            - **The sign on its own**, as "+" or "-". Taken from the degrees field it was lost
+              for every source between -1 and 0 degrees, whose sign lives in `-0.0`: the VEX
+              writer put them north of the equator, and so did the catalogue's table.
+        """
+        declination = self.dec_degrees
+        degrees, minutes, seconds = _sexagesimal(abs(declination), decimals)
+        sign = "-" if math.copysign(1.0, declination) < 0 and (degrees or minutes or seconds) else "+"
+        return sign, int(degrees), int(minutes), seconds
+
     def set_ra_degrees(self, ra_deg: float) -> None:
         """Set Right Ascension from decimal degrees.
 
@@ -177,7 +214,9 @@ class Source(BaseEntity):
         if not (0 <= ra_deg <= 360):
             raise ValueError(f"RA degrees must be in range [0, 360], got {ra_deg}")
         hours, minutes, seconds = _sexagesimal(ra_deg / 15)
-        self.set({"ra_h": hours, "ra_m": minutes, "ra_s": seconds})
+        # 360 degrees, or anything that rounds up to it, is 0 hours. It was 24, which the hours
+        # field refuses, so reading a source at the very end of the circle failed outright.
+        self.set({"ra_h": hours % 24, "ra_m": minutes, "ra_s": seconds})
         logger.debug("Set RA=%s deg for source '%s'", ra_deg, self.name)
 
     def set_dec_degrees(self, dec_deg: float) -> None:
