@@ -227,16 +227,37 @@ def test_visibility_transforms_only_the_frame_the_mount_is_limited_in(project, m
         f"limited in it")
 
 
-def test_the_three_steps_that_look_from_a_station_share_one_transform(project, monkeypatch):
+@pytest.mark.parametrize("scans", [1, 6])
+def test_the_three_steps_that_look_from_a_station_share_one_transform(monkeypatch, scans):
     """Visibility, az/el and the parallactic angle each rebuilt a station's location and
     transformed the source into the same frame over the same samples -- together more than half
-    of a run's work. Counted: one AltAz per station per scan for all three, not three."""
+    of a run's work. Then they shared it, but still one transform per scan per station, and
+    each costs about twelve milliseconds before it touches a sample: fifty scans at ten stations
+    spent six seconds on five hundred calls. Counted: one AltAz for the whole observation."""
+    from astropy.time import Time
+
+    from pastrocore.base.observation import Observation
     from pastrocore.super import schedule_calculator
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
 
-    observation = project.observations()[0]
-    stations = len(observation.get_telescopes().get_items())
-    scans = len(observation.get_scans().get_items())
+    observation = Observation(code="MANY")
+    for code, x, y, z in (("Sv", 2730173.6, 1562442.8, 5529969.2),
+                          ("Zc", 3451207.5, 3060375.4, 4391915.1),
+                          ("Bd", -838201.1, 3865751.6, 4987670.9)):
+        observation.get_telescopes().create_telescope(code=code, name=code, x=x, y=y, z=z)
+    for index, (ra, dec) in enumerate([(0.2, 50.0), (9.0, 60.0)]):
+        observation.get_sources().create_source(name=f"S{index}", ra_h=ra, de_d=dec)
+    observation.get_frequencies().create_if(name="x", frequency=8400.0, bandwidth=16.0)
+    for index in range(scans):
+        observation.get_scans().create_scan(
+            name=f"No{index:04d}", start=Time(Time("2026-03-01T00:00:00").jd + index * 700 / 86400,
+                                              format="jd"),
+            duration=600.0, source=observation.get_sources().get(f"S{index % 2}"),
+            telescopes=observation.get_telescopes().get_items(),
+            frequencies=observation.get_frequencies().get_items(), observation=observation)
+    project = ScheduleProject(name="many")
+    project.add_item(observation)
 
     built = []
     original = schedule_calculator.AltAz
@@ -244,12 +265,11 @@ def test_the_three_steps_that_look_from_a_station_share_one_transform(project, m
                         lambda *args, **kwargs: built.append(1) or original(*args, **kwargs))
 
     ScheduleManipulator(project).compute(
-        obj=None, method="run", targets=[observation],
+        obj=None, method="run", targets=[project.observations()[0]],
         calculations=["source_visibility", "az_el", "parallactic_angle"],
-        time_step=600.0, force=True)
+        time_step=120.0, force=True)
 
-    assert len(built) == stations * scans, (
-        f"{len(built)} AltAz frames for {stations} station(s) over {scans} scan(s)")
+    assert len(built) == 1, f"{len(built)} AltAz frames for 3 stations over {scans} scan(s)"
 
 
 def test_the_shared_transforms_stay_within_their_budget(manipulator, observation, monkeypatch):
@@ -276,3 +296,45 @@ def test_the_shared_transforms_stay_within_their_budget(manipulator, observation
     again = calculator._topocentric(source, np.tile(station, (3000, 1)), times, "altaz")
     assert first is again, "the same question was answered twice"
     assert not first[0].flags.writeable, "a shared answer must not be editable by one reader"
+
+
+def test_ground_stations_are_rotated_to_gcrs_in_one_transform(monkeypatch):
+    """ITRS to GCRS depends on the moment and not on the station, so every station over every
+    scan is one transform. It was one per scan per station: three seconds for ten stations over
+    fifty scans. Counted over six scans and three stations."""
+    from astropy.time import Time
+
+    from pastrocore.base.observation import Observation
+    from pastrocore.super import schedule_calculator
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.super.schedule_project import ScheduleProject
+
+    observation = Observation(code="MANY")
+    for code, x, y, z in (("Sv", 2730173.6, 1562442.8, 5529969.2),
+                          ("Zc", 3451207.5, 3060375.4, 4391915.1),
+                          ("Bd", -838201.1, 3865751.6, 4987670.9)):
+        observation.get_telescopes().create_telescope(code=code, name=code, x=x, y=y, z=z)
+    observation.get_sources().create_source(name="S", ra_h=3.0, de_d=50.0)
+    observation.get_frequencies().create_if(name="x", frequency=8400.0, bandwidth=16.0)
+    for index in range(6):
+        observation.get_scans().create_scan(
+            name=f"No{index:04d}", start=Time(Time("2026-03-01T00:00:00").jd + index * 700 / 86400,
+                                              format="jd"),
+            duration=600.0, source=observation.get_sources().get("S"),
+            telescopes=observation.get_telescopes().get_items(),
+            frequencies=observation.get_frequencies().get_items(), observation=observation)
+    project = ScheduleProject(name="many")
+    project.add_item(observation)
+
+    rotated = []
+    original = schedule_calculator.ITRS
+    monkeypatch.setattr(schedule_calculator, "ITRS",
+                        lambda *args, **kwargs: rotated.append(args) or original(*args, **kwargs))
+
+    ScheduleManipulator(project).compute(obj=None, method="run", targets=[project.observations()[0]],
+                                         calculations=["telescope_positions"], time_step=120.0,
+                                         force=True)
+
+    # A frame built with data is a set of positions being rotated; one without is a destination.
+    with_positions = [args for args in rotated if args]
+    assert len(with_positions) == 1, f"{len(with_positions)} rotations for 3 stations over 6 scans"

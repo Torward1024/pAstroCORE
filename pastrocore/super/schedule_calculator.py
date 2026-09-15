@@ -164,21 +164,36 @@ class ScheduleCalculator(Super):
             - Bounded in bytes rather than entries, oldest first, because one entry of a day at
               a one-second step weighs as much as a hundred of a short scan.
         """
-        times_mjd = np.ascontiguousarray(times_mjd, dtype=float)
-        positions = np.ascontiguousarray(positions, dtype=float)
-        fingerprint = hashlib.blake2b(positions.tobytes() + times_mjd.tobytes(), digest_size=16).digest()
-        key = (frame, float(source.ra_degrees), float(source.dec_degrees), fingerprint)
+        key, positions, times_mjd = self._topocentric_key(source, positions, times_mjd, frame)
         with self._topocentric_lock:
             held = self._topocentric_cache.get(key)
             if held is not None:
                 self._topocentric_cache.move_to_end(key)
                 return held
+        ra = np.full(len(times_mjd), float(source.ra_degrees))
+        dec = np.full(len(times_mjd), float(source.dec_degrees))
+        held = self._transform_topocentric(ra, dec, positions, times_mjd, frame)
+        self._hold_topocentric(key, held)
+        return held
 
+    @staticmethod
+    def _topocentric_key(source: Source, positions: np.ndarray, times_mjd: np.ndarray,
+                         frame: str) -> Tuple[tuple, np.ndarray, np.ndarray]:
+        """The cache key for one station's view of one source over one scan's samples."""
+        times_mjd = np.ascontiguousarray(times_mjd, dtype=float)
+        positions = np.ascontiguousarray(positions, dtype=float)
+        fingerprint = hashlib.blake2b(positions.tobytes() + times_mjd.tobytes(), digest_size=16).digest()
+        return (frame, float(source.ra_degrees), float(source.dec_degrees), fingerprint), positions, times_mjd
+
+    @staticmethod
+    def _transform_topocentric(ra: np.ndarray, dec: np.ndarray, positions: np.ndarray,
+                               times_mjd: np.ndarray, frame: str) -> Tuple[np.ndarray, ...]:
+        """One astropy transform over any number of samples, each with its own source and station."""
         obstime = Time(times_mjd, format="mjd", scale="utc")
         stations = GCRS(CartesianRepresentation(x=positions[:, 0] * u.m, y=positions[:, 1] * u.m,
                                                 z=positions[:, 2] * u.m),
                         obstime=obstime).transform_to(ITRS(obstime=obstime)).earth_location
-        looked_at = SkyCoord(ra=source.ra_degrees * u.deg, dec=source.dec_degrees * u.deg, frame="icrs")
+        looked_at = SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs")
         if frame == "altaz":
             seen = looked_at.transform_to(AltAz(obstime=obstime, location=stations))
             held = (seen.az.deg, seen.alt.deg, stations.lat.deg)
@@ -187,10 +202,11 @@ class ScheduleCalculator(Super):
             held = (seen.ha.deg, seen.dec.deg, stations.lat.deg)
         else:
             raise ValueError(f"No topocentric frame called '{frame}'")
-        held = tuple(np.array(values, dtype=float) for values in held)
+        return tuple(np.array(values, dtype=float) for values in held)
+
+    def _hold_topocentric(self, key: tuple, held: Tuple[np.ndarray, ...]) -> None:
         for values in held:
             values.setflags(write=False)
-
         size = sum(values.nbytes for values in held)
         with self._topocentric_lock:
             if key not in self._topocentric_cache:
@@ -199,7 +215,125 @@ class ScheduleCalculator(Super):
                 while self._topocentric_bytes > self.TOPOCENTRIC_CACHE_BYTES and len(self._topocentric_cache) > 1:
                     _, dropped = self._topocentric_cache.popitem(last=False)
                     self._topocentric_bytes -= sum(values.nbytes for values in dropped)
-        return held
+
+    @staticmethod
+    def _ground_key(telescope: Telescope, times_mjd: np.ndarray) -> Tuple[tuple, np.ndarray]:
+        """The cache key for one ground station's GCRS positions over one scan's samples."""
+        times_mjd = np.ascontiguousarray(times_mjd, dtype=float)
+        fingerprint = hashlib.blake2b(times_mjd.tobytes(), digest_size=16).digest()
+        return (("gcrs",) + tuple(float(value) for value in telescope.get_coordinates())
+                + tuple(float(value) for value in telescope.get_velocities()) + (fingerprint,)), times_mjd
+
+    def _warm_ground_positions(self, observation: Observation, scans: List[Scan],
+                               times_df: pl.DataFrame) -> int:
+        """Rotate every ground station to GCRS for every scan at once, before they are asked.
+
+        Returns:
+            int: How many station-scan position sets were computed.
+
+        Notes:
+            - Going from ITRS to GCRS is a rotation that depends on the moment and not on the
+              station, so every station over every scan is one transform. It was one per scan per
+              station, each paying astropy's fixed cost: about three seconds for ten stations over
+              fifty scans. Filed under the keys `_compute_telescope_position` asks for.
+        """
+        if not hasattr(self, "_j2000_mjd"):
+            self._j2000_mjd = Time("2000-01-01T12:00:00").mjd
+        entries = []
+        for scan in scans:
+            times_mjd = times_df.filter(pl.col("scan_name") == scan.name)["time"].to_numpy()
+            if len(times_mjd) == 0:
+                continue
+            for tel in scan.get_telescopes(observation).get_items():
+                if not tel.isactive or isinstance(tel, SpaceTelescope):
+                    continue
+                key, times = self._ground_key(tel, times_mjd)
+                with self._topocentric_lock:
+                    if key in self._topocentric_cache:
+                        continue
+                moved = (np.asarray(tel.get_coordinates(), dtype=float)[np.newaxis, :]
+                         + np.asarray(tel.get_velocities(), dtype=float)[np.newaxis, :]
+                         * ((times - self._j2000_mjd) / 365.25)[:, np.newaxis])
+                entries.append((key, moved, times))
+        if not entries:
+            return 0
+
+        moved = np.concatenate([values for _, values, _ in entries])
+        times = np.concatenate([values for _, _, values in entries])
+        obstime = Time(times, format="mjd", scale="utc")
+        gcrs = ITRS(CartesianRepresentation(moved[:, 0], moved[:, 1], moved[:, 2], unit=u.m),
+                    obstime=obstime).transform_to(GCRS(obstime=obstime)).cartesian
+        everything = np.stack([gcrs.x.value, gcrs.y.value, gcrs.z.value], axis=-1)
+        offset = 0
+        for key, values, _ in entries:
+            n = len(values)
+            self._hold_topocentric(key, (np.array(everything[offset:offset + n], dtype=float),))
+            offset += n
+        return len(entries)
+
+    def _warm_topocentric(self, observation: Observation, scans: List[Scan], times_df: pl.DataFrame,
+                          position_df: pl.DataFrame) -> int:
+        """Transform every scan's samples for every ground station at once, before they are asked.
+
+        Args:
+            observation (Observation): Whose scans these are.
+            scans (List[Scan]): The scans a step is about to process one at a time.
+            times_df (pl.DataFrame): The time grid, as the step reads it.
+            position_df (pl.DataFrame): The stations' GCRS positions, as the step reads them.
+
+        Returns:
+            int: How many station-scan views were transformed.
+
+        Notes:
+            - **One transform for the whole observation instead of one per scan per station.**
+              Each astropy transform costs about twelve milliseconds before it touches a sample,
+              so ten stations over fifty scans spent six seconds on five hundred calls that do
+              the same thing to ten samples each. Array-valued coordinates carry each sample's own
+              source and station, so one call per frame covers them all.
+            - The results are filed under exactly the keys the per-scan code will ask for, built
+              from the same arrays read the same way, and the per-scan code is unchanged: this
+              only decides when the work is done.
+        """
+        chunks = {"altaz": [], "hadec": []}
+        by_scan = position_df.partition_by("scan_name", as_dict=True)
+        for scan in scans:
+            source = scan.get_source(observation)
+            if source is None or not source.isactive:
+                continue
+            times_mjd = times_df.filter(pl.col("scan_name") == scan.name)["time"].to_numpy()
+            scan_positions = by_scan.get((scan.name,))
+            if len(times_mjd) == 0 or scan_positions is None:
+                continue
+            for tel in scan.get_telescopes(observation).get_items():
+                if not tel.isactive or isinstance(tel, SpaceTelescope):
+                    continue
+                mount = tel.get("mount_type").value
+                frame = "altaz" if mount == "AZIM" else "hadec" if mount == "EQUA" else None
+                positions = scan_positions.filter(pl.col("telescope_code") == tel.get_code()).select(["x", "y", "z"]).to_numpy()
+                if frame is None or len(positions) != len(times_mjd):
+                    continue
+                key, positions, times = self._topocentric_key(source, positions, times_mjd, frame)
+                with self._topocentric_lock:
+                    if key in self._topocentric_cache:
+                        continue
+                chunks[frame].append((key, source, positions, times))
+
+        warmed = 0
+        for frame, entries in chunks.items():
+            if not entries:
+                continue
+            lengths = [len(times) for _, _, _, times in entries]
+            ra = np.concatenate([np.full(n, float(source.ra_degrees)) for (_, source, _, _), n in zip(entries, lengths)])
+            dec = np.concatenate([np.full(n, float(source.dec_degrees)) for (_, source, _, _), n in zip(entries, lengths)])
+            positions = np.concatenate([positions for _, _, positions, _ in entries])
+            times = np.concatenate([times for _, _, _, times in entries])
+            everything = self._transform_topocentric(ra, dec, positions, times, frame)
+            offset = 0
+            for (key, _, _, _), n in zip(entries, lengths):
+                self._hold_topocentric(key, tuple(np.array(values[offset:offset + n]) for values in everything))
+                offset += n
+            warmed += len(entries)
+        return warmed
     
     @staticmethod
     def _active_scan_count(obj: Observation | ScheduleProject) -> int:
@@ -1013,6 +1147,8 @@ class ScheduleCalculator(Super):
                 z_list = []
                 excluded_telescopes = []
 
+                self._warm_ground_positions(obs, scans, times_df)
+
                 with _InTurn() as executor:
                     futures = {}
                     for scan in scans:
@@ -1187,6 +1323,11 @@ class ScheduleCalculator(Super):
 
         try:
             if isinstance(telescope, Telescope) and not isinstance(telescope, SpaceTelescope):
+                key, times_mjd = self._ground_key(telescope, times_mjd)
+                with self._topocentric_lock:
+                    held = self._topocentric_cache.get(key)
+                if held is not None:
+                    return held[0]
                 x, y, z = telescope.get_coordinates()
                 res = telescope.get(["vx", "vy", "vz"])
                 vx, vy, vz = res["vx"], res["vy"], res["vz"]
@@ -1223,6 +1364,8 @@ class ScheduleCalculator(Super):
 
                 if np.any(np.isnan(pos)):
                     logger.warning("Computed NaN position for ground telescope '%s'", telescope.get_code())
+                pos = np.array(pos, dtype=float)
+                self._hold_topocentric(key, (pos,))
                 return pos
 
             elif isinstance(telescope, SpaceTelescope) and telescope.get("use_kep"):
@@ -1377,6 +1520,8 @@ class ScheduleCalculator(Super):
                 telescope_codes = []
                 source_names = []
                 is_visible_list = []
+
+                self._warm_topocentric(obs, scans, times_df, position_df)
 
                 with _InTurn() as executor:
                     futures = {}
@@ -2066,6 +2211,8 @@ class ScheduleCalculator(Super):
                 source_names = []
                 az_ha_list = []
                 el_dec_list = []
+
+                self._warm_topocentric(obs, scans, times_df, position_df)
 
                 with _InTurn() as executor:
                     futures = {}
@@ -2995,16 +3142,29 @@ class ScheduleCalculator(Super):
               into the first N positions puts every value at the wrong time. Where the source
               rose partway through a scan, as it usually does, the result was that no value
               survived the visibility mask at all and every projection came out NaN.
+            - **Matched in numpy, not joined in polars.** The same rule -- the first row at each
+              moment of the grid, NaN where there is none -- but a DataFrame built, deduplicated
+              and joined per call cost a fraction of a millisecond, and this is called three times
+              per baseline per scan: ten stations over fifty scans spent five seconds here.
         """
-        placed = pl.DataFrame({"time": np.asarray(times_mjd, dtype=float)}).join(
-            frame.select(["time"] + columns).unique(subset=["time"], keep="first"),
-            on="time", how="left")
-        matched = placed[columns[0]].len() - placed[columns[0]].null_count()
+        grid = np.asarray(times_mjd, dtype=float)
+        if frame.height == 0:
+            return {column: np.full(len(grid), np.nan) for column in columns}
+        moments, first = np.unique(frame["time"].to_numpy().astype(float), return_index=True)
+        found = np.clip(np.searchsorted(moments, grid), 0, len(moments) - 1)
+        hit = moments[found] == grid
+        matched = int(np.count_nonzero(hit))
         if matched < frame.height:
             logger.debug("Only %s of %s rows for baseline '%s' in scan '%s' fall on the time grid",
                          matched, frame.height, baseline, scan_name)
-        return {column: placed[column].cast(pl.Float64).fill_null(float("nan")).to_numpy()
-                for column in columns}
+        rows = first[found[hit]]
+        placed = {}
+        for column in columns:
+            values = frame[column].cast(pl.Float64).fill_null(float("nan")).to_numpy()
+            out = np.full(len(grid), np.nan)
+            out[hit] = values[rows]
+            placed[column] = out
+        return placed
 
     def _process_baseline_projections(self, scan: Scan, observation: Observation, times_mjd: np.ndarray, uv_coverage_df: pl.DataFrame, visibility_df: pl.DataFrame, telescopes: List[Telescope | SpaceTelescope]) -> Optional[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
         """Process baseline projections for a single scan in geometric coordinates (meters).
@@ -3046,9 +3206,17 @@ class ScheduleCalculator(Super):
 
         pairs = [f"{active_telescopes[i].get_code()}-{active_telescopes[j].get_code()}" for i, j in zip(*np.triu_indices(len(active_telescopes), k=1))]
 
+        # Split once rather than filtered per baseline, and each station's visibility placed on
+        # the grid once rather than once per baseline it belongs to.
+        uv_by_baseline = {key[0]: part for key, part in uv_coverage_df.partition_by("baseline", as_dict=True).items()}             if not uv_coverage_df.is_empty() else {}
+        seen_by_station = {}
+        for key, part in (visibility_df.partition_by("telescope_code", as_dict=True).items()
+                          if not visibility_df.is_empty() else ()):
+            seen_by_station[key[0]] = self._on_time_grid(times_mjd, part, ["visibility"], key[0], scan_name)["visibility"]
+
         for baseline in pairs:
             tel1_code, tel2_code = baseline.split('-')
-            uv_data = uv_coverage_df.filter(pl.col("baseline") == baseline)
+            uv_data = uv_by_baseline.get(baseline, uv_coverage_df.clear())
 
             projections = np.full(n_times, np.nan, dtype=float)
 
@@ -3060,11 +3228,10 @@ class ScheduleCalculator(Super):
                 projections = np.sqrt(u**2 + v**2)
 
             for telescope_code in (tel1_code, tel2_code):
-                telescope_visibility = visibility_df.filter(pl.col("telescope_code") == telescope_code)
-                if telescope_visibility.is_empty():
+                visible = seen_by_station.get(telescope_code)
+                if visible is None:
                     continue
-                aligned = self._on_time_grid(times_mjd, telescope_visibility, ["visibility"], baseline, scan_name)
-                projections[~(aligned["visibility"] > 0)] = np.nan
+                projections[~(visible > 0)] = np.nan
 
             valid_count = np.sum(~np.isnan(projections))
             logger.debug("Computed %s valid projections for baseline '%s' in scan '%s'", valid_count, baseline, scan_name)
@@ -3325,6 +3492,8 @@ class ScheduleCalculator(Super):
                 telescope_codes = []
                 source_names = []
                 pa_list = []
+
+                self._warm_topocentric(obs, scans, times_df, position_df)
 
                 with _InTurn() as executor:
                     futures = {}
