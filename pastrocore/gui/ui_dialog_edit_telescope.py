@@ -77,7 +77,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.xEdit = QDoubleSpinBox(self.tab)
         self.xEdit.setObjectName(u"xEdit")
-        self.xEdit.setDecimals(2)
+        self.xEdit.setDecimals(5)
         self.xEdit.setMinimum(-10000000.000000000000000)
         self.xEdit.setMaximum(10000000.000000000000000)
 
@@ -90,7 +90,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.yEdit = QDoubleSpinBox(self.tab)
         self.yEdit.setObjectName(u"yEdit")
-        self.yEdit.setDecimals(2)
+        self.yEdit.setDecimals(5)
         self.yEdit.setMinimum(-10000000.000000000000000)
         self.yEdit.setMaximum(10000000.000000000000000)
 
@@ -103,7 +103,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.zEdit = QDoubleSpinBox(self.tab)
         self.zEdit.setObjectName(u"zEdit")
-        self.zEdit.setDecimals(2)
+        self.zEdit.setDecimals(5)
         self.zEdit.setMinimum(-10000000.000000000000000)
         self.zEdit.setMaximum(10000000.000000000000000)
 
@@ -116,7 +116,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.vxEdit = QDoubleSpinBox(self.tab)
         self.vxEdit.setObjectName(u"vxEdit")
-        self.vxEdit.setDecimals(2)
+        self.vxEdit.setDecimals(6)
         self.vxEdit.setMinimum(-1000.000000000000000)
         self.vxEdit.setMaximum(1000.000000000000000)
 
@@ -129,7 +129,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.vyEdit = QDoubleSpinBox(self.tab)
         self.vyEdit.setObjectName(u"vyEdit")
-        self.vyEdit.setDecimals(2)
+        self.vyEdit.setDecimals(6)
         self.vyEdit.setMinimum(-1000.000000000000000)
         self.vyEdit.setMaximum(1000.000000000000000)
 
@@ -142,7 +142,7 @@ class Ui_TelescopeEditorDialog(object):
 
         self.vzEdit = QDoubleSpinBox(self.tab)
         self.vzEdit.setObjectName(u"vzEdit")
-        self.vzEdit.setDecimals(2)
+        self.vzEdit.setDecimals(6)
         self.vzEdit.setMinimum(-1000.000000000000000)
         self.vzEdit.setMaximum(1000.000000000000000)
 

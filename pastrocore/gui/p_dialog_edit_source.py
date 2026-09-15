@@ -1,4 +1,5 @@
 # pastrocore/gui/p_dialog_edit_source.py
+import math
 from PySide6.QtWidgets import QDialog, QMessageBox, QTableView, QHeaderView
 from PySide6.QtCore import Slot
 from PySide6.QtGui import QStandardItemModel, QStandardItem
@@ -26,12 +27,9 @@ class SourceEditorDialog(QDialog):
         self.ui.fluxTable.setSelectionMode(QTableView.SingleSelection)
         self.ui.fluxTable.setSelectionBehavior(QTableView.SelectRows)
 
-        self.ui.raHEdit.setRange(0, 23)
-        self.ui.raMEdit.setRange(0, 59)
-        self.ui.raSEdit.setRange(0, 59.999)
-        self.ui.deDEdit.setRange(-90, 90)
-        self.ui.deMEdit.setRange(0, 59)
-        self.ui.deSEdit.setRange(0, 59.999)
+        # The coordinate fields take their bounds and precision from the form. They were set here
+        # as well, to 59.999 seconds -- three places, so saving a source rounded a catalogue
+        # position to a millisecond of time whether or not anyone had touched it.
         self.ui.spectralIndexEdit.setRange(-999, 999)
 
     def setup_connections(self):
@@ -66,7 +64,11 @@ class SourceEditorDialog(QDialog):
         self.ui.raHEdit.setValue(self.source_obj.ra_h)
         self.ui.raMEdit.setValue(self.source_obj.ra_m)
         self.ui.raSEdit.setValue(self.source_obj.ra_s)
-        self.ui.deDEdit.setValue(self.source_obj.de_d)
+        # The sign has its own field: a declination between -1 and 0 degrees keeps it in `-0.0`,
+        # which a number field shows as `0` and hands back as `+0.0`. Saving any edit of such a
+        # source moved it north of the equator.
+        self.ui.deSignCombo.setCurrentIndex(1 if math.copysign(1.0, self.source_obj.de_d) < 0 else 0)
+        self.ui.deDEdit.setValue(abs(self.source_obj.de_d))
         self.ui.deMEdit.setValue(self.source_obj.de_m)
         self.ui.deSEdit.setValue(self.source_obj.de_s)
         self.ui.spectralIndexEdit.setValue(self.source_obj.spectral_index or 0)
@@ -133,7 +135,8 @@ class SourceEditorDialog(QDialog):
             "ra_h": self.ui.raHEdit.value(),
             "ra_m": self.ui.raMEdit.value(),
             "ra_s": self.ui.raSEdit.value(),
-            "de_d": self.ui.deDEdit.value(),
+            "de_d": math.copysign(self.ui.deDEdit.value(),
+                                  -1.0 if self.ui.deSignCombo.currentIndex() == 1 else 1.0),
             "de_m": self.ui.deMEdit.value(),
             "de_s": self.ui.deSEdit.value(),
             "name_J2000": self.ui.nameJ2000Edit.text().strip() or None,

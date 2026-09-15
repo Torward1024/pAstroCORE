@@ -57,6 +57,19 @@ class SourcesCatalogDialog(QDialog):
         if self.allow_selection:
             self.add_button.clicked.connect(self.select_sources)
 
+    def _position(self, source) -> tuple:
+        """Return a source's right ascension and declination as the table shows them.
+
+        Notes:
+            - Asked of the source. The sign came from `de_d >= 0`, which is true of `-0.0`, so
+              every source between -1 and 0 degrees was listed north of the equator; and seconds
+              rounded on their own showed 59.96 as `60.0`.
+        """
+        hours, minutes, seconds = self.manipulator.inspect(source, right_ascension_parts=1)
+        sign, degrees, arcminutes, arcseconds = self.manipulator.inspect(source, declination_parts=1)
+        return (f"{hours:02d}:{minutes:02d}:{seconds:04.1f}",
+                f"{sign}{degrees:02d}:{arcminutes:02d}:{arcseconds:04.1f}")
+
     def populate_table(self):
         """Populate the table with sources from the catalog manager."""
         self.model.removeRows(0, self.model.rowCount())
@@ -68,9 +81,7 @@ class SourcesCatalogDialog(QDialog):
             return
 
         for source in sources:
-            ra_str = f"{int(source.ra_h):02d}:{int(source.ra_m):02d}:{source.ra_s:05.1f}"
-            dec_sign = "+" if source.de_d >= 0 else "-"
-            dec_str = f"{dec_sign}{abs(int(source.de_d)):02d}:{int(source.de_m):02d}:{source.de_s:05.1f}"
+            ra_str, dec_str = self._position(source)
             items = [
                 QStandardItem(source.name or ""),
                 QStandardItem(source.name_J2000 or ""),
@@ -100,9 +111,7 @@ class SourcesCatalogDialog(QDialog):
             if (text in (source.name or "").lower() or
                 text in (source.name_J2000 or "").lower() or
                 text in (source.alt_name or "").lower()):
-                ra_str = f"{int(source.ra_h):02d}:{int(source.ra_m):02d}:{source.ra_s:05.1f}"
-                dec_sign = "+" if source.de_d >= 0 else "-"
-                dec_str = f"{dec_sign}{abs(int(source.de_d)):02d}:{int(source.de_m):02d}:{source.de_s:05.1f}"
+                ra_str, dec_str = self._position(source)
                 items = [
                     QStandardItem(source.name or ""),
                     QStandardItem(source.name_J2000 or ""),

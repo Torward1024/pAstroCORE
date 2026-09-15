@@ -344,3 +344,18 @@ def test_a_scan_the_model_refuses_is_named_rather_than_forced_in(example_file):
     _project, report = imported(example_file)
 
     assert report["refused"] == [], f"scans were refused: {report['refused']}"
+
+
+def test_linear_feeds_come_in_as_themselves():
+    """A station's `IF = frequency, X, U` line was read as no polarization at all."""
+    example = pathlib.Path("I:/format_examples/RADIOASTRON_RAES03FR_C_20121118T135000_ASC_V2.cfx")
+    if not example.is_file():
+        pytest.skip("the ASC example is not on this machine")
+    text = example.read_text(encoding="utf-8", errors="replace")
+
+    read = cfx.read_cfx(text.replace(", R,", ", X,").replace(", L,", ", Y,"))
+
+    assert all(set(band["polarizations"]) <= {"X", "Y"} and band["polarizations"]
+               for band in read["bands"].values())
+    odd = cfx.read_cfx(text.replace(", R,", ", Q,"))
+    assert any("IF polarization Q" in entry for entry in odd["passed_over"])

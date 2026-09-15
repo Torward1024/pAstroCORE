@@ -624,3 +624,45 @@ def test_a_copied_scan_keeps_its_name():
 
     assert [item.name for item in copied.get_items()] == ["scan_one"]
     assert copied.get("scan_one") is not None, "the copy is filed under a name it does not have"
+
+
+# --- a source at the edges of its fields ---------------------------------------------------------
+
+@pytest.mark.parametrize("degrees", [360.0, 359.99999999999])
+def test_the_end_of_the_circle_is_zero_hours(degrees):
+    """Carried to 24 hours, which the field refuses, so reading such a source failed."""
+    source = Source(name="X", ra_h=1.0, de_d=1.0)
+
+    source.set_ra_degrees(degrees)
+
+    assert (source.ra_h, source.ra_m) == (0.0, 0.0)
+    assert source.ra_degrees == pytest.approx(0.0, abs=1e-6)
+
+
+def test_seconds_hold_anything_below_sixty():
+    """`Range(0, 59.999)` refused 59.9995 -- a position a catalogue holds and VEX can state."""
+    source = Source(name="X", ra_h=1.0, ra_s=59.9995, de_d=1.0, de_s=59.99951)
+    source.set_dec_degrees(10.0 + 59.99975 / 3600)
+
+    assert source.ra_s == 59.9995
+    with pytest.raises(Exception):
+        Source(name="Y", ra_h=1.0, ra_s=60.0, de_d=1.0)
+
+
+def test_a_declination_just_south_of_the_equator_is_written_south():
+    source = Source(name="X", ra_h=1.0, de_d=-0.0, de_m=30.0, de_s=15.2)
+
+    assert source.declination_parts(1) == ("-", 0, 30, 15.2)
+    assert Source(name="Z", ra_h=1.0, de_d=-0.0).declination_parts(1)[0] == "+", "zero has no side"
+
+
+@pytest.mark.parametrize("group, allowed", [(["X", "Y"], True), (["H", "V"], True),
+                                            (["X", "H"], False), (["RCP", "X"], False)])
+def test_linear_feeds_are_a_group_of_their_own(group, allowed):
+    frequencies = Frequencies(name="fq")
+    if allowed:
+        frequencies.create_if(name="a", frequency=1000.0, bandwidth=16.0, polarizations=group)
+        assert frequencies.get("a").polarizations == group
+    else:
+        with pytest.raises(InvariantError):
+            frequencies.create_if(name="a", frequency=1000.0, bandwidth=16.0, polarizations=group)

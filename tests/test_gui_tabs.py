@@ -843,3 +843,67 @@ def test_closing_a_dialog_waits_for_the_work_it_started(qt_application, project,
 
     assert not dialog.worker.isRunning(), "the dialog closed ahead of the work it started"
     dialog.deleteLater()
+
+
+# --- editors keep what they did not change ---------------------------------------------------------
+
+@pytest.mark.parametrize("declination", [(-0.0, 30.0, 15.2), (-12.0, 5.0, 1.25), (0.0, 30.0, 15.2)],
+                         ids=["half a degree south", "south", "half a degree north"])
+def test_saving_a_source_unchanged_keeps_its_position(qt_application, declination):
+    """Two ways an untouched source moved when its editor was saved.
+
+    The degrees field showed `-0.0` as `0` and handed back `+0.0`, so a source between -1 and 0
+    degrees crossed the equator; and the seconds held three places, so every catalogue position
+    was rounded to a millisecond of time -- 7.5 milliarcseconds -- whether or not anyone had
+    touched it.
+    """
+    from pastrocore.base.sources import Source
+    from pastrocore.gui.p_dialog_edit_source import SourceEditorDialog
+
+    degrees, minutes, seconds = declination
+    source = Source(name="S", ra_h=12.0, ra_m=30.0, ra_s=49.4235840,
+                    de_d=degrees, de_m=minutes, de_s=seconds)
+    before = (source.ra_degrees, source.dec_degrees)
+
+    dialog = SourceEditorDialog(source)
+    dialog.get_source_object()
+
+    assert source.dec_degrees == pytest.approx(before[1], abs=1e-12)
+    assert source.ra_degrees == pytest.approx(before[0], abs=1e-12)
+    dialog.deleteLater()
+
+
+def test_saving_a_telescope_unchanged_keeps_its_position_and_velocity(qt_application):
+    """Two decimal places for metres per year turned a station's -0.01353 into -0.01 and its
+    0.00873 into 0.01 -- tectonic motion rounded to centimetres -- the moment it was saved."""
+    from pastrocore.base.telescope import Telescope
+    from pastrocore.gui.p_dialog_edit_telescope import TelescopeEditorDialog
+
+    telescope = Telescope(code="Ef", name="EFLSBERG", x=4033947.23550, y=486990.51620,
+                          z=4900431.02660, vx=-0.01353, vy=0.01704, vz=0.00873, diameter=100.0)
+    before = (telescope.x, telescope.y, telescope.z, telescope.vx, telescope.vy, telescope.vz)
+
+    dialog = TelescopeEditorDialog(telescope)
+    saved = dialog.get_telescope_object()
+
+    assert (saved.x, saved.y, saved.z, saved.vx, saved.vy, saved.vz) == pytest.approx(before, abs=1e-9)
+    dialog.deleteLater()
+
+
+def test_the_catalogue_lists_a_source_south_of_the_equator_as_south(qt_application, project):
+    """The table's sign came from `de_d >= 0`, which is true of `-0.0`."""
+    from pastrocore.base.sources import Source
+    from pastrocore.gui.p_dialog_sources_catalog import SourcesCatalogDialog
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+    from pastrocore.utils.catalogmanager import CatalogManager
+
+    catalogue = CatalogManager()
+    catalogue.source_catalog.add(Source(name="J0000-0030", ra_h=23.0, ra_m=59.0, ra_s=59.96,
+                                        de_d=-0.0, de_m=30.0, de_s=15.2))
+    dialog = SourcesCatalogDialog(catalogue, ScheduleManipulator(project))
+
+    shown = [dialog.model.item(0, column).text() for column in range(dialog.model.columnCount())]
+
+    assert "-00:30:15.2" in shown, shown
+    assert "00:00:00.0" in shown, f"59.96 seconds rounded on their own showed as 60.0: {shown}"
+    dialog.deleteLater()

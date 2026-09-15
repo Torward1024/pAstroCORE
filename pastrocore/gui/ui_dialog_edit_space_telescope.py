@@ -240,7 +240,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.nuEdit = QDoubleSpinBox(self.tab_2)
         self.nuEdit.setObjectName(u"nuEdit")
-        self.nuEdit.setDecimals(2)
+        self.nuEdit.setDecimals(6)
         self.nuEdit.setMinimum(-360.000000000000000)
         self.nuEdit.setMaximum(360.000000000000000)
 
@@ -278,7 +278,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.eccentricityEdit = QDoubleSpinBox(self.tab_2)
         self.eccentricityEdit.setObjectName(u"eccentricityEdit")
-        self.eccentricityEdit.setDecimals(3)
+        self.eccentricityEdit.setDecimals(7)
         self.eccentricityEdit.setMinimum(0.000000000000000)
         self.eccentricityEdit.setMaximum(0.999000000000000)
 
@@ -286,7 +286,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.argpEdit = QDoubleSpinBox(self.tab_2)
         self.argpEdit.setObjectName(u"argpEdit")
-        self.argpEdit.setDecimals(2)
+        self.argpEdit.setDecimals(6)
         self.argpEdit.setMinimum(-360.000000000000000)
         self.argpEdit.setMaximum(360.000000000000000)
 
@@ -299,7 +299,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.inclinationEdit = QDoubleSpinBox(self.tab_2)
         self.inclinationEdit.setObjectName(u"inclinationEdit")
-        self.inclinationEdit.setDecimals(2)
+        self.inclinationEdit.setDecimals(6)
         self.inclinationEdit.setMinimum(-360.000000000000000)
         self.inclinationEdit.setMaximum(360.000000000000000)
 
@@ -312,7 +312,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.semiMajorAxisEdit = QDoubleSpinBox(self.tab_2)
         self.semiMajorAxisEdit.setObjectName(u"semiMajorAxisEdit")
-        self.semiMajorAxisEdit.setDecimals(2)
+        self.semiMajorAxisEdit.setDecimals(3)
         self.semiMajorAxisEdit.setMinimum(1.000000000000000)
         self.semiMajorAxisEdit.setMaximum(1000000000000.000000000000000)
 
@@ -325,7 +325,7 @@ class Ui_SpaceTelescopeEditorDialog(object):
 
         self.raanEdit = QDoubleSpinBox(self.tab_2)
         self.raanEdit.setObjectName(u"raanEdit")
-        self.raanEdit.setDecimals(2)
+        self.raanEdit.setDecimals(6)
         self.raanEdit.setMinimum(-10000000.000000000000000)
         self.raanEdit.setMaximum(10000000.000000000000000)
 

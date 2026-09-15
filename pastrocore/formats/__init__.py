@@ -12,11 +12,11 @@ what a person wants to look at, and these write a contract with a correlator. Mi
 give one this module's vocabulary and give the other that module's tolerance for close enough.
 """
 import re
-from typing import Any, List, NamedTuple, Sequence, Tuple
+from typing import Any, List, NamedTuple, Optional, Sequence, Tuple
 
 #: Our polarizations in the letter both formats use. `if_def` names one per intermediate
 #: frequency in VEX and an `IF =` line carries one in CFX, and they are the same letters.
-POLARIZATION_LETTERS = {"RCP": "R", "LCP": "L", "H": "H", "V": "V"}
+POLARIZATION_LETTERS = {"RCP": "R", "LCP": "L", "H": "H", "V": "V", "X": "X", "Y": "Y"}
 
 #: Sideband order within a band. `L` first, as `sched` writes it, so the two files of one
 #: experiment list their channels the same way round and a diff against anyone else's lines up.
@@ -144,6 +144,21 @@ def collect_modes(scans: Sequence) -> List[Mode]:
         modes.append(Mode(name=f"MODE{len(modes) + 1:02d}", bands=bands,
                           channels=channels_of(bands)))
     return modes
+
+
+def polarization_for(letter: str) -> Optional[str]:
+    """Return the model's name for a polarization letter, or None for one it cannot hold.
+
+    Notes:
+        - The inverse of `letter_for`, in one place. Both readers carried their own copy, and
+          both dropped a letter they did not know without a word: a VEX or CFX file of linear
+          feeds, `X` and `Y`, came in with no polarization at all and nothing said so. A caller
+          names what this returns None for, as it names every other thing it reads past.
+        - `X` and `Y` are held as themselves, not as `H` and `V`: a linear feed's orientation is
+          the station's, and equating them would put a plausible wrong answer in the model.
+    """
+    wanted = (letter or "").strip().upper()
+    return next((name for name, spelled in POLARIZATION_LETTERS.items() if spelled == wanted), None)
 
 
 def letter_for(polarization: str, unknown: str = "") -> str:
