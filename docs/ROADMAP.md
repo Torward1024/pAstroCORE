@@ -1,13 +1,43 @@
 # pAstroCORE roadmap
 
-**1.7 shipped.** What is left, what was decided against, and why.
+**1.9.3 shipped.** What is left, what was decided against, and why.
 
 Every item has an **exit criterion**: a sentence that is true or false. An item is finished when
 its criterion holds, not when it feels tidy.
 
-## Next
+## Next -- finishing it
 
-Nothing is scheduled, and nothing is blocking anyone.
+Eleven items from using it, ranked: what costs an hour every day first, what a new user sees
+second, what makes it complete last. Each lands as its own release, in this order, unless a
+later one turns out to need an earlier one.
+
+### Stage 1 -- what gets in the way every day
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| G7 | **Select All / Clear under every list a plot is chosen from** | Every `QListWidget` on a visualization tab has both buttons, found rather than listed: a test walks every tab and fails on a list without them. Two hundred baselines to one is two clicks |
+| G8 | **Nothing overlaps** | A test lays out every form at its default size and at its minimum, and fails when two sibling widgets intersect or a label's text is wider than its label. Fixed in the `.ui` files, regenerated, pixels regenerated from a whole run |
+| G9 | **Saving and opening show real progress** | Save and open run off the window's thread in the shared `ProgressDialog`, which moves by what has been written or read (the model, then each result file) and names it. Today save shows a bar that never moves and open shows nothing. Cancel on open leaves the project that was open |
+
+### Stage 2 -- the main window
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| G10 | **The icon set, complete** | Every menu action has an icon in the existing style -- 24x24, stroke `#005BB5`, width 2, round caps and joins, no fill, no Illustrator preamble. A test fails on an action without one and on an SVG outside that style |
+| G11 | **A toolbar** | New, Open, Save, Import, Export, Calculate, Visualize, Analysis, Generate, Session, Preferences -- the menu's own `QAction`s, so a disabled action is disabled in both places. Defined in `main_window.ui` |
+| G12 | **Shortcuts** | The platform's standard keys where one exists (`QKeySequence.New`, `Open`, `Save`, `SaveAs`, `Preferences`, `Quit`), `Ctrl+R` calculate, `Ctrl+Shift+V` visualize, `F1` about. No two actions share one: a test fails on a collision |
+| G13 | **A status bar** | The process's memory (resident set, from `psutil`, already a dependency), refreshed every two seconds, and the last log message at INFO or above -- warnings in amber, errors in red -- from a logging handler, not from call sites |
+
+### Stage 3 -- what it cannot do yet
+
+| # | Item | Exit criterion |
+| --- | --- | --- |
+| O1 | **The generator, finished** | A generation plan -- sources, stations, bands, times, pattern -- saves to a file and loads back into the dialog whole; today a preset keeps the timing and drops what it was for. The end time a pattern implies is computed by the backend, not by the dialog, and the two built-in presets come from the backend too |
+| C1 | **Editing the catalogues** | Add, edit and remove sources and stations in the catalogue managers, and save to the same file or a new one. **A catalogue is JSON** -- the same `Sources` and `Telescopes` a project serializes, so a space telescope and any field added later have somewhere to go; `.dat` files still open, and are saved as JSON. The shipped catalogues are converted once, and read back equal to what the `.dat` gave |
+| S1 | **Editing a session** | A session can be cut down to what is worth repeating: rows removed, the rest saved, and a filter showing only the requests that change the model. **Everything is still recorded** -- what the window asked is what a bug report needs. Whether an operation only reads is declared on the operation, in MSB, not listed here |
+| L4 | **Everything from the command line** | Every operation the window can ask for can be asked from the command line: `pastrocore-cli ask <operation> <object> key=value`, and an interactive `pastrocore-cli shell` that completes operations, methods and objects. **No new language**: both are built from the catalogue of requests MSB already describes, so nothing is a command table to keep in step with the window, and a script is a session file, which already replays |
+
+## Parked
 
 | # | Item | Exit criterion |
 | --- | --- | --- |
