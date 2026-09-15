@@ -279,6 +279,19 @@ class ScheduleVisualizer(Super):
                 if scan.source is not None and scan.source.name in wanted]
 
 
+    @staticmethod
+    def _time_axis(ax) -> None:
+        """Label a time axis in MJD with as much of the fraction as the ticks need.
+
+        Notes:
+            - It was `int(x)`: every tick of a plot spanning a day read `61298` or `61299`, so
+              five ticks said two things. Plain numbers, no offset, and matplotlib chooses the
+              places.
+        """
+        formatter = matplotlib.ticker.ScalarFormatter(useOffset=False)
+        formatter.set_scientific(False)
+        ax.xaxis.set_major_formatter(formatter)
+
     def _setup_axes(self, fig: Figure, plot_type: str, obj_name: str, projection: str = None, 
                     n_rows: int = 1, n_cols: int = 1, sharex: bool = False, sharey: bool = False) -> Union[plt.Axes, np.ndarray]:
         """Set up axes for plotting with consistent styling."""
@@ -918,7 +931,7 @@ class ScheduleVisualizer(Super):
                 )
 
             ax = self._setup_axes(fig, "sun_angles", obj.get_observation_code())
-            ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
+            self._time_axis(ax)
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
             ax.set_ylabel("Angle, (deg.)", fontsize=self._style_config["font"]["label_size"])
             ax.set_title(f"Sun Angles\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
@@ -1073,7 +1086,9 @@ class ScheduleVisualizer(Super):
                 )
 
             n_tels = len(valid_telescopes)
-            n_rows = min(n_tels, self._style_config.get("max_subplots", 10)) if n_tels > 1 else 1
+            # Every station that was ticked gets a panel. This stopped at `max_subplots`, ten,
+            # and the rest were left out without a word: twelve stations ticked, ten drawn.
+            n_rows = n_tels
             n_cols = 1
             axes = self._setup_axes(
                 fig, "az_el", obj.get_observation_code(), n_rows=n_rows, n_cols=n_cols, sharex=True, sharey=True
@@ -1088,8 +1103,6 @@ class ScheduleVisualizer(Super):
             linewidth = self._style_config.get("lines", {}).get("width", 1.5)
 
             for tel_idx, tel in enumerate(valid_telescopes):
-                if n_tels > 1 and tel_idx >= self._style_config.get("max_subplots", 10):
-                    break
                 tel_data = filtered_df.filter(pl.col("telescope_code") == tel)
                 if tel_data.is_empty():
                     logger.debug("No data for telescope %s, skipping", tel)
@@ -1109,16 +1122,31 @@ class ScheduleVisualizer(Super):
 
                 ax = axes[0] if n_tels == 1 else axes[tel_idx]
 
+                # Broken where there is nothing to join. Where the angle wraps, 360 to 0 or 180
+                # to -180, a line drawn through crossed the whole panel for a step the dish never
+                # took; and where the source was below the horizon those samples are gone, so a
+                # line drawn through showed an elevation for hours nothing was seen.
+                steps = np.diff(valid_times_mjd)
+                usual = np.median(steps) if len(steps) else 0.0
+                gaps = set(np.flatnonzero(steps > 1.5 * usual) + 1) if usual > 0 else set()
+                wraps = set(np.flatnonzero(np.abs(np.diff(valid_az)) > 180.0) + 1)
+                az_breaks = sorted(gaps | wraps)
+                el_breaks = sorted(gaps)
+                az_times = np.insert(valid_times_mjd, az_breaks, np.nan)
+                az_drawn = np.insert(valid_az, az_breaks, np.nan)
+                el_times = np.insert(valid_times_mjd, el_breaks, np.nan)
+                el_drawn = np.insert(valid_el, el_breaks, np.nan)
+
                 # Plot lines for Az and El
                 ax.plot(
-                    valid_times_mjd, valid_az,
+                    az_times, az_drawn,
                     color=az_color,
                     label=f"{coord_type[:2]}" if tel_idx == 0 else "",
                     linewidth=linewidth,
                     alpha=0.7
                 )
                 ax.plot(
-                    valid_times_mjd, valid_el,
+                    el_times, el_drawn,
                     color=el_color,
                     label=f"{coord_type[2:]}" if tel_idx == 0 else "",
                     linewidth=linewidth,
@@ -1128,9 +1156,14 @@ class ScheduleVisualizer(Super):
                 plotted_telescopes.add(tel)
                 result["points"] += len(valid_az) + len(valid_el)
 
-                ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
+                self._time_axis(ax)
                 if n_tels > 1:
-                    ax.set_title(f"{tel}", fontsize=self._style_config["font"]["title_size"] - 2, pad=5)
+                    # Inside the panel rather than above it: a title needs a row of its own, and
+                    # stacked panels with titles either overlap -- the name sat on the plot
+                    # above -- or spend the height the plots need on gaps.
+                    ax.text(0.005, 0.92, tel, transform=ax.transAxes, ha="left", va="top",
+                            fontsize=self._style_config["font"]["tick_size"],
+                            bbox=dict(facecolor="white", alpha=0.75, edgecolor="none", pad=1.5))
                 ax.tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
 
             if not plotted_telescopes:
@@ -1142,11 +1175,14 @@ class ScheduleVisualizer(Super):
                 )
 
             # Adjust layout and labels
-            fig.tight_layout()
             if n_tels > 1:
-                fig.subplots_adjust(left=0.15, bottom=0.15, right=0.85, top=0.80, hspace=0.3)
-                fig.text(0.5, 0.05, "Time, (MJD)", ha="center", fontsize=self._style_config["font"]["label_size"])
-                fig.text(0.05, 0.5, f"{coord_type[:2]}/{coord_type[2:]}, (deg)", va="center", rotation="vertical",
+                # Margins for what is actually around the panels -- a three-line title above, the
+                # time label below, the legend to the right -- and panels close together now that
+                # their names are inside them. `tight_layout` was called and then overridden by
+                # fixed margins that left a third of the figure empty.
+                fig.subplots_adjust(left=0.07, bottom=0.08, right=0.90, top=0.88, hspace=0.12)
+                fig.text(0.5, 0.02, "Time, (MJD)", ha="center", fontsize=self._style_config["font"]["label_size"])
+                fig.text(0.015, 0.48, f"{coord_type[:2]}/{coord_type[2:]}, (deg)", va="center", rotation="vertical",
                          fontsize=self._style_config["font"]["label_size"])
                 fig.suptitle(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
                              fontsize=self._style_config["font"]["title_size"], y=0.98)
@@ -1155,8 +1191,11 @@ class ScheduleVisualizer(Super):
                 axes[0].set_ylabel(f"{coord_type[:2]}/{coord_type[2:]}, (deg)", fontsize=self._style_config["font"]["label_size"])
                 axes[0].set_title(f"Az/El or Ha/Dec\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
                                   fontsize=self._style_config["font"]["title_size"], pad=10)
-                axes[0].xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
+                self._time_axis(axes[0])
                 axes[0].tick_params(axis="both", labelsize=self._style_config["font"]["tick_size"])
+                # Laid out around the three-line title and the legend on the right, which one
+                # panel on its own has room to measure.
+                fig.tight_layout(rect=(0.0, 0.0, 0.88, 1.0))
 
             # Create legend for Az and El only
             if n_tels >= 1:
@@ -1630,7 +1669,7 @@ class ScheduleVisualizer(Super):
             logger.debug(f"Reference frequency: {ref_freq:.2f} MHz, reference wavelength: {ref_wavelength:.2e} m")
 
             ax = self._setup_axes(fig, "baseline_projections", obj.get_observation_code())
-            ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
+            self._time_axis(ax)
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
             ax.set_title(f"Baseline Projections\nObs. code: {obj.get_observation_code()}\nSource: {source_name}",
                          fontsize=self._style_config["font"]["title_size"])
@@ -1995,7 +2034,7 @@ class ScheduleVisualizer(Super):
                 )
 
             ax = self._setup_axes(fig, "parallactic_angle", obj.get_observation_code())
-            ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda x, _: f"{int(x)}"))
+            self._time_axis(ax)
             ax.set_xlabel("Time, (MJD)", fontsize=self._style_config["font"]["label_size"])
             ax.set_ylabel("Parallactic Angle, (deg)", fontsize=self._style_config["font"]["label_size"])
             ax.set_title(f"Parallactic Angle\nObs. code: {obj.get_observation_code()}\nSource: {source_name or 'All'}",

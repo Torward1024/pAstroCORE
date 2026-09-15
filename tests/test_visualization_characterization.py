@@ -432,3 +432,107 @@ def test_total_carries_across_scans_that_touch(manipulator, observation):
 
     assert answer.value["intersections"] == 1
     assert labels == ["7200.0s"], f"two hours in common across two scans, the plot said {labels}"
+
+
+# --- Az/El stacked by station ----------------------------------------------------------------------
+
+def twelve_stations(observation, times=None):
+    """An az/el result for twelve stations, written straight into the observation.
+
+    Every station's azimuth wraps from 350 to 10 degrees half way, and the source is below the
+    horizon for a stretch in the middle of the second half -- the two places a line must break.
+    """
+    import numpy as np
+    import polars as pl
+
+    from pastrocore.base.data_structure import CalculatedDataStructure
+
+    codes = [f"T{index:02d}" for index in range(12)]
+    moments = np.arange(40) * 600.0 / 86400.0 + 61298.0
+    azimuth = np.where(np.arange(40) < 20, 330.0 + np.arange(40), np.arange(40) - 10.0)
+    elevation = np.where((np.arange(40) > 27) & (np.arange(40) < 33), np.nan, 40.0)
+    rows = {"time": [], "source_name": [], "scan_name": [], "telescope_code": [], "az": [], "el": []}
+    for code in codes:
+        rows["time"].extend(moments)
+        rows["source_name"].extend(["1228+126"] * 40)
+        rows["scan_name"].extend(["s"] * 40)
+        rows["telescope_code"].extend([code] * 40)
+        rows["az"].extend(np.where(np.isnan(elevation), np.nan, azimuth))
+        rows["el"].extend(elevation)
+    observation.set_calculated_data_by_key(
+        "az_el", pl.DataFrame(rows, schema=CalculatedDataStructure.get_dtypes("az_el")),
+        {"time_step": 600.0, "scan_count": 1, "position_store_key": "telescope_positions",
+         "visibility_store_key": "source_visibility"})
+    return codes
+
+
+def draw_az_el(manipulator, observation, codes):
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    figure = Figure(figsize=(15.5, 9.0), dpi=90)
+    FigureCanvasAgg(figure)             # a renderer, so where things land can be measured
+    answer = manipulator.visualize(obj=observation, plot_type="az_el", return_figure=True,
+                                   show=False, raise_on_error=False, source_name="1228+126",
+                                   telescopes=codes, scans=["s"], figure=figure)
+    assert answer.ok, answer.error
+    figure.canvas.draw()
+    return figure
+
+
+def test_every_ticked_station_gets_a_panel(manipulator, observation):
+    """It stopped at ten, and the rest were left out without a word."""
+    codes = twelve_stations(observation)
+    figure = draw_az_el(manipulator, observation, codes)
+
+    named = [text.get_text() for axes in figure.get_axes() for text in axes.texts]
+    assert named == codes
+
+
+def test_a_station_name_stays_inside_its_own_panel(manipulator, observation):
+    """Each name was the title of its panel, and with twelve stacked it sat on the plot above."""
+    codes = twelve_stations(observation)
+    figure = draw_az_el(manipulator, observation, codes)
+    renderer = figure.canvas.get_renderer()
+
+    for axes in figure.get_axes():
+        assert axes.get_title() == "", "a title needs a row the stacked panels do not have"
+        name = axes.texts[0].get_window_extent(renderer)
+        panel = axes.get_window_extent(renderer)
+        assert (panel.x0 <= name.x0 and name.x1 <= panel.x1
+                and panel.y0 <= name.y0 and name.y1 <= panel.y1), (
+            f"{axes.texts[0].get_text()} spills out of its panel")
+
+
+def test_the_panels_use_the_figure(manipulator, observation):
+    """Fixed margins left a third of the figure empty around twelve squeezed panels."""
+    codes = twelve_stations(observation)
+    figure = draw_az_el(manipulator, observation, codes)
+
+    boxes = [axes.get_position() for axes in figure.get_axes()]
+    covered = sum(box.height for box in boxes)
+    assert covered > 0.65, f"the panels cover {covered:.0%} of the figure's height"
+
+
+def test_time_ticks_say_different_things(manipulator, observation):
+    """`int(x)` labelled every tick of a day-long plot 61298 or 61299."""
+    codes = twelve_stations(observation)
+    figure = draw_az_el(manipulator, observation, codes)
+
+    labels = [label.get_text() for label in figure.get_axes()[-1].get_xticklabels() if label.get_text()]
+    assert len(labels) == len(set(labels)) > 2, labels
+
+
+def test_a_line_breaks_where_azimuth_wraps_and_where_nothing_was_seen(manipulator, observation):
+    """Drawn through, the azimuth crossed the whole panel for a step the dish never took, and the
+    elevation ran flat across the hours the source was below the horizon."""
+    import numpy as np
+
+    codes = twelve_stations(observation)
+    figure = draw_az_el(manipulator, observation, codes)
+    azimuth, elevation = figure.get_axes()[0].get_lines()[:2]
+
+    az = np.asarray(azimuth.get_ydata(), dtype=float)
+    el = np.asarray(elevation.get_ydata(), dtype=float)
+    assert np.isnan(az).sum() == 2, "one break where it wraps, one across the gap"
+    assert np.isnan(el).sum() == 1, "one break across the gap"
