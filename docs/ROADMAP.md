@@ -7,7 +7,7 @@ its criterion holds, not when it feels tidy.
 
 ## Next -- finishing it
 
-Fourteen items from using it, ranked: what costs an hour every day first, what a new user sees
+Fifteen items from using it, ranked: what costs an hour every day first, what a new user sees
 second, what it cannot do yet third, and last what lets any astronomer install it and start.
 Each lands as its own release, in this order, unless a later one turns out to need an earlier
 one.
@@ -37,6 +37,7 @@ one.
 | C1 | **Editing the catalogues** | Add, edit and remove sources and stations in the catalogue managers, and save to the same file or a new one. **A catalogue is JSON** -- the same `Sources` and `Telescopes` a project serializes, so a space telescope and any field added later have somewhere to go; `.dat` files still open, and are saved as JSON. The shipped catalogues are converted once, and read back equal to what the `.dat` gave |
 | S1 | **Editing a session** | A session can be cut down to what is worth repeating: rows removed, the rest saved, and a filter showing only the requests that change the model. **Everything is still recorded** -- what the window asked is what a bug report needs. Whether an operation only reads is declared on the operation, in MSB, not listed here |
 | L4 | **Everything from the command line** | Every operation the window can ask for can be asked from the command line: `pastrocore-cli ask <operation> <object> key=value`, and an interactive `pastrocore-cli shell` that completes operations, methods and objects. **No new language**: both are built from the catalogue of requests MSB already describes, so nothing is a command table to keep in step with the window, and a script is a session file, which already replays |
+| E1 | **Sensitivity and detection** | Three results the calculator produces and the window draws. **A station's SEFD per band** -- from its SEFD table where it has one, otherwise `2 k T_sys / (eta A)` from its system temperature, surface efficiency and diameter or effective area -- with the source of each value recorded. **A baseline's noise per scan** by the radiometer equation, `sqrt(SEFD_1 SEFD_2) / (eta_rec sqrt(2 dnu tau))`, from the band's bandwidth and the scan's duration. **Detection**: the signal-to-noise each baseline reaches on each scan from the source's flux at that frequency, drawn per baseline and scan against a threshold, and the **shortest scan** that reaches it -- 5 sigma unless asked otherwise. A value that cannot be computed (no flux at that frequency, no system temperature) is named, not guessed. `test_physics` checks the numbers against the equations independently and against a published array calculator's case |
 
 ### Stage 4 -- for anyone to install and use
 
