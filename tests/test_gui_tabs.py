@@ -907,3 +907,48 @@ def test_the_catalogue_lists_a_source_south_of_the_equator_as_south(qt_applicati
     assert "-00:30:15.2" in shown, shown
     assert "00:00:00.0" in shown, f"59.96 seconds rounded on their own showed as 60.0: {shown}"
     dialog.deleteLater()
+
+
+# --- a tab shows what was drawn -----------------------------------------------------------------------
+
+def visualization_tabs():
+    """Every visualization tab class, found rather than listed, so a new one is checked too."""
+    import importlib
+    import inspect
+    import pathlib
+
+    # PySide6 first: this runs while tests are collected, before anything has loaded Qt, and
+    # matplotlib's Qt backend otherwise goes looking for PyQt5 or PySide2.
+    import PySide6.QtWidgets  # noqa: F401
+
+    from pastrocore.gui.p_tab_vis_base import VisualizationTab
+
+    found = {}
+    for path in sorted((pathlib.Path(__file__).resolve().parent.parent / "pastrocore" / "gui")
+                       .glob("p_tab_vis_*.py")):
+        module = importlib.import_module(f"pastrocore.gui.{path.stem}")
+        for name, cls in inspect.getmembers(module, inspect.isclass):
+            if issubclass(cls, VisualizationTab) and cls is not VisualizationTab and cls.STORE_KEY:
+                found[cls.__name__] = cls
+    return sorted(found.values(), key=lambda cls: cls.__name__)
+
+
+@pytest.mark.parametrize("tab_class", visualization_tabs(), ids=lambda cls: cls.__name__)
+def test_a_tab_draws_into_the_figure_it_shows(qt_application, project, tab_class):
+    """The Mollweide tab opened and never drew: it built its own request and left out its figure,
+    so the visualizer drew into another one and the tab showed its own, empty. The spacecraft tabs
+    had the same shape. Checked where a user looks -- the tab's figure -- not on the answer."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    observation = project.observations()[0]
+    if (observation.get_calculated_data_by_key(tab_class.STORE_KEY) or {}).get("data") is None:
+        # The spacecraft tabs: drawn against a tracked spacecraft in test_spacecraft_export.
+        pytest.skip(f"the fixture holds no '{tab_class.STORE_KEY}'")
+
+    tab = tab_class(ScheduleManipulator(project), observation)
+    drawn = sum(len(axes.lines) + len(axes.collections) + len(axes.patches) + len(axes.images)
+                for axes in tab.figure.get_axes())
+
+    assert drawn > 0, f"{tab_class.__name__} opened with nothing on its figure"
+    tab.close()
+    tab.deleteLater()
