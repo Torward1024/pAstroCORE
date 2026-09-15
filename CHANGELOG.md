@@ -8,6 +8,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.9.1] - 2026-09-15
+
+### Fixed
+
+- **Orbits were interpolated for observations with no spacecraft to follow.** Positions call the
+  interpolation step, and the framework derives requirements from what calls what, so an array of
+  ground stations had it planned anyway. It ran, found nothing, and logged four warnings on every
+  calculation -- cached data empty, an empty result, stored, no data computed.
+
+  What it takes for a step to have something to do is now declared beside its result (`only_if`,
+  a question for the observation), and a plan asks the model before including the step.
+  `Observation.has_orbit_file_telescopes` answers it, and `SpaceTelescope.follows_orbit_file`
+  replaces four copies of the same check in the calculator. A calculation for ground stations is
+  one step shorter.
+
 ## [1.9.0] - 2026-09-15
 
 A fourth audit, run against real schedule files and at the size of a real schedule rather than
