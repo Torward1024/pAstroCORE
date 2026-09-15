@@ -226,7 +226,9 @@ def test_the_drawn_beam_is_an_airy_pattern_at_the_chosen_frequency(recomputed, m
     for axes in answer.value["figure"].get_axes():
         if not axes.get_visible() or not axes.get_lines():
             continue
-        diameter = dishes[axes.get_title()].diameter
+        # The station's code is written inside its panel, where a title would sit on the panel above.
+        code = axes.texts[0].get_text()
+        diameter = dishes[code].diameter
         angle, level = (np.asarray(values, dtype=float) for values in axes.get_lines()[0].get_data())
         outward = angle > 0
         angle, level = angle[outward], level[outward]
@@ -234,7 +236,7 @@ def test_the_drawn_beam_is_an_airy_pattern_at_the_chosen_frequency(recomputed, m
         below = np.argmax(level < 0.5)
         half = np.interp(0.5, [level[below], level[below - 1]], [angle[below], angle[below - 1]])
         assert 2 * half == pytest.approx(np.degrees(1.029 * wavelength / diameter), rel=0.005), (
-            f"{axes.get_title()} at {megahertz} MHz")
+            f"{code} at {megahertz} MHz")
 
         rising = np.flatnonzero(np.diff(np.sign(np.diff(level))) > 0)
         first_null = angle[rising[0] + 1]
