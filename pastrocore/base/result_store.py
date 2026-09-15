@@ -31,7 +31,7 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from threading import RLock
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional
 
 import polars as pl
 from msb_arch.utils.logging_setup import logger
@@ -692,13 +692,36 @@ class CalculatedData:
         """Every result as a plain dictionary. Loads all of them; use sparingly."""
         return {key: self[key] for key in self.keys()}
 
-    def migrate_to(self, store: ResultStore) -> int:
+    def to_write(self, store: ResultStore) -> List[str]:
+        """Name every result saving into a store would write, in the order it would write them.
+
+        Args:
+            store (ResultStore): The store a save is about to write into.
+
+        Returns:
+            List[str]: The results `migrate_to` would copy across, then those `flush` would
+                write. A result recalculated since it was stored appears in both, because both
+                writes happen.
+
+        Notes:
+            - What a save's progress is counted in. Asked before anything is written, so the
+              first file already knows how many there are.
+        """
+        across = []
+        if self._store is not None and store.root != self._store.root:
+            across = [key for key in self._store.keys(self._owner) if not store.has(self._owner, key)]
+        return across + sorted(self._unwritten)
+
+    def migrate_to(self, store: ResultStore,
+                   writing: Optional[Callable[[str], None]] = None) -> int:
         """Copy results already on disk into another store.
 
         Args:
             store (ResultStore): Where they should live from now on -- a project's own
                 `results/` directory, when a project that was calculating into scratch is
                 saved for the first time.
+            writing (Optional[Callable[[str], None]]): Told each result's key before it is
+                written.
 
         Returns:
             int: How many results were copied.
@@ -718,6 +741,8 @@ class CalculatedData:
         for key in self._store.keys(self._owner):
             if store.has(self._owner, key):
                 continue
+            if writing is not None:
+                writing(key)
             entry = self._store.read(self._owner, key)
             store.write(self._owner, key, entry["data"], entry.get("metadata") or {})
             copied += 1
@@ -725,11 +750,14 @@ class CalculatedData:
             logger.info("Moved %s result(s) for '%s' out of scratch", copied, self._owner)
         return copied
 
-    def flush(self, store: Optional[ResultStore] = None) -> int:
+    def flush(self, store: Optional[ResultStore] = None,
+              writing: Optional[Callable[[str], None]] = None) -> int:
         """Write everything held but not yet stored.
 
         Args:
             store (Optional[ResultStore]): Where to write, if not already attached.
+            writing (Optional[Callable[[str], None]]): Told each result's key before it is
+                written.
 
         Returns:
             int: How many results were written.
@@ -739,6 +767,8 @@ class CalculatedData:
         if self._store is None:
             raise ValueError(f"no store to flush results of '{self._owner}' to")
         for key in sorted(self._unwritten):
+            if writing is not None:
+                writing(key)
             entry = self._resident[key]
             self._store.write(self._owner, key, entry["data"], entry.get("metadata") or {})
         written = len(self._unwritten)

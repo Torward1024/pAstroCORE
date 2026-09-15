@@ -249,3 +249,34 @@ def test_a_save_interrupted_part_way_leaves_the_last_save_openable(project, tmp_
     assert (root / ScheduleProject.MODEL_FILE).read_text(encoding="utf-8") == before
     assert ScheduleProject.open(str(root)).observations(), "the last save no longer opens"
     assert not list(root.glob("*.partial")), "a half-written model was left behind"
+
+
+# --- G9: a save says how far it has got -------------------------------------------------------------
+
+def test_a_save_reports_each_result_file_and_then_the_model(project, tmp_path):
+    """What a progress bar for saving is counted in: every result written, by observation code and
+    calculation, then the model, rising to 100. A save with nothing new writes the model alone,
+    and says only that."""
+    from pastrocore.super.schedule_manipulator import ScheduleManipulator
+
+    core = ScheduleManipulator(project)
+    project.hold_results_in_scratch()
+    observation = project.observations()[0]
+    core.compute(obj=observation, method="run", calculations=["uv_coverage"], time_step=600.0,
+                 recalculate=True)
+
+    seen = []
+    target = tmp_path / "saved"
+    core.save(obj=project, path=str(target), progress=lambda percent, message: seen.append((percent, message)))
+
+    files = sorted(target.rglob("*.parquet"))
+    writes = [message for _, message in seen if message.startswith("Writing ") and message != "Writing the model"]
+    assert len(writes) == len(files) > 0, "one step per result file written"
+    assert all(message.startswith(f"Writing {observation.get_observation_code()}: ") for message in writes)
+    assert [message for _, message in seen[-2:]] == ["Writing the model", "Saved"]
+    percents = [percent for percent, _ in seen]
+    assert percents == sorted(percents) and percents[0] == 0 and percents[-1] == 100
+
+    seen.clear()
+    core.save(obj=project, path=str(target), progress=lambda percent, message: seen.append((percent, message)))
+    assert seen == [(0, "Writing the model"), (100, "Saved")]
