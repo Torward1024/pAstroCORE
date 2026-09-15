@@ -1,5 +1,5 @@
 # unit_scheduling/super/schedule_project.py
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 from pastrocore.base.observation import Observation
 from pastrocore.base import freshness
 from pastrocore.base.result_store import (PARTIAL_SUFFIX, ResidencyBudget, ResultStore, json_safe,
@@ -269,11 +269,15 @@ class ScheduleProject(Project):
     RESULTS_DIRECTORY = "results"
     MODEL_FILE = "project.json"
 
-    def to_directory(self, path: str) -> None:
+    def to_directory(self, path: str,
+                     progress: Optional[Callable[[int, str], None]] = None) -> None:
         """Save the project as a directory: the model in one file, each result in its own.
 
         Args:
             path (str): The project directory. Created if it does not exist.
+            progress (Optional[Callable[[int, str], None]]): Called with a percentage and what
+                is being written -- each result file, then the model. The same shape a
+                calculation reports its progress in.
 
         Notes:
             - The model is small -- under 7 KB for a project whose single-file form was 230 --
@@ -288,16 +292,31 @@ class ScheduleProject(Project):
         (root / self.RESULTS_DIRECTORY).mkdir(parents=True, exist_ok=True)
 
         store = ResultStore(root / self.RESULTS_DIRECTORY)
+        report = progress or (lambda percent, message: None)
+        holding = [observation for observation in self._items.get_items()
+                   if hasattr(observation.calculated_data, "attach")]
+        # Counted before anything is written, in files: a result is what takes the time, and the
+        # model -- one small file -- is the last step.
+        steps = sum(len(observation.calculated_data.to_write(store)) for observation in holding) + 1
+        done = [0]
+
+        def writing(observation):
+            def one(key):
+                # By its code, which is what the user calls it; its name is an identifier.
+                report(int(100 * done[0] / steps),
+                       f"Writing {observation.get_observation_code()}: {key}")
+                done[0] += 1
+            return one
+
         written = 0
-        for observation in self._items.get_items():
+        for observation in holding:
             results = observation.calculated_data
-            if not hasattr(results, "attach"):
-                continue
             # Results calculated before the project had a directory are already on disk, in
             # this session's scratch. Saving moves them rather than asking for them again.
-            written += results.migrate_to(store)
+            written += results.migrate_to(store, writing=writing(observation))
             results.attach(store, observation.name, budget=self.residency_budget)
-            written += results.flush()
+            written += results.flush(writing=writing(observation))
+        report(int(100 * done[0] / steps), "Writing the model")
 
         model = {"name": self.name, "items": {}}
         if self.SCHEMA_VERSION != 1:
@@ -333,6 +352,7 @@ class ScheduleProject(Project):
         if dropped:
             logger.info("Dropped results for %s observation(s) no longer in the project", dropped)
 
+        report(100, "Saved")
         logger.info("Saved project '%s' to '%s': %s result(s) written", self.name, path, written)
 
     @classmethod
@@ -468,14 +488,16 @@ class ScheduleProject(Project):
             return cls.from_directory(str(candidate.parent))
         return cls.from_directory(str(candidate))
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, progress: Optional[Callable[[int, str], None]] = None) -> None:
         """Save the project as a directory.
 
         Args:
             path (str): The project directory. Created if it does not exist.
+            progress (Optional[Callable[[int, str], None]]): Told how far the save has got; see
+                `to_directory`.
         """
         check_non_empty_string(path, "Project path")
-        self.to_directory(str(Path(path)))
+        self.to_directory(str(Path(path)), progress=progress)
 
     def release(self) -> int:
         """Let go of everything this project holds, so it can be replaced.

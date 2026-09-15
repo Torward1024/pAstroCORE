@@ -745,6 +745,76 @@ def test_escape_on_a_progress_window_cancels_rather_than_hides(qt_application):
     window.deleteLater()
 
 
+def test_work_that_must_finish_has_no_cancel_and_escape_does_not_stop_it(qt_application):
+    """A save stopped half way leaves a directory half new, so its window offers no Cancel and
+    Escape is not one."""
+    from pastrocore.gui.p_dialog_progress import ProgressDialog
+
+    window = ProgressDialog(None, "Saving Project", cancellable=False)
+    asked = []
+    window.cancelRequested.connect(lambda: asked.append(1))
+    window.show()
+    assert not window.ui.pushButtonCancel.isVisible()
+
+    window.reject()
+    window.cancel()
+    assert window.isVisible() and asked == [], "work that must finish was asked to stop"
+    window.finish()
+    window.deleteLater()
+
+
+def test_run_with_progress_shows_a_window_only_for_work_that_takes_time(qt_application):
+    """A save of a project whose results are all on disk writes one small file; a window flashing
+    up for that is noise. Work still running after a moment gets one, and it moves."""
+    import time
+
+    from PySide6.QtWidgets import QApplication
+
+    from pastrocore.gui.p_dialog_progress import ProgressDialog, run_with_progress
+
+    shown, moved = [], []
+    original_exec = ProgressDialog.exec
+    original_update = ProgressDialog.update_progress
+
+    def exec_and_note(self):
+        shown.append(self.windowTitle())
+        return original_exec(self)
+
+    def update_and_note(self, value, message):
+        moved.append((value, message))
+        return original_update(self, value, message)
+
+    ProgressDialog.exec = exec_and_note
+    ProgressDialog.update_progress = update_and_note
+    try:
+        assert run_with_progress(None, "Quick", "", lambda progress: "done") == "done"
+        QApplication.processEvents()
+        assert shown == [], "a window was shown for work that took no time"
+
+        def slow(progress):
+            for step in range(5):
+                progress(step * 25, f"step {step}")
+                time.sleep(0.2)
+            return 42
+
+        assert run_with_progress(None, "Slow", "", slow, quiet_ms=100) == 42
+        assert shown == ["Slow"]
+        assert moved and moved[-1][1] == "step 4", "the window never heard how far the work got"
+    finally:
+        ProgressDialog.exec = original_exec
+        ProgressDialog.update_progress = original_update
+
+
+def test_run_with_progress_raises_what_the_work_raised(qt_application):
+    from pastrocore.gui.p_dialog_progress import run_with_progress
+
+    def failing(progress):
+        raise IOError("the disk is full")
+
+    with pytest.raises(IOError, match="the disk is full"):
+        run_with_progress(None, "Failing", "", failing)
+
+
 def test_a_calculation_is_cancelled_by_escape_on_its_progress_window(qt_application, project):
     """End to end in the dialog: the thread is told, not just the window."""
     from PySide6.QtCore import Qt

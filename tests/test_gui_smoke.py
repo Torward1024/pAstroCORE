@@ -205,6 +205,45 @@ def test_saving_from_the_window_writes_a_directory(tmp_path, monkeypatch, window
     assert (target / "results").is_dir()
 
 
+def test_the_window_keeps_answering_while_it_saves_and_save_returns_when_it_is_done(tmp_path, window):
+    """Saving ran on the window's thread behind a progress bar that was never painted: the window
+    stopped answering until the save finished. It runs in a thread now, and the window's event
+    loop goes on -- while `save_project` still returns only once the save is done, because
+    closing the application saves and then asks what is still unsaved."""
+    import time
+
+    from PySide6.QtCore import QTimer
+
+    target = tmp_path / "slow.pastro"
+    window.current_project_path = str(target)
+    real_save = window.manipulator.save
+    ticks, finished = [], []
+
+    def slow_save(**attributes):
+        progress = attributes.get("progress")
+        for step in range(6):
+            if progress:
+                progress(step * 20, f"step {step}")
+            time.sleep(0.15)
+        answer = real_save(**attributes)
+        finished.append(time.perf_counter())
+        return answer
+
+    window.manipulator.save = slow_save
+    timer = QTimer()
+    timer.timeout.connect(lambda: ticks.append(time.perf_counter()))
+    timer.start(50)
+    try:
+        window.save_project()
+    finally:
+        timer.stop()
+
+    assert finished, "save_project returned before the save was done"
+    assert (target / "project.json").is_file()
+    during = [tick for tick in ticks if tick < finished[0]]
+    assert len(during) >= 5, f"the window answered {len(during)} times in a save of about a second"
+
+
 def test_saving_into_a_folder_holding_something_else_asks_first(tmp_path, monkeypatch, window):
     """A directory chooser cannot warn about this, so the application has to.
 

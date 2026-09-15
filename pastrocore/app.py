@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
                                 QMainWindow, 
                                 QApplication,
                                 QFileDialog, QMessageBox,
-                                QTreeView, QTabBar, QProgressDialog, QMenu,
+                                QTreeView, QTabBar, QMenu,
                                 QDialog,
                                 QWidget
                                 )
@@ -851,23 +851,32 @@ class PAstroCoreMainWindow(QMainWindow):
 
     @Slot()
     def save_project(self):
-        """Save the current project."""
+        """Save the current project.
+
+        Notes:
+            - **Off the window's thread, and the progress is the save's own** (G9): each result
+              file as it is written, then the model. What was here was a progress bar made on
+              the window's thread and never moved -- the save ran on that thread, so nothing
+              was painted and the window stopped answering until it finished.
+            - No Cancel. The model is written last, over the old one in a single move; a save
+              stopped half way would leave the directory half new.
+        """
         if self.current_project_path:
-            progress = QProgressDialog("Saving project...", "Cancel", 0, 100, self)
-            progress.setWindowModality(Qt.WindowModal)
-            progress.setAutoClose(True)
-            progress.show()
+            from pastrocore.gui.p_dialog_progress import run_with_progress
+
+            path = self.current_project_path
             try:
                 # Saves a directory: the model in one small file and each result in its
                 # own parquet beside it. Through the orchestrator, like everything else the
                 # window wants of the model.
-                self.manipulator.save(obj=self.project, path=self.current_project_path)
-                logger.info("Project saved to '%s'", self.current_project_path)
+                run_with_progress(
+                    self, "Saving Project", f"Saving to {path}",
+                    lambda progress: self.manipulator.save(obj=self.project, path=path,
+                                                           progress=progress))
+                logger.info("Project saved to '%s'", path)
             except Exception as e:
                 logger.error("Failed to save project: %s", str(e))
                 QMessageBox.critical(self, "Error", f"Failed to save project: {str(e)}")
-            finally:
-                progress.close()
         else:
             self.save_project_as()
 

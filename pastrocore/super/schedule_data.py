@@ -194,7 +194,8 @@ class ScheduleData(Persistence, Loader):
 
         Args:
             obj (ScheduleProject): The project.
-            attributes: `path`, the project directory to write.
+            attributes: `path`, the project directory to write; `progress`, optionally, called
+                with a percentage and what is being written, as a calculation's is.
 
         Returns:
             Dict[str, Any]: `{"path": str}`.
@@ -209,7 +210,7 @@ class ScheduleData(Persistence, Loader):
               calculation and then saves nothing is a rehearsal, not a pipeline.
         """
         path = self._destination(attributes)
-        obj.save(path)
+        obj.save(path, progress=attributes.get("progress"))
         return {"path": path}
 
     def _load_scheduleproject(self, obj: Any, attributes: Dict[str, Any]) -> Dict[str, Any]:
