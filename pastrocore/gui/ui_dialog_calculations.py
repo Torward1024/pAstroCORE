@@ -31,8 +31,6 @@ class Ui_CalculationDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(CalculationDialog.sizePolicy().hasHeightForWidth())
         CalculationDialog.setSizePolicy(sizePolicy)
-        CalculationDialog.setMinimumSize(QSize(600, 450))
-        CalculationDialog.setMaximumSize(QSize(600, 450))
         icon = QIcon()
         icon.addFile(u":/icons/calculate.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         CalculationDialog.setWindowIcon(icon)

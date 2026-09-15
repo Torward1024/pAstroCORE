@@ -19,18 +19,6 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
-  <property name="minimumSize">
-   <size>
-    <width>440</width>
-    <height>500</height>
-   </size>
-  </property>
-  <property name="maximumSize">
-   <size>
-    <width>440</width>
-    <height>512</height>
-   </size>
-  </property>
   <property name="windowTitle">
    <string>Space Telescope Editor</string>
   </property>

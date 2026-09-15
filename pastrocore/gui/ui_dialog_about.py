@@ -16,8 +16,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QDialog, QFrame, QGridLayout,
-    QLabel, QPushButton, QSizePolicy, QSpacerItem,
-    QWidget)
+    QLabel, QLayout, QPushButton, QSizePolicy,
+    QSpacerItem, QWidget)
 from pastrocore.gui import rc_icons  # noqa: F401
 class Ui_AboutDialog(object):
     def setupUi(self, AboutDialog):
@@ -30,8 +30,6 @@ class Ui_AboutDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(AboutDialog.sizePolicy().hasHeightForWidth())
         AboutDialog.setSizePolicy(sizePolicy)
-        AboutDialog.setMinimumSize(QSize(300, 300))
-        AboutDialog.setMaximumSize(QSize(300, 300))
         icon = QIcon()
         icon.addFile(u":/icons/about_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         AboutDialog.setWindowIcon(icon)
@@ -39,6 +37,7 @@ class Ui_AboutDialog(object):
         AboutDialog.setModal(True)
         self.gridLayout_2 = QGridLayout(AboutDialog)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
+        self.gridLayout_2.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)
         self.labelTitle = QLabel(AboutDialog)
         self.labelTitle.setObjectName(u"labelTitle")
         font = QFont()
@@ -94,6 +93,7 @@ class Ui_AboutDialog(object):
 
         self.labelDescription = QLabel(AboutDialog)
         self.labelDescription.setObjectName(u"labelDescription")
+        self.labelDescription.setMinimumSize(QSize(260, 0))
         self.labelDescription.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.labelDescription.setWordWrap(True)
 

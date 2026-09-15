@@ -30,8 +30,6 @@ class Ui_CatalogDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(CatalogDialog.sizePolicy().hasHeightForWidth())
         CatalogDialog.setSizePolicy(sizePolicy)
-        CatalogDialog.setMinimumSize(QSize(740, 550))
-        CatalogDialog.setMaximumSize(QSize(740, 550))
         icon = QIcon()
         icon.addFile(u":/icons/catalog.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         CatalogDialog.setWindowIcon(icon)

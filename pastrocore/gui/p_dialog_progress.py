@@ -1,6 +1,6 @@
 # pastrocore/gui/p_dialog_progress.py
 """The progress of work running in a thread, and the one way to stop it."""
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import QDialog
 from msb_arch.utils.logging_setup import logger
 
@@ -19,6 +19,11 @@ class ProgressDialog(QDialog):
           reports back, through `finish`.
         - One class. Calculation, export and generation each had their own copy on the same form,
           and only one of the three turned the close button into a cancel.
+        - **A long message is shortened in the middle, not wrapped and not given more room.** The
+          window grew as wide as the longest step's name, and a wrapped message had its second
+          line cut off, because a window does not grow taller for text that wraps. What a step
+          is and how far along it is -- the start and the end of the message -- stay in view;
+          the whole of it is the tooltip, and the log.
     """
 
     cancelRequested = Signal()
@@ -28,16 +33,31 @@ class ProgressDialog(QDialog):
         self.ui = Ui_ProgressDialog()
         self.ui.setupUi(self)
         self.setWindowTitle(title)
+        self._message = ""
         if message:
-            self.ui.label.setText(message)
+            self._say(message)
         self.ui.pushButtonCancel.clicked.connect(self.cancel)
         self._cancelling = False
+
+    def _say(self, message: str) -> None:
+        """Show a message, shortened in the middle to the width there is."""
+        self._message = message
+        label = self.ui.label
+        label.setToolTip(message)
+        label.setText(label.fontMetrics().elidedText(message, Qt.TextElideMode.ElideMiddle,
+                                                     label.contentsRect().width()))
+
+    def resizeEvent(self, event) -> None:
+        """Shorten the message again for the new width."""
+        super().resizeEvent(event)
+        if self._message:
+            self._say(self._message)
 
     def update_progress(self, value: int, message: str) -> None:
         """Show how far the work has got."""
         self.ui.progressBar.setValue(value)
         if not self._cancelling:
-            self.ui.label.setText(message)
+            self._say(message)
         logger.debug("Progress: %s%% - %s", value, message)
 
     def cancel(self) -> None:
@@ -46,7 +66,7 @@ class ProgressDialog(QDialog):
             return
         self._cancelling = True
         self.ui.pushButtonCancel.setEnabled(False)
-        self.ui.label.setText("Cancelling after the step in progress...")
+        self._say("Cancelling after the step in progress...")
         logger.debug("Cancellation requested")
         self.cancelRequested.emit()
 

@@ -32,8 +32,6 @@ class Ui_SourceEditorDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(SourceEditorDialog.sizePolicy().hasHeightForWidth())
         SourceEditorDialog.setSizePolicy(sizePolicy)
-        SourceEditorDialog.setMinimumSize(QSize(460, 380))
-        SourceEditorDialog.setMaximumSize(QSize(460, 380))
         icon = QIcon()
         icon.addFile(u":/icons/edit_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         SourceEditorDialog.setWindowIcon(icon)

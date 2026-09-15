@@ -32,8 +32,6 @@ class Ui_TelescopeEditorDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(TelescopeEditorDialog.sizePolicy().hasHeightForWidth())
         TelescopeEditorDialog.setSizePolicy(sizePolicy)
-        TelescopeEditorDialog.setMinimumSize(QSize(460, 590))
-        TelescopeEditorDialog.setMaximumSize(QSize(460, 590))
         icon = QIcon()
         icon.addFile(u":/icons/edit_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         TelescopeEditorDialog.setWindowIcon(icon)

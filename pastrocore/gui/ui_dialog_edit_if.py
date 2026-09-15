@@ -31,8 +31,6 @@ class Ui_IFEditorDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(IFEditorDialog.sizePolicy().hasHeightForWidth())
         IFEditorDialog.setSizePolicy(sizePolicy)
-        IFEditorDialog.setMinimumSize(QSize(430, 296))
-        IFEditorDialog.setMaximumSize(QSize(430, 296))
         icon = QIcon()
         icon.addFile(u":/icons/edit_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         IFEditorDialog.setWindowIcon(icon)

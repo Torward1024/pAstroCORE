@@ -32,8 +32,6 @@ class Ui_SpaceTelescopeEditorDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(SpaceTelescopeEditorDialog.sizePolicy().hasHeightForWidth())
         SpaceTelescopeEditorDialog.setSizePolicy(sizePolicy)
-        SpaceTelescopeEditorDialog.setMinimumSize(QSize(440, 500))
-        SpaceTelescopeEditorDialog.setMaximumSize(QSize(440, 512))
         icon = QIcon()
         icon.addFile(u":/icons/edit_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         SpaceTelescopeEditorDialog.setWindowIcon(icon)

@@ -31,8 +31,6 @@ class Ui_ExportCalculatedDataDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(ExportCalculatedDataDialog.sizePolicy().hasHeightForWidth())
         ExportCalculatedDataDialog.setSizePolicy(sizePolicy)
-        ExportCalculatedDataDialog.setMinimumSize(QSize(600, 450))
-        ExportCalculatedDataDialog.setMaximumSize(QSize(600, 450))
         icon = QIcon()
         icon.addFile(u":/icons/export_icon.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         ExportCalculatedDataDialog.setWindowIcon(icon)
