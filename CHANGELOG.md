@@ -8,6 +8,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.9.3] - 2026-09-15
+
+### Fixed
+
+- **A redraw emptied nothing, on every plot.** A visualization tab owns one figure and hands it to
+  the visualizer with each request; the visualizer drew into it without clearing it, so each redraw
+  added its axes, tick labels, titles and legend on top of the last. With the same selection the
+  new drawing lay exactly over the old; untick a station and the pile showed. A borrowed figure is
+  now cleared before any plot draws, and its margins go back to the defaults.
+- **Az/El with many stations.** Each station's name was its panel's title and sat on the plot above;
+  fixed margins left a third of the figure empty. The name is inside its panel now and the panels
+  use the figure. Besides: only ten stations were drawn however many were ticked; every time tick
+  read the same whole MJD (here and on the sun angle, baseline projection and parallactic angle
+  plots); and lines crossed the whole panel where azimuth wraps from 360 to 0, and ran flat across
+  hours when the source was below the horizon. Both break now.
+- **`invalid value encountered in arcsin` from the Mollweide plot**, when the cursor left the sky --
+  reaching for the zoom button, for instance. matplotlib asks where the cursor is in longitude and
+  latitude as it leaves the axes, and its inverse Mollweide answers for points outside the ellipse:
+  `arcsin` of more than one above it, a longitude of twenty radians in the corners beside it. The
+  tracks are drawn on `SkyMollweideAxes`, whose inverse answers NaN off the sky and matplotlib's own
+  value on it.
+
+### Added
+
+- Every plot type is drawn twice into one figure and required to hold what it held after the
+  first time; unticking Az/El stations leaves only their panels; the cursor leaving the Mollweide
+  ellipse raises no warning. Each fails without its fix.
+
 ## [1.9.2] - 2026-09-15
 
 ### Fixed

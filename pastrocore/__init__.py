@@ -1,3 +1,3 @@
 """pAstroCORE -- scheduling for radio-astronomical observations."""
 
-__version__ = "1.9.2"
+__version__ = "1.9.3"
