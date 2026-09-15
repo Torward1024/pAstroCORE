@@ -8,6 +8,53 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Dates are
 What is planned, and what was measured on the way to deciding it, is in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [1.9.0] - 2026-09-15
+
+A fourth audit, run against real schedule files and at the size of a real schedule rather than
+against the fixture -- one scan, two stations that do not move, no source near the equator. That is
+where everything below was hiding.
+
+### Fixed
+
+- **A station with a velocity was placed thousands of kilometres from where it is.** A ground
+  station's velocity is metres per year -- VEX `site_velocity`, CFX `TLSC_PAR`, the editor -- and the
+  position multiplied it by seconds since J2000. Read from a RadioAstron schedule, Westerbork, Svetloe
+  and Badary were placed 9 530, 9 630 and 11 067 km away, inside the Earth, and every visibility, uv
+  point, elevation and projection for them was for nowhere. **Recalculate any project whose stations
+  came from a VEX or CFX file.** The displacement is in Julian years now, with J2000 as the epoch.
+
+- **A source between -1 and 0 degrees was written north of the equator.** Its sign lives in -0.0,
+  and three places read that as positive: the VEX writer (`+00d30'` for -0°30', up to two degrees
+  from where it is, in a file meant for a correlator), the catalogue's table, and the source editor,
+  which moved such a source across the equator whenever it was saved. The editor has a sign field.
+
+- **Editors rounded what they had not been asked to change.** Saving a source rounded its seconds to
+  three places, 7.5 milliarcseconds; saving a telescope rounded its velocity to centimetres a year
+  (-0.01353 to -0.01) and its position to centimetres; Keplerian elements to three and two places.
+  Each field now holds the precision the formats write.
+
+- **The edges of a position.** 360 degrees of right ascension carried to 24 hours, which the model
+  refuses, so such a source could not be read. Seconds were bounded at 59.999 and refused 59.9995
+  from a catalogue or a VEX file. Seconds rounded on their own wrote 59.99999999 as `60`. The model
+  now splits a position with the carry, and the writer and the table ask it.
+
+- **Linear feeds were dropped without a word.** VEX and CFX files with `X` and `Y` came in with no
+  polarization at all.
+
+### Added
+
+- **X and Y polarizations**, a group of their own -- not H and V, since a feed's orientation is the
+  station's. A letter neither reader knows is named in what was passed over.
+- A physics test for a moving station, held to astropy within a centimetre.
+
+### Changed
+
+- **A calculation grows with the schedule instead of with its overheads.** Ten stations over fifty
+  scans took 16.8 s with five thousand samples in it, because every step worked one scan and one
+  station at a time and each astropy transform and polars join has a fixed cost. The topocentric
+  transform and the rotation to GCRS are now done once for the whole observation, and matching a
+  frame to a time grid is done in numpy. Fifty scans: 6.7 s; two hundred: 24.5 s -- linear.
+
 ## [1.8.1] - 2026-09-15
 
 ### Fixed
