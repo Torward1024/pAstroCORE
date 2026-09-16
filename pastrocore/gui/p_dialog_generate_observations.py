@@ -112,6 +112,7 @@ class GenerateObservationsDialog(QDialog):
         self.update_frequency_list()
         self.update_source_list()
         self.update_telescope_list()
+        self.load_presets()
 
     def setup_connections(self):
         """Connect UI signals to slots."""
@@ -127,9 +128,9 @@ class GenerateObservationsDialog(QDialog):
         self.ui.telescopeList.customContextMenuRequested.connect(self.show_telescope_context_menu)
         self.ui.frequencyList.customContextMenuRequested.connect(self.show_frequency_context_menu)
         self.ui.generateButton.clicked.connect(self.generate)
-        self.ui.presetCombo.currentIndexChanged.connect(self.load_preset)
-        self.ui.savePresetButton.clicked.connect(self.save_preset)
-        self.ui.loadPresetButton.clicked.connect(self.load_preset_from_file)
+        self.ui.presetCombo.currentIndexChanged.connect(self.apply_preset)
+        self.ui.savePresetButton.clicked.connect(self.save_plan)
+        self.ui.loadPresetButton.clicked.connect(self.load_plan)
 
         self.ui.startTimeEdit.dateTimeChanged.connect(self.update_end_time)
         self.ui.scanDurationSpinBox.valueChanged.connect(self.update_end_time)
@@ -210,10 +211,12 @@ class GenerateObservationsDialog(QDialog):
             dialog = IFEditorDialog(if_obj=if_obj, parent=self)
             if dialog.exec() == QDialog.Accepted:
                 try:
-                    if_data = dialog.get_if_data()
-                    if_obj.set(if_data)
+                    # The editor writes what is on screen into the band and hands it back; there
+                    # was a `get_if_data` here, which it has never had, so editing a band in the
+                    # generator has always ended in an error box.
+                    edited = dialog.get_if_object()
                     self.update_frequency_list()
-                    logger.info("Edited frequency '%s'", if_obj.name)
+                    logger.info("Edited frequency '%s'", edited.name)
                 except Exception as e:
                     logger.error("Failed to edit frequency: %s", str(e))
                     QMessageBox.critical(self, "Error", f"Failed to edit frequency: {str(e)}")
@@ -416,124 +419,36 @@ class GenerateObservationsDialog(QDialog):
             logger.info("Removed telescope '%s' from telescopes collection", name)
 
     @Slot()
-    def save_preset(self):
-        """Save current settings as a preset to a file."""
-        file_name, _ = QFileDialog.getSaveFileName(self, "Save Preset", "", "JSON Files (*.json)")
-        if file_name:
-            try:
-                preset_data = {
-                    "observation_type": self.ui.observationTypeCombo.currentText(),
-                    "start_time": self.ui.startTimeEdit.dateTime().toString("yyyy-MM-dd HH:mm:ss"),
-                    "end_time": self.ui.endTimeEdit.dateTime().toString("yyyy-MM-dd HH:mm:ss"),
-                    "scan_duration": self.ui.scanDurationSpinBox.value(),
-                    "num_scans": self.ui.numScansSpinBox.value(),
-                    "naming_mask": self.ui.namingMaskEdit.text(),
-                    "add_off_source": self.ui.addOffSourceCheck.isChecked(),
-                    "interval_min": self.ui.intervalSpinBox.value(),
-                    "parallel": self.ui.chkParallel.isChecked()
-                }
-                with open(file_name, 'w') as f:
-                    json.dump(preset_data, f)
-                logger.info("Saved preset to %s", file_name)
-            except Exception as e:
-                logger.error("Failed to save preset: %s", str(e))
-                QMessageBox.critical(self, "Error", f"Failed to save preset: {str(e)}")
-
-    @Slot()
-    def load_preset_from_file(self):
-        """Load preset from a file."""
-        file_name, _ = QFileDialog.getOpenFileName(self, "Load Preset", "", "JSON Files (*.json)")
-        if file_name:
-            try:
-                with open(file_name, 'r') as f:
-                    preset_data = json.load(f)
-                self.ui.observationTypeCombo.setCurrentText(preset_data.get("observation_type", "VLBI"))
-                self.ui.startTimeEdit.setDateTime(QDateTime.fromString(preset_data.get("start_time", datetime.now().strftime("yyyy-MM-dd HH:mm:ss")), "yyyy-MM-dd HH:mm:ss"))
-                self.ui.endTimeEdit.setDateTime(QDateTime.fromString(preset_data.get("end_time", (datetime.now() + timedelta(hours=24)).strftime("yyyy-MM-dd HH:mm:ss")), "yyyy-MM-dd HH:mm:ss"))
-                self.ui.scanDurationSpinBox.setValue(preset_data.get("scan_duration", 300))
-                self.ui.numScansSpinBox.setValue(preset_data.get("num_scans", 5))
-                self.ui.namingMaskEdit.setText(preset_data.get("naming_mask", "Observation_{i}_{s}_{dt}"))
-                self.ui.addOffSourceCheck.setChecked(preset_data.get("add_off_source", False))
-                self.ui.intervalSpinBox.setValue(preset_data.get("interval_min", 5))
-                self.ui.chkParallel.setChecked(preset_data.get("parallel", True))
-                logger.info("Loaded preset from %s", file_name)
-            except Exception as e:
-                logger.error("Failed to load preset: %s", str(e))
-                QMessageBox.critical(self, "Error", f"Failed to load preset: {str(e)}")
-
-    @Slot(int)
-    def load_preset(self, index: int):
-        """Load a predefined preset based on combo box selection."""
-        preset = self.ui.presetCombo.currentText()
-        if preset == "Standard VLBI":
-            self.ui.observationTypeCombo.setCurrentText("VLBI")
-            self.ui.scanDurationSpinBox.setValue(300)
-            self.ui.numScansSpinBox.setValue(10)
-            self.ui.addOffSourceCheck.setChecked(False)
-            self.ui.intervalSpinBox.setValue(5)
-            self.ui.chkParallel.setChecked(True)
-        elif preset == "Quick Single Dish":
-            self.ui.observationTypeCombo.setCurrentText("SINGLE_DISH")
-            self.ui.scanDurationSpinBox.setValue(60)
-            self.ui.numScansSpinBox.setValue(5)
-            self.ui.addOffSourceCheck.setChecked(True)
-            self.ui.intervalSpinBox.setValue(1)
-            self.ui.chkParallel.setChecked(False)
-        logger.info("Loaded preset '%s'", preset)
-
-    @Slot()
     def generate(self):
-        """Generate observations based on user inputs and start the generation thread."""
+        """Generate the observations the plan describes, in a thread.
+
+        Notes:
+            - **The request is the plan.** What was here built the generator's attributes by hand
+              from the widgets, one of which -- the end time -- the dialog had worked out with its
+              own copy of the generator's arithmetic.
+        """
         try:
-            source_items = [item.data(Qt.UserRole) for item in self.ui.sourceList.selectedItems()]
-            telescope_items = [item.data(Qt.UserRole) for item in self.ui.telescopeList.selectedItems()]
-            frequency_items = [item.data(Qt.UserRole) for item in self.ui.frequencyList.selectedItems()]
-            observation_type = self.ui.observationTypeCombo.currentText()
-            start_time = self.ui.startTimeEdit.dateTime().toPython()
-            end_time = self.ui.endTimeEdit.dateTime().toPython()
-            scan_duration = self.ui.scanDurationSpinBox.value()
-            num_scans = self.ui.numScansSpinBox.value()
-            naming_mask = self.ui.namingMaskEdit.text()
-
-            sources = Sources(items={s.name: s for s in source_items})
-            telescopes = Telescopes(items={t.name: t for t in telescope_items})
-            frequencies = Frequencies(items={f.name: f for f in frequency_items})
-
-            if not sources.get_all():
+            plan = self.plan()
+            if not plan["sources"].get_all():
                 raise ValueError("No sources selected")
-            if not telescopes.get_all():
+            if not plan["telescopes"].get_all():
                 raise ValueError("No telescopes selected")
-            if not frequencies.get_all():
+            if not plan["frequencies"].get_all():
                 raise ValueError("No frequencies added")
-            if start_time >= end_time:
-                raise ValueError("Start time must be before end time")
-            if scan_duration <= 0:
+            if plan["scan_duration"] <= 0:
                 raise ValueError("Scan duration must be positive")
-            if num_scans <= 0:
+            if plan["num_scans"] <= 0:
                 raise ValueError("Number of scans must be positive")
-            if not naming_mask:
+            if not plan["naming_mask"]:
                 raise ValueError("Naming mask cannot be empty")
+            if not self.span().get("total"):
+                raise ValueError("The pattern takes no time at all")
 
-            logger.debug("Generating with: sources=%s (%s), telescopes=%s (%s, Types: %s), frequencies=%s (%s)", len(source_items), [s.name for s in source_items], len(telescope_items), [t.name for t in telescope_items], [type(t).__name__ for t in telescope_items], len(frequency_items), [f.name for f in frequency_items])
+            logger.debug("Generating: %s source(s), %s station(s), %s band(s), %s s in all",
+                         len(plan["sources"].get_all()), len(plan["telescopes"].get_all()),
+                         len(plan["frequencies"].get_all()), self.span().get("total"))
 
-            pattern_attributes = {
-                "add_off_source": self.ui.addOffSourceCheck.isChecked(),
-                "interval_sec": self.ui.intervalSpinBox.value(),
-                "naming_mask": naming_mask
-            }
-
-            attributes = {
-                "sources": sources,
-                "telescopes": telescopes,
-                "frequencies": frequencies,
-                "observation_type": observation_type,
-                "time_range": {"start": start_time, "end": end_time},
-                "scan_duration": scan_duration,
-                "num_scans": num_scans,
-                "pattern": pattern_attributes,
-                "cancelled": False,
-                "parallel": self.ui.chkParallel.isChecked()
-            }
+            attributes = {"plan": plan, "cancelled": False}
 
             self.worker = GenerationThread(self.manipulator, self.project, attributes)
             self.progress_dialog = ProgressDialog(self, "Generating Observations",
@@ -583,32 +498,153 @@ class GenerateObservationsDialog(QDialog):
         QMessageBox.critical(self, "Error", f"Generation failed: {error}")
         self.reject()
 
-    def update_end_time(self):
-        """Update end time based on current parameters."""
-        start_qdt = self.ui.startTimeEdit.dateTime()
-        scan_duration = self.ui.scanDurationSpinBox.value()
-        num_scans = self.ui.numScansSpinBox.value()
-        gap = self.ui.intervalSpinBox.value()
-        is_parallel = self.ui.chkParallel.isChecked()
-        num_sources = len(self.ui.sourceList.selectedItems()) if not is_parallel else 1
+    # --- the dialog as a plan (O1) -----------------------------------------------------------
 
-        if num_scans <= 0 or scan_duration <= 0 or gap < 0 or num_sources <= 0:
-            logger.debug("Invalid parameters for end time update, skipping")
+    def plan(self) -> dict:
+        """What the dialog is describing: what is selected, and the pattern the fields set.
+
+        Returns:
+            dict: The plan as a request carries it -- plain fields, and the collections themselves.
+
+        Notes:
+            - **One thing to send, and the backend answers everything about it.** How long the
+              pattern takes, what a preset is and what a saved plan holds were worked out here
+              before, in parallel with the generator's own arithmetic. Nothing here converts a
+              model object: what crosses is a request.
+        """
+        def chosen(widget, kind):
+            picked = [item.data(Qt.UserRole) for item in widget.selectedItems()]
+            return kind(items={item.name: item for item in picked})
+
+        return {
+            "observation_type": self.ui.observationTypeCombo.currentText(),
+            "start": self.ui.startTimeEdit.dateTime().toPython(),
+            "scan_duration": self.ui.scanDurationSpinBox.value(),
+            "num_scans": self.ui.numScansSpinBox.value(),
+            "interval_sec": self.ui.intervalSpinBox.value(),
+            "add_off_source": self.ui.addOffSourceCheck.isChecked(),
+            "parallel": self.ui.chkParallel.isChecked(),
+            "naming_mask": self.ui.namingMaskEdit.text(),
+            "sources": chosen(self.ui.sourceList, Sources),
+            "telescopes": chosen(self.ui.telescopeList, Telescopes),
+            "frequencies": chosen(self.ui.frequencyList, Frequencies),
+        }
+
+    def show_plan(self, plan: dict, with_collections: bool = False):
+        """Put a plan into the dialog.
+
+        Args:
+            plan (dict): A plan's fields, as a preset offers them or as reading one gives them back.
+            with_collections (bool): Also show the plan's sources, stations and bands, selected. A
+                preset carries none and leaves the selection alone; a plan read from a file carries
+                all three, which is the whole point of saving one.
+        """
+        if plan.get("observation_type"):
+            self.ui.observationTypeCombo.setCurrentText(plan["observation_type"])
+        if plan.get("start"):
+            self.ui.startTimeEdit.setDateTime(QDateTime(plan["start"]))
+        for widget, value in ((self.ui.scanDurationSpinBox, plan.get("scan_duration")),
+                              (self.ui.numScansSpinBox, plan.get("num_scans")),
+                              (self.ui.intervalSpinBox, plan.get("interval_sec"))):
+            if value is None:
+                continue
+            widget.blockSignals(True)
+            widget.setValue(value)
+            widget.blockSignals(False)
+        self.ui.addOffSourceCheck.setChecked(bool(plan.get("add_off_source")))
+        self.ui.chkParallel.setChecked(bool(plan.get("parallel")))
+        if plan.get("naming_mask"):
+            self.ui.namingMaskEdit.setText(plan["naming_mask"])
+
+        if with_collections:
+            for collection, order, refresh, widget in (
+                    ("sources", "_source_order", self.update_source_list, self.ui.sourceList),
+                    ("telescopes", "_telescope_order", self.update_telescope_list,
+                     self.ui.telescopeList),
+                    ("frequencies", "_frequency_order", self.update_frequency_list,
+                     self.ui.frequencyList)):
+                held = plan.get(collection)
+                if held is None:
+                    continue
+                setattr(self, collection, held)
+                setattr(self, order, list(held.get_all().keys()))
+                refresh()
+                widget.selectAll()
+
+        self.update_end_time()
+
+    @Slot()
+    def load_presets(self):
+        """Fill the preset list from the backend, because the interface lists nothing itself."""
+        self.ui.presetCombo.blockSignals(True)
+        self.ui.presetCombo.clear()
+        self.ui.presetCombo.addItem("Preset...", None)
+        for preset in (self.manipulator.inspect(obj=self.project, get_generation_presets=None) or []):
+            self.ui.presetCombo.addItem(preset["name"], preset["plan"])
+        self.ui.presetCombo.blockSignals(False)
+
+    @Slot(int)
+    def apply_preset(self, index: int):
+        """Take the pattern of the chosen preset, and leave the selection as it is."""
+        held = self.ui.presetCombo.itemData(index)
+        if not held:
             return
+        self.show_plan(held)
+        logger.info("Applied the '%s' preset", self.ui.presetCombo.itemText(index))
 
-        add_off_source = self.ui.addOffSourceCheck.isChecked()
-        multiplier = 2 if add_off_source else 1
-        scans_block = (scan_duration * multiplier + gap) * num_scans - gap
-        total_seconds = round(scans_block if is_parallel else scans_block * num_sources)
-        end_qdt = start_qdt.addSecs(int(total_seconds))
+    @Slot()
+    def save_plan(self):
+        """Write the whole plan -- pattern, times, and what it is for -- to a file."""
+        path, _ = QFileDialog.getSaveFileName(self, "Save Generation Plan", "",
+                                              "Generation plan (*.json)")
+        if not path:
+            return
+        answer = self.manipulator.export(obj=self.project, method="generation_plan", path=path,
+                                         plan=self.plan(), raise_on_error=False)
+        if not answer.ok:
+            logger.error("Failed to save the generation plan: %s", answer.error)
+            QMessageBox.critical(self, "Error", f"Could not save the plan: {answer.error}")
+            return
+        logger.info("Saved the generation plan to '%s'", path)
+
+    @Slot()
+    def load_plan(self):
+        """Read a plan back into the dialog, collections and all."""
+        path, _ = QFileDialog.getOpenFileName(self, "Load Generation Plan", "",
+                                              "Generation plan (*.json)")
+        if not path:
+            return
+        answer = self.manipulator.load(obj=self.project, method="generation_plan", path=path,
+                                       raise_on_error=False)
+        if not answer.ok:
+            logger.error("Failed to read the generation plan: %s", answer.error)
+            QMessageBox.critical(self, "Error", f"Could not read the plan: {answer.error}")
+            return
+        self.show_plan(answer.value or {}, with_collections=True)
+        logger.info("Loaded the generation plan from '%s'", path)
+
+    # --- how long it takes, which is the backend's arithmetic ---------------------------------
+
+    def span(self) -> dict:
+        """How long what the dialog shows would take, asked of the backend."""
+        return self.manipulator.inspect(obj=self.project,
+                                        get_generation_span={"plan": self.plan()}) or {}
+
+    @Slot()
+    def update_end_time(self):
+        """Show when the plan would end, as the backend works it out."""
+        span = self.span()
+        if not span.get("end"):
+            logger.debug("No end time for this plan yet")
+            return
         self.ui.endTimeEdit.blockSignals(True)
-        self.ui.endTimeEdit.setDateTime(end_qdt)
+        self.ui.endTimeEdit.setDateTime(QDateTime.fromString(span["end"], "yyyy-MM-dd HH:mm:ss"))
         self.ui.endTimeEdit.blockSignals(False)
-        logger.debug("Updated end time: parallel=%s, num_sources=%s, add_off=%s, total_seconds=%s, end=%s", is_parallel, num_sources, add_off_source, total_seconds, end_qdt.toString(Qt.ISODate))
-    
+        logger.debug("The plan takes %s s and ends at %s", span.get("total"), span["end"])
+
     @Slot()
     def update_scan_duration_from_end(self):
-        """Update scan duration to fit the end time based on other parameters."""
+        """An end time typed in is a scan duration: ask which one fits."""
         start_qdt = self.ui.startTimeEdit.dateTime()
         end_qdt = self.ui.endTimeEdit.dateTime()
         if end_qdt <= start_qdt:
@@ -616,32 +652,16 @@ class GenerateObservationsDialog(QDialog):
             self.update_end_time()
             return
 
-        total_seconds = start_qdt.secsTo(end_qdt)
-        num_scans = self.ui.numScansSpinBox.value()
-        gap = self.ui.intervalSpinBox.value()
-        is_parallel = self.ui.chkParallel.isChecked()
-        add_off_source = self.ui.addOffSourceCheck.isChecked()
-        multiplier = 2 if add_off_source else 1
-        num_sources = len(self.ui.sourceList.selectedItems()) if not is_parallel else 1  # Factor for sequential
-
-        if num_scans <= 0 or gap < 0 or num_sources <= 0:
-            logger.debug("Invalid parameters for duration update, skipping")
-            return
-
-        gap_total = gap * (num_scans - 1) * num_sources if not is_parallel else gap * (num_scans - 1)
-        remaining_seconds = total_seconds - gap_total
-        if remaining_seconds <= 0:
-            QMessageBox.warning(self, "Invalid Duration", "Total time too short for gaps.")
-            self.update_end_time()
-            return
-
-        new_duration = remaining_seconds / (multiplier * num_scans * num_sources if not is_parallel else multiplier * num_scans)
-        if new_duration <= 0:
-            QMessageBox.warning(self, "Invalid Duration", "Calculated duration not positive.")
+        duration = self.manipulator.inspect(
+            obj=self.project,
+            get_generation_scan_duration={"plan": self.plan(),
+                                          "seconds": start_qdt.secsTo(end_qdt)})
+        if not duration:
+            QMessageBox.warning(self, "Invalid Duration",
+                                "That is not long enough for the scans and the gaps between them.")
             self.update_end_time()
             return
 
         self.ui.scanDurationSpinBox.blockSignals(True)
-        self.ui.scanDurationSpinBox.setValue(new_duration)
+        self.ui.scanDurationSpinBox.setValue(duration)
         self.ui.scanDurationSpinBox.blockSignals(False)
-        logger.debug("Updated scan duration from end: new_duration=%s, total_seconds=%s, multiplier=%s, num_sources=%s", new_duration, total_seconds, multiplier, num_sources)
