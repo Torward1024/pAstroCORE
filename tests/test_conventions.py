@@ -890,7 +890,20 @@ def test_the_interface_never_asks_for_a_method_the_model_does_not_have():
     import ast
     import logging
 
+    # Quiet while the registry is built, and **put back afterwards**: `logging.disable` is
+    # process-wide and was left on, so every test that ran after this one in the same process had
+    # its logging silenced -- found when the status bar, which shows what the log says, went blank
+    # in a whole run and worked alone.
     logging.disable(logging.INFO)
+    try:
+        return _asks_for_no_method_the_model_lacks()
+    finally:
+        logging.disable(logging.NOTSET)
+
+
+def _asks_for_no_method_the_model_lacks():
+    import ast
+
     from pastrocore.super.schedule_manipulator import ScheduleManipulator
 
     core = ScheduleManipulator()
