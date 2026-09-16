@@ -36,6 +36,8 @@ from typing import Any, Callable, Dict, Iterator, List, Optional
 import polars as pl
 from msb_arch.utils.logging_setup import logger
 
+from pastrocore.utils.machine import available_memory
+
 __all__ = ["CalculatedData", "ResultStore"]
 
 METADATA_SUFFIX = ".meta.json"
@@ -400,7 +402,7 @@ class ResidencyBudget:
         """The current ceiling in bytes, re-read each time so it follows the machine."""
         if self._explicit_limit is not None:
             return self._explicit_limit
-        return int(_available_memory() * self.share)
+        return int(available_memory() * self.share)
 
     @property
     def held(self) -> int:
@@ -466,23 +468,6 @@ class ResidencyBudget:
             logger.debug("Residency budget released %s result(s); %.1f MB of %.1f MB in hand",
                          released, self.held / 1e6, limit / 1e6)
         return released
-
-
-def _available_memory() -> int:
-    """Bytes of memory currently available, or a conservative guess if it cannot be asked.
-
-    Notes:
-        - psutil is the only way to ask portably. It is a declared dependency, but a guess
-          beats an import error if a stripped environment lacks it, because the budget is a
-          convenience and refusing to run would not be.
-    """
-    try:
-        import psutil
-
-        return int(psutil.virtual_memory().available)
-    except Exception:
-        logger.debug("Cannot read available memory; assuming 2 GB for the residency budget")
-        return 2 * 1024 ** 3
 
 
 class CalculatedData:

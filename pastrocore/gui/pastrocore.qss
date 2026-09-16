@@ -384,6 +384,60 @@ QListWidget {
     border: 1px solid #d3d3d3; background-color: #ffffff;
 }
 
+/* The status bar (G13): the last log line on the left, what the process holds on the right.
+ * Which colour a message gets is the level's business, and the level arrives as a property on the
+ * label, so the colours are here rather than in a `setStyleSheet` call. */
+QLabel#statusMessage {
+    color: #333333;
+    padding-left: 4px;
+}
+
+QLabel#statusMessage[level="warning"] {
+    color: #b26a00;
+}
+
+QLabel#statusMessage[level="error"] {
+    color: #c62828;
+}
+
+QLabel#statusMemory {
+    color: #555555;
+    padding-right: 4px;
+}
+
+/* QToolBar: the same white as the menu bar, with a line under it so the window has a top edge.
+ * The buttons are flat until the cursor is on one, which is what makes a row of icons read as a
+ * toolbar rather than as a row of buttons. */
+QToolBar {
+    background-color: #ffffff;
+    border: none;
+    border-bottom: 1px solid #d3d3d3;
+    padding: 2px 4px;
+    spacing: 2px;
+}
+
+QToolBar::separator {
+    background-color: #d3d3d3;
+    width: 1px;
+    margin: 4px 6px;
+}
+
+QToolButton {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 3px;
+}
+
+QToolButton:hover {
+    background-color: #e5f1fb;
+    border-color: #0078d7;
+}
+
+QToolButton:pressed {
+    background-color: #cce4f7;
+}
+
 /* QMenuBar: 1 of 1 carried this */
 QMenuBar {
     background-color: #ffffff;
